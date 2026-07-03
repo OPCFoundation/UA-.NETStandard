@@ -92,7 +92,7 @@ To keep a bulk connect from bursting, a client-wide **connect admission gate** r
 
 ## Planned follow-ups
 
-- **Structured retry-after in the transport header**: carry the server's retry-after hint in a transport response header so a cooperating client honors it precisely without requiring diagnostics. Today the server encodes a best-effort machine-readable `RetryAfterMs=N` token in the `BadServerTooBusy` fault's `AdditionalInfo` (and in the human-readable message), which only reaches the client when it requests diagnostics; `IReconnectPolicy.TryGetNextDelay` already honors a retry-after value when one is supplied.
+- **Structured retry-after signaling**: keep the current best-effort machine-readable `RetryAfterMs=N` token in the `BadServerTooBusy` fault's `AdditionalInfo` as a compatibility hint, but prefer diagnostics-independent successors such as `ResponseHeader.additionalHeader`, HTTP `Retry-After`, UA-TCP ERR, and `Server.ServiceLevel`; see [Retry-after signaling for OPC UA backpressure](RetryAfterSignaling.md) and the [RetryAfter specification proposal](proposals/RetryAfter.md). `IReconnectPolicy.TryGetNextDelay` already honors a retry-after value when one is supplied.
 
 ## See also
 

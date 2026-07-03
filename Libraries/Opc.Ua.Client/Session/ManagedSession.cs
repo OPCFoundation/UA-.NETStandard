@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Client
                 m_logger.LogError(
                     ex,
                     "ManagedSession: Connect failed.");
-                return new ServiceResult(ex);
+                return ToAttemptFailure(ex);
             }
         }
 
@@ -1133,7 +1133,7 @@ namespace Opc.Ua.Client
                 m_logger.LogWarning(
                     ex,
                     "ManagedSession: Reconnect attempt failed.");
-                return new ServiceResult(ex);
+                return ToAttemptFailure(ex);
             }
         }
 
@@ -1153,6 +1153,35 @@ namespace Opc.Ua.Client
                 statusCode == StatusCodes.BadSessionNotActivated ||
                 statusCode == StatusCodes.BadSecureChannelIdInvalid ||
                 statusCode == StatusCodes.BadIdentityTokenInvalid;
+        }
+
+        /// <summary>
+        /// Builds the <see cref="ServiceResult"/> reported to the connection state
+        /// machine for a failed connect, reconnect, or failover attempt.
+        /// </summary>
+        /// <remarks>
+        /// For a <see cref="ServiceResultException"/> the inner
+        /// <see cref="ServiceResultException.Result"/> is preserved so a
+        /// server-provided retry-after hint (carried in
+        /// <see cref="ServiceResult.AdditionalInfo"/> or the localized message)
+        /// survives to the adaptive reconnect policy. <c>new ServiceResult(ex)</c>
+        /// would otherwise overwrite <see cref="ServiceResult.AdditionalInfo"/> with
+        /// the exception message and drop the hint.
+        /// </remarks>
+        /// <param name="ex">
+        /// The exception that caused the attempt to fail.
+        /// </param>
+        /// <returns>
+        /// The result forwarded to the connection state machine.
+        /// </returns>
+        private static ServiceResult ToAttemptFailure(Exception ex)
+        {
+            if (ex is ServiceResultException sre)
+            {
+                return sre.Result;
+            }
+
+            return new ServiceResult(ex);
         }
 
         private async Task<ServiceResult> HandleFailoverAsync(
@@ -1220,7 +1249,7 @@ namespace Opc.Ua.Client
                 m_logger.LogError(
                     ex,
                     "ManagedSession: Failover failed.");
-                return new ServiceResult(ex);
+                return ToAttemptFailure(ex);
             }
         }
 
