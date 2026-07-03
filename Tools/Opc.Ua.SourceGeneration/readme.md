@@ -29,13 +29,41 @@ You can do this by adding an `ItemGroup` to your project file that specifies the
 
 ```xml
 <ItemGroup>
-  <AdditionaFiles Include="Path\To\lYour\ModelFile.xml" />
+  <AdditionalFiles Include="Path\To\Your\ModelFile.xml" />
 </ItemGroup>
 ```
 
 The file to include must be part of your project and have its `Build Action` set to `AdditionalFiles`.
 When you build your project, the source generator will process the specified model files and generate
 the corresponding C# classes and structures.  
+
+Both `ModelDesign` and `NodeSet2` XML files are supported, and they can be combined in one project —
+a node in one input may reference a type defined in another (for example, instances authored as a
+`ModelDesign` whose `TypeDefinition` points at object types authored as a `NodeSet2`). Every input is
+supplied to the others as a resolution dependency, so such cross-model references resolve automatically.
+
+Per-file behaviour is controlled with `AdditionalFiles` metadata:
+
+| Metadata | Description |
+| -------- | ----------- |
+| `ModelSourceGeneratorModelUri` | The model (namespace) URI of the input. Required when it cannot be inferred, and used to match the input to a namespace. |
+| `ModelSourceGeneratorName` | Overrides the generated `Namespaces` class identifier for the model. |
+| `ModelSourceGeneratorPrefix` | Overrides the C# namespace / prefix under which the model's types are generated. For a `NodeSet2` input this defaults to a value derived from the model URI — set it explicitly to choose the generated C# namespace. A `Prefix` declared inside a *referencing* `ModelDesign`'s `<opc:Namespaces>` does not rename the referenced model's generated types. |
+
+```xml
+<ItemGroup>
+  <AdditionalFiles Include="Model\EquipmentTypes.NodeSet2.xml">
+    <ModelSourceGeneratorModelUri>http://example.org/EquipmentTypes</ModelSourceGeneratorModelUri>
+    <ModelSourceGeneratorPrefix>Example.EquipmentTypes</ModelSourceGeneratorPrefix>
+  </AdditionalFiles>
+  <AdditionalFiles Include="Model\Instances.ModelDesign.xml">
+    <ModelSourceGeneratorModelUri>http://example.org/EquipmentInstances</ModelSourceGeneratorModelUri>
+  </AdditionalFiles>
+</ItemGroup>
+```
+
+See [Source-Generated NodeManagers](../../Docs/SourceGeneratedNodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
+for the end-to-end pattern.
 
 ## Using DataType Generators
 
