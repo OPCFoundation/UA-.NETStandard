@@ -30,27 +30,27 @@
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.WebSockets" Version="2.3.10" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.9" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.14.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.6.0" />
     <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
@@ -88,6 +88,8 @@
     <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.15.0" />
     <PackageVersion Include="SharpFuzz" Version="2.2.0" />
     <PackageVersion Include="Serilog" Version="4.3.1" />
+    <PackageVersion Include="Testcontainers" Version="4.13.0" />
+    <PackageVersion Include="Testcontainers.Kafka" Version="4.13.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
@@ -95,11 +97,11 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="SourceGenerator.Foundations" Version="2.0.14" />
     <PackageVersion Include="System.Buffers" Version="4.6.1" />
-    <PackageVersion Include="System.Composition.AttributedModel" Version="10.0.8" />
+    <PackageVersion Include="System.Composition.AttributedModel" Version="10.0.9" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
-    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.8" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.9" />
     <PackageVersion Include="System.Memory" Version="4.6.3" />
-    <PackageVersion Include="System.Formats.Asn1" Version="10.0.8" />
+    <PackageVersion Include="System.Formats.Asn1" Version="10.0.9" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
          net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
@@ -107,13 +109,13 @@
          - System.Text.RegularExpressions 4.3.1 fixes GHSA-cmhx-cq75-c4mj -->
     <PackageVersion Include="System.Net.Http" Version="4.3.4" />
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
-    <PackageVersion Include="System.Collections.Immutable" Version="10.0.8" />
+    <PackageVersion Include="System.Collections.Immutable" Version="10.0.9" />
     <PackageVersion Include="System.Reflection.Metadata" Version="10.0.6" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.8" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.9" />
     <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="System.Security.Cryptography.Cng" Version="5.0.0" />
-    <PackageVersion Include="System.Threading.Channels" Version="10.0.8" />
+    <PackageVersion Include="System.Threading.Channels" Version="10.0.9" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
   </ItemGroup>
   <!-- MQTTnet 5.x dropped net48/net472/netstandard2.1 support. Per-TFM pinning is
@@ -131,11 +133,16 @@
     <PackageVersion Include="MQTTnet.Server" Version="5.1.0.1559" />
   </ItemGroup>
   <!-- Confluent.Kafka wraps native librdkafka (BSD-2) and ships
-       [netstandard2.0, net462, net8.0, net10.0], covering every LibxTargetFrameworks entry
-       through NuGet compatibility fallback. It is NOT NativeAOT/trim-safe, so the
-       Opc.Ua.PubSub.Kafka library deliberately does not set IsAotCompatible and is kept out
-       of every AOT-published project. Apache-2.0 licensed. -->
+       [netstandard2.0, net462, net8.0, net10.0], covering the non-net10 LibxTargetFrameworks
+       entries through NuGet compatibility fallback. It is NOT NativeAOT/trim-safe, so it is used
+       by Opc.Ua.PubSub.Kafka only on the older TFMs. Apache-2.0 licensed. -->
   <ItemGroup>
     <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
+  </ItemGroup>
+  <!-- Dekaf is a pure-managed (no native dependency), NativeAOT/trim-friendly Kafka client that
+       targets net10.0 only. Opc.Ua.PubSub.Kafka uses it on net10.0 so the transport is
+       AOT-compatible there. MIT licensed. Pre-release pending a stable Dekaf release. -->
+  <ItemGroup>
+    <PackageVersion Include="Dekaf" Version="0.0.1-ci.2047" />
   </ItemGroup>
 </Project>
