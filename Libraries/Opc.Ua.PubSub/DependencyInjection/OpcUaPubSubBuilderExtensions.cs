@@ -44,6 +44,7 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
@@ -267,6 +268,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IPubSubIdAllocator, InMemoryPubSubIdAllocator>();
             services.TryAddSingleton<IPubSubRuntimeStateStore, InMemoryPubSubRuntimeStateStore>();
             services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
+            services.TryAddSingleton<IPubSubActivationCoordinator>(AlwaysActiveCoordinator.Instance);
             services.TryAddSingleton<IDataSetSourceProvider, MutableDataSetSourceProvider>();
             services.TryAddSingleton<IDataSetSinkProvider, MutableDataSetSinkProvider>();
 
