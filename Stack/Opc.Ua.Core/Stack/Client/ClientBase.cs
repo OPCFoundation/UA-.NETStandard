@@ -589,11 +589,32 @@ namespace Opc.Ua
 
             if (StatusCode.IsBad(header.ServiceResult))
             {
-                throw new ServiceResultException(
-                    new ServiceResult(
-                        header.ServiceResult,
-                        header.ServiceDiagnostics,
-                        header.StringTable));
+                var result = new ServiceResult(
+                    header.ServiceResult,
+                    header.ServiceDiagnostics,
+                    header.StringTable);
+
+                // Surface a server retry-after hint carried on the AdditionalHeader
+                // (delivered independently of diagnostics) as a machine-readable
+                // AdditionalInfo token so the adaptive reconnect policy honors it.
+                // Skip when diagnostics already provided the token in AdditionalInfo.
+                if (string.IsNullOrEmpty(result.AdditionalInfo))
+                {
+                    TimeSpan? retryAfter = RetryAfterHeader.Read(header);
+                    if (retryAfter.HasValue)
+                    {
+                        result = new ServiceResult(
+                            result.NamespaceUri,
+                            result.StatusCode,
+                            result.LocalizedText,
+                            Utils.Format(
+                                "RetryAfterMs={0}",
+                                (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds)),
+                            result.InnerResult);
+                    }
+                }
+
+                throw new ServiceResultException(result);
             }
         }
 
