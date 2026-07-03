@@ -934,6 +934,10 @@ namespace Opc.Ua
                         .HttpsMutualTls;
                 }
 
+                // Allow a derived server to inject transport admission control
+                // (listener backlog + connection rate limiter) into the settings.
+                ConfigureTransportListenerSettings(settings, endpointUri);
+
                 await listener.OpenAsync(endpointUri, settings, GetEndpointInstance(this)!, ct)
                     .ConfigureAwait(false);
 
@@ -949,6 +953,26 @@ namespace Opc.Ua
                     endpointUri.Scheme);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Allows a derived server to configure transport-level admission control
+        /// (the listener socket backlog and an optional connection rate limiter) on
+        /// the <see cref="TransportListenerSettings"/> before the listener is opened.
+        /// </summary>
+        /// <remarks>
+        /// The base implementation does nothing, so a server without a rate limiter
+        /// behaves exactly as before. <see cref="TransportListenerSettings.ListenBacklog"/>
+        /// left at 0 selects the transport default and
+        /// <see cref="TransportListenerSettings.ConnectionRateLimiter"/> left null
+        /// disables connection rate limiting.
+        /// </remarks>
+        /// <param name="settings">The listener settings being assembled.</param>
+        /// <param name="endpointUri">The endpoint the listener will serve.</param>
+        protected virtual void ConfigureTransportListenerSettings(
+            TransportListenerSettings settings,
+            Uri endpointUri)
+        {
         }
 
         /// <summary>

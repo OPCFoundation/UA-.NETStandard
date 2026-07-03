@@ -71,6 +71,35 @@ namespace Opc.Ua.Server
         /// </summary>
         protected TimeProvider TimeProvider { get; }
 
+        /// <summary>
+        /// The deterministic admission-control options used when no
+        /// <see cref="RateLimiterProvider"/> is supplied. Rate limiting is ON by
+        /// default with conservative limits; set this before the server starts to
+        /// tune or disable it without dependency injection.
+        /// </summary>
+        public ServerRateLimitOptions RateLimitOptions
+        {
+            get => m_rateLimitOptions ??= new ServerRateLimitOptions();
+            set => m_rateLimitOptions = value;
+        }
+
+        /// <summary>
+        /// The admission-control limiter provider. When left <c>null</c>, a
+        /// <see cref="DefaultServerRateLimiterProvider"/> is built from
+        /// <see cref="RateLimitOptions"/> at start. Set a custom provider (for
+        /// example resolved from dependency injection) before the server starts to
+        /// plug in a different rate-limiting algorithm.
+        /// </summary>
+        public IServerRateLimiterProvider? RateLimiterProvider
+        {
+            get => m_rateLimiterProvider;
+            set
+            {
+                m_rateLimiterProvider = value;
+                m_ownsRateLimiterProvider = false;
+            }
+        }
+
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
@@ -87,6 +116,13 @@ namespace Opc.Ua.Server
                 // close the server.
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
+
+                // dispose the admission-control provider if we created it.
+                if (m_ownsRateLimiterProvider)
+                {
+                    m_rateLimiterProvider?.Dispose();
+                }
+                m_rateLimiterProvider = null;
 
                 m_certManagerSubscription?.Dispose();
 
@@ -329,6 +365,12 @@ namespace Opc.Ua.Server
                 requestHeader,
                 RequestType.CreateSession,
                 requestLifetime).ConfigureAwait(false);
+
+            // Admission control: reject with BadServerTooBusy before doing the
+            // CPU-bound certificate validation / signing when at capacity. The
+            // lease (a concurrency permit) is held for the duration of the call.
+            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
+
             ISession? session = null;
             try
             {
@@ -713,6 +755,11 @@ namespace Opc.Ua.Server
                 requestHeader,
                 RequestType.ActivateSession,
                 requestLifetime).ConfigureAwait(false);
+
+            // Admission control: reject with BadServerTooBusy before the CPU-bound
+            // signature / identity-token verification when at capacity. The lease
+            // (a concurrency permit) is held for the duration of the call.
+            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
 
             try
             {
@@ -3129,6 +3176,14 @@ namespace Opc.Ua.Server
             {
                 base.OnServerStarting(configuration);
 
+                // ensure an admission-control provider exists (on by default with
+                // conservative limits) unless one was supplied via DI.
+                if (m_rateLimiterProvider == null)
+                {
+                    m_rateLimiterProvider = new DefaultServerRateLimiterProvider(RateLimitOptions);
+                    m_ownsRateLimiterProvider = true;
+                }
+
                 // save minimum nonce length.
                 m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
@@ -3139,6 +3194,83 @@ namespace Opc.Ua.Server
             {
                 m_semaphoreSlim.Release();
             }
+        }
+
+        /// <summary>
+        /// Injects the configured listener backlog and connection rate limiter into
+        /// the transport listener settings.
+        /// </summary>
+        /// <param name="settings">The listener settings being assembled.</param>
+        /// <param name="endpointUri">The endpoint the listener will serve.</param>
+        protected override void ConfigureTransportListenerSettings(
+            TransportListenerSettings settings,
+            Uri endpointUri)
+        {
+            base.ConfigureTransportListenerSettings(settings, endpointUri);
+
+            IServerRateLimiterProvider? provider = m_rateLimiterProvider;
+            if (provider != null)
+            {
+                if (provider.ListenBacklog > 0)
+                {
+                    settings.ListenBacklog = provider.ListenBacklog;
+                }
+
+                settings.ConnectionRateLimiter = provider.ConnectionRateLimiter;
+            }
+        }
+
+        /// <summary>
+        /// Acquires an admission permit for a single session establishment
+        /// operation (<c>CreateSession</c> / <c>ActivateSession</c>), throwing
+        /// <c>BadServerTooBusy</c> when the server is at capacity.
+        /// </summary>
+        /// <returns>
+        /// A lease that MUST be disposed when the operation completes, or
+        /// <c>null</c> when session rate limiting is disabled.
+        /// </returns>
+        /// <exception cref="ServiceResultException">
+        /// The server is too busy to admit the operation.
+        /// </exception>
+        private IDisposable? BeginSessionEstablishmentOrThrow()
+        {
+            IServerRateLimiterProvider? provider = m_rateLimiterProvider;
+            if (provider == null)
+            {
+                return null;
+            }
+
+            if (provider.TryAcquireSessionEstablishment(
+                out IDisposable? lease,
+                out TimeSpan? retryAfter))
+            {
+                return lease;
+            }
+
+            throw CreateServerTooBusyException(retryAfter);
+        }
+
+        /// <summary>
+        /// Creates a <c>BadServerTooBusy</c> fault carrying a retry-after hint so a
+        /// cooperating client can back off deterministically.
+        /// </summary>
+        /// <param name="retryAfter">The suggested wait before retrying, if known.</param>
+        /// <returns>The exception to throw.</returns>
+        private static ServiceResultException CreateServerTooBusyException(TimeSpan? retryAfter)
+        {
+            if (retryAfter.HasValue)
+            {
+                long retryAfterMs = (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds);
+                return new ServiceResultException(
+                    StatusCodes.BadServerTooBusy,
+                    Utils.Format(
+                        "The server is too busy to establish a session. Retry after {0} ms.",
+                        retryAfterMs));
+            }
+
+            return new ServiceResultException(
+                StatusCodes.BadServerTooBusy,
+                "The server is too busy to establish a session.");
         }
 
         /// <summary>
@@ -4118,6 +4250,9 @@ namespace Opc.Ua.Server
         private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
         private IDisposable? m_certManagerSubscription;
+        private ServerRateLimitOptions? m_rateLimitOptions;
+        private IServerRateLimiterProvider? m_rateLimiterProvider;
+        private bool m_ownsRateLimiterProvider;
 
         private sealed class CertificateManagerChangeObserver : IObserver<CertificateChangeEvent>
         {
