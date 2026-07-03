@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected readonly struct EndpointIncomingRequest : IEndpointIncomingRequest, IEquatable<EndpointIncomingRequest>
+        protected readonly struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -53,6 +53,7 @@ namespace Opc.Ua
                 SecureChannelContext = context;
                 Request = request;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
+                m_parkSink = new RequestParkSink();
             }
 
             /// <inheritdoc/>
@@ -60,6 +61,9 @@ namespace Opc.Ua
 
             /// <inheritdoc/>
             public IServiceRequest Request { get; }
+
+            /// <inheritdoc/>
+            RequestParkSink IParkableIncomingRequest.ParkSink => m_parkSink;
 
             /// <summary>
             /// Process an incoming request
@@ -90,6 +94,10 @@ namespace Opc.Ua
                     timeoutHintCts != null ?
                     [cancellationToken, timeoutHintCts.Token] :
                     [cancellationToken]);
+
+                // Flow the park sink so a handler that parks (e.g. a held Publish
+                // waiting for notifications) can release the processing worker.
+                requestLifetime.ParkSink = m_parkSink;
 
                 try
                 {
@@ -193,6 +201,7 @@ namespace Opc.Ua
 
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
+            private readonly RequestParkSink m_parkSink;
         }
     }
 }

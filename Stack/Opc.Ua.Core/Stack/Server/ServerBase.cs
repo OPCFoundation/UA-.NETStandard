@@ -553,12 +553,15 @@ namespace Opc.Ua
             int minRequestThreadCount = 10;
             int maxRequestThreadCount = 1000;
             int maxQueuedRequestCount = 2000;
+            bool decoupleHeldPublishRequests = true;
 
             if (configuration.ServerConfiguration != null)
             {
                 minRequestThreadCount = configuration.ServerConfiguration.MinRequestThreadCount;
                 maxRequestThreadCount = configuration.ServerConfiguration.MaxRequestThreadCount;
                 maxQueuedRequestCount = configuration.ServerConfiguration.MaxQueuedRequestCount;
+                decoupleHeldPublishRequests = configuration.ServerConfiguration
+                    .DecoupleHeldPublishRequests;
             }
             else if (configuration.DiscoveryServerConfiguration != null)
             {
@@ -568,6 +571,8 @@ namespace Opc.Ua
                     .MaxRequestThreadCount;
                 maxQueuedRequestCount = configuration.DiscoveryServerConfiguration
                     .MaxQueuedRequestCount;
+                decoupleHeldPublishRequests = configuration.DiscoveryServerConfiguration
+                    .DecoupleHeldPublishRequests;
             }
 
             // ensure configuration errors don't render the server inoperable.
@@ -596,7 +601,8 @@ namespace Opc.Ua
                 this,
                 minRequestThreadCount,
                 maxRequestThreadCount,
-                maxQueuedRequestCount);
+                maxQueuedRequestCount,
+                decoupleHeldPublishRequests);
         }
 
         /// <summary>
