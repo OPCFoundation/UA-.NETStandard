@@ -56,7 +56,10 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public DefaultServerRateLimiterProvider(ServerRateLimitOptions options)
         {
-            ArgumentNullException.ThrowIfNull(options);
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
 
             ListenBacklog = options.ListenBacklog > 0
                 ? options.ListenBacklog
