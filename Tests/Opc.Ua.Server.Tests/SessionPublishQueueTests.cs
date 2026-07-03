@@ -48,6 +48,18 @@ namespace Opc.Ua.Server.Tests
         private ITelemetryContext m_telemetry;
         private const int kMaxPublishRequests = 10;
 
+        private sealed class TestParkSink : IRequestParkSink
+        {
+            public int ParkedCount => m_parkedCount;
+
+            public void NotifyParked()
+            {
+                Interlocked.Increment(ref m_parkedCount);
+            }
+
+            private int m_parkedCount;
+        }
+
         [SetUp]
         public void SetUp()
         {
@@ -113,6 +125,62 @@ namespace Opc.Ua.Server.Tests
             ISubscription result = await queue.PublishAsync("channel1", DateTime.MaxValue, false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void PublishAsync_WhenParked_NotifiesParkSinkOnce()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscription>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object); // added but not ready, so the request must park
+
+            var sink = new TestParkSink();
+            Task<ISubscription> task = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, sink, CancellationToken.None);
+
+            Assert.That(task.IsCompleted, Is.False, "The request should be parked.");
+            Assert.That(
+                sink.ParkedCount,
+                Is.EqualTo(1),
+                "The park sink should be notified exactly once when the request parks.");
+        }
+
+        [Test]
+        public async Task PublishAsync_WhenSubscriptionReady_DoesNotNotifyParkSinkAsync()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscription>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+            queue.Requeue(subMock.Object); // ready, so the request returns immediately
+
+            var sink = new TestParkSink();
+            ISubscription result = await queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, sink, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result, Is.SameAs(subMock.Object));
+            Assert.That(
+                sink.ParkedCount,
+                Is.Zero,
+                "A request that completes immediately must not be reported as parked.");
+        }
+
+        [Test]
+        public void PublishAsync_NoSubscriptions_DoesNotNotifyParkSink()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var sink = new TestParkSink();
+
+            Assert.CatchAsync<ServiceResultException>(
+                () => queue.PublishAsync("channel1", DateTime.MaxValue, false, sink, CancellationToken.None));
+            Assert.That(
+                sink.ParkedCount,
+                Is.Zero,
+                "A request that faults immediately must not be reported as parked.");
         }
 
         [Test]
