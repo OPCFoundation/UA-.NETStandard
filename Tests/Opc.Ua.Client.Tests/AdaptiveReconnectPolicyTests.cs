@@ -156,5 +156,45 @@ namespace Opc.Ua.Client.Tests
                 policy.GetNextDelay(2, StatusCodes.BadServerTooBusy, serverRetryAfter: null),
                 Is.Null);
         }
+
+        [Test]
+        public void ParseServerRetryAfterReadsToken()
+        {
+            Assert.That(
+                ReconnectPolicy.ParseServerRetryAfter("RetryAfterMs=2000"),
+                Is.EqualTo(TimeSpan.FromSeconds(2)));
+        }
+
+        [Test]
+        public void ParseServerRetryAfterReadsEmbeddedToken()
+        {
+            Assert.That(
+                ReconnectPolicy.ParseServerRetryAfter(
+                    "The server is too busy to establish a session. RetryAfterMs=1500."),
+                Is.EqualTo(TimeSpan.FromMilliseconds(1500)));
+        }
+
+        [Test]
+        public void ParseServerRetryAfterReturnsNullWhenAbsent()
+        {
+            Assert.That(ReconnectPolicy.ParseServerRetryAfter(null), Is.Null);
+            Assert.That(ReconnectPolicy.ParseServerRetryAfter(string.Empty), Is.Null);
+            Assert.That(ReconnectPolicy.ParseServerRetryAfter("no hint here"), Is.Null);
+        }
+
+        [Test]
+        public void ParseServerRetryAfterReturnsNullForZero()
+        {
+            Assert.That(ReconnectPolicy.ParseServerRetryAfter("RetryAfterMs=0"), Is.Null);
+        }
+
+        [Test]
+        public void ParseServerRetryAfterCapsPathologicalHint()
+        {
+            // A hint larger than one day is clamped to one day (86_400_000 ms).
+            Assert.That(
+                ReconnectPolicy.ParseServerRetryAfter("RetryAfterMs=999999999999"),
+                Is.EqualTo(TimeSpan.FromMilliseconds(86_400_000)));
+        }
     }
 }

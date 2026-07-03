@@ -220,6 +220,56 @@ namespace Opc.Ua.Client
                 || status == StatusCodes.BadTimeout;
         }
 
+        /// <summary>
+        /// Parses a server-provided retry-after hint from a fault's
+        /// <c>AdditionalInfo</c>, if present (a <c>RetryAfterMs=N</c> token).
+        /// </summary>
+        /// <remarks>
+        /// The token literal must stay in sync with the server
+        /// (<c>StandardServer.RetryAfterHintPrefix</c>). The hint is best-effort:
+        /// <c>AdditionalInfo</c> only reaches the client when it requests
+        /// diagnostics, so a missing hint simply falls back to signal-based backoff.
+        /// </remarks>
+        /// <param name="additionalInfo">The fault's additional info, or <c>null</c>.</param>
+        /// <returns>The retry-after duration, or <c>null</c> when absent/invalid.</returns>
+        public static TimeSpan? ParseServerRetryAfter(string? additionalInfo)
+        {
+            if (string.IsNullOrEmpty(additionalInfo))
+            {
+                return null;
+            }
+
+            const string prefix = "RetryAfterMs=";
+            int index = additionalInfo!.IndexOf(prefix, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                return null;
+            }
+
+            int start = index + prefix.Length;
+            int end = start;
+            long milliseconds = 0;
+            while (end < additionalInfo.Length && char.IsDigit(additionalInfo[end]))
+            {
+                milliseconds = (milliseconds * 10) + (additionalInfo[end] - '0');
+                end++;
+
+                // Cap at one day to avoid overflow / a pathological hint.
+                if (milliseconds >= 86_400_000)
+                {
+                    milliseconds = 86_400_000;
+                    break;
+                }
+            }
+
+            if (end > start && milliseconds > 0)
+            {
+                return TimeSpan.FromMilliseconds(milliseconds);
+            }
+
+            return null;
+        }
+
         /// <inheritdoc/>
         public void Reset()
         {

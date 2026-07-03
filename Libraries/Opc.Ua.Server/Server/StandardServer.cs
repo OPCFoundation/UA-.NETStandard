@@ -3252,9 +3252,24 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The prefix of the machine-readable retry-after token encoded in a
+        /// <c>BadServerTooBusy</c> fault's <c>AdditionalInfo</c> (for example
+        /// <c>RetryAfterMs=2000</c>). The client's reconnect path parses this;
+        /// the literal is duplicated in the client and must stay in sync.
+        /// </summary>
+        internal const string RetryAfterHintPrefix = "RetryAfterMs=";
+
+        /// <summary>
         /// Creates a <c>BadServerTooBusy</c> fault carrying a retry-after hint so a
         /// cooperating client can back off deterministically.
         /// </summary>
+        /// <remarks>
+        /// The hint is encoded in the fault's <c>AdditionalInfo</c> as a
+        /// machine-readable <c>RetryAfterMs=N</c> token (parsed by the client's
+        /// adaptive reconnect policy) as well as in the human-readable message.
+        /// Note that <c>AdditionalInfo</c> only reaches the client when it requests
+        /// diagnostics; otherwise the client relies on its server-busy backoff.
+        /// </remarks>
         /// <param name="retryAfter">The suggested wait before retrying, if known.</param>
         /// <returns>The exception to throw.</returns>
         private static ServiceResultException CreateServerTooBusyException(TimeSpan? retryAfter)
@@ -3262,11 +3277,16 @@ namespace Opc.Ua.Server
             if (retryAfter.HasValue)
             {
                 long retryAfterMs = (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds);
+                string additionalInfo = Utils.Format("{0}{1}", RetryAfterHintPrefix, retryAfterMs);
                 return new ServiceResultException(
-                    StatusCodes.BadServerTooBusy,
-                    Utils.Format(
-                        "The server is too busy to establish a session. Retry after {0} ms.",
-                        retryAfterMs));
+                    new ServiceResult(
+                        null,
+                        StatusCodes.BadServerTooBusy,
+                        new LocalizedText(
+                            Utils.Format(
+                                "The server is too busy to establish a session. Retry after {0} ms.",
+                                retryAfterMs)),
+                        additionalInfo));
             }
 
             return new ServiceResultException(

@@ -400,9 +400,10 @@ namespace Opc.Ua.Client
             IRetryBudget budget = GetOrCreateReconnectBudget();
 
             StatusCode lastStatus = StatusCodes.Good;
+            string? lastAdditionalInfo = null;
             for (int attempt = 0; !ct.IsCancellationRequested; attempt++)
             {
-                TimeSpan? delay = GetAdaptiveDelay(attempt, lastStatus, ct);
+                TimeSpan? delay = GetAdaptiveDelay(attempt, lastStatus, lastAdditionalInfo, ct);
 
                 if (delay == null)
                 {
@@ -438,8 +439,10 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
 
                 // Remember the outcome so the next backoff can react to a
-                // server-busy signal (adaptive policies back off harder).
+                // server-busy signal (adaptive policies back off harder) and honor
+                // a server-provided retry-after hint when present.
                 lastStatus = result.StatusCode;
+                lastAdditionalInfo = result.AdditionalInfo;
 
                 if (ServiceResult.IsGood(result))
                 {
@@ -504,13 +507,22 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="attempt">Zero-based attempt number.</param>
         /// <param name="lastStatus">The status code of the previous attempt.</param>
+        /// <param name="lastAdditionalInfo">
+        /// The previous attempt's fault <c>AdditionalInfo</c>, parsed for a
+        /// server-provided retry-after hint.
+        /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The delay before the next attempt, or <c>null</c> to stop.</returns>
-        private TimeSpan? GetAdaptiveDelay(int attempt, StatusCode lastStatus, CancellationToken ct)
+        private TimeSpan? GetAdaptiveDelay(
+            int attempt,
+            StatusCode lastStatus,
+            string? lastAdditionalInfo,
+            CancellationToken ct)
         {
             if (m_reconnectPolicy is IAdaptiveReconnectPolicy adaptive)
             {
-                return adaptive.GetNextDelay(attempt, lastStatus, serverRetryAfter: null, ct);
+                TimeSpan? serverRetryAfter = ReconnectPolicy.ParseServerRetryAfter(lastAdditionalInfo);
+                return adaptive.GetNextDelay(attempt, lastStatus, serverRetryAfter, ct);
             }
 
             return m_reconnectPolicy.GetNextDelay(attempt, ct);
