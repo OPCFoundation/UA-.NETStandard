@@ -2186,7 +2186,9 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddRootNotifierPublicAsync(notifier).ConfigureAwait(false);
 
-            Assert.That(notifier.OnReportEvent, Is.Not.Null);
+            Assert.That(
+                notifier.OnReportEvent != null || notifier.OnReportEventAsync != null,
+                Is.True);
         }
 
         [Test]
@@ -2221,7 +2223,9 @@ namespace Opc.Ua.Server.Tests
             await manager.AddRootNotifierPublicAsync(serverNode).ConfigureAwait(false);
 
             Assert.That(manager.RootNotifiers.ContainsKey(ObjectIds.Server), Is.True);
-            Assert.That(serverNode.OnReportEvent, Is.Null);
+            Assert.That(
+                serverNode.OnReportEvent == null && serverNode.OnReportEventAsync == null,
+                Is.True);
             Assert.That(
                 serverNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server),
                 Is.False);
@@ -2281,11 +2285,15 @@ namespace Opc.Ua.Server.Tests
             notifier.BrowseName = new QualifiedName("Notifier", nsIdx);
 
             await manager.AddRootNotifierPublicAsync(notifier).ConfigureAwait(false);
-            Assert.That(notifier.OnReportEvent, Is.Not.Null);
+            Assert.That(
+                notifier.OnReportEvent != null || notifier.OnReportEventAsync != null,
+                Is.True);
 
             await manager.RemoveRootNotifierPublicAsync(notifier).ConfigureAwait(false);
 
-            Assert.That(notifier.OnReportEvent, Is.Null);
+            Assert.That(
+                notifier.OnReportEvent == null && notifier.OnReportEventAsync == null,
+                Is.True);
         }
 
         [Test]
@@ -2354,12 +2362,20 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task OnReportEventIsInvokedWhenNodeReportsEventAsync()
         {
-            // Verifies that the callback wired by AddRootNotifierAsync routes events
-            // through to IServerInternal.ReportEvent.
+            // Verifies that the callback wired by AddRootNotifierAsync routes events through to
+            // IServerInternal - via ReportEvent for the synchronous manager and ReportEventAsync
+            // for the asynchronous manager.
             IFilterTarget capturedEvent = null;
             m_mockServer
                 .Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
                 .Callback<ISystemContext, IFilterTarget>((_, e) => capturedEvent = e);
+            m_mockServer
+                .Setup(s => s.ReportEventAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask))
+                .Callback<ISystemContext, IFilterTarget, CancellationToken>((_, e, _) => capturedEvent = e);
 
             using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
