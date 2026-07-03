@@ -68,6 +68,18 @@ server.RateLimitOptions = new ServerRateLimitOptions { ConnectionsPerSecond = 20
 
 The `opc.tcp` listener consumes an `IConnectionRateLimiter` and a backlog value through `TransportListenerSettings`, injected by `StandardServer.ConfigureTransportListenerSettings`. A custom server can override that hook to supply its own limiter. The default `TokenBucketConnectionRateLimiter` wraps a `System.Threading.RateLimiting.TokenBucketRateLimiter`.
 
+## HTTPS / Kestrel transport
+
+The HTTPS/WSS transport is Kestrel-hosted and can use the ASP.NET Core rate limiter middleware. Because that listener builds its own isolated web host, attach the limiter through the stack's DI with `AddHttpsRateLimiter` (net8+):
+
+```csharp
+services.AddOpcUa()
+    .AddHttpsTransport()
+    .AddHttpsRateLimiter(); // default: global 100 req/s fixed window, rejects with HTTP 429
+```
+
+Pass an `Action<RateLimiterOptions>` to fully configure the limiter with any `System.Threading.RateLimiting` policy. This registers a contributor that calls `services.AddRateLimiter(...)` and `app.UseRateLimiter()` on the listener's isolated Kestrel host; rejected requests return HTTP 429.
+
 ## Client side
 
 A client that gets a "server busy" signal must not hammer the server with retries — that is exactly what amplifies a connect storm. The default `ReconnectPolicy` (used by `ManagedSession`) is **server-signal-aware**: when the previous attempt failed with an overload signal (`BadServerTooBusy`, `BadTcpServerTooBusy`, `BadTooManySessions`, `BadTooManyOperations`, `BadTooManyPublishRequests`, or a transient timeout) it backs off more aggressively (4× the computed delay, capped at `MaxDelay`) and honors a server-provided retry-after hint as a lower bound.
@@ -76,12 +88,11 @@ This is exposed through `IAdaptiveReconnectPolicy` (a non-breaking companion of 
 
 `ReconnectPolicy.IsServerBusySignal(StatusCode)` classifies whether a status code is an overload signal, for use in custom policies.
 
+To keep a bulk connect from bursting, a client-wide **connect admission gate** ramps concurrent initial connects: `ManagedSessionBuilder.WithConnectRateLimiter(maxConcurrency)` (or a shared `RateLimiter` / `IClientConnectGate`) bounds how many `ManagedSession.CreateAsync` calls establish at once; the excess wait in an unbounded queue rather than being rejected, so many sessions to one server ramp up smoothly instead of stampeding. It is off by default; through DI use the `ConnectRateLimiterMaxConcurrency` client option.
+
 ## Planned follow-ups
 
-- **HTTPS / Kestrel**: expose the ASP.NET Core `RateLimiter` middleware through the stack's DI so it can be attached to the Kestrel-hosted HTTPS transport.
-- **Client-wide connect admission**: a shared limiter so many concurrent `ManagedSession.CreateAsync` calls to one server ramp their initial connects instead of bursting.
-- **Structured retry-after**: carry the server's retry-after hint in the response header so a cooperating client can honor it precisely (today it is human-readable in the fault message).
-- **CreateSession crypto out of the establishment lock** (scalability item B4).
+- **Structured retry-after**: carry the server's retry-after hint in the response header so a cooperating client can honor it precisely. Today the hint is human-readable in the fault message; the client's `IAdaptiveReconnectPolicy` already honors a retry-after value when one is supplied.
 
 ## See also
 
