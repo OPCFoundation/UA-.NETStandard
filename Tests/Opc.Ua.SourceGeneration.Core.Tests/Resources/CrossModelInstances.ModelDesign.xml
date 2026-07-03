@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ *
+ * Synthetic fixture: a ModelDesign whose object instance has a
+ * TypeDefinition that resolves to an ObjectType declared in a separate
+ * NodeSet2 input (CrossModelTypes.NodeSet2.xml). Exercises the
+ * ModelDesign -> NodeSet2 cross-model resolution path.
+-->
+
+<opc:ModelDesign
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:wt="http://test.org/UA/CrossModel/Types"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://test.org/UA/CrossModel/Instances"
+  TargetNamespace="http://test.org/UA/CrossModel/Instances"
+  TargetXmlNamespace="http://test.org/UA/CrossModel/Instances"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2024-01-01T00:00:00Z">
+
+  <opc:Namespaces>
+    <opc:Namespace Name="CrossModelInstances" Prefix="CrossModel.Instances" XmlPrefix="CrossModelInstances">http://test.org/UA/CrossModel/Instances</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="CrossModelTypes" Prefix="CrossModel.Types" XmlPrefix="CrossModelTypes">http://test.org/UA/CrossModel/Types</opc:Namespace>
+  </opc:Namespaces>
+
+  <!-- Instance whose TypeDefinition lives in the NodeSet2 input. -->
+  <opc:Object SymbolicName="Widget1" TypeDefinition="wt:WidgetType" SupportsEvents="false">
+    <opc:Description>First widget instance.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+</opc:ModelDesign>
