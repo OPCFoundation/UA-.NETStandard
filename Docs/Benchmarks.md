@@ -424,6 +424,8 @@ activator pool system.
 
 The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized from a `500` baseline up to a `10000` stress case (500, 1000, 1500, 2000, 2500, 4000, 10000), selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
 
+> For a deep, code-referenced analysis of *why* a single node tops out here — the establishment vs steady-state boundaries and a prioritized admission-control / rate-limiting roadmap for moving beyond ~2000 — see [Server Session Scalability](ServerScalability.md).
+
 | Tested configuration | Value |
 | --- | --- |
 | Concurrent sessions | 500 baseline, up to 10000 (selectable case) |

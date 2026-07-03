@@ -169,12 +169,32 @@ public MyNodeManager(IServerInternal server, ApplicationConfiguration config)
 ```
 
 - **`MonitoredNodeMonitoredItemManager`** (default): node value changes are propagated to
-  subscribers immediately by calling `NodeState.ClearChangeMasks` after every successful write.
+  subscribers immediately by awaiting `NodeState.ClearChangeMasksAsync` after every successful
+  write (see [Fully asynchronous change notifications](#fully-asynchronous-change-notifications)).
   No background threads are created per subscription.
 - **`SamplingGroupMonitoredItemManager`**: a background timer thread samples the current node
   value at the negotiated `SamplingInterval`. Write changes are *not* pushed immediately; instead
   the next scheduled sample detects and delivers them.  Choose this mode when the data source
   produces values independently of OPC UA write requests (e.g. hardware polling).
+
+### Fully asynchronous change notifications
+
+`AsyncCustomNodeManager` propagates value changes and events to monitored items over a fully asynchronous push path, so no thread is blocked when a node exposes an asynchronous value read handler or when the per-node notification channel applies back-pressure.
+
+`NodeState` exposes asynchronous counterparts of its change-notification API alongside the existing synchronous members:
+
+| Synchronous | Asynchronous |
+|-------------|--------------|
+| `ClearChangeMasks(context, includeChildren)` | `ClearChangeMasksAsync(context, includeChildren, ct)` |
+| `OnStateChanged` / `StateChanged` | `OnStateChangedAsync` / `StateChangedAsync` |
+| `ReportEvent(context, e)` | `ReportEventAsync(context, e, ct)` |
+| `OnReportEvent` | `OnReportEventAsync` |
+
+The additions are non-breaking: existing synchronous callers and sinks continue to work unchanged. `MonitoredNodeMonitoredItemManager` wires the asynchronous sinks, so after a successful write `AsyncCustomNodeManager.WriteAsync` flushes changes with `await handle.Node.ClearChangeMasksAsync(...)`. The value for each monitored attribute is read at that moment through `NodeState.ReadAttributeAsync` — honoring an asynchronous `OnReadValueAsync` / `OnSimpleReadValueAsync` handler when one is registered — and the resulting snapshot is enqueued by awaiting the bounded per-node channel. Because the read is materialized before the change is enqueued, every notification carries the node value at the instant of the change (an enqueue-time snapshot); because both the read and the enqueue are awaited, the producing thread is never blocked.
+
+The synchronous `ClearChangeMasks` / `ReportEvent` still drive the asynchronous sinks: they complete inline when the node is synchronously readable and the channel has capacity, and block the calling thread only when a genuinely asynchronous read is in flight or the channel is full. A synchronous node manager therefore keeps working without any change, paying a blocking cost only in those two cases.
+
+Overflow and discard — the FIFO/LIFO `DiscardOldest` behavior and the `Overflow` status bit — remain a property of each monitored item's own queue. The shared per-node channel is a lossless conduit and does not drop notifications, so a monitored item's configured queue policy is always applied to the full stream of changes.
 
 ### Creating a custom node manager
 

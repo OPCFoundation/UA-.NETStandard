@@ -478,7 +478,8 @@ namespace Opc.Ua.Server
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
-                serverNamespacesNode.ClearChangeMasks(SystemContext, true);
+                await serverNamespacesNode.ClearChangeMasksAsync(SystemContext, true, cancellationToken)
+                    .ConfigureAwait(false);
                 await AddPredefinedNodeAsync(SystemContext, namespaceMetadataState, cancellationToken)
                     .ConfigureAwait(false);
             }

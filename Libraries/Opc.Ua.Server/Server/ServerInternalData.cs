@@ -685,6 +685,43 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Called by any component to asynchronously report a global event.
+        /// </summary>
+        /// <param name="e">The event.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask ReportEventAsync(IFilterTarget e, CancellationToken cancellationToken = default)
+        {
+            return ReportEventAsync(DefaultSystemContext, e, cancellationToken);
+        }
+
+        /// <summary>
+        /// Called by any component to asynchronously report a global event, awaiting an asynchronous
+        /// report sink so the caller is never blocked.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="e">The event.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask ReportEventAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default)
+        {
+            if ((!Auditing) && (e is AuditEventState))
+            {
+                // do not report auditing events if server Auditing flag is false
+                return default;
+            }
+
+            NodeState? serverObject = ServerObject;
+            if (serverObject == null)
+            {
+                return default;
+            }
+
+            return serverObject.ReportEventAsync(context, e, cancellationToken);
+        }
+
+        /// <summary>
         /// Refreshes the conditions for the specified subscription.
         /// </summary>
         /// <param name="context">The context.</param>
