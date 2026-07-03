@@ -29,7 +29,10 @@
 
 #if NET8_0_OR_GREATER
 using System;
+using System.Globalization;
+using System.Threading;
 using System.Threading.RateLimiting;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
@@ -88,8 +91,40 @@ namespace Opc.Ua.Bindings
         private static void ConfigureDefaultRateLimiter(RateLimiterOptions options)
         {
             options.RejectionStatusCode = 429;
+            options.OnRejected = OnRejectedSetRetryAfterAsync;
             PartitionedRateLimiter<HttpContext> limiter = CreateDefaultGlobalLimiter();
             options.GlobalLimiter = limiter;
+        }
+
+        /// <summary>
+        /// Sets the standard HTTP <c>Retry-After</c> response header from the
+        /// rejected lease's metadata so a cooperating client can back off
+        /// deterministically without requesting OPC UA diagnostics.
+        /// </summary>
+        /// <param name="context">
+        /// The rejection context carrying the lease and the HTTP response.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Cancellation token (unused; the handler is synchronous).
+        /// </param>
+        /// <returns>
+        /// A completed task.
+        /// </returns>
+        private static ValueTask OnRejectedSetRetryAfterAsync(
+            OnRejectedContext context,
+            CancellationToken cancellationToken)
+        {
+            if (context.Lease.TryGetMetadata(
+                    MetadataName.RetryAfter,
+                    out TimeSpan retryAfter) &&
+                retryAfter > TimeSpan.Zero)
+            {
+                long seconds = (long)Math.Ceiling(retryAfter.TotalSeconds);
+                context.HttpContext.Response.Headers.RetryAfter =
+                    seconds.ToString(CultureInfo.InvariantCulture);
+            }
+
+            return ValueTask.CompletedTask;
         }
 
         private static PartitionedRateLimiter<HttpContext> CreateDefaultGlobalLimiter()
