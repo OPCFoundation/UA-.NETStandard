@@ -118,17 +118,9 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Publishes a subscription.
-        /// </summary>
-        Task<PublishResponse> PublishAsync(
-            OperationContext context,
-            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Publishes a subscription, notifying the supplied park sink when the request
-        /// parks (waits for the next notification) so the request-processing worker can
-        /// be released for the duration of the wait.
+        /// Publishes a subscription. When the request parks (waits for the next
+        /// notification), the supplied park sink is notified so the request-processing
+        /// worker can be released for the duration of the wait.
         /// </summary>
         Task<PublishResponse> PublishAsync(
             OperationContext context,

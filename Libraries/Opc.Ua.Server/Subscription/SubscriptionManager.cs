@@ -1031,18 +1031,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a subscription.
+        /// Publishes a subscription. When the request parks (waits for the next
+        /// notification), the supplied park sink is notified so the request-processing
+        /// worker can be released for the duration of the wait.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public Task<PublishResponse> PublishAsync(
-            OperationContext context,
-            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
-            CancellationToken cancellationToken = default)
-        {
-            return PublishAsync(context, subscriptionAcknowledgements, null, cancellationToken);
-        }
-
-        /// <inheritdoc/>
         public async Task<PublishResponse> PublishAsync(
             OperationContext context,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,

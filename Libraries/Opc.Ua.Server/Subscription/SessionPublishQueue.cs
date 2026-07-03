@@ -109,20 +109,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Waits for a subscription to be ready to publish.
-        /// </summary>
-        public Task<ISubscription> PublishAsync(string secureChannelId,
-                                                DateTime operationTimeout,
-                                                bool requeue,
-                                                CancellationToken cancellationToken)
-        {
-            return PublishAsync(secureChannelId, operationTimeout, requeue, null, cancellationToken);
-        }
-
-        /// <summary>
-        /// Waits for a subscription to be ready to publish, notifying the supplied park
-        /// sink if the request parks (is queued to wait for the next notification) so the
-        /// request-processing worker can be released for the duration of the wait.
+        /// Waits for a subscription to be ready to publish. When the request parks (is
+        /// queued to wait for the next notification), the supplied park sink is notified
+        /// so the request-processing worker can be released for the duration of the wait.
         /// </summary>
         public Task<ISubscription> PublishAsync(string secureChannelId,
                                                 DateTime operationTimeout,
