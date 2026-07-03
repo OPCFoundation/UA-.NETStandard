@@ -2259,10 +2259,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateValidationHelpers.HasRequiredIssuerKeyUsage(compliant),
                 Is.True);
 
-            // non-compliant: empty KeyUsage (equivalent to an absent extension).
+            // non-compliant: empty (present-but-zero) KeyUsage extension.
             using Certificate emptyUsage = CreateRootCa(X509KeyUsageFlags.None, "empty");
             Assert.That(
                 CertificateValidationHelpers.HasRequiredIssuerKeyUsage(emptyUsage),
+                Is.False);
+
+            // non-compliant: KeyUsage extension omitted entirely — the exact
+            // scenario reported in #3944 (the platform X509Chain does not flag
+            // this, so the explicit check must).
+            using Certificate absentUsage = CreateCertificateWithoutKeyUsage();
+            Assert.That(
+                CertificateValidationHelpers.HasRequiredIssuerKeyUsage(absentUsage),
                 Is.False);
 
             // non-compliant: keyCertSign only (cannot sign CRLs).
@@ -2400,14 +2408,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         private static Certificate CreateRootCa(X509KeyUsageFlags? keyUsage, string slug)
         {
-            var baseTime = new DateTime(
-                DateTime.UtcNow.Year - 1,
-                1,
-                1,
-                0,
-                0,
-                0,
-                DateTimeKind.Utc);
+            // Relative validity window with a long lifetime so the generated CA
+            // is always valid regardless of when the tests run.
+            DateTime baseTime = DateTime.UtcNow.AddDays(-1);
             ICertificateBuilder builder = s_factory
                 .CreateCertificate($"CN=Issuer KeyUsage {slug} Root, O=OPC Foundation")
                 .SetNotBefore(baseTime)
@@ -2419,6 +2422,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     new X509KeyUsageExtension(keyUsage.Value, true));
             }
             return builder.SetRSAKeySize(2048).CreateForRSA();
+        }
+
+        /// <summary>
+        /// Creates a self-signed CA certificate whose KeyUsage extension is
+        /// omitted entirely (only basicConstraints cA=true is set). Built via
+        /// <see cref="CertificateRequest"/> so that no default KeyUsage is
+        /// added, reproducing the absent-KeyUsage scenario from issue #3944.
+        /// </summary>
+        private static Certificate CreateCertificateWithoutKeyUsage()
+        {
+            using var rsa = RSA.Create(2048);
+            var request = new CertificateRequest(
+                "CN=Issuer KeyUsage absent Root, O=OPC Foundation",
+                rsa,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            // CA basic constraints but deliberately no KeyUsage extension.
+            request.CertificateExtensions.Add(
+                new X509BasicConstraintsExtension(true, false, 0, true));
+            using X509Certificate2 certificate = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1),
+                DateTimeOffset.UtcNow.AddYears(1));
+            return Certificate.FromRawData(certificate.RawData);
         }
 
         /// <summary>
