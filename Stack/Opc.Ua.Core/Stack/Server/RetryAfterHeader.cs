@@ -59,7 +59,10 @@ namespace Opc.Ua
         /// </param>
         public static void AttachTo(ResponseHeader header, TimeSpan retryAfter)
         {
-            ArgumentNullException.ThrowIfNull(header);
+            if (header == null)
+            {
+                throw new ArgumentNullException(nameof(header));
+            }
 
             if (retryAfter <= TimeSpan.Zero)
             {
