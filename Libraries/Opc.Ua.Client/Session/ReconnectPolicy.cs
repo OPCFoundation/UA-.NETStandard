@@ -57,8 +57,15 @@ namespace Opc.Ua.Client
     /// Default reconnect policy with configurable backoff,
     /// jitter, and retry limits.
     /// </summary>
-    public class ReconnectPolicy : IReconnectPolicy
+    public class ReconnectPolicy : IAdaptiveReconnectPolicy
     {
+        /// <summary>
+        /// The multiplier applied to the computed backoff delay when the previous
+        /// attempt failed with a "server busy" signal, so the client backs off more
+        /// aggressively instead of hammering an overloaded server.
+        /// </summary>
+        public const double ServerBusyBackoffMultiplier = 4.0;
+
         /// <summary>
         /// Default initial delay (1 second).
         /// </summary>
@@ -155,6 +162,62 @@ namespace Opc.Ua.Client
             }
 
             return TimeSpan.FromMilliseconds(Math.Max(delayMs, 0));
+        }
+
+        /// <inheritdoc/>
+        public TimeSpan? GetNextDelay(
+            int attempt,
+            StatusCode lastStatus,
+            TimeSpan? serverRetryAfter,
+            CancellationToken ct = default)
+        {
+            TimeSpan? baseDelay = GetNextDelay(attempt, ct);
+            if (baseDelay == null)
+            {
+                // Retry budget exhausted.
+                return null;
+            }
+
+            double delayMs = baseDelay.Value.TotalMilliseconds;
+
+            // Back off more aggressively when the server signalled overload, so the
+            // client ramps down instead of amplifying a connect storm.
+            if (IsServerBusySignal(lastStatus))
+            {
+                delayMs = Math.Min(
+                    delayMs * ServerBusyBackoffMultiplier,
+                    MaxDelay.TotalMilliseconds);
+            }
+
+            // Honor a server-provided retry-after hint as a lower bound, clamped to
+            // the maximum delay so a pathological hint cannot stall reconnection.
+            if (serverRetryAfter.HasValue && serverRetryAfter.Value > TimeSpan.Zero)
+            {
+                double hintMs = Math.Min(
+                    serverRetryAfter.Value.TotalMilliseconds,
+                    MaxDelay.TotalMilliseconds);
+                delayMs = Math.Max(delayMs, hintMs);
+            }
+
+            return TimeSpan.FromMilliseconds(Math.Max(delayMs, 0));
+        }
+
+        /// <summary>
+        /// Indicates whether a status code signals that the server is overloaded
+        /// (too busy, too many sessions/operations, or a transient timeout) and the
+        /// client should back off rather than retry immediately.
+        /// </summary>
+        /// <param name="status">The status code to classify.</param>
+        /// <returns><c>true</c> if the client should back off more aggressively.</returns>
+        public static bool IsServerBusySignal(StatusCode status)
+        {
+            return status == StatusCodes.BadServerTooBusy
+                || status == StatusCodes.BadTcpServerTooBusy
+                || status == StatusCodes.BadTooManySessions
+                || status == StatusCodes.BadTooManyOperations
+                || status == StatusCodes.BadTooManyPublishRequests
+                || status == StatusCodes.BadRequestTimeout
+                || status == StatusCodes.BadTimeout;
         }
 
         /// <inheritdoc/>

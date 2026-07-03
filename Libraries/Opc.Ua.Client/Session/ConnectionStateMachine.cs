@@ -399,9 +399,10 @@ namespace Opc.Ua.Client
             m_connected.Reset();
             IRetryBudget budget = GetOrCreateReconnectBudget();
 
+            StatusCode lastStatus = StatusCodes.Good;
             for (int attempt = 0; !ct.IsCancellationRequested; attempt++)
             {
-                TimeSpan? delay = m_reconnectPolicy.GetNextDelay(attempt, ct);
+                TimeSpan? delay = GetAdaptiveDelay(attempt, lastStatus, ct);
 
                 if (delay == null)
                 {
@@ -435,6 +436,10 @@ namespace Opc.Ua.Client
 
                 ServiceResult result = await InvokeReconnectAsync(budget, ct)
                     .ConfigureAwait(false);
+
+                // Remember the outcome so the next backoff can react to a
+                // server-busy signal (adaptive policies back off harder).
+                lastStatus = result.StatusCode;
 
                 if (ServiceResult.IsGood(result))
                 {
@@ -490,6 +495,25 @@ namespace Opc.Ua.Client
             budget = new RetryBudget(m_maxTotalReconnectTime, m_timeProvider);
             m_reconnectBudget = budget;
             return budget;
+        }
+
+        /// <summary>
+        /// Computes the next backoff delay, using the server-signal-aware overload
+        /// when the configured policy supports it and falling back to the basic
+        /// attempt-based delay otherwise.
+        /// </summary>
+        /// <param name="attempt">Zero-based attempt number.</param>
+        /// <param name="lastStatus">The status code of the previous attempt.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The delay before the next attempt, or <c>null</c> to stop.</returns>
+        private TimeSpan? GetAdaptiveDelay(int attempt, StatusCode lastStatus, CancellationToken ct)
+        {
+            if (m_reconnectPolicy is IAdaptiveReconnectPolicy adaptive)
+            {
+                return adaptive.GetNextDelay(attempt, lastStatus, serverRetryAfter: null, ct);
+            }
+
+            return m_reconnectPolicy.GetNextDelay(attempt, ct);
         }
 
         private void ClearReconnectBudget()
