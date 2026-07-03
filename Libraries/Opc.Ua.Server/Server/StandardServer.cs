@@ -3272,13 +3272,13 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="retryAfter">The suggested wait before retrying, if known.</param>
         /// <returns>The exception to throw.</returns>
-        private static ServiceResultException CreateServerTooBusyException(TimeSpan? retryAfter)
+        private static ServerBusyException CreateServerTooBusyException(TimeSpan? retryAfter)
         {
             if (retryAfter.HasValue)
             {
                 long retryAfterMs = (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds);
                 string additionalInfo = Utils.Format("{0}{1}", RetryAfterHintPrefix, retryAfterMs);
-                return new ServiceResultException(
+                return new ServerBusyException(
                     new ServiceResult(
                         null,
                         StatusCodes.BadServerTooBusy,
@@ -3286,12 +3286,15 @@ namespace Opc.Ua.Server
                             Utils.Format(
                                 "The server is too busy to establish a session. Retry after {0} ms.",
                                 retryAfterMs)),
-                        additionalInfo));
+                        additionalInfo),
+                    retryAfter);
             }
 
-            return new ServiceResultException(
-                StatusCodes.BadServerTooBusy,
-                "The server is too busy to establish a session.");
+            return new ServerBusyException(
+                new ServiceResult(
+                    StatusCodes.BadServerTooBusy,
+                    new LocalizedText("The server is too busy to establish a session.")),
+                null);
         }
 
         /// <summary>

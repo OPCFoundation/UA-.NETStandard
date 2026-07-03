@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests
             EndpointDescription endpoint = FindTcpEndpoint(m_server.GetEndpoints());
             SecureChannelContext context = CreateSecureChannelContext(sessionName, endpoint);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = Assert.CatchAsync<ServiceResultException>(
                 async () => await m_server.CreateSessionAsync(
                     context,
                     new RequestHeader(),
@@ -95,6 +95,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(exception.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServerTooBusy));
             // The retry-after hint is encoded in the fault's AdditionalInfo.
             Assert.That(exception.AdditionalInfo, Does.Contain("RetryAfterMs=2000"));
+            // It is also carried explicitly so the fault builder can surface it on
+            // the diagnostics-independent AdditionalHeader.
+            Assert.That(exception, Is.InstanceOf<ServerBusyException>());
+            Assert.That(
+                ((ServerBusyException)exception).RetryAfter,
+                Is.EqualTo(TimeSpan.FromMilliseconds(2000)));
         }
 
         [Test]
@@ -126,7 +132,7 @@ namespace Opc.Ua.Server.Tests
             // before the identity token is even processed.
             m_server.RateLimiterProvider = new AlwaysRejectProvider(retryAfter: null);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = Assert.CatchAsync<ServiceResultException>(
                 async () => await m_server.ActivateSessionAsync(
                     context,
                     requestHeader,
