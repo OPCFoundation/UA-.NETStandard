@@ -41,7 +41,7 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel, IServerRetryAfterHintProvider
     {
         private const int kChannelCloseDefault = 1_000;
 
@@ -305,16 +305,24 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public ValueTask<IServiceResponse> SendRequestAsync(
+        public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct)
         {
-            UaSCUaBinaryClientChannel? channel = m_channel;
-            if (channel != null)
+            try
             {
-                return channel.SendRequestAsync(request, OperationTimeout, ct);
+                UaSCUaBinaryClientChannel? channel = m_channel;
+                if (channel != null)
+                {
+                    return await channel.SendRequestAsync(request, OperationTimeout, ct).ConfigureAwait(false);
+                }
+                return await SendRequestInternalAsync(request, ct).ConfigureAwait(false);
             }
-            return SendRequestInternalAsync(request, ct);
+            catch (ServiceResultException ex)
+            {
+                StoreServerRetryAfterHint(ex.Result);
+                throw;
+            }
         }
 
         /// <summary>
@@ -579,7 +587,43 @@ namespace Opc.Ua.Bindings
                     this,
                     current,
                     previous);
+            channel.SetStateChangedCallback(OnInnerChannelStateChanged);
             return channel;
+        }
+
+        TimeSpan? IServerRetryAfterHintProvider.ConsumeServerRetryAfterHint()
+        {
+            long ticks = Interlocked.Exchange(ref m_serverRetryAfterHintTicks, 0);
+            return ticks > 0 ? TimeSpan.FromTicks(ticks) : null;
+        }
+
+        private void OnInnerChannelStateChanged(
+            UaSCUaBinaryChannel channel,
+            TcpChannelState state,
+            ServiceResult error)
+        {
+            _ = channel;
+
+            if (state != TcpChannelState.Faulted)
+            {
+                return;
+            }
+
+            StoreServerRetryAfterHint(error);
+        }
+
+        private void StoreServerRetryAfterHint(ServiceResult? error)
+        {
+            TimeSpan? serverRetryAfter = RetryAfterHint.ParseServerBusyRetryAfter(error);
+            if (!serverRetryAfter.HasValue)
+            {
+                return;
+            }
+
+            Interlocked.Exchange(ref m_serverRetryAfterHintTicks, serverRetryAfter.Value.Ticks);
+            m_logger.LogInformation(
+                "TransportChannel: received UA-TCP server retry-after hint {Delay} ms.",
+                serverRetryAfter.Value.TotalMilliseconds);
         }
 
         private ServiceResultException BadNotConnected()
@@ -602,5 +646,6 @@ namespace Opc.Ua.Bindings
         private readonly IUaSCByteTransportFactory m_transportFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private long m_serverRetryAfterHintTicks;
     }
 }
