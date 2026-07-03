@@ -2,6 +2,15 @@
 
 This document surveys robust ways to carry a server retry-after hint for rate limiting and admission control in OPC UA without depending on service diagnostics. It complements [Rate Limiting and Admission Control](RateLimiting.md), which documents the implemented server and client rate-limit behavior, and [Server Session Scalability](ServerScalability.md), which explains the connect-storm feedback loop this signal is meant to break. The related specification-change proposal is [RetryAfter](proposals/RetryAfter.md).
 
+## Implementation status
+
+Two diagnostics-independent carriers are implemented and on by default, feeding the client's adaptive reconnect policy:
+
+- **`ResponseHeader.additionalHeader`** (all UA transports): the server attaches a structured `RetryAfterMs` value (a whole-millisecond `Int64` in the standard `AdditionalParametersType`) to a `BadServerTooBusy` `ServiceFault` via `RetryAfterHeader` / `ServerBusyException` (`EndpointBase.CreateFault`). The client reads it in `ClientBase.ValidateResponse` and surfaces it to the reconnect policy. Delivered regardless of `ReturnDiagnostics`.
+- **HTTP `Retry-After`** (HTTPS transport): the `AddHttpsRateLimiter` gate sets the header on its HTTP 429; the client's `HttpsTransportChannel` maps a 429/503 with `Retry-After` to `BadServerTooBusy` carrying the hint.
+
+The client honors any of these hints through `IReconnectPolicy.TryGetNextDelay` (the retry-after survives the diagnostics gate and client exception re-wrapping). The legacy `RetryAfterMs=N` `AdditionalInfo` token remains as a best-effort compatibility hint. The UA-TCP `Error` message reason token and dynamic `Server.ServiceLevel` remain future work (see below).
+
 ## Problem with the current fault `AdditionalInfo` token
 
 PR #3946 added server and client rate limiting and currently communicates a best-effort retry-after hint for session-establishment overload by embedding a machine-readable `RetryAfterMs=N` token in a `BadServerTooBusy` fault's diagnostic `AdditionalInfo`, together with a human-readable `Retry after N ms.` message. That is useful for stack-local experimentation but is not a reliable protocol carrier.

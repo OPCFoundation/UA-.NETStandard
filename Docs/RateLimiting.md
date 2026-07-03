@@ -90,9 +90,10 @@ This is exposed through `IReconnectPolicy.TryGetNextDelay`, which adapts the bac
 
 To keep a bulk connect from bursting, a client-wide **connect admission gate** ramps concurrent initial connects: `ManagedSessionBuilder.WithConnectRateLimiter(maxConcurrency)` (or a shared `RateLimiter` / `IClientConnectGate`) bounds how many `ManagedSession.CreateAsync` calls establish at once; the excess wait in an unbounded queue rather than being rejected, so many sessions to one server ramp up smoothly instead of stampeding. It is off by default; through DI use the `ConnectRateLimiterMaxConcurrency` client option.
 
-## Planned follow-ups
+## Delivered and planned follow-ups
 
-- **Structured retry-after signaling**: keep the current best-effort machine-readable `RetryAfterMs=N` token in the `BadServerTooBusy` fault's `AdditionalInfo` as a compatibility hint, but prefer diagnostics-independent successors such as `ResponseHeader.additionalHeader`, HTTP `Retry-After`, UA-TCP ERR, and `Server.ServiceLevel`; see [Retry-after signaling for OPC UA backpressure](RetryAfterSignaling.md) and the [RetryAfter specification proposal](proposals/RetryAfter.md). `IReconnectPolicy.TryGetNextDelay` already honors a retry-after value when one is supplied.
+- **Structured retry-after (delivered)**: the server carries a machine-readable retry-after to the client independently of diagnostics — as a `RetryAfterMs` value in `ResponseHeader.additionalHeader` on a `BadServerTooBusy` `ServiceFault`, and as the standard HTTP `Retry-After` header on the HTTPS 429. The client honors both via `IReconnectPolicy.TryGetNextDelay`. The legacy `RetryAfterMs=N` `AdditionalInfo` token remains a best-effort compatibility hint. See [Retry-after signaling for OPC UA backpressure](RetryAfterSignaling.md).
+- **Planned**: a structured retry-after on the UA-TCP `Error` message for connection-level rejection, and a dynamic `Server.ServiceLevel` a client can use to stagger connects proactively. See the [RetryAfter specification proposal](proposals/RetryAfter.md).
 
 ## See also
 
