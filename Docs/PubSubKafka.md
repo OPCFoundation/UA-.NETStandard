@@ -131,7 +131,7 @@ Kafka topic names should use Kafka-safe characters such as letters, digits, `.`,
 
 Every produced Kafka record carries the normative `content-type` record header from Part 14 Annex B.2: `application/opcua+uadp` for `pubsub-kafka-uadp` and `application/json` for `pubsub-kafka-json`. The record key is derived from the PubSubConnection PublisherId when available so records for the same publisher preserve partition ordering.
 
-`KafkaConnectionOptions.DeliveryGuarantee` maps the Part 14 broker QoS intent to Kafka producer settings: `BestEffort` uses `acks=0`, `AtMostOnce` uses `acks=1`, `AtLeastOnce` uses `acks=all` without idempotence, and `ExactlyOnce` uses `acks=all` with producer idempotence enabled. Per-writer `RequestedDeliveryGuarantee` values on broker transport settings override the connection default when specified.
+`KafkaConnectionOptions.DeliveryGuarantee` maps the Part 14 broker QoS intent to Kafka producer settings: `BestEffort` uses `acks=0`, `AtMostOnce` uses `acks=1`, `AtLeastOnce` uses `acks=all` with producer idempotence enabled, and `ExactlyOnce` uses `acks=all` with producer idempotence enabled. Per-writer `RequestedDeliveryGuarantee` values on broker transport settings override the connection default when specified.
 
 ## SASL and TLS
 

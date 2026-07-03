@@ -155,6 +155,42 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
 
         [Test]
         [TestSpec("9.1.6")]
+        public async Task InMemoryLeaseStore_RejectsRenewalOfExpiredLeaseAsync()
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var store = new InMemoryPubSubLeaseStore(clock);
+            TimeSpan ttl = TimeSpan.FromSeconds(10);
+
+            PubSubLease? acquired = await store.TryAcquireAsync(
+                WriterComponentId,
+                "owner-a",
+                ttl).ConfigureAwait(false);
+            Assert.That(acquired, Is.Not.Null);
+            PubSubLease lease = acquired.GetValueOrDefault();
+
+            PubSubLease? renewedInTime = await store.TryRenewAsync(lease, ttl).ConfigureAwait(false);
+            Assert.That(renewedInTime, Is.Not.Null);
+
+            clock.Advance(ttl + TimeSpan.FromSeconds(1));
+
+            PubSubLease? renewedExpired = await store.TryRenewAsync(
+                renewedInTime.GetValueOrDefault(),
+                ttl).ConfigureAwait(false);
+            Assert.That(renewedExpired, Is.Null);
+
+            PubSubLease? reacquired = await store.TryAcquireAsync(
+                WriterComponentId,
+                "owner-a",
+                ttl).ConfigureAwait(false);
+            Assert.That(reacquired, Is.Not.Null);
+            Assert.That(
+                reacquired.GetValueOrDefault().FencingToken,
+                Is.GreaterThan(lease.FencingToken));
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
         public async Task WriterGroup_StandbyRolePausesPublishingUntilActiveAsync()
         {
             PubSubComponentRole role = PubSubComponentRole.Standby;

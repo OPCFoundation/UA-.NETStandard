@@ -52,5 +52,18 @@ namespace Opc.Ua.PubSub.Kafka
         /// explicit Kafka topic (QueueName). Defaults to <c>opcua</c>.
         /// </summary>
         public string Prefix { get; set; } = "opcua";
+
+        /// <summary>
+        /// Creates a deep copy of these topic options so per-connection
+        /// changes never leak back into a shared default options instance.
+        /// </summary>
+        /// <returns>A new, independent <see cref="KafkaTopicOptions"/>.</returns>
+        public KafkaTopicOptions Clone()
+        {
+            return new KafkaTopicOptions
+            {
+                Prefix = Prefix
+            };
+        }
     }
 }

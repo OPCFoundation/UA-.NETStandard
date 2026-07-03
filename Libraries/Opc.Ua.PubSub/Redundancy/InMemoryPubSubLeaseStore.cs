@@ -107,7 +107,8 @@ namespace Opc.Ua.PubSub.Redundancy
             {
                 if (!m_leases.TryGetValue(lease.LeaseKey, out PubSubLease current)
                     || current.FencingToken != lease.FencingToken
-                    || !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal))
+                    || !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal)
+                    || current.ExpiresAt <= now)
                 {
                     return new ValueTask<PubSubLease?>((PubSubLease?)null);
                 }

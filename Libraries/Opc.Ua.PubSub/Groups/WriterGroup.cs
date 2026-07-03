@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Groups
             WriterGroupId = configuration.WriterGroupId;
             Name = configuration.Name ?? string.Empty;
             ConfigureActivationCoordinator(
-                componentId ?? string.Concat("pubsub:writergroup::", Name),
+                componentId ?? string.Concat("pubsub:writergroup:", Name),
                 activationCoordinator);
             m_logger = telemetry.CreateLogger<WriterGroup>();
             State = new PubSubStateMachine(

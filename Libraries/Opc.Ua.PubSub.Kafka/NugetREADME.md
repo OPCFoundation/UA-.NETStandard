@@ -27,9 +27,15 @@ Connection addresses use `kafka://host:9092` (plain/SASL) or `kafkas://host:9093
 
 ## NativeAOT
 
-This transport wraps the native `librdkafka` client (via Confluent.Kafka) and is therefore
-**not** NativeAOT/trimming compatible. Use a JIT-compiled host for Kafka deployments; the
-other PubSub transports (UDP, Ethernet, MQTT) remain AOT-compatible.
+The Kafka client is dual-sourced by target framework:
+
+- On **net10.0** the transport uses the pure-managed [Dekaf](https://github.com/thomhurst/Dekaf)
+  client (no native dependency) and is **NativeAOT / trimming compatible**.
+- On **net472, net48, netstandard2.1, net8.0, and net9.0** it uses `Confluent.Kafka`
+  (native `librdkafka`), which is **not** NativeAOT/trimming compatible — use a JIT-compiled
+  host on those frameworks.
+
+The other PubSub transports (UDP, Ethernet, MQTT) remain AOT-compatible on all frameworks.
 
 ## Additional documentation
 

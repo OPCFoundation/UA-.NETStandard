@@ -212,11 +212,11 @@ namespace Opc.Ua.PubSub.Kafka
                 AuthenticationProfileUri = source.AuthenticationProfileUri,
                 ResourceUri = source.ResourceUri,
                 AllowCredentialsOverPlaintext = source.AllowCredentialsOverPlaintext,
-                Tls = source.Tls,
+                Tls = source.Tls?.Clone(),
                 DeliveryGuarantee = source.DeliveryGuarantee,
                 AutoOffsetReset = source.AutoOffsetReset,
                 EnableAutoCommit = source.EnableAutoCommit,
-                Topics = source.Topics,
+                Topics = source.Topics?.Clone() ?? new KafkaTopicOptions(),
                 ConnectTimeout = source.ConnectTimeout,
                 MessageTimeout = source.MessageTimeout,
                 MaxMessageSize = source.MaxMessageSize

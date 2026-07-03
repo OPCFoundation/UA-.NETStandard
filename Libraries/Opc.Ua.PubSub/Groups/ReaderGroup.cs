@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Groups
             m_dataSetReaders = readers.ToArrayOf<DataSetReader, IDataSetReader>(static reader => reader);
             Name = configuration.Name ?? string.Empty;
             ConfigureActivationCoordinator(
-                componentId ?? string.Concat("pubsub:readergroup::", Name),
+                componentId ?? string.Concat("pubsub:readergroup:", Name),
                 activationCoordinator);
             m_telemetry = telemetry;
             m_scheduler = scheduler;

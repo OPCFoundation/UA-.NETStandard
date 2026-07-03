@@ -280,6 +280,7 @@ namespace Opc.Ua.PubSub.Redundancy
                             {
                                 held = null;
                                 SetRole(PubSubComponentRole.Standby);
+                                await DelayAsync(m_owner.m_retryInterval).ConfigureAwait(false);
                                 continue;
                             }
                             held = renewed;

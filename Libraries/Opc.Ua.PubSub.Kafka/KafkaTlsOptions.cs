@@ -85,5 +85,23 @@ namespace Opc.Ua.PubSub.Kafka
         /// librdkafka <c>ssl.key.location</c> property.
         /// </summary>
         public string? ClientKeyPath { get; set; }
+
+        /// <summary>
+        /// Creates a deep copy of these TLS options so per-connection
+        /// mutations (for example the automatic <c>kafkas</c> TLS upgrade)
+        /// never leak back into a shared default options instance.
+        /// </summary>
+        /// <returns>A new, independent <see cref="KafkaTlsOptions"/>.</returns>
+        public KafkaTlsOptions Clone()
+        {
+            return new KafkaTlsOptions
+            {
+                UseTls = UseTls,
+                ValidateServerCertificate = ValidateServerCertificate,
+                CaCertificatePath = CaCertificatePath,
+                ClientCertificatePath = ClientCertificatePath,
+                ClientKeyPath = ClientKeyPath
+            };
+        }
     }
 }

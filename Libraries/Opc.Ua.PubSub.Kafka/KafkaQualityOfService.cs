@@ -61,9 +61,10 @@ namespace Opc.Ua.PubSub.Kafka
         AtMostOnce,
 
         /// <summary>
-        /// The producer waits for all in-sync replicas to acknowledge
-        /// the write (<c>acks=all</c>) with retries but without
-        /// idempotence, so duplicates are possible on retry. Maps to
+        /// The producer waits for all in-sync replicas to acknowledge the
+        /// write (<c>acks=all</c>) with the idempotent producer enabled
+        /// (<c>enable.idempotence=true</c>), so retries do not create
+        /// duplicate records. Maps to
         /// <c>BrokerTransportQualityOfService.AtLeastOnce</c>.
         /// </summary>
         AtLeastOnce,
