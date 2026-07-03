@@ -31,15 +31,16 @@
 ## At a glance
 
 - Targets **OPC UA Part 14 v1.05.06** conformance for the implemented UDP,
-  MQTT, UADP, JSON, discovery, Action, SKS, and address-space surfaces.
-- Five library packages
+  MQTT, Kafka, UADP, JSON, discovery, Action, SKS, and address-space surfaces.
+- Six library packages
   ([NuGet](https://www.nuget.org/packages?q=OPCFoundation.NetStandard.Opc.Ua.PubSub)):
   `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Mqtt`,
+  `Opc.Ua.PubSub.Kafka`,
   `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`.
 - Multi-TFM: `netstandard2.1`, `net48`, `net472`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
-- Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
+- Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), **Kafka** (`kafka://` / `kafkas://`), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
 - Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4))
   and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5))
   with `Verbose` / `Compact` / `RawData` modes.
@@ -97,8 +98,8 @@ Actions to an external OPC UA server over a managed client session.
         │ IPubSubTransportFactory        │                       │
         │                                │                       │
 ┌─────────────────┐  ┌──────────────────────┐  ┌────────────────────┐
-│ Opc.Ua.PubSub.  │  │ Opc.Ua.PubSub.Mqtt   │  │ third-party plugin │
-│      Udp        │  │ MQTTnet 4 / 5        │  │ (custom transport) │
+│ Opc.Ua.PubSub.  │  │ Opc.Ua.PubSub.Mqtt   │  │ Opc.Ua.PubSub.Kafka│
+│      Udp        │  │ MQTTnet 4 / 5        │  │ Dekaf / librdkafka │
 └─────────────────┘  └──────────────────────┘  └────────────────────┘
 ```
 
@@ -389,7 +390,7 @@ DI extension methods provided by `Opc.Ua.PubSub`:
 | `AddPubSubSecurityKeyServiceServer(Action<InMemoryPubSubKeyServiceServer>?)` | Registers an in-process SKS with optional initial groups. |
 
 Transport-specific extensions
-(`Opc.Ua.PubSub.Udp` / `.Mqtt`) supply the matching
+(`Opc.Ua.PubSub.Udp` / `.Mqtt` / `.Kafka`) supply the matching
 `IPubSubTransportFactory` and hang off `IPubSubBuilder` — a transport
 only makes sense together with the PubSub feature:
 
@@ -397,6 +398,8 @@ only makes sense together with the PubSub feature:
   unicast / multicast / broadcast.
 - `IPubSubBuilder.AddMqttTransport(Action<MqttConnectionOptions>?)` —
   MQTT 3.1.1 + 5.0 via MQTTnet.
+- `IPubSubBuilder.AddKafkaTransport(Action<KafkaConnectionOptions>?)` —
+  Apache Kafka broker transport; see [Kafka transport](PubSubKafka.md).
 - `IPubSubBuilder.AddEthTransport(Action<EthTransportOptions>?)` —
   Ethernet Layer 2 (`opc.eth://`); chain `.WithPcap()` for the
   SharpPcap (libpcap / Npcap) backend.
@@ -409,6 +412,13 @@ Server-side address space — see
   `IPubSubServerBuilder` for chaining).
 
 ## Transports
+
+| Transport | Package | Profiles | Address schemes |
+| --------- | ------- | -------- | --------------- |
+| UDP / UADP | `Opc.Ua.PubSub.Udp` | `pubsub-udp-uadp` | `opc.udp://`, `opc.dtls://` |
+| Ethernet / UADP | `Opc.Ua.PubSub.Eth` | `pubsub-eth-uadp` | `opc.eth://` |
+| MQTT / UADP + JSON | `Opc.Ua.PubSub.Mqtt` | `pubsub-mqtt-uadp`, `pubsub-mqtt-json` | `mqtt://`, `mqtts://`, `ws://`, `wss://` |
+| Kafka / UADP + JSON | `Opc.Ua.PubSub.Kafka` | `pubsub-kafka-uadp`, `pubsub-kafka-json` | `kafka://`, `kafkas://` |
 
 ### UDP / UADP
 
@@ -666,6 +676,10 @@ var options = new MqttConnectionOptions
     }
 };
 ```
+
+### Apache Kafka
+
+Implemented in `Opc.Ua.PubSub.Kafka`. Wire profiles [`PubSub Kafka UADP`](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-uadp) and [`PubSub Kafka JSON`](http://opcfoundation.org/UA-Profile/Transport/pubsub-kafka-json) implement the Part 14 Annex B.2 Kafka broker mapping over `kafka://` and `kafkas://` endpoints. See [Kafka transport](PubSubKafka.md) for DI registration, topic mapping, SASL/TLS configuration, `content-type` record headers, QoS mapping, and NativeAOT notes.
 
 ### DTLS transport status
 
