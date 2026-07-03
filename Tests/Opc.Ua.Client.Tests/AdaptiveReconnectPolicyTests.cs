@@ -54,6 +54,19 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        private static TimeSpan? AdaptiveDelay(
+            ReconnectPolicy policy,
+            int attempt,
+            StatusCode lastStatus,
+            TimeSpan? serverRetryAfter)
+        {
+            // The default policy always reports adaptive behavior.
+            Assert.That(
+                policy.TryGetNextDelay(attempt, lastStatus, serverRetryAfter, out TimeSpan? delay),
+                Is.True);
+            return delay;
+        }
+
         [Test]
         public void IsServerBusySignalClassifiesOverloadCodes()
         {
@@ -79,7 +92,7 @@ namespace Opc.Ua.Client.Tests
         {
             ReconnectPolicy policy = CreateDeterministicPolicy();
 
-            TimeSpan? delay = policy.GetNextDelay(0, StatusCodes.Good, serverRetryAfter: null);
+            TimeSpan? delay = AdaptiveDelay(policy, 0, StatusCodes.Good, serverRetryAfter: null);
 
             Assert.That(delay, Is.EqualTo(TimeSpan.FromSeconds(1)));
         }
@@ -89,7 +102,7 @@ namespace Opc.Ua.Client.Tests
         {
             ReconnectPolicy policy = CreateDeterministicPolicy();
 
-            TimeSpan? busy = policy.GetNextDelay(0, StatusCodes.BadServerTooBusy, serverRetryAfter: null);
+            TimeSpan? busy = AdaptiveDelay(policy, 0, StatusCodes.BadServerTooBusy, serverRetryAfter: null);
 
             // 1s base * 4 (ServerBusyBackoffMultiplier) = 4s, below the 30s cap.
             Assert.That(busy, Is.EqualTo(TimeSpan.FromSeconds(4)));
@@ -106,7 +119,7 @@ namespace Opc.Ua.Client.Tests
                 JitterFactor = 0.0
             });
 
-            TimeSpan? busy = policy.GetNextDelay(0, StatusCodes.BadServerTooBusy, serverRetryAfter: null);
+            TimeSpan? busy = AdaptiveDelay(policy, 0, StatusCodes.BadServerTooBusy, serverRetryAfter: null);
 
             // 20s * 4 = 80s, clamped to the 30s max delay.
             Assert.That(busy, Is.EqualTo(TimeSpan.FromSeconds(30)));
@@ -117,7 +130,8 @@ namespace Opc.Ua.Client.Tests
         {
             ReconnectPolicy policy = CreateDeterministicPolicy();
 
-            TimeSpan? delay = policy.GetNextDelay(
+            TimeSpan? delay = AdaptiveDelay(
+                policy,
                 0,
                 StatusCodes.Good,
                 serverRetryAfter: TimeSpan.FromSeconds(10));
@@ -131,7 +145,8 @@ namespace Opc.Ua.Client.Tests
         {
             ReconnectPolicy policy = CreateDeterministicPolicy();
 
-            TimeSpan? delay = policy.GetNextDelay(
+            TimeSpan? delay = AdaptiveDelay(
+                policy,
                 0,
                 StatusCodes.Good,
                 serverRetryAfter: TimeSpan.FromSeconds(100));
@@ -153,7 +168,7 @@ namespace Opc.Ua.Client.Tests
             });
 
             Assert.That(
-                policy.GetNextDelay(2, StatusCodes.BadServerTooBusy, serverRetryAfter: null),
+                AdaptiveDelay(policy, 2, StatusCodes.BadServerTooBusy, serverRetryAfter: null),
                 Is.Null);
         }
 

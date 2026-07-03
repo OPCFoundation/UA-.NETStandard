@@ -501,9 +501,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Computes the next backoff delay, using the server-signal-aware overload
-        /// when the configured policy supports it and falling back to the basic
-        /// attempt-based delay otherwise.
+        /// Computes the next backoff delay, using the policy's server-signal-aware
+        /// <see cref="IReconnectPolicy.TryGetNextDelay"/> and falling back to the
+        /// basic attempt-based delay when the policy reports no adaptive behavior.
         /// </summary>
         /// <param name="attempt">Zero-based attempt number.</param>
         /// <param name="lastStatus">The status code of the previous attempt.</param>
@@ -519,10 +519,11 @@ namespace Opc.Ua.Client
             string? lastAdditionalInfo,
             CancellationToken ct)
         {
-            if (m_reconnectPolicy is IAdaptiveReconnectPolicy adaptive)
+            TimeSpan? serverRetryAfter = ReconnectPolicy.ParseServerRetryAfter(lastAdditionalInfo);
+            if (m_reconnectPolicy.TryGetNextDelay(
+                attempt, lastStatus, serverRetryAfter, out TimeSpan? delay, ct))
             {
-                TimeSpan? serverRetryAfter = ReconnectPolicy.ParseServerRetryAfter(lastAdditionalInfo);
-                return adaptive.GetNextDelay(attempt, lastStatus, serverRetryAfter, ct);
+                return delay;
             }
 
             return m_reconnectPolicy.GetNextDelay(attempt, ct);

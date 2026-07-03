@@ -952,6 +952,7 @@ namespace Opc.Ua.Client
                     && !Profiles.IsWssOpenApi(profile);
 
                 IDisposable? connectLease = null;
+                Session session;
                 try
                 {
                     if (m_connectGate != null)
@@ -961,7 +962,6 @@ namespace Opc.Ua.Client
                             .ConfigureAwait(false);
                     }
 
-                    Session session;
                     if (m_channelManager != null)
                     {
                         // Channel-manager-aware path: acquire a shared
@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Client
                     using (await m_serviceLock.WriterLockAsync(ct)
                         .ConfigureAwait(false))
                     {
-                        await InnerSession
+                        await session
                             .UpdateIdentityAsync(m_identityProvider, ct: ct)
                             .ConfigureAwait(false);
                     }
@@ -1023,7 +1023,7 @@ namespace Opc.Ua.Client
                 // once applied here. No-op when the classic engine is
                 // in use.
                 if ((m_transferSubscriptionsOnRecreate || m_poolNotifications) &&
-                    InnerSession.SubscriptionEngine
+                    session.SubscriptionEngine
                         is DefaultSubscriptionEngine v2 &&
                     v2.SubscriptionManager
                         is Subscriptions.SubscriptionManager v2Manager)
@@ -1047,7 +1047,7 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation(
                     "ManagedSession: Connected, SessionId={SessionId}.",
-                    InnerSession.SessionId);
+                    session.SessionId);
 
                 return ServiceResult.Good;
             }

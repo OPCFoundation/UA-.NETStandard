@@ -70,12 +70,12 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(provider.ConnectionRateLimiter).IsNotNull();
 
             bool first = provider.TryAcquireSessionEstablishment(
-                out IDisposable? lease1,
+                out IDisposable lease1,
                 out _);
             await Assert.That(first).IsTrue();
 
             bool second = provider.TryAcquireSessionEstablishment(
-                out IDisposable? lease2,
+                out IDisposable lease2,
                 out _);
             await Assert.That(second).IsFalse();
             await Assert.That(lease2).IsNull();
@@ -83,7 +83,7 @@ namespace Opc.Ua.Aot.Tests
             lease1?.Dispose();
 
             bool third = provider.TryAcquireSessionEstablishment(
-                out IDisposable? lease3,
+                out IDisposable lease3,
                 out _);
             await Assert.That(third).IsTrue();
             lease3?.Dispose();
@@ -120,12 +120,16 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(
                 ReconnectPolicy.IsServerBusySignal(StatusCodes.BadServerTooBusy)).IsTrue();
 
-            TimeSpan? good = policy.GetNextDelay(0, StatusCodes.Good, serverRetryAfter: null);
-            TimeSpan? busy = policy.GetNextDelay(
+            bool goodAdaptive = policy.TryGetNextDelay(
+                0, StatusCodes.Good, serverRetryAfter: null, out TimeSpan? good);
+            bool busyAdaptive = policy.TryGetNextDelay(
                 0,
                 StatusCodes.BadServerTooBusy,
-                serverRetryAfter: null);
+                serverRetryAfter: null,
+                out TimeSpan? busy);
 
+            await Assert.That(goodAdaptive).IsTrue();
+            await Assert.That(busyAdaptive).IsTrue();
             await Assert.That(good.HasValue).IsTrue();
             await Assert.That(busy.HasValue).IsTrue();
             await Assert.That(busy!.Value > good!.Value).IsTrue();

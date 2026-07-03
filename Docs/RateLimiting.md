@@ -84,7 +84,7 @@ Pass an `Action<RateLimiterOptions>` to fully configure the limiter with any `Sy
 
 A client that gets a "server busy" signal must not hammer the server with retries — that is exactly what amplifies a connect storm. The default `ReconnectPolicy` (used by `ManagedSession`) is **server-signal-aware**: when the previous attempt failed with an overload signal (`BadServerTooBusy`, `BadTcpServerTooBusy`, `BadTooManySessions`, `BadTooManyOperations`, `BadTooManyPublishRequests`, or a transient timeout) it backs off more aggressively (4× the computed delay, capped at `MaxDelay`) and honors a server-provided retry-after hint as a lower bound.
 
-This is exposed through `IAdaptiveReconnectPolicy` (a non-breaking companion of `IReconnectPolicy`). The connection state machine uses the adaptive overload automatically when the configured policy implements it, and falls back to the basic attempt-based delay otherwise, so existing custom policies keep working unchanged. Because a failed initial connect funnels into the same reconnect loop, the adaptive backoff applies to both initial connects and reconnects.
+This is exposed through `IReconnectPolicy.TryGetNextDelay`, which adapts the backoff to the previous attempt's status code and any server-provided retry-after hint. The connection state machine calls it automatically; a policy that returns `false` opts out of adaptive behavior and the state machine falls back to the basic attempt-based `GetNextDelay`, so a minimal custom policy only has to implement the plain delay. Because a failed initial connect funnels into the same reconnect loop, the adaptive backoff applies to both initial connects and reconnects.
 
 `ReconnectPolicy.IsServerBusySignal(StatusCode)` classifies whether a status code is an overload signal, for use in custom policies.
 
@@ -92,7 +92,7 @@ To keep a bulk connect from bursting, a client-wide **connect admission gate** r
 
 ## Planned follow-ups
 
-- **Structured retry-after**: carry the server's retry-after hint in the response header so a cooperating client can honor it precisely. Today the hint is human-readable in the fault message; the client's `IAdaptiveReconnectPolicy` already honors a retry-after value when one is supplied.
+- **Structured retry-after in the transport header**: carry the server's retry-after hint in a transport response header so a cooperating client honors it precisely without requiring diagnostics. Today the server encodes a best-effort machine-readable `RetryAfterMs=N` token in the `BadServerTooBusy` fault's `AdditionalInfo` (and in the human-readable message), which only reaches the client when it requests diagnostics; `IReconnectPolicy.TryGetNextDelay` already honors a retry-after value when one is supplied.
 
 ## See also
 

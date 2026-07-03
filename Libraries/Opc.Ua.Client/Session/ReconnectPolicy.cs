@@ -57,7 +57,7 @@ namespace Opc.Ua.Client
     /// Default reconnect policy with configurable backoff,
     /// jitter, and retry limits.
     /// </summary>
-    public class ReconnectPolicy : IAdaptiveReconnectPolicy
+    public class ReconnectPolicy : IReconnectPolicy
     {
         /// <summary>
         /// The multiplier applied to the computed backoff delay when the previous
@@ -165,17 +165,19 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public TimeSpan? GetNextDelay(
+        public bool TryGetNextDelay(
             int attempt,
             StatusCode lastStatus,
             TimeSpan? serverRetryAfter,
+            out TimeSpan? delay,
             CancellationToken ct = default)
         {
             TimeSpan? baseDelay = GetNextDelay(attempt, ct);
             if (baseDelay == null)
             {
                 // Retry budget exhausted.
-                return null;
+                delay = null;
+                return true;
             }
 
             double delayMs = baseDelay.Value.TotalMilliseconds;
@@ -199,7 +201,8 @@ namespace Opc.Ua.Client
                 delayMs = Math.Max(delayMs, hintMs);
             }
 
-            return TimeSpan.FromMilliseconds(Math.Max(delayMs, 0));
+            delay = TimeSpan.FromMilliseconds(Math.Max(delayMs, 0));
+            return true;
         }
 
         /// <summary>
