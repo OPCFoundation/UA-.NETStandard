@@ -247,6 +247,32 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
+        /// Polls the alarm's EventId until it becomes available or the timeout
+        /// elapses. Replaces fixed pre-waits: the server publish cycle can lag on
+        /// slow CI runners, so poll for the actual condition instead of sleeping a
+        /// fixed interval. Returns a null ByteString when the alarm exposes no
+        /// active event within the budget (it is not in an alarming state).
+        /// </summary>
+        protected async Task<ByteString> WaitForEventIdAsync(
+            NodeId conditionId,
+            TimeSpan? timeout = null,
+            TimeSpan? pollInterval = null)
+        {
+            TimeSpan budget = timeout ?? DefaultEventWaitTimeout;
+            TimeSpan interval = pollInterval ?? TimeSpan.FromMilliseconds(100);
+            DateTime deadline = DateTime.UtcNow + budget;
+            ByteString eventId = await ReadEventIdAsync(conditionId)
+                .ConfigureAwait(false);
+            while (eventId.IsNull && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(interval).ConfigureAwait(false);
+                eventId = await ReadEventIdAsync(conditionId)
+                    .ConfigureAwait(false);
+            }
+            return eventId;
+        }
+
+        /// <summary>
         /// Calls a method on the supplied condition object and returns
         /// the CallMethodResult.
         /// </summary>

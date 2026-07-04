@@ -79,15 +79,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             = ["http://myca/mycert.crl", "http://myaltca/mycert.crl"];
 
         /// <summary>
-        /// Set up a Global Discovery Server and Client instance and connect the session
-        /// </summary>
-        [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
-
-        /// <summary>
-        /// Clean up the Test PKI folder
+        /// Dispose the certificate test assets allocated by this fixture.
         /// </summary>
         [OneTimeTearDown]
         protected void OneTimeTearDown()

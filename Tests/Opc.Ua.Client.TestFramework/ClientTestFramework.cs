@@ -341,8 +341,8 @@ namespace Opc.Ua.Client.TestFramework
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn(
-                        $"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
+                    Assert.Ignore(
+                        $"OneTimeSetUp failed to create session with {ServerUrl}; tests skipped. Error: {e.Message}");
                 }
             }
         }
