@@ -2259,15 +2259,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateValidationHelpers.HasRequiredIssuerKeyUsage(compliant),
                 Is.True);
 
-            // non-compliant: empty (present-but-zero) KeyUsage extension.
-            using Certificate emptyUsage = CreateRootCa(X509KeyUsageFlags.None, "empty");
-            Assert.That(
-                CertificateValidationHelpers.HasRequiredIssuerKeyUsage(emptyUsage),
-                Is.False);
-
             // non-compliant: KeyUsage extension omitted entirely — the exact
             // scenario reported in #3944 (the platform X509Chain does not flag
-            // this, so the explicit check must).
+            // this, so the explicit check must). This also covers the
+            // GetKeyUsage()==None code path without building a degenerate
+            // empty-KeyUsage extension (which macOS/AppleCrypto refuses to load).
             using Certificate absentUsage = CreateCertificateWithoutKeyUsage();
             Assert.That(
                 CertificateValidationHelpers.HasRequiredIssuerKeyUsage(absentUsage),
@@ -2308,7 +2304,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             (Certificate rootCa, X509CRL rootCrl, Certificate appCert) =
-                CreateIssuerKeyUsageChain(X509KeyUsageFlags.None, "reject");
+                CreateIssuerKeyUsageChain(X509KeyUsageFlags.DigitalSignature, "reject");
             using (rootCa)
             using (appCert)
             {
@@ -2344,7 +2340,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             (Certificate rootCa, X509CRL rootCrl, Certificate appCert) =
-                CreateIssuerKeyUsageChain(X509KeyUsageFlags.None, "suppress");
+                CreateIssuerKeyUsageChain(X509KeyUsageFlags.DigitalSignature, "suppress");
             using (rootCa)
             using (appCert)
             {
