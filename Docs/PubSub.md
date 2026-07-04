@@ -16,6 +16,7 @@
 - [Dependency injection / hosting](#dependency-injection--hosting)
 - [Transports](#transports)
 - [Encodings](#encodings)
+- [Transcoding](#transcoding)
 - [Discovery](#discovery)
 - [Security](#security)
 - [Security Key Service (SKS)](#security-key-service-sks)
@@ -55,6 +56,7 @@
   group, writer, reader.
 - Runtime configuration mutation via
   `IPubSubApplication.AddConnectionAsync` / `AddWriterGroupAsync` / etc.
+- High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
 
 ## Architecture
 
@@ -731,6 +733,12 @@ Additional v1.05.06 flavours:
   `ua-metadata`.
 - `SingleNetworkMessage` mode flips the JSON array wrapper off, so
   each MQTT publish maps 1:1 to a single `JsonNetworkMessage`.
+
+## Transcoding
+
+High-performance transcoders in `Opc.Ua.PubSub.Transcoding` observe decoded NetworkMessages on a subscriber connection and re-publish encoded frames on a publisher connection. They use `PubSubNetworkMessage` as the intermediate representation, apply an ordered transform pipeline, project to UADP or JSON ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4), [§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5)), and then encode and re-secure the output when the target is UADP. Identity same-encoding routes can take a raw-frame passthrough fast path.
+
+Use `IPubSubBuilder.AddTranscodingBridge(...)` to configure an in-process bridge by source and target connection name, or compose the standalone `PubSubTranscoder`, `NetworkMessageTranscoder`, and built-in transforms directly. The full guide covers cross-encoding, field encoding, identifier remap, field projection and rename, value and metadata transforms, message-type filtering, receive hooks, egress, SKS-backed re-securing, and the `AllowInsecureCrossEncoding` policy for secured UADP to JSON routes: [PubSub Transcoding](PubSubTranscoding.md).
 
 ## Discovery
 

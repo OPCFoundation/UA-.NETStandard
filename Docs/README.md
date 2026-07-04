@@ -42,6 +42,7 @@ Here is a list of available documentation for different topics:
 * [PubSub (Part 14)](PubSub.md) - Publisher/subscriber support library: architecture, fluent builder, transports (UDP / MQTT 3.1.1 + 5.0 / Ethernet Layer 2), encodings (UADP / JSON), security, and server-side address space.
   * [Migration sub-doc](migrate/2.0.x/pubsub.md) - 1.5.378 → 2.0 breaking API, transport, JSON, and field-encoding changes, plus the compatibility matrix.
   * [Ethernet transport](PubSub.md#transports) - Layer 2 PubSub (`opc.eth://`, EtherType `0xB62C`, 802.1Q VLAN) with native AF_PACKET / BPF, SharpPcap, and in-memory backends.
+  * [PubSub Transcoding](PubSubTranscoding.md) - In-process subscriber-to-publisher transcoding with UADP/JSON cross-encoding, field/value/metadata transforms, identifier remap, receive hooks, egress, and managed UADP re-securing.
   * [External server adapter](PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters) - Bind PubSub publishers, subscribers, and Action responders to an external OPC UA server through `ManagedSession`.
   * [Dependency Injection extensions](DependencyInjection.md) - `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`, `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
   * [Profiles](Profiles.md#pubsub-transports) - Datagram-v2, SKS pull / push, AES-128/256-CTR security facets.
