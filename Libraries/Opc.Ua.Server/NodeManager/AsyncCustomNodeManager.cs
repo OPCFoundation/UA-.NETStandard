@@ -1181,7 +1181,7 @@ namespace Opc.Ua.Server
                 {
                     lock (activeNode)
                     {
-                        activeNode.OnReportEvent = OnReportEvent;
+                        activeNode.OnReportEventAsync = OnReportEventAsync;
 
                         if (!activeNode.ReferenceExists(
                             ReferenceTypeIds.HasNotifier,
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Server
                 return;
             }
             node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
-            node.ClearChangeMasks(context, false);
+            await node.ClearChangeMasksAsync(context, false, cancellationToken).ConfigureAwait(false);
             await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
 
             // remove from the parent.
@@ -2702,7 +2702,8 @@ namespace Opc.Ua.Server
                     if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
                     {
                         // updates to source finished - report changes to monitored items.
-                        handle.Node.ClearChangeMasks(systemContext, true);
+                        await handle.Node.ClearChangeMasksAsync(systemContext, true, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -3135,7 +3136,8 @@ namespace Opc.Ua.Server
                         cancellationToken).ConfigureAwait(false);
 
                     // updates to source finished - report changes to monitored items.
-                    source.ClearChangeMasks(context, false);
+                    await source.ClearChangeMasksAsync(context, false, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 finally
                 {
@@ -4534,7 +4536,7 @@ namespace Opc.Ua.Server
             {
                 lock (notifier)
                 {
-                    notifier.OnReportEvent = OnReportEvent;
+                    notifier.OnReportEventAsync = OnReportEventAsync;
 
                     if (!notifier.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
@@ -4575,7 +4577,7 @@ namespace Opc.Ua.Server
             {
                 lock (notifier)
                 {
-                    notifier.OnReportEvent = null;
+                    notifier.OnReportEventAsync = null;
 
                     if (notifier.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
@@ -4601,6 +4603,24 @@ namespace Opc.Ua.Server
             IFilterTarget e)
         {
             Server.ReportEvent(context, e);
+        }
+
+        /// <summary>
+        /// Asynchronously reports an event for a root notifier, awaiting the server report so the
+        /// producing thread is never blocked. This is the sink wired to the root notifier; the
+        /// synchronous <see cref="OnReportEvent"/> is retained for compatibility.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="node">The notifier node.</param>
+        /// <param name="e">The event.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnReportEventAsync(
+            ISystemContext context,
+            NodeState node,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default)
+        {
+            return Server.ReportEventAsync(context, e, cancellationToken);
         }
 
         /// <summary>

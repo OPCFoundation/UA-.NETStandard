@@ -296,6 +296,26 @@ namespace Opc.Ua.Server
         void ReportEvent(ISystemContext context, IFilterTarget e);
 
         /// <summary>
+        /// Asynchronously reports a global event, awaiting an asynchronous report sink so the caller
+        /// is never blocked.
+        /// </summary>
+        /// <param name="e">The event.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask ReportEventAsync(IFilterTarget e, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Asynchronously reports a global event, awaiting an asynchronous report sink so the caller
+        /// is never blocked.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="e">The event.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask ReportEventAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Refreshes the conditions for the specified subscription.
         /// </summary>
         /// <param name="context">The context.</param>
