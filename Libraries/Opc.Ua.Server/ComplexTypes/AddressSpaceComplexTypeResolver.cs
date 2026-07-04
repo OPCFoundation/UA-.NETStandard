@@ -191,15 +191,15 @@ namespace Opc.Ua.Server
             if (addRootNode)
             {
                 INode? rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
-                if (rootNode is not DataTypeNode)
+                if (rootNode is not DataTypeNode dataTypeNode)
                 {
+                    // FindAsync resolves a node only when it is a DataType, so a
+                    // missing node and a non-DataType node both surface here.
                     throw new ServiceResultException(
-                        rootNode == null
-                            ? StatusCodes.BadNodeIdUnknown
-                            : StatusCodes.BadNodeClassInvalid,
-                        $"Root node '{dataType}' is not a DataType node.");
+                        StatusCodes.BadNodeIdUnknown,
+                        $"Root node '{dataType}' could not be resolved to a DataType node.");
                 }
-                result.Add(rootNode);
+                result.Add(dataTypeNode);
             }
 
             var nodesToBrowse = new List<ExpandedNodeId> { dataType };

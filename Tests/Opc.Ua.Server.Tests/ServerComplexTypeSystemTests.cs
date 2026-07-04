@@ -324,6 +324,177 @@ namespace Opc.Ua.Server.Tests
             Assert.That(enumValues.Count, Is.EqualTo(1));
         }
 
+        [Test]
+        public async Task LoadDataTypeSystemReturnsEmpty()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            IReadOnlyDictionary<NodeId, DataDictionary> result =
+                await resolver.LoadDataTypeSystem().ConfigureAwait(false);
+
+            Assert.That(result, Is.Empty);
+        }
+
+        [Test]
+        public async Task BrowseTypeIdsForDictionaryComponentReturnsDefault()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            var (typeId, encodingId, dataTypeNode) = await resolver
+                .BrowseTypeIdsForDictionaryComponentAsync(
+                    NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeId.IsNull, Is.True);
+                Assert.That(encodingId.IsNull, Is.True);
+                Assert.That(dataTypeNode, Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task FindSuperTypeReturnsSuperType()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            NodeId superType = await resolver
+                .FindSuperTypeAsync(m_structTypeId)
+                .ConfigureAwait(false);
+
+            Assert.That(superType, Is.EqualTo(DataTypeIds.Structure));
+        }
+
+        [Test]
+        public async Task FindReturnsDataTypeNodeForDataTypeAndNullOtherwise()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            INode dataTypeNode = await resolver
+                .FindAsync(NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris))
+                .ConfigureAwait(false);
+            // the encoding node is a BaseObjectState, not a DataType
+            INode encodingNode = await resolver
+                .FindAsync(NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(dataTypeNode, Is.InstanceOf<DataTypeNode>());
+                Assert.That(
+                    ExpandedNodeId.ToNodeId(dataTypeNode.NodeId, m_namespaceUris),
+                    Is.EqualTo(m_structTypeId));
+                Assert.That(encodingNode, Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task BrowseForEncodingsReturnsBinaryEncodingId()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+            string[] supported = [BrowseNames.DefaultBinary];
+
+            var (encodings, binaryEncodingId, xmlEncodingId) = await resolver
+                .BrowseForEncodingsAsync(
+                    NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris),
+                    supported)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ExpandedNodeId.ToNodeId(binaryEncodingId, m_namespaceUris),
+                    Is.EqualTo(m_structEncodingId));
+                Assert.That(xmlEncodingId.IsNull, Is.True);
+                Assert.That(encodings.Count, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task BrowseForEncodingsArrayOverloadAggregatesEncodings()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+            string[] supported = [BrowseNames.DefaultBinary];
+            ArrayOf<ExpandedNodeId> ids =
+                [NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris)];
+
+            ArrayOf<NodeId> encodings = await resolver
+                .BrowseForEncodingsAsync(ids, supported)
+                .ConfigureAwait(false);
+
+            Assert.That(encodings.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task LoadDataTypesReturnsCustomSubtypesAndSkipsUaTypes()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            ArrayOf<INode> result = await resolver
+                .LoadDataTypesAsync(NodeId.ToExpandedNodeId(DataTypeIds.Structure, m_namespaceUris))
+                .ConfigureAwait(false);
+
+            bool hasCustomStruct = false;
+            for (int i = 0; i < result.Count; i++)
+            {
+                if (ExpandedNodeId.ToNodeId(result[i].NodeId, m_namespaceUris) == m_structTypeId)
+                {
+                    hasCustomStruct = true;
+                }
+            }
+            Assert.That(hasCustomStruct, Is.True);
+        }
+
+        [Test]
+        public async Task LoadDataTypesAddsRootNodeWhenRequested()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            ArrayOf<INode> result = await resolver
+                .LoadDataTypesAsync(
+                    NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris),
+                    addRootNode: true)
+                .ConfigureAwait(false);
+
+            bool hasRoot = false;
+            for (int i = 0; i < result.Count; i++)
+            {
+                if (ExpandedNodeId.ToNodeId(result[i].NodeId, m_namespaceUris) == m_structTypeId)
+                {
+                    hasRoot = true;
+                }
+            }
+            Assert.That(hasRoot, Is.True);
+        }
+
+        [Test]
+        public void LoadDataTypesThrowsWhenRootNodeCannotBeResolvedAsDataType()
+        {
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+            ExpandedNodeId unknownId =
+                NodeId.ToExpandedNodeId(new NodeId(9999, m_ns), m_namespaceUris);
+            // an existing node that is not a DataType surfaces the same way
+            ExpandedNodeId nonDataType =
+                NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris);
+
+            ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resolver
+                    .LoadDataTypesAsync(unknownId, addRootNode: true)
+                    .ConfigureAwait(false));
+            ServiceResultException wrongClass = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resolver
+                    .LoadDataTypesAsync(nonDataType, addRootNode: true)
+                    .ConfigureAwait(false));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing.StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown.Code));
+                Assert.That(
+                    wrongClass.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown.Code));
+            });
+        }
+
         private void BuildAddressSpace()
         {
             m_typeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
