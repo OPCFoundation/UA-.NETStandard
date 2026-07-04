@@ -219,23 +219,22 @@ namespace Opc.Ua.Server.Hosting
 
             ServerComplexTypeOptions? complexTypeOptions =
                 m_services.GetService<ServerComplexTypeOptions>();
+
+            // Complex-type loading is on by default (StandardServer.LoadComplexTypes);
+            // build and register stand-in encodeables for runtime-loaded custom
+            // DataTypes once the address space is available, and expose the primed
+            // factory as the schema resolver. An explicitly registered
+            // ServerComplexTypeOptions can tune or opt out (Enabled = false).
+            m_server = new StandardServer(m_telemetry, m_timeProvider)
+            {
+                ComplexTypeOptions = complexTypeOptions,
+                ComplexTypeRegistry = m_services.GetService<DataTypeDefinitionRegistry>(),
+                ComplexTypeResolverHolder =
+                    m_services.GetService<ServerDataTypeDefinitionResolver>()
+            };
             if (complexTypeOptions != null)
             {
-                // Opt-in: build and register stand-in encodeables for runtime
-                // loaded custom DataTypes once the address space is available,
-                // and expose the primed factory as the schema resolver.
-                m_server = new ComplexTypeStandardServer(
-                    m_telemetry,
-                    m_timeProvider,
-                    complexTypeOptions,
-                    m_services.GetService<DataTypeDefinitionRegistry>())
-                {
-                    ResolverHolder = m_services.GetService<ServerDataTypeDefinitionResolver>()
-                };
-            }
-            else
-            {
-                m_server = new StandardServer(m_telemetry, m_timeProvider);
+                m_server.LoadComplexTypes = complexTypeOptions.Enabled;
             }
 
             foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)

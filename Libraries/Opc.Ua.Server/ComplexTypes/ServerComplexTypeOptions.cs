@@ -36,6 +36,13 @@ namespace Opc.Ua.Server
     public sealed class ServerComplexTypeOptions
     {
         /// <summary>
+        /// When <c>true</c> (the default) the server loads stand-in encodeables
+        /// for custom DataTypes on startup. Set to <c>false</c> to opt out, which
+        /// maps to <see cref="StandardServer.LoadComplexTypes"/>.
+        /// </summary>
+        public bool Enabled { get; set; } = true;
+
+        /// <summary>
         /// When <c>true</c> only enumeration types are loaded and structured
         /// types are skipped. Defaults to <c>false</c>.
         /// </summary>

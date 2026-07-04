@@ -62,7 +62,7 @@ registry.Add(new UaTypeDescription(typeId, browseName, definition, namespaceUri)
 
 - **Dynamic complex types** — complex types built by the complex-type client carry a `StructureDefinition` (via `IStructureTypeInfo` / the structure-definition attribute) that can likewise be wrapped in a `UaTypeDescription` and registered.
 
-- **Types already in the encodeable factory** — any type known to an `IEncodeableFactory` (source-generated types and runtime complex-type stand-ins) exposes its definition through `IDataTypeDefinitionSource`, so `EncodeableFactoryDefinitionSource` resolves it directly from the factory without a separate registration. Use it on its own, or combine it with a manual `DataTypeDefinitionRegistry` (for schema-only types that have no encodeable) via `CompositeDataTypeDefinitionResolver`:
+- **Types already in the encodeable factory** — any structured or enumeration type known to an `IEncodeableFactory` (source-generated types and runtime complex-type stand-ins) exposes its definition through `IDataTypeDefinitionSource`, so `EncodeableFactoryDefinitionSource` resolves it directly from the factory without a separate registration. Built-in primitive DataTypes (and simple types that derive directly from them) carry no `DataTypeDefinition` and are handled by the built-in type system rather than this resolver. Use the factory source on its own, or combine it with a manual `DataTypeDefinitionRegistry` (for schema-only types that have no encodeable) via `CompositeDataTypeDefinitionResolver`:
 
 ```csharp
 IDataTypeDefinitionResolver resolver = new CompositeDataTypeDefinitionResolver(

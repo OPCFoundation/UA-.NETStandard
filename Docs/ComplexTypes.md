@@ -744,13 +744,17 @@ await complexTypeSystem.LoadAsync();
 
 ## Server-Side Complex Types
 
-Servers can build the same dynamic stand-in encodeables for the custom DataTypes in their address space. This is useful when a server loads a NodeSet2 at **runtime** whose DataTypes were never compiled into a .NET type: without a matching encodeable the server cannot encode or decode instances of those DataTypes. Enabling server-side complex types primes the server's `IEncodeableFactory` with stand-ins built from the `DataTypeDefinition` attribute of every custom DataType, reusing exactly the same NativeAOT friendly path as the client (`ComplexTypeSystem`, in `Opc.Ua.Core.Schema`).
+Servers can build the same dynamic stand-in encodeables for the custom DataTypes in their address space. This is useful when a server loads a NodeSet2 at **runtime** whose DataTypes were never compiled into a .NET type: without a matching encodeable the server cannot encode or decode instances of those DataTypes. Server-side complex types prime the server's `IEncodeableFactory` with stand-ins built from the `DataTypeDefinition` attribute of every custom DataType, reusing exactly the same NativeAOT friendly path as the client (`ComplexTypeSystem`, in `Opc.Ua.Core.Schema`). This runs by default in `StandardServer` (controlled by `LoadComplexTypes`).
 
-DataTypes that are already backed by a compiled, source-generated type are left untouched — only DataTypes that are not yet known to the encodeable factory (i.e. loaded at runtime) are turned into stand-ins.
+DataTypes that are already backed by a compiled, source-generated type are **already registered in the server's `IEncodeableFactory` and used as-is** for encoding and decoding; the server only builds stand-ins for the DataTypes that are still missing from the factory (i.e. those loaded from a NodeSet at runtime).
 
-### Enabling via dependency injection (recommended)
+### How compiled types reach the factory
 
-Opt in with the fluent `AddComplexTypeSystem()` extension when configuring the hosted server:
+Compiled DataTypes are registered explicitly, not by reflection: the OPC UA source generator emits one `Add<Namespace>(this IEncodeableFactoryBuilder)` extension per namespace, and a node manager calls it while it builds its address space (for example `Server.Factory.Builder.AddTestData().Commit()`). Node managers finish starting before `OnNodeManagerStartedAsync` runs, so every source-generated type is already present in `server.Factory` when the complex-type pass executes — `ComplexTypeSystem` finds them via `TryGetType` / `TryGetEncodeableType` and skips them, creating stand-ins only for the remaining runtime-loaded DataTypes.
+
+### Configuring via dependency injection (recommended)
+
+Complex-type loading is on by default. Use the fluent `AddComplexTypeSystem()` extension when configuring the hosted server to tune the pass and expose the primed factory as a DI-resolvable schema `IDataTypeDefinitionResolver`:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -769,6 +773,7 @@ Options can be configured:
 ```csharp
 .AddComplexTypeSystem(options =>
 {
+    options.Enabled = true;        // load complex types on startup (default)
     options.OnlyEnumTypes = false; // also build structured types (default)
     options.ThrowOnError = false;  // log and continue on failures (default)
 });
@@ -776,22 +781,22 @@ Options can be configured:
 
 ### Direct usage without dependency injection
 
-For servers that are not hosted through dependency injection, use the ready-made `ComplexTypeStandardServer` as a drop-in replacement for `StandardServer`:
+For servers that are not hosted through dependency injection, no extra type is required: `StandardServer` loads complex types by default (`LoadComplexTypes`), so a plain instance already builds the stand-ins once its address space is available:
 
 ```csharp
-var server = new ComplexTypeStandardServer(telemetry);
+var server = new StandardServer(telemetry);
 await application.StartAsync(server);
 ```
 
-Alternatively run the pass explicitly from a custom `StandardServer` subclass once the address space is available (before endpoints open):
+Opt out by setting `server.LoadComplexTypes = false` before starting. To customize the pass — for example to load only enumerations — override `OnNodeManagerStartedAsync` in a `StandardServer` subclass and drive it yourself instead of calling `base` (which would run the default pass):
 
 ```csharp
 protected override async ValueTask OnNodeManagerStartedAsync(
     IServerInternal server, CancellationToken cancellationToken)
 {
-    await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+    var options = new ServerComplexTypeOptions { OnlyEnumTypes = true };
     await server
-        .LoadComplexTypesAsync(server.Telemetry, cancellationToken: cancellationToken)
+        .LoadComplexTypesAsync(server.Telemetry, options, cancellationToken: cancellationToken)
         .ConfigureAwait(false);
 }
 ```

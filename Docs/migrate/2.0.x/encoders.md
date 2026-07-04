@@ -30,7 +30,7 @@ The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `Encodeab
 
 The shared `ComplexTypeSystem` orchestrator, the complex type interfaces and the default (non-reflection-emit) type builder moved to the `Opc.Ua.Core.Schema` assembly under the namespace `Opc.Ua.Schema` so they can be used by both client and server. Update your `using` directives from `Opc.Ua.Client.ComplexTypes` to `Opc.Ua.Schema` (the client-only `NodeCacheResolver` and the `ComplexTypeSystem.Create(session, ...)` helpers stay in `Opc.Ua.Client.ComplexTypes`).
 The `ComplexTypeSystem(ISession, ...)` constructors were removed; construct a session-bound instance with `ComplexTypeSystem.Create(session, telemetry)` (the default, NativeAOT friendly builder) or `ComplexTypeSystem.Create(session, new ComplexTypeBuilderFactory(), telemetry)` for the Reflection.Emit builder.
-Servers can build the same stand-ins for runtime-loaded DataTypes by opting in with `AddComplexTypeSystem()` (or the `ComplexTypeStandardServer` / `IServerInternal.LoadComplexTypesAsync(...)`); see `Docs/ComplexTypes.md`.
+Servers build the same stand-ins for runtime-loaded DataTypes **by default** (`StandardServer.LoadComplexTypes`; opt out by setting it to `false`); configure the pass with `AddComplexTypeSystem()` or invoke `IServerInternal.LoadComplexTypesAsync(...)` directly. See `Docs/ComplexTypes.md`.
 
 ### OptionSet DataType support
 
@@ -68,7 +68,7 @@ Custom encoder/decoder implementations must adjust to comply with the new interf
 
 The shared `ComplexTypeSystem` orchestrator, the complex type interfaces and the default (non-reflection-emit) type builder moved to the `Opc.Ua.Core.Schema` assembly under the namespace `Opc.Ua.Schema` so they can be used by both client and server. Update your `using` directives from `Opc.Ua.Client.ComplexTypes` to `Opc.Ua.Schema` (the client-only `NodeCacheResolver` and the `ComplexTypeSystem.Create(session, ...)` helpers stay in `Opc.Ua.Client.ComplexTypes`).
 The `ComplexTypeSystem(ISession, ...)` constructors were removed; construct a session-bound instance with `ComplexTypeSystem.Create(session, telemetry)` (the default, NativeAOT friendly builder) or `ComplexTypeSystem.Create(session, new ComplexTypeBuilderFactory(), telemetry)` for the Reflection.Emit builder.
-Servers can build the same stand-ins for runtime-loaded DataTypes by opting in with `AddComplexTypeSystem()` (or the `ComplexTypeStandardServer` / `IServerInternal.LoadComplexTypesAsync(...)`); see `Docs/ComplexTypes.md`.
+Servers build the same stand-ins for runtime-loaded DataTypes **by default** (`StandardServer.LoadComplexTypes`; opt out by setting it to `false`); configure the pass with `AddComplexTypeSystem()` or invoke `IServerInternal.LoadComplexTypesAsync(...)` directly. See `Docs/ComplexTypes.md`.
 
 ### OptionSet DataType support
 

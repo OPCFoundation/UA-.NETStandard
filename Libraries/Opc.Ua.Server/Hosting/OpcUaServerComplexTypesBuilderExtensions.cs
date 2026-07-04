@@ -36,20 +36,26 @@ using Opc.Ua.Server.Hosting;
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// <see cref="IOpcUaServerBuilder"/> extensions that enable building and
+    /// <see cref="IOpcUaServerBuilder"/> extensions that configure building and
     /// registering dynamic stand-in encodeables for the custom DataTypes that
     /// a server loaded from a NodeSet at runtime.
     /// </summary>
     public static class OpcUaServerComplexTypesBuilderExtensions
     {
         /// <summary>
-        /// Enables runtime complex type support for the server. After the
-        /// address space is available (and before the server starts accepting
-        /// connections) the server builds stand-in encodeables for every custom
-        /// DataType that carries a <c>DataTypeDefinition</c> attribute but is not
-        /// already backed by a compiled .NET type, and registers them into the
-        /// server's encodeable factory. This reuses exactly the same NativeAOT
-        /// friendly path as the client complex type system.
+        /// Configures runtime complex type support for the server and exposes the
+        /// primed encodeable factory as a DI-resolvable schema resolver. Complex
+        /// type loading is on by default (<see cref="StandardServer.LoadComplexTypes"/>);
+        /// use this to tune <see cref="ServerComplexTypeOptions"/> (including opting
+        /// out via <see cref="ServerComplexTypeOptions.Enabled"/>) or to make the
+        /// schema <see cref="IDataTypeDefinitionResolver"/> available through
+        /// dependency injection. After the address space is available (and before
+        /// the server starts accepting connections) the server builds stand-in
+        /// encodeables for every custom DataType that carries a
+        /// <c>DataTypeDefinition</c> attribute but is not already backed by a
+        /// compiled .NET type, and registers them into the server's encodeable
+        /// factory. This reuses exactly the same NativeAOT friendly path as the
+        /// client complex type system.
         /// </summary>
         /// <param name="builder">The OPC UA server builder.</param>
         /// <param name="configure">An optional callback to configure the

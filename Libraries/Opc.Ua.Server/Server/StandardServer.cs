@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -66,10 +67,37 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// When <c>true</c> (the default) the server builds stand-in encodeables
+        /// for custom DataTypes that were loaded from a NodeSet at runtime, once
+        /// the address space is available and before the server accepts
+        /// connections. DataTypes already backed by a compiled type are skipped.
+        /// Set to <c>false</c> to opt out.
+        /// </summary>
+        public bool LoadComplexTypes { get; set; } = true;
+
+        /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all
         /// time / duration calculations and timer scheduling.
         /// </summary>
         protected TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// Optional complex type load options applied when
+        /// <see cref="LoadComplexTypes"/> is enabled.
+        /// </summary>
+        internal ServerComplexTypeOptions? ComplexTypeOptions { get; set; }
+
+        /// <summary>
+        /// Optional supplementary registry composed into the schema resolver
+        /// for schema-only types that have no encodeable.
+        /// </summary>
+        internal DataTypeDefinitionRegistry? ComplexTypeRegistry { get; set; }
+
+        /// <summary>
+        /// Optional dependency-injection resolver holder filled with the
+        /// factory-backed schema resolver after complex types are loaded.
+        /// </summary>
+        internal ServerDataTypeDefinitionResolver? ComplexTypeResolverHolder { get; set; }
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
@@ -4050,18 +4078,31 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called asynchronously after the node managers have been started and
         /// the complete address space is available, but before the server
-        /// begins accepting connections. Opt-in features that must augment the
-        /// server once the full address space exists (for example runtime
-        /// complex-type loading) override this hook.
+        /// begins accepting connections. By default this builds stand-in
+        /// encodeables for custom DataTypes loaded from a NodeSet at runtime
+        /// (when <see cref="LoadComplexTypes"/> is enabled). Subclasses may
+        /// override to augment the server once the full address space exists.
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual ValueTask OnNodeManagerStartedAsync(
+        protected virtual async ValueTask OnNodeManagerStartedAsync(
             IServerInternal server,
             CancellationToken cancellationToken = default)
         {
-            // may be overridden by the subclass.
-            return default;
+            if (LoadComplexTypes)
+            {
+                // Build stand-in encodeables for custom DataTypes loaded from a
+                // NodeSet at runtime (types already in the factory are skipped)
+                // and expose the primed factory as the schema resolver.
+                IDataTypeDefinitionResolver resolver = await server
+                    .LoadComplexTypesAsync(
+                        server.Telemetry,
+                        ComplexTypeOptions,
+                        ComplexTypeRegistry,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                ComplexTypeResolverHolder?.SetResolver(resolver);
+            }
         }
 
         /// <summary>
