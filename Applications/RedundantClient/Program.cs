@@ -134,8 +134,14 @@ namespace RedundantClient
 
             await using (application.ConfigureAwait(false))
             {
+                // Resolve the configuration next to the application binaries (the
+                // file is copied to the output directory) so the sample runs from
+                // any working directory, e.g. `dotnet run --project ...` invoked
+                // from the repository root.
+                string configFilePath = System.IO.Path.Combine(
+                    AppContext.BaseDirectory, kConfigSectionName + ".Config.xml");
                 ApplicationConfiguration configuration = await application
-                    .LoadApplicationConfigurationAsync(silent: false, ct: ct)
+                    .LoadApplicationConfigurationAsync(configFilePath, silent: false, ct: ct)
                     .ConfigureAwait(false);
                 if (autoAccept)
                 {
@@ -288,33 +294,40 @@ namespace RedundantClient
         private static async Task SubscribeToCurrentTimeAsync<TSession>(TSession session, CancellationToken ct)
             where TSession : ISession
         {
-            // Ownership of the subscription transfers to the session via AddSubscription;
-            // the session disposes its subscriptions when it is disposed.
-#pragma warning disable CA2000
-            var subscription = new Subscription(session.DefaultSubscription)
+            // The managed session uses the V2 subscription engine, which delivers
+            // notifications through an ISubscriptionNotificationHandler registered
+            // with the session's subscription manager. The classic
+            // Subscription.FastDataChangeCallback delegate is NOT invoked by the V2
+            // engine, so register a handler here to log the data changes.
+            if (!session.TryGetSubscriptionManager(
+                out Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager))
             {
-                DisplayName = "RedundantClient CurrentTime",
-                PublishingEnabled = true,
-                PublishingInterval = 1000,
-                KeepAliveCount = 10,
-                LifetimeCount = 0,
-                MinLifetimeInterval = 10_000,
-                FastDataChangeCallback = OnDataChange
-            };
-            session.AddSubscription(subscription);
-#pragma warning restore CA2000
-            await subscription.CreateAsync(ct).ConfigureAwait(false);
+                Console.WriteLine(
+                    "Session does not expose the V2 subscription manager; cannot monitor.");
+                return;
+            }
 
-            var currentTime = new MonitoredItem(subscription.DefaultItem)
-            {
-                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                AttributeId = Attributes.Value,
-                DisplayName = "ServerStatus.CurrentTime",
-                SamplingInterval = 1000,
-                QueueSize = 10,
-                DiscardOldest = true
-            };
-            subscription.AddItem(currentTime);
+            Opc.Ua.Client.Subscriptions.ISubscription subscription = manager.Add(
+                new MonitoringHandler(),
+                new OptionsMonitor<Opc.Ua.Client.Subscriptions.SubscriptionOptions>(
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    {
+                        PublishingInterval = TimeSpan.FromSeconds(1),
+                        PublishingEnabled = true,
+                        KeepAliveCount = 10,
+                        LifetimeCount = 100
+                    }));
+
+            subscription.TryAddMonitoredItem(
+                "ServerStatus.CurrentTime",
+                VariableIds.Server_ServerStatus_CurrentTime,
+                o => o with
+                {
+                    SamplingInterval = TimeSpan.FromSeconds(1),
+                    QueueSize = 10,
+                    DiscardOldest = true
+                },
+                out _);
 
             // Also monitor the replicated "Counter" value from the HA sample node
             // manager. The active replica increments it and mirrors it to the
@@ -324,35 +337,82 @@ namespace RedundantClient
                 "http://opcfoundation.org/UA/Samples/HighAvailability");
             if (haNamespaceIndex >= 0)
             {
-                var replicatedCounter = new MonitoredItem(subscription.DefaultItem)
-                {
-                    StartNodeId = new NodeId("Counter", (ushort)haNamespaceIndex),
-                    AttributeId = Attributes.Value,
-                    DisplayName = "HighAvailability.Counter",
-                    SamplingInterval = 1000,
-                    QueueSize = 10,
-                    DiscardOldest = true
-                };
-                subscription.AddItem(replicatedCounter);
+                subscription.TryAddMonitoredItem(
+                    "HighAvailability.Counter",
+                    new NodeId("Counter", (ushort)haNamespaceIndex),
+                    o => o with
+                    {
+                        SamplingInterval = TimeSpan.FromSeconds(1),
+                        QueueSize = 10,
+                        DiscardOldest = true
+                    },
+                    out _);
             }
 
-            await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
+            // The V2 engine creates the subscription and its monitored items on the
+            // server asynchronously; wait briefly so monitoring is active by the
+            // time this method returns.
+            for (int i = 0; i < 100 && !subscription.Created; i++)
+            {
+                await Task.Delay(50, ct).ConfigureAwait(false);
+            }
         }
 
-        private static void OnDataChange(
-            Subscription subscription,
-            DataChangeNotification notification,
-            ArrayOf<string> stringTable)
+        /// <summary>
+        /// V2 subscription notification handler that logs data changes for the
+        /// monitored CurrentTime and replicated Counter values.
+        /// </summary>
+        private sealed class MonitoringHandler : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
         {
-            for (int ii = 0; ii < notification.MonitoredItems.Count; ii++)
+            public ValueTask OnDataChangeNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
             {
-                MonitoredItemNotification item = notification.MonitoredItems[ii];
-                MonitoredItem? source = subscription.FindItemByClientHandle(item.ClientHandle);
-                Console.WriteLine(
-                    "{0}={1} Status={2}",
-                    source?.DisplayName ?? "Value",
-                    item.Value.WrappedValue,
-                    item.Value.StatusCode);
+                ReadOnlySpan<Opc.Ua.Client.Subscriptions.DataValueChange> changes = notification.Span;
+                for (int ii = 0; ii < changes.Length; ii++)
+                {
+                    Opc.Ua.Client.Subscriptions.DataValueChange change = changes[ii];
+                    Console.WriteLine(
+                        "{0}={1} Status={2}",
+                        change.MonitoredItem?.Name ?? "Value",
+                        change.Value.WrappedValue,
+                        change.Value.StatusCode);
+                }
+
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+            {
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
             }
         }
 

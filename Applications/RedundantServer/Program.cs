@@ -124,6 +124,11 @@ IOpcUaServerBuilder ua = builder.Services
         o.ApplicationUri = applicationUri;
         o.ProductUri = "uri:opcfoundation.org:RedundantServer";
         o.AutoAcceptUntrustedCertificates = true;
+        // Offer an unsecured (SecurityMode.None) endpoint alongside the secure
+        // policies so the sample's --nosecurity client and the transparent
+        // (no certificate exchange) demo can connect. The default
+        // SignAndEncrypt policies remain enabled for secured deployments.
+        o.IncludeUnsecurePolicyNone = true;
         o.EndpointUrls.Add(endpointUrl);
         // Transparent mode: share one certificate across replicas by pointing them
         // at a common PKI store with a stable subject name.
@@ -134,6 +139,17 @@ IOpcUaServerBuilder ua = builder.Services
         if (!string.IsNullOrWhiteSpace(sharedPkiRoot))
         {
             o.PkiRoot = sharedPkiRoot!;
+        }
+        else
+        {
+            // Each replica has a distinct per-node ApplicationUri, so give every
+            // replica its own PKI store scoped by node id. Without this, replicas
+            // started on ONE host (the "run two instances" workflow) would share
+            // the default store keyed by the constant certificate subject, and the
+            // second replica would reject the first replica's certificate because
+            // its ApplicationUri SubjectAltName differs. Transparent mode overrides
+            // this with a shared HA_PKI_ROOT + HA_SUBJECT_NAME.
+            o.PkiRoot = DefaultPkiRootForNode(nodeId);
         }
     })
     .AddNodeManager<HaSampleNodeManagerFactory>();
@@ -361,6 +377,26 @@ static IEnumerable<string> ReadList(IConfiguration configuration, string key)
     {
         yield return item;
     }
+}
+
+/// <summary>
+/// Returns a per-node PKI store root so replicas started on ONE host each get
+/// their own certificate store. Scoped by node id under the OS temp folder.
+/// </summary>
+static string DefaultPkiRootForNode(string nodeId)
+{
+    var sanitized = new System.Text.StringBuilder(nodeId.Length);
+    foreach (char c in nodeId)
+    {
+        sanitized.Append(Array.IndexOf(System.IO.Path.GetInvalidFileNameChars(), c) >= 0 ? '_' : c);
+    }
+
+    return System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        "OPC Foundation",
+        "RedundantServer",
+        sanitized.ToString(),
+        "pki");
 }
 
 static async Task<List<IPEndPoint>> ReadGossipPeersAsync(
