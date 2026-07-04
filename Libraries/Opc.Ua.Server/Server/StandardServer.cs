@@ -1989,6 +1989,7 @@ namespace Opc.Ua.Server
                 PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
                     context,
                     subscriptionAcknowledgements,
+                    requestLifetime.ParkSink,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);

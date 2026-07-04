@@ -973,6 +973,20 @@ namespace Opc.Ua
         [DataTypeField(Order = 5)]
         public int MaxQueuedRequestCount { get; set; } = 200;
 
+        /// <summary>
+        /// Whether a held long-poll request (such as a <c>Publish</c> waiting for
+        /// notifications) releases its processing worker at the park point instead of
+        /// occupying it for the whole wait.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> (the default) decouples held requests from the worker/thread
+        /// budget so a small worker pool can service many concurrently-held requests;
+        /// <c>false</c> restores the legacy behavior where each held request occupies a
+        /// worker slot for the duration of its wait.
+        /// </value>
+        [DataTypeField(Order = 6)]
+        public bool DecoupleHeldPublishRequests { get; set; } = true;
+
         private ArrayOf<string> m_baseAddresses;
         private ArrayOf<string> m_alternateBaseAddresses;
         private ArrayOf<ServerSecurityPolicy> m_securityPolicies;
