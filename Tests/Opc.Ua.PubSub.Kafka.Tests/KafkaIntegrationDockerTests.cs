@@ -58,7 +58,11 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         {
             try
             {
-                m_container = new KafkaBuilder("confluentinc/cp-kafka:7.5.12").Build();
+                // Dekaf (the net10.0 client) requires a Kafka 4.0+ broker for the
+                // KIP-848 ConsumerGroupHeartbeat API; the Apache image runs KRaft and
+                // enables the new consumer group protocol by default. The Confluent
+                // client used on other TFMs falls back to the classic protocol.
+                m_container = new KafkaBuilder("apache/kafka:4.0.0").Build();
                 await m_container.StartAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
