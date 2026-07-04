@@ -458,6 +458,43 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.DoesNotThrow(() => TestableClientBase.TestValidateResponse(header));
         }
 
+        [Test]
+        public void ValidateResponseMergesRetryAfterIntoExistingAdditionalInfo()
+        {
+            var header = new ResponseHeader
+            {
+                ServiceResult = StatusCodes.BadServerTooBusy,
+                ServiceDiagnostics = new DiagnosticInfo { AdditionalInfo = "diagnostic detail" }
+            };
+            RetryAfterHeader.AttachTo(header, TimeSpan.FromSeconds(2));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => TestableClientBase.TestValidateResponse(header))!;
+
+            // The existing diagnostic AdditionalInfo is preserved and the header
+            // hint is merged in (not overwritten).
+            Assert.That(ex.AdditionalInfo, Does.Contain("diagnostic detail"));
+            Assert.That(ex.AdditionalInfo, Does.Contain("RetryAfterMs=2000"));
+        }
+
+        [Test]
+        public void ValidateResponseKeepsExistingRetryAfterToken()
+        {
+            var header = new ResponseHeader
+            {
+                ServiceResult = StatusCodes.BadServerTooBusy,
+                ServiceDiagnostics = new DiagnosticInfo { AdditionalInfo = "RetryAfterMs=5000" }
+            };
+            RetryAfterHeader.AttachTo(header, TimeSpan.FromSeconds(2));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => TestableClientBase.TestValidateResponse(header))!;
+
+            // A retry-after token already present in AdditionalInfo is kept as-is;
+            // the header value is not appended.
+            Assert.That(ex.AdditionalInfo, Is.EqualTo("RetryAfterMs=5000"));
+        }
+
         /// <summary>
         /// Testable wrapper for ClientBase that exposes protected members.
         /// </summary>

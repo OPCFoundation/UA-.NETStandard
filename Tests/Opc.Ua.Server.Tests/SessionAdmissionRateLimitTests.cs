@@ -64,9 +64,14 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void RestorePermissiveAdmission()
         {
-            // Isolate tests: leave the server with admission disabled between tests.
+            // Isolate tests: leave the server with admission disabled between tests,
+            // and dispose the caller-owned provider being replaced (the server only
+            // disposes providers it created) so RateLimiter timers do not leak
+            // across the suite. Dispose is idempotent.
+            IServerRateLimiterProvider previous = m_server.RateLimiterProvider;
             m_server.RateLimiterProvider = new DefaultServerRateLimiterProvider(
                 new ServerRateLimitOptions { Enabled = false });
+            previous?.Dispose();
         }
 
         [Test]

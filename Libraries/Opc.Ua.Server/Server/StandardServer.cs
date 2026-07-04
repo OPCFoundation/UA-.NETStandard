@@ -95,6 +95,15 @@ namespace Opc.Ua.Server
             get => m_rateLimiterProvider;
             set
             {
+                // Dispose a provider the server created before replacing it, so its
+                // RateLimiter timers are not leaked. Caller-supplied providers are
+                // owned by the caller and left untouched.
+                if (m_ownsRateLimiterProvider &&
+                    !ReferenceEquals(m_rateLimiterProvider, value))
+                {
+                    m_rateLimiterProvider?.Dispose();
+                }
+
                 m_rateLimiterProvider = value;
                 m_ownsRateLimiterProvider = false;
             }

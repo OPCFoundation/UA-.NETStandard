@@ -78,18 +78,18 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets or sets a value indicating whether inbound connections are rate
-        /// limited (per remote address) before a secure channel is created.
+        /// limited (server-wide) before a secure channel is created.
         /// </summary>
         public bool ConnectionRateLimitEnabled { get; set; } = true;
 
         /// <summary>
         /// Gets or sets the sustained inbound-connection admission rate per second,
-        /// per remote address.
+        /// server-wide (a single bucket shared across all remote peers).
         /// </summary>
         public int ConnectionsPerSecond { get; set; } = DefaultConnectionsPerSecond;
 
         /// <summary>
-        /// Gets or sets the inbound-connection burst capacity, per remote address.
+        /// Gets or sets the inbound-connection burst capacity, server-wide.
         /// </summary>
         public int ConnectionBurst { get; set; } = DefaultConnectionBurst;
 

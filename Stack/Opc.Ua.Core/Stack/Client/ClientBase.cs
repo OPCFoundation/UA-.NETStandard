@@ -597,19 +597,26 @@ namespace Opc.Ua
                 // Surface a server retry-after hint carried on the AdditionalHeader
                 // (delivered independently of diagnostics) as a machine-readable
                 // AdditionalInfo token so the adaptive reconnect policy honors it.
-                // Skip when diagnostics already provided the token in AdditionalInfo.
-                if (string.IsNullOrEmpty(result.AdditionalInfo))
+                // Merge into any existing AdditionalInfo; skip only when a
+                // RetryAfterMs token is already present (e.g. from diagnostics).
+                const string retryAfterToken = AdditionalParameterNames.RetryAfterMs + "=";
+                if (result.AdditionalInfo == null ||
+                    result.AdditionalInfo.IndexOf(retryAfterToken, StringComparison.Ordinal) < 0)
                 {
                     TimeSpan? retryAfter = RetryAfterHeader.Read(header);
                     if (retryAfter.HasValue)
                     {
+                        string hint = Utils.Format(
+                            "{0}{1}",
+                            retryAfterToken,
+                            (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds));
                         result = new ServiceResult(
                             result.NamespaceUri,
                             result.StatusCode,
                             result.LocalizedText,
-                            Utils.Format(
-                                "RetryAfterMs={0}",
-                                (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds)),
+                            string.IsNullOrEmpty(result.AdditionalInfo)
+                                ? hint
+                                : result.AdditionalInfo + " " + hint,
                             result.InnerResult);
                     }
                 }
