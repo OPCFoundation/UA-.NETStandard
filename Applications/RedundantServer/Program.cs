@@ -92,6 +92,15 @@ byte[]? recordKey = string.IsNullOrWhiteSpace(recordKeyBase64)
     ? null
     : Convert.FromBase64String(recordKeyBase64);
 
+// Secure by default: the distributed topologies mirror session secrets and
+// gossip last-writer-wins state, so they refuse to start without protection.
+// Supplying HA_RECORD_KEY (and, for active/active, gossip TLS in production)
+// is the secure path. HA_INSECURE=true is an explicit, auditable opt-out that
+// runs an ISOLATED demo without record protection or gossip authentication -
+// never use it in production.
+bool allowInsecure =
+    bool.TryParse(builder.Configuration["HA_INSECURE"], out bool insecure) && insecure;
+
 // Opt into mirrored fast reconnect (default is the safe re-auth-on-failover).
 bool enableFastReconnect =
     bool.TryParse(builder.Configuration["HA_FAST_RECONNECT"], out bool fr) && fr;
@@ -113,20 +122,34 @@ string? balancingUrl = builder.Configuration["HA_BALANCING_URL"];
 // A distributed shared store - CRDT gossip (active/active) or a Raft/strong
 // store - is an EXTERNAL store and fails closed unless a record protector is
 // registered, because mirrored records hold session secrets and identity
-// tokens. Register one for every external-store topology: AesCbcHmac when
-// HA_RECORD_KEY is supplied, otherwise NullRecordProtector for this isolated
-// demo. A production deployment MUST supply HA_RECORD_KEY so mirrored state is
-// encrypted and integrity-protected at rest. (Active/passive eventual keeps the
-// safe in-memory store, which needs no protector.)
+// tokens. Secure by default: register AesCbcHmac when HA_RECORD_KEY is
+// supplied; register the no-op NullRecordProtector ONLY when the operator
+// explicitly opts into an insecure isolated demo with HA_INSECURE=true (with a
+// loud warning); otherwise fail closed with actionable guidance. A production
+// deployment MUST supply HA_RECORD_KEY so mirrored state is encrypted and
+// integrity-protected at rest. (Active/passive eventual keeps the safe
+// in-memory store, which needs no protector.)
 if (activeActive || useStrongConsistency)
 {
     if (recordKey != null)
     {
         builder.Services.AddSingleton<IRecordProtector>(_ => new AesCbcHmacRecordProtector(recordKey));
     }
+    else if (allowInsecure)
+    {
+        Console.Error.WriteLine(
+            "[HA][WARNING] HA_INSECURE=true: mirrored records (session secrets, identity tokens, notifications) " +
+            "are written to the shared store WITHOUT encryption or integrity protection. Use only for an " +
+            "isolated demo; set HA_RECORD_KEY to a shared base64 32-byte key in production.");
+        builder.Services.AddSingleton<IRecordProtector>(_ => new NullRecordProtector());
+    }
     else
     {
-        builder.Services.AddSingleton<IRecordProtector>(_ => new NullRecordProtector());
+        throw new InvalidOperationException(
+            "Distributed state mirroring requires a record protector because mirrored records hold session " +
+            "secrets and identity tokens. Set HA_RECORD_KEY to a shared base64 32-byte key (for example " +
+            "'openssl rand -base64 32', the same value on every replica) to encrypt mirrored state, or set " +
+            "HA_INSECURE=true to run this isolated demo without record protection.");
     }
 }
 
@@ -185,12 +208,12 @@ if (activeActive)
         {
             r.ReplicaId = replicaId;
             r.UseTcpGossip(IPAddress.Any, gossipPort);
-            // This sample runs on an isolated local/compose network without
-            // gossip TLS, so opt into unauthenticated gossip. A production
-            // active/active deployment MUST configure mutual TLS
+            // Secure by default: only start unauthenticated TCP gossip when the
+            // operator explicitly opts into an isolated demo (HA_INSECURE=true).
+            // A production active/active deployment MUST configure mutual TLS
             // (GossipTlsOptions) instead: CRDT frames are last-writer-wins, so
             // an unauthenticated peer could forge a higher-clock update.
-            r.AllowUnauthenticatedGossip = true;
+            r.AllowUnauthenticatedGossip = allowInsecure;
             foreach (IPEndPoint peer in gossipPeers)
             {
                 r.AddPeer(peer);
@@ -202,7 +225,7 @@ if (activeActive)
             // address-space port + 1 by convention.
             s.ReplicaId = replicaId;
             s.UseTcpGossip(IPAddress.Any, gossipPort + 1);
-            s.AllowUnauthenticatedGossip = true;
+            s.AllowUnauthenticatedGossip = allowInsecure;
             foreach (IPEndPoint peer in gossipPeers)
             {
                 s.AddPeer(new IPEndPoint(peer.Address, peer.Port + 1));
