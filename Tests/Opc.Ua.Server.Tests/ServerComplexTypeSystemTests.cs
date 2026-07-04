@@ -216,6 +216,114 @@ namespace Opc.Ua.Server.Tests
             Assert.That(provider.GetService<IDataTypeDefinitionResolver>(), Is.Not.Null);
         }
 
+        [Test]
+        public async Task GetEnumTypeArrayIgnoresUnrelatedPropertyAndSelectsEnumStrings()
+        {
+            // DataType with a decoy HasProperty listed BEFORE the real EnumStrings
+            // property. The old "first non-null" logic would have returned the
+            // decoy; the resolver must match by BrowseName instead.
+            var enumWithProps = new NodeId(6003, m_ns);
+            var decoyPropId = new NodeId(7101, m_ns);
+            var enumStringsPropId = new NodeId(7102, m_ns);
+
+            var dataTypeNode = new DataTypeState
+            {
+                NodeId = enumWithProps,
+                BrowseName = new QualifiedName("EnumWithProps", m_ns),
+                SuperTypeId = DataTypeIds.Enumeration,
+                IsAbstract = false
+            };
+            dataTypeNode.AddReference(
+                ReferenceTypeIds.HasProperty, false, new ExpandedNodeId(decoyPropId));
+            dataTypeNode.AddReference(
+                ReferenceTypeIds.HasProperty, false, new ExpandedNodeId(enumStringsPropId));
+            m_nodesById[enumWithProps] = dataTypeNode;
+
+            m_nodesById[decoyPropId] = new BaseDataVariableState(null)
+            {
+                NodeId = decoyPropId,
+                BrowseName = new QualifiedName("SomethingElse", m_ns),
+                Value = new Variant(new int[] { 42 })
+            };
+            m_nodesById[enumStringsPropId] = new BaseDataVariableState(null)
+            {
+                NodeId = enumStringsPropId,
+                BrowseName = new QualifiedName(BrowseNames.EnumStrings),
+                Value = new Variant(new LocalizedText[]
+                {
+                    new LocalizedText("Red"),
+                    new LocalizedText("Green")
+                })
+            };
+
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            Variant result = await resolver
+                .GetEnumTypeArrayAsync(NodeId.ToExpandedNodeId(enumWithProps, m_namespaceUris))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.TryGetValue(out ArrayOf<LocalizedText> texts),
+                Is.True,
+                "the EnumStrings property must be selected and the decoy ignored");
+            Assert.That(texts.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task GetEnumTypeArrayPrefersEnumValuesOverEnumStrings()
+        {
+            // Both EnumStrings (listed first) and EnumValues are present; the
+            // richer EnumValues must win regardless of reference order.
+            var enumWithProps = new NodeId(6004, m_ns);
+            var enumStringsPropId = new NodeId(7201, m_ns);
+            var enumValuesPropId = new NodeId(7202, m_ns);
+
+            var dataTypeNode = new DataTypeState
+            {
+                NodeId = enumWithProps,
+                BrowseName = new QualifiedName("EnumWithBoth", m_ns),
+                SuperTypeId = DataTypeIds.Enumeration,
+                IsAbstract = false
+            };
+            dataTypeNode.AddReference(
+                ReferenceTypeIds.HasProperty, false, new ExpandedNodeId(enumStringsPropId));
+            dataTypeNode.AddReference(
+                ReferenceTypeIds.HasProperty, false, new ExpandedNodeId(enumValuesPropId));
+            m_nodesById[enumWithProps] = dataTypeNode;
+
+            m_nodesById[enumStringsPropId] = new BaseDataVariableState(null)
+            {
+                NodeId = enumStringsPropId,
+                BrowseName = new QualifiedName(BrowseNames.EnumStrings),
+                Value = new Variant(new LocalizedText[] { new LocalizedText("Red") })
+            };
+            m_nodesById[enumValuesPropId] = new BaseDataVariableState(null)
+            {
+                NodeId = enumValuesPropId,
+                BrowseName = new QualifiedName("EnumValues"),
+                Value = new Variant(new ExtensionObject[]
+                {
+                    new ExtensionObject(new EnumValueType
+                    {
+                        Value = 0,
+                        DisplayName = new LocalizedText("Red")
+                    })
+                })
+            };
+
+            var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
+
+            Variant result = await resolver
+                .GetEnumTypeArrayAsync(NodeId.ToExpandedNodeId(enumWithProps, m_namespaceUris))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.TryGetValue(out ArrayOf<ExtensionObject> enumValues),
+                Is.True,
+                "EnumValues must be preferred over EnumStrings");
+            Assert.That(enumValues.Count, Is.EqualTo(1));
+        }
+
         private void BuildAddressSpace()
         {
             m_typeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);

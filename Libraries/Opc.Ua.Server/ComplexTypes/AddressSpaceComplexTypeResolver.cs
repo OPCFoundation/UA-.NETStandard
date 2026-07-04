@@ -193,7 +193,11 @@ namespace Opc.Ua.Server
                 INode? rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
                 if (rootNode is not DataTypeNode)
                 {
-                    throw new ServiceResultException("Root Node is not a DataType node.");
+                    throw new ServiceResultException(
+                        rootNode == null
+                            ? StatusCodes.BadNodeIdUnknown
+                            : StatusCodes.BadNodeClassInvalid,
+                        $"Root node '{dataType}' is not a DataType node.");
                 }
                 result.Add(rootNode);
             }
@@ -263,6 +267,16 @@ namespace Opc.Ua.Server
 
             var references = new List<IReference>();
             dataType.GetReferences(m_systemContext, references, ReferenceTypeIds.HasProperty, false);
+
+            // A DataType can expose several HasProperty children; only the
+            // well-known enum / option-set definition properties are valid
+            // sources. Match them by BrowseName and select in an explicit
+            // priority order (richer EnumValues, then EnumStrings, then
+            // OptionSetValues) instead of returning the first HasProperty
+            // target, which could be an unrelated property.
+            BaseVariableState? enumValues = null;
+            BaseVariableState? enumStrings = null;
+            BaseVariableState? optionSetValues = null;
             foreach (IReference reference in references)
             {
                 NodeId propertyId = ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris);
@@ -273,10 +287,28 @@ namespace Opc.Ua.Server
                 NodeState? property = await m_server.NodeManager
                     .FindNodeInAddressSpaceAsync(propertyId, ct)
                     .ConfigureAwait(false);
-                if (property is BaseVariableState variable && !variable.WrappedValue.IsNull)
+                if (property is not BaseVariableState variable || variable.WrappedValue.IsNull)
                 {
-                    return variable.WrappedValue;
+                    continue;
                 }
+                switch (variable.BrowseName.Name)
+                {
+                    case EnumValuesBrowseName:
+                        enumValues ??= variable;
+                        break;
+                    case EnumStringsBrowseName:
+                        enumStrings ??= variable;
+                        break;
+                    case OptionSetValuesBrowseName:
+                        optionSetValues ??= variable;
+                        break;
+                }
+            }
+
+            BaseVariableState? selected = enumValues ?? enumStrings ?? optionSetValues;
+            if (selected != null)
+            {
+                return selected.WrappedValue;
             }
             return default;
         }
@@ -304,6 +336,10 @@ namespace Opc.Ua.Server
                 .FindNodeInAddressSpaceAsync(localId, ct)
                 .ConfigureAwait(false);
         }
+
+        private const string EnumValuesBrowseName = "EnumValues";
+        private const string EnumStringsBrowseName = "EnumStrings";
+        private const string OptionSetValuesBrowseName = "OptionSetValues";
 
         private readonly IServerInternal m_server;
         private readonly ISystemContext m_systemContext;

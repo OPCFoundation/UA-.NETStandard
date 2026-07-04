@@ -83,8 +83,9 @@ namespace Microsoft.Extensions.DependencyInjection
             // generated and runtime stand-in definitions; an optional
             // DataTypeDefinitionRegistry (for example registered by
             // AddSchemaGeneration for schema-only types) is composed as a
-            // fallback when present.
-            services.AddSingleton<IDataTypeDefinitionResolver>(sp =>
+            // fallback when present. TryAddSingleton keeps the registration
+            // idempotent when AddComplexTypeSystem() is called more than once.
+            services.TryAddSingleton<IDataTypeDefinitionResolver>(sp =>
             {
                 ServerDataTypeDefinitionResolver holder =
                     sp.GetRequiredService<ServerDataTypeDefinitionResolver>();
