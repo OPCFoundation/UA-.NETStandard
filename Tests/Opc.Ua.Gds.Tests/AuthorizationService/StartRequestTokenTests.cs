@@ -53,6 +53,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private const string Issuer = "urn:opcua:test:gds";
         private const string Audience = "urn:opcua:test:server";
         private static readonly string[] s_requestedRoles = ["operator"];
+        private static readonly string[] s_securityAdminRole = ["SecurityAdmin"];
 
         [Test]
         public async Task StartThenFinishIssuesJwtAcceptedByJwtAuthenticator()
@@ -69,6 +70,9 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             };
             options.AllowedAudiences.Add(Audience);
             options.DefaultScopes.Add("read");
+            // The operator explicitly authorizes the requested roles for the
+            // authenticated caller; without this callback no roles are granted.
+            options.AuthorizeRoles = (identity, audience, requestedRoles) => requestedRoles;
 
             var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
             var provider = new InMemoryAccessTokenProvider(issuer, options);
@@ -111,6 +115,114 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(claims, Is.Not.Null);
             Assert.That(claims!.Subject, Is.EqualTo("sysadmin"));
             Assert.That(claims.Roles, Does.Contain("operator"));
+        }
+
+        [Test]
+        public async Task FinishDoesNotGrantRequestedRolesWithoutAuthorization()
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=GDS JWT Signing, O=OPC Foundation")
+                .SetECCurve(ECCurve.NamedCurves.nistP256)
+                .CreateForECDsa();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+            // No AuthorizeRoles callback is configured: the provider must be
+            // fail-closed and grant no roles at all.
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+
+            (_, Guid requestId) = await manager
+                .StartRequestTokenAsync(
+                    Audience,
+                    "jwt",
+                    ByteString.From(Encoding.UTF8.GetBytes("read")),
+                    new UserIdentity("operator", []))
+                .ConfigureAwait(false);
+
+            AccessTokenResult tokenResult = await manager
+                .FinishRequestTokenAsync(
+                    requestId,
+                    s_securityAdminRole.ToArrayOf(),
+                    new UserNameIdentityToken { UserName = "operator" },
+                    new SignatureData())
+                .ConfigureAwait(false);
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, tokenResult.AccessToken)
+                .ConfigureAwait(false);
+
+            Assert.That(claims.Subject, Is.EqualTo("operator"));
+            Assert.That(claims.Roles, Is.Empty,
+                "A requested role must never be granted unless the operator explicitly authorizes it.");
+        }
+
+        [Test]
+        public async Task FinishBindsSubjectToAuthenticatedIdentityNotRequestToken()
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=GDS JWT Signing, O=OPC Foundation")
+                .SetECCurve(ECCurve.NamedCurves.nistP256)
+                .CreateForECDsa();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+
+            (_, Guid requestId) = await manager
+                .StartRequestTokenAsync(
+                    Audience,
+                    "jwt",
+                    ByteString.From(Encoding.UTF8.GetBytes("read")),
+                    new UserIdentity("authenticated-user", []))
+                .ConfigureAwait(false);
+
+            // The client attempts to spoof a privileged subject through the
+            // request token; the issued token must ignore it.
+            AccessTokenResult tokenResult = await manager
+                .FinishRequestTokenAsync(
+                    requestId,
+                    Array.Empty<string>().ToArrayOf(),
+                    new UserNameIdentityToken { UserName = "admin" },
+                    new SignatureData())
+                .ConfigureAwait(false);
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, tokenResult.AccessToken)
+                .ConfigureAwait(false);
+
+            Assert.That(claims.Subject, Is.EqualTo("authenticated-user"),
+                "The subject must be bound to the identity authenticated on the session, "
+                + "not to the client-supplied request token.");
+        }
+
+        private static async Task<IIdentityClaims> AuthenticateAsync(Certificate certificate, string jwt)
+        {
+            ECDsa verifier = certificate.GetECDsaPublicKey();
+            using var resolver = new StaticIssuerKeyResolver(
+                Issuer,
+                [new IssuerVerificationKey(certificate.Thumbprint, verifier, "ES256")]);
+            AuthenticationResult result = await new JwtAuthenticator(resolver, Audience, TimeSpan.Zero)
+                .AuthenticateAsync(CreateContext(jwt))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            var claims = result.Identity as IIdentityClaims;
+            Assert.That(claims, Is.Not.Null);
+            return claims!;
         }
 
         private static AuthenticationContext CreateContext(string jwt)

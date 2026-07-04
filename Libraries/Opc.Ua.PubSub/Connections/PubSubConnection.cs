@@ -894,6 +894,28 @@ namespace Opc.Ua.PubSub.Connections
                             framePayload = unwrapped.Value;
                         }
                     }
+                    else if (RequiresInboundSecurity)
+                    {
+                        // Fail-closed: the frame is not a UADP NetworkMessage
+                        // (e.g. a JSON frame, for which no message-security
+                        // wrapper exists), so it cannot be authenticated or
+                        // decrypted to satisfy the reader's configured
+                        // SecurityMode. Dropping it here prevents an attacker
+                        // from delivering forged, unsecured non-UADP frames to
+                        // application sinks on a secured reader. Mirrors the
+                        // send-side refusal to publish unsecured non-UADP
+                        // messages on a connection configured for security.
+                        RecordSecurityFailure(
+                            StatusCodes.BadSecurityModeRejected,
+                            "Inbound non-UADP frame cannot satisfy the reader's "
+                            + "configured SecurityMode.");
+                        m_logger.LogWarning(
+                            "Dropping non-UADP inbound frame on connection "
+                            + "'{Connection}' requiring {Mode}.",
+                            Name,
+                            m_requiredSecurityMode);
+                        continue;
+                    }
 
                     PubSubNetworkMessage? message;
                     try
