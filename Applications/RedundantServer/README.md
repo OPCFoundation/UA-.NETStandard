@@ -222,7 +222,7 @@ $env:HA_GOSSIP_PEERS = "127.0.0.1:4840"
 dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62544
 ```
 
-Both replicas now accept writes to `Counter` and converge: a write on either endpoint propagates to the other by gossip, and the per-second increment runs on every replica, with CRDT last-writer-wins resolving the concurrent updates. Unlike the active/passive store-backed setup, active/active needs no shared `ISharedKeyValueStore` between processes — the gossip transport carries the state.
+Both replicas now accept writes to `Counter` and converge: a write on either endpoint propagates to the other by gossip, and the per-second increment runs on every replica, with CRDT last-writer-wins resolving the concurrent updates. Unlike the active/passive store-backed setup, active/active needs no shared `ISharedKeyValueStore` between processes — the gossip transport carries the state. **Note:** convergence is currently blocked by an external `Crdt.Transport` bug — see [Known limitations](#known-limitations); use the strong-consistency Raft topology for verified cross-process state sharing today.
 
 ## Docker Compose
 
@@ -282,6 +282,11 @@ docker compose --env-file Applications\RedundantServer\active-passive.env `
 docker compose -f Applications\RedundantServer\docker-compose.yml stop server-a
 ```
 
-The client's `HighAvailability.Counter` — incremented by the active replica and mirrored to the others — continues across the failover, and the client logs its reconnect/redirect to a surviving replica. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. For a client replica set, set `CLIENT_REPLICAS=3` so the leader client holds the session and the followers take over on leader loss.
+The client logs its reconnect/redirect to a surviving replica across the failover. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. For a client replica set, set `CLIENT_REPLICAS=3` so the leader client holds the session and the followers take over on leader loss. **Note:** the sample `Counter` is a process-local simulation value and does not resume its previous number on the new leader — see [Known limitations](#known-limitations).
 
 For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [Kubernetes.md](..\..\Docs\Kubernetes.md).
+
+## Known limitations
+
+- **Active/active eventual convergence is currently blocked by an external transport bug.** The `Crdt.Transport` package (1.1.0, the latest published version) throws `System.IO.InvalidDataException: Frame length does not match the encoded body length` in `FrameCodec.Decode` when a gossip frame is received, so `UseReplicatedAddressSpace`/`UseReplicatedSessions` state does **not** propagate between active/active replicas over TCP gossip (verified: a `Counter` write on one replica is not observed on the other). Until an upstream `Crdt.Transport` fix or a framing workaround lands, prefer the strong-consistency Raft topology (`HA_CONSISTENCY=strong`), which uses the NanoMsg transport and is unaffected. The active/active DI wiring, gossip peering, and `RedundancySupport.HotAndMirrored` reporting are otherwise exercised and work.
+- **The sample `Counter` does not resume its value on failover.** `HaSampleNodeManager` increments a process-local field, so a promoted standby continues from its own local count rather than the previous leader's value. Replicating a live simulation counter across replicas requires reading the mirrored node value on promotion (and a working shared/mirrored address space); the sample keeps the counter local for simplicity. Redundancy discovery, `ServiceLevel`, leader election, and client reconnect/redirect on failover all work as documented — only the counter's numeric continuity is a sample simplification.
