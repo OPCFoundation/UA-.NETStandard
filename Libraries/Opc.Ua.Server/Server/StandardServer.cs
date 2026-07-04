@@ -84,6 +84,24 @@ namespace Opc.Ua.Server
         /// </summary>
         public IGetEndpointsDirector? GetEndpointsDirector { get; set; }
 
+        /// <summary>
+        /// An optional subscription store used to persist subscriptions and (for high
+        /// availability) restore monitored-item queues. When <c>null</c> (the default) no
+        /// subscription persistence is used unless a subclass overrides
+        /// <see cref="CreateSubscriptionStore"/>. Set this before the server starts (the
+        /// hosting layer wires it from dependency injection).
+        /// </summary>
+        public ISubscriptionStore? SubscriptionStore { get; set; }
+
+        /// <summary>
+        /// An optional monitored-item queue factory. When <c>null</c> (the default) the
+        /// built-in <see cref="Opc.Ua.Server.MonitoredItemQueueFactory"/> is used unless a
+        /// subclass overrides <see cref="CreateMonitoredItemQueueFactory"/>. Set this before
+        /// the server starts (the hosting layer wires it from dependency injection) to plug in
+        /// a custom factory, e.g. a shared-store mirror for high availability.
+        /// </summary>
+        public IMonitoredItemQueueFactory? MonitoredItemQueueFactory { get; set; }
+
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
@@ -4102,7 +4120,8 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new MonitoredItemQueueFactory(MessageContext.Telemetry);
+            return MonitoredItemQueueFactory
+                ?? new Opc.Ua.Server.MonitoredItemQueueFactory(MessageContext.Telemetry);
         }
 
         /// <summary>
@@ -4115,7 +4134,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return null;
+            return SubscriptionStore;
         }
 
         /// <summary>

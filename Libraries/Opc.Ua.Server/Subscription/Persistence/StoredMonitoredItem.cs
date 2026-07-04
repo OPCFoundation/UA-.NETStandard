@@ -103,5 +103,11 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public NumericRange ParsedIndexRange { get; set; }
+
+        /// <inheritdoc/>
+        public IDataChangeMonitoredItemQueue? RestoredDataChangeQueue { get; set; }
+
+        /// <inheritdoc/>
+        public IEventMonitoredItemQueue? RestoredEventQueue { get; set; }
     }
 }

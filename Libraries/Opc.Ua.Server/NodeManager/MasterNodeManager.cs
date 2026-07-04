@@ -3361,6 +3361,13 @@ namespace Opc.Ua.Server
                     "Subscription restore can only occur on startup");
             }
 
+            // Pre-hydrate monitored-item data/event queues from an asynchronous subscription
+            // store so a networked store (e.g. a high-availability mirror) can restore queued
+            // values on the synchronous monitored-item creation path
+            // (OPCFoundation/UA-.NETStandard#3939).
+            await PreHydrateMonitoredItemQueuesAsync(itemsToRestore, cancellationToken)
+                .ConfigureAwait(false);
+
             // create items for event filters.
             await RestoreMonitoredItemsForEventsAsync(itemsToRestore, monitoredItems, cancellationToken)
                 .ConfigureAwait(false);
@@ -3377,6 +3384,54 @@ namespace Opc.Ua.Server
             }
 
             m_monitoredItemIdFactory.SetStartValue(itemsToRestore.Max(i => i.Id));
+        }
+
+        /// <summary>
+        /// Pre-hydrates monitored-item data/event queues from the configured
+        /// <see cref="ISubscriptionStore"/> so the synchronous monitored-item creation path can
+        /// consume them without blocking on an asynchronous store.
+        /// </summary>
+        /// <param name="itemsToRestore">The monitored items being restored.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        private async ValueTask PreHydrateMonitoredItemQueuesAsync(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            CancellationToken cancellationToken)
+        {
+            ISubscriptionStore? subscriptionStore = Server.SubscriptionStore;
+            if (subscriptionStore == null)
+            {
+                return;
+            }
+
+            foreach (IStoredMonitoredItem item in itemsToRestore)
+            {
+                try
+                {
+                    if (item.TypeMask == MonitoredItemTypeMask.DataChange)
+                    {
+                        // queueing is disabled for a queue size of one or zero.
+                        if (item.QueueSize > 1)
+                        {
+                            item.RestoredDataChangeQueue = await subscriptionStore
+                                .RestoreDataChangeMonitoredItemQueueAsync(item.Id, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    else if ((item.TypeMask & MonitoredItemTypeMask.Events) != 0)
+                    {
+                        item.RestoredEventQueue = await subscriptionStore
+                            .RestoreEventMonitoredItemQueueAsync(item.Id, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(
+                        ex,
+                        "Failed to pre-hydrate queue for monitored item with id {MonitoredItemId}",
+                        item.Id);
+                }
+            }
         }
 
         /// <summary>
