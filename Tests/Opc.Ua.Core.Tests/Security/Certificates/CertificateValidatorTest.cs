@@ -2096,13 +2096,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "compliant");
             Assert.IsTrue(X509Utils.HasRequiredIssuerKeyUsage(compliant));
 
-            // non-compliant: empty (present-but-zero) KeyUsage extension.
-            using X509Certificate2 emptyUsage = CreateRootCa(X509KeyUsageFlags.None, "empty");
-            Assert.IsFalse(X509Utils.HasRequiredIssuerKeyUsage(emptyUsage));
-
             // non-compliant: KeyUsage extension omitted entirely — the exact
             // scenario reported in #3944 (the platform X509Chain does not flag
-            // this, so the explicit check must).
+            // this, so the explicit check must). This also covers the
+            // GetKeyUsage()==None code path without building a degenerate
+            // empty-KeyUsage extension (which macOS/AppleCrypto refuses to load).
             using X509Certificate2 absentUsage = CreateCertificateWithoutKeyUsage();
             Assert.IsFalse(X509Utils.HasRequiredIssuerKeyUsage(absentUsage));
 
@@ -2135,7 +2133,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             (X509Certificate2 rootCa, X509CRL rootCrl, X509Certificate2 appCert) =
-                CreateIssuerKeyUsageChain(X509KeyUsageFlags.None, "reject");
+                CreateIssuerKeyUsageChain(X509KeyUsageFlags.DigitalSignature, "reject");
             using (rootCa)
             using (appCert)
             {
@@ -2170,7 +2168,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             (X509Certificate2 rootCa, X509CRL rootCrl, X509Certificate2 appCert) =
-                CreateIssuerKeyUsageChain(X509KeyUsageFlags.None, "suppress");
+                CreateIssuerKeyUsageChain(X509KeyUsageFlags.DigitalSignature, "suppress");
             using (rootCa)
             using (appCert)
             {
