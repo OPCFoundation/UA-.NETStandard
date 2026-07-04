@@ -130,12 +130,29 @@ namespace Opc.Ua.Redundancy.Server
             // The address-space startup task builds the node-state store with
             // the server message context (only available at startup), starts
             // leader election, and attaches a synchronizer to every node
-            // manager that opts in via ILocalAddressSpaceSource.
-            builder.Services.AddSingleton<IServerStartupTask>(sp =>
+            // manager that opts in via ILocalAddressSpaceSource. It is
+            // registered as a concrete singleton so the distributed value cache
+            // can read its node-state store registry once the server is running,
+            // and forwarded as an IServerStartupTask so the host still runs it.
+            builder.Services.TryAddSingleton(sp =>
                 new DistributedAddressSpaceStartupTask(
                     sp.GetRequiredService<ISharedKeyValueStore>(),
                     sp.GetRequiredService<ILeaderElection>(),
                     RecordProtectionGuard.ResolveProtectorOrThrow(sp)));
+            builder.Services.AddSingleton<IServerStartupTask>(
+                sp => sp.GetRequiredService<DistributedAddressSpaceStartupTask>());
+
+            // Injectable read/write value cache over the distributed node-state
+            // store. A variable's read/write callbacks can participate in it via
+            // DistributedValueParticipation so the last value is cached in the
+            // shared store and served (within a freshness bound) from any
+            // replica. Resolves per node through the store registry, which is
+            // populated when the server starts. A consumer that constructs the
+            // store directly can build a DistributedValueCache itself instead.
+            builder.Services.TryAddSingleton<IDistributedValueCache>(sp =>
+                new RegistryBackedDistributedValueCache(
+                    () => sp.GetRequiredService<DistributedAddressSpaceStartupTask>().NodeStateStoreRegistry,
+                    sp.GetService<TimeProvider>()));
 
             return builder;
         }
