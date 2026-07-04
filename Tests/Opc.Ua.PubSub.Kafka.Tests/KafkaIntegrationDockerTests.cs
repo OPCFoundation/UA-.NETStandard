@@ -80,9 +80,12 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         public async Task RealBrokerRoundTripsPayloadAsync()
         {
             Assert.That(m_container, Is.Not.Null);
-            string bootstrapAddress = m_container!.GetBootstrapAddress();
+            // GetBootstrapAddress() returns a scheme-qualified URI such as
+            // "PLAINTEXT://127.0.0.1:49158"; extract the host:port authority so
+            // the kafka:// endpoint is well-formed.
+            var bootstrapUri = new Uri(m_container!.GetBootstrapAddress());
             string topic = "opcua-json-data-" + Guid.NewGuid().ToString("N");
-            string url = "kafka://" + bootstrapAddress;
+            string url = $"kafka://{bootstrapUri.Host}:{bootstrapUri.Port}";
             IConfigurationRoot configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new System.Collections.Generic.Dictionary<string, string?>
                 {
