@@ -909,7 +909,12 @@ namespace Opc.Ua.PubSub.Connections
                             StatusCodes.BadSecurityModeRejected,
                             "Inbound non-UADP frame cannot satisfy the reader's "
                             + "configured SecurityMode.");
-                        m_logger.LogWarning(
+                        // Logged at Debug: this is a per-frame hot path and a
+                        // flood of non-UADP frames (hostile or misconfigured)
+                        // must not amplify into high-volume warning logs. The
+                        // security-failure counter incremented above is the
+                        // rate-safe operational signal.
+                        m_logger.LogDebug(
                             "Dropping non-UADP inbound frame on connection "
                             + "'{Connection}' requiring {Mode}.",
                             Name,

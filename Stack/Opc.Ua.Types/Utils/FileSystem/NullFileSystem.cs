@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -45,6 +45,10 @@ namespace Opc.Ua
         /// Get singleton instance
         /// </summary>
         public static readonly NullFileSystem Instance = new();
+
+        private NullFileSystem()
+        {
+        }
 
         /// <inheritdoc/>
         public bool Exists(string path, bool isDirectory)

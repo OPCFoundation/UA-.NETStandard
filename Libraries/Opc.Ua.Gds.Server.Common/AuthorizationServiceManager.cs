@@ -107,25 +107,8 @@ namespace Opc.Ua.Gds.Server
             string resourceId,
             CancellationToken ct = default)
         {
-            return RequestAccessTokenAsync(identityToken, resourceId, null, ct);
-        }
-
-        /// <summary>
-        /// Issues a token bound to the calling session's authenticated identity.
-        /// </summary>
-        [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
-        public ValueTask<string> RequestAccessTokenAsync(
-            UserIdentityToken identityToken,
-            string resourceId,
-            IUserIdentity? callerIdentity,
-            CancellationToken ct = default)
-        {
-            string[] scopes = [.. m_options.DefaultScopes
-                .Where(scope => !string.IsNullOrWhiteSpace(scope))
-                .Distinct(StringComparer.Ordinal)];
-            ValidateAccess(callerIdentity, resourceId, scopes);
 #pragma warning disable CS0618 // Legacy Part 12 method remains functional for compatibility.
-            return m_provider.RequestAccessTokenAsync(identityToken, resourceId, callerIdentity, ct);
+            return m_provider.RequestAccessTokenAsync(identityToken, resourceId, ct);
 #pragma warning restore CS0618
         }
 

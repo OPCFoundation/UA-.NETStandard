@@ -54,6 +54,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private const string Audience = "urn:opcua:test:server";
         private static readonly string[] s_requestedRoles = ["operator"];
         private static readonly string[] s_securityAdminRole = ["SecurityAdmin"];
+        private static readonly string[] s_operatorAndAdminRoles = ["operator", "SecurityAdmin"];
 
         [Test]
         public async Task StartThenFinishIssuesJwtAcceptedByJwtAuthenticator()
@@ -207,6 +208,128 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(claims.Subject, Is.EqualTo("authenticated-user"),
                 "The subject must be bound to the identity authenticated on the session, "
                 + "not to the client-supplied request token.");
+        }
+
+        [Test]
+        public async Task LegacyRequestAccessTokenIssuesAnonymousUnprivilegedToken()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+
+#pragma warning disable CS0618 // exercising the obsolete single-call wire method on purpose
+            string jwt = await provider
+                .RequestAccessTokenAsync(new UserNameIdentityToken { UserName = "admin" }, Audience)
+                .ConfigureAwait(false);
+#pragma warning restore CS0618
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, jwt).ConfigureAwait(false);
+            Assert.That(claims.Subject, Is.EqualTo("anonymous"),
+                "The obsolete single-call RequestAccessToken must not trust the client-supplied "
+                + "token for the subject.");
+            Assert.That(claims.Roles, Is.Empty,
+                "The obsolete single-call RequestAccessToken must not grant roles.");
+        }
+
+        [Test]
+        public async Task FinishGrantsOnlyTheIntersectionOfAuthorizedAndRequestedRoles()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+            // The callback tries to grant an extra, unrequested role; it must be
+            // dropped because the granted set is intersected with the request.
+            options.AuthorizeRoles = (identity, audience, requestedRoles) => s_operatorAndAdminRoles;
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+
+            (_, Guid requestId) = await manager
+                .StartRequestTokenAsync(
+                    Audience,
+                    "jwt",
+                    ByteString.From(Encoding.UTF8.GetBytes("read")),
+                    new UserIdentity("operator", []))
+                .ConfigureAwait(false);
+
+            AccessTokenResult tokenResult = await manager
+                .FinishRequestTokenAsync(
+                    requestId,
+                    s_requestedRoles.ToArrayOf(),
+                    new UserNameIdentityToken { UserName = "operator" },
+                    new SignatureData())
+                .ConfigureAwait(false);
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, tokenResult.AccessToken)
+                .ConfigureAwait(false);
+            Assert.That(claims.Roles, Does.Contain("operator"));
+            Assert.That(claims.Roles, Does.Not.Contain("SecurityAdmin"),
+                "A role the caller did not request must never be granted, even if the "
+                + "authorization callback returns it.");
+        }
+
+        [Test]
+        public async Task FinishGrantsNoRolesWhenAuthorizationReturnsEmpty()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+            options.AuthorizeRoles = (identity, audience, requestedRoles) => [];
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+
+            (_, Guid requestId) = await manager
+                .StartRequestTokenAsync(
+                    Audience,
+                    "jwt",
+                    ByteString.From(Encoding.UTF8.GetBytes("read")),
+                    new UserIdentity("operator", []))
+                .ConfigureAwait(false);
+
+            AccessTokenResult tokenResult = await manager
+                .FinishRequestTokenAsync(
+                    requestId,
+                    s_requestedRoles.ToArrayOf(),
+                    new UserNameIdentityToken { UserName = "operator" },
+                    new SignatureData())
+                .ConfigureAwait(false);
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, tokenResult.AccessToken)
+                .ConfigureAwait(false);
+            Assert.That(claims.Roles, Is.Empty,
+                "An authorization callback that returns no roles must yield a token with no roles.");
+        }
+
+        private static Certificate CreateSigningCertificate()
+        {
+            return CertificateBuilder
+                .Create("CN=GDS JWT Signing, O=OPC Foundation")
+                .SetECCurve(ECCurve.NamedCurves.nistP256)
+                .CreateForECDsa();
         }
 
         private static async Task<IIdentityClaims> AuthenticateAsync(Certificate certificate, string jwt)

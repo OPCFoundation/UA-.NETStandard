@@ -2375,13 +2375,9 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
-                IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 #pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
-                result.AccessToken = provider is AuthorizationServiceManager manager
-                    ? await manager.RequestAccessTokenAsync(
-                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false)
-                    : await provider.RequestAccessTokenAsync(
-                        identityToken, resourceId, cancellationToken).ConfigureAwait(false);
+                result.AccessToken = await provider.RequestAccessTokenAsync(
+                    identityToken, resourceId, cancellationToken).ConfigureAwait(false);
 #pragma warning restore CS0618
             }
             catch (Exception ex)
