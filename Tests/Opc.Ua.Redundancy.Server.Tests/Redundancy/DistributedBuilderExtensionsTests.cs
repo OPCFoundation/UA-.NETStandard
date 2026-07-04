@@ -181,8 +181,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task UseDistributedSubscriptionMirroringRegistersSubscriptionStoreAsync()
         {
             var builder = new DiTestServerBuilder();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             builder.Services.AddSingleton(context);
+            builder.Services.AddSingleton(telemetry);
 
             builder.UseDistributedSubscriptionMirroring();
 
