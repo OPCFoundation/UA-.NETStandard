@@ -316,6 +316,29 @@ On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedK
 
 For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. See the [Kubernetes High Availability Deployment](Kubernetes.md) guide.
 
+### Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)
+
+OPC 10000-4 §6.6.2.2 requires identical NodeIds and AddressSpaces across a `RedundantServerSet` but does not standardize how live process *values* are cached or shared between replicas. `Opc.Ua.Redundancy.Server` adds an opt-in provider for this: `IDistributedValueCache` (default implementation `DistributedValueCache`) stores a node's last value in the distributed `INodeStateStore` and serves it back within a freshness bound. `UseDistributedAddressSpace` registers `IDistributedValueCache` in dependency injection (routed per node through the server's `INodeStateStoreRegistry`, populated when the server starts); a consumer that constructs the node-state store directly can build a `DistributedValueCache` over it instead.
+
+`DistributedValueParticipation.EnableDistributedValueParticipation(variable, cache, maxAge, liveRead)` wires a variable's asynchronous read/write callbacks to the cache: writes cache write-through, and reads serve the last cached value while it is fresh (falling back to `liveRead` and caching the result). This lets the active replica publish a value once and every replica serve it, and it lets a promoted replica seed from the last value the former leader shared so a simulated/derived value continues across a failover rather than restarting. Monitored items are unaffected — they read through the normal pipeline — so a monitored item observes the shared value only where the read path participates, consistent with OPC UA monitored-item semantics and the requirement that monitored items "read as today".
+
+```csharp
+// Injected from DI (registered by UseDistributedAddressSpace).
+IDistributedValueCache cache = /* ... */;
+
+variable.EnableDistributedValueParticipation(
+    cache,
+    maxAge: TimeSpan.FromSeconds(10),
+    liveRead: ct => new ValueTask<DataValue>(ReadLiveValue()));
+
+// The active replica writes each new value through to the shared store;
+// a promoted replica reads the last shared value on becoming leader.
+await cache.CacheAsync(variable.NodeId, new DataValue(value, StatusCodes.Good, DateTimeUtc.Now));
+(bool fresh, DataValue last) = await cache.TryGetAsync(variable.NodeId, maxAge);
+```
+
+Because the value cache writes through the shared `INodeStateStore`, its confidentiality/integrity is governed by the same `IRecordProtector` as the rest of the mirrored state (fail-closed for external stores without a protector). Cross-process value continuity therefore requires a store that propagates writes between replicas: it is verified on the strong-consistency (Raft) topology; on active/active eventual it depends on the CRDT address-space gossip transport. The `Applications/RedundantServer` sample wires its `HighAvailability.Counter` through this provider — see the sample README's *Sharing values across replicas* section.
+
 ### GetEndpoints load direction (beyond §6.6, opt-in)
 
 `UseServerLoadDirection(...)` lets a `GetEndpoints` request on a **dedicated balancing discovery URL** be answered with the endpoints of the best member of the `RedundantServerSet`, so a Client that connects there is **directed** to the active server (active/passive) or spread across equally-healthy servers by load (active/active). This is a non-standard, server-side load-direction *hint*: it **complements**, and never replaces, the standard client-driven `RedundantServerArray` + `ServiceLevel` selection of OPC 10000-4 §6.6.2.4, which remains the authoritative Failover mechanism.

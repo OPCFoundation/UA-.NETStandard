@@ -134,6 +134,8 @@ See `docker-compose.yml` with the `active-passive.env` env file for a runnable 3
 | `HA_MODE` | `ap`, `aa` | Chooses active/passive shared-store replication or active/active CRDT gossip. |
 | `HA_CONSISTENCY` | `strong`, `eventual` | Selects the shared-store consistency model; `strong` backs it with a Raft cluster (see *Strong consistency with Raft*). |
 | `HA_FAST_RECONNECT` | `true`, `false` | Allows token-reuse reconnect for mirrored sessions. The default requires full `ActivateSession` re-authentication after failover. |
+| `HA_RECORD_KEY` | base64 32-byte key | Shared record-protection key for the distributed topologies. When set, every mirrored record (session secrets, identity tokens, notifications) is encrypted + integrity-protected at rest with `AesCbcHmacRecordProtector`. Use the **same** value on every replica; provision from a Kubernetes Secret / KMS in production. |
+| `HA_INSECURE` | `true`, `false` | Explicit, auditable opt-out that runs an **isolated demo** without record protection or gossip authentication (prints a warning). Secure by default: without `HA_RECORD_KEY` and without this flag, a distributed topology fails closed at startup. Never set in production. |
 | `HA_BALANCING_URL` | a discovery URL | Enables GetEndpoints load direction (see below). A `GetEndpoints` request on this virtual/LB discovery URL is answered with the best replica's endpoints; empty (default) disables it. |
 | `HA_APPLICATION_URI` | a URI | Overrides the per-replica `ApplicationUri` with a **shared** one. Required for transparent redundancy so every replica presents one logical server identity (`CreateSession` validates the client `serverUri` against it). |
 | `HA_SUBJECT_NAME` | a certificate subject | Sets an explicit, stable certificate subject so replicas sharing a PKI store load one `ApplicationInstanceCertificate`. |
@@ -282,11 +284,37 @@ docker compose --env-file Applications\RedundantServer\active-passive.env `
 docker compose -f Applications\RedundantServer\docker-compose.yml stop server-a
 ```
 
-The client logs its reconnect/redirect to a surviving replica across the failover. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. For a client replica set, set `CLIENT_REPLICAS=3` so the leader client holds the session and the followers take over on leader loss. **Note:** the sample `Counter` is a process-local simulation value and does not resume its previous number on the new leader — see [Known limitations](#known-limitations).
+The client logs its reconnect/redirect to a surviving replica across the failover. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. For a client replica set, set `CLIENT_REPLICAS=3` so the leader client holds the session and the followers take over on leader loss. On the strong-consistency Raft topology the `HighAvailability.Counter` **continues** across the failover: the sample wires it through the distributed value cache (see [Sharing values across replicas](#sharing-values-across-replicas)), so the promoted replica resumes from the last value the former leader shared.
 
 For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [Kubernetes.md](..\..\Docs\Kubernetes.md).
+
+## Sharing values across replicas
+
+OPC 10000-4 §6.6 requires identical NodeIds and address spaces across a redundant set but does not standardize how live process *values* are shared. `Opc.Ua.Redundancy.Server` adds an opt-in extension for this: a variable's read/write callbacks can participate in a distributed value cache (`IDistributedValueCache`) so the last value is cached in the shared store and served — within a freshness bound — from any replica.
+
+`UseDistributedAddressSpace` registers `IDistributedValueCache` in dependency injection (backed by the distributed node-state store; a consumer that constructs the store directly can build a `DistributedValueCache` itself). The sample injects it into `HaSampleNodeManager` and wires the `Counter`:
+
+```csharp
+// Opt the Counter's read/write callbacks into the distributed value cache.
+counter.EnableDistributedValueParticipation(
+    valueCache,
+    maxAge: TimeSpan.FromSeconds(10),
+    liveRead: _ => new ValueTask<DataValue>(ReadLocalCounter()));
+
+// The active replica writes each new value through to the shared store...
+await valueCache.CacheAsync(counter.NodeId,
+    new DataValue(Variant.From(value), StatusCodes.Good, DateTimeUtc.Now));
+
+// ...and a replica that has just been promoted seeds from the last shared value,
+// so the Counter continues instead of restarting.
+(_, DataValue cached) = await valueCache.TryGetAsync(counter.NodeId, maxAge);
+```
+
+On the strong-consistency (Raft) topology this makes the `Counter` genuinely shared: standby replicas serve the active replica's value, and after a failover the promoted replica resumes from the last value the former leader wrote (verified end-to-end). Monitored items keep reading through the normal pipeline, so a client that monitors a standby observes the shared value only through the participating read path — consistent with OPC UA monitored-item semantics.
+
+Value sharing uses the shared store, which is protected: supply `HA_RECORD_KEY` (secure by default) or set `HA_INSECURE=true` for an isolated demo — see the settings table above.
 
 ## Known limitations
 
 - **Active/active eventual convergence is currently blocked by an external transport bug.** The `Crdt.Transport` package (1.1.0, the latest published version) throws `System.IO.InvalidDataException: Frame length does not match the encoded body length` in `FrameCodec.Decode` when a gossip frame is received, so `UseReplicatedAddressSpace`/`UseReplicatedSessions` state does **not** propagate between active/active replicas over TCP gossip (verified: a `Counter` write on one replica is not observed on the other). Until an upstream `Crdt.Transport` fix or a framing workaround lands, prefer the strong-consistency Raft topology (`HA_CONSISTENCY=strong`), which uses the NanoMsg transport and is unaffected. The active/active DI wiring, gossip peering, and `RedundancySupport.HotAndMirrored` reporting are otherwise exercised and work.
-- **The sample `Counter` does not resume its value on failover.** `HaSampleNodeManager` increments a process-local field, so a promoted standby continues from its own local count rather than the previous leader's value. Replicating a live simulation counter across replicas requires reading the mirrored node value on promotion (and a working shared/mirrored address space); the sample keeps the counter local for simplicity. Redundancy discovery, `ServiceLevel`, leader election, and client reconnect/redirect on failover all work as documented — only the counter's numeric continuity is a sample simplification.
+- **Value continuity is demonstrated on the strong-consistency (Raft) topology only.** The `Counter` is shared and continues across failover through the distributed value cache backed by the Raft store (see [Sharing values across replicas](#sharing-values-across-replicas), verified live). On active/active eventual it relies on address-space CRDT gossip, which is blocked by the `Crdt.Transport` bug above. Monitored items read through the normal pipeline, so a monitored item on a standby observes the shared value only through the participating read path (as documented in `DistributedValueParticipation`).
