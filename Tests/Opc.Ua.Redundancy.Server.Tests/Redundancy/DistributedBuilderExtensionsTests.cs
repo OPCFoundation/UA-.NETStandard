@@ -110,6 +110,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task UseDistributedAddressSpaceRegistersDistributedValueCacheAsync()
+        {
+            var builder = new DiTestServerBuilder();
+
+            builder.UseDistributedAddressSpace();
+
+            await using ServiceProvider sp = builder.Services.BuildServiceProvider();
+
+            var cache = sp.GetRequiredService<IDistributedValueCache>();
+            Assert.That(cache, Is.Not.Null);
+
+            // Before the server starts, the node-state store registry is not
+            // populated, so the injected cache fails fast rather than silently
+            // dropping writes to a store that does not exist yet.
+            Assert.That(
+                async () => await cache.TryGetAsync(new NodeId("v", 1), System.TimeSpan.FromMinutes(1)),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
         public void UseDistributedSessionsThrowsOnNullBuilder()
         {
             Assert.That(

@@ -121,6 +121,32 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         [Test]
+        public async Task WarmStandbyConnectsBeforeLeadershipAsync()
+        {
+            int created = 0;
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Warm,
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    return default;
+                }
+            };
+            var election = new StaticLeaderElection(false);
+            using var store = new InMemorySharedKeyValueStore();
+            await using var coordinator = new ClientReplicaCoordinator(
+                options, election, store, NullRecordProtector.Instance, m_telemetry);
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+
+            // Unlike a cold standby, a warm/hot standby pre-connects its session
+            // on start so it can take over quickly, even before it is the leader.
+            Assert.That(created, Is.EqualTo(1));
+            Assert.That(coordinator.IsLeader, Is.False);
+        }
+
+        [Test]
         public void BuilderRequiresRedundancySeams()
         {
             ClientReplicaSetBuilder builder = new ClientReplicaSetBuilder(m_telemetry)

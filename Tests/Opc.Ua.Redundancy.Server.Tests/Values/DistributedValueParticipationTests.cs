@@ -159,5 +159,33 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return new ValueTask<DataValue>(new DataValue(new Variant(123.0), StatusCodes.Good, DateTimeUtc.Now));
             }
         }
+
+        [Test]
+        public async Task CachedValuePropagatesAcrossReplicasSharingOneStoreAsync()
+        {
+            // Two replicas backed by the SAME shared key/value store: what the
+            // active replica caches, a promoted replica reads back. This is the
+            // mechanism behind "the Counter continues across failover" - the new
+            // leader seeds from the last value written by the former leader.
+            using var kv = new InMemorySharedKeyValueStore();
+            var leader = new DistributedValueCache(new InMemoryNodeStateStore(kv, m_messageContext));
+            var promoted = new DistributedValueCache(new InMemoryNodeStateStore(kv, m_messageContext));
+            var nodeId = new NodeId("counter", NamespaceIndex);
+
+            await leader
+                .CacheAsync(nodeId, new DataValue(new Variant(41), StatusCodes.Good, DateTimeUtc.Now))
+                .ConfigureAwait(false);
+            await leader
+                .CacheAsync(nodeId, new DataValue(new Variant(42), StatusCodes.Good, DateTimeUtc.Now))
+                .ConfigureAwait(false);
+
+            (bool fresh, DataValue value) = await promoted
+                .TryGetAsync(nodeId, TimeSpan.FromMinutes(1))
+                .ConfigureAwait(false);
+
+            Assert.That(fresh, Is.True, "the promoted replica must observe the shared value as fresh");
+            Assert.That(value.WrappedValue.TryGetValue(out int counter), Is.True);
+            Assert.That(counter, Is.EqualTo(42), "the last value written by the former leader is served");
+        }
     }
 }
