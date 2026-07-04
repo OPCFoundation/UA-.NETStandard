@@ -283,6 +283,45 @@ Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
 `NotSupportedException`.
 
+### Server retry-after backpressure
+
+When a server sheds load it can tell the client how long to wait before
+retrying — independently of `ReturnDiagnostics` — and the reconnect loop
+honors that hint as a lower bound on its next delay. Two carriers are
+emitted on by default:
+
+- **`ResponseHeader.additionalHeader`** (all UA transports): a
+  `BadServerTooBusy` `ServiceFault` carries a machine-readable
+  `RetryAfterMs` value (a whole-millisecond `Int64` in the standard
+  `AdditionalParametersType`), attached by the server in
+  `EndpointBase.CreateFault` (via `RetryAfterHeader` /
+  `ServerBusyException`) and read by the client in
+  `ClientBase.ValidateResponse` — the choke point the source-generated
+  clients call for every service. It is delivered regardless of
+  `ReturnDiagnostics`.
+- **HTTP `Retry-After`** (HTTPS transport): the `AddHttpsRateLimiter`
+  gate sets the header on its HTTP 429, and the client's
+  `HttpsTransportChannel` maps a 429/503 carrying `Retry-After` to
+  `BadServerTooBusy` with the hint.
+
+In addition, the UA-TCP client honors a `RetryAfterMs=N` token in a
+transient server-busy `Error` (ERR) message reason as a lower bound on
+channel-reconnect backoff. The reference server sheds a connection
+cheaply by dropping the accepted socket rather than emitting an ERR, so
+this interoperates with any server that does send one. The reference
+server also computes a load-based `Server.ServiceLevel` (255 at low load,
+scaling toward a floor as sessions approach `MaxSessionCount`, with
+hysteresis) as a proactive capacity signal a client can read or
+subscribe to.
+
+All reactive hints reach `IReconnectPolicy.TryGetNextDelay`, surviving
+the diagnostics gate and client exception re-wrapping; the legacy
+`RetryAfterMs=N` `AdditionalInfo` token remains a best-effort
+compatibility hint. See [Rate Limiting and Admission
+Control](RateLimiting.md) for the server limiters that produce these
+signals and the [RetryAfter specification proposal](proposals/RetryAfter.md)
+for the proposed standardization.
+
 ## 4. `IClientChannelManager` — centralised channel sharing and reconnect
 
 `IClientChannelManager`

@@ -34,7 +34,7 @@ Session establishment keeps the CPU-bound signature work outside the session-tab
 
 ## Held Publishes and the request-thread budget
 
-A steady-state session keeps one long-poll `Publish` outstanding, waiting for the next notification. The operating-system thread is released while it waits. With **`DecoupleHeldPublishRequests`** enabled (the default), a parked `Publish` also releases its request-processing worker at the point it parks, so a small worker pool can hold many thousands of outstanding Publishes and **`MaxRequestThreadCount`** does not have to scale with the session count.
+A steady-state session keeps one or more long-poll `Publish` requests outstanding, each waiting for the next notification. How many a client keeps outstanding depends on its publish-pipelining strategy — the classic subscription engine deliberately queues several per session to smooth delivery. The operating-system thread is released while each waits. With **`DecoupleHeldPublishRequests`** enabled (the default), each parked `Publish` also releases its request-processing worker at the point it parks — independently, so a session holding several parked Publishes releases a worker for each — so a small worker pool can hold many thousands of outstanding Publishes across sessions and **`MaxRequestThreadCount`** does not have to scale with the session or publish count.
 
 Setting `DecoupleHeldPublishRequests` to `false` restores the behavior where each held `Publish` occupies a worker for the duration of its wait; a server serving N sessions then needs `MaxRequestThreadCount` well above N to avoid starving other requests.
 
@@ -59,7 +59,6 @@ A single node's handshake throughput is bounded by its cores. To scale beyond on
 ## See also
 
 - [Rate Limiting and Admission Control](RateLimiting.md) — the connection and session-establishment limiters, the `BadServerTooBusy` signalling, and the client's adaptive reconnect backoff.
-- [Retry-after signaling for OPC UA backpressure](RetryAfterSignaling.md) — the diagnostics-independent carriers for the server's retry-after hint (the `additionalHeader`, the HTTP `Retry-After` header, and the UA-TCP `Error` reason) and how the client honors them.
 - [Performance Benchmarks](Benchmarks.md#server-session-scalability) — the measured session-scaling table and the `ServerManySessionsLoadTestAsync` macro test.
 - [Sessions, Reconnection, and Subscription Engines](Sessions.md) — session and subscription-engine architecture.
 - [Subscriptions and Monitored Items Service Set](Subscriptions.md) — the subscription engine.

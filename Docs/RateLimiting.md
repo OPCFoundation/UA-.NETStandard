@@ -64,8 +64,6 @@ server.RateLimitOptions = new ServerRateLimitOptions { ConnectionsPerSecond = 20
 // or: server.RateLimiterProvider = new DefaultServerRateLimiterProvider(options);
 ```
 
-### Extending the transport
-
 The `opc.tcp` listener consumes an `IConnectionRateLimiter` and a backlog value through `TransportListenerSettings`, injected by `StandardServer.ConfigureTransportListenerSettings`. A custom server can override that hook to supply its own limiter. The default `TokenBucketConnectionRateLimiter` wraps a `System.Threading.RateLimiting.TokenBucketRateLimiter`.
 
 ## HTTPS / Kestrel transport
@@ -90,11 +88,10 @@ This is exposed through `IReconnectPolicy.TryGetNextDelay`, which adapts the bac
 
 To keep a bulk connect from bursting, a client-wide **connect admission gate** ramps concurrent initial connects: `ManagedSessionBuilder.WithConnectRateLimiter(maxConcurrency)` (or a shared `RateLimiter` / `IClientConnectGate`) bounds how many `ManagedSession.CreateAsync` calls establish at once; the excess wait in an unbounded queue rather than being rejected, so many sessions to one server ramp up smoothly instead of stampeding. It is off by default; through DI use the `ConnectRateLimiterMaxConcurrency` client option.
 
-## Delivered and planned follow-ups
+## Server backpressure signals
 
-- **Structured retry-after (delivered)**: the server carries a machine-readable retry-after to the client independently of diagnostics — as a `RetryAfterMs` value in `ResponseHeader.additionalHeader` on a `BadServerTooBusy` `ServiceFault`, and as the standard HTTP `Retry-After` header on the HTTPS 429. The client honors both via `IReconnectPolicy.TryGetNextDelay`. The UA-TCP client also honors a `RetryAfterMs=N` token in a transient server-busy `Error` message reason as a lower bound on channel-reconnect backoff. The legacy `RetryAfterMs=N` `AdditionalInfo` token remains a best-effort compatibility hint. See [Retry-after signaling for OPC UA backpressure](RetryAfterSignaling.md).
-- **Load-based `Server.ServiceLevel` (delivered)**: the reference server computes `Server.ServiceLevel` from session-establishment headroom (255 at low load, scaling toward a floor as sessions approach `MaxSessionCount`, with hysteresis), so a client can read/subscribe to it as a proactive capacity signal.
-- **Planned**: a standardized structured retry-after field, a server-emitted UA-TCP `Error` retry-after on connection-level rejection, and client-side proactive server reselection driven by `ServiceLevel`. See the [RetryAfter specification proposal](proposals/RetryAfter.md).
+- **Structured retry-after**: the server carries a machine-readable retry-after to the client independently of diagnostics — as a `RetryAfterMs` value in `ResponseHeader.additionalHeader` on a `BadServerTooBusy` `ServiceFault`, and as the standard HTTP `Retry-After` header on the HTTPS 429. The client honors both via `IReconnectPolicy.TryGetNextDelay`. The UA-TCP client also honors a `RetryAfterMs=N` token in a transient server-busy `Error` message reason as a lower bound on channel-reconnect backoff. The legacy `RetryAfterMs=N` `AdditionalInfo` token remains a best-effort compatibility hint. See [Server retry-after backpressure](Sessions.md#server-retry-after-backpressure) for how the client honors these signals during reconnect, and the [RetryAfter specification proposal](proposals/RetryAfter.md) for the proposed standardization.
+- **Load-based `Server.ServiceLevel`**: the reference server computes `Server.ServiceLevel` from session-establishment headroom (255 at low load, scaling toward a floor as sessions approach `MaxSessionCount`, with hysteresis), so a client can read/subscribe to it as a proactive capacity signal.
 
 ## See also
 

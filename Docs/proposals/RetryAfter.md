@@ -85,4 +85,4 @@ A service-specific field on only `CreateSession` or `ActivateSession` was reject
 
 ## Related implementation note
 
-The OPC UA .NET Standard stack design survey is documented in [Retry-after signaling for OPC UA backpressure](../RetryAfterSignaling.md). It maps these proposal options to current server and client emit/honor points in the stack.
+The stack's implemented server and client retry-after behavior is summarized in [Server retry-after backpressure](../Sessions.md#server-retry-after-backpressure) and [Rate Limiting and Admission Control](../RateLimiting.md). Those sections map the proposal options below to the current server and client emit/honor points in the stack.
