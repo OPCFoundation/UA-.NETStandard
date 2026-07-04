@@ -128,11 +128,26 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             await subscriber.OpenAsync(CancellationToken.None).ConfigureAwait(false);
             await publisher.OpenAsync(CancellationToken.None).ConfigureAwait(false);
             byte[] payload = [0x10, 0x20, 0x30, 0x40];
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             Task<PubSubTransportFrame?> receiveTask = KafkaTestHelper.ReceiveOneAsync(subscriber, cts.Token);
 
-            await publisher.SendAsync(payload, topic).ConfigureAwait(false);
-            PubSubTransportFrame? frame = await receiveTask.ConfigureAwait(false);
+            // The consumer may still be joining the group and receiving its
+            // partition assignment when the first record is produced, so resend
+            // periodically until the subscriber observes a record or the deadline
+            // elapses. Every resend carries the same topic and payload, so which
+            // copy is observed does not affect the assertions.
+            PubSubTransportFrame? frame = null;
+            while (frame is null && !cts.IsCancellationRequested)
+            {
+                await publisher.SendAsync(payload, topic).ConfigureAwait(false);
+                Task finished = await Task.WhenAny(
+                    receiveTask,
+                    Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+                if (finished == receiveTask)
+                {
+                    frame = await receiveTask.ConfigureAwait(false);
+                }
+            }
 
             Assert.That(frame, Is.Not.Null);
             Assert.That(frame!.Value.Topic, Is.EqualTo(topic));
