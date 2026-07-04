@@ -110,18 +110,24 @@ bool useStrongConsistency = consistency is "strong";
 // selection; plain discovery on this node's own URL is unaffected.
 string? balancingUrl = builder.Configuration["HA_BALANCING_URL"];
 
-if (activeActive && recordKey != null)
+// A distributed shared store - CRDT gossip (active/active) or a Raft/strong
+// store - is an EXTERNAL store and fails closed unless a record protector is
+// registered, because mirrored records hold session secrets and identity
+// tokens. Register one for every external-store topology: AesCbcHmac when
+// HA_RECORD_KEY is supplied, otherwise NullRecordProtector for this isolated
+// demo. A production deployment MUST supply HA_RECORD_KEY so mirrored state is
+// encrypted and integrity-protected at rest. (Active/passive eventual keeps the
+// safe in-memory store, which needs no protector.)
+if (activeActive || useStrongConsistency)
 {
-    // Encrypt mirrored session entries at rest (sessions are gossiped as a CRDT).
-    builder.Services.AddSingleton<IRecordProtector>(_ => new AesCbcHmacRecordProtector(recordKey));
-}
-else if (activeActive)
-{
-    // No HA_RECORD_KEY provided: this isolated demo knowingly accepts
-    // unprotected mirrored storage. A production active/active deployment
-    // MUST supply HA_RECORD_KEY so mirrored session secrets and identity
-    // tokens are encrypted and integrity-protected at rest.
-    builder.Services.AddSingleton<IRecordProtector>(_ => new NullRecordProtector());
+    if (recordKey != null)
+    {
+        builder.Services.AddSingleton<IRecordProtector>(_ => new AesCbcHmacRecordProtector(recordKey));
+    }
+    else
+    {
+        builder.Services.AddSingleton<IRecordProtector>(_ => new NullRecordProtector());
+    }
 }
 
 IOpcUaServerBuilder ua = builder.Services
