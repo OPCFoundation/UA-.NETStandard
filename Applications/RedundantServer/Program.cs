@@ -115,6 +115,14 @@ if (activeActive && recordKey != null)
     // Encrypt mirrored session entries at rest (sessions are gossiped as a CRDT).
     builder.Services.AddSingleton<IRecordProtector>(_ => new AesCbcHmacRecordProtector(recordKey));
 }
+else if (activeActive)
+{
+    // No HA_RECORD_KEY provided: this isolated demo knowingly accepts
+    // unprotected mirrored storage. A production active/active deployment
+    // MUST supply HA_RECORD_KEY so mirrored session secrets and identity
+    // tokens are encrypted and integrity-protected at rest.
+    builder.Services.AddSingleton<IRecordProtector>(_ => new NullRecordProtector());
+}
 
 IOpcUaServerBuilder ua = builder.Services
     .AddOpcUa()
@@ -171,6 +179,12 @@ if (activeActive)
         {
             r.ReplicaId = replicaId;
             r.UseTcpGossip(IPAddress.Any, gossipPort);
+            // This sample runs on an isolated local/compose network without
+            // gossip TLS, so opt into unauthenticated gossip. A production
+            // active/active deployment MUST configure mutual TLS
+            // (GossipTlsOptions) instead: CRDT frames are last-writer-wins, so
+            // an unauthenticated peer could forge a higher-clock update.
+            r.AllowUnauthenticatedGossip = true;
             foreach (IPEndPoint peer in gossipPeers)
             {
                 r.AddPeer(peer);
@@ -182,6 +196,7 @@ if (activeActive)
             // address-space port + 1 by convention.
             s.ReplicaId = replicaId;
             s.UseTcpGossip(IPAddress.Any, gossipPort + 1);
+            s.AllowUnauthenticatedGossip = true;
             foreach (IPEndPoint peer in gossipPeers)
             {
                 s.AddPeer(new IPEndPoint(peer.Address, peer.Port + 1));
