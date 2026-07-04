@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Core.TestFramework;
-using Opc.Ua.Schema;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types

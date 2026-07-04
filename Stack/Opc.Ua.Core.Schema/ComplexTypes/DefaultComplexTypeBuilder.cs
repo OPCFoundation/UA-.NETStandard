@@ -29,7 +29,7 @@
 
 using System.Xml;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua
 {
     /// <summary>
     /// Default complex type builder

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
 {

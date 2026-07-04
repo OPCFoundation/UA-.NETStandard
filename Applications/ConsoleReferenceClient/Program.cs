@@ -43,7 +43,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
-using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts.ConsoleReferenceClient

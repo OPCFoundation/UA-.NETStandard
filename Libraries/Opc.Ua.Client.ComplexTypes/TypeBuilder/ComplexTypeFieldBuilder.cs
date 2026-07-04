@@ -32,7 +32,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Xml;
-using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
 {

@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
-using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
 {

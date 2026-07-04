@@ -37,7 +37,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Schema;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts;

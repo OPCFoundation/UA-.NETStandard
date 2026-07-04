@@ -41,7 +41,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
-using Opc.Ua.Schema;
 
 namespace Quickstarts
 {

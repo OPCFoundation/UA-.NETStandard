@@ -35,8 +35,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Schema;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua
 {
     /// <summary>
     /// Manages the custom types resolved from an OPC UA type source

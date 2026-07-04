@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua
 {
     /// <summary>
     /// Exception is thrown if the data type is not found.

@@ -43,7 +43,7 @@ The library automatically uses the most appropriate mechanism available on the s
 
 #### Default type builder
 
-A type builder builds the types that are registered in the `EncodeableFactory` by the `ComplexTypeSystem` class.  The default type builder registers in memory `IEncodeable` "adapter" classes that wrap discovered `DataTypeDefinition` and provide "state" (a list of Variants for the properties) clone, compare, and encode/decode behavior. The default type builder is part of the Opc.Ua.Core.Schema library (namespace `Opc.Ua.Schema`) and is shared by client and server. It is used when no type builder is provided in the constructor of the `ComplexTypeSystem` class.
+A type builder builds the types that are registered in the `EncodeableFactory` by the `ComplexTypeSystem` class.  The default type builder registers in memory `IEncodeable` "adapter" classes that wrap discovered `DataTypeDefinition` and provide "state" (a list of Variants for the properties) clone, compare, and encode/decode behavior. The default type builder is part of the Opc.Ua.Core.Schema library (namespace `Opc.Ua`) and is shared by client and server. It is used when no type builder is provided in the constructor of the `ComplexTypeSystem` class.
 
 #### Reflection.Emit based type builder
 
@@ -68,10 +68,9 @@ Install-Package OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
 The most common approach is to load all custom types after establishing a session:
 
 ```csharp
-using Opc.Ua;
+using Opc.Ua;                     // ComplexTypeSystem, IComplexTypeResolver, default type builder
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes; // client Create(...) helpers + NodeCacheResolver
-using Opc.Ua.Schema;              // ComplexTypeSystem and the default type builder
 
 // Create and connect session
 var session = await Session.Create(...);
@@ -812,7 +811,7 @@ The main class for managing complex types.
 #### Constructors
 
 ```csharp
-// The ComplexTypeSystem type is defined in Opc.Ua.Core.Schema (namespace Opc.Ua.Schema).
+// The ComplexTypeSystem type is defined in Opc.Ua.Core.Schema (namespace Opc.Ua).
 
 // Create with a complex type resolver and telemetry (uses the default DefaultComplexTypeFactory)
 ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, ITelemetryContext telemetry)

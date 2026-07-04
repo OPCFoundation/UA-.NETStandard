@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua
 {
     /// <summary>
     /// Interface for the complex type builder.

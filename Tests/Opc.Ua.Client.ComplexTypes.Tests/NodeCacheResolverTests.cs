@@ -32,7 +32,6 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {

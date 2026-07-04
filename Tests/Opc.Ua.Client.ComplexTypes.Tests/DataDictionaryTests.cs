@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Schema;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 

@@ -35,7 +35,6 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
 {

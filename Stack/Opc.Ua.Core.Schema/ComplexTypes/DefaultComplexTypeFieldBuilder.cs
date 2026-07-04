@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua
 {
     /// <summary>
     /// Complex type field builder
