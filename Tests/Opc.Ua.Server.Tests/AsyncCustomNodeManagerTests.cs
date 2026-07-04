@@ -4530,6 +4530,10 @@ namespace Opc.Ua.Server.Tests
         public TimestampsToReturn TimestampsToReturn { get; set; }
 
         public int TypeMask { get; set; }
+
+        public IDataChangeMonitoredItemQueue RestoredDataChangeQueue { get; set; }
+
+        public IEventMonitoredItemQueue RestoredEventQueue { get; set; }
     }
 
     /// <summary>

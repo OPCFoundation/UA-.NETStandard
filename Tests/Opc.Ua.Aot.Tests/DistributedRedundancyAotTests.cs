@@ -252,6 +252,42 @@ namespace Opc.Ua.Aot.Tests
             return key;
         }
 
+        [Test]
+        public async Task MonitoredItemQueueMirrorRoundTripsUnderAotAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(47));
+            ITelemetryContext telemetry = DefaultTelemetry.Create(builder =>
+                builder.SetMinimumLevel(LogLevel.Warning));
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+
+            await using (var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, context, protector, telemetry))
+            {
+                IDataChangeMonitoredItemQueue dataQueue = factory.CreateDataChangeQueue(false, 77);
+                dataQueue.ResetQueue(4, false);
+                dataQueue.Enqueue(new DataValue(new Variant(101)), ServiceResult.Good);
+
+                IEventMonitoredItemQueue eventQueue = factory.CreateEventQueue(false, 78);
+                eventQueue.SetQueueSize(4, true);
+                eventQueue.Enqueue(new EventFieldList { ClientHandle = 9, EventFields = [new Variant(true)] });
+
+                await factory.FlushAsync();
+            }
+
+            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, context, protector, telemetry);
+            IDataChangeMonitoredItemQueue? restoredData = await restoreFactory
+                .RestoreDataChangeQueueAsync(77);
+            IEventMonitoredItemQueue? restoredEvent = await restoreFactory
+                .RestoreEventQueueAsync(78);
+
+            await Assert.That(restoredData).IsNotNull();
+            await Assert.That(restoredData!.ItemsInQueue).IsEqualTo(1);
+            await Assert.That(restoredEvent).IsNotNull();
+            await Assert.That(restoredEvent!.ItemsInQueue).IsEqualTo(1);
+        }
+
         private sealed class FakeKubernetesApiClient : IKubernetesApiClient
         {
             public bool IsInCluster => true;

@@ -167,6 +167,22 @@ namespace Quickstarts.Servers
                 s_storage_path)!;
         }
 
+        public ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(
+            uint monitoredItemId,
+            CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<IDataChangeMonitoredItemQueue?>(
+                RestoreDataChangeMonitoredItemQueue(monitoredItemId));
+        }
+
+        public ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(
+            uint monitoredItemId,
+            CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<IEventMonitoredItemQueue?>(
+                RestoreEventMonitoredItemQueue(monitoredItemId));
+        }
+
         public ValueTask OnSubscriptionRestoreCompleteAsync(
             Dictionary<uint, ArrayOf<uint>> createdSubscriptions,
             CancellationToken cancellationToken = default)
