@@ -535,13 +535,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static void SetupAsyncFacet(Mock<INodeManagerWithAsync> manager, TestValues values)
         {
             manager.Setup(m => m.CreateAddressSpaceAsync(values.ExternalReferences, It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.GetManagerHandleAsync(values.NodeId, It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<object>(values.Handle));
             manager.Setup(m => m.AddReferencesAsync(values.References, It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.DeleteReferenceAsync(
                     values.SourceHandle,
                     values.ReferenceTypeId,
@@ -569,7 +569,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.TargetIds,
                     values.UnresolvedTargetIds,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.ReadAsync(
                     values.Context,
                     1.0,
@@ -577,7 +577,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.DataValues,
                     values.ReadErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.HistoryReadAsync(
                     values.Context,
                     values.HistoryReadDetails,
@@ -587,13 +587,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.HistoryReadResults,
                     values.HistoryReadErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.WriteAsync(
                     values.Context,
                     values.WriteValues,
                     values.WriteErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.HistoryUpdateAsync(
                     values.Context,
                     typeof(UpdateDataDetails),
@@ -601,14 +601,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.HistoryUpdateResults,
                     values.HistoryUpdateErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.CallAsync(
                     values.Context,
                     values.MethodsToCall,
                     values.CallResults,
                     values.CallErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.SubscribeToEventsAsync(
                     values.Context,
                     values.SourceHandle,
@@ -641,13 +641,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     true,
                     values.IdFactory,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.RestoreMonitoredItemsAsync(
                     values.ItemsToRestore,
                     values.MonitoredItems,
                     values.OwnerIdentity,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.ModifyMonitoredItemsAsync(
                     values.Context,
                     TimestampsToReturn.Source,
@@ -656,14 +656,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.ModifyErrors,
                     values.FilterErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.DeleteMonitoredItemsAsync(
                     values.Context,
                     values.MonitoredItems,
                     values.DeleteProcessed,
                     values.DeleteErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.TransferMonitoredItemsAsync(
                     values.Context,
                     true,
@@ -671,7 +671,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.TransferProcessed,
                     values.TransferErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.SetMonitoringModeAsync(
                     values.Context,
                     MonitoringMode.Reporting,
@@ -679,18 +679,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.MonitoringProcessed,
                     values.MonitoringErrors,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.SessionClosingAsync(
                     values.Context,
                     values.SessionId,
                     true,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.SessionActivatedAsync(
                     values.Context,
                     values.SessionId,
                     It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
+                .Returns(default(ValueTask));
             manager.Setup(m => m.IsNodeInViewAsync(
                     values.Context,
                     values.NodeId,
