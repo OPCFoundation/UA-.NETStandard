@@ -27,76 +27,65 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Xml;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using Opc.Ua.Schema;
 
-namespace Opc.Ua.Encoders
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Enumeration wrapping an enum definition
+    /// A mutable <see cref="IDataTypeDefinitionResolver"/> whose backing
+    /// resolver is filled once the server address space and encodeable factory
+    /// are available (during startup). This lets the server expose its runtime
+    /// encodeable factory as the schema data type definition resolver through
+    /// dependency injection, where the factory instance is not known until the
+    /// server has started.
     /// </summary>
-    public sealed class Enumeration : IEnumeratedType, IDataTypeDefinitionSource
+    internal sealed class ServerDataTypeDefinitionResolver : IDataTypeDefinitionResolver
     {
         /// <summary>
-        /// Create enumeration
+        /// Sets the resolver that backs this holder.
         /// </summary>
-        public Enumeration(XmlQualifiedName name, EnumDefinition definition)
+        /// <param name="resolver">The backing resolver.</param>
+        public void SetResolver(IDataTypeDefinitionResolver resolver)
         {
-            m_definition = definition;
-            XmlName = name;
+            m_resolver = resolver;
         }
 
         /// <inheritdoc/>
-        public EnumValue Default
+        public bool TryResolve(
+            ExpandedNodeId typeId,
+            [NotNullWhen(true)] out UaTypeDescription? description)
         {
-            get
+            IDataTypeDefinitionResolver? resolver = m_resolver;
+            if (resolver != null)
             {
-                if (m_definition.Fields.IsEmpty)
-                {
-                    return default;
-                }
-                return new EnumValue((int)m_definition.Fields[0].Value, this);
+                return resolver.TryResolve(typeId, out description);
             }
-        }
-
-        /// <inheritdoc/>
-        public Type Type => typeof(Enumeration);
-
-        /// <inheritdoc/>
-        public XmlQualifiedName XmlName { get; }
-
-        /// <inheritdoc/>
-        public bool TryGetSymbol(int value, out string? symbol)
-        {
-            EnumField found = m_definition.Fields.Find(e => e.Value == value);
-            if (found?.Name != null)
-            {
-                symbol = found.Name;
-                return true;
-            }
-            symbol = default;
+            description = null;
             return false;
         }
 
         /// <inheritdoc/>
-        public bool TryGetValue(string symbol, out int value)
+        public bool TryResolve(
+            NodeId typeId,
+            [NotNullWhen(true)] out UaTypeDescription? description)
         {
-            EnumField found = m_definition.Fields.Find(e => e.Name == symbol);
-            if (found != null)
+            IDataTypeDefinitionResolver? resolver = m_resolver;
+            if (resolver != null)
             {
-                value = (int)found.Value;
-                return true;
+                return resolver.TryResolve(typeId, out description);
             }
-            value = default;
+            description = null;
             return false;
         }
 
         /// <inheritdoc/>
-        public DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
+        public IReadOnlyCollection<UaTypeDescription> GetNamespaceTypes(string namespaceUri)
         {
-            return m_definition;
+            return m_resolver?.GetNamespaceTypes(namespaceUri) ?? [];
         }
 
-        private readonly EnumDefinition m_definition;
+        private volatile IDataTypeDefinitionResolver? m_resolver;
     }
 }

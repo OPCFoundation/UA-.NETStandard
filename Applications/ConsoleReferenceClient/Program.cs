@@ -43,6 +43,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
+using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts.ConsoleReferenceClient
@@ -469,7 +470,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 verbose);
                             if (loadTypes)
                             {
-                                var complexTypeSystem = new ComplexTypeSystem(uaClient.Session, telemetry);
+                                var complexTypeSystem = ComplexTypeSystem.Create(uaClient.Session, telemetry);
                                 await samples.LoadTypeSystemAsync(complexTypeSystem, ct).ConfigureAwait(false);
                             }
 

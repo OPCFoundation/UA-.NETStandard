@@ -29,6 +29,7 @@
 
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -58,7 +59,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task LoadComplexTypeSystemAsync()
         {
-            var complexTypeSystem = new ComplexTypeSystem(
+            var complexTypeSystem = ComplexTypeSystem.Create(
                 fixture.Session, fixture.Telemetry);
 
             bool success = await complexTypeSystem
@@ -123,7 +124,7 @@ namespace Opc.Ua.Aot.Tests
         [Retry(2)]
         public async Task BrowseAndReadComplexTypesAsync()
         {
-            var complexTypeSystem = new ComplexTypeSystem(
+            var complexTypeSystem = ComplexTypeSystem.Create(
                 fixture.Session, fixture.Telemetry);
 
             await complexTypeSystem
@@ -180,7 +181,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task ReadTestDataComplexTypeVariableAsync()
         {
-            var complexTypeSystem = new ComplexTypeSystem(
+            var complexTypeSystem = ComplexTypeSystem.Create(
                 fixture.Session, fixture.Telemetry);
 
             await complexTypeSystem

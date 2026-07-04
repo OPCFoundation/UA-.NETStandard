@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Schema
 {
     /// <summary>
     /// Exception is thrown if the data type is not found.

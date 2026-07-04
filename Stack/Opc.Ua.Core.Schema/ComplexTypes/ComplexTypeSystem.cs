@@ -35,15 +35,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Schema;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Schema
 {
     /// <summary>
-    /// Manages the custom types of a server for a client session.
-    /// Loads the custom types into the type factory
-    /// of a client session, to allow for decoding and encoding
-    /// of custom enumeration types and structured types.
+    /// Manages the custom types resolved from an OPC UA type source
+    /// (a client session or a server address space). Loads the custom
+    /// types into an <see cref="IEncodeableFactory"/> to allow for
+    /// decoding and encoding of custom enumeration types and structured
+    /// types, using dynamically built stand-in encodeables (no reflection
+    /// emit, NativeAOT friendly).
     /// </summary>
     /// <remarks>
     /// Support for V1.03 dictionaries and all V1.04 data type definitions
@@ -92,50 +93,12 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Initializes the type system with a session to load the custom types.
-        /// </summary>
-        public ComplexTypeSystem(ISession session)
-            : this(session, session.MessageContext.Telemetry)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the type system with a session to load the custom types.
-        /// </summary>
-        public ComplexTypeSystem(ISession session, ITelemetryContext telemetry)
-            : this(session, new DefaultComplexTypeFactory(), telemetry)
-        {
-        }
-
-        /// <summary>
         /// Initializes the type system with a complex type resolver to load the custom types.
         /// </summary>
         public ComplexTypeSystem(
             IComplexTypeResolver complexTypeResolver,
             ITelemetryContext telemetry)
             : this(complexTypeResolver, new DefaultComplexTypeFactory(), telemetry)
-        {
-        }
-
-        /// <summary>
-        /// Create complex type system with session and custom type builder factory
-        /// </summary>
-        public ComplexTypeSystem(
-            ISession session,
-            IComplexTypeFactory complexTypeBuilderFactory)
-            : this(session, complexTypeBuilderFactory, session.MessageContext.Telemetry)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the type system with a session to load the custom types
-        /// and a customized type builder factory
-        /// </summary>
-        public ComplexTypeSystem(
-            ISession session,
-            IComplexTypeFactory complexTypeBuilderFactory,
-            ITelemetryContext telemetry)
-            : this(new NodeCacheResolver(session, telemetry), complexTypeBuilderFactory, telemetry)
         {
         }
 

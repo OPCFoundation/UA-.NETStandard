@@ -32,6 +32,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
+using Opc.Ua.Schema;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

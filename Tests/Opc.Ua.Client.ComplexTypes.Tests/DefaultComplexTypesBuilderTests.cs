@@ -31,6 +31,7 @@ using NUnit.Framework;
 
 using ComplexStructure = Opc.Ua.Encoders.Structure;
 using ComplexUnion = Opc.Ua.Encoders.Union;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {

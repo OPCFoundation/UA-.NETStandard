@@ -32,11 +32,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -215,7 +217,27 @@ namespace Opc.Ua.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
-            m_server = new StandardServer(m_telemetry, m_timeProvider);
+            ServerComplexTypeOptions? complexTypeOptions =
+                m_services.GetService<ServerComplexTypeOptions>();
+            if (complexTypeOptions != null)
+            {
+                // Opt-in: build and register stand-in encodeables for runtime
+                // loaded custom DataTypes once the address space is available,
+                // and expose the primed factory as the schema resolver.
+                m_server = new ComplexTypeStandardServer(
+                    m_telemetry,
+                    m_timeProvider,
+                    complexTypeOptions,
+                    m_services.GetService<DataTypeDefinitionRegistry>())
+                {
+                    ResolverHolder = m_services.GetService<ServerDataTypeDefinitionResolver>()
+                };
+            }
+            else
+            {
+                m_server = new StandardServer(m_telemetry, m_timeProvider);
+            }
+
             foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
             {
                 if (reg.AsyncFactory is not null)

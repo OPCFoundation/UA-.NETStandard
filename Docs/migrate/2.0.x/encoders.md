@@ -26,11 +26,11 @@ New type abstraction layer: `IType` (base) with `IBuiltInType`, `IEnumeratedType
 
 The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `EncodeableFactory.Create()` renamed to `Fork()`. Use `ServiceMessageContext.Factory` instead.
 
-### ComplexTypes moved to Opc.Ua.Client assembly
+### ComplexTypes moved to Opc.Ua.Core.Schema
 
-Core complex type interfaces and default (non-reflection-emit) implementations moved from `Opc.Ua.Client.ComplexTypes` to `Libraries/Opc.Ua.Client/ComplexTypes/`.
-Namespace remains `Opc.Ua.Client.ComplexTypes`. If you used the default constructors without specifying the builder, and want to use the Reflection.Emit based type builders,
-you need to change your code to call `ComplexTypeSystem.Create(...)` instead of `new ComplexTypeSystem(...)` which now uses the new default builder not supporting Reflection.Emit.
+The shared `ComplexTypeSystem` orchestrator, the complex type interfaces and the default (non-reflection-emit) type builder moved to the `Opc.Ua.Core.Schema` assembly under the namespace `Opc.Ua.Schema` so they can be used by both client and server. Update your `using` directives from `Opc.Ua.Client.ComplexTypes` to `Opc.Ua.Schema` (the client-only `NodeCacheResolver` and the `ComplexTypeSystem.Create(session, ...)` helpers stay in `Opc.Ua.Client.ComplexTypes`).
+The `ComplexTypeSystem(ISession, ...)` constructors were removed; construct a session-bound instance with `ComplexTypeSystem.Create(session, telemetry)` (the default, NativeAOT friendly builder) or `ComplexTypeSystem.Create(session, new ComplexTypeBuilderFactory(), telemetry)` for the Reflection.Emit builder.
+Servers can build the same stand-ins for runtime-loaded DataTypes by opting in with `AddComplexTypeSystem()` (or the `ComplexTypeStandardServer` / `IServerInternal.LoadComplexTypesAsync(...)`); see `Docs/ComplexTypes.md`.
 
 ### OptionSet DataType support
 
@@ -39,7 +39,7 @@ Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=127
 Impact on existing code:
 
 - **Source-breaking for custom `IComplexTypeBuilder` implementations**: a new member `AddOptionSetType(QualifiedName, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, EnumDefinition)` was added to `IComplexTypeBuilder`. Custom implementations must provide it.
-- The Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` from `AddOptionSetType`; callers relying on the Reflection.Emit path for OptionSet sub-types should switch to the default builder (`new ComplexTypeSystem(session)`).
+- The Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` from `AddOptionSetType`; callers relying on the Reflection.Emit path for OptionSet sub-types should switch to the default builder (`ComplexTypeSystem.Create(session, telemetry)`).
 - No wire-format changes: encoders/decoders continue to route through `IEncodeableFactory` → `IEncodeableType.CreateInstance`, which now yields `Opc.Ua.Encoders.OptionSet` for registered sub-types.
 - UInteger-backed OptionSet DataTypes remain treated as their underlying unsigned integer in a `Variant` (unchanged).
 
@@ -64,11 +64,11 @@ Custom encoder/decoder implementations must adjust to comply with the new interf
 
 ## Complex Types
 
-### ComplexTypes moved to Opc.Ua.Client assembly
+### ComplexTypes moved to Opc.Ua.Core.Schema
 
-Core complex type interfaces and default (non-reflection-emit) implementations moved from `Opc.Ua.Client.ComplexTypes` to `Libraries/Opc.Ua.Client/ComplexTypes/`.
-Namespace remains `Opc.Ua.Client.ComplexTypes`. If you used the default constructors without specifying the builder, and want to use the Reflection.Emit based type builders,
-you need to change your code to call `ComplexTypeSystem.Create(...)` instead of `new ComplexTypeSystem(...)` which now uses the new default builder not supporting Reflection.Emit.
+The shared `ComplexTypeSystem` orchestrator, the complex type interfaces and the default (non-reflection-emit) type builder moved to the `Opc.Ua.Core.Schema` assembly under the namespace `Opc.Ua.Schema` so they can be used by both client and server. Update your `using` directives from `Opc.Ua.Client.ComplexTypes` to `Opc.Ua.Schema` (the client-only `NodeCacheResolver` and the `ComplexTypeSystem.Create(session, ...)` helpers stay in `Opc.Ua.Client.ComplexTypes`).
+The `ComplexTypeSystem(ISession, ...)` constructors were removed; construct a session-bound instance with `ComplexTypeSystem.Create(session, telemetry)` (the default, NativeAOT friendly builder) or `ComplexTypeSystem.Create(session, new ComplexTypeBuilderFactory(), telemetry)` for the Reflection.Emit builder.
+Servers can build the same stand-ins for runtime-loaded DataTypes by opting in with `AddComplexTypeSystem()` (or the `ComplexTypeStandardServer` / `IServerInternal.LoadComplexTypesAsync(...)`); see `Docs/ComplexTypes.md`.
 
 ### OptionSet DataType support
 
@@ -77,7 +77,7 @@ Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=127
 Impact on existing code:
 
 - **Source-breaking for custom `IComplexTypeBuilder` implementations**: a new member `AddOptionSetType(QualifiedName, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, EnumDefinition)` was added to `IComplexTypeBuilder`. Custom implementations must provide it.
-- The Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` from `AddOptionSetType`; callers relying on the Reflection.Emit path for OptionSet sub-types should switch to the default builder (`new ComplexTypeSystem(session)`).
+- The Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` from `AddOptionSetType`; callers relying on the Reflection.Emit path for OptionSet sub-types should switch to the default builder (`ComplexTypeSystem.Create(session, telemetry)`).
 - No wire-format changes: encoders/decoders continue to route through `IEncodeableFactory` → `IEncodeableType.CreateInstance`, which now yields `Opc.Ua.Encoders.OptionSet` for registered sub-types.
 - UInteger-backed OptionSet DataTypes remain treated as their underlying unsigned integer in a `Variant` (unchanged).
 

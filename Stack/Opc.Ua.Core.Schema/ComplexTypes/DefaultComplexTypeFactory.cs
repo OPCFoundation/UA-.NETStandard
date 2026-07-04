@@ -30,7 +30,7 @@
 using System.Collections.Generic;
 using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Schema
 {
     /// <summary>
     /// Default complex type factory

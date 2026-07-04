@@ -30,6 +30,7 @@
 using System.IO;
 using System.Xml;
 using NUnit.Framework;
+using Opc.Ua.Schema;
 using Opc.Ua.Tests;
 
 using OptionSetEncoder = Opc.Ua.Encoders.OptionSet;

@@ -3295,6 +3295,11 @@ namespace Opc.Ua.Server
                 // do any additional processing now that the node manager is up and running.
                 OnNodeManagerStarted(m_serverInternal);
 
+                // run asynchronous post-address-space initialization (e.g. runtime
+                // complex-type loading) before the server begins accepting connections.
+                await OnNodeManagerStartedAsync(m_serverInternal, cancellationToken)
+                    .ConfigureAwait(false);
+
                 // create the manager responsible for aggregates.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
                 ServerInternal.SetAggregateManager(
@@ -4040,6 +4045,23 @@ namespace Opc.Ua.Server
         protected virtual void OnNodeManagerStarted(IServerInternal server)
         {
             // may be overridden by the subclass.
+        }
+
+        /// <summary>
+        /// Called asynchronously after the node managers have been started and
+        /// the complete address space is available, but before the server
+        /// begins accepting connections. Opt-in features that must augment the
+        /// server once the full address space exists (for example runtime
+        /// complex-type loading) override this hook.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnNodeManagerStartedAsync(
+            IServerInternal server,
+            CancellationToken cancellationToken = default)
+        {
+            // may be overridden by the subclass.
+            return default;
         }
 
         /// <summary>

@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {

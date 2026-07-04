@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -72,7 +73,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(session));
             }
             return new ComplexTypeSystem(
-                session,
+                new NodeCacheResolver(session, m_telemetry),
                 new ComplexTypeBuilderFactory(),
                 m_telemetry);
         }

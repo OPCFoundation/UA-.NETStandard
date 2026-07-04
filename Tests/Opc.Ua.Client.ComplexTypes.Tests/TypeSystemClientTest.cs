@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Schema;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts;
@@ -165,7 +166,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool disableDataTypeDefinition,
             bool disableDataTypeDictionary)
         {
-            var typeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var typeSystem = ComplexTypeSystem.Create(Session, new ComplexTypeBuilderFactory(), m_telemetry);
             Assert.That(typeSystem, Is.Not.Null);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
@@ -208,7 +209,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task BrowseComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = ComplexTypeSystem.Create(Session, new ComplexTypeBuilderFactory(), m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             ArrayOf<ReferenceDescription> referenceDescriptions = await samples
@@ -246,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task FetchComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = ComplexTypeSystem.Create(Session, new ComplexTypeBuilderFactory(), m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             IList<INode> allNodes = await samples
@@ -403,7 +404,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = ComplexTypeSystem.Create(Session, new ComplexTypeBuilderFactory(), m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             // test the static version of the structure

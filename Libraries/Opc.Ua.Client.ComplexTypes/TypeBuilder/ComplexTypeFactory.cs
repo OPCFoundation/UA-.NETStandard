@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Xml;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Client.ComplexTypes
 {

@@ -27,44 +27,53 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Schema;
+
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
-    /// Adds static methods to create a complex type system to load
-    /// custom types using reflection emit (legacy).
+    /// Client side factory helpers that bind a <see cref="ComplexTypeSystem"/>
+    /// to a client <see cref="ISession"/> using the session node cache as the
+    /// <see cref="IComplexTypeResolver"/>. The default overloads use the
+    /// NativeAOT friendly <see cref="DefaultComplexTypeFactory"/>.
     /// </summary>
-    public static class ComplexTypesExtensions
+    public static class ComplexTypeSystemClientExtensions
     {
         extension(ComplexTypeSystem)
         {
             /// <summary>
-            /// Initializes the type system with a session to load the
-            /// custom types using reflection emit.
+            /// Initializes the type system with a session to load the custom
+            /// types using dynamically built stand-in encodeables (no reflection
+            /// emit, NativeAOT friendly).
             /// </summary>
+            /// <param name="session">The client session to load custom types for.</param>
+            /// <param name="telemetry">The telemetry context.</param>
             public static ComplexTypeSystem Create(
                 ISession session,
                 ITelemetryContext telemetry)
             {
                 return new ComplexTypeSystem(
-                    session,
-                    new ComplexTypeBuilderFactory(),
+                    new NodeCacheResolver(session, telemetry),
                     telemetry);
             }
 
             /// <summary>
-            /// Initializes the type system with a complex type resolver
-            /// to load the custom types using reflection emit.
+            /// Initializes the type system with a session and a custom type
+            /// builder factory to load the custom types.
             /// </summary>
+            /// <param name="session">The client session to load custom types for.</param>
+            /// <param name="complexTypeBuilderFactory">The type builder factory to use.</param>
+            /// <param name="telemetry">The telemetry context.</param>
             public static ComplexTypeSystem Create(
-                IComplexTypeResolver complexTypeResolver,
+                ISession session,
+                IComplexTypeFactory complexTypeBuilderFactory,
                 ITelemetryContext telemetry)
             {
                 return new ComplexTypeSystem(
-                    complexTypeResolver,
-                    new ComplexTypeBuilderFactory(),
+                    new NodeCacheResolver(session, telemetry),
+                    complexTypeBuilderFactory,
                     telemetry);
             }
-
         }
     }
 }

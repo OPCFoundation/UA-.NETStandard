@@ -43,7 +43,7 @@ The library automatically uses the most appropriate mechanism available on the s
 
 #### Default type builder
 
-A type builder builds the types that are registered in the `EncodeableFactory` by the `ComplexTypeSystem` class.  The default type builder registers in memory `IEncodeable` "adapter" classes that wrap discovered `DataTypeDefinition` and provide "state" (a list of Variants for the properties) clone, compare, and encode/decode behavior. The default type builder is part of the Opc.Ua.Client library and used when no type builder is provided in the constructor of the `ComplexTypeSystem` class.
+A type builder builds the types that are registered in the `EncodeableFactory` by the `ComplexTypeSystem` class.  The default type builder registers in memory `IEncodeable` "adapter" classes that wrap discovered `DataTypeDefinition` and provide "state" (a list of Variants for the properties) clone, compare, and encode/decode behavior. The default type builder is part of the Opc.Ua.Core.Schema library (namespace `Opc.Ua.Schema`) and is shared by client and server. It is used when no type builder is provided in the constructor of the `ComplexTypeSystem` class.
 
 #### Reflection.Emit based type builder
 
@@ -70,7 +70,8 @@ The most common approach is to load all custom types after establishing a sessio
 ```csharp
 using Opc.Ua;
 using Opc.Ua.Client;
-using Opc.Ua.Client.ComplexTypes;
+using Opc.Ua.Client.ComplexTypes; // client Create(...) helpers + NodeCacheResolver
+using Opc.Ua.Schema;              // ComplexTypeSystem and the default type builder
 
 // Create and connect session
 var session = await Session.Create(...);
@@ -79,15 +80,15 @@ var session = await Session.Create(...);
 ComplexTypeSystem complexTypeSystem;
 if (!useReflectionEmitTypeBuilder)
 {
-    // Uses the default type builder
-    complexTypeSystem = new ComplexTypeSystem(session);
+    // Uses the default (NativeAOT friendly) type builder
+    complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
 }
 else
 {
-    // Uses the Reflection.Emit type builder
-    // Only works if the OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
-    // nuget is referenced
-    complexTypeSystem = ComplexTypeSystem.Create(session);
+    // Uses the Reflection.Emit type builder. Only works if the
+    // OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes nuget is referenced.
+    complexTypeSystem = ComplexTypeSystem.Create(
+        session, new ComplexTypeBuilderFactory(), session.MessageContext.Telemetry);
 }
 
 await complexTypeSystem.LoadAsync();
@@ -741,6 +742,62 @@ await complexTypeSystem.LoadAsync();
 - Load types once at session start rather than on-demand
 - Consider caching type information across sessions if reconnecting frequently
 
+## Server-Side Complex Types
+
+Servers can build the same dynamic stand-in encodeables for the custom DataTypes in their address space. This is useful when a server loads a NodeSet2 at **runtime** whose DataTypes were never compiled into a .NET type: without a matching encodeable the server cannot encode or decode instances of those DataTypes. Enabling server-side complex types primes the server's `IEncodeableFactory` with stand-ins built from the `DataTypeDefinition` attribute of every custom DataType, reusing exactly the same NativeAOT friendly path as the client (`ComplexTypeSystem`, in `Opc.Ua.Core.Schema`).
+
+DataTypes that are already backed by a compiled, source-generated type are left untouched — only DataTypes that are not yet known to the encodeable factory (i.e. loaded at runtime) are turned into stand-ins.
+
+### Enabling via dependency injection (recommended)
+
+Opt in with the fluent `AddComplexTypeSystem()` extension when configuring the hosted server:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+
+builder.Services
+    .AddOpcUa()
+    .AddServer(options => { /* ... */ })
+    .AddNodeManager<MyRuntimeNodeSetNodeManagerFactory>()
+    .AddComplexTypeSystem();  // build stand-ins for runtime-loaded DataTypes
+```
+
+The pass runs once, after the address space is fully built and before the server starts accepting connections, so clients never observe a window where custom values cannot be decoded. The primed `IEncodeableFactory` is also exposed as the schema `IDataTypeDefinitionResolver` (via `EncodeableFactoryDefinitionSource`), so schemas can be produced directly from the factory — no separate registry population or address-space walk is required. If a `DataTypeDefinitionRegistry` is registered (for example by `AddSchemaGeneration()` for schema-only types that have no encodeable), it is composed as a fallback.
+
+Options can be configured:
+
+```csharp
+.AddComplexTypeSystem(options =>
+{
+    options.OnlyEnumTypes = false; // also build structured types (default)
+    options.ThrowOnError = false;  // log and continue on failures (default)
+});
+```
+
+### Direct usage without dependency injection
+
+For servers that are not hosted through dependency injection, use the ready-made `ComplexTypeStandardServer` as a drop-in replacement for `StandardServer`:
+
+```csharp
+var server = new ComplexTypeStandardServer(telemetry);
+await application.StartAsync(server);
+```
+
+Alternatively run the pass explicitly from a custom `StandardServer` subclass once the address space is available (before endpoints open):
+
+```csharp
+protected override async ValueTask OnNodeManagerStartedAsync(
+    IServerInternal server, CancellationToken cancellationToken)
+{
+    await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+    await server
+        .LoadComplexTypesAsync(server.Telemetry, cancellationToken: cancellationToken)
+        .ConfigureAwait(false);
+}
+```
+
+`IServerInternal.LoadComplexTypesAsync(...)` can also be invoked directly on a running server to (re)build the stand-ins on demand. It drives the shared `ComplexTypeSystem` with an `AddressSpaceComplexTypeResolver` that surfaces the server's DataType nodes and their `DataTypeDefinition` attributes, and returns an `IDataTypeDefinitionResolver` backed by the primed factory. Because the runtime stand-ins (and the generated types) expose their definition via `IDataTypeDefinitionSource`, the encodeable factory itself is the source of truth for data type definitions — the `DataTypeDefinitionRegistry` is only needed for *schema-only* types that have no encodeable.
+
 ## API Reference
 
 ### ComplexTypeSystem Class
@@ -750,27 +807,23 @@ The main class for managing complex types.
 #### Constructors
 
 ```csharp
-// Create with session (uses DefaultComplexTypeFactory and session's telemetry)
-ComplexTypeSystem(ISession session)
+// The ComplexTypeSystem type is defined in Opc.Ua.Core.Schema (namespace Opc.Ua.Schema).
 
-// Create with session and custom telemetry
-ComplexTypeSystem(ISession session, ITelemetryContext telemetry)
-
-// Create with session and custom type builder factory
-ComplexTypeSystem(ISession session, IComplexTypeFactory complexTypeBuilderFactory)
-
-// Create with session, custom factory and telemetry
-ComplexTypeSystem(ISession session, IComplexTypeFactory complexTypeBuilderFactory, ITelemetryContext telemetry)
-
-// Create with resolver and telemetry
+// Create with a complex type resolver and telemetry (uses the default DefaultComplexTypeFactory)
 ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, ITelemetryContext telemetry)
 
-// Create with resolver, custom factory and telemetry
+// Create with a resolver, a custom type builder factory and telemetry
 ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, IComplexTypeFactory complexTypeBuilderFactory, ITelemetryContext telemetry)
 
-// Create with Reflection.Emit type builder (requires OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes)
+// Client factory helpers (Opc.Ua.Client, namespace Opc.Ua.Client.ComplexTypes) bind a
+// ComplexTypeSystem to a session using the session node cache as the resolver:
+
+// Uses the default, NativeAOT friendly type builder
 static ComplexTypeSystem ComplexTypeSystem.Create(ISession session, ITelemetryContext telemetry)
-static ComplexTypeSystem ComplexTypeSystem.Create(IComplexTypeResolver complexTypeResolver, ITelemetryContext telemetry)
+
+// Uses a caller-provided type builder, e.g. the Reflection.Emit ComplexTypeBuilderFactory
+// (requires the OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes package)
+static ComplexTypeSystem ComplexTypeSystem.Create(ISession session, IComplexTypeFactory complexTypeBuilderFactory, ITelemetryContext telemetry)
 ```
 
 #### Methods
@@ -835,7 +888,7 @@ TypeInfo TypeInfo { get; }                // Type info of the field
 
 1. **OptionSet Support**: Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`, e.g. `AccessRights`, `CarExtras`) are automatically registered by the default `ComplexTypeSystem` builder as `Opc.Ua.Encoders.OptionSet` runtime instances, driven by either the `EnumDefinition` carried in `DataTypeDefinition` or a fallback synthesized from the `OptionSetValues` property. The runtime class exposes the two canonical `Value` / `ValidBits` ByteStrings plus bit accessors keyed by field name or bit index. Per Part 3 §8.40 / §3.2.8, the overall ByteString length is fixed by the sub-type's declared bits (exposed as `ByteLength`); setting a bit outside that range throws `ArgumentOutOfRangeException`. Remaining limitations:
    - UInteger-backed OptionSet DataTypes (DataTypes deriving from an unsigned integer with `IsOptionSet=true`) continue to be represented as their underlying unsigned integer in a `Variant` — no per-bit metadata is surfaced.
-   - The legacy Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` for OptionSet sub-types; switch to the default builder (`new ComplexTypeSystem(session)`) for OptionSet support.
+   - The legacy Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` for OptionSet sub-types; switch to the default builder (`ComplexTypeSystem.Create(session, telemetry)`) for OptionSet support.
 2. **Legacy Dictionary Support**: Some OPC UA 1.03 structured types that cannot be mapped to OPC UA 1.04 definitions are ignored
 3. **Type Modifications**: Once loaded, types cannot be dynamically updated during a session. Reconnect to reload modified types.
 
