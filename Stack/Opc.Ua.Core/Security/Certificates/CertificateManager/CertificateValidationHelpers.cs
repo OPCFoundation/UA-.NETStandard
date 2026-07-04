@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -83,6 +84,33 @@ namespace Opc.Ua
         internal static bool IsSignatureValid(Certificate cert)
         {
             return X509Utils.VerifySelfSigned(cert);
+        }
+
+        /// <summary>
+        /// Returns whether a certificate that acts as an Issuer/CA in a chain
+        /// asserts the KeyUsage required by OPC UA for CA Certificates.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 (Mappings) §6.2.4, Table 52 (Issuer Certificate)
+        /// requires CA Certificates to carry a KeyUsage extension that asserts
+        /// both keyCertSign and cRLSign. A CA whose KeyUsage extension is absent
+        /// yields <see cref="X509KeyUsageFlags.None"/> and therefore also fails
+        /// this check. OPC 10000-4 (Services) §6.1.3, Table 100
+        /// ("Certificate Usage") maps a mismatch to the (suppressible)
+        /// Bad_CertificateIssuerUseNotAllowed status. This has to be verified
+        /// explicitly because the platform X509Chain does not reject a CA whose
+        /// KeyUsage extension is absent (RFC 5280 §4.2.1.3: absence implies no
+        /// usage restriction).
+        /// </remarks>
+        /// <param name="certificate">The issuer/CA certificate to check.</param>
+        /// <returns>
+        /// True if both keyCertSign and cRLSign are asserted; otherwise false.
+        /// </returns>
+        internal static bool HasRequiredIssuerKeyUsage(Certificate certificate)
+        {
+            const X509KeyUsageFlags required =
+                X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign;
+            return (X509Utils.GetKeyUsage(certificate) & required) == required;
         }
 
         /// <summary>
