@@ -41,6 +41,7 @@ using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Identity;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 using ServerAccessTokenProvider = Opc.Ua.Gds.Server.IAccessTokenProvider;
@@ -117,6 +118,18 @@ namespace Microsoft.Extensions.DependencyInjection
             RegisterCommonServices(builder.Services);
 
             return new GdsServerBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers a GDS server with built-in in-memory stores and default identity authenticators.
+        /// </summary>
+        public static IGdsServerBuilder AddInMemoryGdsServer(
+            this IOpcUaBuilder builder,
+            Action<GdsServerOptions> configure)
+        {
+            return builder.AddGdsServer(configure)
+                .AddInMemoryStores()
+                .AddDefaultIdentityAuthenticators(_ => { });
         }
 
         /// <summary>
@@ -505,6 +518,150 @@ namespace Microsoft.Extensions.DependencyInjection
             return gdsBuilder;
         }
 
+        /// <summary>
+        /// Enables the built-in OPC TCP transport and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddOpcTcpTransport(this IGdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddOpcTcpTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables HTTPS transport and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddHttpsTransport(this IGdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddHttpsTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables HTTPS transport with one-shot options and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddHttpsTransport(
+            this IGdsServerBuilder builder,
+            Action<OpcUaHttpsTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddHttpsTransport(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables WSS transport and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddWssTransport(this IGdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWssTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables WSS transport with one-shot options and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddWssTransport(
+            this IGdsServerBuilder builder,
+            Action<OpcUaWssTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWssTransport(configure);
+            return builder;
+        }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Enables the Kestrel OPC TCP listener and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddKestrelOpcTcpTransport(this IGdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddKestrelOpcTcpTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables the OPC UA REST Web API transport and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddWebApiTransport(this IGdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWebApiTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables the OPC UA REST Web API transport and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddWebApiTransport(
+            this IGdsServerBuilder builder,
+            Action<Opc.Ua.Bindings.WebApi.WebApiTransportOptions>? configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWebApiTransport(configure);
+            return builder;
+        }
+#endif
+
+        /// <summary>
+        /// Configures server-side reverse connect and returns the same GDS builder.
+        /// </summary>
+        public static IGdsServerBuilder AddReverseConnect(
+            this IGdsServerBuilder builder,
+            Action<ServerReverseConnectOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.Configure<GdsServerOptions>(options =>
+            {
+                options.ReverseConnect ??= new ServerReverseConnectOptions();
+                configure(options.ReverseConnect);
+            });
+            return builder;
+        }
+
         private static ForwardingServerBuilder ToServerBuilder(IGdsServerBuilder gdsBuilder)
         {
             if (gdsBuilder is null)
@@ -586,6 +743,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 Services.AddSingleton(sp => new OpcUaServerNodeManagerRegistration(
                     sp.GetRequiredService<TFactory>()));
                 return this;
+            }
+
+            IOpcUaServerBuilder IOpcUaServerBuilder.AddNodeManager(
+                string namespaceUri,
+                Action<INodeManagerBuilder> build)
+            {
+                throw new NotSupportedException(
+                    "The GDS forwarding server builder only forwards identity registrations.");
             }
 
             public IOpcUaServerBuilder AddSyncNodeManager<

@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -39,11 +40,14 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
@@ -206,6 +210,276 @@ namespace Opc.Ua.Server.Tests.Hosting
             InvokeProtected(server, "OnNodeManagerStarted", serverInternal.Object);
 
             Assert.That(targetRegistry.Stores, Does.Contain(aliasStore.Object));
+        }
+
+        [Test]
+        public void CustomServerWithConstructorHooksThrowsClearException()
+        {
+            Mock<ISubscriptionStore> store = new(MockBehavior.Strict);
+            Mock<IMonitoredItemQueueFactory> queueFactory = new(MockBehavior.Strict);
+            using ServiceProvider sp = CreateServerBuilder<CustomServer>()
+                .AddDurableSubscriptions(store.Object, queueFactory.Object)
+                .Services.BuildServiceProvider();
+
+            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => CreateServer(sp))!;
+
+            Assert.That(ex.Message, Does.Contain(nameof(DependencyInjectionStandardServer)));
+            Assert.That(ex.Message, Does.Contain(nameof(OpcUaServerBuilderExtensions.AddDurableSubscriptions)));
+        }
+
+        [Test]
+        public void CustomDependencyInjectionServerAppliesDurableSubscriptionHooks()
+        {
+            Mock<ISubscriptionStore> store = new(MockBehavior.Strict);
+            Mock<IMonitoredItemQueueFactory> queueFactory = new(MockBehavior.Strict);
+            using ServiceProvider sp = CreateServerBuilder<CustomDependencyInjectionServer>()
+                .AddDurableSubscriptions(store.Object, queueFactory.Object)
+                .Services.BuildServiceProvider();
+
+            using StandardServer server = CreateServer(sp);
+
+            Assert.That(InvokeProtected(server, "CreateSubscriptionStore"), Is.SameAs(store.Object));
+            Assert.That(InvokeProtected(server, "CreateMonitoredItemQueueFactory"), Is.SameAs(queueFactory.Object));
+        }
+
+        [Test]
+        public void ConfigureRolesSeedsDefaultRoleManager()
+        {
+            using ServiceProvider sp = CreateServerBuilder()
+                .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
+                {
+                    Name = BrowseNames.WellKnownRole_Observer,
+                    Identities =
+                    {
+                        new RoleIdentityMappingOptions
+                        {
+                            CriteriaType = IdentityCriteriaType.UserName,
+                            Criteria = "operator"
+                        }
+                    }
+                }))
+                .Services.BuildServiceProvider();
+
+            IRoleManager roleManager = sp.GetRequiredService<IRoleManager>();
+            RoleEntry entry = roleManager.GetRole(ObjectIds.WellKnownRole_Observer)!;
+
+            Assert.That(entry.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
+                rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
+        }
+
+        [Test]
+        public void AddServerConfigurationWithRolesSectionSeedsConfiguredRoleManager()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Server:ApplicationName"] = "ConfiguredRolesServer",
+                    ["Server:ApplicationUri"] = "urn:localhost:ConfiguredRolesServer",
+                    ["Server:Roles:Roles:0:Name"] = BrowseNames.WellKnownRole_Observer,
+                    ["Server:Roles:Roles:0:Identities:0:CriteriaType"] =
+                        nameof(IdentityCriteriaType.UserName),
+                    ["Server:Roles:Roles:0:Identities:0:Criteria"] = "operator"
+                })
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddLogging();
+
+            using ServiceProvider sp = services.AddOpcUa()
+                .AddServer(configuration.GetSection("Server"))
+                .Services.BuildServiceProvider();
+
+            IRoleManager roleManager = sp.GetRequiredService<IRoleManager>();
+            RoleEntry entry = roleManager.GetRole(ObjectIds.WellKnownRole_Observer)!;
+
+            Assert.That(entry.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
+                rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
+        }
+
+        [Test]
+        public async Task ConfigureRolesBindsRoleSetToDependencyInjectedRoleManagerAsync()
+        {
+            RoleCaptureServer.Reset();
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services => services.AddOpcUa()
+                    .AddServer<RoleCaptureServer>(options => ConfigureHostedOptions(options, "RoleCaptureServer"))
+                    .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
+                    {
+                        Name = BrowseNames.WellKnownRole_Observer,
+                        Identities =
+                        {
+                            new RoleIdentityMappingOptions
+                            {
+                                CriteriaType = IdentityCriteriaType.UserName,
+                                Criteria = "operator"
+                            }
+                        }
+                    })));
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RoleCaptureServer.BoundObserverRole?.Identities?.Value is not null,
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                Is.True);
+
+            IRoleManager roleManager = fixture.Services.GetRequiredService<IRoleManager>();
+
+            Assert.That(RoleCaptureServer.BoundRoleManager, Is.SameAs(roleManager));
+            Assert.That(HasUserNameRule(RoleCaptureServer.BoundObserverRole!.Identities!.Value, "operator"), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                roleManager.AddIdentity(ObjectIds.WellKnownRole_Observer, new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.UserName,
+                    Criteria = "address-space-sync"
+                })), Is.True);
+            Assert.That(HasUserNameRule(RoleCaptureServer.BoundObserverRole.Identities.Value, "address-space-sync"),
+                Is.True);
+        }
+
+        [Test]
+        public async Task AddRoleManagerBindsRoleSetToInjectedRoleManagerAsync()
+        {
+            RoleCaptureServer.Reset();
+            using var roleManager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                roleManager.AddIdentity(ObjectIds.WellKnownRole_Observer, new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.UserName,
+                    Criteria = "injected"
+                })), Is.True);
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services => services.AddOpcUa()
+                    .AddServer<RoleCaptureServer>(options => ConfigureHostedOptions(options, "InjectedRoleServer"))
+                    .AddRoleManager(roleManager));
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RoleCaptureServer.BoundObserverRole?.Identities?.Value is not null,
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                Is.True);
+            Assert.That(RoleCaptureServer.BoundRoleManager, Is.SameAs(roleManager));
+            Assert.That(
+                fixture.Services.GetRequiredService<IRoleManager>(),
+                Is.SameAs(roleManager));
+            Assert.That(HasUserNameRule(RoleCaptureServer.BoundObserverRole!.Identities!.Value, "injected"),
+                Is.True);
+        }
+
+        [Test]
+        public void AddRoleManagerReplacesDefaultRoleManager()
+        {
+            using var roleManager = new RoleManager();
+            using ServiceProvider sp = CreateServerBuilder()
+                .AddRoleManager(roleManager)
+                .Services.BuildServiceProvider();
+
+            Assert.That(sp.GetRequiredService<IRoleManager>(), Is.SameAs(roleManager));
+        }
+
+        [Test]
+        public void AddNodeManagerRegistersFluentNodeManagerFactory()
+        {
+            using ServiceProvider sp = CreateServerBuilder()
+                .AddNodeManager("urn:tests:fluent", builder => builder.Node("ReferenceServer"))
+                .Services.BuildServiceProvider();
+
+            OpcUaServerNodeManagerRegistration registration = sp
+                .GetServices<OpcUaServerNodeManagerRegistration>()
+                .Single();
+
+            Assert.That(registration.AsyncFactory, Is.Not.Null);
+            Assert.That(registration.AsyncFactory!.NamespacesUris.Count, Is.EqualTo(1));
+            Assert.That(registration.AsyncFactory.NamespacesUris[0], Is.EqualTo("urn:tests:fluent"));
+        }
+
+        [Test]
+        public void ReverseConnectAndOperationLimitsConfigureServerOptions()
+        {
+            using ServiceProvider sp = CreateServerBuilder()
+                .AddReverseConnect(options =>
+                {
+                    options.ConnectIntervalMs = 1234;
+                    options.Clients.Add(new ServerReverseConnectClientOptions
+                    {
+                        EndpointUrl = "opc.tcp://client.example.com:4841"
+                    });
+                })
+                .ConfigureOperationLimits(options => options.MaxNodesPerRead = 42)
+                .Services.BuildServiceProvider();
+
+            OpcUaServerOptions options = sp.GetRequiredService<IOptions<OpcUaServerOptions>>().Value;
+
+            Assert.That(options.ReverseConnect, Is.Not.Null);
+            Assert.That(options.ReverseConnect!.ConnectIntervalMs, Is.EqualTo(1234));
+            Assert.That(options.ReverseConnect.Clients[0].EndpointUrl, Is.EqualTo("opc.tcp://client.example.com:4841"));
+            Assert.That(options.OperationLimits, Is.Not.Null);
+            Assert.That(options.OperationLimits!.MaxNodesPerRead, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void ReverseConnectAndOperationLimitsBindFromConfiguration()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Reverse:ConnectIntervalMs"] = "2345",
+                    ["Reverse:Clients:0:EndpointUrl"] = "opc.tcp://client.example.com:4842",
+                    ["Limits:MaxNodesPerBrowse"] = "7"
+                })
+                .Build();
+
+            using ServiceProvider sp = CreateServerBuilder()
+                .AddReverseConnect(configuration.GetSection("Reverse"))
+                .ConfigureOperationLimits(configuration.GetSection("Limits"))
+                .Services.BuildServiceProvider();
+
+            OpcUaServerOptions options = sp.GetRequiredService<IOptions<OpcUaServerOptions>>().Value;
+
+            Assert.That(options.ReverseConnect!.ConnectIntervalMs, Is.EqualTo(2345));
+            Assert.That(options.ReverseConnect.Clients[0].EndpointUrl, Is.EqualTo("opc.tcp://client.example.com:4842"));
+            Assert.That(options.OperationLimits!.MaxNodesPerBrowse, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void ServerTransportForwardersReturnSameBuilderAndRegisterBindings()
+        {
+            IOpcUaServerBuilder builder = CreateServerBuilder();
+
+            IOpcUaServerBuilder returned = builder.AddOpcTcpTransport();
+
+            using ServiceProvider sp = builder.Services.BuildServiceProvider();
+            Assert.That(returned, Is.SameAs(builder));
+            Assert.That(sp.GetServices<ITransportBindingConfigurator>(), Is.Not.Empty);
+        }
+
+        [Test]
+        public void OneShotServerPresetsRegisterExpectedServices()
+        {
+            Mock<IHistorianProvider> historian = new(MockBehavior.Strict);
+            string root = Path.Combine(TestContext.CurrentContext.WorkDirectory, "HistorianFileStore");
+            using ServiceProvider reference = new ServiceCollection()
+                .AddLogging()
+                .AddOpcUa()
+                .AddReferenceServer()
+                .Services.BuildServiceProvider();
+            using ServiceProvider secure = new ServiceCollection()
+                .AddLogging()
+                .AddOpcUa()
+                .AddSecureServer(options =>
+                {
+                    options.ApplicationName = "SecurePreset";
+                    options.ApplicationUri = "urn:localhost:SecurePreset";
+                    options.ProductUri = "urn:localhost:SecurePreset:product";
+                })
+                .AddHistorianFileStore(historian.Object, root, "History")
+                .Services.BuildServiceProvider();
+
+            Assert.That(reference.GetServices<OpcUaServerNodeManagerRegistration>(), Is.Not.Empty);
+            Assert.That(reference.GetRequiredService<IRoleManager>(), Is.Not.Null);
+            Assert.That(secure.GetRequiredService<IRoleManager>(), Is.Not.Null);
+            Assert.That(secure.GetRequiredService<IHistorianProvider>(), Is.SameAs(historian.Object));
+            Assert.That(secure.GetRequiredService<IFileSystemProvider>(), Is.TypeOf<PhysicalFileSystemProvider>());
         }
 
         [Test]
@@ -420,6 +694,19 @@ namespace Opc.Ua.Server.Tests.Hosting
             return condition();
         }
 
+        private static bool HasUserNameRule(ArrayOf<IdentityMappingRuleType> rules, string criteria)
+        {
+            foreach (IdentityMappingRuleType rule in rules)
+            {
+                if (rule.CriteriaType == IdentityCriteriaType.UserName &&
+                    string.Equals(rule.Criteria, criteria, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static object? InvokeProtected(
             StandardServer server,
             string methodName,
@@ -441,6 +728,46 @@ namespace Opc.Ua.Server.Tests.Hosting
             public CustomServer(ITelemetryContext telemetry, TimeProvider timeProvider)
                 : base(telemetry, timeProvider)
             {
+            }
+        }
+
+        public sealed class CustomDependencyInjectionServer : DependencyInjectionStandardServer
+        {
+            public CustomDependencyInjectionServer(
+                IServiceProvider services,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+                : base(services, telemetry, timeProvider)
+            {
+            }
+        }
+
+        public sealed class RoleCaptureServer : DependencyInjectionStandardServer
+        {
+            public RoleCaptureServer(
+                IServiceProvider services,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+                : base(services, telemetry, timeProvider)
+            {
+            }
+
+            public static IRoleManager? BoundRoleManager { get; private set; }
+
+            public static RoleState? BoundObserverRole { get; private set; }
+
+            public static void Reset()
+            {
+                BoundRoleManager = null;
+                BoundObserverRole = null;
+            }
+
+            protected override void OnNodeManagerStarted(IServerInternal server)
+            {
+                BoundRoleManager = server.RoleManager;
+                BoundObserverRole = server.DiagnosticsNodeManager.FindPredefinedNode<RoleState>(
+                    ObjectIds.WellKnownRole_Observer);
+                base.OnNodeManagerStarted(server);
             }
         }
 
@@ -499,6 +826,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                     throw;
                 }
             }
+
+            public IServiceProvider Services => m_provider;
 
             public async ValueTask DisposeAsync()
             {

@@ -33,10 +33,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.WotCon.Client.Hosting;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
+using Opc.Ua.WotCon.Server.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace Opc.Ua.WotCon.Tests.Hosting
 {
@@ -122,6 +127,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         public void WotConServerStartupValidatorThrowsWithoutAddServer()
         {
             IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
 
             builder.AddWotConServer(_ => { });
@@ -139,6 +145,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         public void WotConServerStartupValidatorAllowsAddServer()
         {
             IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
 
             builder.AddServer(o =>
@@ -149,11 +156,106 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             });
             builder.AddWotConServer(_ => { });
 
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IHostedService validator = sp.GetServices<IHostedService>().Single(h =>
+                h.GetType().Name.Contains("WotCon", StringComparison.Ordinal));
+
             Assert.That(
-                services.Any(service =>
-                    service.ServiceType == typeof(IHostedService) &&
-                    service.ImplementationType?.Name.Contains("WotCon", StringComparison.Ordinal) == true),
-                Is.False);
+                async () => await validator.StartAsync(CancellationToken.None).ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void WotConServerStartupValidatorAllowsAddServerAfterWotCon()
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            builder.AddWotConServer(_ => { });
+            builder.AddServer(o =>
+            {
+                o.ApplicationName = "Test";
+                o.ApplicationUri = "urn:test";
+                o.ProductUri = "urn:test:product";
+            });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IHostedService validator = sp.GetServices<IHostedService>().Single(h =>
+                h.GetType().Name.Contains("WotCon", StringComparison.Ordinal));
+
+            Assert.That(
+                async () => await validator.StartAsync(CancellationToken.None).ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void AddWotConnectivityServerRegistersServerAndWotCon()
+        {
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddOpcUa().AddWotConnectivityServer(
+                o =>
+                {
+                    o.ApplicationName = "Test";
+                    o.ApplicationUri = "urn:test";
+                    o.ProductUri = "urn:test:product";
+                },
+                _ => { });
+
+            Assert.That(
+                services.Any(s =>
+                    s.ServiceType == typeof(IHostedService) &&
+                    s.ImplementationType?.Name == "OpcUaServerHostedService"),
+                Is.True);
+            Assert.That(
+                services.Any(s => s.ServiceType == typeof(WotConnectivityNodeManagerFactory)),
+                Is.True);
+        }
+
+        [Test]
+        public void WotConBuilderTransportForwardersReturnSameBuilder()
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            IOpcUaBuilder opcUa = services.AddOpcUa();
+            opcUa.AddServer(o =>
+            {
+                o.ApplicationName = "Test";
+                o.ApplicationUri = "urn:test";
+                o.ProductUri = "urn:test:product";
+            });
+            IWotConServerBuilder builder = opcUa.AddWotConServer(_ => { });
+
+            Assert.That(builder.AddOpcTcpTransport(), Is.SameAs(builder));
+            Assert.That(builder.AddHttpsTransport(), Is.SameAs(builder));
+            Assert.That(builder.AddWssTransport(), Is.SameAs(builder));
+        }
+
+        [Test]
+        public void WotConBuilderReverseConnectConfiguresServerOptions()
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            IOpcUaBuilder opcUa = services.AddOpcUa();
+            opcUa.AddServer(o =>
+            {
+                o.ApplicationName = "Test";
+                o.ApplicationUri = "urn:test";
+                o.ProductUri = "urn:test:product";
+            });
+
+            opcUa.AddWotConServer(_ => { })
+                .AddReverseConnect(o => o.Clients.Add(new ServerReverseConnectClientOptions
+                {
+                    EndpointUrl = "opc.tcp://localhost:4841"
+                }));
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            OpcUaServerOptions options = sp.GetRequiredService<IOptions<OpcUaServerOptions>>().Value;
+            Assert.That(options.ReverseConnect, Is.Not.Null);
+            Assert.That(options.ReverseConnect!.Clients, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -163,7 +265,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             IOpcUaBuilder builder = services.AddOpcUa();
 
             Assert.That(() => OpcUaWotConClientBuilderExtensions
-                .AddWotConClient(null!, configure: null),
+                .AddWotConClient((IOpcUaBuilder)null!, configure: null),
                 Throws.ArgumentNullException);
 
             Assert.That(() => builder.AddWotConClient(
@@ -187,7 +289,40 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
             Func<CancellationToken, Task<WotConnectivityClient>>? factory =
                 sp.GetService<Func<CancellationToken, Task<WotConnectivityClient>>>();
+            Func<ManagedSession, CancellationToken, Task<WotConnectivityClient>>? wrapperFactory =
+                sp.GetService<Func<ManagedSession, CancellationToken, Task<WotConnectivityClient>>>();
             Assert.That(factory, Is.Not.Null);
+            Assert.That(wrapperFactory, Is.Not.Null);
+        }
+
+        [Test]
+        public void AddWotConClientChainsFromClientBuilder()
+        {
+            IServiceCollection services = new ServiceCollection();
+
+            IOpcUaClientBuilder builder = services.AddOpcUa()
+                .AddClient(_ => { })
+                .AddWotConClient();
+
+            Assert.That(builder.Services, Is.SameAs(services));
+            Assert.That(services.Any(d => d.ServiceType ==
+                typeof(Func<CancellationToken, Task<WotConnectivityClient>>)), Is.True);
+        }
+
+        [Test]
+        public async Task LazyConnectFalseDoesNotResolveManagedSessionAsync()
+        {
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddOpcUa().AddWotConClient(options => options.LazyConnect = false);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<WotConnectivityClient>> factory =
+                sp.GetRequiredService<Func<CancellationToken, Task<WotConnectivityClient>>>();
+
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(ex.Message, Does.Contain(nameof(WotConClientOptions.LazyConnect)));
         }
 
         [Test]

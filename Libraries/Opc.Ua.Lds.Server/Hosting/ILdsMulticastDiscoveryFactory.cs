@@ -27,50 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Opc.Ua.Client
+namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>
-    /// Creates managed sessions for caller-supplied endpoints from DI options.
+    /// Factory used by the hosted LDS to create the optional LDS-ME multicast component.
     /// </summary>
-    public interface IManagedSessionFactory
+    public interface ILdsMulticastDiscoveryFactory
     {
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/>.
+        /// Creates the multicast discovery component for the supplied LDS.
         /// </summary>
-        Task<ManagedSession> ConnectAsync(
-            ConfiguredEndpoint endpoint,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> after
-        /// applying additional builder customization.
-        /// </summary>
-        Task<ManagedSession> ConnectAsync(
-            ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
-        /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
-        /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct = default);
+        IMulticastDiscovery Create(LdsServer server);
     }
 }

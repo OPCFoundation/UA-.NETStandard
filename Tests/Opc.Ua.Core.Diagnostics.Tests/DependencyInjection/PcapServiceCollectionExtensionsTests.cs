@@ -115,6 +115,30 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
         }
 
         [Test]
+        public void AddPcapFormattersBuilderOverloadReturnsSameBuilder()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            IOpcUaBuilder returned = builder.AddPcapFormatters();
+
+            Assert.That(returned, Is.SameAs(builder));
+            Assert.That(services.Any(d => d.ServiceType == typeof(TraceFormatterRegistry)), Is.True);
+        }
+
+        [Test]
+        public void AddPcapReplayBuilderOverloadReturnsSameBuilder()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            IOpcUaBuilder returned = builder.AddPcapReplay();
+
+            Assert.That(returned, Is.SameAs(builder));
+            Assert.That(services.Any(d => d.ServiceType == typeof(ReplaySessionManager)), Is.True);
+        }
+
+        [Test]
         public async Task AddPcapResolvesAllRequiredServices()
         {
             var services = new ServiceCollection();

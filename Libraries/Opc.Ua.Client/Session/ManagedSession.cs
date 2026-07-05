@@ -116,6 +116,45 @@ namespace Opc.Ua.Client
             SubscribeCertificateChanges();
         }
 
+        private ManagedSession(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            ISessionFactory sessionFactory,
+            IReconnectPolicy reconnectPolicy,
+            IServerRedundancyHandler? redundancyHandler,
+            ILogger logger,
+            IUserIdentity? identity,
+            IClientIdentityProvider? identityProvider,
+            TimeProvider? timeProvider,
+            ArrayOf<string> preferredLocales,
+            string sessionName,
+            uint sessionTimeout,
+            bool checkDomain,
+            bool transferSubscriptionsOnRecreate,
+            bool poolNotifications,
+            IClientChannelManager? channelManager,
+            ReverseConnectManager? reverseConnectManager)
+            : this(
+                configuration,
+                endpoint,
+                sessionFactory,
+                reconnectPolicy,
+                redundancyHandler,
+                logger,
+                identity,
+                identityProvider,
+                timeProvider,
+                preferredLocales,
+                sessionName,
+                sessionTimeout,
+                checkDomain,
+                transferSubscriptionsOnRecreate,
+                poolNotifications,
+                channelManager)
+        {
+            m_reverseConnectManager = reverseConnectManager;
+        }
+
         /// <summary>
         /// Creates a new <see cref="ManagedSession"/> that is connected
         /// to the specified endpoint.
@@ -164,6 +203,7 @@ namespace Opc.Ua.Client
         /// inner Session shares its transport channel with any other
         /// session/discovery client targeting the same endpoint, and
         /// channel reconnect is coordinated centrally.</param>
+        /// <param name="reverseConnectManager">Optional reverse-connect manager.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -184,6 +224,7 @@ namespace Opc.Ua.Client
             IClientIdentityProvider? identityProvider = null,
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
+            ReverseConnectManager? reverseConnectManager = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -226,7 +267,8 @@ namespace Opc.Ua.Client
                 poolNotifications,
                 channelManager)
             {
-                m_engineFactory = engineFactory
+                m_engineFactory = engineFactory,
+                m_reverseConnectManager = reverseConnectManager
             };
 
             managed.StateMachine.Start();
@@ -946,7 +988,32 @@ namespace Opc.Ua.Client
                     && !Profiles.IsWssOpenApi(profile);
 
                 Session session;
-                if (m_channelManager != null)
+                if (m_reverseConnectManager != null)
+                {
+                    ISessionFactory reverseFactory = SessionFactory;
+                    if (m_channelManager != null)
+                    {
+                        reverseFactory = new ChannelManagerSessionFactory(
+                            m_channelManager,
+                            SessionFactory.Telemetry,
+                            SessionFactory.ReturnDiagnostics,
+                            m_timeProvider,
+                            m_engineFactory);
+                    }
+
+                    session = (Session)await reverseFactory.CreateAsync(
+                        m_configuration,
+                        m_reverseConnectManager,
+                        ConfiguredEndpoint,
+                        updateBeforeConnect,
+                        m_checkDomain,
+                        m_sessionName,
+                        m_sessionTimeout,
+                        m_identityProvider == null ? m_identity : null,
+                        m_preferredLocales,
+                        ct).ConfigureAwait(false);
+                }
+                else if (m_channelManager != null)
                 {
                     // Channel-manager-aware path: acquire a shared
                     // managed channel and let the manager drive any
@@ -1772,6 +1839,7 @@ namespace Opc.Ua.Client
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
         private readonly IClientChannelManager? m_channelManager;
+        private ReverseConnectManager? m_reverseConnectManager;
         private ISubscriptionEngineFactory? m_engineFactory;
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;

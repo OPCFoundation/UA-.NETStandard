@@ -335,6 +335,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 configure?.Invoke(server);
                 return server;
             });
+            builder.Services.TryAddSingleton<IPubSubKeyServiceServer>(sp =>
+                sp.GetRequiredService<InMemoryPubSubKeyServiceServer>());
             return builder;
         }
 

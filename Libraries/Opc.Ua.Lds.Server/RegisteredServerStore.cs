@@ -47,7 +47,7 @@ namespace Opc.Ua.Lds.Server
     /// within <see cref="RegistrationLifetime"/>. mDNS-observed records
     /// follow their own TTL via <see cref="MulticastRecordLifetime"/>.
     /// </remarks>
-    public sealed class RegisteredServerStore : IDisposable
+    public sealed class RegisteredServerStore : IRegisteredServerStore
     {
         private readonly SemaphoreSlim m_lock = new(1, 1);
 

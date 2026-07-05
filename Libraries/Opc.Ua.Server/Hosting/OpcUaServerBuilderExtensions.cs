@@ -46,6 +46,7 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
@@ -224,6 +225,8 @@ namespace Microsoft.Extensions.DependencyInjection
             if (rolesSection.Exists())
             {
                 builder.Services.AddOptions<RoleConfigurationOptions>().Bind(rolesSection);
+                builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
+                builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
             }
 
             IConfigurationSection identitySection = section.GetSection("Identity");
@@ -264,6 +267,8 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             builder.Services.AddOptions<RoleConfigurationOptions>().Configure(configure);
+            builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
+            builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
             return builder;
         }
 
@@ -289,6 +294,54 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             builder.Services.AddOptions<RoleConfigurationOptions>().Bind(section);
+            builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
+            builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a role manager that is installed on the hosted server at startup.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="roleManager">Role manager instance to use.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> or
+        /// <paramref name="roleManager"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddRoleManager(
+            this IOpcUaServerBuilder builder,
+            IRoleManager roleManager)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (roleManager is null)
+            {
+                throw new ArgumentNullException(nameof(roleManager));
+            }
+
+            builder.Services.Replace(ServiceDescriptor.Singleton(roleManager));
+            builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a role manager type that is installed on the hosted server at startup.
+        /// </summary>
+        /// <typeparam name="TManager">The role manager implementation type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddRoleManager<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TManager>(
+                this IOpcUaServerBuilder builder)
+            where TManager : class, IRoleManager
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.Replace(ServiceDescriptor.Singleton<IRoleManager, TManager>());
+            builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
             return builder;
         }
 
@@ -667,6 +720,29 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers a fluent node manager built from a namespace URI and configuration callback.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="namespaceUri">Namespace URI owned by the fluent node manager.</param>
+        /// <param name="build">Callback that wires fluent nodes, alarms, state machines and simulations.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        public static IOpcUaServerBuilder AddNodeManager(
+            this IOpcUaServerBuilder builder,
+            string namespaceUri,
+            Action<INodeManagerBuilder> build)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            var factory = new FluentNodeManagerFactory(namespaceUri, build);
+            builder.Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
+            builder.Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the server secret store used by server features that persist secrets.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -749,6 +825,188 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddSingleton(registry);
             return builder;
+        }
+
+        /// <summary>
+        /// Configures server-side reverse connect on the hosted server.
+        /// </summary>
+        public static IOpcUaServerBuilder AddReverseConnect(
+            this IOpcUaServerBuilder builder,
+            Action<ServerReverseConnectOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options =>
+                {
+                    options.ReverseConnect ??= new ServerReverseConnectOptions();
+                    configure(options.ReverseConnect);
+                });
+            return builder;
+        }
+
+        /// <summary>
+        /// Configures server-side reverse connect from a configuration section.
+        /// </summary>
+        public static IOpcUaServerBuilder AddReverseConnect(
+            this IOpcUaServerBuilder builder,
+            IConfiguration section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options => options.ReverseConnect = BindServerReverseConnectOptions(section));
+            return builder;
+        }
+
+        /// <summary>
+        /// Configures operation limits advertised by the hosted server.
+        /// </summary>
+        public static IOpcUaServerBuilder ConfigureOperationLimits(
+            this IOpcUaServerBuilder builder,
+            Action<OperationLimitsOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options =>
+                {
+                    options.OperationLimits ??= new OperationLimitsOptions();
+                    configure(options.OperationLimits);
+                });
+            return builder;
+        }
+
+        /// <summary>
+        /// Configures operation limits from a configuration section.
+        /// </summary>
+        public static IOpcUaServerBuilder ConfigureOperationLimits(
+            this IOpcUaServerBuilder builder,
+            IConfiguration section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options => options.OperationLimits = BindOperationLimitsOptions(section));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a batteries-included reference-style demo server.
+        /// </summary>
+        public static IOpcUaServerBuilder AddReferenceServer(
+            this IOpcUaBuilder builder,
+            Action<OpcUaServerOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            IOpcUaServerBuilder serverBuilder = builder.AddServer(options =>
+            {
+                options.ApplicationName = "OpcUaReferenceServer";
+                options.ApplicationUri = "urn:localhost:OpcUaReferenceServer";
+                options.ProductUri = "http://opcfoundation.org/UA/ReferenceServer";
+                options.IncludeSignAndEncryptPolicies = true;
+                options.IncludeUnsecurePolicyNone = false;
+                configure?.Invoke(options);
+            });
+            return serverBuilder
+                .AddRoleManager<RoleManager>()
+                .AddNodeManager(
+                    "http://opcfoundation.org/UA/ReferenceServer",
+                    nodeManager => nodeManager.Node("ReferenceServer"));
+        }
+
+        /// <summary>
+        /// Registers a hardened hosted server preset with secure policies, identity authenticators and roles.
+        /// </summary>
+        public static IOpcUaServerBuilder AddSecureServer(
+            this IOpcUaBuilder builder,
+            Action<OpcUaServerOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            IOpcUaServerBuilder serverBuilder = builder.AddServer(options =>
+            {
+                options.IncludeSignAndEncryptPolicies = true;
+                options.IncludeUnsecurePolicyNone = false;
+                options.UserTokenPolicies.Clear();
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.UserName });
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.Certificate });
+                configure(options);
+            });
+            serverBuilder.Services.TryAddSingleton<IUserDatabase, LinqUserDatabase>();
+            serverBuilder.Services.TryAddSingleton<IUserManagement, UserManagement>();
+            return serverBuilder
+                .AddRoleManager<RoleManager>()
+                .AddDefaultIdentityAuthenticators(options =>
+                {
+                    options.EnableAnonymous = false;
+                    options.EnableUserNamePassword = true;
+                    options.EnableX509 = true;
+                    options.EnableJwt = false;
+                });
+        }
+
+        /// <summary>
+        /// Registers a historian provider together with a Part 20 file-system mount.
+        /// </summary>
+        public static IOpcUaServerBuilder AddHistorianFileStore(
+            this IOpcUaServerBuilder builder,
+            IHistorianProvider historian,
+            string rootDirectory,
+            string? mountName = null,
+            bool isWritable = true)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (historian is null)
+            {
+                throw new ArgumentNullException(nameof(historian));
+            }
+
+            return builder
+                .AddHistorian(historian)
+                .AddFileSystem(rootDirectory, mountName, isWritable);
         }
 
         private static void RegisterDefaultIdentityAuthenticators(
@@ -880,6 +1138,83 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
             RegisterFallbackAnonymousAuthenticator(services);
+        }
+
+        private static IRoleManager CreateConfiguredRoleManager(IServiceProvider services)
+        {
+            var roleManager = new RoleManager();
+            RoleConfigurationOptions options = services.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value;
+            ApplyRoleConfiguration(roleManager, options);
+            return roleManager;
+        }
+
+        private static void ApplyRoleConfiguration(RoleManager roleManager, RoleConfigurationOptions options)
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append(Opc.Ua.Namespaces.OpcUa);
+            foreach (RoleDefinitionOptions role in options.Roles)
+            {
+                if (string.IsNullOrWhiteSpace(role.Name))
+                {
+                    continue;
+                }
+
+                NodeId roleId = ResolveOrCreateRole(roleManager, namespaces, role);
+                foreach (RoleIdentityMappingOptions identity in role.Identities)
+                {
+                    roleManager.AddIdentity(roleId, new IdentityMappingRuleType
+                    {
+                        CriteriaType = identity.CriteriaType,
+                        Criteria = identity.Criteria
+                    });
+                }
+                foreach (string application in role.Applications)
+                {
+                    roleManager.AddApplication(roleId, application);
+                }
+                foreach (EndpointType endpoint in role.Endpoints)
+                {
+                    roleManager.AddEndpoint(roleId, endpoint);
+                }
+                roleManager.SetApplicationsExclude(roleId, role.ApplicationsExclude);
+                roleManager.SetEndpointsExclude(roleId, role.EndpointsExclude);
+                roleManager.SetCustomConfiguration(roleId, role.CustomConfiguration);
+            }
+        }
+
+        private static NodeId ResolveOrCreateRole(
+            RoleManager roleManager,
+            NamespaceTable namespaces,
+            RoleDefinitionOptions role)
+        {
+            foreach (NodeId roleId in roleManager.RoleIds)
+            {
+                RoleEntry? entry = roleManager.GetRole(roleId);
+                if (string.Equals(entry?.BrowseName, role.Name, StringComparison.Ordinal))
+                {
+                    return roleId;
+                }
+            }
+
+            string? namespaceUri = role.NamespaceUri;
+            ushort namespaceIndex = 1;
+            if (!string.IsNullOrEmpty(namespaceUri))
+            {
+                namespaceIndex = namespaces.GetIndexOrAppend(namespaceUri);
+            }
+
+            ServiceResult result = roleManager.AddRole(
+                role.Name,
+                namespaceUri,
+                namespaces,
+                namespaceIndex,
+                out NodeId newRoleId);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new InvalidOperationException(
+                    $"Role '{role.Name}' could not be configured: {result}.");
+            }
+            return newRoleId;
         }
 
         private static void RegisterFallbackAnonymousAuthenticator(IServiceCollection services)
@@ -1039,6 +1374,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 return;
             }
 
+            options.ReverseConnect = BindServerReverseConnectOptions(section);
+        }
+
+        private static ServerReverseConnectOptions BindServerReverseConnectOptions(IConfiguration section)
+        {
             var reverseConnect = new ServerReverseConnectOptions();
             BindInt32(section, nameof(ServerReverseConnectOptions.ConnectIntervalMs),
                 value => reverseConnect.ConnectIntervalMs = value);
@@ -1059,7 +1399,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 reverseConnect.Clients.Add(client);
             }
 
-            options.ReverseConnect = reverseConnect;
+            return reverseConnect;
         }
 
         private static void BindOperationLimits(OpcUaServerOptions options, IConfigurationSection section)
@@ -1069,6 +1409,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 return;
             }
 
+            options.OperationLimits = BindOperationLimitsOptions(section);
+        }
+
+        private static OperationLimitsOptions BindOperationLimitsOptions(IConfiguration section)
+        {
             var limits = new OperationLimitsOptions();
             BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerRead), value => limits.MaxNodesPerRead = value);
             BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerHistoryReadData),
@@ -1091,7 +1436,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 value => limits.MaxNodesPerNodeManagement = value);
             BindUInt32(section, nameof(OperationLimitsOptions.MaxMonitoredItemsPerCall),
                 value => limits.MaxMonitoredItemsPerCall = value);
-            options.OperationLimits = limits;
+            return limits;
         }
 
         private static void BindIdentity(OpcUaServerOptions options, IConfigurationSection section)
@@ -1461,6 +1806,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 Services.AddSingleton<TFactory>();
                 Services.AddSingleton(sp => new OpcUaServerNodeManagerRegistration(
                     sp.GetRequiredService<TFactory>()));
+                return this;
+            }
+
+            public IOpcUaServerBuilder AddNodeManager(string namespaceUri, Action<INodeManagerBuilder> build)
+            {
+                var factory = new FluentNodeManagerFactory(namespaceUri, build);
+                Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
+                Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
                 return this;
             }
 

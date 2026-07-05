@@ -27,9 +27,9 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Opc.Ua.Server.Hosting
@@ -46,7 +46,33 @@ namespace Opc.Ua.Server.Hosting
 
         public StandardServer CreateServer(ITelemetryContext telemetry, TimeProvider timeProvider)
         {
+            ThrowIfConstructorHooksCannotApply();
             return ActivatorUtilities.CreateInstance<TServer>(m_services, telemetry, timeProvider);
+        }
+
+        private void ThrowIfConstructorHooksCannotApply()
+        {
+            if (typeof(DependencyInjectionStandardServer).IsAssignableFrom(typeof(TServer)))
+            {
+                return;
+            }
+            if (!HasConstructorHookRegistrations())
+            {
+                return;
+            }
+            throw new InvalidOperationException(
+                "The configured custom OPC UA server type does not derive from DependencyInjectionStandardServer. " +
+                "AddSessionManager, AddSubscriptionManager, AddDurableSubscriptions, ConfigureRoles and " +
+                "AddRoleManager require a DI-aware server type so their StandardServer hooks are not silently ignored.");
+        }
+
+        private bool HasConstructorHookRegistrations()
+        {
+            return m_services.GetServices<OpcUaServerSessionManagerRegistration>().Any() ||
+                m_services.GetServices<OpcUaServerSubscriptionManagerRegistration>().Any() ||
+                m_services.GetService<OpcUaServerRoleManagerRegistration>() != null ||
+                m_services.GetService<ISubscriptionStore>() != null ||
+                m_services.GetService<IMonitoredItemQueueFactory>() != null;
         }
 
         private readonly IServiceProvider m_services;

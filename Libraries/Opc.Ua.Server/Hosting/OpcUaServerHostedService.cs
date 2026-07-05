@@ -40,6 +40,8 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.AliasNames;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -242,6 +244,7 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            RegisterPostStartRegistries();
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
@@ -309,6 +312,41 @@ namespace Opc.Ua.Server.Hosting
                 // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
                 // validates one fixed IssuerUri through its resolver.
                 m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+            }
+        }
+
+        private void RegisterPostStartRegistries()
+        {
+            if (m_server is null or DependencyInjectionStandardServer)
+            {
+                return;
+            }
+
+            IServerInternal server = m_server.CurrentInstance;
+            if (server is IHistorianRegistryProvider historianRegistryProvider)
+            {
+                foreach (OpcUaServerHistorianRegistration registration in
+                    m_services.GetServices<OpcUaServerHistorianRegistration>())
+                {
+                    historianRegistryProvider.HistorianRegistry.RegisterDefault(registration.Provider);
+                }
+            }
+
+            if (server is IAliasNameStoreRegistryProvider aliasNameStoreRegistryProvider)
+            {
+                foreach (IAliasNameStoreRegistry registry in m_services.GetServices<IAliasNameStoreRegistry>())
+                {
+                    foreach (IAliasNameStore store in registry.Stores)
+                    {
+                        aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(store);
+                    }
+                }
+
+                foreach (OpcUaServerAliasNameStoreRegistration registration in
+                    m_services.GetServices<OpcUaServerAliasNameStoreRegistration>())
+                {
+                    aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(registration.Store);
+                }
             }
         }
 

@@ -34,9 +34,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Eth.Channels;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Eth.Tests
 {
@@ -46,6 +48,8 @@ namespace Opc.Ua.PubSub.Eth.Tests
     /// </summary>
     [TestFixture]
     [Category("Unit")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestSpec("7.3.3", Summary = "Ethernet transport DI binding")]
     public sealed class EthTransportServiceCollectionExtensionsTests
     {
@@ -67,6 +71,34 @@ namespace Opc.Ua.PubSub.Eth.Tests
                     factories.Any(f => f is EthPubSubTransportFactory),
                     Is.True);
                 Assert.That(channelFactory, Is.InstanceOf<DefaultEthernetFrameChannelFactory>());
+            });
+        }
+
+        [Test]
+        public async Task AddEthPubSubRegistersPublisherSubscriberAndEthTransportAsync()
+        {
+            var services = new ServiceCollection();
+            bool configured = false;
+
+            services.AddEthPubSub(eth =>
+            {
+                configured = true;
+                eth.Services.Configure<EthTransportOptions>(options =>
+                    options.PreferredNetworkInterface = "eth0");
+            });
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            EthTransportOptions options =
+                serviceProvider.GetRequiredService<IOptions<EthTransportOptions>>().Value;
+            IPubSubTransportFactory[] factories =
+                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(configured, Is.True);
+                Assert.That(serviceProvider.GetService<IPubSubApplication>(), Is.Not.Null);
+                Assert.That(factories.OfType<EthPubSubTransportFactory>().Count(), Is.EqualTo(1));
+                Assert.That(options.PreferredNetworkInterface, Is.EqualTo("eth0"));
             });
         }
 

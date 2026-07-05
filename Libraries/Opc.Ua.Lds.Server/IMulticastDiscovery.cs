@@ -28,49 +28,34 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Lds.Server
 {
     /// <summary>
-    /// Creates managed sessions for caller-supplied endpoints from DI options.
+    /// LDS-ME multicast discovery component hosted by <see cref="LdsServer"/>.
     /// </summary>
-    public interface IManagedSessionFactory
+    public interface IMulticastDiscovery : IDisposable
     {
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/>.
+        /// Gets a value indicating whether multicast discovery is running.
         /// </summary>
-        Task<ManagedSession> ConnectAsync(
-            ConfiguredEndpoint endpoint,
-            CancellationToken ct = default);
+        bool IsRunning { get; }
 
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> after
-        /// applying additional builder customization.
+        /// Starts mDNS announcement and discovery.
         /// </summary>
-        Task<ManagedSession> ConnectAsync(
-            ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct = default);
+        Task StartAsync(
+            string applicationUri,
+            IList<string> discoveryUrls,
+            IList<string> capabilities,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
+        /// Stops mDNS announcement and discovery.
         /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
-        /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct = default);
+        Task StopAsync(CancellationToken cancellationToken = default);
     }
 }

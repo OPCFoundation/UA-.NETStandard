@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -185,9 +186,157 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            services.TryAddSingleton<IRegisteredServerStore>(sp =>
+                new RegisteredServerStore(
+                    sp.GetService<Microsoft.Extensions.Logging.ILogger<RegisteredServerStore>>(),
+                    sp.GetService<TimeProvider>()));
             services.AddHostedService<LdsServerHostedService>();
             IOpcUaBuilder opcUa = services.AddOpcUa();
             opcUa.AddApplicationInstance();
+        }
+
+        /// <summary>
+        /// Enables the built-in OPC TCP transport and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddOpcTcpTransport(this ILdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddOpcTcpTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables HTTPS transport and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddHttpsTransport(this ILdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddHttpsTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables HTTPS transport with one-shot options and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddHttpsTransport(
+            this ILdsServerBuilder builder,
+            Action<OpcUaHttpsTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddHttpsTransport(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables WSS transport and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddWssTransport(this ILdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWssTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables WSS transport with one-shot options and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddWssTransport(
+            this ILdsServerBuilder builder,
+            Action<OpcUaWssTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWssTransport(configure);
+            return builder;
+        }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Enables the Kestrel OPC TCP listener and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddKestrelOpcTcpTransport(this ILdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddKestrelOpcTcpTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables the OPC UA REST Web API transport and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddWebApiTransport(this ILdsServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWebApiTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables the OPC UA REST Web API transport and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddWebApiTransport(
+            this ILdsServerBuilder builder,
+            Action<Opc.Ua.Bindings.WebApi.WebApiTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWebApiTransport(configure);
+            return builder;
+        }
+#endif
+
+        /// <summary>
+        /// Configures server-side reverse connect and returns the same LDS builder.
+        /// </summary>
+        public static ILdsServerBuilder AddReverseConnect(
+            this ILdsServerBuilder builder,
+            Action<ReverseConnectServerConfiguration> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.Configure<LdsServerOptions>(options =>
+            {
+                options.ReverseConnect ??= new ReverseConnectServerConfiguration();
+                configure(options.ReverseConnect);
+            });
+            return builder;
         }
 
         private sealed class LdsServerBuilder : ILdsServerBuilder
@@ -198,6 +347,45 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             public IServiceCollection Services { get; }
+
+            public ILdsServerBuilder AddRegistrationStore<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
+                where T : class, IRegisteredServerStore
+            {
+                Services.AddSingleton<T>();
+                Services.AddSingleton<IRegisteredServerStore>(sp => sp.GetRequiredService<T>());
+                return this;
+            }
+
+            public ILdsServerBuilder AddRegistrationStore(Func<IServiceProvider, IRegisteredServerStore> factory)
+            {
+                if (factory is null)
+                {
+                    throw new ArgumentNullException(nameof(factory));
+                }
+
+                Services.AddSingleton(factory);
+                return this;
+            }
+
+            public ILdsServerBuilder AddMulticastDiscovery<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
+                where T : class, ILdsMulticastDiscoveryFactory
+            {
+                Services.AddSingleton<ILdsMulticastDiscoveryFactory, T>();
+                return this;
+            }
+
+            public ILdsServerBuilder AddMulticastDiscovery(Func<IServiceProvider, ILdsMulticastDiscoveryFactory> factory)
+            {
+                if (factory is null)
+                {
+                    throw new ArgumentNullException(nameof(factory));
+                }
+
+                Services.AddSingleton(factory);
+                return this;
+            }
         }
 
         private sealed class LdsServerRegistrationMarker;

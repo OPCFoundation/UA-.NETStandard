@@ -51,8 +51,10 @@ namespace Opc.Ua.PubSub.Pcap
         /// <see cref="PubSubCaptureSessionManager"/>, and decorates every
         /// already-registered <see cref="Opc.Ua.PubSub.Transports.IPubSubTransportFactory"/>
         /// with a <see cref="CapturingPubSubTransportFactory"/> so capture is
-        /// injected only when this method is called. Call it AFTER the
-        /// transport registrations (<c>AddUdpTransport</c> / <c>AddMqttTransport</c>).
+        /// injected only when this method is called. The decorator also applies
+        /// to transport factories registered later, so registration order does
+        /// not matter for <c>AddUdpTransport</c>, <c>AddMqttTransport</c> or
+        /// <c>AddEthTransport</c>.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <returns>The service collection for chaining.</returns>

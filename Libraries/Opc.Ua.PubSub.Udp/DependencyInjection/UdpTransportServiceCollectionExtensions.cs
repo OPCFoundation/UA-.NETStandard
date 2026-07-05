@@ -31,6 +31,7 @@ using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
+using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
 using Opc.Ua.PubSub.Udp.Dtls;
@@ -177,6 +178,50 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers DTLS support and binds options from the default UDP configuration section.
+        /// </summary>
+        /// <param name="builder">UDP transport builder.</param>
+        /// <param name="configuration">Root configuration.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IUdpTransportBuilder WithDtls(
+            this IUdpTransportBuilder builder,
+            IConfiguration configuration)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            return builder.WithDtls(configuration.GetSection(DefaultConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers DTLS support and binds options from the supplied configuration section.
+        /// </summary>
+        /// <param name="builder">UDP transport builder.</param>
+        /// <param name="section">Configuration section.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IUdpTransportBuilder WithDtls(
+            this IUdpTransportBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            builder.Services.AddOptions<DtlsTransportOptions>().Configure(options =>
+                BindDtlsOptions(options, section));
+            RegisterDtls(builder.Services);
+            RegisterFactory(builder.Services);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a PubSub publisher and subscriber with the UDP transport.
         /// </summary>
         /// <param name="services">Service collection.</param>
@@ -221,6 +266,89 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Registers a secured UDP PubSub runtime with an SKS pull client and a default secured writer group.
+        /// </summary>
+        /// <param name="services">Service collection.</param>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        /// <param name="securityPolicyUri">PubSub security policy URI.</param>
+        /// <param name="securityKeyServiceFactory">Security Key Service factory.</param>
+        /// <param name="configureTransport">Optional UDP transport builder callback.</param>
+        /// <param name="configureKeyProvider">Optional SKS pull provider options callback.</param>
+        /// <returns>The same <paramref name="services"/> instance.</returns>
+        public static IServiceCollection AddSecureUdpPubSub(
+            this IServiceCollection services,
+            string securityGroupId,
+            string securityPolicyUri,
+            Func<IServiceProvider, ISecurityKeyService> securityKeyServiceFactory,
+            Action<IUdpTransportBuilder>? configureTransport = null,
+            Action<PullSecurityKeyProviderOptions>? configureKeyProvider = null)
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            services.AddOpcUa().AddSecureUdpPubSub(
+                securityGroupId,
+                securityPolicyUri,
+                securityKeyServiceFactory,
+                configureTransport,
+                configureKeyProvider);
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a secured UDP PubSub runtime with an SKS pull client and a default secured writer group.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        /// <param name="securityPolicyUri">PubSub security policy URI.</param>
+        /// <param name="securityKeyServiceFactory">Security Key Service factory.</param>
+        /// <param name="configureTransport">Optional UDP transport builder callback.</param>
+        /// <param name="configureKeyProvider">Optional SKS pull provider options callback.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IOpcUaBuilder AddSecureUdpPubSub(
+            this IOpcUaBuilder builder,
+            string securityGroupId,
+            string securityPolicyUri,
+            Func<IServiceProvider, ISecurityKeyService> securityKeyServiceFactory,
+            Action<IUdpTransportBuilder>? configureTransport = null,
+            Action<PullSecurityKeyProviderOptions>? configureKeyProvider = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddPubSub(pubsub =>
+            {
+                IUdpTransportBuilder udpBuilder = pubsub
+                    .AddPublisher()
+                    .AddSubscriber()
+                    .AddUdpTransport();
+                configureTransport?.Invoke(udpBuilder);
+                pubsub.AddSecurityKeyServiceClient(
+                    securityGroupId,
+                    securityPolicyUri,
+                    securityKeyServiceFactory,
+                    configureKeyProvider);
+                pubsub.ConfigureConfiguration(configuration => configuration
+                    .AddConnection("secure-udp", connection => connection
+                        .WithPublisherId(new Variant((ushort)1))
+                        .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
+                        .WithAddress("opc.udp://224.0.0.22:4840")
+                        .AddWriterGroup("secured-writer-group", writerGroup => writerGroup
+                            .WithWriterGroupId(1)
+                            .WithPublishingInterval(1000)
+                            .WithSecurity(
+                                MessageSecurityMode.SignAndEncrypt,
+                                securityGroupId,
+                                "opc.tcp://localhost:4840"))));
+            });
+            return builder;
+        }
+
         private static void RegisterFactory(IServiceCollection services)
         {
             services.TryAddPubSubTransportFactory<UdpPubSubTransportFactory>();
@@ -230,6 +358,61 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<DtlsProfileRegistry>();
             services.TryAddSingleton<IDtlsContextFactory, DefaultDtlsContextFactory>();
+        }
+
+        private static void BindDtlsOptions(
+            DtlsTransportOptions options,
+            IConfiguration section)
+        {
+            string? preferredProfileName = section[nameof(DtlsTransportOptions.PreferredProfileName)];
+            if (!string.IsNullOrEmpty(preferredProfileName))
+            {
+                options.PreferredProfileName = preferredProfileName;
+            }
+
+            if (int.TryParse(
+                section[nameof(DtlsTransportOptions.MaxHandshakeDatagramSize)],
+                out int maxHandshakeDatagramSize))
+            {
+                options.MaxHandshakeDatagramSize = maxHandshakeDatagramSize;
+            }
+
+            if (TimeSpan.TryParse(
+                section[nameof(DtlsTransportOptions.InitialRetransmissionTimeout)],
+                out TimeSpan initialRetransmissionTimeout))
+            {
+                options.InitialRetransmissionTimeout = initialRetransmissionTimeout;
+            }
+
+            if (TimeSpan.TryParse(
+                section[nameof(DtlsTransportOptions.MaxRetransmissionTimeout)],
+                out TimeSpan maxRetransmissionTimeout))
+            {
+                options.MaxRetransmissionTimeout = maxRetransmissionTimeout;
+            }
+
+            if (bool.TryParse(
+                section[nameof(DtlsTransportOptions.RequireHelloRetryRequestCookie)],
+                out bool requireHelloRetryRequestCookie))
+            {
+                options.RequireHelloRetryRequestCookie = requireHelloRetryRequestCookie;
+            }
+
+            if (bool.TryParse(
+                section[nameof(DtlsTransportOptions.RequireClientCertificate)],
+                out bool requireClientCertificate))
+            {
+                options.RequireClientCertificate = requireClientCertificate;
+            }
+
+            foreach (IConfigurationSection profile in
+                section.GetSection(nameof(DtlsTransportOptions.DisabledProfiles)).GetChildren())
+            {
+                if (!string.IsNullOrEmpty(profile.Value))
+                {
+                    options.DisabledProfiles.Add(profile.Value!);
+                }
+            }
         }
 
         private static IUdpTransportBuilder CreateUdpTransportBuilder(IPubSubBuilder builder)

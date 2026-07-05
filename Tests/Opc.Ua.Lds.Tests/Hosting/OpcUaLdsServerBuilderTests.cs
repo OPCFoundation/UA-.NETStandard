@@ -37,6 +37,7 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
+using Opc.Ua.Lds.Server;
 using Opc.Ua.Lds.Server.Hosting;
 using Opc.Ua.Server;
 
@@ -100,6 +101,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
                     foundLdsHost = true;
                     break;
                 }
+
             }
             Assert.That(foundLdsHost,
                 "AddLdsServer should register an LdsServerHostedService as IHostedService.");
@@ -118,6 +120,84 @@ namespace Opc.Ua.Lds.Tests.Hosting
 
             Assert.That(builder, Is.Not.Null);
             Assert.That(builder.Services, Is.SameAs(services));
+        }
+
+        [Test]
+        public void LdsBuilderRegistersCustomRegistrationStore()
+        {
+            var services = new ServiceCollection();
+            var store = new RegisteredServerStore();
+
+            services.AddOpcUa()
+                .AddLdsServer(opt =>
+                {
+                    opt.ApplicationUri = "urn:localhost:UA:TestLds";
+                    opt.ProductUri = "uri:opcfoundation.org:TestLds";
+                })
+                .AddRegistrationStore(_ => store);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(sp.GetRequiredService<IRegisteredServerStore>(), Is.SameAs(store));
+        }
+
+        [Test]
+        public void LdsBuilderRegistersCustomMulticastFactory()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddLdsServer(opt =>
+                {
+                    opt.ApplicationUri = "urn:localhost:UA:TestLds";
+                    opt.ProductUri = "uri:opcfoundation.org:TestLds";
+                })
+                .AddMulticastDiscovery(_ => new TestMulticastDiscoveryFactory());
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(
+                sp.GetRequiredService<ILdsMulticastDiscoveryFactory>(),
+                Is.InstanceOf<TestMulticastDiscoveryFactory>());
+        }
+
+        [Test]
+        public void LdsBuilderTransportForwardersReturnSameBuilder()
+        {
+            var services = new ServiceCollection();
+            ILdsServerBuilder builder = services.AddOpcUa()
+                .AddLdsServer(opt =>
+                {
+                    opt.ApplicationUri = "urn:localhost:UA:TestLds";
+                    opt.ProductUri = "uri:opcfoundation.org:TestLds";
+                });
+
+            Assert.That(builder.AddOpcTcpTransport(), Is.SameAs(builder));
+            Assert.That(builder.AddHttpsTransport(), Is.SameAs(builder));
+            Assert.That(builder.AddWssTransport(), Is.SameAs(builder));
+        }
+
+        [Test]
+        public void LdsBuilderReverseConnectConfiguresOptions()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddLdsServer(opt =>
+                {
+                    opt.ApplicationUri = "urn:localhost:UA:TestLds";
+                    opt.ProductUri = "uri:opcfoundation.org:TestLds";
+                })
+                .AddReverseConnect(opt => opt.Clients = [new ReverseConnectClient
+                    {
+                        EndpointUrl = "opc.tcp://localhost:4841"
+                    }]);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            LdsServerOptions options = sp.GetRequiredService<IOptions<LdsServerOptions>>().Value;
+            Assert.That(options.ReverseConnect, Is.Not.Null);
+            Assert.That(options.ReverseConnect!.Clients, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -263,6 +343,39 @@ namespace Opc.Ua.Lds.Tests.Hosting
             {
                 CreateServiceHostCallCount++;
                 return new ValueTask<List<EndpointDescription>>([]);
+            }
+        }
+
+        private sealed class TestMulticastDiscoveryFactory : ILdsMulticastDiscoveryFactory
+        {
+            public IMulticastDiscovery Create(Opc.Ua.Lds.Server.LdsServer server)
+            {
+                return new TestMulticastDiscovery();
+            }
+        }
+
+        private sealed class TestMulticastDiscovery : IMulticastDiscovery
+        {
+            public bool IsRunning { get; private set; }
+
+            public Task StartAsync(
+                string applicationUri,
+                IList<string> discoveryUrls,
+                IList<string> capabilities,
+                CancellationToken cancellationToken = default)
+            {
+                IsRunning = true;
+                return Task.CompletedTask;
+            }
+
+            public Task StopAsync(CancellationToken cancellationToken = default)
+            {
+                IsRunning = false;
+                return Task.CompletedTask;
+            }
+
+            public void Dispose()
+            {
             }
         }
     }

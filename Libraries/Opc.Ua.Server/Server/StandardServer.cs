@@ -3251,6 +3251,8 @@ namespace Opc.Ua.Server
                     MessageContext,
                     TimeProvider);
 
+                ServerInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
+
                 // create the manager responsible for providing localized string resources.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
                 ResourceManager resourceManager = CreateResourceManager(
@@ -3979,6 +3981,19 @@ namespace Opc.Ua.Server
                 server,
                 (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+        }
+
+        /// <summary>
+        /// Creates the role manager for the server before the RoleSet address space is bound.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns an object that manages Part 18 role mappings.</returns>
+        protected virtual IRoleManager CreateRoleManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return server.RoleManager;
         }
 
         /// <summary>

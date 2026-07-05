@@ -226,6 +226,12 @@ namespace Opc.Ua.Gds.Server.Hosting
             IApplicationConfigurationBuilderServerOptions optionsBuilder =
                 serverBuilder.SetDiagnosticsEnabled(m_options.DiagnosticsEnabled);
 
+            if (m_options.ReverseConnect is ServerReverseConnectOptions reverseConnect)
+            {
+                optionsBuilder = optionsBuilder.SetReverseConnect(
+                    ToReverseConnectConfiguration(reverseConnect));
+            }
+
             m_options.ConfigureBuilder?.Invoke(serverBuilder);
 
             IApplicationConfigurationBuilderSecurityOptions securityBuilder = optionsBuilder
@@ -384,6 +390,31 @@ namespace Opc.Ua.Gds.Server.Hosting
                 DefaultSubjectNameContext = defaultSubjectNameContext,
                 CertificateGroups = [],
                 KnownHostNames = []
+            };
+        }
+
+        private static ReverseConnectServerConfiguration ToReverseConnectConfiguration(
+            ServerReverseConnectOptions options)
+        {
+            var clients = new ReverseConnectClient[options.Clients.Count];
+            for (int i = 0; i < options.Clients.Count; i++)
+            {
+                ServerReverseConnectClientOptions c = options.Clients[i];
+                clients[i] = new ReverseConnectClient
+                {
+                    EndpointUrl = c.EndpointUrl,
+                    Timeout = c.Timeout,
+                    MaxSessionCount = c.MaxSessionCount,
+                    Enabled = c.Enabled
+                };
+            }
+
+            return new ReverseConnectServerConfiguration
+            {
+                Clients = new ArrayOf<ReverseConnectClient>(clients),
+                ConnectInterval = options.ConnectIntervalMs,
+                ConnectTimeout = options.ConnectTimeoutMs,
+                RejectTimeout = options.RejectTimeoutMs
             };
         }
 

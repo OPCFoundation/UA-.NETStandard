@@ -37,6 +37,7 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
@@ -377,7 +378,6 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<TimeProvider>() ?? TimeProvider.System;
 
                 var pb = new PubSubApplicationBuilder(telemetry)
-                    .UseAllStandardEncoders()
                     .WithTimeProvider(clock)
                     .WithDiagnosticsLevel(options.DiagnosticsLevel);
                 IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();
@@ -398,6 +398,22 @@ namespace Microsoft.Extensions.DependencyInjection
                     in sp.GetServices<IPubSubTransportFactory>())
                 {
                     pb.AddTransportFactory(factory);
+                }
+                foreach (INetworkMessageEncoder encoder
+                    in sp.GetServices<INetworkMessageEncoder>())
+                {
+                    pb.AddEncoder(encoder);
+                }
+                foreach (INetworkMessageDecoder decoder
+                    in sp.GetServices<INetworkMessageDecoder>())
+                {
+                    pb.AddDecoder(decoder);
+                }
+                IPubSubSecurityWrapperResolver? securityWrapperResolver =
+                    sp.GetService<IPubSubSecurityWrapperResolver>();
+                if (securityWrapperResolver is not null)
+                {
+                    pb.WithSecurityWrapperResolver(securityWrapperResolver);
                 }
                 if (applyOptionsConfiguration)
                 {

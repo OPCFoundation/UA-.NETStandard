@@ -325,6 +325,138 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+
+        /// <summary>
+        /// Registers container-default subscription and monitored-item options.
+        /// </summary>
+        public static IOpcUaClientBuilder AddSubscriptions(
+            this IOpcUaClientBuilder builder,
+            Action<Opc.Ua.Client.Subscriptions.SubscriptionOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            OptionsBuilder<Opc.Ua.Client.Subscriptions.SubscriptionOptions> subscriptionOptions =
+                builder.Services.AddOptions<Opc.Ua.Client.Subscriptions.SubscriptionOptions>();
+            if (configure != null)
+            {
+                subscriptionOptions.Configure(configure);
+            }
+            builder.Services.AddOptions<Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a keyed managed-session pool backed by <see cref="IManagedSessionFactory"/>.
+        /// </summary>
+        public static IOpcUaClientBuilder AddManagedClientPool(this IOpcUaClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<IManagedSessionPool, ManagedSessionPool>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a one-shot reverse-connect managed-client factory.
+        /// </summary>
+        public static IOpcUaClientBuilder AddReverseConnectClient(
+            this IOpcUaBuilder builder,
+            Action<OpcUaClientOptions> configure,
+            Uri serverUri)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (serverUri is null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+
+            IOpcUaClientBuilder clientBuilder = builder.AddClient(configure);
+            clientBuilder.Services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(sp =>
+            {
+                OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+                IManagedSessionFactory factory = sp.GetRequiredService<IManagedSessionFactory>();
+                ReverseConnectManager manager = sp.GetRequiredService<ReverseConnectManager>();
+                ConfiguredEndpoint endpoint = options.Session.Endpoint
+                    ?? throw new InvalidOperationException("A session endpoint is required.");
+                return ct => factory.ConnectReverseAsync(manager, serverUri, endpoint, ct);
+            });
+            return clientBuilder;
+        }
+
+        /// <summary>
+        /// Registers a discovery-then-connect one-shot managed-client factory.
+        /// </summary>
+        public static IOpcUaClientBuilder AddDiscoveryAndConnect(
+            this IOpcUaClientBuilder builder,
+            Action<DiscoveryConnectOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new DiscoveryConnectOptions();
+            configure(options);
+            builder.AddDiscovery();
+            builder.Services.AddSingleton(options);
+            builder.Services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(sp =>
+            {
+                IOpcUaDiscoveryService discovery = sp.GetRequiredService<IOpcUaDiscoveryService>();
+                IManagedSessionFactory factory = sp.GetRequiredService<IManagedSessionFactory>();
+                return async ct =>
+                {
+                    EndpointDescription endpoint = await SelectDiscoveredEndpointAsync(
+                        discovery, options, ct).ConfigureAwait(false);
+                    return await factory.ConnectAsync(
+                        new ConfiguredEndpoint(null, endpoint, null), ct).ConfigureAwait(false);
+                };
+            });
+            return builder;
+        }
+
+        private static async Task<EndpointDescription> SelectDiscoveredEndpointAsync(
+            IOpcUaDiscoveryService discovery,
+            DiscoveryConnectOptions options,
+            CancellationToken ct)
+        {
+            ArrayOf<EndpointDescription> endpoints = await discovery
+                .GetEndpointsAsync(options.DiscoveryUrl, ct: ct)
+                .ConfigureAwait(false);
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                if (endpoint.SecurityMode == options.SecurityMode &&
+                    string.Equals(endpoint.SecurityPolicyUri, options.SecurityPolicyUri, StringComparison.Ordinal) &&
+                    (options.TransportProfileUri == null ||
+                        string.Equals(
+                            endpoint.TransportProfileUri,
+                            options.TransportProfileUri,
+                            StringComparison.Ordinal)))
+                {
+                    return endpoint;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "No discovered endpoint matched the configured security policy and mode.");
+        }
+
         private static OpcUaClientIdentityOptions BindIdentityOptions(
             IConfiguration section)
         {

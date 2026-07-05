@@ -162,6 +162,47 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers additional MQTT connection options from the default MQTT configuration section.
+        /// </summary>
+        /// <param name="builder">MQTT transport builder.</param>
+        /// <param name="configuration">Root configuration.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IMqttTransportBuilder WithConnectionOptions(
+            this IMqttTransportBuilder builder,
+            IConfiguration configuration)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            return builder.WithConnectionOptions(configuration.GetSection(DefaultConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers additional MQTT connection options from the supplied configuration section.
+        /// </summary>
+        /// <param name="builder">MQTT transport builder.</param>
+        /// <param name="section">Configuration section.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IMqttTransportBuilder WithConnectionOptions(
+            this IMqttTransportBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            builder.Services.AddOptions<MqttConnectionOptions>().Bind(section);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a PubSub publisher and subscriber with the MQTT transport.
         /// </summary>
         /// <param name="services">Service collection.</param>

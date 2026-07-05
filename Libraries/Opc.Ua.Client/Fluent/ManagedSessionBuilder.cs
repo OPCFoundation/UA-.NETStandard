@@ -68,6 +68,8 @@ namespace Opc.Ua.Client
         private IClientChannelManager? m_channelManager;
         private Action<HttpStandardResilienceOptions>? m_httpsResilience;
         private WebApiClientOptions? m_webApiOptions;
+        private ReverseConnectManager? m_reverseConnectManager;
+        private Uri? m_reverseConnectServerUri;
 
         /// <summary>
         /// Initializes a new builder.
@@ -93,6 +95,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(endpoint));
             }
             m_options = m_options with { Endpoint = endpoint };
+            ApplyReverseConnectEndpoint();
             return this;
         }
 
@@ -273,6 +276,31 @@ namespace Opc.Ua.Client
             }
             m_webApiOptions ??= new WebApiClientOptions();
             configure(m_webApiOptions);
+            return this;
+        }
+
+
+        /// <summary>
+        /// Use reverse connect for the configured endpoint.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="manager"/> or
+        /// <paramref name="serverUri"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder UseReverseConnect(
+            ReverseConnectManager manager,
+            Uri serverUri)
+        {
+            if (manager is null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (serverUri is null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+
+            m_reverseConnectManager = manager;
+            m_reverseConnectServerUri = serverUri;
+            ApplyReverseConnectEndpoint();
             return this;
         }
 
@@ -664,6 +692,7 @@ namespace Opc.Ua.Client
                 opts.IdentityProvider,
                 opts.TimeProvider,
                 channelManager,
+                m_reverseConnectManager,
                 ct).ConfigureAwait(false);
 
             if (opts.ModelChangeTracking)
@@ -677,6 +706,19 @@ namespace Opc.Ua.Client
             }
 
             return session;
+        }
+
+
+        private void ApplyReverseConnectEndpoint()
+        {
+            if (m_options.Endpoint != null && m_reverseConnectServerUri != null)
+            {
+                m_options.Endpoint.ReverseConnect = new ReverseConnectEndpoint
+                {
+                    Enabled = true,
+                    ServerUri = m_reverseConnectServerUri.ToString()
+                };
+            }
         }
 
         private static ServiceProviderHttpClientFactory CreateHttpsHttpClientFactory(

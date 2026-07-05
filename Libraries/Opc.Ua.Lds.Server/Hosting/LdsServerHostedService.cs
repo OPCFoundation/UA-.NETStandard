@@ -56,6 +56,8 @@ namespace Opc.Ua.Lds.Server.Hosting
         private readonly LdsServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
+        private readonly IRegisteredServerStore m_store;
+        private readonly ILdsMulticastDiscoveryFactory? m_multicastFactory;
         private readonly ITransportBindingRegistry? m_transportBindings;
         private readonly ILogger<LdsServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
@@ -70,7 +72,9 @@ namespace Opc.Ua.Lds.Server.Hosting
             IOptions<LdsServerOptions> options,
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
+            IRegisteredServerStore store,
             ILogger<LdsServerHostedService> logger,
+            ILdsMulticastDiscoveryFactory? multicastFactory = null,
             ITransportBindingRegistry? transportBindings = null)
         {
             if (options is null)
@@ -80,7 +84,9 @@ namespace Opc.Ua.Lds.Server.Hosting
             m_options = options.Value ?? throw new ArgumentNullException(nameof(options));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_applicationFactory = applicationFactory ?? throw new ArgumentNullException(nameof(applicationFactory));
+            m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_multicastFactory = multicastFactory;
             m_transportBindings = transportBindings;
         }
 
@@ -126,9 +132,15 @@ namespace Opc.Ua.Lds.Server.Hosting
                 }
             }
 
+            IApplicationConfigurationBuilderServerOptions optionsBuilder = serverBuilder;
+            if (m_options.ReverseConnect is ReverseConnectServerConfiguration reverseConnect)
+            {
+                optionsBuilder = optionsBuilder.SetReverseConnect(reverseConnect);
+            }
+
             m_options.ConfigureBuilder?.Invoke(serverBuilder);
 
-            ApplicationConfiguration configuration = await serverBuilder
+            ApplicationConfiguration configuration = await optionsBuilder
                 .AddSecurityConfiguration(certs, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates)
                 .CreateAsync(stoppingToken)
@@ -149,7 +161,7 @@ namespace Opc.Ua.Lds.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
-            m_server = new LdsServer(m_telemetry);
+            m_server = new LdsServer(m_telemetry, m_store);
 
             if (m_transportBindings != null)
             {
@@ -158,15 +170,12 @@ namespace Opc.Ua.Lds.Server.Hosting
 
             if (m_options.EnableMulticast)
             {
-                ILogger multicastLogger = m_telemetry.CreateLogger<MulticastDiscovery>();
-                bool loopbackOnly = m_options.MulticastLoopbackOnly;
-                m_server.MulticastFactory = lds => new MulticastDiscovery(
-                    lds.Store,
-                    loopbackOnly: loopbackOnly,
-                    logger: multicastLogger);
+                ILdsMulticastDiscoveryFactory factory = m_multicastFactory
+                    ?? new DefaultLdsMulticastDiscoveryFactory(m_telemetry, m_options.MulticastLoopbackOnly);
+                m_server.MulticastFactory = factory.Create;
             }
 
-            m_server.Store.StartPruneTimer();
+            m_server.RegistrationStore.StartPruneTimer();
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
 
@@ -183,6 +192,7 @@ namespace Opc.Ua.Lds.Server.Hosting
             {
                 // Expected on host shutdown.
             }
+
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
@@ -212,6 +222,32 @@ namespace Opc.Ua.Lds.Server.Hosting
         {
             m_server?.Dispose();
             base.Dispose();
+        }
+    }
+
+    internal sealed class DefaultLdsMulticastDiscoveryFactory : ILdsMulticastDiscoveryFactory
+    {
+        private readonly ITelemetryContext m_telemetry;
+        private readonly bool m_loopbackOnly;
+
+        public DefaultLdsMulticastDiscoveryFactory(ITelemetryContext telemetry, bool loopbackOnly)
+        {
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            m_loopbackOnly = loopbackOnly;
+        }
+
+        public IMulticastDiscovery Create(LdsServer server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            ILogger multicastLogger = m_telemetry.CreateLogger<MulticastDiscovery>();
+            return new MulticastDiscovery(
+                server.RegistrationStore,
+                loopbackOnly: m_loopbackOnly,
+                logger: multicastLogger);
         }
     }
 }

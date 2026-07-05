@@ -77,6 +77,48 @@ namespace Opc.Ua.Client
             return connector.ConnectAsync(m_serviceProvider, sessionOptions, configure, ct);
         }
 
+
+        /// <inheritdoc/>
+        public Task<ManagedSession> ConnectReverseAsync(
+            ReverseConnectManager manager,
+            Uri serverUri,
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct = default)
+        {
+            return ConnectReverseAsync(manager, serverUri, endpoint, _ => { }, ct);
+        }
+
+        /// <inheritdoc/>
+        public Task<ManagedSession> ConnectReverseAsync(
+            ReverseConnectManager manager,
+            Uri serverUri,
+            ConfiguredEndpoint endpoint,
+            Action<ManagedSessionBuilder> configure,
+            CancellationToken ct = default)
+        {
+            if (manager is null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (serverUri is null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            return ConnectAsync(
+                endpoint,
+                builder =>
+                {
+                    builder.UseReverseConnect(manager, serverUri);
+                    configure(builder);
+                },
+                ct);
+        }
+
         private readonly IServiceProvider m_serviceProvider;
     }
 }

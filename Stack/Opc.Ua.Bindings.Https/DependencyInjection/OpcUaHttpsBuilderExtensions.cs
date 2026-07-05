@@ -131,6 +131,41 @@ namespace Microsoft.Extensions.DependencyInjection
             return AddWssBindings(builder);
         }
 
+        /// <summary>
+        /// Registers the one-shot Kestrel-backed WSS transport stack and optionally
+        /// attaches the OPC UA REST binding and authentication services.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">Callback used to configure the composed WSS transport registration.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddWssTransport(
+            this IOpcUaBuilder builder,
+            Action<OpcUaWssTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new OpcUaWssTransportOptions();
+            configure(options);
+            AddWssBindings(builder);
+#if NET8_0_OR_GREATER
+            if (options.IncludeWebApi)
+            {
+                builder.AddWebApiTransport(options.ConfigureWebApi);
+            }
+#endif
+            options.ConfigureAuthentication?.Invoke(builder);
+            return builder;
+        }
+
         private static IOpcUaBuilder AddHttpsBindings(IOpcUaBuilder builder, bool includeWss)
         {
             if (builder is null)
@@ -229,6 +264,31 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Gets or sets optional authentication registrations, such as
         /// <c>builder.AddWebApiBearerAuth(...)</c>.
+        /// </summary>
+        public Action<IOpcUaBuilder>? ConfigureAuthentication { get; set; }
+    }
+
+    /// <summary>
+    /// Options for the one-shot
+    /// <see cref="OpcUaHttpsBuilderExtensions.AddWssTransport(IOpcUaBuilder, Action{OpcUaWssTransportOptions})"/>
+    /// overload.
+    /// </summary>
+    public sealed class OpcUaWssTransportOptions
+    {
+        /// <summary>
+        /// Gets or sets a value indicating whether the OPC UA REST binding is attached to the WSS Kestrel host.
+        /// </summary>
+        public bool IncludeWebApi { get; set; }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Gets or sets the optional WebApi transport configuration.
+        /// </summary>
+        public Action<WebApiTransportOptions>? ConfigureWebApi { get; set; }
+#endif
+
+        /// <summary>
+        /// Gets or sets optional authentication registrations, such as <c>builder.AddWebApiBearerAuth(...)</c>.
         /// </summary>
         public Action<IOpcUaBuilder>? ConfigureAuthentication { get; set; }
     }

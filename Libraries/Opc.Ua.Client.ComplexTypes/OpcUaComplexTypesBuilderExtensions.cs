@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -110,6 +111,65 @@ namespace Microsoft.Extensions.DependencyInjection
                 options.Session = options.Session with { LoadComplexTypes = true };
             });
             return clientBuilder.AddComplexTypes();
+        }
+
+
+        /// <summary>
+        /// Registers a managed client from the default configuration section and enables complex-type loading.
+        /// </summary>
+        public static IOpcUaClientBuilder AddManagedClient(
+            this IOpcUaBuilder builder,
+            IConfiguration configuration)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            return builder.AddManagedClient(
+                configuration.GetSection(OpcUaClientBuilderExtensions.DefaultConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers a managed client from configuration and enables complex-type loading.
+        /// </summary>
+        public static IOpcUaClientBuilder AddManagedClient(
+            this IOpcUaBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            IOpcUaClientBuilder clientBuilder = builder.AddClient(section);
+            EnableComplexTypeLoading(clientBuilder.Services);
+            return clientBuilder.AddComplexTypes();
+        }
+
+
+        private static void EnableComplexTypeLoading(IServiceCollection services)
+        {
+            for (int i = services.Count - 1; i >= 0; i--)
+            {
+                if (services[i].ServiceType == typeof(OpcUaClientOptions) &&
+                    services[i].ImplementationInstance is OpcUaClientOptions options)
+                {
+                    options.Session = options.Session with { LoadComplexTypes = true };
+                    return;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "AddManagedClient requires AddClient to register OpcUaClientOptions.");
         }
 
         private sealed class BuilderAdapter : IOpcUaBuilder

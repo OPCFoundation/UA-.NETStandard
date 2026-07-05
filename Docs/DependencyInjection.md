@@ -110,6 +110,30 @@ services.AddOpcUa()
     .AddNodeManager<MyNodeManagerFactory>();
 ```
 
+Discovery servers expose the same transport and reverse-connect shortcuts as
+the regular server builder:
+
+```csharp
+services.AddOpcUa()
+    .AddInMemoryGdsServer(o => o.EndpointUrls.Add("opc.tcp://localhost:58810/GDS"))
+    .AddOpcTcpTransport()
+    .AddHttpsTransport()
+    .AddReverseConnect(o => o.Clients.Add(new ServerReverseConnectClientOptions
+    {
+        EndpointUrl = "opc.tcp://client.example.com:4841"
+    }));
+
+services.AddOpcUa()
+    .AddLdsServer(o => o.EndpointUrls.Add("opc.tcp://localhost:4840/LDS"))
+    .AddRegistrationStore<MyRegisteredServerStore>()
+    .AddMulticastDiscovery<MyLdsMeFactory>();
+
+services.AddOpcUa()
+    .AddWotConnectivityServer(
+        server => server.EndpointUrls.Add("opc.tcp://localhost:4840/WoT"),
+        wot => wot.AssetNamespaceUri = WotConnectivityServerOptions.DefaultAssetNamespaceUri);
+```
+
 ## Options binding
 
 Every feature `.AddXxx(...)` has three overloads:

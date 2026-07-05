@@ -35,8 +35,17 @@ using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
 {
-    internal sealed class DependencyInjectionStandardServer : StandardServer
+    /// <summary>
+    /// <see cref="StandardServer"/> variant that resolves supported server hooks from dependency injection.
+    /// </summary>
+    public class DependencyInjectionStandardServer : StandardServer
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DependencyInjectionStandardServer"/> class.
+        /// </summary>
+        /// <param name="services">Service provider that supplies DI-backed hooks.</param>
+        /// <param name="telemetry">Telemetry context used by the server.</param>
+        /// <param name="timeProvider">Time provider used by the server.</param>
         public DependencyInjectionStandardServer(
             IServiceProvider services,
             ITelemetryContext telemetry,
@@ -46,6 +55,7 @@ namespace Opc.Ua.Server.Hosting
             m_services = services ?? throw new ArgumentNullException(nameof(services));
         }
 
+        /// <inheritdoc/>
         protected override ISessionManager CreateSessionManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
@@ -64,6 +74,7 @@ namespace Opc.Ua.Server.Hosting
             return base.CreateSessionManager(server, configuration);
         }
 
+        /// <inheritdoc/>
         protected override ISubscriptionManager CreateSubscriptionManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
@@ -82,6 +93,7 @@ namespace Opc.Ua.Server.Hosting
             return base.CreateSubscriptionManager(server, configuration);
         }
 
+        /// <inheritdoc/>
         protected override IMonitoredItemQueueFactory? CreateMonitoredItemQueueFactory(
             IServerInternal server,
             ApplicationConfiguration configuration)
@@ -90,6 +102,7 @@ namespace Opc.Ua.Server.Hosting
                 base.CreateMonitoredItemQueueFactory(server, configuration);
         }
 
+        /// <inheritdoc/>
         protected override ISubscriptionStore? CreateSubscriptionStore(
             IServerInternal server,
             ApplicationConfiguration configuration)
@@ -98,6 +111,16 @@ namespace Opc.Ua.Server.Hosting
                 base.CreateSubscriptionStore(server, configuration);
         }
 
+        /// <inheritdoc/>
+        protected override IRoleManager CreateRoleManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return m_services.GetService<IRoleManager>() ??
+                base.CreateRoleManager(server, configuration);
+        }
+
+        /// <inheritdoc/>
         protected override void OnNodeManagerStarted(IServerInternal server)
         {
             RegisterHistorians(server);

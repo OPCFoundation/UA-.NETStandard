@@ -69,6 +69,31 @@ namespace Microsoft.Extensions.DependencyInjection
         public const string DefaultConfigurationSection = "OpcUa:WotCon:Server";
 
         /// <summary>
+        /// Registers a regular OPC UA server and the WoT Connectivity node manager in one call.
+        /// </summary>
+        public static IWotConServerBuilder AddWotConnectivityServer(
+            this IOpcUaBuilder builder,
+            Action<OpcUaServerOptions> configureServer,
+            Action<WotConnectivityServerOptions> configureWotCon)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configureServer is null)
+            {
+                throw new ArgumentNullException(nameof(configureServer));
+            }
+            if (configureWotCon is null)
+            {
+                throw new ArgumentNullException(nameof(configureWotCon));
+            }
+
+            builder.AddServer(configureServer);
+            return builder.AddWotConServer(configureWotCon);
+        }
+
+        /// <summary>
         /// Registers a WoT Connectivity node manager (OPC 10100-1)
         /// attached to the regular OPC UA server, returning an
         /// <see cref="IWotConServerBuilder"/> for chaining
@@ -245,10 +270,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton(sp =>
                 new OpcUaServerNodeManagerRegistration(
                     sp.GetRequiredService<WotConnectivityNodeManagerFactory>()));
-            if (!HasOpcUaServerHostedService(services))
-            {
-                services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WotConServerStartupValidator>());
-            }
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WotConServerStartupValidator>());
 
             services.AddOpcUa();
         }
@@ -299,13 +321,172 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        /// <summary>
+        /// Enables the built-in OPC TCP transport and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddOpcTcpTransport(this IWotConServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddOpcTcpTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables HTTPS transport and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddHttpsTransport(this IWotConServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddHttpsTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables HTTPS transport with one-shot options and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddHttpsTransport(
+            this IWotConServerBuilder builder,
+            Action<OpcUaHttpsTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddHttpsTransport(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables WSS transport and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddWssTransport(this IWotConServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWssTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables WSS transport with one-shot options and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddWssTransport(
+            this IWotConServerBuilder builder,
+            Action<OpcUaWssTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWssTransport(configure);
+            return builder;
+        }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Enables the Kestrel OPC TCP listener and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddKestrelOpcTcpTransport(this IWotConServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddKestrelOpcTcpTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables the OPC UA REST Web API transport and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddWebApiTransport(this IWotConServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWebApiTransport();
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables the OPC UA REST Web API transport and returns the same WoT Connectivity builder.
+        /// </summary>
+        public static IWotConServerBuilder AddWebApiTransport(
+            this IWotConServerBuilder builder,
+            Action<Opc.Ua.Bindings.WebApi.WebApiTransportOptions>? configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa().AddWebApiTransport(configure);
+            return builder;
+        }
+#endif
+
+        /// <summary>
+        /// Configures server-side reverse connect on the paired OPC UA server.
+        /// </summary>
+        public static IWotConServerBuilder AddReverseConnect(
+            this IWotConServerBuilder builder,
+            Action<ServerReverseConnectOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.Configure<OpcUaServerOptions>(options =>
+            {
+                options.ReverseConnect ??= new ServerReverseConnectOptions();
+                configure(options.ReverseConnect);
+            });
+            return builder;
+        }
+
         private sealed class WotConServerStartupValidator : IHostedService
         {
+            private readonly IServiceProvider m_services;
+
+            public WotConServerStartupValidator(IServiceProvider services)
+            {
+                m_services = services ?? throw new ArgumentNullException(nameof(services));
+            }
+
             public Task StartAsync(CancellationToken cancellationToken)
             {
-                throw new InvalidOperationException(
-                    "AddWotConServer registers an OPC UA server node manager and requires AddServer on the same " +
-                    "IOpcUaBuilder. Call AddServer before AddWotConServer.");
+                bool hasServer = m_services
+                    .GetServices<IConfigureOptions<OpcUaServerOptions>>()
+                    .Any();
+                if (!hasServer)
+                {
+                    throw new InvalidOperationException(
+                        "AddWotConServer registers an OPC UA server node manager and requires AddServer on the same " +
+                        "IOpcUaBuilder. Call AddServer before AddWotConServer.");
+                }
+
+                return Task.CompletedTask;
             }
 
             public Task StopAsync(CancellationToken cancellationToken)

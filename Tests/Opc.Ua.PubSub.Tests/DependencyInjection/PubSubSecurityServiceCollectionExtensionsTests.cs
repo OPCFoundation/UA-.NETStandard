@@ -28,16 +28,20 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
 using Opc.Ua.PubSub.Security.Sks;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Tests.Security.Sks;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
@@ -100,6 +104,24 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
+        public async Task AddSecurityKeyServiceClientOnPubSubBuilderBuildsSecuredApplicationAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddPubSubTransportFactory(_ => new StubTransportFactory());
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .UseConfiguration(CreateSecuredConfiguration())
+                .AddSecurityKeyServiceClient(GroupId, PolicyUri, _ => CreateFake()));
+            await using ServiceProvider sp = services.BuildServiceProvider();
+
+            IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
+
+            Assert.That(app.Connections, Has.Count.EqualTo(1));
+        }
+
+        [Test]
         public async Task AddSecurityKeyServiceServerOnPubSubBuilderRegistersSingletonAsync()
         {
             var services = new ServiceCollection();
@@ -108,7 +130,12 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddOpcUa().AddPubSub(pubsub => pubsub.AddSecurityKeyServiceServer());
             await using ServiceProvider sp = services.BuildServiceProvider();
 
-            Assert.That(sp.GetService<InMemoryPubSubKeyServiceServer>(), Is.Not.Null);
+            InMemoryPubSubKeyServiceServer? server = sp.GetService<InMemoryPubSubKeyServiceServer>();
+            Assert.Multiple(() =>
+            {
+                Assert.That(server, Is.Not.Null);
+                Assert.That(sp.GetService<IPubSubKeyServiceServer>(), Is.SameAs(server));
+            });
         }
 
         [Test]
@@ -123,6 +150,24 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(
                 sp.GetServices<IPubSubSecurityKeyProvider>().Single(),
                 Is.TypeOf<PushSecurityKeyProvider>());
+        }
+
+        [Test]
+        public async Task AddSecurityKeyPushTargetOnPubSubBuilderBuildsSecuredApplicationAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddPubSubTransportFactory(_ => new StubTransportFactory());
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .UseConfiguration(CreateSecuredConfiguration())
+                .AddSecurityKeyPushTarget(GroupId));
+            await using ServiceProvider sp = services.BuildServiceProvider();
+
+            IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
+
+            Assert.That(app.Connections, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -195,7 +240,11 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             using ServiceProvider sp = services.BuildServiceProvider();
             InMemoryPubSubKeyServiceServer? server =
                 sp.GetService<InMemoryPubSubKeyServiceServer>();
-            Assert.That(server, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(server, Is.Not.Null);
+                Assert.That(sp.GetService<IPubSubKeyServiceServer>(), Is.SameAs(server));
+            });
         }
 
         [Test]
@@ -205,6 +254,103 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(
                 () => builder!.AddPubSubSecurityKeyServiceServer(),
                 Throws.ArgumentNullException);
+        }
+
+        private static PubSubConfigurationDataType CreateSecuredConfiguration()
+        {
+            return new PubSubConfigurationDataType
+            {
+                Connections =
+                [
+                    new PubSubConnectionDataType
+                    {
+                        Name = "secured-conn",
+                        TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                        PublisherId = new Variant((ushort)7),
+                        Address = new ExtensionObject(
+                            new NetworkAddressUrlDataType
+                            {
+                                Url = "opc.udp://224.0.0.22:4840"
+                            }),
+                        WriterGroups =
+                        [
+                            new WriterGroupDataType
+                            {
+                                Name = "wg",
+                                WriterGroupId = 1,
+                                PublishingInterval = 1000,
+                                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                                SecurityGroupId = GroupId,
+                                SecurityKeyServices =
+                                [
+                                    new EndpointDescription
+                                    {
+                                        EndpointUrl = "opc.tcp://localhost:4840"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublishedDataSets = []
+            };
+        }
+
+        private sealed class StubTransportFactory : IPubSubTransportFactory
+        {
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public IPubSubTransport Create(
+                PubSubConnectionDataType connection,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+            {
+                return new StubTransport();
+            }
+        }
+
+        private sealed class StubTransport : IPubSubTransport
+        {
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.SendReceive;
+
+            public bool IsConnected => false;
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                CancellationToken cancellationToken = default)
+            {
+                return TestAsyncEnumerable.Empty<PubSubTransportFrame>();
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

@@ -27,50 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Creates managed sessions for caller-supplied endpoints from DI options.
+    /// Options for discovery-driven managed client connections.
     /// </summary>
-    public interface IManagedSessionFactory
+    public sealed class DiscoveryConnectOptions
     {
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/>.
+        /// Discovery URL used for GetEndpoints.
         /// </summary>
-        Task<ManagedSession> ConnectAsync(
-            ConfiguredEndpoint endpoint,
-            CancellationToken ct = default);
+        public string DiscoveryUrl { get; set; } = string.Empty;
 
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> after
-        /// applying additional builder customization.
+        /// Required endpoint security mode.
         /// </summary>
-        Task<ManagedSession> ConnectAsync(
-            ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct = default);
+        public MessageSecurityMode SecurityMode { get; set; } = MessageSecurityMode.SignAndEncrypt;
 
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
+        /// Required endpoint security policy URI.
         /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            CancellationToken ct = default);
+        public string SecurityPolicyUri { get; set; } = SecurityPolicies.Basic256Sha256;
 
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
+        /// Optional transport profile URI filter.
         /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct = default);
+        public string? TransportProfileUri { get; set; }
     }
 }

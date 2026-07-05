@@ -34,43 +34,30 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Creates managed sessions for caller-supplied endpoints from DI options.
+    /// Keyed cache of connected managed sessions.
     /// </summary>
-    public interface IManagedSessionFactory
+    public interface IManagedSessionPool : IDisposable, IAsyncDisposable
     {
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/>.
+        /// Gets an existing session for <paramref name="key"/> or connects a new one.
         /// </summary>
-        Task<ManagedSession> ConnectAsync(
+        Task<ManagedSession> GetOrConnectAsync(
+            string key,
             ConfiguredEndpoint endpoint,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> after
-        /// applying additional builder customization.
+        /// Gets an existing session for <paramref name="key"/> or connects a configured new one.
         /// </summary>
-        Task<ManagedSession> ConnectAsync(
+        Task<ManagedSession> GetOrConnectAsync(
+            string key,
             ConfiguredEndpoint endpoint,
             Action<ManagedSessionBuilder> configure,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
+        /// Removes and closes a cached session.
         /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Connects a managed session to <paramref name="endpoint"/> using reverse connect.
-        /// </summary>
-        Task<ManagedSession> ConnectReverseAsync(
-            ReverseConnectManager manager,
-            Uri serverUri,
-            ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct = default);
+        ValueTask<bool> RemoveAsync(string key, CancellationToken ct = default);
     }
 }

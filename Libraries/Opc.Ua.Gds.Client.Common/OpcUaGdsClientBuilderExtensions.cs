@@ -28,12 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Identity;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -139,6 +142,187 @@ namespace Microsoft.Extensions.DependencyInjection
             return new GdsClientBuilder(builder.Services);
         }
 
+        /// <summary>
+        /// Registers GDS client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IGdsClientBuilder AddGdsClient(
+            this IOpcUaClientBuilder builder,
+            Action<GdsClientOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            return new BuilderAdapter(builder.Services).AddGdsClient(configure);
+        }
+
+        /// <summary>
+        /// Registers GDS client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IGdsClientBuilder AddGdsClient(
+            this IOpcUaClientBuilder builder,
+            IConfiguration configuration)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            return new BuilderAdapter(builder.Services).AddGdsClient(configuration);
+        }
+
+        /// <summary>
+        /// Registers GDS client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IGdsClientBuilder AddGdsClient(
+            this IOpcUaClientBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            return new BuilderAdapter(builder.Services).AddGdsClient(section);
+        }
+
+        /// <summary>
+        /// Registers key-credential service client factories.
+        /// </summary>
+        public static IGdsClientBuilder AddKeyCredentialServiceClient(this IGdsClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<
+                Func<NodeId, CancellationToken, ValueTask<KeyCredentialServiceClient>>>(sp =>
+            {
+                Func<CancellationToken, Task<ManagedSession>> accessor = GetManagedSessionAccessor(sp);
+                return async (nodeId, ct) => new KeyCredentialServiceClient(
+                    await accessor(ct).ConfigureAwait(false), nodeId);
+            });
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers authorization service client factories.
+        /// </summary>
+        public static IGdsClientBuilder AddAuthorizationServiceClient(this IGdsClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<
+                Func<NodeId, CancellationToken, ValueTask<AuthorizationServiceClient>>>(sp =>
+            {
+                Func<CancellationToken, Task<ManagedSession>> accessor = GetManagedSessionAccessor(sp);
+                return async (nodeId, ct) => new AuthorizationServiceClient(
+                    await accessor(ct).ConfigureAwait(false), nodeId);
+            });
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers local discovery server clients.
+        /// </summary>
+        public static IGdsClientBuilder AddLocalDiscoveryServerClient(this IGdsClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton(sp =>
+            {
+                ApplicationConfiguration configuration = sp.GetRequiredService<ApplicationConfiguration>();
+                ISessionFactory? sessionFactory = sp.GetService<ISessionFactory>();
+                return sessionFactory == null
+                    ? new LocalDiscoveryServerClient(configuration)
+                    : new LocalDiscoveryServerClient(configuration, sessionFactory);
+            });
+            builder.Services.TryAddSingleton<ILocalDiscoveryServerClient>(sp =>
+                sp.GetRequiredService<LocalDiscoveryServerClient>());
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers onboarding client factories.
+        /// </summary>
+        public static IGdsClientBuilder AddOnboardingClient(this IGdsClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>>(sp =>
+            {
+                Func<CancellationToken, Task<ManagedSession>> accessor = GetManagedSessionAccessor(sp);
+                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                return async (nodeId, ct) => new OnboardingClient(
+                    await accessor(ct).ConfigureAwait(false), nodeId, telemetry);
+            });
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the GDS certificate-management convenience surface.
+        /// </summary>
+        public static IGdsClientBuilder AddCertificateManagement(
+            this IGdsClientBuilder builder,
+            string authorityUri = "opc.gds")
+        {
+            return builder.AddCertificateManagement(ObjectIds.AuthorizationServices, authorityUri);
+        }
+
+        /// <summary>
+        /// Registers the GDS certificate-management convenience surface.
+        /// </summary>
+        public static IGdsClientBuilder AddCertificateManagement(
+            this IGdsClientBuilder builder,
+            NodeId authorizationServiceNodeId,
+            string authorityUri = "opc.gds")
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddKeyCredentialServiceClient()
+                .AddAuthorizationServiceClient()
+                .AddOnboardingClient();
+
+            builder.Services.TryAddSingleton<IAccessTokenProvider>(sp =>
+            {
+                Func<NodeId, CancellationToken, ValueTask<AuthorizationServiceClient>> factory =
+                    sp.GetRequiredService<Func<NodeId, CancellationToken, ValueTask<AuthorizationServiceClient>>>();
+                return new GdsAccessTokenProvider(
+                    ct => factory(authorizationServiceNodeId, ct),
+                    authorityUri);
+            });
+            return builder;
+        }
+
+        private static Func<CancellationToken, Task<ManagedSession>> GetManagedSessionAccessor(IServiceProvider sp)
+        {
+            return sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                ?? throw new InvalidOperationException(
+                    "AddGdsClient() requires AddClient() before resolving per-session GDS clients.");
+        }
+
         private static void RegisterCoreServices(IServiceCollection services)
         {
             services.TryAddSingleton(sp =>
@@ -154,6 +338,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     adminUserIdentity: null,
                     sessionFactory: sessionFactory);
             });
+            services.TryAddSingleton<IGlobalDiscoveryServerClient>(sp =>
+                sp.GetRequiredService<GlobalDiscoveryServerClient>());
 
             services.TryAddSingleton(sp =>
             {
@@ -167,8 +353,20 @@ namespace Microsoft.Extensions.DependencyInjection
                     options,
                     sessionFactory: sessionFactory);
             });
+            services.TryAddSingleton<IServerPushConfigurationClient>(sp =>
+                sp.GetRequiredService<ServerPushConfigurationClient>());
 
             services.AddOpcUa();
+        }
+
+        private sealed class BuilderAdapter : IOpcUaBuilder
+        {
+            public BuilderAdapter(IServiceCollection services)
+            {
+                Services = services;
+            }
+
+            public IServiceCollection Services { get; }
         }
 
         private sealed class GdsClientBuilder : IGdsClientBuilder

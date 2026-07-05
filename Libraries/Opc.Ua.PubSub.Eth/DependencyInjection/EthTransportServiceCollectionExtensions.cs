@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
 using Opc.Ua.PubSub.Eth;
 using Opc.Ua.PubSub.Eth.Channels;
 using Opc.Ua.PubSub.Transports;
@@ -129,6 +130,51 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddOptions<EthTransportOptions>().Bind(section);
             RegisterServices(builder.Services);
             return CreateEthTransportBuilder(builder);
+        }
+
+        /// <summary>
+        /// Registers a PubSub publisher and subscriber with the Ethernet transport.
+        /// </summary>
+        /// <param name="services">Service collection.</param>
+        /// <param name="configure">Optional Ethernet transport builder callback.</param>
+        /// <returns>The same <paramref name="services"/> instance.</returns>
+        public static IServiceCollection AddEthPubSub(
+            this IServiceCollection services,
+            Action<IEthTransportBuilder>? configure = null)
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            services.AddOpcUa().AddEthPubSub(configure);
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a PubSub publisher and subscriber with the Ethernet transport.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configure">Optional Ethernet transport builder callback.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IOpcUaBuilder AddEthPubSub(
+            this IOpcUaBuilder builder,
+            Action<IEthTransportBuilder>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddPubSub(pubsub =>
+            {
+                IEthTransportBuilder ethBuilder = pubsub
+                    .AddPublisher()
+                    .AddSubscriber()
+                    .AddEthTransport();
+                configure?.Invoke(ethBuilder);
+            });
+            return builder;
         }
 
         private static void RegisterServices(IServiceCollection services)

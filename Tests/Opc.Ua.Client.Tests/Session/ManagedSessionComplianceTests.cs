@@ -732,7 +732,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(bool),
                         typeof(bool),
                         typeof(bool),
-                        typeof(IClientChannelManager)
+                        typeof(IClientChannelManager),
+                        typeof(ReverseConnectManager)
                     ],
                     null);
 
@@ -756,6 +757,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     false,
                     false,
                     false,
+                    null,
                     null
                 ]);
 

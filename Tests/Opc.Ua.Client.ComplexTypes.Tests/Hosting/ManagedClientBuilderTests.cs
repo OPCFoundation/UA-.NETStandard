@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -93,6 +94,24 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
             Assert.That(sp.GetService<IComplexTypeSystemFactory>(), Is.Not.Null);
         }
 
+
+        [Test]
+        public void AddManagedClientConfigurationOverloadEnablesComplexTypes()
+        {
+            var services = new ServiceCollection();
+            IConfiguration configuration = new ConfigurationBuilder().Build();
+
+            IOpcUaClientBuilder builder = services.AddOpcUa()
+                .AddManagedClient(configuration);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            var options = sp.GetRequiredService<OpcUaClientOptions>();
+
+            Assert.That(builder.Services, Is.SameAs(services));
+            Assert.That(options.Session.LoadComplexTypes, Is.True);
+            Assert.That(sp.GetService<IComplexTypeSystemFactory>(), Is.Not.Null);
+        }
+
         [Test]
         public void AddManagedClientRejectsNullArguments()
         {
@@ -102,7 +121,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
                 () => OpcUaComplexTypesBuilderExtensions.AddManagedClient(null!, ConfigureValidClient),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => services.AddOpcUa().AddManagedClient(null!),
+                () => services.AddOpcUa().AddManagedClient((System.Action<OpcUaClientOptions>)null!),
                 Throws.ArgumentNullException);
         }
 

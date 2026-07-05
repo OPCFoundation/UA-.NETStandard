@@ -183,6 +183,32 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
+        public async Task WithConnectionOptionsIConfigurationBindsDefaultSectionAsync()
+        {
+            var services = new ServiceCollection();
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["OpcUa:PubSub:Mqtt:Endpoint"] = "mqtt://broker.example.com:1883",
+                    ["OpcUa:PubSub:Mqtt:ClientId"] = "configured-client"
+                })
+                .Build();
+
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddMqttTransport().WithConnectionOptions(configuration));
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            MqttConnectionOptions options =
+                serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.Endpoint, Is.EqualTo("mqtt://broker.example.com:1883"));
+                Assert.That(options.ClientId, Is.EqualTo("configured-client"));
+            });
+        }
+
+        [Test]
         public async Task AddMqttPubSubRegistersPublisherSubscriberAndMqttTransportAsync()
         {
             var services = new ServiceCollection();

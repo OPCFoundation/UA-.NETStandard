@@ -191,6 +191,16 @@ namespace Opc.Ua.Pcap.DependencyInjection
         }
 
         /// <summary>
+        /// Adds trace formatters to dependency injection via an OPC UA builder.
+        /// </summary>
+        public static IOpcUaBuilder AddPcapFormatters(this IOpcUaBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            builder.Services.AddPcapFormatters();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers pcap replay session services.
         /// </summary>
         public static IServiceCollection AddPcapReplay(
@@ -200,6 +210,16 @@ namespace Opc.Ua.Pcap.DependencyInjection
 
             services.AddSingleton<ReplaySessionManager>();
             return services;
+        }
+
+        /// <summary>
+        /// Registers pcap replay session services via an OPC UA builder.
+        /// </summary>
+        public static IOpcUaBuilder AddPcapReplay(this IOpcUaBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            builder.Services.AddPcapReplay();
+            return builder;
         }
 
         /// <summary>
