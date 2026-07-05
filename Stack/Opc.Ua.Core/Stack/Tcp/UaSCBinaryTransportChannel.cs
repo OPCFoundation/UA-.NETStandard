@@ -305,24 +305,20 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public async ValueTask<IServiceResponse> SendRequestAsync(
+        public ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct)
         {
-            try
+            // A UA-TCP server retry-after hint arrives on an Error message that faults the
+            // channel; it is captured out-of-band by OnInnerChannelStateChanged. This send
+            // path therefore stays a lean pass-through with no per-request try/catch (and no
+            // async state machine), keeping the hot path allocation- and overhead-free.
+            UaSCUaBinaryClientChannel? channel = m_channel;
+            if (channel != null)
             {
-                UaSCUaBinaryClientChannel? channel = m_channel;
-                if (channel != null)
-                {
-                    return await channel.SendRequestAsync(request, OperationTimeout, ct).ConfigureAwait(false);
-                }
-                return await SendRequestInternalAsync(request, ct).ConfigureAwait(false);
+                return channel.SendRequestAsync(request, OperationTimeout, ct);
             }
-            catch (ServiceResultException ex)
-            {
-                StoreServerRetryAfterHint(ex.Result);
-                throw;
-            }
+            return SendRequestInternalAsync(request, ct);
         }
 
         /// <summary>

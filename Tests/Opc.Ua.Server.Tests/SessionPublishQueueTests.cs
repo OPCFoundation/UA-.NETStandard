@@ -148,6 +148,35 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void PublishAsync_WhenParkedAndClientCancels_CompletesRequestAsCanceled()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscription>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object); // added but not ready, so the request must park
+
+            using var cts = new CancellationTokenSource();
+            var sink = new TestParkSink();
+            Task<ISubscription> task = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, sink, cts.Token);
+
+            Assert.That(task.IsCompleted, Is.False, "The request should park while it waits.");
+            Assert.That(
+                sink.ParkedCount,
+                Is.EqualTo(1),
+                "A parked request releases its processing worker at the park point.");
+
+            // The spec recommends clients cancel outstanding Publish requests on close. Even
+            // though the worker was already released when the request parked, the client's
+            // cancellation token must still complete the parked request (via TrySetCanceled).
+            cts.Cancel();
+
+            Assert.CatchAsync<OperationCanceledException>(() => task);
+            Assert.That(task.IsCanceled, Is.True, "The parked request should complete as canceled.");
+        }
+
+        [Test]
         public async Task PublishAsync_WhenSubscriptionReady_DoesNotNotifyParkSinkAsync()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
