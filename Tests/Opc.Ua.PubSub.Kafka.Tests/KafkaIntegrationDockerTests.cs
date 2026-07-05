@@ -125,27 +125,36 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 kafkaSubscriber.Subscriptions.Add(topic);
             }
 
-            await subscriber.OpenAsync(CancellationToken.None).ConfigureAwait(false);
-            await publisher.OpenAsync(CancellationToken.None).ConfigureAwait(false);
             byte[] payload = [0x10, 0x20, 0x30, 0x40];
+
+            // Open the publisher and produce one record before the subscriber
+            // subscribes so the topic already exists: the Dekaf consumer (net10,
+            // KIP-848 protocol) does not pick up a topic that is created after it
+            // has subscribed. The subscriber reads from the earliest offset once
+            // it is assigned the partition.
+            await publisher.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+            await publisher.SendAsync(payload, topic).ConfigureAwait(false);
+            await subscriber.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             Task<PubSubTransportFrame?> receiveTask = KafkaTestHelper.ReceiveOneAsync(subscriber, cts.Token);
 
-            // The consumer may still be joining the group and receiving its
-            // partition assignment when the first record is produced, so resend
-            // periodically until the subscriber observes a record or the deadline
-            // elapses. Every resend carries the same topic and payload, so which
-            // copy is observed does not affect the assertions.
+            // Resend periodically in case partition assignment lags; every resend
+            // carries the same topic and payload, so which copy is observed does not
+            // affect the assertions.
             PubSubTransportFrame? frame = null;
             while (frame is null && !cts.IsCancellationRequested)
             {
-                await publisher.SendAsync(payload, topic).ConfigureAwait(false);
                 Task finished = await Task.WhenAny(
                     receiveTask,
                     Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
                 if (finished == receiveTask)
                 {
                     frame = await receiveTask.ConfigureAwait(false);
+                }
+                else
+                {
+                    await publisher.SendAsync(payload, topic).ConfigureAwait(false);
                 }
             }
 
