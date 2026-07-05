@@ -866,7 +866,9 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     ReadOnlyMemory<byte> framePayload = frame.Payload;
+                    ReadOnlyMemory<byte> rawFrame = frame.Payload;
                     bool frameSecured = false;
+                    bool singleFrame = true;
 
                     if (UadpDecoder.TryReadOuterPrefix(framePayload,
                         out int prefixLength,
@@ -899,6 +901,10 @@ namespace Opc.Ua.PubSub.Connections
                                 continue;
                             }
                             framePayload = reassembled.Value;
+                            // The message was reassembled from multiple chunk
+                            // frames, so no single wire frame faithfully
+                            // represents it; disable the raw-frame fast path.
+                            singleFrame = false;
 
                             // Re-read the reassembled message's own outer prefix so
                             // the security gate below is applied to the inner UADP
@@ -1026,7 +1032,8 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
-                    await NotifyReceivedSinksAsync(message, framePayload, frameSecured, cancellationToken)
+                    await NotifyReceivedSinksAsync(
+                        message, singleFrame ? rawFrame : default, frameSecured, cancellationToken)
                         .ConfigureAwait(false);
                     for (int i = 0; i < m_readerGroups.Count; i++)
                     {

@@ -50,6 +50,7 @@ namespace Opc.Ua.PubSub.Transcoding
     public sealed class FieldProjectionTransform : IPubSubMessageTransform
     {
         private readonly List<string> m_fieldNames;
+        private readonly HashSet<string>? m_excludeSet;
         private readonly bool m_exclude;
 
         /// <summary>
@@ -75,6 +76,9 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             m_fieldNames = new List<string>(fieldNames);
             m_exclude = exclude;
+            m_excludeSet = exclude
+                ? new HashSet<string>(m_fieldNames, StringComparer.Ordinal)
+                : null;
         }
 
         /// <inheritdoc/>
@@ -107,10 +111,9 @@ namespace Opc.Ua.PubSub.Transcoding
             if (m_exclude)
             {
                 var kept = new List<DataSetField>(fields.Count);
-                var drop = new HashSet<string>(m_fieldNames, StringComparer.Ordinal);
                 for (int i = 0; i < fields.Count; i++)
                 {
-                    if (!drop.Contains(fields[i].Name))
+                    if (!m_excludeSet!.Contains(fields[i].Name))
                     {
                         kept.Add(fields[i]);
                     }

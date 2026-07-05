@@ -114,11 +114,9 @@ namespace Opc.Ua.PubSub.Transcoding
             if (encoding == TranscodeEncoding.Json && source is JsonNetworkMessageV2 json)
             {
                 bool single = options.JsonSingleMessageMode && json.DataSetMessages.Count == 1;
-                JsonNetworkMessageContentMask mask = json.ContentMask;
-                if (single)
-                {
-                    mask |= JsonNetworkMessageContentMask.SingleDataSetMessage;
-                }
+                JsonNetworkMessageContentMask mask = single
+                    ? json.ContentMask | JsonNetworkMessageContentMask.SingleDataSetMessage
+                    : json.ContentMask & ~JsonNetworkMessageContentMask.SingleDataSetMessage;
                 if (!options.PreserveMetaDataVersion)
                 {
                     return json with
@@ -130,7 +128,7 @@ namespace Opc.Ua.PubSub.Transcoding
                             dsm => RebuildJsonDataSetMessage(dsm, options))
                     };
                 }
-                if (!single && !json.SingleMessageMode)
+                if (json.SingleMessageMode == single && json.ContentMask == mask)
                 {
                     return json;
                 }
@@ -214,10 +212,21 @@ namespace Opc.Ua.PubSub.Transcoding
             PubSubDataSetMessage source,
             TranscodeTargetOptions options)
         {
+            UadpDataSetMessageV2? existing = source as UadpDataSetMessageV2;
             PubSubFieldEncoding fieldEncoding = options.FieldEncoding
-                ?? (source is UadpDataSetMessageV2 existing
-                    ? existing.FieldEncoding
-                    : PubSubFieldEncoding.Variant);
+                ?? existing?.FieldEncoding
+                ?? PubSubFieldEncoding.Variant;
+
+            // Preserve the source UADP DataSetMessage content mask on
+            // UADP -> UADP rebuilds so the wire representation is not
+            // silently changed; fall back to the default mask only when
+            // the source is a different mapping (e.g. JSON -> UADP).
+            UadpDataSetMessageContentMask contentMask = existing?.ContentMask ?? k_uadpDataSetMask;
+            if (!options.PreserveMetaDataVersion)
+            {
+                contentMask &= ~(UadpDataSetMessageContentMask.MajorVersion
+                    | UadpDataSetMessageContentMask.MinorVersion);
+            }
 
             return new UadpDataSetMessageV2
             {
@@ -231,7 +240,7 @@ namespace Opc.Ua.PubSub.Transcoding
                     : new ConfigurationVersionDataType(),
                 Fields = RetargetFieldEncoding(source.Fields, options.FieldEncoding),
                 FieldEncoding = fieldEncoding,
-                ContentMask = k_uadpDataSetMask
+                ContentMask = contentMask
             };
         }
 

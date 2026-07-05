@@ -133,5 +133,52 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             var json = (JsonNetworkMessageV2)projected;
             Assert.That(json.SingleMessageMode, Is.True);
         }
+
+        [Test]
+        public void Project_JsonToJson_SingleMessageDisabled_ClearsMaskBit()
+        {
+            JsonNetworkMessageV2 source = SampleJson() with
+            {
+                SingleMessageMode = true,
+                ContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+                    | JsonNetworkMessageContentMask.SingleDataSetMessage
+            };
+            var options = new TranscodeTargetOptions { JsonSingleMessageMode = false };
+
+            var projected = (JsonNetworkMessageV2)NetworkMessageProfileProjector.Instance.Project(
+                source, TranscodeEncoding.Json, options, NewContext());
+
+            Assert.That(projected.SingleMessageMode, Is.False);
+            Assert.That(
+                projected.ContentMask.HasFlag(JsonNetworkMessageContentMask.SingleDataSetMessage),
+                Is.False);
+        }
+
+        [Test]
+        public void Project_UadpToUadp_PreservesSourceContentMask()
+        {
+            var source = new UadpNetworkMessageV2
+            {
+                PublisherId = PublisherId.FromByte(1),
+                DataSetMessages =
+                [
+                    new UadpDataSetMessageV2
+                    {
+                        DataSetWriterId = 1,
+                        ContentMask = UadpDataSetMessageContentMask.SequenceNumber,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [Field("a", new Variant(1))]
+                    }
+                ]
+            };
+            var options = new TranscodeTargetOptions { FieldEncoding = PubSubFieldEncoding.RawData };
+
+            PubSubNetworkMessage projected = NetworkMessageProfileProjector.Instance.Project(
+                source, TranscodeEncoding.Uadp, options, NewContext());
+
+            var dsm = (UadpDataSetMessageV2)projected.DataSetMessages[0];
+            Assert.That(dsm.ContentMask, Is.EqualTo(UadpDataSetMessageContentMask.SequenceNumber));
+            Assert.That(dsm.FieldEncoding, Is.EqualTo(PubSubFieldEncoding.RawData));
+        }
     }
 }
