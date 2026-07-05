@@ -36,10 +36,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Pcap.DependencyInjection;
-using Opc.Ua.PubSub.Pcap;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
+using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.PubSub.Pcap;
 
 Console.Error.WriteLine("OPC UA MCP Server");
 Console.Error.WriteLine(
@@ -91,6 +91,7 @@ static async Task RunStdioServerAsync(CancellationToken ct)
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
     ConfigureLogging(builder.Logging);
+    builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
     PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
