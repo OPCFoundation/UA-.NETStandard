@@ -59,15 +59,18 @@ namespace Opc.Ua
         /// <summary>
         /// Constructs a server that uses a specific
         /// <see cref="ITransportBindingRegistry"/> when opening its
-        /// listeners. The DI registration in
-        /// <c>AddOpcUaServer()</c> wires the host's
-        /// <see cref="ITransportBindingRegistry"/> through this ctor so
-        /// transport bindings registered via
+        /// listeners. The hosted-service registrations
+        /// (<c>AddServer()</c> / <c>AddGdsServer()</c> /
+        /// <c>AddLdsServer()</c>) resolve the host's
+        /// <see cref="ITransportBindingRegistry"/> — populated by
         /// <c>AddOpcTcpTransport()</c> / <c>AddKestrelOpcTcpTransport()</c> /
-        /// <c>AddHttpsTransport()</c> etc. take effect. Non-DI consumers
-        /// can call the parameterless overload above; the server then
-        /// constructs a <see cref="DefaultTransportBindingRegistry"/>
-        /// pre-seeded with the raw-socket TCP factories on first use.
+        /// <c>AddHttpsTransport()</c> etc. — and assign it to
+        /// <see cref="TransportBindings"/> before the server starts so
+        /// those transports take effect. Non-DI consumers can use the
+        /// parameterless overload above or set <see cref="TransportBindings"/>
+        /// directly; the server then constructs a
+        /// <see cref="DefaultTransportBindingRegistry"/> pre-seeded with the
+        /// raw-socket TCP factories on first use.
         /// </summary>
         public ServerBase(
             ITelemetryContext telemetry,

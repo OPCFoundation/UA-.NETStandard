@@ -134,8 +134,7 @@ namespace Microsoft.Extensions.DependencyInjection
         private static void RegisterServices(IServiceCollection services)
         {
             services.TryAddSingleton<IEthernetFrameChannelFactory, DefaultEthernetFrameChannelFactory>();
-            services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IPubSubTransportFactory, EthPubSubTransportFactory>());
+            services.TryAddPubSubTransportFactory<EthPubSubTransportFactory>();
         }
 
         private static IEthTransportBuilder CreateEthTransportBuilder(IPubSubBuilder builder)

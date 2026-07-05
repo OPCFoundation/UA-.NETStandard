@@ -567,20 +567,24 @@ namespace Opc.Ua.Lds.Server
                 }
 
                 ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme);
-                if (binding != null)
+                if (binding == null)
                 {
-                    List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
-                        this,
-                        hosts,
-                        configuration,
-                        configuration.ServerConfiguration.BaseAddresses,
-                        serverDescription,
-                        configuration.ServerConfiguration.SecurityPolicies,
-                        CertificateManager,
-                        configuration.CertificateManager,
-                        cancellationToken).ConfigureAwait(false);
-                    endpointsList.AddRange(endpointsForHost);
+                    throw new InvalidOperationException(
+                        $"No OPC UA transport listener is registered for endpoint scheme '{scheme}'. " +
+                        $"Register the matching transport binding, for example by calling Add{GetTransportName(scheme)}Transport().");
                 }
+
+                List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
+                    this,
+                    hosts,
+                    configuration,
+                    configuration.ServerConfiguration.BaseAddresses,
+                    serverDescription,
+                    configuration.ServerConfiguration.SecurityPolicies,
+                    CertificateManager,
+                    configuration.CertificateManager,
+                    cancellationToken).ConfigureAwait(false);
+                endpointsList.AddRange(endpointsForHost);
             }
 
             return new ServiceHostInitializationResult(
@@ -599,6 +603,17 @@ namespace Opc.Ua.Lds.Server
         protected override EndpointBase GetEndpointInstance(ServerBase server)
         {
             return new DiscoveryEndpoint(server);
+        }
+
+        private static string GetTransportName(string scheme)
+        {
+            return scheme switch
+            {
+                Utils.UriSchemeOpcTcp => "OpcTcp",
+                Utils.UriSchemeHttps or Utils.UriSchemeOpcHttps => "Https",
+                Utils.UriSchemeWss or Utils.UriSchemeOpcWss => "Wss",
+                _ => scheme
+            };
         }
 
         /// <inheritdoc />

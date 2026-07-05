@@ -34,9 +34,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client;
+using Opc.Ua.Client.ComplexTypes;
+using Opc.Ua.Client.Discovery;
 using Opc.Ua.Identity;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -91,6 +94,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var options = new OpcUaClientOptions();
             configure(options);
             builder.Services.TryAddSingleton(options);
+            RegisterOptionsValidation(builder.Services, options);
 
             RegisterCoreServices(builder.Services);
 
@@ -150,10 +154,40 @@ namespace Microsoft.Extensions.DependencyInjection
             var options = new OpcUaClientOptions();
             section.Bind(options);
             builder.Services.TryAddSingleton(options);
+            RegisterOptionsValidation(builder.Services, options);
 
             RegisterCoreServices(builder.Services);
 
             return new OpcUaClientBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers injectable OPC UA discovery operations.
+        /// </summary>
+        public static IOpcUaBuilder AddDiscovery(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddOpcUa();
+            builder.Services.TryAddSingleton<IOpcUaDiscoveryService, OpcUaDiscoveryService>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers injectable OPC UA discovery operations.
+        /// </summary>
+        public static IOpcUaClientBuilder AddDiscovery(this IOpcUaClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            new OpcUaBuilder(builder.Services).AddDiscovery();
+            return builder;
         }
 
         /// <summary>
@@ -629,6 +663,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 return new ManagedSessionFactory(telemetry);
             });
 
+            services.TryAddSingleton<IManagedSessionFactory, DefaultManagedSessionFactory>();
+            services.TryAddSingleton<IManagedSessionConnector, DefaultManagedSessionConnector>();
+
             services.TryAddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 sp => new ManagedSessionAccessor(sp).ConnectAsync);
 
@@ -640,6 +677,164 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             services.AddOpcUa();
+        }
+
+        internal static async Task<ManagedSession> ConnectManagedSessionAsync(
+            IServiceProvider sp,
+            ManagedSessionOptions sessionOptions,
+            Action<ManagedSessionBuilder> configure,
+            CancellationToken ct)
+        {
+            OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+            ValidateClientOptions(options, sessionOptions);
+            ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+            var builder = new ManagedSessionBuilder(options.Configuration!, telemetry);
+            ApplyManagedSessionOptions(sp, builder, sessionOptions);
+            configure(builder);
+
+            ManagedSession session = await builder.ConnectAsync(ct).ConfigureAwait(false);
+            if (sessionOptions.LoadComplexTypes)
+            {
+                IComplexTypeSystemFactory complexTypeSystemFactory =
+                    sp.GetService<IComplexTypeSystemFactory>() ??
+                    new DefaultComplexTypeSystemFactory(telemetry);
+                ComplexTypeSystem complexTypeSystem = complexTypeSystemFactory.Create(session);
+                await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+            }
+
+            return session;
+        }
+
+        private static void RegisterOptionsValidation(
+            IServiceCollection services,
+            OpcUaClientOptions options)
+        {
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IValidateOptions<OpcUaClientOptions>, OpcUaClientOptionsValidator>());
+            services.AddOptions<OpcUaClientOptions>()
+                .Configure(configuredOptions =>
+                {
+                    configuredOptions.Configuration = options.Configuration;
+                    configuredOptions.Session = options.Session;
+                    configuredOptions.Identity = options.Identity;
+                    configuredOptions.ReverseConnect = options.ReverseConnect;
+                })
+                .ValidateOnStart();
+        }
+
+        private static void ValidateClientOptions(
+            OpcUaClientOptions options,
+            ManagedSessionOptions sessionOptions)
+        {
+            ValidateOptionsResult result = OpcUaClientOptionsValidator.Validate(options);
+            if (!result.Failed && sessionOptions.Endpoint == null)
+            {
+                result = ValidateOptionsResult.Fail("A session endpoint is required.");
+            }
+            if (result.Failed)
+            {
+                throw new OptionsValidationException(
+                    string.Empty,
+                    typeof(OpcUaClientOptions),
+                    result.Failures);
+            }
+        }
+
+        private static void ApplyManagedSessionOptions(
+            IServiceProvider sp,
+            ManagedSessionBuilder builder,
+            ManagedSessionOptions sessionOptions)
+        {
+            if (sessionOptions.Endpoint != null)
+            {
+                builder.UseEndpoint(sessionOptions.Endpoint);
+            }
+            builder.WithSessionName(sessionOptions.SessionName)
+                   .WithSessionTimeout(sessionOptions.SessionTimeout)
+                   .WithCheckDomain(sessionOptions.CheckDomain)
+                   .WithReconnectPolicy(_ => sessionOptions.ReconnectPolicy);
+
+            IClientIdentityProvider? identityProvider =
+                sessionOptions.IdentityProvider ?? ResolveIdentityProvider(sp);
+            if (identityProvider != null)
+            {
+                builder.WithIdentityProvider(identityProvider);
+            }
+#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
+            else if (sessionOptions.Identity != null)
+            {
+                builder.WithUserIdentity(sessionOptions.Identity);
+            }
+#pragma warning restore CS0618
+
+            TimeProvider? timeProvider =
+                sessionOptions.TimeProvider ?? sp.GetService<TimeProvider>();
+            if (timeProvider != null)
+            {
+                builder.WithTimeProvider(timeProvider);
+            }
+
+            if (sessionOptions.PreferredLocales is { Count: > 0 } locales)
+            {
+                string[] arr = new string[locales.Count];
+                for (int i = 0; i < locales.Count; i++)
+                {
+                    arr[i] = locales[i];
+                }
+                builder.WithPreferredLocales(arr);
+            }
+            if (sessionOptions.SubscriptionEngineFactory != null)
+            {
+                builder.UseSubscriptionEngine(sessionOptions.SubscriptionEngineFactory);
+            }
+            if (sessionOptions.EnableServerRedundancy)
+            {
+                builder.WithServerRedundancy();
+            }
+            if (sessionOptions.TransferSubscriptionsOnRecreate)
+            {
+                builder.WithTransferSubscriptionsOnRecreate();
+            }
+            if (sessionOptions.PoolNotifications)
+            {
+                builder.WithPoolNotifications();
+            }
+            if (sessionOptions.ModelChangeTracking)
+            {
+                builder.WithModelChangeTracking();
+            }
+
+            IClientChannelManager? mgr = sp.GetService<IClientChannelManager>();
+            if (mgr != null)
+            {
+                builder.WithChannelManager(mgr);
+            }
+        }
+
+        private static IClientIdentityProvider? ResolveIdentityProvider(IServiceProvider sp)
+        {
+            IEnumerable<IClientIdentityProvider> registered =
+                sp.GetServices<IClientIdentityProvider>();
+            var providers = new List<IClientIdentityProvider>();
+            providers.AddRange(registered);
+
+            OpcUaClientOptions clientOptions =
+                sp.GetRequiredService<OpcUaClientOptions>();
+            OpcUaClientIdentityOptions identityOptions =
+                sp.GetService<OpcUaClientIdentityOptions>() ?? clientOptions.Identity;
+            if (providers.Count == 0)
+            {
+                return HasConfiguredIdentity(identityOptions)
+                    ? BuildConfiguredIdentityProvider(sp, identityOptions)
+                    : null;
+            }
+
+            ApplyConfiguredOrder(providers, identityOptions.Order);
+            if (providers.Count == 1)
+            {
+                return providers[0];
+            }
+            return new CompositeClientIdentityProvider(providers);
         }
 
         /// <summary>
@@ -698,6 +893,16 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        private sealed class OpcUaBuilder : IOpcUaBuilder
+        {
+            public OpcUaBuilder(IServiceCollection services)
+            {
+                Services = services;
+            }
+
+            public IServiceCollection Services { get; }
+        }
+
         private sealed class OpcUaClientBuilder : IOpcUaClientBuilder
         {
             public OpcUaClientBuilder(IServiceCollection services)
@@ -733,109 +938,33 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 OpcUaClientOptions options =
                     m_sp.GetRequiredService<OpcUaClientOptions>();
-                ITelemetryContext telemetry =
-                    m_sp.GetRequiredService<ITelemetryContext>();
-                if (options.Configuration == null)
-                {
-                    throw new InvalidOperationException(
-                        "OpcUaClientOptions.Configuration must be set before " +
-                        "resolving ManagedSession.");
-                }
-
-                var builder = new ManagedSessionBuilder(options.Configuration, telemetry);
-                if (options.Session.Endpoint != null)
-                {
-                    builder.UseEndpoint(options.Session.Endpoint);
-                }
-                builder.WithSessionName(options.Session.SessionName)
-                       .WithSessionTimeout(options.Session.SessionTimeout)
-                       .WithCheckDomain(options.Session.CheckDomain)
-                       .WithReconnectPolicy(_ => options.Session.ReconnectPolicy);
-
-                IClientIdentityProvider? identityProvider =
-                    options.Session.IdentityProvider ?? ResolveIdentityProvider();
-                if (identityProvider != null)
-                {
-                    builder.WithIdentityProvider(identityProvider);
-                }
-#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
-                else if (options.Session.Identity != null)
-                {
-                    builder.WithUserIdentity(options.Session.Identity);
-                }
-#pragma warning restore CS0618
-
-                TimeProvider? timeProvider =
-                    options.Session.TimeProvider ?? m_sp.GetService<TimeProvider>();
-                if (timeProvider != null)
-                {
-                    builder.WithTimeProvider(timeProvider);
-                }
-
-                if (options.Session.PreferredLocales is { Count: > 0 } locales)
-                {
-                    string[] arr = new string[locales.Count];
-                    for (int i = 0; i < locales.Count; i++)
-                    {
-                        arr[i] = locales[i];
-                    }
-                    builder.WithPreferredLocales(arr);
-                }
-                if (options.Session.SubscriptionEngineFactory != null)
-                {
-                    builder.UseSubscriptionEngine(options.Session.SubscriptionEngineFactory);
-                }
-                if (options.Session.EnableServerRedundancy)
-                {
-                    builder.WithServerRedundancy();
-                }
-                if (options.Session.TransferSubscriptionsOnRecreate)
-                {
-                    builder.WithTransferSubscriptionsOnRecreate();
-                }
-                if (options.Session.PoolNotifications)
-                {
-                    builder.WithPoolNotifications();
-                }
-
-                IClientChannelManager? mgr = m_sp.GetService<IClientChannelManager>();
-                if (mgr != null)
-                {
-                    builder.WithChannelManager(mgr);
-                }
-
-                return builder.ConnectAsync(ct);
-            }
-
-            private IClientIdentityProvider? ResolveIdentityProvider()
-            {
-                IEnumerable<IClientIdentityProvider> registered =
-                    m_sp.GetServices<IClientIdentityProvider>();
-                var providers = new List<IClientIdentityProvider>();
-                providers.AddRange(registered);
-
-                OpcUaClientOptions clientOptions =
-                    m_sp.GetRequiredService<OpcUaClientOptions>();
-                OpcUaClientIdentityOptions identityOptions =
-                    m_sp.GetService<OpcUaClientIdentityOptions>() ?? clientOptions.Identity;
-                if (providers.Count == 0)
-                {
-                    return HasConfiguredIdentity(identityOptions)
-                        ? BuildConfiguredIdentityProvider(m_sp, identityOptions)
-                        : null;
-                }
-
-                ApplyConfiguredOrder(providers, identityOptions.Order);
-                if (providers.Count == 1)
-                {
-                    return providers[0];
-                }
-                return new CompositeClientIdentityProvider(providers);
+                return ConnectManagedSessionAsync(m_sp, options.Session, _ => { }, ct);
             }
 
             private readonly IServiceProvider m_sp;
             private Task<ManagedSession>? m_connectTask;
             private readonly Lock m_gate = new();
+        }
+
+        private sealed class OpcUaClientOptionsValidator : IValidateOptions<OpcUaClientOptions>
+        {
+            public ValidateOptionsResult Validate(string? name, OpcUaClientOptions options)
+            {
+                return Validate(options);
+            }
+
+            public static ValidateOptionsResult Validate(OpcUaClientOptions options)
+            {
+                var failures = new List<string>();
+                if (options.Configuration == null)
+                {
+                    failures.Add("OpcUaClientOptions.Configuration is required.");
+                }
+
+                return failures.Count == 0
+                    ? ValidateOptionsResult.Success
+                    : ValidateOptionsResult.Fail(failures);
+            }
         }
     }
 }

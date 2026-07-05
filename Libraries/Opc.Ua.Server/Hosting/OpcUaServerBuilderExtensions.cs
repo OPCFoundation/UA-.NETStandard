@@ -36,6 +36,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -43,6 +44,9 @@ using Opc.Ua;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
+using Opc.Ua.Server.AliasNames;
+using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
@@ -112,7 +116,47 @@ namespace Microsoft.Extensions.DependencyInjection
             EnsureFirstRegistration(builder.Services);
 
             builder.Services.AddOptions<OpcUaServerOptions>().Configure(configure);
-            RegisterCommonServices(builder.Services, enableConfiguredIdentityAuthenticators: false);
+            RegisterCommonServices(builder.Services, enableConfiguredIdentityAuthenticators: true);
+            RegisterConfiguredJwtIssuers(builder.Services);
+
+            return new OpcUaServerBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// using a custom <see cref="StandardServer"/> subclass.
+        /// </summary>
+        /// <typeparam name="TServer">The server type created by the hosted service.</typeparam>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">Required callback used to populate
+        /// <see cref="OpcUaServerOptions"/>.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TServer>(
+                this IOpcUaBuilder builder,
+                Action<OpcUaServerOptions> configure)
+            where TServer : StandardServer
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            EnsureFirstRegistration(builder.Services);
+
+            builder.Services.AddOptions<OpcUaServerOptions>().Configure(configure);
+            RegisterCommonServices(builder.Services, enableConfiguredIdentityAuthenticators: true);
+            RegisterConfiguredJwtIssuers(builder.Services);
+            builder.Services.Replace(ServiceDescriptor.Singleton<IOpcUaServerFactory,
+                ActivatorOpcUaServerFactory<TServer>>());
 
             return new OpcUaServerBuilder(builder.Services);
         }
@@ -440,6 +484,273 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Registers durable subscription persistence services used by
+        /// <see cref="StandardServer"/> during startup.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddDurableSubscriptions(
+            this IOpcUaServerBuilder builder,
+            ISubscriptionStore subscriptionStore,
+            IMonitoredItemQueueFactory monitoredItemQueueFactory)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (subscriptionStore is null)
+            {
+                throw new ArgumentNullException(nameof(subscriptionStore));
+            }
+            if (monitoredItemQueueFactory is null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItemQueueFactory));
+            }
+
+            builder.Services.AddSingleton(subscriptionStore);
+            builder.Services.AddSingleton(monitoredItemQueueFactory);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a session manager factory used by the hosted server.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddSessionManager(
+            this IOpcUaServerBuilder builder,
+            Func<IServiceProvider, IServerInternal, ApplicationConfiguration, ISessionManager> factory)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (factory is null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            builder.Services.AddSingleton(new OpcUaServerSessionManagerRegistration(factory));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a session manager type created with dependency injection.
+        /// </summary>
+        /// <typeparam name="TManager">The session manager type.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddSessionManager<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TManager>(
+                this IOpcUaServerBuilder builder)
+            where TManager : class, ISessionManager
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddTransient<TManager>();
+            builder.Services.AddSingleton(new OpcUaServerSessionManagerRegistration(
+                (sp, server, configuration) => ActivatorUtilities.CreateInstance<TManager>(
+                    sp,
+                    server,
+                    configuration)));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a subscription manager factory used by the hosted server.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddSubscriptionManager(
+            this IOpcUaServerBuilder builder,
+            Func<IServiceProvider, IServerInternal, ApplicationConfiguration, ISubscriptionManager> factory)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (factory is null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            builder.Services.AddSingleton(new OpcUaServerSubscriptionManagerRegistration(factory));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a subscription manager type created with dependency injection.
+        /// </summary>
+        /// <typeparam name="TManager">The subscription manager type.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddSubscriptionManager<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TManager>(
+                this IOpcUaServerBuilder builder)
+            where TManager : class, ISubscriptionManager
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddTransient<TManager>();
+            builder.Services.AddSingleton(new OpcUaServerSubscriptionManagerRegistration(
+                (sp, server, configuration) => ActivatorUtilities.CreateInstance<TManager>(
+                    sp,
+                    server,
+                    configuration)));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a server-wide historian provider as the default provider.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddHistorian(
+            this IOpcUaServerBuilder builder,
+            IHistorianProvider provider)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            builder.Services.AddSingleton(provider);
+            builder.Services.AddSingleton(new OpcUaServerHistorianRegistration(provider));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the Part 20 file system provider and node manager.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddFileSystem(
+            this IOpcUaServerBuilder builder,
+            IFileSystemProvider provider)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            builder.Services.AddSingleton(provider);
+            builder.Services.AddSingleton<FileSystemNodeManagerFactory>();
+            builder.Services.AddSingleton(sp => new OpcUaServerNodeManagerRegistration(
+                (IAsyncNodeManagerFactory)sp.GetRequiredService<FileSystemNodeManagerFactory>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a physical-directory Part 20 file system provider and node manager.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddFileSystem(
+            this IOpcUaServerBuilder builder,
+            string rootDirectory,
+            string? mountName = null,
+            bool isWritable = true)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            return builder.AddFileSystem(new PhysicalFileSystemProvider(rootDirectory, mountName, isWritable));
+        }
+
+        /// <summary>
+        /// Registers the server secret store used by server features that persist secrets.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddSecretStore(
+            this IOpcUaServerBuilder builder,
+            ISecretStore secretStore)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (secretStore is null)
+            {
+                throw new ArgumentNullException(nameof(secretStore));
+            }
+
+            builder.Services.AddSingleton(secretStore);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a certificate manager for the hosted server configuration.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddCertificateManager(
+            this IOpcUaServerBuilder builder,
+            ICertificateManager certificateManager)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (certificateManager is null)
+            {
+                throw new ArgumentNullException(nameof(certificateManager));
+            }
+
+            builder.Services.AddSingleton(certificateManager);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a Part 17 alias-name store with the hosted server.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddAliasNameStore(
+            this IOpcUaServerBuilder builder,
+            IAliasNameStore store)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+
+            builder.Services.AddSingleton(store);
+            builder.Services.AddSingleton(new OpcUaServerAliasNameStoreRegistration(store));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a Part 17 alias-name store registry whose stores are copied into the server registry.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddAliasNameStoreRegistry(
+            this IOpcUaServerBuilder builder,
+            IAliasNameStoreRegistry registry)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (registry is null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+
+            builder.Services.AddSingleton(registry);
+            return builder;
+        }
+
         private static void RegisterDefaultIdentityAuthenticators(
             IServiceCollection services,
             DefaultAuthenticatorOptions options)
@@ -567,6 +878,81 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();
+            services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
+            RegisterFallbackAnonymousAuthenticator(services);
+        }
+
+        private static void RegisterFallbackAnonymousAuthenticator(IServiceCollection services)
+        {
+            services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
+                (sp, _) =>
+                {
+                    if (sp.GetService<OpcUaServerDefaultIdentityAuthenticatorsMarker>() != null)
+                    {
+                        return [];
+                    }
+
+                    foreach (OpcUaServerIdentityAuthenticatorRegistration registration in
+                        sp.GetServices<OpcUaServerIdentityAuthenticatorRegistration>())
+                    {
+                        if (!registration.IsFallback)
+                        {
+                            return [];
+                        }
+                    }
+
+                    return [new AnonymousAuthenticator()];
+                },
+                isFallback: true));
+        }
+
+        /// <summary>
+        /// Registers a deferred authenticator source that materializes JWT
+        /// authenticators from <see cref="OpcUaServerIdentityOptions.Issuers"/>
+        /// configured on the bound <see cref="OpcUaServerOptions"/>. Used by the
+        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>
+        /// overload so issuers set in code (or bound into the options object)
+        /// are honored the same way the configuration-section overload honors
+        /// <c>OpcUa:Server:Identity:Issuers</c>.
+        /// </summary>
+        private static void RegisterConfiguredJwtIssuers(IServiceCollection services)
+        {
+            services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
+                (sp, _) =>
+                {
+                    if (sp.GetService<OpcUaServerDefaultIdentityAuthenticatorsMarker>() != null)
+                    {
+                        return [];
+                    }
+
+                    OpcUaServerOptions options = sp.GetRequiredService<IOptions<OpcUaServerOptions>>().Value;
+                    return CreateConfiguredJwtIssuerAuthenticators(sp, options);
+                }));
+        }
+
+        private static IEnumerable<IUserTokenAuthenticator> CreateConfiguredJwtIssuerAuthenticators(
+            IServiceProvider services,
+            OpcUaServerOptions options)
+        {
+            DefaultAuthenticatorOptions defaults = options.Identity.Defaults;
+            if (!defaults.EnableJwt)
+            {
+                yield break;
+            }
+
+            foreach (JwtIssuerOptions issuer in options.Identity.Issuers)
+            {
+                issuer.Validate();
+                ValidateAlgorithms(issuer);
+                string? audience = issuer.Audience ?? defaults.ExpectedAudience;
+                if (!string.IsNullOrEmpty(audience))
+                {
+                    yield return new JwtAuthenticator(
+                        CreateIssuerKeyResolver(services, issuer),
+                        audience,
+                        defaults.ClockSkewTolerance);
+                }
+            }
         }
 
         private static void BindOpcUaServerOptions(OpcUaServerOptions options, IConfiguration section)
@@ -915,8 +1301,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 resolvers.Add(new JwksIssuerKeyResolver(
                     options.IssuerUri,
                     options.JwksUri,
-                    services.GetRequiredService<HttpClient>(),
-                    services.GetRequiredService<TimeProvider>(),
+                    services.GetService<HttpClient>() ?? s_jwtIssuerHttpClient,
+                    services.GetService<TimeProvider>() ?? TimeProvider.System,
                     TimeSpan.FromMinutes(5),
                     options.GetEffectiveAlgorithms()));
             }
@@ -973,6 +1359,14 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             return false;
         }
+
+        /// <summary>
+        /// Shared <see cref="HttpClient"/> used to build JWKS issuer key resolvers on the
+        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/> path when the
+        /// container has not registered one. Reused for the process lifetime per
+        /// <see cref="HttpClient"/> guidance; <see cref="JwksIssuerKeyResolver"/> does not dispose it.
+        /// </summary>
+        private static readonly HttpClient s_jwtIssuerHttpClient = new();
 
         private sealed class JwtIssuerRegistration : IDisposable
         {

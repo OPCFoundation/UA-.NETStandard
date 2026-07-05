@@ -59,7 +59,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     public class PipeByteTransportTests
     {
         private const int kBufferSize = 8192;
-        private const int kMinChunkSize = 8; // UASC header length
 
         private BufferManager m_bufferManager = null!;
         private TelemetryStub m_telemetry = null!;

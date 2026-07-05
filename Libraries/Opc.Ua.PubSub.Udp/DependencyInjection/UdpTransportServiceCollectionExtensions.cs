@@ -176,10 +176,54 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Registers a PubSub publisher and subscriber with the UDP transport.
+        /// </summary>
+        /// <param name="services">Service collection.</param>
+        /// <param name="configure">Optional UDP transport builder callback.</param>
+        /// <returns>The same <paramref name="services"/> instance.</returns>
+        public static IServiceCollection AddUdpPubSub(
+            this IServiceCollection services,
+            Action<IUdpTransportBuilder>? configure = null)
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            services.AddOpcUa().AddUdpPubSub(configure);
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a PubSub publisher and subscriber with the UDP transport.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configure">Optional UDP transport builder callback.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IOpcUaBuilder AddUdpPubSub(
+            this IOpcUaBuilder builder,
+            Action<IUdpTransportBuilder>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddPubSub(pubsub =>
+            {
+                IUdpTransportBuilder udpBuilder = pubsub
+                    .AddPublisher()
+                    .AddSubscriber()
+                    .AddUdpTransport();
+                configure?.Invoke(udpBuilder);
+            });
+            return builder;
+        }
+
         private static void RegisterFactory(IServiceCollection services)
         {
-            services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IPubSubTransportFactory, UdpPubSubTransportFactory>());
+            services.TryAddPubSubTransportFactory<UdpPubSubTransportFactory>();
         }
 
         private static void RegisterDtls(IServiceCollection services)

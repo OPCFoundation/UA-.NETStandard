@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Server.Hosting
@@ -50,6 +51,16 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// services the GDS implementation may need.
         /// </summary>
         IServiceCollection Services { get; }
+
+        /// <summary>
+        /// Registers the in-box in-memory GDS stores:
+        /// <see cref="LinqApplicationsDatabase"/> for applications and
+        /// certificate requests, <see cref="CertificateGroup"/> for
+        /// certificate groups, and
+        /// <see cref="Opc.Ua.Server.UserDatabase.LinqUserDatabase"/> for
+        /// users.
+        /// </summary>
+        IGdsServerBuilder AddInMemoryStores();
 
         /// <summary>
         /// Registers an <see cref="IApplicationsDatabase"/> implementation

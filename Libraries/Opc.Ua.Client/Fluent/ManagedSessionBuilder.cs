@@ -537,6 +537,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Enables or disables automatic complex-type loading after connect.
+        /// Disabled by default.
+        /// </summary>
+        public ManagedSessionBuilder WithLoadComplexTypes(
+            bool enabled = true)
+        {
+            m_options = m_options with
+            {
+                LoadComplexTypes = enabled
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Use a specific session factory. By default, the builder
         /// creates a new <see cref="DefaultSessionFactory"/> configured with
         /// the V2 subscription engine.
@@ -655,6 +669,11 @@ namespace Opc.Ua.Client
             if (opts.ModelChangeTracking)
             {
                 await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
+            }
+            if (opts.LoadComplexTypes)
+            {
+                var complexTypeSystem = new ComplexTypes.ComplexTypeSystem(session, m_telemetry);
+                await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
             }
 
             return session;

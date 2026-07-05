@@ -61,8 +61,27 @@ namespace Opc.Ua.PubSub.Pcap
             ArgumentNullException.ThrowIfNull(services);
             services.TryAddSingleton<IPubSubCaptureRegistry, PubSubCaptureRegistry>();
             services.TryAddSingleton<PubSubCaptureSessionManager>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<
+                IPubSubTransportFactoryDecorator,
+                CapturingPubSubTransportFactoryDecorator>());
             DecorateTransportFactories(services);
             return services;
+        }
+
+        /// <summary>
+        /// Registers PubSub packet capture diagnostics on the fluent PubSub builder.
+        /// </summary>
+        /// <param name="builder">The PubSub builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IPubSubBuilder AddPcapCapture(this IPubSubBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddPubSubPcap();
+            return builder;
         }
 
         /// <summary>
@@ -113,13 +132,19 @@ namespace Opc.Ua.PubSub.Pcap
                 {
                     continue;
                 }
+                if (descriptor.ImplementationType is not null &&
+                    typeof(IPubSubTransportFactoryRegistration).IsAssignableFrom(descriptor.ImplementationType))
+                {
+                    continue;
+                }
+                if (descriptor.ImplementationFactory?.Target is IPubSubTransportFactoryRegistration)
+                {
+                    continue;
+                }
                 ServiceDescriptor original = descriptor;
                 services[i] = ServiceDescriptor.Describe(
                     typeof(IPubSubTransportFactory),
-                    sp => new CapturingPubSubTransportFactory(
-                        (IPubSubTransportFactory)ResolveInner(sp, original),
-                        sp.GetRequiredService<IPubSubCaptureRegistry>(),
-                        sp.GetService<ILoggerFactory>()),
+                    new CapturingPubSubTransportFactoryRegistration(original).Resolve,
                     descriptor.Lifetime);
             }
         }
@@ -140,6 +165,39 @@ namespace Opc.Ua.PubSub.Pcap
             }
             throw new InvalidOperationException(
                 "Transport factory descriptor has no resolvable implementation.");
+        }
+
+        private sealed class CapturingPubSubTransportFactoryDecorator : IPubSubTransportFactoryDecorator
+        {
+            public IPubSubTransportFactory Decorate(
+                IServiceProvider provider,
+                IPubSubTransportFactory factory)
+            {
+                return new CapturingPubSubTransportFactory(
+                    factory,
+                    provider.GetRequiredService<IPubSubCaptureRegistry>(),
+                    provider.GetService<ILoggerFactory>());
+            }
+        }
+
+        private sealed class CapturingPubSubTransportFactoryRegistration : IPubSubTransportFactoryRegistration
+        {
+            private readonly ServiceDescriptor m_original;
+
+            public CapturingPubSubTransportFactoryRegistration(ServiceDescriptor original)
+            {
+                m_original = original;
+            }
+
+            public bool AppliesDecorators => true;
+
+            public CapturingPubSubTransportFactory Resolve(IServiceProvider provider)
+            {
+                return new CapturingPubSubTransportFactory(
+                    (IPubSubTransportFactory)ResolveInner(provider, m_original),
+                    provider.GetRequiredService<IPubSubCaptureRegistry>(),
+                    provider.GetService<ILoggerFactory>());
+            }
         }
     }
 }

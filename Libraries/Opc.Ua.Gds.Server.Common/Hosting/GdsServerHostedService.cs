@@ -33,9 +33,11 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Identity;
@@ -87,6 +89,39 @@ namespace Opc.Ua.Gds.Server.Hosting
             IOptions<GdsServerOptions> options,
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
+            IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
+            IServiceProvider services,
+            IOptions<GdsDefaultIdentityAuthenticatorOptions> defaultAuthenticatorOptions,
+            ILogger<GdsServerHostedService> logger,
+            IAccessTokenProvider? accessTokenProvider = null,
+            AuthorizationServiceManager? authorizationServiceManager = null,
+            IKeyCredentialRequestStore? keyCredentialStore = null,
+            IConfigurationDataStore? configurationStore = null)
+            : this(
+                options,
+                telemetry,
+                applicationFactory,
+                RequireStore<IApplicationsDatabase>(services, nameof(IApplicationsDatabase)),
+                RequireStore<ICertificateRequest>(services, nameof(ICertificateRequest)),
+                RequireStore<ICertificateGroup>(services, nameof(ICertificateGroup)),
+                RequireStore<IUserDatabase>(services, nameof(IUserDatabase)),
+                identityRegistrations,
+                augmenterRegistrations,
+                services,
+                defaultAuthenticatorOptions,
+                logger,
+                accessTokenProvider,
+                authorizationServiceManager,
+                keyCredentialStore,
+                configurationStore)
+        {
+        }
+
+        public GdsServerHostedService(
+            IOptions<GdsServerOptions> options,
+            ITelemetryContext telemetry,
+            IApplicationInstanceFactory applicationFactory,
             IApplicationsDatabase database,
             ICertificateRequest certificateRequest,
             ICertificateGroup certificateGroup,
@@ -131,6 +166,20 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_authorizationServiceManager = authorizationServiceManager;
             m_keyCredentialStore = keyCredentialStore;
             m_configurationStore = configurationStore;
+        }
+
+        private static T RequireStore<T>(IServiceProvider services, string serviceName)
+            where T : class
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            return services.GetService<T>() ?? throw new InvalidOperationException(
+                $"AddGdsServer requires a {serviceName} registration. " +
+                "Call AddInMemoryStores() for the built-in in-memory stores or register a custom store with the " +
+                "matching AddApplicationsDatabase, AddCertificateRequest, AddCertificateGroup, or AddUserDatabase method.");
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -215,6 +264,11 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_configurationStore,
                 m_options.AutoApprove,
                 m_enableBuiltInApplicationSelfAdminProvider);
+
+            if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
+            {
+                m_server.TransportBindings = transportBindings;
+            }
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();

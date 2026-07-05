@@ -29,12 +29,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Lds.Server.Hosting;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Lds.Tests.Hosting
 {
@@ -46,6 +50,8 @@ namespace Opc.Ua.Lds.Tests.Hosting
     /// </summary>
     [TestFixture]
     [Category("Hosting")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public sealed class OpcUaLdsServerBuilderTests
     {
@@ -179,6 +185,85 @@ namespace Opc.Ua.Lds.Tests.Hosting
             }
             Assert.That(foundLds, "LDS hosted service must be registered.");
             Assert.That(foundServer, "Regular server hosted service must be registered.");
+        }
+
+        [Test]
+        public void InitializeServiceHostsThrowsForUnregisteredScheme()
+        {
+            var server = new TestLdsServer();
+            ApplicationConfiguration configuration = CreateConfiguration("https://localhost:4840/TestLds");
+            var registry = new DefaultTransportBindingRegistry();
+
+            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await server.InitializeAndDiscardAsync(configuration, registry).ConfigureAwait(false))!;
+
+            Assert.That(exception.Message, Does.Contain("https"));
+            Assert.That(exception.Message, Does.Contain("AddHttpsTransport"));
+        }
+
+        [Test]
+        public async Task InitializeServiceHostsUsesRegisteredTcpFactoryAsync()
+        {
+            var server = new TestLdsServer();
+            ApplicationConfiguration configuration = CreateConfiguration("opc.tcp://localhost:4840/TestLds");
+            var registry = new DefaultTransportBindingRegistry();
+            var factory = new FakeTcpListenerFactory();
+            registry.RegisterListenerFactory(factory);
+
+            await server.InitializeAndDiscardAsync(configuration, registry).ConfigureAwait(false);
+
+            Assert.That(factory.CreateServiceHostCallCount, Is.EqualTo(1));
+        }
+
+        private static ApplicationConfiguration CreateConfiguration(string endpointUrl)
+        {
+            return new ApplicationConfiguration
+            {
+                ApplicationName = "TestLds",
+                ApplicationUri = "urn:localhost:UA:TestLds",
+                ProductUri = "uri:opcfoundation.org:TestLds",
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = [endpointUrl]
+                }
+            };
+        }
+
+        private sealed class TestLdsServer : Opc.Ua.Lds.Server.LdsServer
+        {
+            public async Task InitializeAndDiscardAsync(
+                ApplicationConfiguration configuration,
+                ITransportBindingRegistry registry)
+            {
+                await InitializeServiceHostsAsync(configuration, registry).ConfigureAwait(false);
+            }
+        }
+
+        private sealed class FakeTcpListenerFactory : ITransportListenerFactory
+        {
+            public string UriScheme => Utils.UriSchemeOpcTcp;
+
+            public int CreateServiceHostCallCount { get; private set; }
+
+            public ITransportListener Create(ITelemetryContext telemetry)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
+                ServerBase serverBase,
+                IDictionary<string, ServiceHost> hosts,
+                ApplicationConfiguration configuration,
+                ArrayOf<string> baseAddresses,
+                ApplicationDescription serverDescription,
+                ArrayOf<ServerSecurityPolicy> securityPolicies,
+                ICertificateRegistry serverCertificates,
+                ICertificateValidatorEx clientCertificateValidator,
+                CancellationToken ct = default)
+            {
+                CreateServiceHostCallCount++;
+                return new ValueTask<List<EndpointDescription>>([]);
+            }
         }
     }
 }

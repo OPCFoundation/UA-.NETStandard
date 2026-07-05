@@ -30,8 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Server.Hosting;
@@ -241,8 +245,19 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton(sp =>
                 new OpcUaServerNodeManagerRegistration(
                     sp.GetRequiredService<WotConnectivityNodeManagerFactory>()));
+            if (!HasOpcUaServerHostedService(services))
+            {
+                services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WotConServerStartupValidator>());
+            }
 
             services.AddOpcUa();
+        }
+
+        private static bool HasOpcUaServerHostedService(IServiceCollection services)
+        {
+            return services.Any(d =>
+                d.ServiceType == typeof(IHostedService) &&
+                d.ImplementationType?.Name == "OpcUaServerHostedService");
         }
 
         private sealed class WotConServerBuilder : IWotConServerBuilder
@@ -281,6 +296,21 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 Services.TryAddSingleton<IWotAssetDiscoveryProvider, T>();
                 return this;
+            }
+        }
+
+        private sealed class WotConServerStartupValidator : IHostedService
+        {
+            public Task StartAsync(CancellationToken cancellationToken)
+            {
+                throw new InvalidOperationException(
+                    "AddWotConServer registers an OPC UA server node manager and requires AddServer on the same " +
+                    "IOpcUaBuilder. Call AddServer before AddWotConServer.");
+            }
+
+            public Task StopAsync(CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
             }
         }
 

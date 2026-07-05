@@ -18,6 +18,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
+    <!--
+      Legacy TFM builds intentionally compile an empty compatibility shell because PubSub diagnostics tests are
+      net8.0+ only. Suppress empty-shell compiler/assembly warnings for that shell.
+      TODO: remove when legacy TFM validation no longer builds the diagnostics test compatibility shell.
+    -->
+    <NoWarn Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">$(NoWarn);CS2008;CA1016</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

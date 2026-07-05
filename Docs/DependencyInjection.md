@@ -187,6 +187,27 @@ same container. See *Combined hosts* below.
 `.AddServer(...)` throws `InvalidOperationException` on a second call:
 at most one regular server may be registered per service collection.
 
+Advanced server services can be supplied through the same fluent builder:
+
+```csharp
+builder.Services
+    .AddOpcUa()
+    .AddServer<MyStandardServer>(o => /* … */) // optional StandardServer subclass
+    .AddSessionManager<MySessionManager>()
+    .AddSubscriptionManager<MySubscriptionManager>()
+    .AddDurableSubscriptions(subscriptionStore, monitoredItemQueueFactory)
+    .AddHistorian(historianProvider)
+    .AddFileSystem(fileSystemProvider)
+    .AddSecretStore(secretStore)
+    .AddCertificateManager(certificateManager)
+    .AddAliasNameStore(aliasNameStore);
+```
+
+If no identity authenticator is configured, the regular hosted server adds
+an anonymous authenticator matching its default anonymous user-token policy.
+If a non-anonymous user-token policy is configured without a corresponding
+authenticator, startup logs a warning.
+
 For advanced configuration (custom security policies, custom security
 stores), set `OpcUaServerOptions.ConfigureBuilder` — it receives the
 underlying `IApplicationConfigurationBuilderServerSelected` between the
@@ -385,7 +406,19 @@ ManagedSession session = await sessionFactory(ct);
 
 `AddClient` also registers `ITelemetryContext`, `ISessionFactory` (a
 `DefaultSessionFactory` configured with the V2 subscription engine),
-`ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+`ManagedSessionFactory`, `IManagedSessionFactory`, and the top-level
+`OpcUaClientOptions`. The cached delegate is convenient for a single fixed
+endpoint; resolve `IManagedSessionFactory` when endpoints are selected at
+runtime:
+
+```csharp
+var managedSessions = sp.GetRequiredService<IManagedSessionFactory>();
+ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct);
+```
+
+Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>`
+when the host starts and again before a DI-created session connects. Set
+`Configuration` and `Session.Endpoint` in every `AddClient` registration.
 
 ### Identity (client)
 
@@ -467,13 +500,35 @@ identities. The `ManagedSession` proactive-refresh scheduler keys off
 services.AddOpcUa().AddClient(/* … */).AddComplexTypes();
 ```
 
-Registers a `ComplexTypeSystemFactory` (transient) that can be resolved
+`AddComplexTypes()` can be chained directly after `AddClient(...)`. It
+registers a `ComplexTypeSystemFactory` (singleton) that can be resolved
 and used to build a `ComplexTypeSystem` for a connected session:
 
 ```csharp
 var factory = sp.GetRequiredService<ComplexTypeSystemFactory>();
 ComplexTypeSystem cts = factory.Create(session);
 await cts.LoadAsync(...);
+```
+
+For a managed client that should load complex types automatically after
+connect, use either `ManagedSessionBuilder.WithLoadComplexTypes()` or set
+`ManagedSessionOptions.LoadComplexTypes = true`. The one-shot
+`AddManagedClient(...)` helper registers client services, reconnect defaults,
+and complex-type loading together:
+
+```csharp
+services.AddOpcUa().AddManagedClient(opt =>
+{
+    opt.Configuration = applicationConfiguration;
+    opt.Session = new ManagedSessionOptions { Endpoint = endpoint };
+});
+```
+
+The direct constructor fallback remains available:
+
+```csharp
+var cts = new ComplexTypeSystem(session, telemetry);
+await cts.LoadAsync(ct: ct);
 ```
 
 ## Alarms and conditions
@@ -662,8 +717,9 @@ services
     .AddCertificateGroup<MyCertificateGroup>()
     .AddCertificateRequest<MyCertificateRequest>()
     .AddUserDatabase<MyUserDatabase>();
+    .AddInMemoryStores()
     // Optionally:
-    // .WithAuthorizationService<MyTokenIssuer>(o => o.IssuerUri = "urn:my-gds")
+    // .AddAuthorizationService<MyTokenIssuer>(o => o.IssuerUri = "urn:my-gds")
     // .AddAccessTokenProvider<MyAccessTokenProvider>()
     // .AddKeyCredentialRequestStore<MyKeyCredentialRequestStore>()
     // .AddConfigurationDataStore<MyConfigurationDataStore>();
@@ -703,9 +759,10 @@ services
 augmenters; `AddGdsApplicationSelfAdminProvider()` registers the built-in
 OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
 `AddDefaultIdentityAuthenticators(...)` helper.
-`WithAuthorizationService(...)` enables the default `CertificateJwtIssuer`;
-`WithAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
+`AddAuthorizationService(...)` enables the default `CertificateJwtIssuer`;
+`AddAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
 for cloud KMS, HSM, or external token-service signing.
+The older `WithAuthorizationService(...)` methods remain as obsolete aliases.
 
 `GdsServerHostedService` consumes these forwarded registrations during
 startup and adds them to the same identity registry used by regular OPC
@@ -764,6 +821,9 @@ services
 as an `OpcUaServerNodeManagerRegistration` so it attaches to the regular
 server feature. `IWotAssetProviderFactory` and `IWotAssetDiscoveryProvider`
 services registered in dependency injection are picked up automatically.
+If `AddWotConServer` is registered without a preceding `AddServer`, startup
+fails with a clear configuration error instead of silently dropping the node
+manager registration.
 
 ## WoT Connectivity Client
 

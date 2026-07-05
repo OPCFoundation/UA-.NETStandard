@@ -35,6 +35,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp.Dtls;
@@ -43,6 +44,8 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Udp.Tests
 {
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestSpec("7.3.2", Summary = "UDP transport DI binding")]
     public sealed class UdpTransportServiceCollectionExtensionsTests
     {
@@ -142,6 +145,51 @@ namespace Opc.Ua.PubSub.Udp.Tests
             {
                 Assert.That(options.Ttl, Is.EqualTo(2));
                 Assert.That(options.PreferredNetworkInterface, Is.EqualTo("Ethernet 0"));
+            });
+        }
+
+        [Test]
+        public async Task AddUdpPubSubRegistersPublisherSubscriberAndUdpTransportAsync()
+        {
+            var services = new ServiceCollection();
+            bool configured = false;
+
+            services.AddUdpPubSub(udp =>
+            {
+                configured = true;
+                udp.WithDtls(options => options.PreferredProfileName = "ECC_nistP256");
+            });
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubTransportFactory[] factories =
+                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+            DtlsTransportOptions dtlsOptions =
+                serviceProvider.GetRequiredService<IOptions<DtlsTransportOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(configured, Is.True);
+                Assert.That(serviceProvider.GetService<IPubSubApplication>(), Is.Not.Null);
+                Assert.That(factories.OfType<UdpPubSubTransportFactory>().Count(), Is.EqualTo(1));
+                Assert.That(dtlsOptions.PreferredProfileName, Is.EqualTo("ECC_nistP256"));
+            });
+        }
+
+        [Test]
+        public async Task AddUdpPubSubOnOpcUaBuilderReturnsOpcUaBuilderAsync()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            IOpcUaBuilder returned = builder.AddUdpPubSub();
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            Assert.Multiple(() =>
+            {
+                Assert.That(returned, Is.SameAs(builder));
+                Assert.That(
+                    serviceProvider.GetServices<IPubSubTransportFactory>().OfType<UdpPubSubTransportFactory>(),
+                    Is.Not.Empty);
             });
         }
     }

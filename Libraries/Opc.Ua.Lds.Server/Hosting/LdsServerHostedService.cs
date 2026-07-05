@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 
 #nullable enable
@@ -55,9 +56,11 @@ namespace Opc.Ua.Lds.Server.Hosting
         private readonly LdsServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
+        private readonly ITransportBindingRegistry? m_transportBindings;
         private readonly ILogger<LdsServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
-        // managed via the async StopAsync override which calls m_application.StopAsync.
+        // managed via the async StopAsync override which disposes m_application
+        // via DisposeAsync.
 #pragma warning disable CA2213
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
@@ -67,7 +70,8 @@ namespace Opc.Ua.Lds.Server.Hosting
             IOptions<LdsServerOptions> options,
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
-            ILogger<LdsServerHostedService> logger)
+            ILogger<LdsServerHostedService> logger,
+            ITransportBindingRegistry? transportBindings = null)
         {
             if (options is null)
             {
@@ -77,6 +81,7 @@ namespace Opc.Ua.Lds.Server.Hosting
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_applicationFactory = applicationFactory ?? throw new ArgumentNullException(nameof(applicationFactory));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_transportBindings = transportBindings;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -146,6 +151,11 @@ namespace Opc.Ua.Lds.Server.Hosting
 
             m_server = new LdsServer(m_telemetry);
 
+            if (m_transportBindings != null)
+            {
+                m_server.TransportBindings = m_transportBindings;
+            }
+
             if (m_options.EnableMulticast)
             {
                 ILogger multicastLogger = m_telemetry.CreateLogger<MulticastDiscovery>();
@@ -189,6 +199,11 @@ namespace Opc.Ua.Lds.Server.Hosting
                 catch (Exception ex)
                 {
                     m_logger.LogWarning(ex, "Error while stopping OPC UA LDS.");
+                }
+                finally
+                {
+                    await m_application.DisposeAsync().ConfigureAwait(false);
+                    m_application = null;
                 }
             }
         }

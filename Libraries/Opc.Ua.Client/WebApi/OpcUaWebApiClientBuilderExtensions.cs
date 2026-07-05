@@ -31,6 +31,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
 using Opc.Ua.Bindings;
+using Opc.Ua.Client;
 using Opc.Ua.Client.WebApi;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -68,6 +69,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         public static IOpcUaBuilder AddWebApiTransportChannel(this IOpcUaBuilder builder)
+        {
+            return AddWebApiTransportChannel(builder, configure: null);
+        }
+
+        /// <summary>
+        /// Registers the Web API transport channel factory with default
+        /// <see cref="WebApiClientOptions"/> and keeps the client builder
+        /// chain flowing.
+        /// </summary>
+        public static IOpcUaClientBuilder AddWebApiTransportChannel(
+            this IOpcUaClientBuilder builder)
         {
             return AddWebApiTransportChannel(builder, configure: null);
         }
@@ -128,6 +140,33 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             return builder;
+        }
+
+        /// <summary>
+        /// Registers the Web API transport channel factory and keeps the
+        /// client builder chain flowing.
+        /// </summary>
+        public static IOpcUaClientBuilder AddWebApiTransportChannel(
+            this IOpcUaClientBuilder builder,
+            Action<WebApiClientOptions>? configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            new BuilderAdapter(builder.Services).AddWebApiTransportChannel(configure);
+            return builder;
+        }
+
+        private sealed class BuilderAdapter : IOpcUaBuilder
+        {
+            public BuilderAdapter(IServiceCollection services)
+            {
+                Services = services;
+            }
+
+            public IServiceCollection Services { get; }
         }
     }
 }

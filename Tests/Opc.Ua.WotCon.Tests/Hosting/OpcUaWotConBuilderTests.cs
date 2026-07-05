@@ -32,6 +32,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.WotCon.Client;
@@ -46,12 +47,15 @@ namespace Opc.Ua.WotCon.Tests.Hosting
     /// </summary>
     [TestFixture]
     [Category("WotCon")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public sealed class OpcUaWotConBuilderTests
     {
         [Test]
         public void AddWotConServerThrowsForNullArgs()
         {
             IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
 
             Assert.That(() => OpcUaWotConServerBuilderExtensions
@@ -98,6 +102,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         public void AddWotConServerThrowsOnDuplicateRegistration()
         {
             IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
 
             builder.AddServer(o =>
@@ -111,6 +116,44 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
             Assert.That(() => builder.AddWotConServer(_ => { }),
                 Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public void WotConServerStartupValidatorThrowsWithoutAddServer()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            builder.AddWotConServer(_ => { });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IHostedService validator = sp.GetServices<IHostedService>().Single();
+
+            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await validator.StartAsync(CancellationToken.None).ConfigureAwait(false))!;
+
+            Assert.That(exception.Message, Does.Contain("AddServer"));
+        }
+
+        [Test]
+        public void WotConServerStartupValidatorAllowsAddServer()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            builder.AddServer(o =>
+            {
+                o.ApplicationName = "Test";
+                o.ApplicationUri = "urn:test";
+                o.ProductUri = "urn:test:product";
+            });
+            builder.AddWotConServer(_ => { });
+
+            Assert.That(
+                services.Any(service =>
+                    service.ServiceType == typeof(IHostedService) &&
+                    service.ImplementationType?.Name.Contains("WotCon", StringComparison.Ordinal) == true),
+                Is.False);
         }
 
         [Test]
