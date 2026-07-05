@@ -254,6 +254,8 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 
 The base package uses `ISharedKeyValueStore` as the common seam for address-space, session, subscription, retransmission, nonce, and lease records. The in-memory implementation is for tests and single-process samples; multi-pod production deployments need a networked, authenticated, encrypted, and capacity-bounded backend. `IRecordProtector` protects serialized records before they reach the store.
 
+The same seam also backs a shared PKI: `SharedKeyValueCertificateStore` keeps the trusted, issuer and rejected certificate lists and their CRLs in the shared store so every replica makes the same trust decision, with fail-closed record integrity and read-through live propagation. See [Distributed certificate store (shared trust lists)](DistributedCertificateStore.md).
+
 ```mermaid
 flowchart LR
     Client1[Client 1] --> A
