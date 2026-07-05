@@ -94,11 +94,20 @@ namespace Opc.Ua.Client.Tests
 
         [TestCase(0, 500)]
         [TestCase(100, 500)]
+        public void CheckedReconnectPeriodWithoutMaxRaisesValuesBelowMinimumToMinimum(
+            int input, int expected)
+        {
+            using var handler = new SessionReconnectHandler(m_telemetry);
+
+            Assert.That(handler.CheckedReconnectPeriod(input), Is.EqualTo(expected));
+        }
+
         [TestCase(500, 500)]
         [TestCase(1000, 1000)]
         [TestCase(30000, 30000)]
         [TestCase(60000, 60000)]
-        public void CheckedReconnectPeriodWithoutMaxClampsToMinimum(int input, int expected)
+        public void CheckedReconnectPeriodWithoutMaxReturnsValuesAtOrAboveMinimumUnchanged(
+            int input, int expected)
         {
             using var handler = new SessionReconnectHandler(m_telemetry);
 

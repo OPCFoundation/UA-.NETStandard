@@ -420,7 +420,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
         private static string ResourcePath(string fileName)
         {
-            return Path.Combine(Directory.GetCurrentDirectory(), "Resources", fileName);
+            return Path.Combine(TestContext.CurrentContext.TestDirectory, "Resources", fileName);
         }
 
         private const string UndefinedBaseTypeDesign =
