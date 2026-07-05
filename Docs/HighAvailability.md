@@ -254,7 +254,7 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 
 The base package uses `ISharedKeyValueStore` as the common seam for address-space, session, subscription, retransmission, nonce, and lease records. The in-memory implementation is for tests and single-process samples; multi-pod production deployments need a networked, authenticated, encrypted, and capacity-bounded backend. `IRecordProtector` protects serialized records before they reach the store.
 
-The same seam also backs a shared PKI: `SharedKeyValueCertificateStore` keeps the trusted, issuer and rejected certificate lists and their CRLs in the shared store so every replica makes the same trust decision, with fail-closed record integrity and read-through live propagation. See [Distributed certificate store (shared trust lists)](DistributedCertificateStore.md).
+The same seam also backs a shared PKI: `SharedKeyValueCertificateStore` keeps the trusted, issuer and rejected certificate lists and their CRLs in the shared store so every replica makes the same trust decision, with fail-closed record integrity and read-through live propagation. See *Shared certificate stores (distributed trust lists)* below.
 
 ```mermaid
 flowchart LR
@@ -340,6 +340,32 @@ await cache.CacheAsync(variable.NodeId, new DataValue(value, StatusCodes.Good, D
 ```
 
 Because the value cache writes through the shared `INodeStateStore`, its confidentiality/integrity is governed by the same `IRecordProtector` as the rest of the mirrored state (fail-closed for external stores without a protector). Cross-process value continuity therefore requires a store that propagates writes between replicas: it is verified on the strong-consistency (Raft) topology; on active/active eventual it depends on the CRDT address-space gossip transport. The `Applications/RedundantServer` sample wires its `HighAvailability.Counter` through this provider — see the sample README's *Sharing values across replicas* section.
+
+### Shared certificate stores (distributed trust lists) (beyond §6.6, opt-in)
+
+OPC UA replicas in a `RedundantServerSet` must present the same PKI: a certificate trusted (or rejected) on one replica should be trusted (or rejected) on every replica, and CRLs must be shared. By default each replica keeps its trusted, issuer and rejected lists in a local `DirectoryCertificateStore` (or Windows `X509Store`), so trust decisions can diverge across replicas.
+
+`SharedKeyValueCertificateStore` stores the **trusted**, **issuer** and **rejected** certificate lists and their **CRLs** in the same `ISharedKeyValueStore` that backs the rest of the high-availability state, and plugs in through the existing certificate store provider model so any `CertificateStoreIdentifier` can point at it. It holds **public certificates only** (`NoPrivateKeys` is `true`, `SupportsLoadPrivateKey` is `false`); distributing the application instance certificate with its private key is a future capability.
+
+**Integrity, fail-closed.** Trust-list integrity is critical: an attacker with write access to the shared store must not be able to inject a trusted CA. Every record (certificate or CRL) is written through an `IRecordProtector` and verified on read; a forged or tampered record fails the authenticity check and is skipped (fail-closed) — it is never returned to a validator. An external, network-reachable store **must** use an authenticating protector (for example `AesCbcHmacRecordProtector`, keyed from a Kubernetes Secret / KMS, the same record-protection model used for mirrored sessions and subscriptions); an in-memory, single-process store may use the no-op `NullRecordProtector` (the default).
+
+**Live propagation.** The certificate validator enumerates the trusted/issuer store on each validation (it caches the store instance, not the certificate list), and `SharedKeyValueCertificateStore.EnumerateAsync` reads the current shared-store state on every call, so a certificate trusted or rejected on one replica is observed by the others' next validation automatically — no restart and no explicit refresh. On a network-backed store (Raft/Redis), reading on every validation costs a round-trip; a future enhancement can cache the enumerated list locally and use `ISharedKeyValueStore.WatchAsync` to invalidate it (and emit `CertificateManager` `TrustListUpdated` / `CrlUpdated` change events) when another replica changes the shared state, keeping the read path fast while remaining live.
+
+```csharp
+using Opc.Ua;
+using Opc.Ua.Security.Certificates;
+
+// The shared store and protector come from the HA infrastructure
+// (or an InMemorySharedKeyValueStore + NullRecordProtector for a single process).
+var provider = new SharedKeyValueCertificateStoreProvider(sharedStore, protector);
+
+CertificateManager manager = CertificateManagerFactory.Create(
+    securityConfiguration,
+    telemetry,
+    options => options.AddStoreProvider(provider));
+```
+
+The provider is injectable — construct it from the DI-registered `ISharedKeyValueStore` and `IRecordProtector` and pass it through `CertificateManagerOptions.AddStoreProvider`; the direct construction above is the fallback. Point the security configuration's trusted/issuer/rejected stores at the distributed backend by setting each `CertificateStoreIdentifier` to store type `CertificateStoreType.SharedKeyValue` with a `kv:` store path (for example `kv:pki/trusted`, `kv:pki/issuer`, `kv:pki/rejected`); the built-in `Directory` and `X509Store` providers remain available. Every replica in the set uses the same shared store and the same paths, so they share one trusted list, one issuer list and one rejected store. The rejected-list trim (`AddRejectedAsync`) keeps the newest N entries best-effort (advisory, not security-critical). See [Certificate Manager](CertificateManager.md) for the certificate lifecycle model.
 
 ### GetEndpoints load direction (beyond §6.6, opt-in)
 
