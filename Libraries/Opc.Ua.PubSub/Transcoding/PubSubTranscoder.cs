@@ -29,12 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
+using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Transcoding
 {
@@ -53,6 +55,7 @@ namespace Opc.Ua.PubSub.Transcoding
         private readonly TranscodeSecurity m_security;
         private readonly TranscodeEncoding m_targetEncoding;
         private readonly bool m_identity;
+        private readonly TranscodePromotion? m_promotion;
         private readonly ILogger m_logger;
         private readonly IPubSubDiagnostics m_diagnostics;
 
@@ -91,6 +94,7 @@ namespace Opc.Ua.PubSub.Transcoding
             m_security = security ?? TranscodeSecurity.None;
             m_targetEncoding = spec.TargetEncoding;
             m_identity = spec.IsIdentity;
+            m_promotion = spec.Promotion is { HasFields: true } p ? p : null;
             m_logger = context.Telemetry.CreateLogger<PubSubTranscoder>();
             m_diagnostics = context.EncodingContext.Diagnostics;
         }
@@ -157,7 +161,61 @@ namespace Opc.Ua.PubSub.Transcoding
                 frames.Add(await EncodeAsync(targets[i], encoder, cancellationToken)
                     .ConfigureAwait(false));
             }
-            return new TranscodeResult { Frames = frames, Messages = targets };
+            return new TranscodeResult
+            {
+                Frames = frames,
+                Messages = targets,
+                Properties = BuildPromotedProperties(targets)
+            };
+        }
+
+        private ArrayOf<PubSubMessageProperty> BuildPromotedProperties(
+            ArrayOf<PubSubNetworkMessage> targets)
+        {
+            if (m_promotion is null)
+            {
+                return [];
+            }
+            ArrayOf<string> names = m_promotion.FieldNames;
+            string prefix = m_promotion.PropertyKeyPrefix ?? string.Empty;
+            var properties = new List<PubSubMessageProperty>(names.Count);
+            for (int n = 0; n < names.Count; n++)
+            {
+                string fieldName = names[n];
+                if (string.IsNullOrEmpty(fieldName)
+                    || !TryFindField(targets, fieldName, out DataSetField field))
+                {
+                    continue;
+                }
+                string value = field.Value.ToString(null, CultureInfo.InvariantCulture);
+                properties.Add(new PubSubMessageProperty(prefix + fieldName, value));
+            }
+            return properties;
+        }
+
+        private static bool TryFindField(
+            ArrayOf<PubSubNetworkMessage> targets,
+            string fieldName,
+            out DataSetField field)
+        {
+            for (int m = 0; m < targets.Count; m++)
+            {
+                ArrayOf<PubSubDataSetMessage> messages = targets[m].DataSetMessages;
+                for (int d = 0; d < messages.Count; d++)
+                {
+                    ArrayOf<DataSetField> fields = messages[d].Fields;
+                    for (int f = 0; f < fields.Count; f++)
+                    {
+                        if (string.Equals(fields[f].Name, fieldName, StringComparison.Ordinal))
+                        {
+                            field = fields[f];
+                            return true;
+                        }
+                    }
+                }
+            }
+            field = null!;
+            return false;
         }
 
         private ValueTask<ReadOnlyMemory<byte>> EncodeAsync(

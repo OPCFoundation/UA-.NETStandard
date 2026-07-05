@@ -29,12 +29,20 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using Moq;
+using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Transcoding;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 using JsonDecoderV2 = Opc.Ua.PubSub.Encoding.Json.JsonDecoder;
 using JsonEncoderV2 = Opc.Ua.PubSub.Encoding.Json.JsonEncoder;
@@ -125,6 +133,97 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 .TryDecodeAsync(frame, context.EncodingContext)
                 .ConfigureAwait(false);
             return (JsonNetworkMessageV2)decoded!;
+        }
+
+        public static PubSubConnection NewConnection(string name)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var readerGroup = new ReaderGroup(
+                new ReaderGroupDataType { Name = "rg" },
+                Array.Empty<DataSetReader>(),
+                telemetry);
+            return new PubSubConnection(
+                new PubSubConnectionDataType
+                {
+                    Name = name,
+                    TransportProfileUri = Profiles.PubSubUdpUadpTransport
+                },
+                new NullTransportFactory(),
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>(),
+                Array.Empty<WriterGroup>(),
+                new[] { readerGroup },
+                new DataSetMetaDataRegistry(),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
+                telemetry,
+                TimeProvider.System,
+                securityWrapper: null,
+                UadpSecurityWrapOptions.SignAndEncrypt,
+                maxNetworkMessageSize: 0,
+                MessageSecurityMode.None);
+        }
+
+        public static IServiceProvider BuildApplicationProvider(
+            params PubSubConnection[] connections)
+        {
+            var app = new Mock<IPubSubApplication>();
+            app.SetupGet(a => a.Connections).Returns(connections);
+            app.SetupGet(a => a.MetaDataRegistry).Returns(new DataSetMetaDataRegistry());
+            app.SetupGet(a => a.Diagnostics)
+                .Returns(new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
+
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(TimeProvider.System);
+            services.AddSingleton<INetworkMessageEncoder>(new UadpEncoderV2());
+            services.AddSingleton<INetworkMessageEncoder>(new JsonEncoderV2());
+            services.AddSingleton(app.Object);
+            return services.BuildServiceProvider();
+        }
+
+        private sealed class NullTransportFactory : IPubSubTransportFactory
+        {
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public IPubSubTransport Create(
+                PubSubConnectionDataType connection,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider) => new NullTransport();
+        }
+
+        private sealed class NullTransport : IPubSubTransport
+        {
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.SendReceive;
+
+            public bool IsConnected => true;
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default) => default;
+
+#pragma warning disable CS1998 // async method lacks awaits — empty async sequence by design
+            public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                [System.Runtime.CompilerServices.EnumeratorCancellation]
+                CancellationToken cancellationToken = default)
+            {
+                yield break;
+            }
+#pragma warning restore CS1998
+
+            public ValueTask DisposeAsync() => default;
         }
     }
 }

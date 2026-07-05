@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Mqtt
 {
@@ -62,11 +63,16 @@ namespace Opc.Ua.PubSub.Mqtt
     /// <param name="ResponseTopic">
     /// MQTT 5.0 ResponseTopic property. Optional; ignored on MQTT 3.1.1.
     /// </param>
+    /// <param name="UserProperties">
+    /// MQTT 5.0 User Properties (e.g. promoted DataSet fields). Optional;
+    /// silently dropped on MQTT 3.1.1 per §7.3.4.4.
+    /// </param>
     public readonly record struct MqttMessage(
         string Topic,
         ReadOnlyMemory<byte> Payload,
         MqttQualityOfService Qos,
         bool Retain,
         string? ContentType,
-        string? ResponseTopic);
+        string? ResponseTopic,
+        IReadOnlyList<KeyValuePair<string, string>>? UserProperties = null);
 }

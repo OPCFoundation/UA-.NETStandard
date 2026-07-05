@@ -78,7 +78,9 @@ namespace Opc.Ua.PubSub.Mqtt
     /// <see cref="MqttTopicOptions.RetainMetaDataMessages"/> is on.
     /// </para>
     /// </remarks>
-    public sealed class MqttBrokerTransport : IPubSubTransport, IPubSubTopicProvider, IPubSubLastWillConfigurator
+    public sealed class MqttBrokerTransport
+        : IPubSubTransport, IPubSubTopicProvider, IPubSubLastWillConfigurator,
+            IPubSubHeaderTransport
     {
         private const string MetaDataTopicSegment = "/metadata/";
         private const string ApplicationTopicSegment = "/application/";
@@ -342,10 +344,42 @@ namespace Opc.Ua.PubSub.Mqtt
         }
 
         /// <inheritdoc/>
-        public async ValueTask SendAsync(
+        public ValueTask SendAsync(
             ReadOnlyMemory<byte> payload,
             string? topic = null,
             CancellationToken cancellationToken = default)
+            => PublishInternalAsync(payload, topic, null, cancellationToken);
+
+        /// <inheritdoc/>
+        public ValueTask SendAsync(
+            ReadOnlyMemory<byte> payload,
+            string? topic,
+            ArrayOf<PubSubMessageProperty> properties,
+            CancellationToken cancellationToken = default)
+            => PublishInternalAsync(
+                payload, topic, ToUserProperties(properties), cancellationToken);
+
+        private static List<KeyValuePair<string, string>>? ToUserProperties(
+            ArrayOf<PubSubMessageProperty> properties)
+        {
+            if (properties.Count == 0)
+            {
+                return null;
+            }
+            var list = new List<KeyValuePair<string, string>>(properties.Count);
+            for (int i = 0; i < properties.Count; i++)
+            {
+                PubSubMessageProperty property = properties[i];
+                list.Add(new KeyValuePair<string, string>(property.Name, property.Value));
+            }
+            return list;
+        }
+
+        private async ValueTask PublishInternalAsync(
+            ReadOnlyMemory<byte> payload,
+            string? topic,
+            IReadOnlyList<KeyValuePair<string, string>>? userProperties,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(topic))
@@ -382,7 +416,8 @@ namespace Opc.Ua.PubSub.Mqtt
                 ResolveQos(topic),
                 retain,
                 contentType,
-                ResponseTopic: null);
+                ResponseTopic: null,
+                UserProperties: userProperties);
 
             await adapter.PublishAsync(message, cancellationToken).ConfigureAwait(false);
             m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages, 1);

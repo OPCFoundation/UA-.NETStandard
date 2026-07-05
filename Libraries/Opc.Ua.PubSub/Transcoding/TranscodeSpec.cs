@@ -59,6 +59,13 @@ namespace Opc.Ua.PubSub.Transcoding
             = TranscodeTargetOptions.Default;
 
         /// <summary>
+        /// Selection of DataSet fields to promote into target transport
+        /// message properties (e.g. MQTT User Properties). When
+        /// <see langword="null"/> or empty no fields are promoted.
+        /// </summary>
+        public TranscodePromotion? Promotion { get; init; }
+
+        /// <summary>
         /// Returns <see langword="true"/> when the pipeline performs no
         /// structural transformation (no transforms and default target
         /// options), so a same-encoding transcode can take the raw-frame
@@ -67,6 +74,7 @@ namespace Opc.Ua.PubSub.Transcoding
         public bool IsIdentity
             => Transforms.Count == 0
                 && TargetOptions.FieldEncoding is null
-                && !TargetOptions.JsonSingleMessageMode;
+                && !TargetOptions.JsonSingleMessageMode
+                && !(Promotion?.HasFields ?? false);
     }
 }

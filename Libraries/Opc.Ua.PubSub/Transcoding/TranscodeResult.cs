@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Transcoding
 {
@@ -52,6 +53,14 @@ namespace Opc.Ua.PubSub.Transcoding
         /// <see cref="Frames"/>. Useful for diagnostics and tests.
         /// </summary>
         public ArrayOf<PubSubNetworkMessage> Messages { get; init; } = [];
+
+        /// <summary>
+        /// Transport message properties promoted from the source DataSet
+        /// fields, applied to every sent frame when the target transport
+        /// implements <see cref="IPubSubHeaderTransport"/>. Empty when no
+        /// promotion is configured or no promoted field was present.
+        /// </summary>
+        public ArrayOf<PubSubMessageProperty> Properties { get; init; } = [];
 
         /// <summary>
         /// <see langword="true"/> when the raw-frame zero-copy passthrough

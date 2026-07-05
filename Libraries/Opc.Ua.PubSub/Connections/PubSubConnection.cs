@@ -2325,9 +2325,16 @@ namespace Opc.Ua.PubSub.Connections
             }
         }
 
+        internal ValueTask SendTranscodedFrameAsync(
+            ReadOnlyMemory<byte> frame,
+            string? topic,
+            CancellationToken cancellationToken)
+            => SendTranscodedFrameAsync(frame, topic, [], cancellationToken);
+
         internal async ValueTask SendTranscodedFrameAsync(
             ReadOnlyMemory<byte> frame,
             string? topic,
+            ArrayOf<PubSubMessageProperty> properties,
             CancellationToken cancellationToken)
         {
             IPubSubTransport? transport;
@@ -2352,6 +2359,13 @@ namespace Opc.Ua.PubSub.Connections
                 await SendChunkedAsync(
                     transport, frame, publisherId,
                     writerGroupId == 0 ? null : writerGroupId, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+            if (properties.Count > 0 && transport is IPubSubHeaderTransport headerTransport)
+            {
+                await headerTransport
+                    .SendAsync(frame, topic, properties, cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }

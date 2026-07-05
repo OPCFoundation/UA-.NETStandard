@@ -912,7 +912,66 @@ Common fluent methods:
 | `PreserveMetaDataVersion(bool)` | Controls whether source metadata versions are preserved. |
 | `AllowInsecureCrossEncoding(bool)` | Allows intentional security downgrades. |
 | `ToTopic(string)` / `WithTopicSelector(Func<ReceivedNetworkMessage, string?>)` | Sets fixed or per-message MQTT topic selection. |
+| `PromoteFields(params string[])` | Promotes DataSet fields into target transport message properties (MQTT user properties). |
+| `WithPromotedFieldPrefix(string)` | Prepends a prefix to every promoted property key. |
 | `BuildSpec()` | Builds the standalone `TranscodeSpec` represented by the fluent route. |
+
+### Reloadable configuration
+
+Transcoding routes can also be declared in configuration and reloaded at runtime, mirroring the reloadable pattern of the `Opc.Ua.PubSub.Adapter` package. `IPubSubBuilder.AddTranscoding(IConfiguration)` binds a `PubSubTranscodingOptions` (a `Routes` array) and watches it through an `IOptionsMonitor`. When the underlying configuration changes, the reload coordinator diffs the routes by their `Name` and a content signature and reconfigures only the routes that were added, removed, or changed; unchanged routes keep running undisturbed. The fluent `AddTranscodingBridge` API remains available and can be combined with configuration-driven routes.
+
+Configuration-driven routes cover the declarative transforms only. Delegate-based transforms — `TransformValue`, `TransformMetaData`, and custom `AddTransform` callbacks — are not serializable and remain fluent-only. Each route binds the source and target connection names, the target encoding, the fixed topic, the field encoding, the JSON single-message and metadata-version options, the cross-encoding security policy, identifier remapping, field rename, field select/exclude, message-type filtering, and promoted fields.
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub(pubsub =>
+    {
+        pubsub.UseConfigurationFile("pubsub.xml"); // defines "udp-in" and "mqtt-out"
+        pubsub.AddTranscoding(configuration.GetSection("PubSubTranscoding"));
+    });
+```
+
+```json
+{
+  "PubSubTranscoding": {
+    "Routes": [
+      {
+        "Name": "telemetry",
+        "Source": "udp-in",
+        "Target": "mqtt-out",
+        "TargetEncoding": "Json",
+        "Topic": "plant/line1/telemetry",
+        "RenameFields": { "Temp": "Temperature" },
+        "SelectFields": [ "Temperature", "Pressure" ],
+        "DropKeepAlive": true,
+        "AllowInsecureCrossEncoding": true,
+        "RemapIds": { "PublisherIdNumber": 42, "WriterGroupId": 7 },
+        "PromoteFields": [ "Temperature" ],
+        "PromotedFieldPrefix": "opc_"
+      }
+    ]
+  }
+}
+```
+
+Editing the `Routes` array — for example through a reloadable JSON file — changes only the affected bridges: adding a route starts a new bridge, removing a route disposes its bridge, and changing a route's fields tears down and rebuilds just that route while every other route continues to run.
+
+### Promoting fields to MQTT user properties
+
+Selected DataSet fields can be promoted into transport message properties on the target side. On MQTT this maps each promoted field to an MQTT 5.0 User Property, so downstream consumers can filter on the value without decoding the payload — the broker-layer analogue of the Part 14 [PromotedFields](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.3) concept. Promotion is *copy* semantics: the promoted fields remain in the encoded payload and are additionally surfaced as properties. Field values are formatted as invariant strings.
+
+Configure promotion fluently with `PromoteFields(params string[])` and, optionally, `WithPromotedFieldPrefix(string)`, or declaratively with the `PromoteFields` and `PromotedFieldPrefix` route options.
+
+```csharp
+pubsub.AddTranscodingBridge(bridge => bridge
+    .From("udp-in")
+    .To("mqtt-out", TranscodeEncoding.Json)
+    .PromoteFields("Temperature", "Unit")
+    .WithPromotedFieldPrefix("opc_")
+    .ToTopic("plant/line1/telemetry"));
+```
+
+Promotion is delivered through the `IPubSubHeaderTransport` capability. Transports that implement it — the MQTT broker transport — attach the promoted properties to each published message; datagram transports without a header channel ignore them. On MQTT 3.1.1, which has no User Property support, the properties are silently dropped.
 
 ### Standalone primitives
 

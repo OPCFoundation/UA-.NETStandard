@@ -47,6 +47,7 @@ namespace Opc.Ua.PubSub.Transcoding
     {
         private readonly List<IPubSubMessageTransform> m_transforms = [];
         private readonly Dictionary<string, string> m_renameMap = new(StringComparer.Ordinal);
+        private readonly List<string> m_promotedFields = [];
         private bool m_renameTransformAdded;
         private string? m_source;
         private string? m_target;
@@ -55,6 +56,7 @@ namespace Opc.Ua.PubSub.Transcoding
         private bool m_jsonSingleMessage;
         private bool m_preserveMetaDataVersion = true;
         private bool m_allowInsecureCrossEncoding;
+        private string? m_promotionPrefix;
         private Func<ReceivedNetworkMessage, string?>? m_topicSelector;
 
         /// <summary>
@@ -209,6 +211,44 @@ namespace Opc.Ua.PubSub.Transcoding
         }
 
         /// <summary>
+        /// Promotes the named DataSet fields into target transport message
+        /// properties (e.g. MQTT User Properties). Repeated calls
+        /// accumulate. Promotion is <em>copy</em> semantics: the fields
+        /// remain in the encoded payload. Ignored by transports without a
+        /// header channel.
+        /// </summary>
+        /// <param name="fieldNames">Field BrowseNames to promote.</param>
+        /// <returns>This builder.</returns>
+        public PubSubTranscoderBuilder PromoteFields(params string[] fieldNames)
+        {
+            if (fieldNames is null)
+            {
+                throw new ArgumentNullException(nameof(fieldNames));
+            }
+            foreach (string fieldName in fieldNames)
+            {
+                if (fieldName is null)
+                {
+                    throw new ArgumentException(
+                        "Promoted field names must not be null.", nameof(fieldNames));
+                }
+                m_promotedFields.Add(fieldName);
+            }
+            return this;
+        }
+
+        /// <summary>
+        /// Sets an optional prefix prepended to every promoted property key.
+        /// </summary>
+        /// <param name="prefix">Property key prefix.</param>
+        /// <returns>This builder.</returns>
+        public PubSubTranscoderBuilder WithPromotedFieldPrefix(string prefix)
+        {
+            m_promotionPrefix = prefix ?? throw new ArgumentNullException(nameof(prefix));
+            return this;
+        }
+
+        /// <summary>
         /// Sets the target field encoding (Variant / RawData / DataValue).
         /// </summary>
         /// <param name="encoding">Target field encoding.</param>
@@ -297,7 +337,14 @@ namespace Opc.Ua.PubSub.Transcoding
                     FieldEncoding = m_fieldEncoding,
                     JsonSingleMessageMode = m_jsonSingleMessage,
                     PreserveMetaDataVersion = m_preserveMetaDataVersion
-                }
+                },
+                Promotion = m_promotedFields.Count == 0
+                    ? null
+                    : new TranscodePromotion
+                    {
+                        FieldNames = m_promotedFields,
+                        PropertyKeyPrefix = m_promotionPrefix
+                    }
             };
         }
 

@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Transcoding
 {
@@ -85,10 +86,11 @@ namespace Opc.Ua.PubSub.Transcoding
                 throw new ArgumentNullException(nameof(result));
             }
             ArrayOf<ReadOnlyMemory<byte>> frames = result.Frames;
+            ArrayOf<PubSubMessageProperty> properties = result.Properties;
             for (int i = 0; i < frames.Count; i++)
             {
                 await m_connection
-                    .SendTranscodedFrameAsync(frames[i], topic, cancellationToken)
+                    .SendTranscodedFrameAsync(frames[i], topic, properties, cancellationToken)
                     .ConfigureAwait(false);
             }
         }

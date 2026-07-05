@@ -94,6 +94,51 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         }
 
         [Test]
+        public async Task Egress_SendAsync_PromotesProperties_ToHeaderTransport()
+        {
+            var transport = new CapturingHeaderTransport();
+            await using PubSubConnection target = NewConnection(transport);
+            SetTransport(target, transport);
+            var egress = new ConnectionTranscodeEgress(target);
+            var result = new TranscodeResult
+            {
+                Frames = new List<ReadOnlyMemory<byte>> { new byte[] { 1, 2 } },
+                Properties = new List<PubSubMessageProperty>
+                {
+                    new("Temperature", "21.5"),
+                    new("Unit", "C")
+                }
+            };
+
+            await egress.SendAsync(result, "topic/x").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.HeaderSends, Has.Count.EqualTo(1));
+                Assert.That(transport.HeaderSends[0].Count, Is.EqualTo(2));
+                Assert.That(transport.PlainSends, Is.Empty);
+            });
+        }
+
+        [Test]
+        public async Task Egress_SendAsync_PlainTransport_IgnoresProperties()
+        {
+            var transport = new CapturingSendTransport();
+            await using PubSubConnection target = NewConnection(transport);
+            SetTransport(target, transport);
+            var egress = new ConnectionTranscodeEgress(target);
+            var result = new TranscodeResult
+            {
+                Frames = new List<ReadOnlyMemory<byte>> { new byte[] { 9 } },
+                Properties = new List<PubSubMessageProperty> { new("k", "v") }
+            };
+
+            await egress.SendAsync(result, "topic").ConfigureAwait(false);
+
+            Assert.That(transport.Sent, Has.Count.EqualTo(1));
+        }
+
+        [Test]
         public async Task SendTranscodedFrame_OversizedUadp_IsChunked()
         {
             TranscodeContext context = NewContext();
@@ -449,6 +494,60 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 CancellationToken cancellationToken = default)
             {
                 Sent.Add(payload.ToArray());
+                return default;
+            }
+
+#pragma warning disable CS1998 // async method lacks awaits — empty async sequence by design
+            public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                [System.Runtime.CompilerServices.EnumeratorCancellation]
+                CancellationToken cancellationToken = default)
+            {
+                yield break;
+            }
+#pragma warning restore CS1998
+
+            public ValueTask DisposeAsync() => default;
+        }
+
+        private sealed class CapturingHeaderTransport
+            : IPubSubTransport, IPubSubHeaderTransport
+        {
+            public List<byte[]> PlainSends { get; } = [];
+
+            public List<ArrayOf<PubSubMessageProperty>> HeaderSends { get; } = [];
+
+            public string TransportProfileUri => Profiles.PubSubMqttJsonTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.Send;
+
+            public bool IsConnected => true;
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default)
+            {
+                PlainSends.Add(payload.ToArray());
+                return default;
+            }
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic,
+                ArrayOf<PubSubMessageProperty> properties,
+                CancellationToken cancellationToken = default)
+            {
+                HeaderSends.Add(properties);
                 return default;
             }
 

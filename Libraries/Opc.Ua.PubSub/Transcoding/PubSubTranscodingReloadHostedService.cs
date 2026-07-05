@@ -35,48 +35,29 @@ using Microsoft.Extensions.Hosting;
 namespace Opc.Ua.PubSub.Transcoding
 {
     /// <summary>
-    /// Hosted service that materialises a configured transcoding bridge
-    /// once the PubSub application is available: it resolves the source
-    /// and target connections by name, builds the transcoder and egress,
-    /// and registers the bridge on the source connection.
+    /// Hosted service that starts the configuration-driven transcoding
+    /// reload coordinator once the PubSub application is available and tears
+    /// it down on shutdown.
     /// </summary>
-    internal sealed class PubSubTranscodingBridgeHostedService
-        : IHostedService, IAsyncDisposable
+    internal sealed class PubSubTranscodingReloadHostedService : IHostedService
     {
-        private readonly IServiceProvider m_serviceProvider;
-        private readonly TranscodingBridgeDescriptor m_descriptor;
-        private PubSubTranscodingBridge? m_bridge;
+        private readonly PubSubTranscodingReloadCoordinator m_coordinator;
 
-        public PubSubTranscodingBridgeHostedService(
-            IServiceProvider serviceProvider,
-            TranscodingBridgeDescriptor descriptor)
+        public PubSubTranscodingReloadHostedService(
+            PubSubTranscodingReloadCoordinator coordinator)
         {
-            m_serviceProvider = serviceProvider
-                ?? throw new ArgumentNullException(nameof(serviceProvider));
-            m_descriptor = descriptor
-                ?? throw new ArgumentNullException(nameof(descriptor));
+            m_coordinator = coordinator
+                ?? throw new ArgumentNullException(nameof(coordinator));
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            var activator = new TranscodingBridgeActivator(m_serviceProvider);
-            m_bridge = activator.Create(m_descriptor);
-            m_bridge.Start();
-            return Task.CompletedTask;
+            return m_coordinator.StartAsync(cancellationToken).AsTask();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            return DisposeAsync().AsTask();
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            if (m_bridge is not null)
-            {
-                await m_bridge.DisposeAsync().ConfigureAwait(false);
-                m_bridge = null;
-            }
+            return m_coordinator.DisposeAsync().AsTask();
         }
     }
 }
