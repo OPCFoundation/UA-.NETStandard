@@ -56,6 +56,13 @@ namespace Opc.Ua
         internal List<(TrustListIdentifier Id, string TrustedPath, string? IssuerPath)> AdditionalTrustLists { get; } = [];
 
         /// <summary>
+        /// Gets the additional certificate store providers used to resolve custom store types (for example the
+        /// shared key/value distributed store). They are tried before the built-in Directory and X.509 store
+        /// types, which remain available.
+        /// </summary>
+        public IList<ICertificateStoreProvider> StoreProviders { get; } = [];
+
+        /// <summary>
         /// Registers a custom named trust-list.
         /// </summary>
         /// <param name="name">The name of the trust list.</param>
@@ -66,6 +73,23 @@ namespace Opc.Ua
             string name, string trustedStorePath, string? issuerStorePath = null)
         {
             AdditionalTrustLists.Add((new TrustListIdentifier(name), trustedStorePath, issuerStorePath));
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a certificate store provider (for example a
+        /// <see cref="SharedKeyValueCertificateStoreProvider"/>) used to resolve a custom store type.
+        /// </summary>
+        /// <param name="provider">The store provider to add.</param>
+        /// <returns>The options instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        public CertificateManagerOptions AddStoreProvider(ICertificateStoreProvider provider)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            StoreProviders.Add(provider);
             return this;
         }
     }
@@ -108,8 +132,22 @@ namespace Opc.Ua
             var options = new CertificateManagerOptions();
             configure?.Invoke(options);
 
+            // When custom store providers are supplied, keep the built-in Directory and X.509 providers
+            // available by appending them after the custom ones.
+            IReadOnlyList<ICertificateStoreProvider>? storeProviders = null;
+            if (options.StoreProviders.Count > 0)
+            {
+                var providers = new List<ICertificateStoreProvider>(options.StoreProviders)
+                {
+                    new DirectoryStoreProvider(),
+                    new X509StoreProvider()
+                };
+                storeProviders = providers;
+            }
+
             var manager = new CertificateManager(
                 telemetry,
+                storeProviders,
                 maxRejectedCertificates: options.MaxRejectedCertificates,
                 expiryWarningThreshold: options.ExpiryWarningThreshold);
 
