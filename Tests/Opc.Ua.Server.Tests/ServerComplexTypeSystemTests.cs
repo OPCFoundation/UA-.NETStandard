@@ -50,6 +50,8 @@ namespace Opc.Ua.Server.Tests
     {
         private const string TestNamespaceUri = "http://test.org/UA/ComplexTypes/";
 
+        private static readonly int[] s_decoyValue = [42];
+
         [SetUp]
         public void SetUp()
         {
@@ -243,7 +245,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = decoyPropId,
                 BrowseName = new QualifiedName("SomethingElse", m_ns),
-                Value = new Variant(new int[] { 42 })
+                Value = new Variant(s_decoyValue)
             };
             m_nodesById[enumStringsPropId] = new BaseDataVariableState(null)
             {

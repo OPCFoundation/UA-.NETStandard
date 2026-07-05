@@ -268,15 +268,12 @@ namespace Opc.Ua.Server
             var references = new List<IReference>();
             dataType.GetReferences(m_systemContext, references, ReferenceTypeIds.HasProperty, false);
 
-            // A DataType can expose several HasProperty children; only the
-            // well-known enum / option-set definition properties are valid
-            // sources. Match them by BrowseName and select in an explicit
+            // A DataType can expose several HasProperty children; collect the
+            // variable nodes and then select by BrowseName in an explicit
             // priority order (richer EnumValues, then EnumStrings, then
             // OptionSetValues) instead of returning the first HasProperty
             // target, which could be an unrelated property.
-            BaseVariableState? enumValues = null;
-            BaseVariableState? enumStrings = null;
-            BaseVariableState? optionSetValues = null;
+            var properties = new List<BaseVariableState>();
             foreach (IReference reference in references)
             {
                 NodeId propertyId = ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris);
@@ -287,28 +284,21 @@ namespace Opc.Ua.Server
                 NodeState? property = await m_server.NodeManager
                     .FindNodeInAddressSpaceAsync(propertyId, ct)
                     .ConfigureAwait(false);
-                if (property is not BaseVariableState variable || variable.WrappedValue.IsNull)
+                if (property is BaseVariableState variable && !variable.WrappedValue.IsNull)
                 {
-                    continue;
-                }
-                switch (variable.BrowseName.Name)
-                {
-                    case EnumValuesBrowseName:
-                        enumValues ??= variable;
-                        break;
-                    case EnumStringsBrowseName:
-                        enumStrings ??= variable;
-                        break;
-                    case OptionSetValuesBrowseName:
-                        optionSetValues ??= variable;
-                        break;
+                    properties.Add(variable);
                 }
             }
 
-            BaseVariableState? selected = enumValues ?? enumStrings ?? optionSetValues;
-            if (selected != null)
+            foreach (string wellKnownName in s_enumDefinitionPropertyNames)
             {
-                return selected.WrappedValue;
+                foreach (BaseVariableState variable in properties)
+                {
+                    if (variable.BrowseName.Name == wellKnownName)
+                    {
+                        return variable.WrappedValue;
+                    }
+                }
             }
             return default;
         }
@@ -340,6 +330,13 @@ namespace Opc.Ua.Server
         private const string EnumValuesBrowseName = "EnumValues";
         private const string EnumStringsBrowseName = "EnumStrings";
         private const string OptionSetValuesBrowseName = "OptionSetValues";
+
+        private static readonly string[] s_enumDefinitionPropertyNames =
+        [
+            EnumValuesBrowseName,
+            EnumStringsBrowseName,
+            OptionSetValuesBrowseName
+        ];
 
         private readonly IServerInternal m_server;
         private readonly ISystemContext m_systemContext;
