@@ -58,7 +58,7 @@ namespace Opc.Ua.Schema.Xml
         /// Intializes the object with a import table.
         /// </summary>
         public XmlSchemaValidator(IReadOnlyDictionary<string, byte[]> importTable)
-            : base(null, null, importTable)
+            : base(NullFileSystem.Instance, null, importTable)
         {
         }
 

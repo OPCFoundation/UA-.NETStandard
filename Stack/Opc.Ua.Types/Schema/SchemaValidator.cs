@@ -178,22 +178,28 @@ namespace Opc.Ua.Schema
         /// <exception cref="FileNotFoundException"></exception>
         protected XmlSchema Load(string? path, string? namespaceUri, ValidationEventHandler handler)
         {
-            // check if path specified in the file table.
             if (namespaceUri != null)
             {
-                // check if path specified in the file table.
+                // An explicit namespace-to-location mapping (trusted
+                // configuration) takes precedence and overrides any
+                // supplied location.
                 if (m_namespaceUriToLocationMapping.TryGetValue(namespaceUri, out string? location))
                 {
                     path = location;
                 }
+                // Otherwise prefer an in-memory import for the namespace over a
+                // (potentially untrusted) schema location before falling back
+                // to the file system. This prevents a peer-supplied import
+                // location from being resolved against the local file system
+                // when the namespace can be satisfied from memory.
+                else if (m_importFiles.TryGetValue(namespaceUri, out byte[]? schemaBuffer))
+                {
+                    using var istrm = new MemoryStream(schemaBuffer);
+                    return Load(istrm, handler);
+                }
 
                 if (path == null)
                 {
-                    if (m_importFiles.TryGetValue(namespaceUri, out byte[]? schemaBuffer))
-                    {
-                        using var istrm = new MemoryStream(schemaBuffer);
-                        return Load(istrm, handler);
-                    }
                     throw new FileNotFoundException(CoreUtils.Format(
                         "Missing schema location for namespace {0}", namespaceUri));
                 }

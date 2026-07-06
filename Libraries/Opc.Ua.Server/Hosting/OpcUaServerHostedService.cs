@@ -39,6 +39,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
+using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
@@ -226,7 +227,25 @@ namespace Opc.Ua.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
+            ServerComplexTypeOptions? complexTypeOptions =
+                m_services.GetService<ServerComplexTypeOptions>();
+
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
+
+            // Complex-type loading is on by default (StandardServer.LoadComplexTypes);
+            // build and register stand-in encodeables for runtime-loaded custom
+            // DataTypes once the address space is available, and expose the primed
+            // factory as the schema resolver. An explicitly registered
+            // ServerComplexTypeOptions can tune or opt out (Enabled = false).
+            m_server.ComplexTypeOptions = complexTypeOptions;
+            m_server.ComplexTypeRegistry = m_services.GetService<DataTypeDefinitionRegistry>();
+            m_server.ComplexTypeResolverHolder =
+                m_services.GetService<ServerDataTypeDefinitionResolver>();
+            if (complexTypeOptions != null)
+            {
+                m_server.LoadComplexTypes = complexTypeOptions.Enabled;
+            }
+
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
                 m_server.TransportBindings = transportBindings;
