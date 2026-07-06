@@ -89,11 +89,12 @@ namespace Opc.Ua.History.Tests
         {
             NodeId alarmId = RequireAlarm();
 
-            await Task.Delay(1500).ConfigureAwait(false);
-            ByteString eventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);
+            ByteString eventId = await WaitForEventIdAsync(alarmId).ConfigureAwait(false);
             if (eventId.IsNull)
             {
-                Assert.Ignore("Alarm has no EventId yet.");
+                Assert.Ignore(
+                    "Alarm exposes no active event within " +
+                    $"{DefaultEventWaitTimeout.TotalSeconds:0}s; not in an alarming state.");
             }
 
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -109,7 +110,8 @@ namespace Opc.Ua.History.Tests
                 Is.True,
                 $"Acknowledge should succeed or report already-acked: {callResult.StatusCode}");
 
-            DataValue ackedState = await ReadStateIdAsync(alarmId, "AckedState")
+            DataValue ackedState = await WaitForStateIdAsync(
+                alarmId, "AckedState", expected: true, DefaultEventWaitTimeout)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(ackedState.StatusCode), Is.True,
                 "Should be able to read AckedState/Id.");
@@ -245,11 +247,12 @@ namespace Opc.Ua.History.Tests
         {
             NodeId alarmId = RequireAlarm();
 
-            await Task.Delay(1500).ConfigureAwait(false);
-            ByteString eventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);
+            ByteString eventId = await WaitForEventIdAsync(alarmId).ConfigureAwait(false);
             if (eventId.IsNull)
             {
-                Assert.Ignore("Alarm has no EventId yet.");
+                Assert.Ignore(
+                    "Alarm exposes no active event within " +
+                    $"{DefaultEventWaitTimeout.TotalSeconds:0}s; not in an alarming state.");
             }
 
             await CallMethodOnAlarmAsync(
@@ -289,11 +292,12 @@ namespace Opc.Ua.History.Tests
         {
             NodeId alarmId = RequireAlarm();
 
-            await Task.Delay(1500).ConfigureAwait(false);
-            ByteString eventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);
+            ByteString eventId = await WaitForEventIdAsync(alarmId).ConfigureAwait(false);
             if (eventId.IsNull)
             {
-                Assert.Ignore("Alarm has no EventId yet.");
+                Assert.Ignore(
+                    "Alarm exposes no active event within " +
+                    $"{DefaultEventWaitTimeout.TotalSeconds:0}s; not in an alarming state.");
             }
 
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -314,7 +318,10 @@ namespace Opc.Ua.History.Tests
         {
             NodeId alarmId = RequireAlarm();
 
-            await Task.Delay(1500).ConfigureAwait(false);
+            // Poll for the alarm to become active (expose an EventId) instead of a
+            // fixed delay; the Acknowledge on the disabled condition below must
+            // fail regardless of whether an EventId was obtained.
+            _ = await WaitForEventIdAsync(alarmId).ConfigureAwait(false);
 
             CallMethodResult disable = await CallMethodOnAlarmAsync(
                 alarmId,
