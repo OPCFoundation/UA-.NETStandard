@@ -46,6 +46,7 @@ using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.StateMachine;
+using Opc.Ua.PubSub.Transcoding;
 using Opc.Ua.PubSub.Transports;
 using PubSubJsonActionNetworkMessage = Opc.Ua.PubSub.Encoding.Json.JsonActionNetworkMessage;
 
@@ -90,6 +91,8 @@ namespace Opc.Ua.PubSub.Connections
         private bool m_allowUnsecuredActions;
         private readonly ILogger<PubSubConnection> m_logger;
         private readonly System.Threading.Lock m_gate = new();
+        private readonly System.Threading.Lock m_receivedSinksGate = new();
+        private volatile IReceivedNetworkMessageSink[] m_receivedSinks = [];
         private IPubSubTransport? m_transport;
         private CancellationTokenSource? m_receiveCts;
         private Task? m_receiveLoop;
@@ -795,6 +798,79 @@ namespace Opc.Ua.PubSub.Connections
             }
         }
 
+        /// <inheritdoc/>
+        public IDisposable RegisterReceivedNetworkMessageSink(IReceivedNetworkMessageSink sink)
+        {
+            if (sink is null)
+            {
+                throw new ArgumentNullException(nameof(sink));
+            }
+            lock (m_receivedSinksGate)
+            {
+                IReceivedNetworkMessageSink[] current = m_receivedSinks;
+                var updated = new IReceivedNetworkMessageSink[current.Length + 1];
+                Array.Copy(current, updated, current.Length);
+                updated[current.Length] = sink;
+                m_receivedSinks = updated;
+            }
+            return new ReceivedSinkRegistration(this, sink);
+        }
+
+        private void RemoveReceivedSink(IReceivedNetworkMessageSink sink)
+        {
+            lock (m_receivedSinksGate)
+            {
+                IReceivedNetworkMessageSink[] current = m_receivedSinks;
+                int index = Array.IndexOf(current, sink);
+                if (index < 0)
+                {
+                    return;
+                }
+                var updated = new IReceivedNetworkMessageSink[current.Length - 1];
+                Array.Copy(current, 0, updated, 0, index);
+                Array.Copy(current, index + 1, updated, index, current.Length - index - 1);
+                m_receivedSinks = updated;
+            }
+        }
+
+        private async ValueTask NotifyReceivedSinksAsync(
+            PubSubNetworkMessage message,
+            ReadOnlyMemory<byte> frame,
+            bool frameSecured,
+            CancellationToken cancellationToken)
+        {
+            IReceivedNetworkMessageSink[] sinks = m_receivedSinks;
+            if (sinks.Length == 0)
+            {
+                return;
+            }
+            var received = new ReceivedNetworkMessage
+            {
+                Message = message,
+                Frame = frame,
+                FrameSecured = frameSecured,
+                SourceTransportProfileUri = TransportProfileUri,
+                SourceConnectionName = Name
+            };
+            for (int i = 0; i < sinks.Length; i++)
+            {
+                try
+                {
+                    await sinks[i].OnReceivedAsync(received, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(ex,
+                        "Received-message sink threw on connection '{Connection}'.", Name);
+                }
+            }
+        }
+
         private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
         {
             IPubSubTransport? transport;
@@ -826,6 +902,9 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     ReadOnlyMemory<byte> framePayload = frame.Payload;
+                    ReadOnlyMemory<byte> rawFrame = frame.Payload;
+                    bool frameSecured = false;
+                    bool singleFrame = true;
 
                     if (UadpDecoder.TryReadOuterPrefix(framePayload,
                         out int prefixLength,
@@ -858,6 +937,10 @@ namespace Opc.Ua.PubSub.Connections
                                 continue;
                             }
                             framePayload = reassembled.Value;
+                            // The message was reassembled from multiple chunk
+                            // frames, so no single wire frame faithfully
+                            // represents it; disable the raw-frame fast path.
+                            singleFrame = false;
 
                             // Re-read the reassembled message's own outer prefix so
                             // the security gate below is applied to the inner UADP
@@ -929,6 +1012,8 @@ namespace Opc.Ua.PubSub.Connections
                             }
                             framePayload = unwrapped.Value;
                         }
+
+                        frameSecured = securityEnabled;
                     }
                     else if (RequiresInboundSecurity)
                     {
@@ -1010,6 +1095,9 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
+                    await NotifyReceivedSinksAsync(
+                        message, singleFrame ? rawFrame : default, frameSecured, cancellationToken)
+                        .ConfigureAwait(false);
                     for (int i = 0; i < m_readerGroups.Count; i++)
                     {
                         ReaderGroup rg = m_readerGroups[i];
@@ -2244,7 +2332,8 @@ namespace Opc.Ua.PubSub.Connections
                 && networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadpForChunk)
             {
                 await SendChunkedAsync(
-                    transport, payload, uadpForChunk, cancellationToken)
+                    transport, payload, uadpForChunk.PublisherId, uadpForChunk.WriterGroupId,
+                    cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }
@@ -2269,7 +2358,8 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask SendChunkedAsync(
             IPubSubTransport transport,
             ReadOnlyMemory<byte> encoded,
-            Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage message,
+            PublisherId publisherId,
+            ushort? writerGroupId,
             CancellationToken cancellationToken)
         {
             ushort sequenceNumber = unchecked(
@@ -2292,10 +2382,58 @@ namespace Opc.Ua.PubSub.Connections
             foreach (byte[] chunk in chunkFrames)
             {
                 ReadOnlyMemory<byte> envelope = UadpEncoder.WriteChunkEnvelope(
-                    chunk, message.PublisherId, message.WriterGroupId);
+                    chunk, publisherId, writerGroupId);
                 await transport.SendAsync(envelope, topic: null, cancellationToken)
                     .ConfigureAwait(false);
             }
+        }
+
+        internal ValueTask SendTranscodedFrameAsync(
+            ReadOnlyMemory<byte> frame,
+            string? topic,
+            CancellationToken cancellationToken)
+            => SendTranscodedFrameAsync(frame, topic, [], cancellationToken);
+
+        internal async ValueTask SendTranscodedFrameAsync(
+            ReadOnlyMemory<byte> frame,
+            string? topic,
+            ArrayOf<PubSubMessageProperty> properties,
+            CancellationToken cancellationToken)
+        {
+            IPubSubTransport? transport;
+            lock (m_gate)
+            {
+                transport = m_transport;
+            }
+            if (transport is null)
+            {
+                m_logger.LogWarning(
+                    "No transport open on connection '{Connection}'; transcoded frame dropped.",
+                    Name);
+                return;
+            }
+            if (m_maxNetworkMessageSize > 0
+                && frame.Length > m_maxNetworkMessageSize
+                && UadpDecoder.TryReadOuterPrefix(frame,
+                    out _, out _, out bool chunkMessage,
+                    out PublisherId publisherId, out ushort writerGroupId)
+                && !chunkMessage)
+            {
+                await SendChunkedAsync(
+                    transport, frame, publisherId,
+                    writerGroupId == 0 ? null : writerGroupId, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+            if (properties.Count > 0 && transport is IPubSubHeaderTransport headerTransport)
+            {
+                await headerTransport
+                    .SendAsync(frame, topic, properties, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+            await transport.SendAsync(frame, topic, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async ValueTask<ReadOnlyMemory<byte>> EncodeAndWrapUadpAsync(
@@ -2516,6 +2654,26 @@ namespace Opc.Ua.PubSub.Connections
                 m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ReplayErrors);
             }
             m_diagnostics.RecordError(status, message);
+        }
+
+        private sealed class ReceivedSinkRegistration : IDisposable
+        {
+            private readonly IReceivedNetworkMessageSink m_sink;
+            private PubSubConnection? m_owner;
+
+            public ReceivedSinkRegistration(
+                PubSubConnection owner,
+                IReceivedNetworkMessageSink sink)
+            {
+                m_owner = owner;
+                m_sink = sink;
+            }
+
+            public void Dispose()
+            {
+                PubSubConnection? owner = Interlocked.Exchange(ref m_owner, null);
+                owner?.RemoveReceivedSink(m_sink);
+            }
         }
 
         private readonly record struct DiscoveryThrottleKey(
