@@ -31,6 +31,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
+#nullable enable
+
 // CA2000: test code; the manager is short-lived and torn down per test.
 #pragma warning disable CA2000
 
