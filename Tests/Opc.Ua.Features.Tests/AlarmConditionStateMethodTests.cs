@@ -401,6 +401,11 @@ namespace Opc.Ua.Features.Tests
             {
                 return OnGetGroupMembershipsCalled(c, null!, NodeId.Null, ref groups);
             }
+
+            public ServiceResult CallAcknowledge(ISystemContext c, ByteString eventId, LocalizedText comment)
+            {
+                return OnAcknowledgeCalled(c, null!, NodeId.Null, eventId, comment);
+            }
         }
 
         private TestableAlarm CreateTestableAlarm()
@@ -969,6 +974,38 @@ namespace Opc.Ua.Features.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(groups.Count, Is.EqualTo(1));
             Assert.That(groups[0], Is.EqualTo(groupNodeId));
+        }
+
+        [Test]
+        public void OnAcknowledgeWithNullCommentPreservesExistingComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            EnsureComment(alarm);
+            alarm.Comment!.Value = new LocalizedText("en", "Original comment");
+
+            var eventId = new ByteString(new byte[] { 1, 2, 3, 4 });
+            ServiceResult result = alarm.CallAcknowledge(
+                m_context, eventId, new LocalizedText(string.Empty));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.AckedState!.Id!.Value, Is.True);
+            Assert.That(alarm.Comment!.Value.Text, Is.EqualTo("Original comment"),
+                "A null/empty Acknowledge comment must not overwrite the existing Condition comment.");
+        }
+
+        [Test]
+        public void OnAcknowledgeWithCommentUpdatesComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            EnsureComment(alarm);
+            alarm.Comment!.Value = new LocalizedText("en", "Original comment");
+
+            var eventId = new ByteString(new byte[] { 5, 6, 7, 8 });
+            ServiceResult result = alarm.CallAcknowledge(
+                m_context, eventId, new LocalizedText("en", "Operator comment"));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment!.Value.Text, Is.EqualTo("Operator comment"));
         }
     }
 }
