@@ -254,11 +254,13 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             Headers headers = CreateHeaders(message);
             byte[] key = message.Key.IsEmpty ? null! : message.Key.ToArray();
             byte[] value = message.Value.IsEmpty ? Array.Empty<byte>() : message.Value.ToArray();
-            ProducerMessage<byte[], byte[]> record = ProducerMessage<byte[], byte[]>.Create(
-                message.Topic,
-                key,
-                value,
-                headers);
+            var record = new ProducerMessage<byte[], byte[]>
+            {
+                Topic = message.Topic,
+                Key = key,
+                Value = value,
+                Headers = headers
+            };
 
             await m_clientGate.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -318,7 +320,6 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     try
                     {
                         loopCts.Cancel();
-                        consumer?.Wakeup();
                     }
                     catch (Exception ex)
                     {
