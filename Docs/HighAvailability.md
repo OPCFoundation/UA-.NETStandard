@@ -312,7 +312,7 @@ services.AddOpcUa()
     });
 ```
 
-The individual methods remain available for advanced setups that need to diverge from the shared defaults (for example a different session gossip port or transport):
+The individual methods are available for advanced setups that need to diverge from the shared defaults (for example a different session gossip port or transport):
 
 ```csharp
 services.AddOpcUa()
