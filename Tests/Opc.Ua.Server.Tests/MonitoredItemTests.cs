@@ -34,9 +34,6 @@ namespace Opc.Ua.Server.Tests
 
             monitoredItem.QueueValue(dataValue, statuscode);
 
-            //bug in current implementation fixed with durable
-            //Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
-
             var result = new Queue<MonitoredItemNotification>();
             var result2 = new Queue<DiagnosticInfo>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1, logger);

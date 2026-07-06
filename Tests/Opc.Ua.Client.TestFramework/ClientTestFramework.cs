@@ -341,8 +341,9 @@ namespace Opc.Ua.Client.TestFramework
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn(
-                        $"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
+                    TestContext.Progress.WriteLine(
+                        $"OneTimeSetUp failed to create session with {ServerUrl}. Error: {e.Message}");
+                    throw;
                 }
             }
         }

@@ -88,6 +88,36 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        public async Task SecuredReaderRejectsNonUadpJsonFrameAsync()
+        {
+            // A reader configured for message security must drop a non-UADP
+            // (JSON) frame: there is no JSON message-security wrapper, so the
+            // frame cannot be authenticated and must never reach the decoder.
+            // Before the fix the inbound security gate lived inside the UADP
+            // branch, so a JSON frame bypassed it entirely and was delivered
+            // to application sinks unauthenticated.
+            (UadpSecurityWrapper _, UadpSecurityWrapper subscriber) =
+                CreateMatchingWrapperPair(tokenId: 1U);
+
+            byte[] json = System.Text.Encoding.UTF8.GetBytes(
+                "{\"MessageId\":\"forged\",\"MessageType\":\"ua-data\"}");
+            var transport = new ProgrammableTransport([json]);
+            var decoder = new RecordingDecoder();
+
+            await using PubSubConnection conn = NewConnection(
+                transport, decoder, subscriber,
+                MessageSecurityMode.SignAndEncrypt);
+
+            await conn.EnableAsync().ConfigureAwait(false);
+            await transport.WaitUntilDrainedAsync().ConfigureAwait(false);
+            await conn.DisableAsync().ConfigureAwait(false);
+
+            Assert.That(decoder.CallCount, Is.Zero,
+                "A non-UADP (JSON) frame must be dropped by the inbound security "
+                + "gate on a secured reader before decode.");
+        }
+
+        [Test]
         public async Task SecuredReaderAcceptsSecuredFrameAsync()
         {
             (UadpSecurityWrapper publisher, UadpSecurityWrapper subscriber) =

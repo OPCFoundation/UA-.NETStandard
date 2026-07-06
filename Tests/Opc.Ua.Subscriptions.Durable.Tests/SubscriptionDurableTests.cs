@@ -389,20 +389,24 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 // subscriptions. On a heavily loaded CI agent the deliberate
                 // teardown can race the subscription's background state manager
                 // and interrupt the in-flight CloseSession request: the inner
-                // Session.CloseAsync then returns a transient status
-                // (BadSessionIdInvalid / BadRequestInterrupted / Bad*ConnectionClosed).
-                // That close-time race is benign for this scenario — the
-                // subscription state was already persisted to `saved` above and
-                // the server retains the durable subscription
-                // (DeleteSubscriptionsOnClose == false). The strict end-to-end
-                // proof is the load + transfer + data flow on the fresh target
-                // session below, which is left unchanged.
+                // Session.CloseAsync then returns an interrupted/teardown status.
+                // That race manifests either at the channel level
+                // (BadRequestInterrupted / Bad*ConnectionClosed / BadServerHalted)
+                // or at the session level, when the racing teardown has already
+                // invalidated the session id server-side before CloseSession lands
+                // (BadSessionIdInvalid). All are benign for this scenario — the
+                // subscription state was already persisted to `saved` above and the
+                // server retains the durable subscription
+                // (DeleteSubscriptionsOnClose == false). The strict end-to-end proof
+                // is the load + transfer + data flow on the fresh target session
+                // below, which is left unchanged.
                 bool closeAcceptable = ServiceResult.IsGood(close)
                     || close.Code == (uint)StatusCodes.BadSessionIdInvalid
                     || close.Code == (uint)StatusCodes.BadRequestInterrupted
                     || close.Code == (uint)StatusCodes.BadConnectionClosed
                     || close.Code == (uint)StatusCodes.BadSecureChannelClosed
-                    || close.Code == (uint)StatusCodes.BadServerHalted;
+                    || close.Code == (uint)StatusCodes.BadServerHalted
+                    || close.Code == (uint)StatusCodes.BadSessionIdInvalid;
                 Assert.That(closeAcceptable, Is.True,
                     "Unexpected origin close status: " + close.ToString());
 
