@@ -319,8 +319,7 @@ the diagnostics gate and client exception re-wrapping; the legacy
 `RetryAfterMs=N` `AdditionalInfo` token remains a best-effort
 compatibility hint. See [Rate Limiting and Admission
 Control](RateLimiting.md) for the server limiters that produce these
-signals and the [RetryAfter specification proposal](proposals/RetryAfter.md)
-for the proposed standardization.
+signals.
 
 ## 4. `IClientChannelManager` — centralised channel sharing and reconnect
 
