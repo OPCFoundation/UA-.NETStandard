@@ -34,6 +34,7 @@ using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.StateMachine;
+using Opc.Ua.PubSub.Transcoding;
 
 namespace Opc.Ua.PubSub.Connections
 {
@@ -131,5 +132,17 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubActionHandler handler,
             bool allowUnsecured = false,
             PubSubResponseAddressPolicy? responseAddressPolicy = null);
+
+        /// <summary>
+        /// Registers an opt-in observer invoked for every decoded data
+        /// NetworkMessage received on this connection, in addition to the
+        /// normal reader-group dispatch. Used to build transcoding bridges
+        /// that forward received messages to a publisher side.
+        /// </summary>
+        /// <param name="sink">Observer to register.</param>
+        /// <returns>
+        /// A token that removes the observer when disposed.
+        /// </returns>
+        IDisposable RegisterReceivedNetworkMessageSink(IReceivedNetworkMessageSink sink);
     }
 }

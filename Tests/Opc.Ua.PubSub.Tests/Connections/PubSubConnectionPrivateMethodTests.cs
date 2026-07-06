@@ -335,11 +335,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     "SendChunkedAsync",
                     transport,
                     new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3, 4 }),
-                    new Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage
-                    {
-                        PublisherId = PublisherId.FromUInt16(1),
-                        WriterGroupId = 2
-                    },
+                    PublisherId.FromUInt16(1),
+                    (ushort?)2,
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(exception, Is.Not.Null);
