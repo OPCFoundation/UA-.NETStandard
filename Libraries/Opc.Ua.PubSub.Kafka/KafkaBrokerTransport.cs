@@ -73,7 +73,8 @@ namespace Opc.Ua.PubSub.Kafka
     /// publisher preserve ordering within a partition.
     /// </para>
     /// </remarks>
-    public sealed class KafkaBrokerTransport : IPubSubTransport, IPubSubTopicProvider
+    public sealed class KafkaBrokerTransport
+        : IPubSubTransport, IPubSubTopicProvider, IPubSubHeaderTransport
     {
         private readonly PubSubConnectionDataType m_connection;
         private readonly KafkaEndpoint m_endpoint;
@@ -326,10 +327,41 @@ namespace Opc.Ua.PubSub.Kafka
         }
 
         /// <inheritdoc/>
-        public async ValueTask SendAsync(
+        public ValueTask SendAsync(
             ReadOnlyMemory<byte> payload,
             string? topic = null,
             CancellationToken cancellationToken = default)
+            => ProduceInternalAsync(payload, topic, null, cancellationToken);
+
+        /// <inheritdoc/>
+        public ValueTask SendAsync(
+            ReadOnlyMemory<byte> payload,
+            string? topic,
+            ArrayOf<PubSubMessageProperty> properties,
+            CancellationToken cancellationToken = default)
+            => ProduceInternalAsync(payload, topic, ToHeaders(properties), cancellationToken);
+
+        private static Dictionary<string, string>? ToHeaders(
+            ArrayOf<PubSubMessageProperty> properties)
+        {
+            if (properties.Count == 0)
+            {
+                return null;
+            }
+            var headers = new Dictionary<string, string>(properties.Count, StringComparer.Ordinal);
+            for (int i = 0; i < properties.Count; i++)
+            {
+                PubSubMessageProperty property = properties[i];
+                headers[property.Name] = property.Value;
+            }
+            return headers;
+        }
+
+        private async ValueTask ProduceInternalAsync(
+            ReadOnlyMemory<byte> payload,
+            string? topic,
+            IReadOnlyDictionary<string, string>? headers,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(topic))
@@ -361,7 +393,7 @@ namespace Opc.Ua.PubSub.Kafka
                 m_partitionKey,
                 payload,
                 contentType,
-                Headers: null);
+                headers);
 
             await adapter.ProduceAsync(message, cancellationToken).ConfigureAwait(false);
             m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages, 1);

@@ -1000,9 +1000,9 @@ services.AddOpcUa()
 
 Editing the `Routes` array — for example through a reloadable JSON file — changes only the affected bridges: adding a route starts a new bridge, removing a route disposes its bridge, and changing a route's fields tears down and rebuilds just that route while every other route continues to run.
 
-### Promoting fields to MQTT user properties
+### Promoting fields to broker headers
 
-Selected DataSet fields can be promoted into transport message properties on the target side. On MQTT this maps each promoted field to an MQTT 5.0 User Property, so downstream consumers can filter on the value without decoding the payload — the broker-layer analogue of the Part 14 [PromotedFields](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.3) concept. Promotion is *copy* semantics: the promoted fields remain in the encoded payload and are additionally surfaced as properties. Field values are formatted as invariant strings.
+Selected DataSet fields can be promoted into transport message headers on the target side — MQTT 5.0 User Properties or Kafka record headers — so downstream consumers can filter on the value without decoding the payload, the broker-layer analogue of the Part 14 [PromotedFields](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.3) concept. Promotion is *copy* semantics: the promoted fields remain in the encoded payload and are additionally surfaced as headers. Field values are formatted as invariant strings.
 
 Configure promotion fluently with `PromoteFields(params string[])` and, optionally, `WithPromotedFieldPrefix(string)`, or declaratively with the `PromoteFields` and `PromotedFieldPrefix` route options.
 
@@ -1015,7 +1015,7 @@ pubsub.AddTranscodingBridge(bridge => bridge
     .ToTopic("plant/line1/telemetry"));
 ```
 
-Promotion is delivered through the `IPubSubHeaderTransport` capability. Transports that implement it — the MQTT broker transport — attach the promoted properties to each published message; datagram transports without a header channel ignore them. On MQTT 3.1.1, which has no User Property support, the properties are silently dropped.
+Promotion is delivered through the `IPubSubHeaderTransport` capability. Transports that implement it — the MQTT broker transport (as MQTT 5.0 User Properties) and the Kafka broker transport (as record headers) — attach the promoted properties to each published message; transports without a header channel (datagram transports) ignore them. On MQTT 3.1.1, which has no User Property support, the properties are silently dropped.
 
 ### Standalone primitives
 
