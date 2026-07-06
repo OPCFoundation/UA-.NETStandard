@@ -279,8 +279,8 @@ namespace Opc.Ua.History.Tests
         [Test]
         public async Task HistoryReadOnNonHistorizingVariableReturnsBadStatusAsync()
         {
-            // ScalarStaticString does not have history enabled.
-            NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
+            // ScalarStaticQualifiedName does not have history enabled.
+            NodeId nodeId = ToNodeId(Constants.ScalarStaticQualifiedName);
             DateTime endTime = DateTime.UtcNow;
             DateTime startTime = endTime.AddHours(-1);
 
@@ -535,7 +535,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public async Task HistoryReadProcessedOnNonHistorizingVariableReturnsBadStatusAsync()
         {
-            NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
+            NodeId nodeId = ToNodeId(Constants.ScalarStaticQualifiedName);
             DateTime endTime = DateTime.UtcNow;
             DateTime startTime = endTime.AddHours(-1);
 

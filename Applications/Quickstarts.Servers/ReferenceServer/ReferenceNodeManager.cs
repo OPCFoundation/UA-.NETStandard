@@ -5480,9 +5480,21 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private static readonly string[] HistoricalNodeNames =
         [
-            "Scalar_Static_Double",
+            "Scalar_Static_Boolean",
+            "Scalar_Static_SByte",
+            "Scalar_Static_Byte",
+            "Scalar_Static_Int16",
+            "Scalar_Static_UInt16",
             "Scalar_Static_Int32",
-            "Scalar_Static_Float"
+            "Scalar_Static_UInt32",
+            "Scalar_Static_Int64",
+            "Scalar_Static_UInt64",
+            "Scalar_Static_Float",
+            "Scalar_Static_Double",
+            "Scalar_Static_String",
+            "Scalar_Static_DateTime",
+            "Scalar_Static_Guid",
+            "Scalar_Static_ByteString"
         ];
 
         /// <inheritdoc/>
@@ -5540,9 +5552,21 @@ namespace Quickstarts.ReferenceServer
                 int value = 1000 - ii;
                 Variant variant = dataType switch
                 {
+                    BuiltInType.Boolean => new Variant((value & 1) == 0),
+                    BuiltInType.SByte => new Variant((sbyte)(value % 100)),
+                    BuiltInType.Byte => new Variant((byte)(value % 200)),
+                    BuiltInType.Int16 => new Variant((short)value),
+                    BuiltInType.UInt16 => new Variant((ushort)value),
                     BuiltInType.Int32 => new Variant(value),
+                    BuiltInType.UInt32 => new Variant((uint)value),
+                    BuiltInType.Int64 => new Variant((long)value),
+                    BuiltInType.UInt64 => new Variant((ulong)value),
                     BuiltInType.Float => new Variant((float)value),
                     BuiltInType.Double => new Variant((double)value),
+                    BuiltInType.String => new Variant(value.ToString(CultureInfo.InvariantCulture)),
+                    BuiltInType.DateTime => new Variant(new DateTimeUtc(now.AddSeconds(value))),
+                    BuiltInType.Guid => new Variant(new Uuid(new Guid(value, 0, 0, new byte[8]))),
+                    BuiltInType.ByteString => new Variant(new ByteString(BitConverter.GetBytes(value))),
                     _ => new Variant(value)
                 };
                 seed.Add(new DataValue(
