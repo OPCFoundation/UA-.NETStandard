@@ -308,6 +308,40 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task Publish_DispatchedEventWithEventTypeSetsMissingTypeDefinitionAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "EventType");
+
+            var captured = new TaskCompletionSource<BaseEventState>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            notifier.OnReportEvent = (_, _, e) =>
+            {
+                if (e is BaseEventState evt)
+                {
+                    captured.TrySetResult(evt);
+                }
+            };
+
+            var customEventType = new NodeId("CustomEventType", kNs);
+            var authored = new BaseEventState(parent: null)
+            {
+                EventType = PropertyState<NodeId>.With<VariantBuilder>(null, customEventType)
+            };
+
+            var channel = Channel.CreateUnbounded<BaseEventState>();
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => channel.Reader.ReadAllAsync(ct),
+                new EventPublishOptions { AlwaysOn = true });
+
+            await channel.Writer.WriteAsync(authored).ConfigureAwait(false);
+
+            BaseEventState seen = await WaitForAsync(captured.Task).ConfigureAwait(false);
+            Assert.That(seen.TypeDefinitionId, Is.EqualTo(customEventType));
+        }
+
+        [Test]
         public async Task Publish_SkipDefaultPopulation_LeavesFieldsUntouchedAsync()
         {
             using TestablePublishManager manager = CreateManager();
@@ -392,6 +426,61 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task Publish_FactoryReturnsNull_DoesNotInvokeOnReportEventAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "NullStream");
+            var factoryStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            bool reported = false;
+            notifier.OnReportEvent = (_, _, _) =>
+            {
+                reported = true;
+            };
+
+            manager.EventSources.Register(
+                notifier,
+                (_, _, _) =>
+                {
+                    factoryStarted.TrySetResult(true);
+                    return null;
+                },
+                new EventPublishOptions { AlwaysOn = true });
+
+            await WaitForAsync(factoryStarted.Task).ConfigureAwait(false);
+            await Task.Delay(s_negativeWindow).ConfigureAwait(false);
+
+            Assert.That(reported, Is.False);
+        }
+
+        [Test]
+        public async Task Publish_ReportEventThrows_InvokesOnErrorAndContinuesIteratorAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "ReportThrows");
+
+            var thrown = new InvalidOperationException("report boom");
+            var captured = new TaskCompletionSource<Exception>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            notifier.OnReportEvent = (_, _, _) => throw thrown;
+
+            var channel = Channel.CreateUnbounded<BaseEventState>();
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => channel.Reader.ReadAllAsync(ct),
+                new EventPublishOptions
+                {
+                    AlwaysOn = true,
+                    OnError = ex => captured.TrySetResult(ex)
+                });
+
+            await channel.Writer.WriteAsync(new BaseEventState(parent: null)).ConfigureAwait(false);
+
+            Exception observed = await WaitForAsync(captured.Task).ConfigureAwait(false);
+            Assert.That(observed, Is.SameAs(thrown));
+        }
+
+        [Test]
         public void Publish_DuplicateRegistration_ThrowsBadConfigurationError()
         {
             using TestablePublishManager manager = CreateManager();
@@ -409,6 +498,21 @@ namespace Opc.Ua.Server.Tests.Fluent
                     options: null));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
+        public void Publish_RegisterAfterEventSourcesDisposed_ThrowsObjectDisposedException()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "DisposedRegistry");
+
+            manager.EventSources.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() =>
+                manager.EventSources.Register(
+                    notifier,
+                    (_, _, ct) => EmptyStream(ct),
+                    options: null));
         }
 
         [Test]
