@@ -148,18 +148,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsync_WhenParkedAndClientCancels_CompletesRequestAsCanceled()
+        public void PublishAsync_WhenParked_CancelServiceCancelsRequest()
         {
+            // The OPC UA Cancel service cancels outstanding requests via
+            // RequestManager.CancelRequests -> RequestLifetime.TryCancel. That must also
+            // cancel a Publish request that has parked (released its worker) while waiting
+            // for the next notification - not only a client-side cancellation token.
+            using var requestManager = new RequestManager(m_serverMock.Object);
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
             var subMock = new Mock<ISubscription>();
             subMock.Setup(s => s.Id).Returns(1);
             queue.Add(subMock.Object); // added but not ready, so the request must park
 
-            using var cts = new CancellationTokenSource();
+            const uint requestHandle = 77;
+            using var requestLifetime = new RequestLifetime();
+            var context = new OperationContext(
+                new RequestHeader { RequestHandle = requestHandle },
+                null,
+                RequestType.Publish,
+                requestLifetime);
+            requestManager.RequestReceived(context);
+
             var sink = new TestParkSink();
             Task<ISubscription> task = queue.PublishAsync(
-                "channel1", DateTime.MaxValue, false, sink, cts.Token);
+                "channel1", DateTime.MaxValue, false, sink, requestLifetime.CancellationToken);
 
             Assert.That(task.IsCompleted, Is.False, "The request should park while it waits.");
             Assert.That(
@@ -167,13 +180,16 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(1),
                 "A parked request releases its processing worker at the park point.");
 
-            // The spec recommends clients cancel outstanding Publish requests on close. Even
-            // though the worker was already released when the request parked, the client's
-            // cancellation token must still complete the parked request (via TrySetCanceled).
-            cts.Cancel();
+            // A Cancel service call carrying the Publish request handle.
+            requestManager.CancelRequests(requestHandle, out uint cancelCount);
 
+            Assert.That(cancelCount, Is.EqualTo(1), "The Cancel service should match the parked Publish request.");
             Assert.CatchAsync<OperationCanceledException>(() => task);
-            Assert.That(task.IsCanceled, Is.True, "The parked request should complete as canceled.");
+            Assert.That(task.IsCanceled, Is.True, "The parked Publish request must complete as canceled.");
+            Assert.That(
+                context.OperationStatus.Code,
+                Is.EqualTo(StatusCodes.BadRequestCancelledByRequest),
+                "The canceled Publish must carry the Cancel service status code.");
         }
 
         [Test]
