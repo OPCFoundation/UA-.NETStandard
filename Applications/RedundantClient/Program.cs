@@ -37,8 +37,6 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Redundancy;
 using Opc.Ua.Configuration;
-using Opc.Ua.Redundancy;
-using Opc.Ua.Redundancy.Client;
 
 namespace RedundantClient
 {
@@ -70,19 +68,9 @@ namespace RedundantClient
                 Description = "How long to monitor before exiting. Use 00:00:00 to run until Ctrl+C.",
                 DefaultValueFactory = _ => TimeSpan.FromMinutes(2)
             };
-            var replicasOption = new Option<int>("--replicas")
-            {
-                Description = "Run an in-process client replica set of this size (leader holds the session).",
-                DefaultValueFactory = _ => 1
-            };
             var suiteOption = new Option<bool>("--suite")
             {
                 Description = "Run a browse/read/subscribe workload against the redundant session."
-            };
-            var standbyOption = new Option<ClientStandbyMode>("--standby")
-            {
-                Description = "Standby mode for the client replica set: Cold, Warm, or Hot.",
-                DefaultValueFactory = _ => ClientStandbyMode.Cold
             };
 
             var rootCommand = new RootCommand(
@@ -92,9 +80,7 @@ namespace RedundantClient
                 noSecurityOption,
                 autoAcceptOption,
                 durationOption,
-                replicasOption,
-                suiteOption,
-                standbyOption
+                suiteOption
             };
 
             rootCommand.SetAction(async (parseResult, cancellationToken) => await RunAsync(
@@ -102,9 +88,7 @@ namespace RedundantClient
                     parseResult.GetValue(noSecurityOption),
                     parseResult.GetValue(autoAcceptOption),
                     parseResult.GetValue(durationOption),
-                    parseResult.GetValue(replicasOption),
                     parseResult.GetValue(suiteOption),
-                    parseResult.GetValue(standbyOption),
                     cancellationToken).ConfigureAwait(false));
 
             ParseResult parseResult = rootCommand.Parse(args);
@@ -116,9 +100,7 @@ namespace RedundantClient
             bool noSecurity,
             bool autoAccept,
             TimeSpan duration,
-            int replicas,
             bool suite,
-            ClientStandbyMode standby,
             CancellationToken ct)
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Information));
@@ -167,13 +149,6 @@ namespace RedundantClient
                     EndpointConfiguration.Create(configuration));
 
                 Console.WriteLine("Connecting managed client to {0}", serverUrl);
-
-                if (replicas > 1)
-                {
-                    await RunReplicaSetAsync(
-                        configuration, endpoint, telemetry, replicas, standby, suite, duration, ct).ConfigureAwait(false);
-                    return;
-                }
 
                 // Create a normal managed session and opt it into server redundancy
                 // handling — that's it. WithServerRedundancy() lets the session discover
@@ -433,103 +408,6 @@ namespace RedundantClient
             {
                 // Ctrl+C or the run duration elapsed; exit cleanly.
             }
-        }
-
-        private static async Task RunReplicaSetAsync(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            ITelemetryContext telemetry,
-            int replicas,
-            ClientStandbyMode standby,
-            bool suite,
-            TimeSpan duration,
-            CancellationToken ct)
-        {
-            // Local, in-process demo/testing only. This runs a single-process replica set over an
-            // in-memory store + lease election (one replica leads, others stand by). The in-memory
-            // store cannot coordinate across processes, so it is not a real deployment: for
-            // multi-process client redundancy either run independent managed clients that each fail
-            // over on their own (Scale/docker-compose.yml with --scale client=N), or use a
-            // coordinated single-active replica set backed by a CAS-capable Raft client store
-            // (AddRedundantClientSession + AddRaftClientSharedStore; see Docs/HighAvailability.md).
-            using var store = new InMemorySharedKeyValueStore();
-            var sessions = new List<RedundantClientSession>();
-            try
-            {
-                for (int i = 0; i < replicas; i++)
-                {
-                    string nodeId = $"replica-{i + 1}";
-                    // Ownership of the election transfers to the coordinator, which disposes it.
-#pragma warning disable CA2000
-                    var election = new SharedStoreLeaseElection(
-                        store, "client-replica/leader", nodeId,
-                        TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(5), TimeProvider.System);
-#pragma warning restore CA2000
-                    RedundantClientSession session = new RedundantClientSessionBuilder(telemetry)
-                        .WithNodeId(nodeId)
-                        .WithStandbyMode(standby)
-                        .UseSession(token => new ValueTask<ManagedSession>(
-                            new ManagedSessionBuilder(configuration, telemetry)
-                                .UseEndpoint(endpoint)
-                                .WithSessionName(nodeId)
-                                .WithUserIdentity(new UserIdentity())
-                                .ConnectAsync(token)))
-                        .UseRedundancy(election, store, NullRecordProtector.Instance)
-                        .Build();
-                    session.RoleChanged += isLeader =>
-                        Console.WriteLine("{0} is now {1}", nodeId, isLeader ? "LEADER" : "follower");
-                    sessions.Add(session);
-                    await session.StartAsync(ct).ConfigureAwait(false);
-                }
-
-                Console.WriteLine(
-                    "Client replica set of {0} started ({1} standby); each replica exposes a transparent ISession facade.",
-                    replicas,
-                    standby);
-                if (suite)
-                {
-                    await RunSuiteThroughLeaderAsync(sessions, ct).ConfigureAwait(false);
-                }
-                await RunForDurationAsync(duration, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                foreach (RedundantClientSession session in sessions)
-                {
-                    await session.DisposeAsync().ConfigureAwait(false);
-                }
-            }
-        }
-
-        private static async Task RunSuiteThroughLeaderAsync(
-            List<RedundantClientSession> sessions,
-            CancellationToken ct)
-        {
-            // Wait for whichever replica wins leadership, then run the suite through its
-            // transparent ISession facade (follower facades stay blocked until promoted).
-            var leadershipTasks = new List<Task>(sessions.Count);
-            foreach (RedundantClientSession session in sessions)
-            {
-                leadershipTasks.Add(session.WaitForLeadershipAsync(ct));
-            }
-            await Task.WhenAny(leadershipTasks).ConfigureAwait(false);
-
-            RedundantClientSession? leader = null;
-            for (int i = 0; i < sessions.Count; i++)
-            {
-                if (leadershipTasks[i].IsCompletedSuccessfully)
-                {
-                    leader = sessions[i];
-                    break;
-                }
-            }
-            if (leader == null)
-            {
-                return;
-            }
-
-            Console.WriteLine("Running the client suite through the leader replica...");
-            await RunClientSuiteAsync(leader, ct).ConfigureAwait(false);
         }
 
         private const string kApplicationName = "RedundantClient";

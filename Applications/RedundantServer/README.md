@@ -269,11 +269,11 @@ The same file has a `clients` profile that runs **independent managed clients** 
 docker compose -f Applications\RedundantServer\Scale\docker-compose.yml --profile clients up --build --scale server=3 --scale client=2
 ```
 
-For a *coordinated* single-active client replica set (exactly one client active, the rest hot/warm/cold standbys), use `AddRedundantClientSession` + a CAS-capable `AddRaftClientSharedStore` (a fixed Raft quorum, like the server's active/passive) rather than independent clients — see [HighAvailability.md](../../Docs/HighAvailability.md). The in-process `RedundantClient --replicas` demo uses an in-memory store and is for local testing only.
+For a *coordinated* single-active client replica set (exactly one client active, the rest hot/warm/cold standbys), use `AddRedundantClientSession` + a CAS-capable `AddRaftClientSharedStore` (a fixed Raft quorum, like the server's active/passive) rather than independent clients — see [HighAvailability.md](../../Docs/HighAvailability.md). Each client replica is its own process; there is no in-process replica set.
 
 ### Watch replication and failover
 
-The `clients` (and `demo`) profile adds one or more `RedundantClient` instances (set `CLIENT_REPLICAS` for a client replica set). To see replication and failover end to end:
+The `clients` (and `demo`) profile adds one or more `RedundantClient` instances — one process per replica; set `CLIENT_REPLICAS` to scale the number of client containers. To see replication and failover end to end:
 
 ```powershell
 # 1. Start the server set (active/passive here) plus a client that prints the replicated Counter.
@@ -284,7 +284,7 @@ docker compose --env-file Applications\RedundantServer\active-passive.env `
 docker compose -f Applications\RedundantServer\docker-compose.yml stop server-a
 ```
 
-The client logs its reconnect/redirect to a surviving replica across the failover. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. For a client replica set, set `CLIENT_REPLICAS=3` so the leader client holds the session and the followers take over on leader loss. On the strong-consistency Raft topology the `HighAvailability.Counter` **continues** across the failover: the sample wires it through the distributed value cache (see [Sharing values across replicas](#sharing-values-across-replicas)), so the promoted replica resumes from the last value the former leader shared.
+The client logs its reconnect/redirect to a surviving replica across the failover. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. Set `CLIENT_REPLICAS=3` to run three independent client processes, each of which fails over on its own (for a coordinated single-active client set, use `AddRedundantClientSession` over a Raft client store as above). On the strong-consistency Raft topology the `HighAvailability.Counter` **continues** across the failover: the sample wires it through the distributed value cache (see [Sharing values across replicas](#sharing-values-across-replicas)), so the promoted replica resumes from the last value the former leader shared.
 
 For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [Kubernetes.md](..\..\Docs\Kubernetes.md).
 

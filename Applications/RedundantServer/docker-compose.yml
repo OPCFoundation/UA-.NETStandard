@@ -92,12 +92,16 @@ services:
 
   # A managed client that connects to one replica and transparently discovers / fails
   # over to the others. Part of the "clients" profile so `up` can start servers only.
+  # One client PROCESS per replica: CLIENT_REPLICAS scales the number of containers,
+  # each an independent managed client that fails over on its own.
   client:
     profiles: ["clients", "demo"]
     build:
       context: ../..
       dockerfile: Applications/RedundantClient/Dockerfile
     image: opcua-redundant-client
+    deploy:
+      replicas: ${CLIENT_REPLICAS:-1}
     depends_on:
       - server-a
       - server-b
@@ -107,7 +111,5 @@ services:
       - "opc.tcp://server-a:62543/RedundantServer"
       - "--autoaccept"
       - "--nosecurity"
-      - "--replicas"
-      - "${CLIENT_REPLICAS:-1}"
       - "--duration"
       - "00:10:00"
