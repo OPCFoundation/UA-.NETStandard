@@ -43,7 +43,8 @@ namespace Opc.Ua.Encoders
         IFormattable,
         IStructure,
         IStructureTypeInfo,
-        IEncodeableType
+        IEncodeableType,
+        IDataTypeDefinitionSource
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -384,6 +385,12 @@ namespace Opc.Ua.Encoders
                 XmlEncodingId,
                 Definition,
                 FieldTypes);
+        }
+
+        /// <inheritdoc/>
+        public DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
+        {
+            return Definition;
         }
 
         /// <summary>

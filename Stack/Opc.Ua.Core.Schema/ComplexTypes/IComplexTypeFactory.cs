@@ -29,7 +29,7 @@
 
 using System.Collections.Generic;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua
 {
     /// <summary>
     /// Factory class for the complex type builder.

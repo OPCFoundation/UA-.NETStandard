@@ -102,10 +102,17 @@ namespace Opc.Ua.Schema
             }
 
             var result = new List<UaTypeDescription>();
+
+            // The factory maps a type by its data type id and by each of its
+            // encoding ids, so KnownTypeIds yields the same type several times.
+            // De-duplicate by the type's (unique) qualified name so each data
+            // type is reported once.
+            var seen = new HashSet<XmlQualifiedName>();
             foreach (ExpandedNodeId typeId in m_factory.KnownTypeIds)
             {
                 if (TryResolve(typeId, out UaTypeDescription? description) &&
-                    string.Equals(description.NamespaceUri, namespaceUri, StringComparison.Ordinal))
+                    string.Equals(description.NamespaceUri, namespaceUri, StringComparison.Ordinal) &&
+                    seen.Add(new XmlQualifiedName(description.Name, description.NamespaceUri)))
                 {
                     result.Add(description);
                 }
