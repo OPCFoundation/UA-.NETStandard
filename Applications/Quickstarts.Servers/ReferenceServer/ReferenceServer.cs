@@ -434,6 +434,8 @@ namespace Quickstarts.ReferenceServer
 
             RegisterIdentityAuthenticators(server);
 
+            PublishConformanceUnits(server);
+
             try
             {
                 ServerInternal.UpdateServerStatus(
@@ -445,6 +447,94 @@ namespace Quickstarts.ReferenceServer
             {
             }
         }
+
+        /// <summary>
+        /// Publishes the conformance units the server supports on
+        /// Server/ServerCapabilities/ConformanceUnits. The list mirrors the
+        /// required conformance units of the profiles declared in
+        /// ServerProfileArray (per OPC UA Part 7).
+        /// </summary>
+        private static void PublishConformanceUnits(IServerInternal server)
+        {
+            BaseVariableState? conformanceUnits = server.DiagnosticsNodeManager
+                .FindPredefinedNode<BaseVariableState>(
+                    VariableIds.Server_ServerCapabilities_ConformanceUnits);
+
+            if (conformanceUnits != null)
+            {
+                conformanceUnits.Value = Variant.From(s_conformanceUnits);
+                conformanceUnits.ClearChangeMasks(server.DefaultSystemContext, false);
+            }
+        }
+
+        /// <summary>
+        /// The required conformance units of the profiles declared in
+        /// ServerProfileArray (StandardUA2022, DataAccess, Methods2022,
+        /// ReverseConnect and ClientRedundancy). Sourced from the OPC UA
+        /// profile registry (UACore 1.05 ProfileSet).
+        /// </summary>
+        private static readonly ArrayOf<QualifiedName> s_conformanceUnits = new QualifiedName[]
+        {
+            new("Address Space Atomicity"),
+            new("Address Space Base"),
+            new("Address Space Full Array Only"),
+            new("Address Space Method"),
+            new("Attribute Read"),
+            new("Base Info Base Types"),
+            new("Base Info Core Structure 2"),
+            new("Base Info Core Types Folders"),
+            new("Base Info Date DataTypes"),
+            new("Base Info Decimal DataType"),
+            new("Base Info GetMonitoredItems Method"),
+            new("Base Info Method Argument DataType"),
+            new("Base Info Method Capabilities"),
+            new("Base Info ResendData Method"),
+            new("Base Info SemanticChange Bit"),
+            new("Base Info Server Capabilities 2"),
+            new("Base Info Server Capabilities MaxMonitoredItemsQueueSize"),
+            new("Base Info Server Capabilities Subscriptions"),
+            new("Base Info ServerType"),
+            new("Base Info Type Information"),
+            new("Data Access DataItems"),
+            new("Discovery Find Servers Self"),
+            new("Discovery Get Endpoints"),
+            new("Discovery Register"),
+            new("Discovery Register2"),
+            new("Documentation - Core Capacities"),
+            new("Method Call"),
+            new("Monitor Basic"),
+            new("Monitor Items 2"),
+            new("Monitor Queueing"),
+            new("Monitor Triggering"),
+            new("Monitor Value Change V2"),
+            new("Monitored Items Deadband Filter"),
+            new("Protocol Reverse Connect Server"),
+            new("Protocol UA TCP"),
+            new("Push Model for Global Certificate and TrustList Management"),
+            new("Security Default ApplicationInstance Certificate"),
+            new("Security ECC Policy"),
+            new("Security Invalid user token"),
+            new("Security Policy Required"),
+            new("Security User Name Password 2"),
+            new("Security User X509"),
+            new("SecurityPolicy Support"),
+            new("Session Base"),
+            new("Session Cancel"),
+            new("Session General Service Behaviour"),
+            new("Session Multiple"),
+            new("Subscription Basic"),
+            new("Subscription Multiple"),
+            new("Subscription Publish Basic"),
+            new("Subscription PublishRequest Queue Overflow"),
+            new("Subscription Retransmission Queue"),
+            new("Subscription Transfer"),
+            new("Time Sync - Support"),
+            new("UA Binary Encoding"),
+            new("UA Secure Conversation"),
+            new("View Basic 2"),
+            new("View RegisterNodes"),
+            new("View TranslateBrowsePath")
+        }.ToArrayOf();
 
         /// <summary>
         /// Override some of the default user token policies for some endpoints.
