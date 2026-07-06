@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(item, Is.Not.Null);
             Assert.That(item, Is.InstanceOf<MonitoredItem>());
-            Assert.That(item.SamplingInterval, Is.EqualTo(0));
+            Assert.That(item.SamplingInterval, Is.Zero);
         }
 
         [Test]
