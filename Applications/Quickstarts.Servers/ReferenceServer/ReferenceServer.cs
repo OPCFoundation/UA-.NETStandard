@@ -470,8 +470,9 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// The required conformance units of the profiles declared in
         /// ServerProfileArray (StandardUA2022, DataAccess, Methods2022,
-        /// ReverseConnect and ClientRedundancy). Sourced from the OPC UA
-        /// profile registry (UACore 1.05 ProfileSet).
+        /// ReverseConnect, ClientRedundancy, Historical Raw Data 2022 and
+        /// Historical Aggregate 2022). Sourced from the OPC UA profile registry
+        /// (UACore 1.05 ProfileSet).
         /// </summary>
         private static readonly ArrayOf<QualifiedName> s_conformanceUnits = new QualifiedName[]
         {
@@ -479,6 +480,8 @@ namespace Quickstarts.ReferenceServer
             new("Address Space Base"),
             new("Address Space Full Array Only"),
             new("Address Space Method"),
+            new("Aggregate Master Configuration"),
+            new("Attribute Historical Read"),
             new("Attribute Read"),
             new("Base Info Base Types"),
             new("Base Info Core Structure 2"),
@@ -486,6 +489,8 @@ namespace Quickstarts.ReferenceServer
             new("Base Info Date DataTypes"),
             new("Base Info Decimal DataType"),
             new("Base Info GetMonitoredItems Method"),
+            new("Base Info History Read Capabilities"),
+            new("Base Info History ReadData Capabilities"),
             new("Base Info Method Argument DataType"),
             new("Base Info Method Capabilities"),
             new("Base Info ResendData Method"),
@@ -501,6 +506,8 @@ namespace Quickstarts.ReferenceServer
             new("Discovery Register"),
             new("Discovery Register2"),
             new("Documentation - Core Capacities"),
+            new("Historical Access Aggregates"),
+            new("Historical Access Read Raw"),
             new("Method Call"),
             new("Monitor Basic"),
             new("Monitor Items 2"),
