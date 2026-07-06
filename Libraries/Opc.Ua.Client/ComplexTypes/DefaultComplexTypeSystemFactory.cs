@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(session));
             }
 
-            return new ComplexTypeSystem(session, m_telemetry);
+            return new ComplexTypeSystem(new NodeCacheResolver(session, m_telemetry), m_telemetry);
         }
 
         private readonly ITelemetryContext m_telemetry;

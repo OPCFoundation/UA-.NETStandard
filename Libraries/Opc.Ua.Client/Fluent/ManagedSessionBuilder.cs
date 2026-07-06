@@ -701,7 +701,8 @@ namespace Opc.Ua.Client
             }
             if (opts.LoadComplexTypes)
             {
-                var complexTypeSystem = new ComplexTypes.ComplexTypeSystem(session, m_telemetry);
+                var complexTypeSystem = new ComplexTypeSystem(
+                    new ComplexTypes.NodeCacheResolver(session, m_telemetry), m_telemetry);
                 await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
             }
 
