@@ -89,15 +89,33 @@ namespace Opc.Ua.Gds.Server.Identity
 
         /// <inheritdoc/>
         [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
-        public async ValueTask<string> RequestAccessTokenAsync(
+        public ValueTask<string> RequestAccessTokenAsync(
             UserIdentityToken identityToken,
             string resourceId,
             CancellationToken ct = default)
         {
+            return RequestAccessTokenAsync(identityToken, resourceId, null, ct);
+        }
+
+        /// <summary>
+        /// Issues a token whose subject is bound to the identity the server
+        /// authenticated on the calling session rather than to the
+        /// (unauthenticated) request token.
+        /// </summary>
+        [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
+        public async ValueTask<string> RequestAccessTokenAsync(
+            UserIdentityToken identityToken,
+            string resourceId,
+            IUserIdentity? callerIdentity,
+            CancellationToken ct = default)
+        {
             ValidateAudience(resourceId);
             string[] scopes = NormalizeScopes(m_options.DefaultScopes);
+            // The subject is taken from the identity that the server
+            // authenticated on the session, never from the client-supplied
+            // request token, which carries no verified proof-of-possession.
             AccessToken token = await IssueAsync(
-                GetSubject(identityToken, null),
+                ResolveSubject(callerIdentity),
                 resourceId,
                 scopes,
                 [],
@@ -142,7 +160,8 @@ namespace Opc.Ua.Gds.Server.Identity
                 resourceId,
                 policyId ?? string.Empty,
                 scopes,
-                callerIdentity?.DisplayName ?? string.Empty,
+                ResolveSubject(callerIdentity),
+                callerIdentity,
                 DateTime.UtcNow.AddMinutes(5));
 
             return new ValueTask<(ByteString serviceData, Guid requestId)>((ByteString.Empty, requestId));
@@ -171,10 +190,20 @@ namespace Opc.Ua.Gds.Server.Identity
                     "AuthorizationService token request expired.");
             }
 
-            string[] roles = requestedRoles.IsEmpty
-                ? []
-                : [.. requestedRoles.ToArray()!.Where(role => !string.IsNullOrWhiteSpace(role))];
-            string subject = GetSubject(userIdentityToken, request.Subject);
+            // Bind the subject to the identity that was authenticated on the
+            // session when the request was started. The client-supplied
+            // userIdentityToken (and its userTokenSignature) are NOT trusted
+            // here: they carry no verified proof-of-possession, so honoring
+            // them would let any caller mint a token impersonating an
+            // arbitrary principal.
+            string subject = request.Subject;
+
+            // Authorize the requested roles against the authenticated caller.
+            // Without an explicit authorization callback no roles are granted
+            // (fail-closed), which prevents a caller from escalating privileges
+            // by requesting arbitrary roles such as SecurityAdmin.
+            string[] roles = AuthorizeRoles(request, requestedRoles);
+
             AccessToken token = await IssueAsync(
                 subject,
                 request.ResourceId,
@@ -351,25 +380,50 @@ namespace Opc.Ua.Gds.Server.Identity
             }
         }
 
-        private static string GetSubject(UserIdentityToken? identityToken, string? fallback)
+        /// <summary>
+        /// Resolves the JWT subject from the identity the server authenticated
+        /// on the calling session. The client-supplied request token is never
+        /// used, so a caller cannot choose an arbitrary subject.
+        /// </summary>
+        private static string ResolveSubject(IUserIdentity? callerIdentity)
         {
-            if (identityToken is UserNameIdentityToken userName && !string.IsNullOrEmpty(userName.UserName))
+            string? displayName = callerIdentity?.DisplayName;
+            return string.IsNullOrEmpty(displayName) ? "anonymous" : displayName!;
+        }
+
+        /// <summary>
+        /// Determines which of the requested roles may be embedded into the
+        /// issued token for the authenticated caller. Fail-closed: no roles are
+        /// granted unless an authorization callback approves them, and the
+        /// approved set is always intersected with the requested roles so the
+        /// callback can never introduce roles the caller did not request.
+        /// </summary>
+        private string[] AuthorizeRoles(RequestRecord request, ArrayOf<string> requestedRoles)
+        {
+            if (requestedRoles.IsEmpty || m_options.AuthorizeRoles == null)
             {
-                return userName.UserName;
+                return [];
             }
-            if (identityToken is X509IdentityToken x509 && x509.CertificateData.Length != 0)
+
+            string[] requested = [.. requestedRoles.ToArray()!
+                .Where(role => !string.IsNullOrWhiteSpace(role))
+                .Distinct(StringComparer.Ordinal)];
+            if (requested.Length == 0)
             {
-                return Convert.ToBase64String(x509.CertificateData.ToArray());
+                return [];
             }
-            if (!string.IsNullOrEmpty(fallback))
+
+            IReadOnlyList<string> granted = m_options.AuthorizeRoles(
+                request.Caller, request.ResourceId, requested);
+            if (granted == null || granted.Count == 0)
             {
-                return fallback!;
+                return [];
             }
-            if (!string.IsNullOrEmpty(identityToken?.PolicyId))
-            {
-                return identityToken!.PolicyId!;
-            }
-            return "anonymous";
+
+            var requestedSet = new HashSet<string>(requested, StringComparer.Ordinal);
+            return [.. granted
+                .Where(role => !string.IsNullOrWhiteSpace(role) && requestedSet.Contains(role))
+                .Distinct(StringComparer.Ordinal)];
         }
 
         private static string[] DecodeScopes(ByteString requestorData)
@@ -420,6 +474,7 @@ namespace Opc.Ua.Gds.Server.Identity
             string PolicyId,
             string[] Scopes,
             string Subject,
+            IUserIdentity? Caller,
             DateTime ExpiresAtUtc);
 
         private sealed record IssuedTokenRecord(
