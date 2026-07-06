@@ -90,8 +90,7 @@ static async Task RunStdioServerAsync(CancellationToken ct)
         "Starting MCP server with stdio transport...").ConfigureAwait(false);
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
-    ConfigureLogging(builder.Logging);
-    builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+    ConfigureLogging(builder.Logging, logToStdErr: true);
 
     PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
@@ -231,7 +230,7 @@ static void LogDiagnosticsToolsWarning(IServiceProvider services, bool diagnosti
         "Ensure the MCP transport is authenticated and audited.");
 }
 
-static void ConfigureLogging(ILoggingBuilder logging)
+static void ConfigureLogging(ILoggingBuilder logging, bool logToStdErr = false)
 {
     logging.ClearProviders();
     logging.SetMinimumLevel(LogLevel.Information);
@@ -240,4 +239,11 @@ static void ConfigureLogging(ILoggingBuilder logging)
         options.UseUtcTimestamp = true;
         options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
     });
+    if (logToStdErr)
+    {
+        logging.AddConsole(options =>
+        {
+            options.LogToStandardErrorThreshold = LogLevel.Trace;
+        });
+    }
 }
