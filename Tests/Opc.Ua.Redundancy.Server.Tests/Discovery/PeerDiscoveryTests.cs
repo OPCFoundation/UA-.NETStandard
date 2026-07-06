@@ -37,6 +37,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server.Tests
 {
@@ -294,6 +295,156 @@ namespace Opc.Ua.Redundancy.Server.Tests
             Assert.That(
                 () => new LdsPeerDiscovery(new LdsPeerDiscoveryOptions(), null!),
                 Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public async Task LdsDiscoveryIncludesClientAndServerAndSkipsNullAsync()
+        {
+            var discovery = new LdsPeerDiscovery(
+                new LdsPeerDiscoveryOptions(),
+                ct => new ValueTask<ArrayOf<ApplicationDescription>>(
+                    (ArrayOf<ApplicationDescription>)new ApplicationDescription[]
+                    {
+                        null!,
+                        new ApplicationDescription
+                        {
+                            ApplicationUri = "urn:both",
+                            ApplicationType = ApplicationType.ClientAndServer,
+                            DiscoveryUrls = new[] { "opc.tcp://both:4840" }
+                        },
+                        new ApplicationDescription
+                        {
+                            ApplicationUri = string.Empty,
+                            ApplicationType = ApplicationType.Server
+                        }
+                    }));
+
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+
+            Assert.That(peers.Count, Is.EqualTo(1));
+            Assert.That(peers[0].ServerUri, Is.EqualTo("urn:both"));
+        }
+
+        [Test]
+        public void RegistryAddPeersAddsAll()
+        {
+            var registry = new GossipPeerRegistry();
+            var received = new List<IPEndPoint>();
+            registry.Register(received.Add);
+
+            registry.AddPeers(new[]
+            {
+                new IPEndPoint(IPAddress.Loopback, 4840),
+                new IPEndPoint(IPAddress.Loopback, 4841)
+            });
+
+            Assert.That(received, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task DnsDiscoveryIncludesLocalWhenExclusionDisabledAsync()
+        {
+            var options = new DnsPeerDiscoveryOptions
+            {
+                HostName = "servers.headless",
+                ExcludeLocalAddresses = false
+            };
+            var discovery = new DnsPeerDiscovery(
+                options,
+                (host, ct) => new ValueTask<IPAddress[]>(new[] { IPAddress.Parse("10.0.0.9") }),
+                ct => new ValueTask<ISet<IPAddress>>(
+                    new HashSet<IPAddress> { IPAddress.Parse("10.0.0.9") }));
+
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+
+            Assert.That(peers.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task DnsDiscoveryBuildsBracketedIpv6UrlAsync()
+        {
+            var options = new DnsPeerDiscoveryOptions { HostName = "servers.headless", ApplicationPort = 4841 };
+            var discovery = new DnsPeerDiscovery(
+                options,
+                (host, ct) => new ValueTask<IPAddress[]>(new[] { IPAddress.Parse("2001:db8::1") }),
+                ct => new ValueTask<ISet<IPAddress>>(new HashSet<IPAddress>()));
+
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+
+            Assert.That(peers[0].DiscoveryUrls[0], Is.EqualTo("opc.tcp://[2001:db8::1]:4841"));
+        }
+
+        [Test]
+        public async Task DnsDiscoveryDefaultDelegatesExcludeLoopbackAsync()
+        {
+            // No resolver/local-address overrides: exercises DefaultResolveAsync + DefaultLocalAddressesAsync.
+            // "localhost" resolves to loopback, which the default local-address set excludes.
+            var discovery = new DnsPeerDiscovery(new DnsPeerDiscoveryOptions { HostName = "localhost" });
+
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+
+            Assert.That(peers.Count, Is.Zero);
+        }
+
+        [Test]
+        public void CompositeReturnsPrimaryWhenNonEmpty()
+        {
+            var primary = new FixedServerSet("urn:a", "urn:b");
+            var fallback = new FixedServerSet("urn:fallback");
+            var composite = new CompositeRedundantServerSetProvider(primary, fallback);
+
+            ArrayOf<ApplicationDescription> set = composite.GetRedundantServerSet();
+
+            Assert.That(set.Count, Is.EqualTo(2));
+            Assert.That(set[0].ApplicationUri, Is.EqualTo("urn:a"));
+        }
+
+        [Test]
+        public void CompositeFallsBackWhenPrimaryEmpty()
+        {
+            var primary = new FixedServerSet();
+            var fallback = new FixedServerSet("urn:fallback");
+            var composite = new CompositeRedundantServerSetProvider(primary, fallback);
+
+            ArrayOf<ApplicationDescription> set = composite.GetRedundantServerSet();
+
+            Assert.That(set.Count, Is.EqualTo(1));
+            Assert.That(set[0].ApplicationUri, Is.EqualTo("urn:fallback"));
+        }
+
+        [Test]
+        public void CompositeRejectsNullArguments()
+        {
+            var provider = new FixedServerSet();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => new CompositeRedundantServerSetProvider(null!, provider),
+                    Throws.ArgumentNullException);
+                Assert.That(
+                    () => new CompositeRedundantServerSetProvider(provider, null!),
+                    Throws.ArgumentNullException);
+            });
+        }
+
+        private sealed class FixedServerSet : IRedundantServerSetProvider
+        {
+            public FixedServerSet(params string[] uris)
+            {
+                m_set = new ApplicationDescription[uris.Length];
+                for (int i = 0; i < uris.Length; i++)
+                {
+                    m_set[i] = new ApplicationDescription { ApplicationUri = uris[i] };
+                }
+            }
+
+            public ArrayOf<ApplicationDescription> GetRedundantServerSet()
+            {
+                return m_set;
+            }
+
+            private readonly ApplicationDescription[] m_set;
         }
     }
 }

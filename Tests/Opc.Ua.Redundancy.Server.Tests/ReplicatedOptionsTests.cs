@@ -36,6 +36,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 
@@ -197,6 +198,64 @@ namespace Opc.Ua.Redundancy.Server.Tests
         private static IServiceProvider EmptyServices()
         {
             return Mock.Of<IServiceProvider>();
+        }
+
+        [Test]
+        public async Task CreateTransportRegistersTcpPeerSinkAsync()
+        {
+            var options = new ReplicatedAddressSpaceOptions { AllowUnauthenticatedGossip = true };
+            options.UseTcpGossip(IPAddress.Loopback, 0);
+            var registry = new GossipPeerRegistry();
+            await using ServiceProvider services = new ServiceCollection()
+                .AddSingleton<IGossipPeerSink>(registry)
+                .BuildServiceProvider();
+
+            ITransport transport = options.CreateTransport(services, out InMemoryNetwork? network);
+            try
+            {
+                Assert.That(transport, Is.InstanceOf<TcpGossipTransport>());
+                // Offset 0 (address-space fabric): the sink callback forwards the endpoint unchanged.
+                registry.AddPeer(new IPEndPoint(IPAddress.Loopback, 4999));
+            }
+            finally
+            {
+                await transport.DisposeAsync().ConfigureAwait(false);
+                if (network != null)
+                {
+                    await network.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task CreateTransportRegistersUdpPeerSinkWithOffsetAsync()
+        {
+            var options = new ReplicatedSessionOptions
+            {
+                AllowUnauthenticatedGossip = true,
+                GossipPeerPortOffset = 1
+            };
+            options.UseUdpGossip(IPAddress.Loopback, 0);
+            var registry = new GossipPeerRegistry();
+            await using ServiceProvider services = new ServiceCollection()
+                .AddSingleton<IGossipPeerSink>(registry)
+                .BuildServiceProvider();
+
+            ITransport transport = options.CreateTransport(services, out InMemoryNetwork? network);
+            try
+            {
+                Assert.That(transport, Is.InstanceOf<UdpGossipTransport>());
+                // Offset 1 (session fabric): the sink callback forwards the endpoint at port + 1.
+                registry.AddPeer(new IPEndPoint(IPAddress.Loopback, 4999));
+            }
+            finally
+            {
+                await transport.DisposeAsync().ConfigureAwait(false);
+                if (network != null)
+                {
+                    await network.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
     }
 }

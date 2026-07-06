@@ -35,6 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -149,6 +150,68 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(received, Has.Count.EqualTo(2));
         }
 
+        [Test]
+        public async Task StartupTaskContinuesAfterRefreshErrorAsync()
+        {
+            var discovery = new ThrowingPeerDiscovery();
+            var provider = new DiscoveredRedundantServerSetProvider();
+            var options = new PeerDiscoveryOptions { RefreshInterval = TimeSpan.FromMilliseconds(20) };
+
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+
+            await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options))
+            {
+                await task.OnServerStartedAsync(server.Object);
+                await Task.Delay(80);
+            }
+
+            // The refresh error is caught and logged; the provider stays empty and the task disposes cleanly.
+            Assert.That(provider.GetRedundantServerSet().Count, Is.Zero);
+            Assert.That(discovery.Attempts, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public async Task StartupTaskWithoutSinkUpdatesProviderAsync()
+        {
+            var discovery = new StaticPeerDiscovery(
+                [new DiscoveredPeer("urn:a", new[] { "opc.tcp://a:4840" })]);
+            var provider = new DiscoveredRedundantServerSetProvider();
+            var options = new PeerDiscoveryOptions { RefreshInterval = TimeSpan.FromMilliseconds(50) };
+
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+
+            await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options, gossipSink: null))
+            {
+                await task.OnServerStartedAsync(server.Object);
+                await WaitForAsync(() => provider.GetRedundantServerSet().Count == 1, TimeSpan.FromSeconds(5));
+            }
+
+            Assert.That(provider.GetRedundantServerSet().Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task UseLdsPeerDiscoveryRegistersLdsDiscoveryAsync()
+        {
+            var builder = new DiTestServerBuilder();
+
+            builder.UseLdsPeerDiscovery(
+                _ => ct => new ValueTask<ArrayOf<ApplicationDescription>>(default(ArrayOf<ApplicationDescription>)),
+                lds => lds.LocalApplicationUri = "urn:self");
+
+            await using ServiceProvider sp = builder.Services.BuildServiceProvider();
+            Assert.That(sp.GetRequiredService<IPeerDiscovery>(), Is.InstanceOf<LdsPeerDiscovery>());
+        }
+
+        [Test]
+        public void UseLdsPeerDiscoveryThrowsOnNullFindServers()
+        {
+            var builder = new DiTestServerBuilder();
+
+            Assert.That(() => builder.UseLdsPeerDiscovery(null!), Throws.ArgumentNullException);
+        }
+
         private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)
         {
             DateTime deadline = DateTime.UtcNow + timeout;
@@ -161,6 +224,24 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 await Task.Delay(25);
             }
             Assert.Fail("Condition was not met within the timeout.");
+        }
+
+        private sealed class ThrowingPeerDiscovery : IPeerDiscovery
+        {
+            public event Action<ArrayOf<DiscoveredPeer>>? PeersChanged;
+
+            public ArrayOf<DiscoveredPeer> Peers => default;
+
+            public int Attempts => System.Threading.Volatile.Read(ref m_attempts);
+
+            public ValueTask<ArrayOf<DiscoveredPeer>> RefreshAsync(CancellationToken ct = default)
+            {
+                System.Threading.Interlocked.Increment(ref m_attempts);
+                PeersChanged?.Invoke(default);
+                throw new InvalidOperationException("discovery failure");
+            }
+
+            private int m_attempts;
         }
     }
 }
