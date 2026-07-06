@@ -36,6 +36,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.DependencyInjection;
@@ -90,7 +91,7 @@ static async Task RunStdioServerAsync(CancellationToken ct)
         "Starting MCP server with stdio transport...").ConfigureAwait(false);
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
-    ConfigureLogging(builder.Logging, logToStdErr: true);
+    ConfigureLogging(builder.Logging, useStdioTransport: true);
 
     PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
@@ -112,7 +113,7 @@ static async Task RunSseServerAsync(int port, CancellationToken ct)
         $"Starting MCP server with HTTP/SSE transport on port {port}...").ConfigureAwait(false);
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder();
-    ConfigureLogging(builder.Logging);
+    ConfigureLogging(builder.Logging, useStdioTransport: false);
 
     PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
@@ -230,7 +231,7 @@ static void LogDiagnosticsToolsWarning(IServiceProvider services, bool diagnosti
         "Ensure the MCP transport is authenticated and audited.");
 }
 
-static void ConfigureLogging(ILoggingBuilder logging, bool logToStdErr = false)
+static void ConfigureLogging(ILoggingBuilder logging, bool useStdioTransport = false)
 {
     logging.ClearProviders();
     logging.SetMinimumLevel(LogLevel.Information);
@@ -239,11 +240,8 @@ static void ConfigureLogging(ILoggingBuilder logging, bool logToStdErr = false)
         options.UseUtcTimestamp = true;
         options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
     });
-    if (logToStdErr)
+    if (useStdioTransport)
     {
-        logging.AddConsole(options =>
-        {
-            options.LogToStandardErrorThreshold = LogLevel.Trace;
-        });
+        logging.Services.Configure<ConsoleLoggerOptions>(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
     }
 }
