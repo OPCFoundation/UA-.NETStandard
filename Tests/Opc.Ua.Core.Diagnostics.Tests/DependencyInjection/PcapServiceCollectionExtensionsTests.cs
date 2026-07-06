@@ -179,6 +179,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             if (OperatingSystem.IsWindows())
             {
                 Assert.Ignore("Unix file modes are not available on Windows.");
+                return;
             }
 
             string baseFolder = CreateTempPath("manager-base");

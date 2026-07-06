@@ -442,46 +442,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configure">Callback used to populate
         /// <see cref="AuthorizationServiceOptions"/>.</param>
         /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
-        [Obsolete("Use AddAuthorizationService instead.")]
-        public static IGdsServerBuilder WithAuthorizationService(
-            this IGdsServerBuilder gdsBuilder,
-            Action<AuthorizationServiceOptions> configure)
-        {
-            return AddAuthorizationService<CertificateJwtIssuer>(gdsBuilder, configure);
-        }
-
-        /// <summary>
-        /// Enables the default GDS AuthorizationService backed by an
-        /// ECDSA/RSA JWT issuer.
-        /// </summary>
-        /// <param name="gdsBuilder">The GDS server builder.</param>
-        /// <param name="configure">Callback used to populate
-        /// <see cref="AuthorizationServiceOptions"/>.</param>
-        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
         public static IGdsServerBuilder AddAuthorizationService(
             this IGdsServerBuilder gdsBuilder,
             Action<AuthorizationServiceOptions> configure)
         {
             return AddAuthorizationService<CertificateJwtIssuer>(gdsBuilder, configure);
-        }
-
-        /// <summary>
-        /// Enables the GDS AuthorizationService with a custom token issuer.
-        /// </summary>
-        /// <typeparam name="TIssuer">The issuer implementation.</typeparam>
-        /// <param name="gdsBuilder">The GDS server builder.</param>
-        /// <param name="configure">Callback used to populate
-        /// <see cref="AuthorizationServiceOptions"/>.</param>
-        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        [Obsolete("Use AddAuthorizationService<TIssuer> instead.")]
-        public static IGdsServerBuilder WithAuthorizationService<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TIssuer>(
-                this IGdsServerBuilder gdsBuilder,
-                Action<AuthorizationServiceOptions> configure)
-            where TIssuer : class, ITokenIssuer
-        {
-            return AddAuthorizationService<TIssuer>(gdsBuilder, configure);
         }
 
         /// <summary>

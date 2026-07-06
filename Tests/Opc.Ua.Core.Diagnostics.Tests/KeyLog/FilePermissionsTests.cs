@@ -55,6 +55,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
             if (OperatingSystem.IsWindows())
             {
                 Assert.Ignore("Unix file modes are not available on Windows.");
+                return;
             }
 
             string path = CreateTempPath("keys.uakeys.json");
@@ -77,6 +78,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
             if (OperatingSystem.IsWindows())
             {
                 Assert.Ignore("Unix file modes are not available on Windows.");
+                return;
             }
 
             string path = CreateTempPath("keys.uakeys.txt");
@@ -99,6 +101,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
             if (OperatingSystem.IsWindows())
             {
                 Assert.Ignore("Unix file modes are not available on Windows.");
+                return;
             }
 
             string path = CreateTempPath("capture.pcap");

@@ -398,6 +398,60 @@ hosted service skips that authenticator if neither is in dependency injection. S
 [Role-Based Security](RoleBasedUserManagement.md) for the role-mapping
 layer.
 
+### Fluent shortcuts and one-shot presets
+
+The server hosting surface exposes granular extension points and one-shot presets:
+
+```csharp
+services.AddOpcUa()
+    .AddSecureServer(options =>
+    {
+        options.ApplicationName = "PlantServer";
+        options.ApplicationUri = "urn:localhost:PlantServer";
+        options.ProductUri = "urn:example:PlantServer";
+        options.EndpointUrls.Add("opc.tcp://localhost:4840/PlantServer");
+    })
+    .AddOpcTcpTransport()
+    .AddReverseConnect(options =>
+    {
+        options.Clients.Add(new ServerReverseConnectClientOptions
+        {
+            EndpointUrl = "opc.tcp://client.example.com:4841"
+        });
+    })
+    .ConfigureOperationLimits(options => options.MaxNodesPerRead = 1000)
+    .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
+    {
+        Name = BrowseNames.WellKnownRole_Observer,
+        Identities =
+        {
+            new RoleIdentityMappingOptions
+            {
+                CriteriaType = IdentityCriteriaType.UserName,
+                Criteria = "operator"
+            }
+        }
+    }));
+```
+
+Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to replace the default role manager.
+Custom server types that need session, subscription, or durable-subscription DI hooks must derive from
+`DependencyInjectionStandardServer`; otherwise startup fails fast instead of ignoring those hooks.
+
+Fluent node managers can be registered without a factory class:
+
+```csharp
+services.AddOpcUa()
+    .AddReferenceServer()
+    .AddNodeManager("urn:example:line", nodes =>
+    {
+        nodes.Node("ReferenceServer");
+    });
+```
+
+`AddHistorianFileStore(provider, path)` combines the historian provider registration with a Part 20
+file-system mount for demo and lab servers.
+
 ## Client feature
 
 `builder.AddClient(opt => …)` registers a lazy `ManagedSession` factory
@@ -443,6 +497,50 @@ ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct)
 Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>`
 when the host starts and again before a DI-created session connects. Set
 `Configuration` and `Session.Endpoint` in every `AddClient` registration.
+
+### Fluent shortcuts
+
+The returned `IOpcUaClientBuilder` can compose client features without
+returning to the root builder:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options =>
+    {
+        options.Configuration = configuration;
+        options.Session = options.Session with { Endpoint = endpoint };
+    })
+    .AddSubscriptions()
+    .AddManagedClientPool()
+    .AddWotConClient()
+    .AddGdsClient()
+    .AddCertificateManagement();
+```
+
+Reverse-connect one-shot sessions can be built through DI:
+
+```csharp
+services.AddOpcUa()
+    .AddReverseConnectClient(options =>
+    {
+        options.Configuration = configuration;
+        options.Session = options.Session with { Endpoint = endpoint };
+    }, new Uri("urn:server"));
+```
+
+Discovery-and-connect resolves `IOpcUaDiscoveryService`, selects an endpoint by security policy and mode,
+then connects through `IManagedSessionFactory`:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => options.Configuration = configuration)
+    .AddDiscoveryAndConnect(options =>
+    {
+        options.DiscoveryUrl = "opc.tcp://localhost:4840";
+        options.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+        options.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+    });
+```
 
 ### Identity (client)
 
@@ -786,7 +884,6 @@ OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
 `AddAuthorizationService(...)` enables the default `CertificateJwtIssuer`;
 `AddAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
 for cloud KMS, HSM, or external token-service signing.
-The older `WithAuthorizationService(...)` methods remain as obsolete aliases.
 
 `GdsServerHostedService` consumes these forwarded registrations during
 startup and adds them to the same identity registry used by regular OPC

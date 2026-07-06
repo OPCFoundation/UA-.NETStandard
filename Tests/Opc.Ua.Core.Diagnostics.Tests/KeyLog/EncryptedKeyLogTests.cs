@@ -150,6 +150,12 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
         [Platform("Linux,MacOSX")]
         public void SessionKeyManagerCreatesKeyFileWithUserOnlyMode()
         {
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Ignore("Unix file modes are not available on Windows.");
+                return;
+            }
+
             string path = CreateTempPath("keys.uakeys.json");
 
             byte[] key = SessionKeyManager.CreateAndPersistKey(path);
