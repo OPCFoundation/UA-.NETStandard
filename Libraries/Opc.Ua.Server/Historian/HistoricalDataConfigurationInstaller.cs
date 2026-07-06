@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -91,6 +92,20 @@ namespace Opc.Ua.Server.Historian
             {
                 var browseName = new QualifiedName(BrowseNames.HAConfiguration);
                 config = context.CreateInstanceOfHistoricalDataConfigurationType(variable, browseName);
+
+                // A freshly created instance still carries the type's NodeId; assign a
+                // unique instance NodeId via the node manager's factory before wiring the
+                // HasHistoricalConfiguration reference, otherwise the reference targets the
+                // HistoricalDataConfigurationType node instead of this instance. Mandatory
+                // children (Stepped, AggregateConfiguration, ...) are materialised with the
+                // type's shared NodeIds too, so assign the whole subtree to avoid collisions
+                // when more than one variable installs a configuration object.
+                if (context.NodeIdFactory != null)
+                {
+                    config.NodeId = context.NodeIdFactory.New(context, config);
+                    AssignInstanceNodeIds(context, config);
+                }
+
                 variable.AddReference(ReferenceTypeIds.HasHistoricalConfiguration, false, config.NodeId);
                 config.AddReference(ReferenceTypeIds.HasHistoricalConfiguration, true, variable.NodeId);
                 variable.AddChild(config);
@@ -145,6 +160,17 @@ namespace Opc.Ua.Server.Historian
             // address-space lookups (the companion may not yet be added).
             var browseName = new QualifiedName(BrowseNames.HAConfiguration);
             return variable.FindChild(context, browseName) as HistoricalDataConfigurationState;
+        }
+
+        private static void AssignInstanceNodeIds(ISystemContext context, NodeState node)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                child.NodeId = context.NodeIdFactory.New(context, child);
+                AssignInstanceNodeIds(context, child);
+            }
         }
     }
 }

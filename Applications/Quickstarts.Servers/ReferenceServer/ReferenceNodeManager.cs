@@ -5546,6 +5546,24 @@ namespace Quickstarts.ReferenceServer
                 registry.HistorianRegistry.RegisterDefault(m_historian);
             }
 
+            // Capabilities advertised per historizing node. StartOfArchive is set
+            // slightly before the earliest seeded sample so History Access clients
+            // (and the CTT) can discover the archive window via the installed
+            // HistoricalDataConfigurationType companion object.
+            var capabilities = new HistorianNodeCapabilities
+            {
+                InsertData = true,
+                ReplaceData = true,
+                UpdateData = true,
+                DeleteRaw = true,
+                DeleteAtTime = true,
+                InsertAnnotation = true,
+                ServerTimestampSupported = true,
+                Stepped = false,
+                StartOfArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000)),
+                StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
+            };
+
             foreach (string name in HistoricalNodeNames)
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
@@ -5564,8 +5582,18 @@ namespace Quickstarts.ReferenceServer
                 variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
                 variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
-                m_historian.Register(nodeId);
+                m_historian.Register(nodeId, capabilities);
                 await SeedHistoricalNodeAsync(nodeId, TypeInfo.GetBuiltInType(variable.DataType), cancellationToken).ConfigureAwait(false);
+
+                // Attach a HistoricalDataConfigurationType companion object
+                // (browse name "HA Configuration") and wire it via the
+                // HasHistoricalConfiguration reference so History Access aggregate
+                // clients and the CTT can discover the node's configuration
+                // (OPC UA Part 11 5.2.3).
+                HistoricalDataConfigurationState config = await HistoricalDataConfigurationInstaller
+                    .EnsureInstalledAsync(SystemContext, variable, m_historian, cancellationToken)
+                    .ConfigureAwait(false);
+                await AddPredefinedNodeAsync(SystemContext, config, cancellationToken).ConfigureAwait(false);
             }
         }
 
