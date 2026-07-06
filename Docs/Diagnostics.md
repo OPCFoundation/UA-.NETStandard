@@ -591,6 +591,10 @@ A client must subscribe to the `Server` object (or a higher-level
 type. The server's own `Auditing` property must be `true` for any
 events to be published.
 
+Audit events are additionally gated by the `ReceiveEvents` permission: the server validates `PermissionType.ReceiveEvents` on the event type and source node for every event-monitored item, so a session only receives audit events when its granted roles include that permission (typically the well-known `SecurityAdmin` role). An anonymous or otherwise unprivileged session receives no audit events even though they are being generated. In the `ConsoleReferenceServer`, connect with username `sysadmin` / password `demo` (mapped to `[SecurityAdmin, AuthenticatedUser]` in `ReferenceServer.cs`) to observe them.
+
+> **Compliance note (OPC UA CTT).** The CTT *Auditing* conformance units collect audit events over a subscription and correlate them by `ClientAuditEntryId`. Configure the CTT connection to authenticate as a `SecurityAdmin` user (for this reference server, `sysadmin`/`demo`); an anonymous connection produces `TestFindActualFromExpected - Unable to Find Entry for ClientAuditEntryId ...` for every case because no audit events are delivered to the unprivileged session.
+
 ## 3. OPC UA server built-in diagnostics nodes
 
 OPC UA Part 5 §6 defines a `Server` object with a rich `ServerStatus`
