@@ -240,8 +240,6 @@ static void ConfigureLogging(ILoggingBuilder logging, bool useStdioTransport = f
         options.UseUtcTimestamp = true;
         options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
     });
-    if (useStdioTransport)
-    {
-        logging.Services.Configure<ConsoleLoggerOptions>(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
-    }
+    logging.Services.Configure<ConsoleLoggerOptions>(o =>
+        o.LogToStandardErrorThreshold = useStdioTransport ? LogLevel.Trace : LogLevel.Error);
 }
