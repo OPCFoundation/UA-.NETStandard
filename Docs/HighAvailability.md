@@ -52,9 +52,12 @@ Beyond-spec distributed building blocks (`Use*`):
 | `UseDistributedSubscriptionMirroring()` | Mirrors subscription / monitored-item definitions, retransmission state and continuation-point envelopes to the shared store. |
 | `UseReplicatedAddressSpace(options)` | Active/active multi-writer address-space replication over CRDT gossip (no leader). |
 | `UseReplicatedSessions(options)` | Active/active CRDT-gossiped session metadata for cross-replica fast reconnect. |
+| `UseActiveActiveRedundancy(options)` | Single-call active/active: wires the replicated address space **and** sessions from one set of gossip options (session gossip on `GossipPort` + 1). This is the entry point that "selects active/active"; the two `UseReplicated*` methods remain for advanced setups. |
 | `UseRedundancyConsistency(options)` | Selects the shared-store consistency model for the whole set — eventual (CRDT + Raft strong keyspaces) or strong (Raft). Call it before the other `Use*` methods so they compose over the chosen store. |
 | `UseServerLoadDirection(options)` | Opt-in GetEndpoints load direction: answers discovery on a balancing URL with the best replica's endpoints. |
+| `UsePeerDiscovery(factory)`, `UseStaticPeerDiscovery(peers)`, `UseDnsPeerDiscovery(options)`, `UseLdsPeerDiscovery(findServers)` | Dynamic peer discovery for the client-facing `RedundantServerSet` (`FindServers`) and, for active/active, the CRDT gossip fabric. Static configuration (`AddServerRedundancy`) is the fallback used until discovery finds peers. |
 | `UseKubernetesRaftConsensus(...)` | (`Opc.Ua.Redundancy.Kubernetes`) Builds the Raft cluster from the StatefulSet ordinal and headless-Service DNS. |
+| `UseKubernetesPeerDiscovery(...)` | (`Opc.Ua.Redundancy.Kubernetes`) Discovers peer ServerUris from EndpointSlices, bridged into the generic peer-discovery seam. |
 
 `AddServerRedundancy(...)` only publishes the redundancy metadata. It does not calculate or drive `Server.ServiceLevel`; register a ServiceLevel provider with `AddServerServiceLevel(...)`, or register an `IServiceLevelProvider` plus `ServiceLevelStartupTask`, when clients and Kubernetes readiness need live health or leader-state values.
 
@@ -293,6 +296,24 @@ Three active/active replicas converge bulk state (address space, sessions) leade
 
 `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` goes further than OPC 10000-4 §6.6. It provides active/active multi-writer address-space replication with CRDTs and gossip (`UseReplicatedAddressSpace`) and CRDT-backed session metadata (`UseReplicatedSessions`). CRDT state is eventually consistent and cannot provide compare-and-swap; the single-use nonce registry and other areas that require exactly-once behavior must and are by default mapped to a strongly consistent store (see *Consistency modes*).
 
+Selecting active/active is a single call — `UseActiveActiveRedundancy` wires both the replicated address space and the replicated session store from one set of gossip options (session gossip runs on `GossipPort` + 1 by convention):
+
+```csharp
+services.AddOpcUa()
+    .AddServer(server => { })
+    .AddNodeManager<MyNodeManagerFactory>()
+    .UseActiveActiveRedundancy(aa =>
+    {
+        aa.ReplicaId = Crdt.ReplicaId.New();
+        aa.GossipPort = 4840;
+        aa.Tls = mutualTlsOptions;      // required unless AllowUnauthenticatedGossip is set
+        aa.EnableFastReconnect = true;  // mirrored sessions fast-reconnect after failover
+        aa.AddPeer(peerEndpoint);       // static seed; or configure peer discovery (below)
+    });
+```
+
+The individual methods remain available for advanced setups that need to diverge from the shared defaults (for example a different session gossip port or transport):
+
 ```csharp
 services.AddOpcUa()
     .AddServer(server => { })
@@ -310,7 +331,36 @@ Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP
 
 > For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
-### Consistency modes: strong (Raft) and eventual (CRDT complemented by Raft)
+### Dynamic peer discovery (beyond §6.6, opt-in)
+
+Static peer lists work for a fixed replica set, but an elastically-scaled deployment (a Kubernetes `Deployment`/`StatefulSet`, an autoscaling group) adds and removes replicas at runtime. The `IPeerDiscovery` seam keeps the peer set current without a restart: a discovery mechanism periodically resolves the peers and updates (a) the client-facing `RedundantServerSet` published through `FindServers` (OPC 10000-4 §6.6.2.4.5.1) and (b), for active/active, the CRDT gossip fabric. **Static configuration (`AddServerRedundancy`) is the fallback** used until discovery finds peers.
+
+| Mechanism | API | Source |
+| --- | --- | --- |
+| Static (fallback) | `UseStaticPeerDiscovery(peers)` | A fixed configured peer set. |
+| DNS (dependency-independent) | `UseDnsPeerDiscovery(options)` | One A/AAAA record per replica — for example a Kubernetes headless service. No cloud SDK required. |
+| LDS / LDS-ME | `UseLdsPeerDiscovery(findServers)` | `FindServers` / `FindServersOnNetwork` against a Local Discovery Server. The `FindServers` call is supplied as a delegate so the server package stays free of a client dependency. |
+| Kubernetes | `UseKubernetesPeerDiscovery(...)` (`Opc.Ua.Redundancy.Kubernetes`) | EndpointSlices for the server Service, bridged into the generic seam. |
+| Custom | `UsePeerDiscovery(factory)` | Any `IPeerDiscovery` implementation. |
+
+```csharp
+services.AddOpcUa()
+    .AddServer(server => { })
+    .AddNodeManager<MyNodeManagerFactory>()
+    .UseActiveActiveRedundancy(aa => aa.GossipPort = 4840)
+    .AddServerRedundancy(r => r.Mode = RedundancySupport.HotAndMirrored)  // static fallback
+    // Dynamic: a Kubernetes headless service resolves to one address per replica.
+    .UseDnsPeerDiscovery(dns =>
+    {
+        dns.HostName = "servers.default.svc.cluster.local";
+        dns.GossipPort = 4840;       // CRDT fabric endpoint
+        dns.ApplicationPort = 4840;  // OPC UA endpoint published to clients
+    });
+```
+
+Each discovered peer carries a client-facing identity (`ServerUri` + `DiscoveryUrls`) and, optionally, a CRDT gossip endpoint. The refresh loop publishes the identities to the `RedundantServerSet` and pushes any gossip endpoints into the live active/active transports through an `IGossipPeerSink`. The gossip transport is **add-only**, so a scaled-up replica is added to the fabric immediately, while a decommissioned peer is not actively removed — it ages out as gossip to a dead endpoint simply fails and is retried. LDS and Kubernetes discovery yield OPC UA endpoints (not gossip endpoints), so pair them with DNS discovery of the gossip headless service when you also want the gossip fabric to scale dynamically. Discovery inherits the same secure-gossip defaults: newly-added peers join an already-authenticated transport, so mutual TLS still governs the fabric.
+
+
 
 CRDT gossip is eventually consistent — it stays available under network partitions but is not linearizable: it converges without a leader but cannot offer a linearizable compare-and-swap or a change-feed, so exactly-once primitives — the single-use session nonce, lease/leader election — need a strongly consistent (linearizable, quorum-based) backend. `OPCFoundation.NetStandard.Opc.Ua.Redundancy` provides that backend as a Raft layer — Raft is the same consensus algorithm used by systems like etcd and Kafka to replicate state — and `UseRedundancyConsistency` lets you pick the model for the whole `RedundantServerSet`:
 

@@ -134,11 +134,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
             builder.Services.TryAddSingleton(_ => KubernetesApiClientFactory.Create(options.Kubernetes));
             builder.Services.TryAddSingleton<IKubernetesPeerDiscovery>(sp =>
                 new KubernetesPeerDiscovery(sp.GetRequiredService<IKubernetesApiClient>(), options));
-            builder.Services.AddSingleton<IServerStartupTask>(sp =>
-                new KubernetesPeerDiscoveryStartupTask(
-                    sp.GetRequiredService<IKubernetesPeerDiscovery>(),
-                    options));
-            return builder;
+            // Bridge the Kubernetes discovery into the generic peer-discovery seam so the discovered
+            // ServerUris update the redundant server set (published through FindServers) at runtime.
+            return builder.UsePeerDiscovery(
+                sp => new KubernetesPeerDiscoveryAdapter(sp.GetRequiredService<IKubernetesPeerDiscovery>()),
+                pd => pd.RefreshInterval = options.RefreshInterval);
         }
 
         /// <summary>

@@ -53,7 +53,7 @@ you need finer control.
 | `Opc.Ua.PubSub.Udp`            | `pubSub.AddUdpTransport()`               | `IPubSubBuilder`         | —       | —                        |
 | `Opc.Ua.PubSub.Mqtt`           | `pubSub.AddMqttTransport()`              | `IPubSubBuilder`         | —       | —                        |
 | `Opc.Ua.PubSub.Server`         | `serverBuilder.AddPubSubAddressSpace(...)` | `IPubSubServerBuilder` | yes     | `OpcUa:PubSub:AddressSpace` |
-| `Opc.Ua.Redundancy.Server`     | `serverBuilder.UseDistributedAddressSpace(...)` / `UseReplicatedAddressSpace(...)` / `AddServerRedundancy(...)` | `IOpcUaServerBuilder` | yes (via `AddServer`) | see [HighAvailability.md](HighAvailability.md) |
+| `Opc.Ua.Redundancy.Server`     | `serverBuilder.UseDistributedAddressSpace(...)` / `UseReplicatedAddressSpace(...)` / `UseActiveActiveRedundancy(...)` / `UsePeerDiscovery(...)` / `AddServerRedundancy(...)` | `IOpcUaServerBuilder` | yes (via `AddServer`) | see [HighAvailability.md](HighAvailability.md) |
 | `Opc.Ua.Redundancy.Kubernetes` | `serverBuilder.UseKubernetesRaftConsensus(...)` | `IOpcUaServerBuilder`    | yes (via `AddServer`) | see [Kubernetes.md](Kubernetes.md) |
 
 Identity-provider extensions hang off `IOpcUaServerBuilder`,

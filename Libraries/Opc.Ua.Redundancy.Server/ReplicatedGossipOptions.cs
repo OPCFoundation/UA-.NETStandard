@@ -94,6 +94,13 @@ namespace Opc.Ua.Redundancy.Server
         public int MaxPayloadBytes { get; set; } = 16 * 1024 * 1024;
 
         /// <summary>
+        /// Gets or sets the port offset applied to gossip peer endpoints pushed through an
+        /// <see cref="IGossipPeerSink"/> at runtime. The address-space fabric uses <c>0</c>; the session fabric
+        /// uses <c>1</c> to match the address-space port + 1 convention.
+        /// </summary>
+        internal int GossipPeerPortOffset { get; set; }
+
+        /// <summary>
         /// Extension beyond OPC 10000-4 §6.6: configures a TCP gossip transport. Peers added via
         /// <see cref="AddPeer"/> are attached to the created transport.
         /// </summary>
@@ -204,12 +211,43 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 ThrowIfUnauthenticatedNetworkGossip();
                 defaultNetwork = null;
-                return TransportFactory(services);
+                ITransport transport = TransportFactory(services);
+                RegisterRuntimePeerSink(services, transport);
+                return transport;
             }
 
             var network = new InMemoryNetwork();
             defaultNetwork = network;
             return network.CreateTransport();
+        }
+
+        /// <summary>
+        /// Bridges an optional <see cref="IGossipPeerSink"/> to a live gossip transport so peers discovered
+        /// after startup are added to its peer set. Applies <see cref="GossipPeerPortOffset"/> so the session
+        /// fabric reaches each peer at its address-space port + 1.
+        /// </summary>
+        private void RegisterRuntimePeerSink(IServiceProvider services, ITransport transport)
+        {
+            if (services?.GetService(typeof(IGossipPeerSink)) is not IGossipPeerSink sink)
+            {
+                return;
+            }
+
+            int offset = GossipPeerPortOffset;
+            switch (transport)
+            {
+                case TcpGossipTransport tcp:
+                    sink.Register(ep => tcp.AddPeer(WithOffset(ep, offset)));
+                    break;
+                case UdpGossipTransport udp:
+                    sink.Register(ep => udp.AddPeer(WithOffset(ep, offset)));
+                    break;
+            }
+        }
+
+        private static IPEndPoint WithOffset(IPEndPoint endpoint, int offset)
+        {
+            return offset == 0 ? endpoint : new IPEndPoint(endpoint.Address, endpoint.Port + offset);
         }
 
         private void ThrowIfUnauthenticatedNetworkGossip()

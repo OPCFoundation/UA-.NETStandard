@@ -204,34 +204,25 @@ if (activeActive)
         useStrongConsistency).ConfigureAwait(false);
     ReplicaId replicaId = ReplicaIdFromNodeId(nodeId);
 
-    ua.UseReplicatedAddressSpace(r =>
+    // Active/active is selected and wired from one call: UseActiveActiveRedundancy
+    // registers both the replicated address space and the replicated session store
+    // from a single set of gossip options (session gossip uses GossipPort + 1).
+    ua.UseActiveActiveRedundancy(aa =>
+    {
+        aa.ReplicaId = replicaId;
+        aa.GossipPort = gossipPort;
+        // Secure by default: only start unauthenticated TCP gossip when the operator
+        // explicitly opts into an isolated demo (HA_INSECURE=true). A production
+        // active/active deployment MUST configure mutual TLS (aa.Tls) instead: CRDT
+        // frames are last-writer-wins, so an unauthenticated peer could forge a
+        // higher-clock update.
+        aa.AllowUnauthenticatedGossip = allowInsecure;
+        aa.EnableFastReconnect = enableFastReconnect;
+        foreach (IPEndPoint peer in gossipPeers)
         {
-            r.ReplicaId = replicaId;
-            r.UseTcpGossip(IPAddress.Any, gossipPort);
-            // Secure by default: only start unauthenticated TCP gossip when the
-            // operator explicitly opts into an isolated demo (HA_INSECURE=true).
-            // A production active/active deployment MUST configure mutual TLS
-            // (GossipTlsOptions) instead: CRDT frames are last-writer-wins, so
-            // an unauthenticated peer could forge a higher-clock update.
-            r.AllowUnauthenticatedGossip = allowInsecure;
-            foreach (IPEndPoint peer in gossipPeers)
-            {
-                r.AddPeer(peer);
-            }
-        })
-        .UseReplicatedSessions(s =>
-        {
-            // Mirrored session entries gossip on a second port; peers use the
-            // address-space port + 1 by convention.
-            s.ReplicaId = replicaId;
-            s.UseTcpGossip(IPAddress.Any, gossipPort + 1);
-            s.AllowUnauthenticatedGossip = allowInsecure;
-            foreach (IPEndPoint peer in gossipPeers)
-            {
-                s.AddPeer(new IPEndPoint(peer.Address, peer.Port + 1));
-            }
-            s.Session.EnableFastReconnect = enableFastReconnect;
-        });
+            aa.AddPeer(peer);
+        }
+    });
     builder.Services.AddSingleton<IServiceLevelProvider>(sp =>
         new LeaderServiceLevelProvider(
             sp.GetRequiredService<ILeaderElection>(),
@@ -284,6 +275,31 @@ ua.AddServerRedundancy(r =>
     }
 })
 .AddRequestServerStateChange();
+
+// Dynamic peer discovery for the client-facing RedundantServerSet (FindServers) and,
+// for active/active, the CRDT gossip fabric. HA_PEER_DISCOVERY selects the mechanism;
+// the statically-configured HA_REDUNDANT_PEERS (AddServerRedundancy above) is the
+// fallback used until discovery finds peers. HA_PEER_DISCOVERY=lds and =k8s are also
+// supported (LDS via UseLdsPeerDiscovery with a DiscoveryClient; Kubernetes via
+// UseKubernetesPeerDiscovery in the Opc.Ua.Redundancy.Kubernetes package).
+string peerDiscoveryMode = (builder.Configuration["HA_PEER_DISCOVERY"] ?? "static").Trim();
+if (peerDiscoveryMode.Equals("dns", StringComparison.OrdinalIgnoreCase) &&
+    redundancyMode != RedundancySupport.None)
+{
+    int discoveryGossipPort = int.TryParse(builder.Configuration["HA_GOSSIP_PORT"], out int dgp)
+        ? dgp
+        : 4840;
+    int applicationPort = Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? endpointUri)
+        ? endpointUri.Port
+        : 4840;
+    string serviceName = builder.Configuration["HA_SERVICE_NAME"] ?? "server";
+    ua.UseDnsPeerDiscovery(dns =>
+    {
+        dns.HostName = serviceName;
+        dns.GossipPort = discoveryGossipPort;
+        dns.ApplicationPort = applicationPort;
+    });
+}
 
 if (!string.IsNullOrWhiteSpace(balancingUrl) && redundancyMode != RedundancySupport.None)
 {

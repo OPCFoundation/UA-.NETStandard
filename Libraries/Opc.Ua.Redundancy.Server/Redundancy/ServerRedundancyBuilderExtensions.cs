@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -65,7 +66,7 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
             AddDiscoveryCapabilityConfiguration(builder, options);
             builder.Services.AddSingleton(options);
-            builder.Services.AddSingleton<IRedundantServerSetProvider>(
+            builder.Services.TryAddSingleton<IRedundantServerSetProvider>(
                 new ConfiguredRedundantServerSetProvider(options));
             builder.Services.AddSingleton<IServerStartupTask>(sp =>
                 new ServerRedundancyStartupTask(

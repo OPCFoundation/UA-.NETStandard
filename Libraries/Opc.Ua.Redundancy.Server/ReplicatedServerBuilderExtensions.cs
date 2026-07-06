@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Server;
@@ -41,6 +42,60 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     public static class ReplicatedServerBuilderExtensions
     {
+        /// <summary>
+        /// Extension beyond OPC 10000-4 §6.6: selects an active/active (multi-writer) redundant server and wires
+        /// both the replicated address space and the replicated session store from one set of CRDT gossip
+        /// options. This is the single entry point for active/active: calling it registers everything a
+        /// multi-writer replica needs, so the individual <see cref="UseReplicatedAddressSpace"/> /
+        /// <see cref="UseReplicatedSessions"/> calls are only needed for advanced setups that diverge from the
+        /// shared defaults. Session gossip runs on <see cref="ActiveActiveRedundancyOptions.GossipPort"/> + 1.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Configures the shared active/active options.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder UseActiveActiveRedundancy(
+            this IOpcUaServerBuilder builder,
+            Action<ActiveActiveRedundancyOptions>? configure = null)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            var options = new ActiveActiveRedundancyOptions();
+            configure?.Invoke(options);
+
+            return builder
+                .UseReplicatedAddressSpace(r =>
+                {
+                    r.ReplicaId = options.ReplicaId;
+                    r.TimeProvider = options.TimeProvider;
+                    r.AllowUnauthenticatedGossip = options.AllowUnauthenticatedGossip;
+                    r.UseTcpGossip(options.BindAddress, options.GossipPort, options.GossipInterval, options.Tls);
+                    foreach (IPEndPoint peer in options.Peers)
+                    {
+                        r.AddPeer(peer);
+                    }
+                })
+                .UseReplicatedSessions(s =>
+                {
+                    s.ReplicaId = options.ReplicaId;
+                    s.TimeProvider = options.TimeProvider;
+                    s.AllowUnauthenticatedGossip = options.AllowUnauthenticatedGossip;
+                    // Session gossip uses the address-space port + 1 by convention; the same offset applies to
+                    // peers pushed through the gossip sink at runtime.
+                    s.GossipPeerPortOffset = 1;
+                    s.UseTcpGossip(
+                        options.BindAddress, options.GossipPort + 1, options.GossipInterval, options.Tls);
+                    foreach (IPEndPoint peer in options.Peers)
+                    {
+                        s.AddPeer(new IPEndPoint(peer.Address, peer.Port + 1));
+                    }
+                    s.Session.EnableFastReconnect = options.EnableFastReconnect;
+                });
+        }
+
         /// <summary>
         /// Extension beyond OPC 10000-4 §6.6: registers active/active (multi-writer) replication of the address
         /// space using CRDTs gossiped between replicas. Every replica accepts

@@ -257,7 +257,7 @@ See [Consistency modes](HighAvailability.md) for the strong (Raft) vs. eventual 
 
 ## EndpointSlice peer discovery
 
-`UseKubernetesPeerDiscovery` polls EndpointSlices for the configured headless Service and builds peer URIs from address, port name, URI scheme, and port options. Set `LocalAddress` to the pod IP or DNS name so the local pod is excluded. For non-transparent redundancy, feed the discovered peers into `ServerRedundancyOptions.RedundantPeers` or the sample's peer configuration so clients can resolve the set through `FindServers`.
+`UseKubernetesPeerDiscovery` polls EndpointSlices for the configured headless Service and builds peer URIs from address, port name, URI scheme, and port options. Set `LocalAddress` to the pod IP or DNS name so the local pod is excluded. The discovered ServerUris are bridged into the generic `IPeerDiscovery` seam, so they update the client-facing `RedundantServerSet` (published through `FindServers`) **dynamically at runtime** — no manual feeding into `ServerRedundancyOptions.RedundantPeers` is required, and static configuration remains the fallback until discovery finds peers (see [High Availability → Dynamic peer discovery](HighAvailability.md#dynamic-peer-discovery-beyond-66-opt-in)). EndpointSlice discovery yields OPC UA endpoints, not CRDT gossip endpoints; for an active/active gossip fabric that also scales dynamically, pair it with `UseDnsPeerDiscovery` on the gossip headless service.
 
 ## Secrets, certificates, and trust
 
