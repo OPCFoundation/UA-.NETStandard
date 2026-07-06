@@ -416,6 +416,44 @@ namespace Opc.Ua.History.Tests
                 "Expected historical data for Int32 variable.");
         }
 
+        [TestCase("Aggregates_Boolean")]
+        [TestCase("Aggregates_Int32")]
+        [TestCase("Aggregates_Float")]
+        [TestCase("Aggregates_Double")]
+        [TestCase("Aggregates_String")]
+        [Description("The paired aggregate 'Two' nodes are historized and return raw data.")]
+        [Test]
+        public async Task HistoryReadRawOnAggregatePairedNodeReturnsDataAsync(string browseName)
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId(browseName, Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-4);
+
+            List<DataValue> values = await ReadRawHistoryOrIgnoreAsync(
+                nodeId, startTime, endTime, 10).ConfigureAwait(false);
+
+            Assert.That(values, Is.Not.Empty,
+                $"Expected historical data for {browseName}.");
+        }
+
+        [Description("The numeric aggregate 'Two' node supports an Average processed read.")]
+        [Test]
+        public async Task HistoryReadProcessedOnAggregatePairedNodeAsync()
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId("Aggregates_Double", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-3);
+
+            List<DataValue> values = await ReadProcessedHistoryOrIgnoreAsync(
+                nodeId, startTime, endTime, ObjectIds.AggregateFunction_Average, 3600000)
+                .ConfigureAwait(false);
+
+            Assert.That(values, Is.Not.Empty,
+                "Expected at least one average aggregate value for the paired node.");
+        }
+
         [Test]
         public async Task HistoryReadProcessedWithAverageAggregateAsync()
         {

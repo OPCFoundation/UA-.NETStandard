@@ -3853,6 +3853,27 @@ namespace Quickstarts.ReferenceServer
                     myCompanyInstructions.Value
                         = "A place for the vendor to describe their address-space.";
                     variables.Add(myCompanyInstructions);
+
+                    // Second set of historized scalar variables used as the
+                    // paired "Two" nodes for the CTT Historical Access Aggregate
+                    // conformance units (the "One" nodes reuse the Static scalars).
+                    FolderState aggregatesFolder = CreateFolder(root, "Aggregates", "Aggregates");
+                    const string aggregates = "Aggregates_";
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Boolean", "Boolean",
+                        DataTypeIds.Boolean, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Int32", "Int32",
+                        DataTypeIds.Int32, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Float", "Float",
+                        DataTypeIds.Float, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Double", "Double",
+                        DataTypeIds.Double, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "String", "String",
+                        DataTypeIds.String, ValueRanks.Scalar));
                 }
                 catch (Exception e)
                 {
@@ -5494,7 +5515,12 @@ namespace Quickstarts.ReferenceServer
             "Scalar_Static_String",
             "Scalar_Static_DateTime",
             "Scalar_Static_Guid",
-            "Scalar_Static_ByteString"
+            "Scalar_Static_ByteString",
+            "Aggregates_Boolean",
+            "Aggregates_Int32",
+            "Aggregates_Float",
+            "Aggregates_Double",
+            "Aggregates_String"
         ];
 
         /// <inheritdoc/>
