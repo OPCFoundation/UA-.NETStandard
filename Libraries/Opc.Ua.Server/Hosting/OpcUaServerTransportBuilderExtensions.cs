@@ -51,7 +51,7 @@ namespace Microsoft.Extensions.DependencyInjection
             new BuilderAdapter(builder.Services).AddOpcTcpTransport();
             return builder;
         }
-
+#if !NOHTTPS
         /// <summary>
         /// Adds the HTTPS transport and returns the server builder.
         /// </summary>
@@ -103,6 +103,7 @@ namespace Microsoft.Extensions.DependencyInjection
             new BuilderAdapter(builder.Services).AddWebApiTransport();
             return builder;
         }
+#endif
 #endif
         private sealed class BuilderAdapter : IOpcUaBuilder
         {

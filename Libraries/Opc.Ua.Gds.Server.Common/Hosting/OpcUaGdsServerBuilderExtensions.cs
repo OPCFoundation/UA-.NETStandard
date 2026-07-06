@@ -531,7 +531,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddOpcUa().AddOpcTcpTransport();
             return builder;
         }
-
+#if !NOHTTPS
         /// <summary>
         /// Enables HTTPS transport and returns the same GDS builder.
         /// </summary>
@@ -636,6 +636,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddOpcUa().AddWebApiTransport(configure);
             return builder;
         }
+#endif
 #endif
 
         /// <summary>

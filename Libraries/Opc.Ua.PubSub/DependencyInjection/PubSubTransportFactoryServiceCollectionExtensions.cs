@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.PubSub.Transports;
 
@@ -61,7 +62,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TFactory">The transport factory type.</typeparam>
         /// <param name="services">The service collection.</param>
         /// <returns>The service collection for chaining.</returns>
-        public static IServiceCollection TryAddPubSubTransportFactory<TFactory>(
+        public static IServiceCollection TryAddPubSubTransportFactory<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>(
             this IServiceCollection services)
             where TFactory : class, IPubSubTransportFactory
         {
@@ -168,7 +170,9 @@ namespace Microsoft.Extensions.DependencyInjection
         }
     }
 
-    internal sealed class PubSubTransportFactoryRegistration<TFactory> : IPubSubTransportFactoryRegistration
+    internal sealed class PubSubTransportFactoryRegistration<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>
+        : IPubSubTransportFactoryRegistration
         where TFactory : class, IPubSubTransportFactory
     {
         public bool AppliesDecorators => true;
