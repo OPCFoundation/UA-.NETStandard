@@ -47,7 +47,8 @@ using System.Runtime.InteropServices;
 namespace Opc.Ua.Configuration.Tests
 {
     /// <summary>
-    /// Tests for the BuiltIn Types.
+    /// Tests for the ApplicationInstance configuration, certificate provisioning,
+    /// and application-configuration loading.
     /// </summary>
     [TestFixture]
     [Category("ApplicationInstance")]
@@ -76,7 +77,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
-        /// Test setup.
+        /// Test teardown.
         /// </summary>
         [TearDown]
         public void TearDown()
