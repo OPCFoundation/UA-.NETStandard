@@ -4924,9 +4924,9 @@ namespace Quickstarts.ReferenceServer
             {
                 variable.ArrayDimensions = [0];
             }
-            else if (valueRank == ValueRanks.TwoDimensions)
+            else if (valueRank >= ValueRanks.TwoDimensions)
             {
-                variable.ArrayDimensions = [0, 0];
+                variable.ArrayDimensions = CreateFixedArrayDimensions(valueRank).ToArrayOf();
             }
 
             parent?.AddChild(variable);
@@ -5309,16 +5309,41 @@ namespace Quickstarts.ReferenceServer
         {
             Debug.Assert(m_generator != null, "Need a random generator!");
 
+            // Supply a concrete size for every dimension of a multi-dimensional
+            // array so the generated matrix is self-consistent with the node's
+            // ArrayDimensions attribute. Without this the CTT multi-dimensional
+            // read/index-range tests skip the node ("Length of second dimension:
+            // 0"). Scalars and single-dimension arrays keep the historic random
+            // length.
+            uint[] dimensions = variable.ValueRank >= ValueRanks.TwoDimensions
+                ? CreateFixedArrayDimensions(variable.ValueRank)
+                : [DefaultArrayLength];
+
             Variant value = default;
             for (int retryCount = 0; value.IsNull && retryCount < 10; retryCount++)
             {
                 value = m_generator!.GetRandom(
                     variable.DataType,
                     variable.ValueRank,
-                    [10],
+                    dimensions,
                     Server.TypeTree);
             }
             return value;
+        }
+
+        /// <summary>
+        /// Creates a fixed-size dimension array (one entry per dimension) for a
+        /// multi-dimensional array so its value and ArrayDimensions attribute stay
+        /// deterministic and consistent.
+        /// </summary>
+        private static uint[] CreateFixedArrayDimensions(int valueRank)
+        {
+            uint[] dimensions = new uint[valueRank];
+            for (int ii = 0; ii < valueRank; ii++)
+            {
+                dimensions[ii] = MultiDimensionalArrayLength;
+            }
+            return dimensions;
         }
 
         private void DoSimulation(object? state)
@@ -5436,6 +5461,17 @@ namespace Quickstarts.ReferenceServer
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
+
+        /// <summary>
+        /// Default random length used when generating single-dimension array values.
+        /// </summary>
+        private const uint DefaultArrayLength = 10;
+
+        /// <summary>
+        /// Fixed length used for every dimension of a generated multi-dimensional
+        /// array so its value and ArrayDimensions attribute stay deterministic.
+        /// </summary>
+        private const uint MultiDimensionalArrayLength = 3;
 
         private InMemoryHistorianProvider? m_historian;
 

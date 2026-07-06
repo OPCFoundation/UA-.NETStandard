@@ -330,6 +330,80 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task DeleteReferencesAsync_BadItem_OmitsDiagnostics_WhenNotRequestedAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext(DiagnosticsMasks.None);
+
+            var item = new DeleteReferencesItem
+            {
+                SourceNodeId = ObjectIds.ObjectsFolder,
+                TargetNodeId = ObjectIds.Server
+            };
+
+            (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnostics) =
+                await sut.DeleteReferencesAsync(
+                    ctx, new DeleteReferencesItem[] { item }.ToArrayOf(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(diagnostics.IsNull || diagnostics.Count == 0, Is.True);
+        }
+
+        [Test]
+        public async Task DeleteReferencesAsync_BadItem_ReturnsDiagnostics_WhenRequestedAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext(DiagnosticsMasks.OperationAll);
+
+            var item = new DeleteReferencesItem
+            {
+                SourceNodeId = ObjectIds.ObjectsFolder,
+                TargetNodeId = ObjectIds.Server
+            };
+
+            (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnostics) =
+                await sut.DeleteReferencesAsync(
+                    ctx, new DeleteReferencesItem[] { item }.ToArrayOf(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(diagnostics.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AddNodesAsync_BadItem_OmitsDiagnostics_WhenNotRequestedAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext(DiagnosticsMasks.None);
+
+            (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) =
+                await sut.AddNodesAsync(
+                    ctx,
+                    new AddNodesItem[] { null! }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(diagnostics.IsNull || diagnostics.Count == 0, Is.True);
+        }
+
+        [Test]
+        public async Task AddNodesAsync_BadItem_ReturnsDiagnostics_WhenRequestedAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext(DiagnosticsMasks.OperationAll);
+
+            (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) =
+                await sut.AddNodesAsync(
+                    ctx,
+                    new AddNodesItem[] { null! }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(diagnostics.Count, Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task AddNodesAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
@@ -413,6 +487,16 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.PreferredLocales).Returns([]);
             return new OperationContext(
                 new RequestHeader(), null!, RequestType.AddNodes, RequestLifetime.None, session.Object);
+        }
+
+        private static OperationContext CreateContext(DiagnosticsMasks diagnosticsMask)
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.PreferredLocales).Returns([]);
+            var requestHeader = new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask };
+            return new OperationContext(
+                requestHeader, null!, RequestType.AddNodes, RequestLifetime.None, session.Object);
         }
     }
 }
