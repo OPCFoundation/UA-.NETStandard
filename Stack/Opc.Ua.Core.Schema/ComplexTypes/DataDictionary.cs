@@ -34,7 +34,7 @@ using System.IO;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua
 {
     /// <summary>
     /// A class that holds the configuration for a UA service.
