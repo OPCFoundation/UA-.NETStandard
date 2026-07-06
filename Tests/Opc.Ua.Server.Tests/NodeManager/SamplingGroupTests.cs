@@ -59,9 +59,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
         }
 
+        private static OperationContext SessionContext(ISession session)
+        {
+            return new OperationContext(
+                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session);
+        }
+
+        private static Mock<ISession> CreateSessionMock(NodeId id, IUserIdentity identity)
+        {
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.Id).Returns(id);
+            session.SetupGet(s => s.EffectiveIdentity).Returns(identity);
+            return session;
+        }
+
         private static SamplingGroup CreateGroup(
             IUserIdentity identity,
-            double samplingInterval = 500)
+            double samplingInterval = 500,
+            OperationContext context = null)
         {
             Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
             var mockNodeManager = new Mock<IAsyncNodeManager>();
@@ -69,7 +84,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 mockServer.Object,
                 mockNodeManager.Object,
                 SamplingRates(),
-                SessionlessContext(),
+                context ?? SessionlessContext(),
                 samplingInterval,
                 identity);
         }
@@ -170,14 +185,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void StartMonitoringRejectsMismatchedOwnerIdentity()
+        public void StartMonitoringRejectsMismatchedSession()
         {
-            var ownerIdentity = new Mock<IUserIdentity>();
-            using SamplingGroup group = CreateGroup(ownerIdentity.Object);
+            var identity = new Mock<IUserIdentity>();
+            Mock<ISession> sessionA = CreateSessionMock(new NodeId(1, 1), identity.Object);
+            Mock<ISession> sessionB = CreateSessionMock(new NodeId(2, 1), identity.Object);
+            using SamplingGroup group = CreateGroup(
+                identity.Object, context: SessionContext(sessionA.Object));
             Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
-            var otherIdentity = new Mock<IUserIdentity>();
 
-            bool added = group.StartMonitoring(SessionlessContext(), item.Object, otherIdentity.Object);
+            bool added = group.StartMonitoring(
+                SessionContext(sessionB.Object), item.Object, identity.Object);
 
             Assert.That(added, Is.False);
         }
@@ -186,10 +204,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void StartMonitoringAcceptsMatchingItem()
         {
             var identity = new Mock<IUserIdentity>();
-            using SamplingGroup group = CreateGroup(identity.Object);
+            Mock<ISession> session = CreateSessionMock(new NodeId(1234, 1), identity.Object);
+            OperationContext context = SessionContext(session.Object);
+            using SamplingGroup group = CreateGroup(identity.Object, context: context);
             Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
 
-            bool added = group.StartMonitoring(SessionlessContext(), item.Object, identity.Object);
+            bool added = group.StartMonitoring(context, item.Object, identity.Object);
 
             Assert.That(added, Is.True);
             item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
