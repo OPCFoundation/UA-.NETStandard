@@ -83,8 +83,6 @@ namespace Opc.Ua.Subscriptions.Tests
             return base.TearDownAsync();
         }
 
-        // ===== 1. OnSubscriptionStateChangedAsync fires on lifecycle =====
-
         [Test]
         [Order(100)]
         [CancelAfter(60_000)]
@@ -144,8 +142,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== 2. Fluent stream-based LoadSubscriptionsAsync =====
 
         [Test]
         [Order(200)]
@@ -236,8 +232,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
-
-        // ===== 3. SendInitialValuesOnTransfer behavior =====
 
         [Test]
         [Order(300)]
@@ -364,8 +358,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
-
-        // ===== 4-6. Snapshot/Restore edge cases =====
 
         [Test]
         [Order(400)]
@@ -630,8 +622,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== helpers =====
 
         private async Task<ManagedSession> ConnectV2Async(
             string sessionName, CancellationToken ct)

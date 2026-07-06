@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[enumNode.NodeId] = enumNode;
             mockResolver.DataTypeNodes[structureNode.NodeId] = structureNode;
 
-            var typeSystem = ComplexTypeSystem.Create(mockResolver, telemetry);
+            var typeSystem = new ComplexTypeSystem(mockResolver, new ComplexTypeBuilderFactory(), telemetry);
             bool loaded = await typeSystem.LoadAsync(throwOnError: true).ConfigureAwait(false);
 
             var registry = new DataTypeDefinitionRegistry();

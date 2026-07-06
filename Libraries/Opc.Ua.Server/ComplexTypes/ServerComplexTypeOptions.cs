@@ -27,48 +27,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-using System.Xml;
-
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Default complex type factory
+    /// Options that control how a server builds dynamic stand-in encodeables
+    /// for DataTypes that were loaded from a NodeSet at runtime.
     /// </summary>
-    public sealed class DefaultComplexTypeFactory : IComplexTypeFactory
+    public sealed class ServerComplexTypeOptions
     {
-        /// <inheritdoc/>
-        public DefaultComplexTypeFactory()
-        {
-        }
-
-        /// <inheritdoc/>
-        public IComplexTypeBuilder Create(
-            string targetNamespace,
-            int targetNamespaceIndex,
-            string? moduleName = null)
-        {
-            return new DefaultComplexTypeBuilder(
-                this,
-                targetNamespace,
-                targetNamespaceIndex);
-        }
-
-        /// <inheritdoc/>
-        public IReadOnlyList<IType> GetTypes()
-        {
-            return [.. m_types.Values];
-        }
+        /// <summary>
+        /// When <c>true</c> (the default) the server loads stand-in encodeables
+        /// for custom DataTypes on startup. Set to <c>false</c> to opt out, which
+        /// maps to <see cref="StandardServer.LoadComplexTypes"/>.
+        /// </summary>
+        public bool Enabled { get; set; } = true;
 
         /// <summary>
-        /// Called when a new type was created during complex type system
-        /// loading
+        /// When <c>true</c> only enumeration types are loaded and structured
+        /// types are skipped. Defaults to <c>false</c>.
         /// </summary>
-        internal void OnTypeCreated(IType type)
-        {
-            m_types[type.XmlName] = type;
-        }
+        public bool OnlyEnumTypes { get; set; }
 
-        private readonly Dictionary<XmlQualifiedName, IType> m_types = [];
+        /// <summary>
+        /// When <c>true</c> loading throws if a custom DataType could not be
+        /// turned into a stand-in encodeable. When <c>false</c> the failure is
+        /// logged and loading continues. Defaults to <c>false</c>.
+        /// </summary>
+        public bool ThrowOnError { get; set; }
     }
 }

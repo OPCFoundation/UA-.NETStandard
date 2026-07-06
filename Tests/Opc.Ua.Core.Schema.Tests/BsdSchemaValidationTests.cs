@@ -27,9 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml.Linq;
 using NUnit.Framework;
+using Opc.Ua.Schema.Binary;
 using Opc.Ua.Schema.Bsd;
 
 namespace Opc.Ua.Schema.Tests
@@ -124,6 +128,50 @@ namespace Opc.Ua.Schema.Tests
                 Assert.That(FieldAttribute(document, "Foreign", "TypeName"), Is.EqualTo("n1:ValidatedBsdForeign"));
                 Assert.That(FieldAttribute(document, "Foreign", "TypeName"), Is.Not.EqualTo("tns:ValidatedBsdForeign"));
             });
+        }
+
+        [Test]
+        public void ImportTableValidatorDoesNotResolveServerSuppliedFilesystemLocation()
+        {
+            // Security regression: a type dictionary received over the network is
+            // validated with the in-memory import-table constructor. A malicious
+            // server can place an arbitrary file-system path (for example a UNC
+            // path that triggers an SMB/NetNTLM handshake) into an <Import>
+            // Location. That location must never be resolved against the local
+            // file system, even when the referenced file actually exists.
+            string evilPath = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(
+                    evilPath,
+                    "<opc:TypeDictionary xmlns:opc=\"http://opcfoundation.org/BinarySchema/\" "
+                    + "TargetNamespace=\"urn:test:evil\">"
+                    + "<opc:StructuredType Name=\"Evil\">"
+                    + "<opc:Field Name=\"Y\" TypeName=\"opc:Int32\" /></opc:StructuredType>"
+                    + "</opc:TypeDictionary>");
+
+                string mainSchema =
+                    "<opc:TypeDictionary xmlns:opc=\"http://opcfoundation.org/BinarySchema/\" "
+                    + "TargetNamespace=\"urn:test:main\">"
+                    + "<opc:Import Namespace=\"urn:test:evil\" Location=\""
+                    + System.Security.SecurityElement.Escape(evilPath) + "\" />"
+                    + "<opc:StructuredType Name=\"Main\">"
+                    + "<opc:Field Name=\"X\" TypeName=\"opc:Int32\" /></opc:StructuredType>"
+                    + "</opc:TypeDictionary>";
+
+                var validator = new BinarySchemaValidator(new Dictionary<string, byte[]>());
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(mainSchema));
+
+                // The import cannot be resolved because the file system is never
+                // consulted; validation fails closed instead of reading the file.
+                Assert.That(
+                    () => validator.Validate(stream),
+                    Throws.InstanceOf<FileNotFoundException>());
+            }
+            finally
+            {
+                File.Delete(evilPath);
+            }
         }
 
         private static DefaultSchemaProvider CreateProvider(params UaTypeDescription[] types)
