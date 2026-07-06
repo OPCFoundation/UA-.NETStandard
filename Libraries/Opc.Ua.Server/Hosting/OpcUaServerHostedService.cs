@@ -32,12 +32,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -216,7 +217,25 @@ namespace Opc.Ua.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
-            m_server = new StandardServer(m_telemetry, m_timeProvider);
+            ServerComplexTypeOptions? complexTypeOptions =
+                m_services.GetService<ServerComplexTypeOptions>();
+
+            // Complex-type loading is on by default (StandardServer.LoadComplexTypes);
+            // build and register stand-in encodeables for runtime-loaded custom
+            // DataTypes once the address space is available, and expose the primed
+            // factory as the schema resolver. An explicitly registered
+            // ServerComplexTypeOptions can tune or opt out (Enabled = false).
+            m_server = new StandardServer(m_telemetry, m_timeProvider)
+            {
+                ComplexTypeOptions = complexTypeOptions,
+                ComplexTypeRegistry = m_services.GetService<DataTypeDefinitionRegistry>(),
+                ComplexTypeResolverHolder =
+                    m_services.GetService<ServerDataTypeDefinitionResolver>()
+            };
+            if (complexTypeOptions != null)
+            {
+                m_server.LoadComplexTypes = complexTypeOptions.Enabled;
+            }
 
             // Apply admission-control (rate limiting) configuration: a DI-registered
             // provider wins; otherwise apply the options callback (rate limiting is

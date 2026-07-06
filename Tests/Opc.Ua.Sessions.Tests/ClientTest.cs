@@ -188,6 +188,9 @@ namespace Opc.Ua.Sessions.Tests
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(Endpoints.IsNull, Is.False);
+            Assert.That(Endpoints.Count, Is.GreaterThan(0),
+                "Server must advertise at least one endpoint.");
 
             TestContext.Out.WriteLine("Endpoints:");
             foreach (EndpointDescription endpoint in Endpoints)
@@ -240,6 +243,9 @@ namespace Opc.Ua.Sessions.Tests
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(servers.IsNull, Is.False);
+            Assert.That(servers.Count, Is.GreaterThan(0),
+                "FindServers must return at least the server itself.");
 
             foreach (ApplicationDescription server in servers)
             {

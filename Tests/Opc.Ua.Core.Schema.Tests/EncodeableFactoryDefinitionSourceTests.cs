@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Xml;
 using Moq;
 using NUnit.Framework;
@@ -95,6 +96,93 @@ namespace Opc.Ua.Schema.Tests
             {
                 Assert.That(resolved, Is.True);
                 Assert.That(description!.Name, Is.EqualTo("CompositeType"));
+            });
+        }
+
+        [Test]
+        public void TryResolveReturnsDefinitionFromStandInStructure()
+        {
+            StructureDefinition definition = CreateDefinition();
+            var typeId = new ExpandedNodeId(new NodeId(5001, 1));
+            var standIn = new Opc.Ua.Encoders.Structure(
+                new XmlQualifiedName("StandInStructure", "http://test.org/standin"),
+                typeId,
+                ExpandedNodeId.Null,
+                ExpandedNodeId.Null,
+                definition,
+                new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddEncodeableType(typeId, standIn).Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, new NamespaceTable());
+
+            bool resolved = source.TryResolve(typeId, out UaTypeDescription? description);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved, Is.True);
+                Assert.That(description!.Definition, Is.SameAs(definition));
+                Assert.That(description.Name, Is.EqualTo("StandInStructure"));
+            });
+        }
+
+        [Test]
+        public void TryResolveReturnsDefinitionFromStandInEnumeration()
+        {
+            var definition = new EnumDefinition
+            {
+                Fields =
+                [
+                    new EnumField { Name = "A", Value = 0 },
+                    new EnumField { Name = "B", Value = 1 }
+                ]
+            };
+            var typeId = new ExpandedNodeId(new NodeId(5002, 1));
+            var standIn = new Opc.Ua.Encoders.Enumeration(
+                new XmlQualifiedName("StandInEnum", "http://test.org/standin"),
+                definition);
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddEnumeratedType(typeId, standIn).Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, new NamespaceTable());
+
+            bool resolved = source.TryResolve(typeId, out UaTypeDescription? description);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved, Is.True);
+                Assert.That(description!.Definition, Is.SameAs(definition));
+                Assert.That(description.Name, Is.EqualTo("StandInEnum"));
+            });
+        }
+
+        [Test]
+        public void TryResolveReturnsDefinitionFromStandInOptionSet()
+        {
+            var definition = new EnumDefinition
+            {
+                Fields =
+                [
+                    new EnumField { Name = "Bit0", Value = 0 },
+                    new EnumField { Name = "Bit1", Value = 1 }
+                ]
+            };
+            var typeId = new ExpandedNodeId(new NodeId(5003, 1));
+            var standIn = new Opc.Ua.Encoders.OptionSet(
+                new XmlQualifiedName("StandInOptionSet", "http://test.org/standin"),
+                typeId,
+                ExpandedNodeId.Null,
+                ExpandedNodeId.Null,
+                definition);
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddEncodeableType(typeId, standIn).Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, new NamespaceTable());
+
+            bool resolved = source.TryResolve(typeId, out UaTypeDescription? description);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved, Is.True);
+                Assert.That(description!.Definition, Is.SameAs(definition));
+                Assert.That(description.Name, Is.EqualTo("StandInOptionSet"));
             });
         }
 
