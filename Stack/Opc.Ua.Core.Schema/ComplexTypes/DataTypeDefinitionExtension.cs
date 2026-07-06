@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua
 {
     /// <summary>
     /// Extensions to convert binary schema type definitions to DataTypeDefinitions.
