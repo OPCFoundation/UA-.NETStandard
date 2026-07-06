@@ -1008,7 +1008,8 @@ namespace Opc.Ua.Sessions.Tests
                 AppendBenchmarkResult(
                     $"ESTABLISH sessionCount={sessionCount} established={sessions.Count} " +
                     $"perSec={sessions.Count / Math.Max(swConnect.Elapsed.TotalSeconds, 0.001):F0} " +
-                    $"ms={swConnect.ElapsedMilliseconds} errors={createErrors.Count}");
+                    $"ms={swConnect.ElapsedMilliseconds} errors={createErrors.Count} " +
+                    $"firstError=[{(createErrors.IsEmpty ? "none" : createErrors.First().Replace('\r', ' ').Replace('\n', ' '))}]");
 
                 if (!createErrors.IsEmpty)
                 {
