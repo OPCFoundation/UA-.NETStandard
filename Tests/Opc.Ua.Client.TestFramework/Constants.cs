@@ -144,6 +144,13 @@ namespace Opc.Ua.Client.TestFramework
         public static readonly ExpandedNodeId ScalarStaticArrayByteString =
             new("Scalar_Static_Arrays_ByteString", ReferenceServerNamespaceUri);
 
+        /// <summary>
+        /// One-dimensional Variant array node whose elements are themselves
+        /// arrays/scalars of mixed built-in types.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarStaticArrayVariant =
+            new("Scalar_Static_Arrays_Variant", ReferenceServerNamespaceUri);
+
         public static readonly ExpandedNodeId[] ScalarStaticArrayNodes =
         [
             ScalarStaticArrayBoolean,
