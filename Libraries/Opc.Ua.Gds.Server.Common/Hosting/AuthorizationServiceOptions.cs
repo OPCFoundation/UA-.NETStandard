@@ -89,5 +89,22 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// audience and requested scopes.
         /// </summary>
         public Func<IUserIdentity?, string, IReadOnlyList<string>, bool>? AccessControl { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional authorization callback that decides which of
+        /// the roles requested during FinishRequestToken may be embedded into
+        /// the issued token. It receives the identity that was authenticated on
+        /// the session when the request was started, the audience and the
+        /// requested roles, and returns the subset of roles to grant.
+        /// </summary>
+        /// <remarks>
+        /// When this callback is not set no roles are granted (fail-closed).
+        /// A caller can therefore never obtain a token asserting privileged
+        /// roles (such as SecurityAdmin) that the operator has not explicitly
+        /// authorized, which prevents privilege escalation through arbitrary
+        /// role requests. The returned roles are always intersected with the
+        /// requested roles, so the callback can only ever narrow the set.
+        /// </remarks>
+        public Func<IUserIdentity?, string, IReadOnlyList<string>, IReadOnlyList<string>>? AuthorizeRoles { get; set; }
     }
 }
