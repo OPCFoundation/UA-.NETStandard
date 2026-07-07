@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Kafka\Opc.Ua.PubSub.Kafka.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Adapter\Opc.Ua.PubSub.Adapter.csproj" />
   </ItemGroup>
   <ItemGroup>

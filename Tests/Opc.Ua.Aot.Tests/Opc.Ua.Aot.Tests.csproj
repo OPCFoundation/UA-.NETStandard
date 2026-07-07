@@ -6,8 +6,12 @@
     <PublishAot>true</PublishAot>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <!-- Suppress IL2104 from third-party packages that are not trim-compatible -->
-    <NoWarn>$(NoWarn);IL2104</NoWarn>
+    <!-- Suppress the assembly-level IL2104 (trim) and IL3053 (AOT) rollup
+         warnings from third-party packages that are not trim/AOT-analysis-clean
+         (e.g. Dekaf, the pure-managed Kafka client used on net10.0). These are
+         referenced-assembly rollups only; our own assemblies are still analyzed
+         individually per-project via IsAotCompatible on net8.0+. -->
+    <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
     <!-- Opt into the root Directory.Build.targets no-op shape on
          per-TFM CI matrix entries that pin CustomTestTarget to a
          legacy TFM this test project cannot target. -->
