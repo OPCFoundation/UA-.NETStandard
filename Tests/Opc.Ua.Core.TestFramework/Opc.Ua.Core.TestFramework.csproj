@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
-    <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" />
     <PackageReference Include="NUnit" />
   </ItemGroup>
   <ItemGroup>

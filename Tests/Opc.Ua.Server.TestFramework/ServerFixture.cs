@@ -67,6 +67,17 @@ namespace Opc.Ua.Server.TestFramework
 
         public bool SecurityNone { get; set; }
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
+
+        /// <summary>
+        /// When <c>true</c> (default), HTTPS / WSS endpoints require client
+        /// TLS authentication and the listener emits the configured
+        /// secure security policy. When <c>false</c>, mutual TLS is off and
+        /// the listener emits a <see cref="MessageSecurityMode.None"/>
+        /// endpoint - required for the JSON sub-protocols
+        /// (HTTPS-JSON, WSS-JSON) which do not use UA Secure Conversation.
+        /// </summary>
+        public bool HttpsMutualTls { get; set; } = true;
+
         public int Port { get; private set; }
 
         public bool UseTracing { get; }
@@ -74,6 +85,16 @@ namespace Opc.Ua.Server.TestFramework
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public bool ProvisioningMode { get; set; }
         public ActivityListener ActivityListener { get; private set; }
+
+        /// <summary>
+        /// Optional <see cref="Opc.Ua.Bindings.ITransportBindingRegistry"/>
+        /// assigned to the server immediately after construction (before
+        /// <c>StartAsync</c>). Used by integration tests that swap a
+        /// listener / channel factory for a binding under test - e.g. the
+        /// Kestrel-TCP listener fixture - without touching the
+        /// process-wide static state.
+        /// </summary>
+        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
 
         public ServerFixture(
             Func<ITelemetryContext, T> factory,
@@ -120,7 +141,7 @@ namespace Opc.Ua.Server.TestFramework
             {
                 serverConfig.AddUnsecurePolicyNone();
             }
-            if (Utils.IsUriHttpsScheme(endpointUrl))
+            if (Utils.IsUriHttpsScheme(endpointUrl) || Utils.IsUriWssScheme(endpointUrl))
             {
                 serverConfig.AddPolicy(
                     MessageSecurityMode.SignAndEncrypt,
@@ -259,7 +280,16 @@ namespace Opc.Ua.Server.TestFramework
                 .SetMaxChannelCount(MaxChannelCount)
                 .SetMaxMessageQueueSize(20)
                 .SetDiagnosticsEnabled(true)
-                .SetAuditingEnabled(true);
+                .SetAuditingEnabled(true)
+                .SetHttpsMutualTls(HttpsMutualTls)
+                // Tests always close the session explicitly before stopping the server,
+                // so no real client needs the shutdown-delay grace period. Setting to 0
+                // eliminates the Thread.Sleep(1000)×ShutdownDelay blocking call in
+                // StandardServer.ShutDownDelay(), which otherwise races with the
+                // ServerFixture teardown watchdog (both default to 5 s) and causes a
+                // post-test process hang on macOS where Thread.Sleep drifts slightly
+                // above 1 s per iteration.
+                .SetShutdownDelay(0);
 
             if (ReverseConnectTimeout != 0)
             {
@@ -366,6 +396,8 @@ namespace Opc.Ua.Server.TestFramework
 
             // start the server.
             T server = m_factory(m_telemetry);
+            server.TransportBindings = TransportBindingRegistry
+                ?? TestTransportBindings.WithAllSchemes();
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
@@ -479,6 +511,7 @@ namespace Opc.Ua.Server.TestFramework
                     "skipping the remaining server / application disposal in this process to " +
                     "avoid pinning the dotnet test host past --blame-hang-timeout. " +
                     "References will be released to the runtime for finalization.");
+                DisposeCertificateManagers();
                 Server = null;
                 Application = null;
                 Config = null;
@@ -496,19 +529,47 @@ namespace Opc.Ua.Server.TestFramework
                 RunSyncWithTeardownWatchdog(
                     () => Server.Dispose(),
                     nameof(Server) + "." + nameof(Server.Dispose));
+                DisposeCertificateManagers();
                 Server = null;
             }
             if (Application != null)
             {
-                await RunWithTeardownWatchdogAsync(
-                    () => Application.DisposeAsync().AsTask(),
-                    nameof(Application) + "." + nameof(Application.DisposeAsync)).ConfigureAwait(false);
-                Application = null;
+                try
+                {
+                    await RunWithTeardownWatchdogAsync(
+                        () => Application.DisposeAsync().AsTask(),
+                        nameof(Application) + "." + nameof(Application.DisposeAsync)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    DisposeCertificateManagers();
+                    Application = null;
+                }
             }
             Config = null;
             ActivityListener?.Dispose();
             ActivityListener = null;
             await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        private void DisposeCertificateManagers()
+        {
+            IDisposable applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable;
+            applicationManager?.Dispose();
+
+            IDisposable configManager = Config?.CertificateManager as IDisposable;
+            if (configManager != null &&
+                !ReferenceEquals(configManager, applicationManager))
+            {
+                configManager.Dispose();
+            }
+
+            if (Server?.CertificateManager is IDisposable serverManager &&
+                !ReferenceEquals(serverManager, applicationManager) &&
+                !ReferenceEquals(serverManager, configManager))
+            {
+                serverManager.Dispose();
+            }
         }
 
         private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);

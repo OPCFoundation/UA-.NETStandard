@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -66,10 +67,37 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// When <c>true</c> (the default) the server builds stand-in encodeables
+        /// for custom DataTypes that were loaded from a NodeSet at runtime, once
+        /// the address space is available and before the server accepts
+        /// connections. DataTypes already backed by a compiled type are skipped.
+        /// Set to <c>false</c> to opt out.
+        /// </summary>
+        public bool LoadComplexTypes { get; set; } = true;
+
+        /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all
         /// time / duration calculations and timer scheduling.
         /// </summary>
         protected TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// Optional complex type load options applied when
+        /// <see cref="LoadComplexTypes"/> is enabled.
+        /// </summary>
+        internal ServerComplexTypeOptions? ComplexTypeOptions { get; set; }
+
+        /// <summary>
+        /// Optional supplementary registry composed into the schema resolver
+        /// for schema-only types that have no encodeable.
+        /// </summary>
+        internal DataTypeDefinitionRegistry? ComplexTypeRegistry { get; set; }
+
+        /// <summary>
+        /// Optional dependency-injection resolver holder filled with the
+        /// factory-backed schema resolver after complex types are loaded.
+        /// </summary>
+        internal ServerDataTypeDefinitionResolver? ComplexTypeResolverHolder { get; set; }
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
@@ -407,10 +435,20 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        // report audit event for client certificate
-                        ReportAuditCertificateEvent(parsedClientCertificate!, e);
+                        try
+                        {
+                            // report audit event for client certificate
+                            ReportAuditCertificateEvent(parsedClientCertificate!, e);
 
-                        OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
+                            OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
+                        }
+                        finally
+                        {
+                            parsedClientCertificate?.Dispose();
+                            parsedClientCertificate = null;
+                            clientIssuerCertificates?.Dispose();
+                            clientIssuerCertificates = null;
+                        }
                     }
                 }
 
@@ -429,10 +467,12 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // load the certificate for the security profile
-                Certificate instanceCertificate = CertificateManager!
-                    .GetInstanceCertificate(
-                        context.SecurityPolicyUri)?.Certificate!;
+                // load the certificate for the security profile. The session
+                // takes its own ref-counted handle on the certificate, so the
+                // acquired entry is disposed when this scope exits.
+                using CertificateEntry? instanceEntry = CertificateManager!
+                    .AcquireApplicationCertificateBySecurityPolicy(context.SecurityPolicyUri);
+                Certificate instanceCertificate = instanceEntry?.Certificate!;
 
                 // create the session.
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
@@ -498,8 +538,7 @@ namespace Opc.Ua.Server
                         // check if complete chain should be sent.
                         if (CertificateManager.SendCertificateChain)
                         {
-                            serverCertificate = CertificateManager
-                                .LoadCertificateChainRaw(instanceCertificate).ToByteString();
+                            serverCertificate = instanceEntry!.GetEncodedChainBlob().ToByteString();
                         }
                         else
                         {
@@ -2554,17 +2593,35 @@ namespace Opc.Ua.Server
                                 Timestamp = TimeProvider.GetUtcNow().UtcDateTime
                             };
 
-                            // create the client.
-                            Certificate? instanceCertificate =
-                                CertificateManager!.GetInstanceCertificate(
+                            // create the client. The registration channel takes
+                            // ownership of the instance certificate handle and
+                            // disposes it on close, so hand it an independent
+                            // ref-counted handle (AddRef) and dispose the
+                            // acquired entry here.
+                            using CertificateEntry? instanceEntry =
+                                CertificateManager!.AcquireApplicationCertificateBySecurityPolicy(
                                     endpoint.Description?.SecurityPolicyUri ??
-                                    SecurityPolicies.None)?.Certificate;
-                            client = await RegistrationClient.CreateAsync(
-                                configuration,
-                                endpoint.Description!,
-                                endpoint.Configuration!,
-                                instanceCertificate!,
-                                ct: ct).ConfigureAwait(false);
+                                    SecurityPolicies.None);
+                            Certificate? instanceCertificate =
+                                instanceEntry?.Certificate?.AddRef();
+                            try
+                            {
+                                client = await RegistrationClient.CreateAsync(
+                                    configuration,
+                                    endpoint.Description!,
+                                    endpoint.Configuration!,
+                                    instanceCertificate!,
+                                    ct: ct).ConfigureAwait(false);
+
+                                // Ownership of the AddRef'd handle has transferred
+                                // to the registration channel, which disposes it
+                                // when the channel closes.
+                                instanceCertificate = null;
+                            }
+                            finally
+                            {
+                                instanceCertificate?.Dispose();
+                            }
 
                             client.OperationTimeout = 10000;
 
@@ -3117,16 +3174,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="bindingFactory">The transport listener binding factory.</param>
-        /// <param name="serverDescription">The server description.</param>
-        /// <param name="endpoints">The endpoints.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>
-        /// Returns IList of a host for a UA service.
+        /// Returns IList of a host for a UA service together with the
+        /// aggregated discovery information.
         /// </returns>
-        protected override IList<ServiceHost> InitializeServiceHosts(
+        protected override async ValueTask<ServiceHostInitializationResult> InitializeServiceHostsAsync(
             ApplicationConfiguration configuration,
-            ITransportListenerBindings bindingFactory,
-            out ApplicationDescription serverDescription,
-            out ArrayOf<EndpointDescription> endpoints)
+            ITransportBindingRegistry bindingFactory,
+            CancellationToken cancellationToken = default)
         {
             var hosts = new Dictionary<string, ServiceHost>();
 
@@ -3147,7 +3203,7 @@ namespace Opc.Ua.Server
             }
 
             // set server description.
-            serverDescription = new ApplicationDescription
+            var serverDescription = new ApplicationDescription
             {
                 ApplicationUri = configuration.ApplicationUri,
                 ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
@@ -3162,10 +3218,10 @@ namespace Opc.Ua.Server
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
                     baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
-                ITransportListenerFactory? binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
+                ITransportListenerFactory? binding = bindingFactory.GetListenerFactory(scheme);
                 if (binding != null)
                 {
-                    List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(
+                    List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
                         this,
                         hosts,
                         configuration,
@@ -3173,12 +3229,15 @@ namespace Opc.Ua.Server
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
                         CertificateManager!,
-                        configuration.CertificateManager!);
+                        configuration.CertificateManager!,
+                        cancellationToken).ConfigureAwait(false);
                     endpointsList.AddRange(endpointsForHost);
                 }
             }
-            endpoints = endpointsList;
-            return [.. hosts.Values];
+            return new ServiceHostInitializationResult(
+                [.. hosts.Values],
+                serverDescription,
+                endpointsList);
         }
 
         /// <summary>
@@ -3263,6 +3322,11 @@ namespace Opc.Ua.Server
 
                 // do any additional processing now that the node manager is up and running.
                 OnNodeManagerStarted(m_serverInternal);
+
+                // run asynchronous post-address-space initialization (e.g. runtime
+                // complex-type loading) before the server begins accepting connections.
+                await OnNodeManagerStartedAsync(m_serverInternal, cancellationToken)
+                    .ConfigureAwait(false);
 
                 // create the manager responsible for aggregates.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
@@ -4009,6 +4073,36 @@ namespace Opc.Ua.Server
         protected virtual void OnNodeManagerStarted(IServerInternal server)
         {
             // may be overridden by the subclass.
+        }
+
+        /// <summary>
+        /// Called asynchronously after the node managers have been started and
+        /// the complete address space is available, but before the server
+        /// begins accepting connections. By default this builds stand-in
+        /// encodeables for custom DataTypes loaded from a NodeSet at runtime
+        /// (when <see cref="LoadComplexTypes"/> is enabled). Subclasses may
+        /// override to augment the server once the full address space exists.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual async ValueTask OnNodeManagerStartedAsync(
+            IServerInternal server,
+            CancellationToken cancellationToken = default)
+        {
+            if (LoadComplexTypes)
+            {
+                // Build stand-in encodeables for custom DataTypes loaded from a
+                // NodeSet at runtime (types already in the factory are skipped)
+                // and expose the primed factory as the schema resolver.
+                IDataTypeDefinitionResolver resolver = await server
+                    .LoadComplexTypesAsync(
+                        server.Telemetry,
+                        ComplexTypeOptions,
+                        ComplexTypeRegistry,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                ComplexTypeResolverHolder?.SetResolver(resolver);
+            }
         }
 
         /// <summary>

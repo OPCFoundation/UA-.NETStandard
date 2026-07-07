@@ -185,6 +185,8 @@ namespace Opc.Ua.Client.Tests.Channels
                     It.IsAny<Uri>(),
                     It.IsAny<TransportChannelSettings>(),
                     It.IsAny<CancellationToken>()))
+                .Callback<Uri, TransportChannelSettings, CancellationToken>(
+                    (_, settings, _) => DisposeMockOwnedCertificates(settings))
                 .Returns(new ValueTask());
             channelMock.Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask());
@@ -204,6 +206,12 @@ namespace Opc.Ua.Client.Tests.Channels
                 options: options);
 
             return (sut, serverCert, channelMock);
+        }
+
+        private static void DisposeMockOwnedCertificates(TransportChannelSettings settings)
+        {
+            settings.ServerCertificate?.Dispose();
+            settings.ServerCertificate = null;
         }
 
         private static ConfiguredEndpoint GetTestEndpoint(Certificate serverCert, int index)

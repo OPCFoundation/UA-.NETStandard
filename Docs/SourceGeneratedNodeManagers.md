@@ -801,12 +801,72 @@ the same typed surface inside the consuming assembly. Each
 `AddOpcUa{Spec}(context)` extension is idempotent and re-entrant,
 so direct chaining in dependency order is the recommended pattern.
 
+### Mixing ModelDesign and NodeSet2 in one project
+
+A `ModelDesign` XML and a `NodeSet2` XML can be combined in the same
+project, and a node in one may reference a type defined in the other.
+A common split is to author the reusable **object types** as a
+NodeSet2 (e.g. exported from a modelling tool such as SiOME) and the
+concrete **instances** as a ModelDesign whose `TypeDefinition`
+points at those NodeSet2 types:
+
+```xml
+<!-- Instances.ModelDesign.xml -->
+<opc:ModelDesign
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:et="http://example.org/EquipmentTypes"
+  xmlns="http://example.org/EquipmentInstances"
+  TargetNamespace="http://example.org/EquipmentInstances">
+  <opc:Namespaces>
+    <opc:Namespace Name="EquipmentInstances"
+      >http://example.org/EquipmentInstances</opc:Namespace>
+    <!-- Bind the same URI to the "et" XML prefix used below. -->
+    <opc:Namespace Name="EquipmentTypes" XmlPrefix="et"
+      >http://example.org/EquipmentTypes</opc:Namespace>
+  </opc:Namespaces>
+  <!-- "et:" resolves to the NodeSet2 namespace declared via xmlns:et. -->
+  <opc:Object SymbolicName="Equipment01" TypeDefinition="et:SimpleEquipmentType" />
+</opc:ModelDesign>
+```
+
+```xml
+<Project>
+  <ItemGroup>
+    <AdditionalFiles Include="Model\EquipmentTypes.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://example.org/EquipmentTypes</ModelSourceGeneratorModelUri>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Instances.ModelDesign.xml">
+      <ModelSourceGeneratorModelUri>http://example.org/EquipmentInstances</ModelSourceGeneratorModelUri>
+    </AdditionalFiles>
+  </ItemGroup>
+</Project>
+```
+
+The generator resolves the cross-model reference automatically — every
+input is supplied to the others as a resolution dependency (both
+`ModelDesign → NodeSet2` and `ModelDesign → ModelDesign`).
+
+> **C# namespace of a NodeSet2 model.** The generated C# namespace for
+> a NodeSet2 input is derived from its `ModelUri` unless you set
+> `ModelSourceGeneratorPrefix` (C# namespace / prefix) and
+> `ModelSourceGeneratorName` (the `Namespaces` class identifier) on that
+> `AdditionalFiles` entry. A `Prefix`/`Name` declared *inside* a
+> referencing ModelDesign's `<opc:Namespaces>` does **not** rename the
+> NodeSet2's generated types — set the per-file MSBuild metadata on the
+> NodeSet2 entry to control it.
+
 ## Current limitations
 
 - **Browse-path wildcards** (`*`, `**`) are not supported. Wire each
   path explicitly or resolve by NodeId / TypeDefinitionId.
 - **HistoryRead/Update** integration is delegate-only in v1; deeper
   paging/queueing still requires `INodeManager2` work.
+- **Reserved child names.** A component/property whose BrowseName
+  matches a built-in `NodeState` attribute member (for example
+  `Description` or `DisplayName`) shadows that member on the generated
+  `*State` class and produces code that does not compile. Rename such
+  children (the OPC UA `Description`/`DisplayName` *attributes* are
+  always available without a dedicated child).
 
 ## Sample
 

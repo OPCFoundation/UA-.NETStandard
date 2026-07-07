@@ -8,6 +8,17 @@ on:
     paths:
     - '**.cs'
     - '**.csproj'
+    # Build/config files affect compilation across TFMs, so the all-TFM build
+    # jobs must run when they change (e.g. targets.props, Directory.Packages.props,
+    # Directory.Build.props/targets, the solution, and this workflow itself).
+    - '**.props'
+    - '**.targets'
+    - '**.slnx'
+    - '**.sln'
+    - 'global.json'
+    - 'nuget.config'
+    - 'NuGet.config'
+    - '.github/workflows/buildandtest.yml'
 
 permissions:
   contents: read
@@ -23,7 +34,7 @@ jobs:
     outputs:
       csprojs: ${{ steps.list.outputs.csprojs }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Enumerate Tests/Opc.Ua.*.Tests projects
       id: list
       shell: pwsh
@@ -69,7 +80,7 @@ jobs:
       TESTRESULTS: "TestResults-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
@@ -159,7 +170,7 @@ jobs:
       AOTPROJECT: './Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
@@ -191,3 +202,98 @@ jobs:
         name: TestReport-aot-${{ matrix.os }}
         path: '**/*-report.html'
       if: ${{ always() }}
+
+  # Full UA.slnx build across every target framework, in parallel with the unit
+  # tests, split across two runners: Windows builds the .NET Framework /
+  # netstandard2.0 targets (which require the .NET Framework reference
+  # assemblies) and Linux builds the modern .NET / netstandard2.1 targets.
+  # Each TFM is built by pinning the solution to it via CustomTestTarget (the
+  # same mechanism the Azure full build uses). All TFMs are attempted so a
+  # single failure reports every broken TFM; the job fails if any TFM fails.
+  build-all-tfm-windows:
+    name: build-windows-all-tfm
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: |
+          8.0.x
+          9.0.x
+          10.0.x
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build UA.slnx for .NET Framework target frameworks
+      shell: pwsh
+      run: |
+        # net472/net48/netstandard2.0 are .NET Framework targets (netstandard2.0
+        # maps onto net48 for apps/tests) and require the .NET Framework
+        # reference assemblies, so they are built on Windows. The modern .NET and
+        # netstandard2.1 targets are built on Linux by build-all-tfm-linux.
+        $tfms = @('net472', 'net48', 'netstandard2.0')
+        $failed = @()
+        foreach ($tfm in $tfms) {
+          Write-Host "::group::Build UA.slnx ($tfm)"
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          if ($LASTEXITCODE -ne 0) {
+            $failed += $tfm
+            Write-Host "::error::UA.slnx build failed for $tfm"
+          }
+          Write-Host "::endgroup::"
+        }
+        if ($failed.Count -gt 0) {
+          Write-Host "UA.slnx build failed for: $($failed -join ', ')"
+          exit 1
+        }
+        Write-Host "UA.slnx built successfully for all target frameworks."
+
+  build-all-tfm-linux:
+    name: build-linux-all-tfm
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: |
+          8.0.x
+          9.0.x
+          10.0.x
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build UA.slnx for all Linux-capable target frameworks
+      shell: pwsh
+      run: |
+        # net472/net48/netstandard2.0 (which the build maps onto net48) are .NET
+        # Framework targets and are not built on Linux.
+        $tfms = @('net8.0', 'net9.0', 'net10.0', 'netstandard2.1')
+        $failed = @()
+        foreach ($tfm in $tfms) {
+          Write-Host "::group::Build UA.slnx ($tfm)"
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          if ($LASTEXITCODE -ne 0) {
+            $failed += $tfm
+            Write-Host "::error::UA.slnx build failed for $tfm"
+          }
+          Write-Host "::endgroup::"
+        }
+        if ($failed.Count -gt 0) {
+          Write-Host "UA.slnx build failed for: $($failed -join ', ')"
+          exit 1
+        }
+        Write-Host "UA.slnx built successfully for all target frameworks."

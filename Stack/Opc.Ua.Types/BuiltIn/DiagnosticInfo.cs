@@ -423,7 +423,7 @@ namespace Opc.Ua
             NamespaceUri == -1 &&
             AdditionalInfo == null &&
             InnerDiagnosticInfo == null &&
-            InnerStatusCode == StatusCodes.Good;
+            InnerStatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits);
 
         /// <summary>
         /// Determines if the specified object is equal to the object.
@@ -559,7 +559,8 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (InnerStatusCode != value.InnerStatusCode)
+                if (!InnerStatusCode.Equals(
+                    value.InnerStatusCode, StatusCodeComparison.AllBits))
                 {
                     return false;
                 }

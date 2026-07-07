@@ -281,21 +281,21 @@ namespace Opc.Ua.Client
                 validator?.ValidateDomains(certificate, endpoint);
             }
 
-            Certificate? clientCertificate = null;
-            CertificateCollection? clientCertificateChain = null;
+            Certificate? channelClientCertificate = null;
+            CertificateCollection? channelClientCertificateChain = null;
             try
             {
                 if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
                 {
-                    clientCertificate = await Session.LoadInstanceCertificateAsync(
+                    using CertificateEntry clientEntry = await Session.LoadInstanceCertificateEntryAsync(
                         configuration,
                         endpointDescription.SecurityPolicyUri,
                         messageContext.Telemetry,
                         ct).ConfigureAwait(false);
-                    clientCertificateChain = await Session.LoadCertificateChainAsync(
-                        configuration,
-                        clientCertificate,
-                        ct).ConfigureAwait(false);
+                    channelClientCertificate = clientEntry.Certificate.AddRef();
+                    channelClientCertificateChain = configuration.SecurityConfiguration.SendCertificateChain
+                        ? Session.BuildTransportChain(clientEntry)
+                        : null;
                 }
 
                 // initialize the channel which will be created with the server.
@@ -307,8 +307,8 @@ namespace Opc.Ua.Client
                         connection,
                         endpointDescription,
                         endpointConfiguration,
-                        clientCertificate,
-                        clientCertificateChain,
+                        channelClientCertificate,
+                        channelClientCertificateChain,
                         messageContext,
                         ct).ConfigureAwait(false);
                 }
@@ -318,8 +318,8 @@ namespace Opc.Ua.Client
                         configuration,
                         endpointDescription,
                         endpointConfiguration,
-                        clientCertificate,
-                        clientCertificateChain,
+                        channelClientCertificate,
+                        channelClientCertificateChain,
                         messageContext,
                         ct).ConfigureAwait(false);
                 }
@@ -327,14 +327,14 @@ namespace Opc.Ua.Client
                 // Ownership of the cert and chain has been transferred to the
                 // channel's TransportChannelSettings; the channel disposes
                 // them when it is disposed, so we must not dispose here.
-                clientCertificate = null;
-                clientCertificateChain = null;
+                channelClientCertificate = null;
+                channelClientCertificateChain = null;
                 return channel;
             }
             finally
             {
-                clientCertificateChain?.Dispose();
-                clientCertificate?.Dispose();
+                channelClientCertificateChain?.Dispose();
+                channelClientCertificate?.Dispose();
             }
         }
 

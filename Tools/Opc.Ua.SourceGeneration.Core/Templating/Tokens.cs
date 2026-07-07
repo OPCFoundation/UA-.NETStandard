@@ -123,6 +123,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfTypes => nameof(ListOfTypes);
         public static string ListOfTypeActivators => nameof(ListOfTypeActivators);
         public static string ListOfDataTypeDefinitions => nameof(ListOfDataTypeDefinitions);
+        public static string DataTypeDefinitionsClass => nameof(DataTypeDefinitionsClass);
         public static string ListOfUpdateChildrenChangeMasks => nameof(ListOfUpdateChildrenChangeMasks);
         public static string ListOfValues => nameof(ListOfValues);
         public static string ListOfActivatorRegistrations => nameof(ListOfActivatorRegistrations);

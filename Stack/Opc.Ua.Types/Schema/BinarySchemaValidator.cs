@@ -59,7 +59,7 @@ namespace Opc.Ua.Schema.Binary
         /// Intializes the object with a import table.
         /// </summary>
         public BinarySchemaValidator(IReadOnlyDictionary<string, byte[]> importTable)
-            : base(null, null, AndStandardTypeImports(importTable))
+            : base(NullFileSystem.Instance, null, AndStandardTypeImports(importTable))
         {
         }
 

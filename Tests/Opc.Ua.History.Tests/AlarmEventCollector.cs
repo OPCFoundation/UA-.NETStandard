@@ -144,6 +144,42 @@ namespace Opc.Ua.History.Tests
             m_eventLog.Clear();
         }
 
+        /// <summary>
+        /// Calls <c>ConditionType_ConditionRefresh</c> on the server, asking it
+        /// to push the current state of all retained conditions to this collector's
+        /// subscription queue.
+        /// Use this immediately after writing a value that should trigger an alarm
+        /// so that slow CI runners (notably macOS-hosted agents under load) do not
+        /// have to wait for the server's natural publish cycle to deliver the event.
+        /// </summary>
+        public async Task ConditionRefreshAsync()
+        {
+            if (m_subscriptionId == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                await m_session.CallAsync(
+                    null,
+                    new CallMethodRequest[]
+                    {
+                        new()
+                        {
+                            ObjectId = ObjectTypeIds.ConditionType,
+                            MethodId = MethodIds.ConditionType_ConditionRefresh,
+                            InputArguments = new Variant[] { new Variant(m_subscriptionId) }.ToArrayOf()
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                // Best effort — ignore if the server does not support ConditionRefresh.
+            }
+        }
+
         public async Task<EventFieldList> WaitForEventAsync(
             NodeId conditionId,
             Func<EventFieldList, bool> predicate,

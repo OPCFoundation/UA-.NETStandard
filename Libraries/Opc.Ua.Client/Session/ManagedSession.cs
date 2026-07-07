@@ -139,7 +139,8 @@ namespace Opc.Ua.Client
         /// the server certificate.</param>
         /// <param name="engineFactory">Optional subscription engine
         /// factory. Defaults to <see cref="DefaultSubscriptionEngineFactory"/>
-        /// (V2 engine) so that <see cref="SubscriptionManager"/> is
+        /// (V2 engine) so that the V2 subscription manager (see
+        /// <see cref="ISession.TryGetSubscriptionManager"/>) is
         /// available. Pass <see cref="ClassicSubscriptionEngineFactory"/>
         /// for legacy classic-engine behavior.</param>
         /// <param name="transferSubscriptionsOnRecreate">When
@@ -348,26 +349,12 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Subscriptions
             => m_session?.Subscriptions ?? [];
 
-        /// <summary>
-        /// The new options-based <see cref="Subscriptions.ISubscriptionManager"/>.
-        /// Available when the underlying session was created with the V2
-        /// subscription engine (the default for <see cref="ManagedSession"/>).
-        /// </summary>
-        /// <exception cref="InvalidOperationException">when the session
-        /// is using the classic engine.</exception>
-        public Subscriptions.ISubscriptionManager SubscriptionManager
+        /// <inheritdoc/>
+        public bool TryGetSubscriptionManager(
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+            out Subscriptions.ISubscriptionManager? manager)
         {
-            get
-            {
-                if (InnerSession.SubscriptionEngine is DefaultSubscriptionEngine v2)
-                {
-                    return v2.SubscriptionManager;
-                }
-                throw new InvalidOperationException(
-                    "ManagedSession.SubscriptionManager requires the V2 subscription engine. " +
-                    "The session is using the classic engine; use Subscriptions/AddSubscription " +
-                    "for the legacy API or recreate the ManagedSession with the V2 engine factory.");
-            }
+            return InnerSession.TryGetSubscriptionManager(out manager);
         }
 
         /// <inheritdoc/>
@@ -940,6 +927,24 @@ namespace Opc.Ua.Client
                     "ManagedSession: Connecting to {Endpoint}.",
                     ConfiguredEndpoint.EndpointUrl);
 
+                // ConfiguredEndpoint.UpdateFromServer (called when
+                // updateBeforeConnect is true) now honours the user's
+                // TransportProfileUri selection in its MatchEndpoints
+                // pipeline, so a refresh picks the OpenAPI / JSON twin
+                // over the binary parent. However the discovery-only
+                // OpenAPI / JSON twins emitted by HttpsServiceHost share
+                // the EndpointUrl with their HTTPS-binary parent (scheme
+                // = "https://"), while the client opens the channel
+                // against the OPC UA-prefixed scheme (e.g.
+                // "opc.https://"). Overwriting the client-supplied URL
+                // with the twin's URL would strip the prefix and the
+                // channel manager would fail to resolve a factory for
+                // the bare "https" scheme. Skip the refresh for the
+                // OpenAPI profiles to preserve the caller-supplied URL.
+                string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
+                bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
+                    && !Profiles.IsWssOpenApi(profile);
+
                 Session session;
                 if (m_channelManager != null)
                 {
@@ -951,7 +956,7 @@ namespace Opc.Ua.Client
                         m_channelManager,
                         m_configuration,
                         ConfiguredEndpoint,
-                        updateBeforeConnect: true,
+                        updateBeforeConnect,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,
@@ -966,7 +971,7 @@ namespace Opc.Ua.Client
                     session = (Session)await SessionFactory.CreateAsync(
                         m_configuration,
                         ConfiguredEndpoint,
-                        updateBeforeConnect: true,
+                        updateBeforeConnect,
                         m_checkDomain,
                         m_sessionName,
                         m_sessionTimeout,
@@ -1069,6 +1074,29 @@ namespace Opc.Ua.Client
                                     ct: ct)
                                 .ConfigureAwait(false);
                         }
+                        catch (ServiceResultException sre) when (
+                            RequiresSessionRecreate(sre.StatusCode))
+                        {
+                            // The server-side session can no longer be reactivated
+                            // by a plain reconnect: e.g. under load the server
+                            // processed an ActivateSession (rotating its nonce) but
+                            // the response was lost, so every subsequent reconnect
+                            // signs the now-stale nonce and is rejected with
+                            // BadApplicationSignatureInvalid forever. Fall back to a
+                            // fresh CreateSession/ActivateSession, which establishes
+                            // a new nonce and recovers the session instead of
+                            // looping on the unrecoverable reactivate.
+                            m_logger.LogInformation(
+                                sre,
+                                "ManagedSession: reconnect rejected with {Status}; " +
+                                "recreating session in place.",
+                                sre.StatusCode);
+                            await session.RecreateInPlaceAsync(
+                                    endpoint: null,
+                                    budget: budget,
+                                    ct: ct)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
 
@@ -1086,6 +1114,24 @@ namespace Opc.Ua.Client
                     "ManagedSession: Reconnect attempt failed.");
                 return new ServiceResult(ex);
             }
+        }
+
+        /// <summary>
+        /// True when a reconnect (reactivate) failure status indicates the
+        /// server-side session can no longer be reactivated and must be fully
+        /// recreated (fresh CreateSession/ActivateSession). These arise when the
+        /// server dropped or closed the session, or when a lost ActivateSession
+        /// response left the client signing a stale server nonce that is now
+        /// permanently rejected.
+        /// </summary>
+        private static bool RequiresSessionRecreate(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                statusCode == StatusCodes.BadSessionIdInvalid ||
+                statusCode == StatusCodes.BadSessionClosed ||
+                statusCode == StatusCodes.BadSessionNotActivated ||
+                statusCode == StatusCodes.BadSecureChannelIdInvalid ||
+                statusCode == StatusCodes.BadIdentityTokenInvalid;
         }
 
         private async Task<ServiceResult> HandleFailoverAsync(

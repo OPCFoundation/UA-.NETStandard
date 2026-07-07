@@ -197,26 +197,81 @@ The stack implements the following transport profiles:
 
 - **[HTTPS Binary Transport](http://opcfoundation.org/UA-Profile/Transport/https-uabinary)** (`opc.https://` and `https://`) — OPC UA binary protocol over HTTPS with TLS.
 
+- **[HTTPS JSON Transport](http://opcfoundation.org/UA-Profile/Transport/https-uajson)** (`opc.https://` and `https://`) - OPC UA JSON (compact / reversible) over HTTPS (OPC UA Part 6 §7.4.5)
+  - Compact JSON encoding (`application/opcua+uajson`)
+  - TLS/SSL encryption only — no UA SecureChannel layer
+  - Restricted to `MessageSecurityMode.None`; transport security is provided exclusively by TLS
+
+- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
+  - Same UASC SecureChannel pipeline as `opc.tcp` carried over WebSocket binary frames (one frame per MessageChunk)
+  - Supports all security modes (None / Sign / SignAndEncrypt)
+  - TLS/SSL encryption at the WebSocket layer
+
+- **WebSocket Secure (JSON)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
+  - Compact JSON encoding per WebSocket text frame
+  - TLS/SSL encryption only — no UA SecureChannel layer
+  - Restricted to `MessageSecurityMode.None`
+
+- **[HTTPS OpenAPI](https://profiles.opcfoundation.org/profile/2338)** (`opc.https://` and `https://`) - OPC UA OpenAPI Mapping (Part 6 §G.3) — official OPC Foundation profile/2338, URI `http://opcfoundation.org/UA-Profile/Transport/https-uajson-openapi`
+  - Path-routed REST surface: `POST /<service>` (e.g. `/read`, `/browse`, `/createsubscription`)
+  - Body is the bare `<Service>Request` / `<Service>Response` — no `{UaTypeId, UaBody}` envelope at the HTTPS layer
+  - Compact (default, mandatory per §5.4.9) and Verbose JSON flavours selected via the `application/json; encoding=compact|verbose` media-type parameter
+  - TLS/SSL encryption only — no UA SecureChannel layer
+  - Restricted to `MessageSecurityMode.None`
+  - Authentication via Anonymous, Bearer JWT, HTTP Basic, or Mutual TLS (see [WebApi.md](WebApi.md))
+  - Server-side discovery emission: `HttpsServiceHost` emits this sub-profile as a discovery-only twin alongside each `SecurityMode.None` HTTPS-binary endpoint, so discovery-driven clients can find the OpenAPI endpoint without hard-coding the URL.
+  - Shipped as part of the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package (net8+ only)
+  - Surfaced via `Profiles.HttpsOpenApiTransport`
+
+- **[WSS OpenAPI](https://profiles.opcfoundation.org/profile/2339)** (`opc.wss://` and `wss://`) - OPC UA OpenAPI Mapping over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) — official OPC Foundation profile/2339, URI `http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi`
+  - Same on-wire `{TypeId, Body}` OPC UA JSON envelope as `opcua+uajson`, multiplexed over WebSocket text frames; distinguished by the negotiated sub-protocol and the advertised TransportProfileUri
+  - Bearer-token variant negotiates the access token in the sub-protocol name (no `Authorization` header — required for browser fetch compatibility); the server extracts the token from the sub-protocol name and feeds it through the standard `ISessionlessIdentityProvider` pipeline
+  - Server-side discovery emission: the WSS factories emit this sub-profile as a discovery-only twin alongside each `SecurityMode.None` WSS binary endpoint, mirroring the HTTPS OpenAPI emission.
+  - Client surface: `Libraries/Opc.Ua.Client/WebApi/WebApiWssTransportChannel.cs`; fluent shortcut `ManagedSessionBuilder.UseWssOpenApiEndpoint(url)`; DI registration via `services.AddWebApiTransportChannel()` (registers both HTTPS and WSS WebApi channel factories).
+  - Surfaced via `Profiles.WssOpenApiTransport`
+
 ### PubSub transports
 
 The [PubSub library](PubSub.md) supports the following PubSub transport
 facets (URIs surfaced by `Profiles.PubSub*Transport` constants in
-`Stack/Opc.Ua.Core/Security/Constants/SecurityConstants.cs`):
+`Stack/Opc.Ua.Core/Security/Constants/SecurityConstants.cs`). Facet
+machinery and conformance unit semantics are defined by
+[Part 7 §4.3](https://reference.opcfoundation.org/specs/OPC-10000-7/v1.05.06/4.3).
 
 - **[PubSub UDP UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp)** — UDP transport with UADP message encoding.
+- **[PubSub Ethernet UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-eth-uadp)** — Ethernet (Layer 2) transport with UADP message encoding (see [PubSub transports](PubSub.md#transports)).
 - **[PubSub MQTT UADP](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp)** — MQTT transport with UADP message encoding.
 - **[PubSub MQTT JSON](http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json)** — MQTT transport with JSON message encoding.
+- **Datagram-v2 connection profile** —
+  [`DatagramConnectionTransport2DataType`](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.1.4)
+  (Part 14 §6.4.1.4) is honoured for UDP transports. The
+  `DiscoveryAnnounceRate`, `DiscoveryMaxMessageSize`, and `QosCategory`
+  fields drive discovery cadence and the IP DSCP TOS byte.
+- **PubSub SKS pull / push** —
+  [Part 14 §8.5.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.5.1)
+  / §8.5.2: the
+  `AddPubSubSecurityKeyServiceClient` extension implements the pull
+  client (calls `GetSecurityKeys` on a remote SKS), and
+  `AddPubSubSecurityKeyServiceServer` hosts the in-memory SKS with
+  `Get/SetSecurityKeys` and `AddSecurityGroup` methods bound on the
+  address space.
+- **AES-128-CTR / AES-256-CTR with HMAC-SHA-256** —
+  [Part 14 §8.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4.3)
+  message security. Profiles registered as
+  `PubSubAes128CtrPolicy` / `PubSubAes256CtrPolicy`; conformance to NIST
+  SP 800-38A F.5.1 / F.5.5 is asserted by the test suite.
+- **Anonymous certificate-based MQTT auth** — the MQTT transport
+  exposes the `MqttClientAuthenticationOptions` with the
+  certificate-based variant from
+  [Part 14 §6.4.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.2.2.4).
 
 PubSub additionally supports certificate-based MQTT authentication and
 considers `WriterGroup`s in MQTT keep-alive calculations.
 
-### Currently not supported
-
-- **WebSocket Transport** (`opc.wss://`) — UA WebSocket Secure (WSS) is
-  not currently supported; tracked in
-  [#3876](https://github.com/OPCFoundation/UA-.NETStandard/issues/3876).
-- **HTTPS JSON Transport** (`http://opcfoundation.org/UA-Profile/Transport/https-uajson`) — JSON encoding over HTTPS is not currently supported; tracked in
-  [#3877](https://github.com/OPCFoundation/UA-.NETStandard/issues/3877).
+All transport profiles defined in OPC UA Part 6 §7.4 (HTTPS) and §7.5
+(WebSockets) are supported, including the `opcua+openapi` and
+`opcua+openapi+<accesstoken>` WebSocket sub-protocols (Part 6 §7.5.2
+Table 81).
 
 ## Security Profiles
 

@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
 using Opc.Ua.Stress.Tests.Channels.Integration;
@@ -353,7 +354,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             Assert.That(
                 await WaitForAsync(
                     () => sessions.All(static session =>
-                        session.SubscriptionManager.Count == SubscriptionsPerSession) &&
+                        session.RequireSubscriptionManager().Count == SubscriptionsPerSession) &&
                         subscriptions.All(static tracker =>
                             tracker.Subscription.Created && tracker.MonitoredItem.Created),
                     timeout,

@@ -185,6 +185,79 @@ namespace Opc.Ua.SourceGeneration
                 Does.Contain("<ua:Model ModelUri=\"http://test.org/UA/Data/\" Version=\"1.0.0\""));
         }
 
+        [Theory]
+        public void GenerateAndCompileModelDesignReferencingNodeSet2TypesTest(
+            LanguageVersion languageVersion)
+        {
+            // Regression test for issue #3937: a ModelDesign describing an
+            // object instance (CrossModelInstances.ModelDesign.xml) whose
+            // TypeDefinition references an ObjectType defined in a separate
+            // NodeSet2 AdditionalFile (CrossModelTypes.NodeSet2.xml). The
+            // ModelDesign generation pass must receive the NodeSet2 input as a
+            // dependency so the cross-model type reference resolves; otherwise
+            // generation fails with MODELGEN003 ("The TypeDefinition reference
+            // for node Widget1 is not the expected type: ObjectTypeDesign.").
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
+
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    // The test compilation includes Core stubs but no Server
+                    // reference. Suppress fluent-builder emission so the
+                    // generated code compiles standalone.
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+
+            // Per-file metadata: the NodeSet2 declares the type model; the
+            // ModelDesign declares the instance model that references it.
+            options.TextOptions["CrossModelTypes.NodeSet2.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Types",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] = "CrossModelTypes",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "CrossModelTypes"
+                };
+            options.TextOptions["CrossModelInstances.ModelDesign.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Instances"
+                };
+
+            // Create the driver that executes the generator
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                .AddAdditionalTexts(
+                [
+                    EmbeddedText.From("CrossModelTypes.NodeSet2.xml"),
+                    EmbeddedText.From("CrossModelInstances.ModelDesign.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options)
+                ;
+
+            // Before the fix the ModelDesign pass could not resolve the
+            // NodeSet2-defined type and generation failed with MODELGEN003;
+            // after the fix generation completes and the generated code compiles.
+            GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
+
+            // The instance output must reference the type class generated from
+            // the NodeSet2 input. A resolved cross-model reference proves the
+            // NodeSet2 input was wired into the ModelDesign pass as a dependency.
+            string allSources = string.Join(
+                "\n",
+                generatorResult.GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(allSources,
+                Does.Contain("CrossModelTypes.WidgetState"),
+                "instance output should reference the generated NodeSet2 type class");
+        }
+
         private static string ValidateXmlSchema(
             LanguageVersion languageVersion,
             GeneratorRunResult generatorResult)

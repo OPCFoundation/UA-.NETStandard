@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert – QueueValue should never have been called (permission denied)
             monitoredItemMock.Verify(
-                m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()),
+                m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()),
                 Times.Never);
 
             // And validate was only called once (cached bad result)
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server.Tests
             using var firstItemProcessed = new ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
             monitoredItemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
@@ -1129,6 +1129,197 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queueCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a node which exposes a genuinely asynchronous value read handler
+        /// (<c>OnSimpleReadValueAsync</c>) has that handler honored on the change-notification
+        /// push path: the value delivered to the monitored item is the asynchronously-read value,
+        /// not the cached synchronous value.
+        /// </summary>
+        [Test]
+        public async Task OnMonitoredNodeChangedAsyncHonorsAsyncReadHandler()
+        {
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("asyncNode", 1),
+                BrowseName = new QualifiedName("asyncNode", 1),
+                DataType = DataTypeIds.Int32,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = 0
+            };
+
+            // The asynchronous read handler returns a value that differs from the cached one.
+            node.OnSimpleReadValueAsync = (c, n, ct) => new ValueTask<AttributeSimpleReadResult>(
+                new AttributeSimpleReadResult(ServiceResult.Good, new Variant(777)));
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            using var delivered = new ManualResetEventSlim(false);
+            Mock<IDataChangeMonitoredItem2> itemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            itemMock
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
+                .Callback(delivered.Set);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(itemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            await monitoredNode
+                .OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value)
+                .ConfigureAwait(false);
+            Assert.That(
+                delivered.Wait(TimeSpan.FromSeconds(30)),
+                Is.True,
+                "the value change was not delivered within the timeout");
+            monitoredNode.Dispose();
+
+            var deliveredValues = itemMock.Invocations
+                .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
+                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .ToList();
+            Assert.That(deliveredValues, Has.Count.EqualTo(1));
+            Assert.That(deliveredValues[0], Is.EqualTo(777));
+        }
+
+        /// <summary>
+        /// Verifies that the asynchronous change-notification producer does not block a thread while
+        /// a genuinely asynchronous read handler is in flight: the returned <see cref="ValueTask"/>
+        /// is not yet completed while the read is pending, and the value is delivered once the read
+        /// completes.
+        /// </summary>
+        [Test]
+        public async Task OnMonitoredNodeChangedAsyncDoesNotBlockOnSlowAsyncRead()
+        {
+            using var readStarted = new ManualResetEventSlim(false);
+            using var releaseRead = new ManualResetEventSlim(false);
+
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("slowAsyncNode", 1),
+                BrowseName = new QualifiedName("slowAsyncNode", 1),
+                DataType = DataTypeIds.Int32,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = 0
+            };
+
+            node.OnReadValueAsync = async (c, n, range, encoding, ct) =>
+            {
+                readStarted.Set();
+                // Wait off-thread so the producer cannot be completing synchronously.
+                await Task.Run(() => releaseRead.Wait(TimeSpan.FromSeconds(30)), ct).ConfigureAwait(false);
+                return new AttributeReadResult(
+                    ServiceResult.Good, new Variant(555), StatusCodes.Good, DateTimeUtc.Now);
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            using var delivered = new ManualResetEventSlim(false);
+            Mock<IDataChangeMonitoredItem2> itemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            itemMock
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
+                .Callback(delivered.Set);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(itemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            ValueTask produce = monitoredNode.OnMonitoredNodeChangedAsync(
+                context, node, NodeStateChangeMasks.Value);
+
+            Assert.That(readStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
+            Assert.That(
+                produce.IsCompleted,
+                Is.False,
+                "the producer must not block a thread while an asynchronous read is in flight");
+
+            releaseRead.Set();
+            await produce.ConfigureAwait(false);
+            Assert.That(
+                delivered.Wait(TimeSpan.FromSeconds(30)),
+                Is.True,
+                "the value change was not delivered within the timeout");
+            monitoredNode.Dispose();
+
+            var deliveredValues = itemMock.Invocations
+                .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
+                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .ToList();
+            Assert.That(deliveredValues, Has.Count.EqualTo(1));
+            Assert.That(deliveredValues[0], Is.EqualTo(555));
+        }
+
+        /// <summary>
+        /// Verifies that an event reported through the asynchronous <c>OnReportEventAsync</c> path is
+        /// delivered to the registered event monitored item via the channel consumer.
+        /// </summary>
+        [Test]
+        public async Task OnReportEventAsyncDeliversEventToMonitoredItem()
+        {
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("eventNode", 1),
+                BrowseName = new QualifiedName("eventNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            using var delivered = new ManualResetEventSlim(false);
+            Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(1u);
+            eventItemMock
+                .Setup(m => m.QueueEvent(It.IsAny<IFilterTarget>()))
+                .Callback(delivered.Set);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(eventItemMock.Object);
+
+            var eventState = new BaseEventState(null);
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            await monitoredNode.OnReportEventAsync(context, node, eventState).ConfigureAwait(false);
+            Assert.That(
+                delivered.Wait(TimeSpan.FromSeconds(30)),
+                Is.True,
+                "the event was not delivered within the timeout");
+            monitoredNode.Dispose();
+
+            int queueCount = eventItemMock.Invocations
+                .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            Assert.That(queueCount, Is.EqualTo(1));
+        }
+
         private static Mock<IEventMonitoredItem> CreateEventMonitoredItemMock(uint id)
         {
             var sessionMock = new Mock<ISession>();
@@ -1212,7 +1403,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
             monitoredItemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
@@ -1278,7 +1469,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
             monitoredItemMock
-                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Setup(m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
                 .Callback(firstItemProcessed.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);

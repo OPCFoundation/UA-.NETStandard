@@ -111,6 +111,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 }
 
                 await sut.DisposeAsync().ConfigureAwait(false);
+
+                // The production channel factory parses description.ServerCertificate
+                // into a Certificate that the real channel would own and dispose; the
+                // mock channel does not, so dispose the captured copies here.
+                while (openSettings.TryDequeue(out TransportChannelSettings? opened))
+                {
+                    opened.ServerCertificate?.Dispose();
+                }
             }
         }
 
@@ -155,6 +163,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 }
 
                 await sut.DisposeAsync().ConfigureAwait(false);
+
+                // The production channel factory parses description.ServerCertificate
+                // into a Certificate that the real channel would own and dispose; the
+                // mock channel does not, so dispose the captured copies here.
+                while (openSettings.TryDequeue(out TransportChannelSettings? opened))
+                {
+                    opened.ServerCertificate?.Dispose();
+                }
             }
         }
 
@@ -264,7 +280,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        public interface IChannel : ITransportChannel, ISecureChannel, IMessageSocketChannel;
+        public interface IChannel : ITransportChannel, ISecureChannel;
 
         private sealed class ImmediateReconnectPolicy : IChannelReconnectPolicy
         {

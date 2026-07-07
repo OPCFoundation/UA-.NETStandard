@@ -29,16 +29,16 @@
 
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Types;
-#if NET5_0_OR_GREATER
 using Opc.Ua.Buffers;
-#endif
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -53,9 +53,27 @@ namespace Opc.Ua
         public BinaryEncoder(IServiceMessageContext context)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
-            m_ostrm = new MemoryStream();
-            m_writer = new BinaryWriter(m_ostrm);
+            // Use a clearing buffer so any sensitive data written during
+            // encoding (e.g. encoded secrets / credentials via EncryptedSecret)
+            // is zeroed when the pooled buffer is returned to the shared
+            // ArrayPool, instead of being exposed to the next pool consumer.
+            m_ownedBufferWriter = new ArrayPoolBufferWriter<byte>(clearArray: true);
+            m_bufferWriter = m_ownedBufferWriter;
+            m_leaveOpen = false;
+            m_nestingLevel = 0;
+        }
+
+        /// <summary>
+        /// Creates an encoder that writes to a buffer writer.
+        /// </summary>
+        /// <param name="writer">The buffer writer to which the encoder writes.</param>
+        /// <param name="context">The message context to use for the encoding.</param>
+        public BinaryEncoder(
+            IBufferWriter<byte> writer,
+            IServiceMessageContext context)
+        {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_bufferWriter = writer ?? throw new ArgumentNullException(nameof(writer));
             m_leaveOpen = false;
             m_nestingLevel = 0;
         }
@@ -75,7 +93,6 @@ namespace Opc.Ua
             }
 
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
             m_leaveOpen = false;
@@ -94,7 +111,6 @@ namespace Opc.Ua
             bool leaveOpen)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = stream ?? throw new ArgumentNullException(nameof(stream));
             m_writer = new BinaryWriter(m_ostrm, Encoding.UTF8, leaveOpen);
             m_leaveOpen = leaveOpen;
@@ -129,6 +145,10 @@ namespace Opc.Ua
                     m_ostrm?.Dispose();
                     m_ostrm = null!;
                 }
+
+                m_ownedBufferWriter?.Dispose();
+                m_ownedBufferWriter = null;
+                m_bufferWriter = null;
             }
         }
 
@@ -166,6 +186,11 @@ namespace Opc.Ua
                 return memoryStream.ToArray();
             }
 
+            if (m_ownedBufferWriter != null)
+            {
+                return GetOwnedBuffer();
+            }
+
             return null;
         }
 
@@ -181,6 +206,12 @@ namespace Opc.Ua
                 return Convert.ToBase64String(memoryStream.ToArray());
             }
 
+            if (m_ownedBufferWriter != null)
+            {
+                byte[] buffer = GetOwnedBuffer();
+                return Convert.ToBase64String(buffer);
+            }
+
             return null;
         }
 
@@ -189,6 +220,17 @@ namespace Opc.Ua
         /// </summary>
         public int Close()
         {
+            if (m_writer == null)
+            {
+                if (m_closed)
+                {
+                    throw new ObjectDisposedException(nameof(BinaryEncoder));
+                }
+
+                m_closed = true;
+                return m_bufferPosition;
+            }
+
             int position = (int)m_writer.BaseStream.Position;
             m_writer.Flush();
             m_writer.Dispose();
@@ -200,8 +242,31 @@ namespace Opc.Ua
         /// </summary>
         public int Position
         {
-            get => (int)m_writer.BaseStream.Position;
-            set => m_writer.Seek(value, SeekOrigin.Begin);
+            get
+            {
+                if (m_writer != null)
+                {
+                    return (int)m_writer.BaseStream.Position;
+                }
+
+                if (m_closed)
+                {
+                    throw new ObjectDisposedException(nameof(BinaryEncoder));
+                }
+
+                return m_bufferPosition;
+            }
+
+            set
+            {
+                if (m_writer != null)
+                {
+                    m_writer.Seek(value, SeekOrigin.Begin);
+                    return;
+                }
+
+                SeekBuffer(value);
+            }
         }
 
         /// <summary>
@@ -209,7 +274,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteRawBytes(byte[] buffer, int offset, int count)
         {
-            m_writer.Write(buffer, offset, count);
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            WriteBytes(buffer.AsSpan(offset, count));
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
@@ -218,7 +288,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteRawBytes(ReadOnlySpan<byte> buffer)
         {
-            m_writer.Write(buffer);
+            WriteBytes(buffer);
         }
 #endif
 
@@ -277,7 +347,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(message));
             }
 
-            long start = m_ostrm.Position;
+            int start = Position;
 
             // convert the namespace uri to an index.
             var typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, Context.NamespaceUris);
@@ -290,13 +360,13 @@ namespace Opc.Ua
 
             // check that the max message size was not exceeded.
             if (Context.MaxMessageSize > 0 &&
-                Context.MaxMessageSize < (int)(m_ostrm.Position - start))
+                Context.MaxMessageSize < Position - start)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxMessageSize {0} < {1}",
                     Context.MaxMessageSize,
-                    (int)(m_ostrm.Position - start));
+                    Position - start);
             }
         }
 
@@ -308,7 +378,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(message));
             }
 
-            long start = m_ostrm.Position;
+            int start = Position;
 
             // convert the namespace uri to an index.
             var typeId = ExpandedNodeId.ToNodeId(message.BinaryEncodingId, Context.NamespaceUris);
@@ -321,13 +391,13 @@ namespace Opc.Ua
 
             // check that the max message size was not exceeded.
             if (Context.MaxMessageSize > 0 &&
-                Context.MaxMessageSize < (int)(m_ostrm.Position - start))
+                Context.MaxMessageSize < Position - start)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxMessageSize {0} < {1}",
                     Context.MaxMessageSize,
-                    (int)(m_ostrm.Position - start));
+                    Position - start);
             }
         }
 
@@ -374,67 +444,83 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteBoolean(string? fieldName, bool value)
         {
-            m_writer.Write(value);
+            WriteByteValue(value ? (byte)1 : (byte)0);
         }
 
         /// <inheritdoc/>
         public void WriteSByte(string? fieldName, sbyte value)
         {
-            m_writer.Write(value);
+            WriteByteValue(unchecked((byte)value));
         }
 
         /// <inheritdoc/>
         public void WriteByte(string? fieldName, byte value)
         {
-            m_writer.Write(value);
+            WriteByteValue(value);
         }
 
         /// <inheritdoc/>
         public void WriteInt16(string? fieldName, short value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(short));
+            BinaryPrimitives.WriteInt16LittleEndian(buffer, value);
+            Advance(sizeof(short));
         }
 
         /// <inheritdoc/>
         public void WriteUInt16(string? fieldName, ushort value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(ushort));
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer, value);
+            Advance(sizeof(ushort));
         }
 
         /// <inheritdoc/>
         public void WriteInt32(string? fieldName, int value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(int));
+            BinaryPrimitives.WriteInt32LittleEndian(buffer, value);
+            Advance(sizeof(int));
         }
 
         /// <inheritdoc/>
         public void WriteUInt32(string? fieldName, uint value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(uint));
+            BinaryPrimitives.WriteUInt32LittleEndian(buffer, value);
+            Advance(sizeof(uint));
         }
 
         /// <inheritdoc/>
         public void WriteInt64(string? fieldName, long value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(long));
+            BinaryPrimitives.WriteInt64LittleEndian(buffer, value);
+            Advance(sizeof(long));
         }
 
         /// <inheritdoc/>
         public void WriteUInt64(string? fieldName, ulong value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(ulong));
+            BinaryPrimitives.WriteUInt64LittleEndian(buffer, value);
+            Advance(sizeof(ulong));
         }
 
         /// <inheritdoc/>
         public void WriteFloat(string? fieldName, float value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(float));
+            BinaryPrimitives.WriteInt32LittleEndian(buffer, SingleToInt32Bits(value));
+            Advance(sizeof(float));
         }
 
         /// <inheritdoc/>
         public void WriteDouble(string? fieldName, double value)
         {
-            m_writer.Write(value);
+            Span<byte> buffer = GetSpan(sizeof(double));
+            BinaryPrimitives.WriteInt64LittleEndian(buffer, DoubleToInt64Bits(value));
+            Advance(sizeof(double));
         }
 
         /// <inheritdoc/>
@@ -486,7 +572,7 @@ namespace Opc.Ua
             {
                 int count = Encoding.UTF8.GetBytes(value, 0, value.Length, encodedBytes, 0);
                 WriteInt32(null, count);
-                m_writer.Write(encodedBytes, 0, count);
+                WriteBytes(encodedBytes.AsSpan(0, count));
             }
             finally
             {
@@ -497,13 +583,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteDateTime(string? fieldName, DateTimeUtc value)
         {
-            m_writer.Write(value.Value);
+            WriteInt64(null, value.Value);
         }
 
         /// <inheritdoc/>
         public void WriteGuid(string? fieldName, Uuid value)
         {
-            m_writer.Write(value.ToByteArray());
+            WriteBytes(value.ToByteArray());
         }
 
         /// <inheritdoc/>
@@ -525,7 +611,7 @@ namespace Opc.Ua
             }
 
             WriteInt32(null, value.Length);
-            m_writer.Write(value.Span);
+            WriteBytes(value.Span);
         }
 
         /// <inheritdoc/>
@@ -549,7 +635,7 @@ namespace Opc.Ua
             }
 
             WriteInt32(null, value.Length);
-            m_writer.Write(value);
+            WriteBytes(value);
         }
 
         /// <summary>
@@ -576,7 +662,7 @@ namespace Opc.Ua
             WriteInt32(null, (int)value.Length);
             foreach (ReadOnlyMemory<byte> element in value)
             {
-                m_writer.Write(element.Span);
+                WriteBytes(element.Span);
             }
         }
 
@@ -602,6 +688,7 @@ namespace Opc.Ua
                 return;
             }
 
+            IdType idType = value.IdType;
             ushort namespaceIndex = value.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
@@ -610,13 +697,13 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(idType, in value, namespaceIndex);
 
             // write the encoding.
             WriteByte(null, encoding);
 
             // write the node.
-            WriteNodeIdBody(encoding, value, namespaceIndex);
+            WriteNodeIdBody(encoding, in value, namespaceIndex);
         }
 
         /// <inheritdoc/>
@@ -629,6 +716,10 @@ namespace Opc.Ua
                 return;
             }
 
+            NodeId innerNodeId = value.InnerNodeId;
+            string? namespaceUri = value.NamespaceUri;
+            uint serverIndex = value.ServerIndex;
+
             ushort namespaceIndex = value.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
@@ -636,18 +727,16 @@ namespace Opc.Ua
                 namespaceIndex = m_namespaceMappings[namespaceIndex];
             }
 
-            uint serverIndex = value.ServerIndex;
-
             if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
             {
                 serverIndex = m_serverMappings[serverIndex];
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value.InnerNodeId, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(innerNodeId.IdType, in innerNodeId, namespaceIndex);
 
             // add the bit indicating a uri string is encoded as well.
-            if (!string.IsNullOrEmpty(value.NamespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 encoding |= 0x80;
             }
@@ -662,12 +751,12 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write the node id.
-            WriteNodeIdBody(encoding, value.InnerNodeId, namespaceIndex);
+            WriteNodeIdBody(encoding, in innerNodeId, namespaceIndex);
 
             // write the namespace uri.
             if ((encoding & 0x80) != 0)
             {
-                WriteString(null, value.NamespaceUri);
+                WriteString(null, namespaceUri);
             }
 
             // write the server index.
@@ -742,13 +831,27 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariant(string? fieldName, Variant value)
+        public void WriteVariant(string? fieldName, in Variant value)
         {
+            // Scalar values cannot nest, so skip the nesting-level bookkeeping
+            // (and the try/finally) for the common scalar fast path.
+            // DataValue and ExtensionObject are excluded because they can recurse:
+            // DataValue via WrappedValue (Variant -> DataValue -> Variant -> ...)
+            // and ExtensionObject via IEncodeable.
+            var builtInType = value.TypeInfo.BuiltInType;
+            if (value.TypeInfo.IsScalar &&
+                builtInType != BuiltInType.DataValue &&
+                builtInType != BuiltInType.ExtensionObject)
+            {
+                WriteVariantValue(in value, false);
+                return;
+            }
+
             CheckAndIncrementNestingLevel();
 
             try
             {
-                WriteVariantValue(value, false);
+                WriteVariantValue(in value, false);
             }
             finally
             {
@@ -757,7 +860,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, in DataValue value)
         {
             // check for null/default.
             if (value.IsNull)
@@ -769,31 +872,39 @@ namespace Opc.Ua
             // calculate the encoding.
             byte encoding = 0;
 
-            if (!value.WrappedValue.IsNull)
+            Variant wrappedValue = value.WrappedValue;
+            if (!wrappedValue.IsNull)
             {
                 encoding |= (byte)DataValueEncodingBits.Value;
             }
 
-            if (value.StatusCode != StatusCodes.Good)
+            StatusCode statusCode = value.StatusCode;
+            if (!statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 encoding |= (byte)DataValueEncodingBits.StatusCode;
             }
 
-            if (value.SourceTimestamp != DateTimeUtc.MinValue)
+            DateTimeUtc sourceTimestamp = value.SourceTimestamp;
+            ushort sourcePicoseconds = 0;
+            if (sourceTimestamp != DateTimeUtc.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.SourceTimestamp;
 
-                if (value.SourcePicoseconds != 0)
+                sourcePicoseconds = value.SourcePicoseconds;
+                if (sourcePicoseconds != 0)
                 {
                     encoding |= (byte)DataValueEncodingBits.SourcePicoseconds;
                 }
             }
 
-            if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            DateTimeUtc serverTimestamp = value.ServerTimestamp;
+            ushort serverPicoseconds = 0;
+            if (serverTimestamp != DateTimeUtc.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.ServerTimestamp;
 
-                if (value.ServerPicoseconds != 0)
+                serverPicoseconds = value.ServerPicoseconds;
+                if (serverPicoseconds != 0)
                 {
                     encoding |= (byte)DataValueEncodingBits.ServerPicoseconds;
                 }
@@ -805,31 +916,31 @@ namespace Opc.Ua
             // write the fields of the data value structure.
             if ((encoding & (byte)DataValueEncodingBits.Value) != 0)
             {
-                WriteVariant(null, value.WrappedValue);
+                WriteVariant(null, wrappedValue);
             }
 
             if ((encoding & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                WriteStatusCode(null, value.StatusCode);
+                WriteStatusCode(null, statusCode);
             }
 
             if ((encoding & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
-                WriteDateTime(null, value.SourceTimestamp);
+                WriteDateTime(null, sourceTimestamp);
 
                 if ((encoding & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
                 {
-                    WriteUInt16(null, value.SourcePicoseconds);
+                    WriteUInt16(null, sourcePicoseconds);
                 }
             }
 
             if ((encoding & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
-                WriteDateTime(null, value.ServerTimestamp);
+                WriteDateTime(null, serverTimestamp);
 
                 if ((encoding & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
                 {
-                    WriteUInt16(null, value.ServerPicoseconds);
+                    WriteUInt16(null, serverPicoseconds);
                 }
             }
         }
@@ -915,20 +1026,21 @@ namespace Opc.Ua
             }
 
             // check if it possible to write the extension directly to the stream.
-            if (m_writer.BaseStream.CanSeek)
+            BinaryWriter? writer = m_writer;
+            if (writer?.BaseStream.CanSeek == true)
             {
-                long start = m_writer.BaseStream.Position;
+                long start = writer.BaseStream.Position;
 
                 // write a placeholder for the body length.
                 WriteInt32(null, -1);
                 encodeable.Encode(this);
 
                 // update body length.
-                long delta = m_writer.BaseStream.Position - start;
+                long delta = writer.BaseStream.Position - start;
 
-                m_writer.Seek((int)-delta, SeekOrigin.Current);
+                writer.Seek((int)-delta, SeekOrigin.Current);
                 WriteInt32(null, (int)(delta - 4));
-                m_writer.Seek((int)(delta - 4), SeekOrigin.Current);
+                writer.Seek((int)(delta - 4), SeekOrigin.Current);
             }
             // must pre-encode and then write the bytes.
             else
@@ -1013,11 +1125,15 @@ namespace Opc.Ua
                 return;
             }
 
-            // write contents.
+            // write contents (single byte elements, endianness independent).
+#if NETSTANDARD2_0 || NETFRAMEWORK
             for (int ii = 0; ii < values.Count; ii++)
             {
                 WriteSByte(null, values[ii]);
             }
+#else
+            WriteBytes(MemoryMarshal.AsBytes(values.Span));
+#endif
         }
 
         /// <inheritdoc/>
@@ -1030,9 +1146,16 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
+            if (MemoryMarshal.TryGetArray(values.Memory, out ArraySegment<byte> segment) && segment.Array != null)
             {
-                WriteByte(null, values[ii]);
+                WriteBytes(segment.Array.AsSpan(segment.Offset, segment.Count));
+            }
+            else
+            {
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteByte(null, values[ii]);
+                }
             }
         }
 
@@ -1046,10 +1169,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteInt16(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1062,10 +1182,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteUInt16(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1078,10 +1195,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteInt32(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1094,10 +1208,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteUInt32(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1110,10 +1221,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteInt64(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1126,10 +1234,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteUInt64(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1142,10 +1247,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteFloat(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1158,10 +1260,7 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteDouble(null, values[ii]);
-            }
+            WriteFixedWidthArray(values.Span);
         }
 
         /// <inheritdoc/>
@@ -1350,9 +1449,10 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
+            ReadOnlySpan<Variant> span = values.Span;
+            for (int ii = 0; ii < span.Length; ii++)
             {
-                WriteVariant(null, values[ii]);
+                WriteVariant(null, in span[ii]);
             }
         }
 
@@ -1366,9 +1466,10 @@ namespace Opc.Ua
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
+            ReadOnlySpan<DataValue> span = values.Span;
+            for (int ii = 0; ii < span.Length; ii++)
             {
-                WriteDataValue(null, values[ii]);
+                WriteDataValue(null, in span[ii]);
             }
         }
 
@@ -1497,9 +1598,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string? fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            WriteVariantValue(value, true);
+            WriteVariantValue(in value, true);
         }
 
         /// <inheritdoc/>
@@ -1520,12 +1621,17 @@ namespace Opc.Ua
         /// or with type information.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteVariantValue(Variant value, bool writeRawValue)
+        private void WriteVariantValue(in Variant value, bool writeRawValue)
         {
+            // Snapshot the type info once; Variant is immutable so repeated
+            // value.TypeInfo property reads would each copy the struct.
+            TypeInfo typeInfo = value.TypeInfo;
+            BuiltInType builtInType = typeInfo.BuiltInType;
+
             // check for null.
             if (value.IsNull ||
-                value.TypeInfo.IsUnknown ||
-                value.TypeInfo.BuiltInType == BuiltInType.Null)
+                typeInfo.IsUnknown ||
+                builtInType == BuiltInType.Null)
             {
                 if (!writeRawValue)
                 {
@@ -1535,20 +1641,20 @@ namespace Opc.Ua
             }
 
             // encode enums as int32.
-            byte encodingByte = (byte)value.TypeInfo.BuiltInType;
-            if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+            byte encodingByte = (byte)builtInType;
+            if (builtInType == BuiltInType.Enumeration)
             {
                 encodingByte = (byte)BuiltInType.Int32;
             }
 
-            if (value.TypeInfo.IsScalar)
+            if (typeInfo.IsScalar)
             {
                 // Write scalar
                 if (!writeRawValue)
                 {
                     WriteByte(null, encodingByte);
                 }
-                switch (value.TypeInfo.BuiltInType)
+                switch (builtInType)
                 {
                     case BuiltInType.Boolean:
                         WriteBoolean(null, value.GetBoolean());
@@ -1631,13 +1737,13 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
+                            builtInType);
                     default:
                         throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
-            else if (value.TypeInfo.IsArray)
+            else if (typeInfo.IsArray)
             {
                 // Write arrays
 
@@ -1648,7 +1754,7 @@ namespace Opc.Ua
                         (byte)(encodingByte | (byte)VariantArrayEncodingBits.Array));
                 }
 
-                switch (value.TypeInfo.BuiltInType)
+                switch (builtInType)
                 {
                     case BuiltInType.Boolean:
                         WriteBooleanArray(null, value.GetBooleanArray());
@@ -1733,10 +1839,10 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
+                            builtInType);
                     default:
                         throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             else // Write multi dimensional arrays
@@ -1749,7 +1855,7 @@ namespace Opc.Ua
                         (byte)VariantArrayEncodingBits.ArrayDimensions));
                 }
                 int[] dim;
-                switch (value.TypeInfo.BuiltInType)
+                switch (builtInType)
                 {
                     case BuiltInType.Boolean:
                     {
@@ -2005,7 +2111,8 @@ namespace Opc.Ua
                     encoding |= (byte)DiagnosticInfoEncodingBits.AdditionalInfo;
                 }
 
-                if (value.InnerStatusCode != StatusCodes.Good)
+                if (!value.InnerStatusCode.Equals(
+                    StatusCodes.Good, StatusCodeComparison.AllBits))
                 {
                     encoding |= (byte)DiagnosticInfoEncodingBits.InnerStatusCode;
                 }
@@ -2018,7 +2125,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        m_logger.LogWarning(
+                        Logger.LogWarning(
                             "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
@@ -2098,13 +2205,41 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Writes a fixed-width unmanaged numeric array as raw little-endian
+        /// bytes. On little-endian hosts the span is blitted in a single write;
+        /// on big-endian hosts each element is byte-reversed to little-endian
+        /// (OPC UA binary encoding is always little-endian).
+        /// </summary>
+        /// <typeparam name="T">The unmanaged element type.</typeparam>
+        private void WriteFixedWidthArray<T>(ReadOnlySpan<T> values)
+            where T : unmanaged
+        {
+            if (BitConverter.IsLittleEndian)
+            {
+                WriteBytes(MemoryMarshal.AsBytes(values));
+                return;
+            }
+
+            int size = Unsafe.SizeOf<T>();
+            ReadOnlySpan<byte> bytes = MemoryMarshal.AsBytes(values);
+            Span<byte> element = stackalloc byte[16];
+            for (int offset = 0; offset < bytes.Length; offset += size)
+            {
+                Span<byte> slot = element[..size];
+                bytes.Slice(offset, size).CopyTo(slot);
+                slot.Reverse();
+                WriteBytes(slot);
+            }
+        }
+
+        /// <summary>
         /// Returns the node id encoding byte for a node id value.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static byte GetNodeIdEncoding(NodeId nodeId, int namespaceIndex)
+        private static byte GetNodeIdEncoding(IdType idType, in NodeId nodeId, int namespaceIndex)
         {
             NodeIdEncodingBits encoding;
-            switch (nodeId.IdType)
+            switch (idType)
             {
                 case IdType.String:
                     encoding = NodeIdEncodingBits.String;
@@ -2141,7 +2276,7 @@ namespace Opc.Ua
         /// Writes the body of a node id to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteNodeIdBody(byte encoding, NodeId nodeId, ushort namespaceIndex)
+        private void WriteNodeIdBody(byte encoding, in NodeId nodeId, ushort namespaceIndex)
         {
             // write the node id.
             switch ((NodeIdEncodingBits)(0x3F & encoding))
@@ -2167,7 +2302,7 @@ namespace Opc.Ua
                     break;
                 case NodeIdEncodingBits.ByteString:
                     WriteUInt16(null, namespaceIndex);
-                    WriteByteString(null, nodeId.OpaqueIdentifer);
+                    WriteByteString(null, nodeId.OpaqueIdentifier);
                     break;
             }
         }
@@ -2208,9 +2343,126 @@ namespace Opc.Ua
             m_nestingLevel++;
         }
 
-        private readonly ILogger m_logger;
-        private Stream m_ostrm;
-        private BinaryWriter m_writer;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int SingleToInt32Bits(float value)
+        {
+            return Unsafe.As<float, int>(ref value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static long DoubleToInt64Bits(double value)
+        {
+            return Unsafe.As<double, long>(ref value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteByteValue(byte value)
+        {
+            Span<byte> buffer = GetSpan(sizeof(byte));
+            buffer[0] = value;
+            Advance(sizeof(byte));
+        }
+
+        private void WriteBytes(ReadOnlySpan<byte> value)
+        {
+            if (m_closed)
+            {
+                throw new ObjectDisposedException(nameof(BinaryEncoder));
+            }
+
+            if (m_bufferWriter != null)
+            {
+                value.CopyTo(m_bufferWriter.GetSpan(value.Length));
+                m_bufferWriter.Advance(value.Length);
+                m_bufferPosition += value.Length;
+                return;
+            }
+
+            m_writer!.Write(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Span<byte> GetSpan(int sizeHint)
+        {
+            if (m_closed)
+            {
+                throw new ObjectDisposedException(nameof(BinaryEncoder));
+            }
+
+            if (m_bufferWriter != null)
+            {
+                return m_bufferWriter.GetSpan(sizeHint);
+            }
+
+            m_scratchBuffer ??= new byte[16];
+            return m_scratchBuffer.AsSpan(0, sizeHint);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void Advance(int count)
+        {
+            if (m_bufferWriter != null)
+            {
+                m_bufferWriter.Advance(count);
+                m_bufferPosition += count;
+                return;
+            }
+
+            m_writer!.Write(m_scratchBuffer!, 0, count);
+        }
+
+        private void SeekBuffer(int value)
+        {
+            if (m_closed)
+            {
+                throw new ObjectDisposedException(nameof(BinaryEncoder));
+            }
+
+            if (value == m_bufferPosition)
+            {
+                return;
+            }
+
+            if (value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            if (m_ownedBufferWriter == null)
+            {
+                throw new NotSupportedException("The position of an external buffer writer cannot be changed.");
+            }
+
+            ReadOnlySequence<byte> sequence = m_ownedBufferWriter.GetReadOnlySequence();
+            var buffer = new byte[m_bufferPosition];
+            sequence.CopyTo(buffer);
+            m_ownedBufferWriter.Dispose();
+            m_ownedBufferWriter = null;
+            m_bufferWriter = null;
+            m_bufferPosition = 0;
+            m_ostrm = new MemoryStream();
+            m_ostrm.Write(buffer, 0, buffer.Length);
+            m_ostrm.Position = value;
+            m_writer = new BinaryWriter(m_ostrm);
+        }
+
+        private byte[] GetOwnedBuffer()
+        {
+            ReadOnlySequence<byte> sequence = m_ownedBufferWriter!.GetReadOnlySequence();
+            var buffer = new byte[m_bufferPosition];
+            sequence.CopyTo(buffer);
+            return buffer;
+        }
+
+        private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryEncoder>();
+        private ILogger? m_logger;
+        private Stream? m_ostrm;
+        private BinaryWriter? m_writer;
+        private IBufferWriter<byte>? m_bufferWriter;
+        private ArrayPoolBufferWriter<byte>? m_ownedBufferWriter;
+        private byte[]? m_scratchBuffer;
+        private int m_bufferPosition;
+        private bool m_closed;
         private readonly bool m_leaveOpen;
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;

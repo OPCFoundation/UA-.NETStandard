@@ -1295,6 +1295,19 @@ namespace Opc.Ua
         [DataTypeField(Order = 39)]
         public int MaxDurableSubscriptionLifetimeInHours { get; set; } = 10;
 
+        /// <summary>
+        /// The maximum number of consecutive failed authentication attempts from a
+        /// single client - identified by application instance certificate thumbprint
+        /// or application URI - before that client is temporarily locked out (for the
+        /// brute-force protection in the session manager).
+        /// A value of zero or less disables the lockout entirely, which is appropriate
+        /// when a single trusted client legitimately opens a very large number of
+        /// sessions and transient connect failures must not trip the protection.
+        /// </summary>
+        /// <value>The maximum number of failed authentication attempts before lockout.</value>
+        [DataTypeField(Order = 40)]
+        public int MaxFailedAuthenticationAttempts { get; set; } = 5;
+
         private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
         private ArrayOf<string> m_serverProfileArray;
         private ArrayOf<string> m_serverCapabilities;

@@ -57,7 +57,7 @@ namespace Opc.Ua.Client
     /// invariants which the C# compiler cannot infer from the type system.
     /// </para>
     /// <para>
-    /// The instance-level fields <c>m_serverCertificate</c>, <c>m_instanceCertificate</c>
+    /// The instance-level fields <c>m_serverCertificate</c>, <c>m_instanceCertificateEntry</c>
     /// and <c>m_userTokenSecurityPolicyUri</c> are nullable until <c>OpenAsync</c> /
     /// <c>ActivateSessionAsync</c> populates them; uses inside post-open code paths bang
     /// them to acknowledge the open-session invariant. A <c>!</c> on a return value of
@@ -144,8 +144,13 @@ namespace Opc.Ua.Client
                   engineFactory,
                   timeProvider)
         {
-            m_instanceCertificate = clientCertificate;
-            m_instanceCertificateChain = clientCertificateChain;
+            // Build a single owned entry from the supplied certificate and
+            // chain. The public ctor transfers ownership of both; the entry
+            // AddRefs them, so the originals are disposed here.
+            m_instanceCertificateEntry = BuildInstanceCertificateEntry(
+                clientCertificate, clientCertificateChain);
+            clientCertificate?.Dispose();
+            clientCertificateChain?.Dispose();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
         }
@@ -168,8 +173,7 @@ namespace Opc.Ua.Client
             // AddRef so the clone has its own reference; the template
             // retains its existing one. Both Sessions independently
             // dispose their respective references in Dispose.
-            m_instanceCertificate = template.m_instanceCertificate?.AddRef();
-            m_instanceCertificateChain = template.m_instanceCertificateChain?.AddRef();
+            m_instanceCertificateEntry = template.m_instanceCertificateEntry?.AddRef();
             m_effectiveEndpoint = template.m_effectiveEndpoint;
             SessionFactory = template.SessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
@@ -510,10 +514,8 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Dispose();
                 m_eccServerEphemeralKey?.Dispose();
                 m_eccServerEphemeralKey = null;
-                m_instanceCertificate?.Dispose();
-                m_instanceCertificate = null;
-                m_instanceCertificateChain?.Dispose();
-                m_instanceCertificateChain = null;
+                m_instanceCertificateEntry?.Dispose();
+                m_instanceCertificateEntry = null;
                 m_serverCertificate?.Dispose();
                 m_serverCertificate = null;
                 m_keepAliveCancellation?.Dispose();
@@ -632,6 +634,20 @@ namespace Opc.Ua.Client
         /// surfacing the new V2 <c>ISubscriptionManager</c>.
         /// </summary>
         internal ISubscriptionEngine SubscriptionEngine => m_engine;
+
+        /// <inheritdoc/>
+        public bool TryGetSubscriptionManager(
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+            out Subscriptions.ISubscriptionManager? manager)
+        {
+            if (m_engine is DefaultSubscriptionEngine v2)
+            {
+                manager = v2.SubscriptionManager;
+                return true;
+            }
+            manager = null;
+            return false;
+        }
 
         /// <summary>
         /// Gets the endpoint used to connect to the server.
@@ -1309,50 +1325,59 @@ namespace Opc.Ua.Client
             CreateSessionResponse? response = null;
 
             // if security none, first try to connect without certificate
-            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+            try
             {
-                // first try to connect with client certificate NULL
-                try
+                if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+                {
+                    // first try to connect with client certificate NULL
+                    try
+                    {
+                        response = await base.CreateSessionAsync(
+                            null,
+                            clientDescription,
+                            m_endpoint.Description.Server.ApplicationUri,
+                            m_endpoint.EndpointUrl!.ToString(),
+                            sessionName,
+                            clientNonce,
+                            default,
+                            sessionTimeout,
+                            maxMessageSize,
+                            ct).ConfigureAwait(false);
+
+                        successCreateSession = true;
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        m_logger.LogWarning(ex, "Create session failed with client certificate NULL.");
+                        successCreateSession = false;
+                    }
+                }
+
+                if (!successCreateSession)
                 {
                     response = await base.CreateSessionAsync(
-                        null,
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl!.ToString(),
                         sessionName,
                         clientNonce,
-                        default,
+                        clientCertificateChainData.IsEmpty ?
+                            clientCertificateData :
+                            clientCertificateChainData,
                         sessionTimeout,
                         maxMessageSize,
                         ct).ConfigureAwait(false);
-
-                    successCreateSession = true;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    m_logger.LogWarning(ex, "Create session failed with client certificate NULL.");
-                    successCreateSession = false;
                 }
             }
-
-            if (!successCreateSession)
+            catch
             {
-                response = await base.CreateSessionAsync(
-                    requestHeader,
-                    clientDescription,
-                    m_endpoint.Description.Server.ApplicationUri,
-                    m_endpoint.EndpointUrl!.ToString(),
-                    sessionName,
-                    clientNonce,
-                    clientCertificateChainData.IsEmpty ?
-                        clientCertificateData :
-                        clientCertificateChainData,
-                    sessionTimeout,
-                    maxMessageSize,
-                    ct).ConfigureAwait(false);
+                serverCertificate?.Dispose();
+                throw;
             }
             if (response is null || response.SessionId.IsNull)
             {
+                serverCertificate?.Dispose();
                 throw ServiceResultException.Unexpected(
                     "Create response returned null session id");
             }
@@ -1414,7 +1439,7 @@ namespace Opc.Ua.Client
 
                 SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                     securityPolicyUri,
-                    m_instanceCertificate!,
+                    m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
 
                 // select the security policy for the user token.
@@ -1445,7 +1470,7 @@ namespace Opc.Ua.Client
                         serverNonce.ToArray(),
                         serverCertificate?.RawData,
                         TransportChannel.ServerChannelCertificate,
-                        m_instanceCertificate?.RawData,
+                        m_instanceCertificateEntry?.Certificate.RawData,
                         TransportChannel.ClientChannelCertificate,
                         m_clientNonce ?? []);
 
@@ -1463,8 +1488,8 @@ namespace Opc.Ua.Client
                         tokenSecurityPolicyUri,
                         MessageContext,
                         m_eccServerEphemeralKey,
-                        m_instanceCertificate,
-                        m_instanceCertificateChain,
+                        m_instanceCertificateEntry?.Certificate,
+                        m_instanceCertificateEntry?.IssuerChain,
                         m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
                         ct).ConfigureAwait(false);
                 }
@@ -1665,9 +1690,9 @@ namespace Opc.Ua.Client
                     }
 
                     CertificateKeyAlgorithm instanceAlg =
-                        CryptoUtils.GetCertificateKeyAlgorithm(m_instanceCertificate);
+                        CryptoUtils.GetCertificateKeyAlgorithm(m_instanceCertificateEntry?.Certificate);
                     int instanceKeySize = instanceAlg == CertificateKeyAlgorithm.RSA
-                        ? CryptoUtils.GetRsaPublicKeySize(m_instanceCertificate)
+                        ? CryptoUtils.GetRsaPublicKeySize(m_instanceCertificateEntry?.Certificate)
                         : 0;
 
                     // Pin only when there's actually a bound ephemeral
@@ -1821,7 +1846,7 @@ namespace Opc.Ua.Client
 
             SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                 securityPolicyUri,
-                m_instanceCertificate!,
+                m_instanceCertificateEntry?.Certificate!,
                 dataToSign);
 
             // choose a default token.
@@ -1885,7 +1910,7 @@ namespace Opc.Ua.Client
                     serverNonce.ToArray(),
                     m_serverCertificate?.RawData,
                     TransportChannel.ServerChannelCertificate,
-                    m_instanceCertificate?.RawData,
+                    m_instanceCertificateEntry?.Certificate.RawData,
                     TransportChannel.ClientChannelCertificate,
                     m_clientNonce ?? []);
 
@@ -1903,8 +1928,8 @@ namespace Opc.Ua.Client
                     tokenSecurityPolicyUri,
                     MessageContext,
                     m_eccServerEphemeralKey,
-                    m_instanceCertificate,
-                    m_instanceCertificateChain,
+                    m_instanceCertificateEntry?.Certificate,
+                    m_instanceCertificateEntry?.IssuerChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
                     ct).ConfigureAwait(false);
             }
@@ -2312,6 +2337,18 @@ namespace Opc.Ua.Client
                 }
                 return Math.Min(clientLimit, serverLimit);
             }
+            // Cap an operation limit to the effective max array length. Each operation
+            // limit bounds the length of the operations array of its corresponding
+            // request, which the server also constrains via MaxArrayLength (Part 4
+            // section 5.6.2 and Part 12 section 6.5.2). A limit of 0 (unlimited) is bound
+            // to the array length and any larger limit is reduced to it. maxArrayLength
+            // is expected to be non-zero (callers guard the unlimited case).
+            static uint CapToArrayLength(uint operationLimit, uint maxArrayLength)
+            {
+                return operationLimit == 0 || operationLimit > maxArrayLength
+                    ? maxArrayLength
+                    : operationLimit;
+            }
 
             // First we read the node read max to optimize the second read.
             ArrayOf<NodeId> nodeIds =
@@ -2406,6 +2443,52 @@ namespace Opc.Ua.Client
             {
                 ServerCapabilities.MaxByteStringLength = maxByteStringLength;
             }
+
+            // array length quota. The smaller value is the effective array length the
+            // client can exchange with the server (mirrors the MaxByteStringLength
+            // handling above). A value of 0 on either side means no limit.
+            int maxArrayLengthQuota = m_configuration.TransportQuotas?.MaxArrayLength ?? 0;
+            uint maxArrayLength = maxArrayLengthQuota > 0 ? (uint)maxArrayLengthQuota : 0u;
+            if (maxArrayLength != 0 &&
+                (ServerCapabilities.MaxArrayLength == 0 ||
+                    ServerCapabilities.MaxArrayLength > maxArrayLength))
+            {
+                ServerCapabilities.MaxArrayLength = maxArrayLength;
+            }
+
+            // Cap each operation limit to the effective max array length. The number of
+            // operations in a request cannot exceed MaxArrayLength, so any operation
+            // limit that is unlimited (0) or larger than the array length is reduced to
+            // it. This keeps the batching in SessionClientBatched within what the server
+            // will accept.
+            uint effectiveArrayLength = ServerCapabilities.MaxArrayLength;
+            if (effectiveArrayLength != 0)
+            {
+                OperationLimits.MaxNodesPerRead = CapToArrayLength(
+                    OperationLimits.MaxNodesPerRead, effectiveArrayLength);
+                OperationLimits.MaxNodesPerHistoryReadData = CapToArrayLength(
+                    OperationLimits.MaxNodesPerHistoryReadData, effectiveArrayLength);
+                OperationLimits.MaxNodesPerHistoryReadEvents = CapToArrayLength(
+                    OperationLimits.MaxNodesPerHistoryReadEvents, effectiveArrayLength);
+                OperationLimits.MaxNodesPerWrite = CapToArrayLength(
+                    OperationLimits.MaxNodesPerWrite, effectiveArrayLength);
+                OperationLimits.MaxNodesPerHistoryUpdateData = CapToArrayLength(
+                    OperationLimits.MaxNodesPerHistoryUpdateData, effectiveArrayLength);
+                OperationLimits.MaxNodesPerHistoryUpdateEvents = CapToArrayLength(
+                    OperationLimits.MaxNodesPerHistoryUpdateEvents, effectiveArrayLength);
+                OperationLimits.MaxNodesPerMethodCall = CapToArrayLength(
+                    OperationLimits.MaxNodesPerMethodCall, effectiveArrayLength);
+                OperationLimits.MaxNodesPerBrowse = CapToArrayLength(
+                    OperationLimits.MaxNodesPerBrowse, effectiveArrayLength);
+                OperationLimits.MaxNodesPerRegisterNodes = CapToArrayLength(
+                    OperationLimits.MaxNodesPerRegisterNodes, effectiveArrayLength);
+                OperationLimits.MaxNodesPerNodeManagement = CapToArrayLength(
+                    OperationLimits.MaxNodesPerNodeManagement, effectiveArrayLength);
+                OperationLimits.MaxMonitoredItemsPerCall = CapToArrayLength(
+                    OperationLimits.MaxMonitoredItemsPerCall, effectiveArrayLength);
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = CapToArrayLength(
+                    OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, effectiveArrayLength);
+            }
         }
 
         /// <summary>
@@ -2421,15 +2504,17 @@ namespace Opc.Ua.Client
 
             // The channel takes ownership of the cert and chain. AddRef so the
             // original Session retains its references for its own lifetime.
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel created below, which disposes it
             CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
-                ? m_instanceCertificateChain?.AddRef()
+                ? CloneInstanceCertificateChain()
                 : null;
+#pragma warning restore CA2000
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 ConfiguredEndpoint.Description,
                 ConfiguredEndpoint.Configuration!,
-                m_instanceCertificate?.AddRef(),
+                m_instanceCertificateEntry?.Certificate.AddRef(),
                 channelChain,
                 messageContext,
                 ct).ConfigureAwait(false);
@@ -2480,16 +2565,18 @@ namespace Opc.Ua.Client
 
             // The channel takes ownership of the cert and chain. AddRef so the
             // original Session retains its references for its own lifetime.
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel created below, which disposes it
             CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
-                ? m_instanceCertificateChain?.AddRef()
+                ? CloneInstanceCertificateChain()
                 : null;
+#pragma warning restore CA2000
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 connection,
                 ConfiguredEndpoint.Description,
                 ConfiguredEndpoint.Configuration!,
-                m_instanceCertificate?.AddRef(),
+                m_instanceCertificateEntry?.Certificate.AddRef(),
                 channelChain,
                 messageContext,
                 ct).ConfigureAwait(false);
@@ -2671,11 +2758,13 @@ namespace Opc.Ua.Client
             {
                 await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
                 if (targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
-                    m_instanceCertificate != null)
+                    m_instanceCertificateEntry != null)
                 {
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                     manager.UpdateClientCertificate(
-                        m_instanceCertificate.AddRef(),
-                        m_instanceCertificateChain?.AddRef());
+                        m_instanceCertificateEntry.Certificate.AddRef(),
+                        CloneInstanceCertificateChain());
+#pragma warning restore CA2000
                 }
             }
 
@@ -2683,7 +2772,7 @@ namespace Opc.Ua.Client
             {
                 var targetKey = ManagedChannelKey.FromEndpoint(
                     targetEndpoint,
-                    m_instanceCertificate,
+                    m_instanceCertificateEntry?.Certificate,
                     connection);
                 if (oldManagedLease.Key.Equals(targetKey) &&
                     oldManagedLease.State is not (ChannelState.Closed or ChannelState.Faulted))
@@ -2785,11 +2874,13 @@ namespace Opc.Ua.Client
                                 connection,
                                 m_endpoint.Description,
                                 m_endpoint.Configuration!,
-                                m_instanceCertificate?.AddRef(),
+                                m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
-                                    ? m_instanceCertificateChain?.AddRef()
+                                    ? CloneInstanceCertificateChain()
                                     : null,
+#pragma warning restore CA2000
                                 messageContext,
                                 ct)
                             .ConfigureAwait(false);
@@ -2801,11 +2892,13 @@ namespace Opc.Ua.Client
                                 m_configuration,
                                 m_endpoint.Description,
                                 m_endpoint.Configuration!,
-                                m_instanceCertificate?.AddRef(),
+                                m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
-                                    ? m_instanceCertificateChain?.AddRef()
+                                    ? CloneInstanceCertificateChain()
                                     : null,
+#pragma warning restore CA2000
                                 messageContext,
                                 ct)
                             .ConfigureAwait(false);
@@ -3045,8 +3138,8 @@ namespace Opc.Ua.Client
             try
             {
                 // Force reload
-                m_instanceCertificate?.Dispose();
-                m_instanceCertificate = null;
+                m_instanceCertificateEntry?.Dispose();
+                m_instanceCertificateEntry = null;
                 await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
             }
             finally
@@ -3220,10 +3313,12 @@ namespace Opc.Ua.Client
                             connection,
                             m_endpoint.Description,
                             m_endpoint.Configuration!,
-                            m_instanceCertificate?.AddRef(),
+                            m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                             m_configuration.SecurityConfiguration.SendCertificateChain
-                                ? m_instanceCertificateChain?.AddRef()
+                                ? CloneInstanceCertificateChain()
                                 : null,
+#pragma warning restore CA2000
                             MessageContext,
                             ct).ConfigureAwait(false);
 
@@ -3252,10 +3347,12 @@ namespace Opc.Ua.Client
                             m_configuration,
                             m_endpoint.Description,
                             m_endpoint.Configuration!,
-                            m_instanceCertificate?.AddRef(),
+                            m_instanceCertificateEntry?.Certificate.AddRef(),
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel, which disposes it
                             m_configuration.SecurityConfiguration.SendCertificateChain
-                                ? m_instanceCertificateChain?.AddRef()
+                                ? CloneInstanceCertificateChain()
                                 : null,
+#pragma warning restore CA2000
                             MessageContext,
                             ct).ConfigureAwait(false);
 
@@ -3279,9 +3376,9 @@ namespace Opc.Ua.Client
                 }
 
                 if ((clientChannelCertificate == null || clientChannelCertificate.Length == 0) &&
-                    m_instanceCertificate != null)
+                    m_instanceCertificateEntry != null)
                 {
-                    clientChannelCertificate = m_instanceCertificate.RawData;
+                    clientChannelCertificate = m_instanceCertificateEntry.Certificate.RawData;
                 }
 
                 // create the client signature.
@@ -3295,7 +3392,7 @@ namespace Opc.Ua.Client
 
                 SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                     endpoint.SecurityPolicyUri!,
-                    m_instanceCertificate!,
+                    m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
 
                 dataToSign = securityPolicy.GetUserTokenSignatureData(
@@ -3303,7 +3400,7 @@ namespace Opc.Ua.Client
                     m_serverNonce.ToArray(),
                     m_serverCertificate?.RawData,
                     serverChannelCertificate,
-                    m_instanceCertificate?.RawData,
+                    m_instanceCertificateEntry?.Certificate.RawData,
                     clientChannelCertificate,
                     m_clientNonce ?? []);
 
@@ -3325,8 +3422,8 @@ namespace Opc.Ua.Client
                         tokenSecurityPolicyUri,
                         MessageContext,
                         m_eccServerEphemeralKey,
-                        m_instanceCertificate,
-                        m_instanceCertificateChain,
+                        m_instanceCertificateEntry?.Certificate,
+                        m_instanceCertificateEntry?.IssuerChain,
                         m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
                         ct).ConfigureAwait(false);
                 }
@@ -4408,20 +4505,15 @@ namespace Opc.Ua.Client
             out ByteString clientCertificateChainData)
         {
             // send the application instance certificate for the client.
-            clientCertificateData = ByteString.From(m_instanceCertificate?.RawData);
+            clientCertificateData = ByteString.From(m_instanceCertificateEntry?.Certificate.RawData);
             clientCertificateChainData = default;
 
-            if (m_instanceCertificateChain != null &&
-                m_instanceCertificateChain.Count > 0 &&
+            if (m_instanceCertificateEntry != null &&
                 m_configuration.SecurityConfiguration.SendCertificateChain)
             {
-                var clientCertificateChain = new List<byte>();
-                for (int i = 0; i < m_instanceCertificateChain.Count; i++)
-                {
-                    clientCertificateChain.AddRange(m_instanceCertificateChain[i].RawData);
-                }
-
-                clientCertificateChainData = clientCertificateChain.ToByteString();
+                // The encoded chain blob is the leaf followed by its issuers.
+                clientCertificateChainData =
+                    m_instanceCertificateEntry.GetEncodedChainBlob().ToByteString();
             }
         }
 
@@ -4776,8 +4868,8 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            if (m_instanceCertificate != null &&
-                m_instanceCertificate.HasPrivateKey &&
+            if (m_instanceCertificateEntry != null &&
+                m_instanceCertificateEntry.Certificate.HasPrivateKey &&
                 !endpoint.Equals(m_effectiveEndpoint))
             {
                 if (throwIfConfigurationChangedFromLastLoad)
@@ -4785,91 +4877,147 @@ namespace Opc.Ua.Client
                     throw ServiceResultException.ConfigurationError(
                         "Configuration was changed for an active session.");
                 }
-                m_instanceCertificate.Dispose();
-                m_instanceCertificate = null;
+                m_instanceCertificateEntry.Dispose();
+                m_instanceCertificateEntry = null;
             }
 
-            if (m_instanceCertificate == null || !m_instanceCertificate.HasPrivateKey)
+            if (m_instanceCertificateEntry == null ||
+                !m_instanceCertificateEntry.Certificate.HasPrivateKey)
             {
-                m_instanceCertificate?.Dispose();
-                m_instanceCertificate = await LoadInstanceCertificateAsync(
+                m_instanceCertificateEntry?.Dispose();
+                // Loads the certificate together with its issuer chain in one
+                // step so the chain is never resolved separately.
+                m_instanceCertificateEntry = await LoadInstanceCertificateEntryAsync(
                     m_configuration,
                     endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
-                    ct)
-                    .ConfigureAwait(false) ??
-                    throw ServiceResultException.ConfigurationError(
-                        "The client configuration does not specify an application instance certificate.");
+                    ct).ConfigureAwait(false);
                 m_effectiveEndpoint = endpoint;
-                m_instanceCertificateChain?.Dispose();
-                m_instanceCertificateChain = null;
             }
 
-            if (!m_instanceCertificate.HasPrivateKey)
+            if (!m_instanceCertificateEntry.Certificate.HasPrivateKey)
             {
                 throw ServiceResultException.ConfigurationError(
                     "Client certificate configured for security policy {0} is missing a private key.",
                     endpoint.Description.SecurityPolicyUri);
             }
-
-            m_instanceCertificateChain ??= await LoadCertificateChainAsync(
-                m_configuration,
-                m_instanceCertificate,
-                ct).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Load certificate for connection.
+        /// Builds a single owned <see cref="CertificateEntry"/> from a
+        /// certificate and a transport-style chain (<c>[leaf, ...issuers]</c>);
+        /// the leaf is dropped from the stored issuer chain. Returns
+        /// <see langword="null"/> when no certificate is supplied.
+        /// Exposed to test assemblies (via <c>InternalsVisibleTo</c>).
         /// </summary>
+        internal static CertificateEntry? BuildInstanceCertificateEntry(
+            Certificate? certificate,
+            CertificateCollection? chain)
+        {
+            if (certificate == null)
+            {
+                return null;
+            }
+
+            using var issuers = new CertificateCollection();
+            if (chain != null)
+            {
+                foreach (Certificate cert in chain)
+                {
+                    // The supplied chain follows the [leaf, ...issuers]
+                    // transport convention; CertificateEntry stores issuers only.
+                    if (!cert.Equals(certificate))
+                    {
+                        issuers.Add(cert);
+                    }
+                }
+            }
+
+            return new CertificateEntry(
+                certificate,
+                issuers,
+                CertificateIdentifier.GetCertificateType(certificate));
+        }
+
+        /// <summary>
+        /// Returns a new owned collection holding the instance certificate
+        /// followed by its issuer chain (<c>[leaf, ...issuers]</c>) as required
+        /// by the transport, or <see langword="null"/> when there are no
+        /// issuers to send. The caller owns and must dispose the result.
+        /// </summary>
+        private CertificateCollection? CloneInstanceCertificateChain()
+        {
+            CertificateEntry? entry = m_instanceCertificateEntry;
+            return entry == null ? null : BuildTransportChain(entry);
+        }
+
+        /// <summary>
+        /// Returns a new owned collection holding the entry's certificate
+        /// followed by its issuer chain (<c>[leaf, ...issuers]</c>) as required
+        /// by the transport, or <see langword="null"/> when there are no issuers
+        /// to send. The caller owns and must dispose the result.
+        /// </summary>
+        internal static CertificateCollection? BuildTransportChain(CertificateEntry entry)
+        {
+            if (entry.IssuerChain.Count == 0)
+            {
+                return null;
+            }
+
+            var chain = new CertificateCollection { entry.Certificate };
+            foreach (Certificate issuer in entry.IssuerChain)
+            {
+                chain.Add(issuer);
+            }
+            return chain;
+        }
+
+
+        /// <summary>
+        /// Loads the client instance certificate together with its issuer chain
+        /// for the supplied security profile, as a single owned
+        /// <see cref="CertificateEntry"/> (certificate plus issuers-only chain).
+        /// </summary>
+        /// <remarks>
+        /// The certificate is loaded fresh from the configured store (rather than
+        /// borrowed from the certificate manager) so the channel owns an
+        /// independent certificate whose lifetime is decoupled from the manager's
+        /// application-certificate hot-swap on rotation.
+        /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<Certificate> LoadInstanceCertificateAsync(
+        internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            return await configuration.SecurityConfiguration.FindApplicationCertificateAsync(
-                securityProfile,
-                privateKey: true,
-                telemetry,
-                ct).ConfigureAwait(false)
+            using Certificate certificate = await configuration.SecurityConfiguration
+                .FindApplicationCertificateAsync(
+                    securityProfile,
+                    privateKey: true,
+                    telemetry,
+                    ct).ConfigureAwait(false)
                 ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
                     securityProfile);
-        }
 
-        /// <summary>
-        /// Load certificate chain for connection.
-        /// </summary>
-        internal static async Task<CertificateCollection?> LoadCertificateChainAsync(
-            ApplicationConfiguration configuration,
-            Certificate clientCertificate,
-            CancellationToken ct = default)
-        {
-            CertificateCollection? clientCertificateChain = null;
-            // load certificate chain.
-            if (configuration.SecurityConfiguration.SendCertificateChain)
+            using var issuerChain = new CertificateCollection();
+            // Resolve the issuer chain only when the application is configured
+            // to send it; the leaf lives in CertificateEntry.Certificate.
+            if (configuration.SecurityConfiguration.SendCertificateChain &&
+                configuration.CertificateManager != null)
             {
-                clientCertificateChain = [clientCertificate];
                 var issuers = new List<CertificateIssuerReference>();
                 try
                 {
-                    if (configuration.CertificateManager != null)
-                    {
-                        await configuration.CertificateManager
-                            .GetIssuersAsync(clientCertificate, issuers, ct)
-                            .ConfigureAwait(false);
-                    }
+                    await configuration.CertificateManager
+                        .GetIssuersAsync(certificate, issuers, ct)
+                        .ConfigureAwait(false);
 
                     for (int i = 0; i < issuers.Count; i++)
                     {
-                        clientCertificateChain.Add(issuers[i].Certificate);
+                        issuerChain.Add(issuers[i].Certificate);
                     }
-                }
-                catch
-                {
-                    clientCertificateChain.Dispose();
-                    throw;
                 }
                 finally
                 {
@@ -4881,7 +5029,13 @@ namespace Opc.Ua.Client
                     }
                 }
             }
-            return clientCertificateChain;
+
+            // CertificateEntry AddRefs both the certificate and the chain, so
+            // the returned entry is independent of the using-scoped locals.
+            return new CertificateEntry(
+                certificate,
+                issuerChain,
+                CertificateIdentifier.GetCertificateType(certificate));
         }
 
         /// <summary>
@@ -4978,35 +5132,36 @@ namespace Opc.Ua.Client
         private RequestHeader? CreateRequestHeaderForActivateSession(
             string userTokenSecurityPolicyUri)
         {
-            var requestHeader = new RequestHeader();
-            var parameters = new AdditionalParametersType();
-
-            if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
-            {
-                SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
-
-                if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
-                {
-                    parameters.Parameters =
-                    [
-                        new KeyValuePair
-                        {
-                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
-                            Value = userTokenSecurityPolicyUri
-                        }
-                    ];
-
-                    m_logger.LogWarning("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
-                }
-            }
-
-            if (parameters.Parameters.Count == 0)
+            if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
                 return null;
             }
 
-            requestHeader.AdditionalHeader = new ExtensionObject(parameters);
-            return requestHeader;
+            SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+
+            if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                return null;
+            }
+
+            m_logger.LogInformation("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
+
+            var parameters = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = userTokenSecurityPolicyUri
+                    }
+                ]
+            };
+
+            return new RequestHeader
+            {
+                AdditionalHeader = new ExtensionObject(parameters)
+            };
         }
 
         /// <summary>
@@ -5131,14 +5286,12 @@ namespace Opc.Ua.Client
         protected ConfiguredEndpoint m_effectiveEndpoint;
 
         /// <summary>
-        /// The Instance Certificate.
+        /// The instance certificate together with its issuer chain.
         /// </summary>
-        protected Certificate? m_instanceCertificate;
-
-        /// <summary>
-        /// The Instance Certificate Chain.
-        /// </summary>
-        protected CertificateCollection? m_instanceCertificateChain;
+        // CA2213: disposed in DisposeAsyncCore, the session's single async teardown path.
+#pragma warning disable CA2213
+        protected CertificateEntry? m_instanceCertificateEntry;
+#pragma warning restore CA2213
 
         /// <summary>
         /// The session telemetry context

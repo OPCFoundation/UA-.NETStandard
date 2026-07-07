@@ -704,7 +704,7 @@ namespace Opc.Ua
             else if (description.EndpointUrl
                 .StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
             {
-                description.TransportProfileUri = Profiles.UaTcpTransport;
+                description.TransportProfileUri = Profiles.UaWssTransport;
                 description.Server.DiscoveryUrls =
                     description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
@@ -1214,7 +1214,8 @@ namespace Opc.Ua
                     collection,
                     endpointUrl,
                     securityMode,
-                    securityPolicyUri);
+                    securityPolicyUri,
+                    m_description.TransportProfileUri);
 
                 // select best match
                 EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
@@ -1226,8 +1227,14 @@ namespace Opc.Ua
             {
                 if (client != null)
                 {
-                    await client.CloseAsync(ct).ConfigureAwait(false);
-                    client.Dispose();
+                    try
+                    {
+                        await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        client.Dispose();
+                    }
                 }
             }
         }
@@ -1356,7 +1363,8 @@ namespace Opc.Ua
             ArrayOf<EndpointDescription> collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            string? transportProfileUri)
         {
             if (collection.IsEmpty)
             {
@@ -1368,7 +1376,10 @@ namespace Opc.Ua
             // find list of matching endpoints.
             var matches = new List<EndpointDescription>();
 
-            // first pass - match on the requested security parameters.
+            // first pass - match on the requested security parameters AND
+            // the requested transport profile. Profile is honoured so a
+            // refresh of an HTTPS / WSS OpenAPI endpoint is preferred
+            // over a binary twin that ranks higher on security alone.
             foreach (EndpointDescription description in collection)
             {
                 // check for match on security policy.
@@ -1385,8 +1396,43 @@ namespace Opc.Ua
                     continue;
                 }
 
+                // check for match on transport profile.
+                if (!string.IsNullOrEmpty(transportProfileUri) &&
+                    !string.Equals(
+                        transportProfileUri,
+                        description.TransportProfileUri,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 // add to list of matches.
                 matches.Add(description);
+            }
+
+            // If the profile-filtered pass yielded no matches but a profile
+            // was requested, fall back to a security-only match. Servers
+            // that don't advertise the requested profile as a callable
+            // endpoint (e.g. discovery-only OpenAPI twins) still let the
+            // refresh proceed against the binary equivalent.
+            if (matches.Count == 0 && !string.IsNullOrEmpty(transportProfileUri))
+            {
+                foreach (EndpointDescription description in collection)
+                {
+                    if (!string.IsNullOrEmpty(securityPolicyUri) &&
+                        securityPolicyUri != description.SecurityPolicyUri)
+                    {
+                        continue;
+                    }
+
+                    if (securityMode != MessageSecurityMode.Invalid &&
+                        securityMode != description.SecurityMode)
+                    {
+                        continue;
+                    }
+
+                    matches.Add(description);
+                }
             }
 
             // no matches (security parameters may have changed).

@@ -284,10 +284,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
+            return default;
         }
 
         /// <summary>
@@ -340,13 +341,17 @@ namespace Opc.Ua.Bindings
         /// <param name="baseAddress">The base address.</param>
         /// <param name="settings">The settings to use when creating the listener.</param>
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open(
+        public ValueTask OpenAsync(
             Uri baseAddress,
             TransportListenerSettings settings,
-            ITransportListenerCallback callback)
+            ITransportListenerCallback callback,
+            CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
 
@@ -394,15 +399,19 @@ namespace Opc.Ua.Bindings
 
             // start the listener.
             Start();
+            return default;
         }
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
         /// </summary>
+        /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Close()
+        public ValueTask CloseAsync(CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             Stop();
+            return default;
         }
 
         /// <inheritdoc/>
@@ -432,11 +441,11 @@ namespace Opc.Ua.Bindings
         public Uri EndpointUrl { get; private set; } = default!;
 
         /// <summary>
-        /// Binds a new socket to an existing channel.
+        /// Binds a new transport to an existing channel.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public bool ReconnectToExistingChannel(
-            IMessageSocket socket,
+            IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             uint channelId,
@@ -456,7 +465,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            channel!.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
+            channel!.Reconnect(transport, requestId, sequenceNumber, clientCertificate, token, request);
 
             m_logger.LogInformation("ChannelId {Id}: reconnected", channelId);
             return true;
@@ -467,22 +476,21 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-#pragma warning disable CA2000 // Channel is disposed in the finally block below
-            if (m_channels?.TryRemove(channelId, out TcpListenerChannel? channel) == true)
-#pragma warning restore CA2000
+            TcpListenerChannel? channel = null;
+            try
             {
-                try
+                if (m_channels?.TryRemove(channelId, out channel) == true)
                 {
                     m_logger.LogInformation("ChannelId {Id}: closed", channelId);
                 }
-                finally
+                else
                 {
-                    channel.Dispose();
+                    m_logger.LogInformation("ChannelId {Id}: closed, but channel was not found", channelId);
                 }
             }
-            else
+            finally
             {
-                m_logger.LogInformation("ChannelId {Id}: closed, but channel was not found", channelId);
+                channel?.Dispose();
             }
         }
 
@@ -780,12 +788,28 @@ namespace Opc.Ua.Bindings
                 // notify the application.
                 if (ConnectionWaiting != null)
                 {
-                    var args = new TcpConnectionWaitingEventArgs(
-                        serverUri,
-                        endpointUrl,
-                        channel!.Socket!);
-                    await ConnectionWaiting(this, args).ConfigureAwait(false);
-                    accepted = args.Accepted;
+                    // Detach the transport (and stop the channel's receive loop)
+                    // before handing it off: otherwise this server-side channel
+                    // would race the new client-side channel for chunks on the
+                    // same socket.
+                    IUaSCByteTransport? transport = await channel!.DetachTransportAsync()
+                        .ConfigureAwait(false);
+                    if (transport != null)
+                    {
+                        var args = new TcpConnectionWaitingEventArgs(
+                            serverUri,
+                            endpointUrl,
+                            transport);
+                        await ConnectionWaiting(this, args).ConfigureAwait(false);
+                        accepted = args.Accepted;
+                        if (!accepted)
+                        {
+                            // Caller rejected the handoff: re-attach the transport so
+                            // the existing channel keeps working on retry.
+                            channel!.Transport = transport;
+                            channel!.StartReceiveLoop();
+                        }
+                    }
                 }
 
                 if (!accepted)
@@ -817,14 +841,13 @@ namespace Opc.Ua.Bindings
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
                 {
-                    Certificate? serverCertificate = serverCertificates
-                        .GetInstanceCertificate(
-                            description.SecurityPolicyUri!)?.Certificate;
+                    using CertificateEntry? instanceEntry = serverCertificates
+                        .AcquireApplicationCertificateBySecurityPolicy(description.SecurityPolicyUri!);
+                    Certificate? serverCertificate = instanceEntry?.Certificate;
                     if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            serverCertificates.LoadCertificateChainRaw(
-                                serverCertificate!)!.ToByteString();
+                            instanceEntry!.GetEncodedChainBlob().ToByteString();
                     }
                     else
                     {
@@ -836,7 +859,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+        public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            Certificate oldCertificate,
+            CancellationToken ct = default)
         {
             if (oldCertificate == null)
             {
@@ -846,7 +871,7 @@ namespace Opc.Ua.Bindings
             string oldThumbprint = oldCertificate.Thumbprint;
             if (string.IsNullOrEmpty(oldThumbprint))
             {
-                return [];
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             // Snapshot the channel map so we can iterate without holding
@@ -860,7 +885,7 @@ namespace Opc.Ua.Bindings
 
             if (channels.Length == 0)
             {
-                return [];
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             var closed = new List<string>(channels.Length);
@@ -892,7 +917,7 @@ namespace Opc.Ua.Bindings
                 closed.Count,
                 oldThumbprint);
 
-            return closed;
+            return new ValueTask<IReadOnlyList<string>>(closed);
         }
 
         /// <summary>
@@ -1194,21 +1219,46 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
-
-                // Send a service fault back to the client so it does not hang waiting
-                // for a response to a request the server failed to dispatch (e.g. when a
-                // certificate became invalid mid-flight during ApplyChanges).
-                try
+                // A closed/abandoned secure channel is an expected race: the
+                // client tore down its channel (for example after a client-side
+                // operation timeout, or during a connect/reconnect burst) while
+                // the server was still processing the request. Log it quietly
+                // instead of as an error with a stack trace - otherwise these
+                // races flood the logs under load - and do not attempt to send a
+                // fault on a channel we already know is closed.
+                if (e is ServiceResultException sre &&
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed)
                 {
-                    ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
-                    ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                    m_logger.LogDebug(
+                        "TCPLISTENER - Could not send response; secure channel was " +
+                        "closed by the client.");
                 }
-                catch (Exception faultEx)
+                else
                 {
-                    m_logger.LogError(
-                        faultEx,
-                        "TCPLISTENER - Failed to send fault response to client.");
+                    m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
+
+                    // Send a service fault back to the client so it does not hang waiting
+                    // for a response to a request the server failed to dispatch (e.g. when a
+                    // certificate became invalid mid-flight during ApplyChanges).
+                    try
+                    {
+                        ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
+                        ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                    }
+                    catch (ServiceResultException faultSre)
+                        when (faultSre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    {
+                        // The channel is gone; the fault cannot be sent. Expected under load.
+                        m_logger.LogDebug(
+                            "TCPLISTENER - Could not send fault response; secure channel " +
+                            "was closed by the client.");
+                    }
+                    catch (Exception faultEx)
+                    {
+                        m_logger.LogError(
+                            faultEx,
+                            "TCPLISTENER - Failed to send fault response to client.");
+                    }
                 }
             }
             finally
@@ -1328,16 +1378,18 @@ namespace Opc.Ua.Bindings
         internal TcpConnectionWaitingEventArgs(
             string serverUrl,
             Uri endpointUrl,
-            IMessageSocket socket)
+            IUaSCByteTransport transport)
             : base(serverUrl, endpointUrl)
         {
-            Socket = socket;
+            Transport = transport;
         }
 
         /// <inheritdoc/>
-        public override object Handle => Socket;
+        public override object Handle => Transport;
 
-        /// <inheritdoc/>
-        internal IMessageSocket Socket { get; }
+        /// <summary>
+        /// The byte-level transport carrying the inbound reverse-connection.
+        /// </summary>
+        internal IUaSCByteTransport Transport { get; }
     }
 }

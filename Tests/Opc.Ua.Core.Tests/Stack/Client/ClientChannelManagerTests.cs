@@ -81,8 +81,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var serviceMessageContextMock = new Mock<IServiceMessageContext>();
             serviceMessageContextMock.SetupGet(x => x.Telemetry).Returns(telemetry);
             var configuration = new ApplicationConfiguration(telemetry);
-            var socket = new Mock<IMessageSocket>();
-            transportChannelMock.SetupGet(x => x.Socket).Returns(socket.Object);
 
             var sut = new ClientChannelManager(configuration, transportBindingsMock.Object);
 
@@ -121,8 +119,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var serviceMessageContextMock = new Mock<IServiceMessageContext>();
             serviceMessageContextMock.SetupGet(x => x.Telemetry).Returns(telemetry);
             var configuration = new ApplicationConfiguration(telemetry);
-            var socket = new Mock<IMessageSocket>();
-            transportChannelMock.SetupGet(x => x.Socket).Returns(socket.Object);
 
             var sut = new ClientChannelManager(configuration, transportBindingsMock.Object);
 
@@ -212,12 +208,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Returns(transportChannelMock.Object);
 
             var configuration = new ApplicationConfiguration(telemetry);
-            var socket = new Mock<IMessageSocket>();
-            var localEndPoint = new IPEndPoint(IPAddress.Parse("1.2.3.4"), 1234);
-            var remoteEndPoint = new IPEndPoint(IPAddress.Parse("4.3.2.1"), 4321);
-            socket.Setup(s => s.LocalEndpoint).Returns(localEndPoint);
-            socket.Setup(s => s.RemoteEndpoint).Returns(remoteEndPoint);
-            transportChannelMock.SetupGet(x => x.Socket).Returns(socket.Object);
 
             var sut = new ClientChannelManager(configuration, transportBindingsMock.Object);
             var token = new ChannelToken
@@ -246,10 +236,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(diagnostic.Lifetime, Is.EqualTo(TimeSpan.FromMilliseconds(token.Lifetime)));
             Assert.That(diagnostic.Client, Is.Not.Null);
             Assert.That(diagnostic.Server, Is.Not.Null);
-            Assert.That(diagnostic.RemoteIpAddress, Is.EqualTo(remoteEndPoint.Address));
-            Assert.That(diagnostic.RemotePort, Is.EqualTo(remoteEndPoint.Port));
-            Assert.That(diagnostic.LocalIpAddress, Is.EqualTo(localEndPoint.Address));
-            Assert.That(diagnostic.LocalPort, Is.EqualTo(localEndPoint.Port));
+            // Endpoint fields are only populated when the channel is a
+            // UaSCUaBinaryTransportChannel (mocks return null here).
+            Assert.That(diagnostic.RemoteIpAddress, Is.Null);
+            Assert.That(diagnostic.LocalIpAddress, Is.Null);
         }
 
         [Test]
@@ -539,6 +529,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             return endpoint;
         }
 
-        public interface IChannel : ITransportChannel, ISecureChannel, IMessageSocketChannel;
+        public interface IChannel : ITransportChannel, ISecureChannel;
     }
 }

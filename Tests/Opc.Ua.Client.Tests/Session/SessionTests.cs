@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
@@ -50,6 +51,100 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionTests
     {
+        [Test]
+        public void BuildTransportChainReturnsLeafFollowedByIssuers()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=TransportLeaf").CreateForRSA();
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=TransportIssuer")
+                .SetCAConstraint()
+                .CreateForRSA();
+            using var issuerChain = new CertificateCollection { issuer };
+            using var entry = new CertificateEntry(
+                leaf, issuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            using CertificateCollection? chain = Session.BuildTransportChain(entry);
+
+            // The transport chain is [leaf, ...issuers] with the leaf at index 0.
+            Assert.That(chain, Is.Not.Null);
+            Assert.That(chain!, Has.Count.EqualTo(2));
+            Assert.That(chain[0].Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            Assert.That(chain[1].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+        }
+
+        [Test]
+        public void BuildTransportChainReturnsNullWhenNoIssuers()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=TransportLeafOnly").CreateForRSA();
+            using var issuerChain = new CertificateCollection();
+            using var entry = new CertificateEntry(
+                leaf, issuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            CertificateCollection? chain = Session.BuildTransportChain(entry);
+
+            // With no issuers the transport sends the leaf only, so the chain is null.
+            Assert.That(chain, Is.Null);
+        }
+
+        [Test]
+        public void BuildInstanceCertificateEntryReturnsNullWhenNoCertificate()
+        {
+            Assert.That(Session.BuildInstanceCertificateEntry(null, null), Is.Null);
+        }
+
+        [Test]
+        public void BuildInstanceCertificateEntryStoresIssuersWithoutLeaf()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=EntryLeaf").CreateForRSA();
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=EntryIssuer")
+                .SetCAConstraint()
+                .CreateForRSA();
+            // Transport-style chain: [leaf, ...issuers].
+            using var transportChain = new CertificateCollection { leaf, issuer };
+
+            using CertificateEntry? entry = Session.BuildInstanceCertificateEntry(leaf, transportChain);
+
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Certificate.Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            // The leaf is dropped from the stored issuer chain (issuers only).
+            Assert.That(entry.IssuerChain, Has.Count.EqualTo(1));
+            Assert.That(entry.IssuerChain[0].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+        }
+
+        [Test]
+        public void BuildInstanceCertificateEntryHandlesNullChain()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=EntryLeafOnly").CreateForRSA();
+
+            using CertificateEntry? entry = Session.BuildInstanceCertificateEntry(leaf, null);
+
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Certificate.Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            Assert.That(entry.IssuerChain, Has.Count.EqualTo(0));
+        }
+
+        [Test]
+        public void BuildTransportChainAndInstanceEntryRoundTrip()
+        {
+            using Certificate leaf = CertificateBuilder.Create("CN=RoundTripLeaf").CreateForRSA();
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=RoundTripIssuer")
+                .SetCAConstraint()
+                .CreateForRSA();
+            using var issuerChain = new CertificateCollection { issuer };
+            using var original = new CertificateEntry(
+                leaf, issuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            using CertificateCollection? transportChain = Session.BuildTransportChain(original);
+            using CertificateEntry? rebuilt = Session.BuildInstanceCertificateEntry(leaf, transportChain);
+
+            Assert.That(rebuilt, Is.Not.Null);
+            Assert.That(rebuilt!.Certificate.Thumbprint, Is.EqualTo(leaf.Thumbprint));
+            Assert.That(rebuilt.IssuerChain, Has.Count.EqualTo(1));
+            Assert.That(rebuilt.IssuerChain[0].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+        }
+
         [Test]
         public async Task FetchOperationLimitsAsyncShouldFetchAllOperationLimitsAsync()
         {
@@ -333,7 +428,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant((ushort)100)),
                 new DataValue(new Variant((ushort)100)),
                 new DataValue(new Variant(1000u)),
-                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(100000u)), // MaxArrayLength - large so it does not cap the limits under test
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(100.0)),
                 new DataValue(new Variant(1000u)),
@@ -433,7 +528,7 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant((ushort)100)),
                 new DataValue(new Variant((ushort)100)),
                 new DataValue(new Variant(1000u)),
-                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(100000u)), // MaxArrayLength - large so it does not cap the limits under test
                 new DataValue(new Variant(1000u)),
                 new DataValue(new Variant(100.0)),
                 new DataValue(new Variant(1000u)),
@@ -470,6 +565,208 @@ namespace Opc.Ua.Client.Tests
             Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(5000)); // min(8000, 5000)
 
             channel.Verify();
+        }
+
+        [Test]
+        public async Task FetchOperationLimitsAsyncShouldCapLimitsToServerMaxArrayLengthAsync()
+        {
+            using var sut = SessionMock.Create();
+            CancellationToken ct = CancellationToken.None;
+
+            // The server advertises a small MaxArrayLength (index 16) that is lower than
+            // most operation limits. Limits above it are reduced to it; a limit already at
+            // or below it is left unchanged.
+            ArrayOf<DataValue> dataValues =
+            [
+                new DataValue(new Variant(2000u)), // MaxNodesPerHistoryReadData -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerHistoryReadEvents -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerWrite -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerRead -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerHistoryUpdateData -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerHistoryUpdateEvents -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerMethodCall -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerBrowse -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerRegisterNodes -> 500
+                new DataValue(new Variant(2000u)), // MaxNodesPerNodeManagement -> 500
+                new DataValue(new Variant(2000u)), // MaxMonitoredItemsPerCall -> 500
+                new DataValue(new Variant(200u)),  // MaxNodesPerTranslateBrowsePathsToNodeIds -> 200 (unchanged)
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(500u)), // MaxArrayLength
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(100.0)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u))
+            ];
+
+            sut.Channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [new DataValue(new Variant(2000u))],
+                    DiagnosticInfos = []
+                }))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = dataValues,
+                    DiagnosticInfos = []
+                }));
+
+            // Act
+            await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+
+            // Assert - operation limits above MaxArrayLength are capped to it.
+            Assert.That(sut.ServerCapabilities.MaxArrayLength, Is.EqualTo(500));
+            Assert.That(sut.OperationLimits.MaxNodesPerRead, Is.EqualTo(500));
+            Assert.That(sut.OperationLimits.MaxNodesPerWrite, Is.EqualTo(500));
+            Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(500));
+            Assert.That(sut.OperationLimits.MaxNodesPerHistoryReadData, Is.EqualTo(500));
+            Assert.That(sut.OperationLimits.MaxNodesPerNodeManagement, Is.EqualTo(500));
+            Assert.That(sut.OperationLimits.MaxMonitoredItemsPerCall, Is.EqualTo(500));
+            Assert.That(sut.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Is.EqualTo(200));
+        }
+
+        [Test]
+        public async Task FetchOperationLimitsAsyncShouldCapUnlimitedLimitsToMaxArrayLengthAsync()
+        {
+            using var sut = SessionMock.Create();
+            CancellationToken ct = CancellationToken.None;
+
+            // All operation limits are 0 (unlimited); the non-zero MaxArrayLength bounds them.
+            ArrayOf<DataValue> dataValues = CreateOperationLimitsRead(operationLimit: 0u, maxArrayLength: 750u);
+
+            sut.Channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [new DataValue(new Variant(0u))],
+                    DiagnosticInfos = []
+                }))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = dataValues,
+                    DiagnosticInfos = []
+                }));
+
+            // Act
+            await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+
+            // Assert - unlimited (0) limits are bound to MaxArrayLength.
+            Assert.That(sut.ServerCapabilities.MaxArrayLength, Is.EqualTo(750));
+            Assert.That(sut.OperationLimits.MaxNodesPerRead, Is.EqualTo(750));
+            Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(750));
+            Assert.That(sut.OperationLimits.MaxMonitoredItemsPerCall, Is.EqualTo(750));
+            Assert.That(sut.OperationLimits.MaxNodesPerNodeManagement, Is.EqualTo(750));
+            Assert.That(sut.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Is.EqualTo(750));
+        }
+
+        [Test]
+        public async Task FetchOperationLimitsAsyncShouldCapToClientArrayQuotaWhenServerUnlimitedAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var channel = new Mock<ITransportChannel>();
+            channel
+                .SetupGet(s => s.MessageContext)
+                .Returns(ServiceMessageContext.Create(telemetry));
+            channel
+                .SetupGet(s => s.SupportedFeatures)
+                .Returns(TransportChannelFeatures.Reconnect);
+
+            // The client constrains the array length via its transport quotas while the
+            // server reports MaxArrayLength 0 (unlimited).
+            var configuration = new ApplicationConfiguration(telemetry)
+            {
+                ClientConfiguration = new ClientConfiguration(),
+                TransportQuotas = new TransportQuotas { MaxArrayLength = 600 }
+            };
+
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            using var sut = new SessionMock(
+                channel,
+                configuration,
+                new ConfiguredEndpoint(null, endpoint));
+
+            CancellationToken ct = CancellationToken.None;
+
+            ArrayOf<DataValue> dataValues = CreateOperationLimitsRead(operationLimit: 1000u, maxArrayLength: 0u);
+
+            channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [new DataValue(new Variant(1000u))],
+                    DiagnosticInfos = []
+                }))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = dataValues,
+                    DiagnosticInfos = []
+                }));
+
+            // Act
+            await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+
+            // Assert - the client array quota becomes the effective cap.
+            Assert.That(sut.ServerCapabilities.MaxArrayLength, Is.EqualTo(600));
+            Assert.That(sut.OperationLimits.MaxNodesPerRead, Is.EqualTo(600));
+            Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(600));
+            Assert.That(sut.OperationLimits.MaxMonitoredItemsPerCall, Is.EqualTo(600));
+        }
+
+        [Test]
+        public async Task FetchOperationLimitsAsyncShouldNotCapWhenArrayLengthUnlimitedAsync()
+        {
+            using var sut = SessionMock.Create();
+            CancellationToken ct = CancellationToken.None;
+
+            // Both the server MaxArrayLength and the client array quota are 0 (unlimited):
+            // operation limits are left untouched.
+            ArrayOf<DataValue> dataValues = CreateOperationLimitsRead(operationLimit: 1000u, maxArrayLength: 0u);
+
+            sut.Channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [new DataValue(new Variant(1000u))],
+                    DiagnosticInfos = []
+                }))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = dataValues,
+                    DiagnosticInfos = []
+                }));
+
+            // Act
+            await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+
+            // Assert - no array length constraint, so limits are unchanged.
+            Assert.That(sut.ServerCapabilities.MaxArrayLength, Is.Zero);
+            Assert.That(sut.OperationLimits.MaxNodesPerRead, Is.EqualTo(1000));
+            Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(1000));
+            Assert.That(sut.OperationLimits.MaxMonitoredItemsPerCall, Is.EqualTo(1000));
+            Assert.That(sut.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Is.EqualTo(1000));
         }
 
         [Test]
@@ -1638,6 +1935,43 @@ namespace Opc.Ua.Client.Tests
             return ((ByteString)typeof(Session)
                 .GetField("m_serverNonce", PrivateInstance)
                 .GetValue(session)).ToArray();
+        }
+
+        private static ArrayOf<DataValue> CreateOperationLimitsRead(uint operationLimit, uint maxArrayLength)
+        {
+            // Mirrors the node order read by FetchOperationLimitsAsync: the 12 operation
+            // limits (all set to operationLimit) followed by the server capabilities, of
+            // which only MaxArrayLength (index 16) varies.
+            return
+            [
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerHistoryReadData
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerHistoryReadEvents
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerWrite
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerRead
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerHistoryUpdateData
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerHistoryUpdateEvents
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerMethodCall
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerBrowse
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerRegisterNodes
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerNodeManagement
+                new DataValue(new Variant(operationLimit)), // MaxMonitoredItemsPerCall
+                new DataValue(new Variant(operationLimit)), // MaxNodesPerTranslateBrowsePathsToNodeIds
+                new DataValue(new Variant((ushort)100)),    // MaxBrowseContinuationPoints
+                new DataValue(new Variant((ushort)100)),    // MaxHistoryContinuationPoints
+                new DataValue(new Variant((ushort)100)),    // MaxQueryContinuationPoints
+                new DataValue(new Variant(1000u)),          // MaxStringLength
+                new DataValue(new Variant(maxArrayLength)), // MaxArrayLength
+                new DataValue(new Variant(1000u)),          // MaxByteStringLength
+                new DataValue(new Variant(100.0)),          // MinSupportedSampleRate
+                new DataValue(new Variant(1000u)),          // MaxSessions
+                new DataValue(new Variant(1000u)),          // MaxSubscriptions
+                new DataValue(new Variant(1000u)),          // MaxMonitoredItems
+                new DataValue(new Variant(1000u)),          // MaxMonitoredItemsPerSubscription
+                new DataValue(new Variant(1000u)),          // MaxMonitoredItemsQueueSize
+                new DataValue(new Variant(1000u)),          // MaxSubscriptionsPerSession
+                new DataValue(new Variant(1000u)),          // MaxWhereClauseParameters
+                new DataValue(new Variant(1000u))           // MaxSelectClauseParameters
+            ];
         }
     }
 }

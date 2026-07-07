@@ -62,6 +62,48 @@ namespace Opc.Ua.Client.TestFramework
         public bool SingleSession { get; set; } = true;
         public bool AllNodeManagers { get; set; }
         public int MaxChannelCount { get; set; } = 100;
+        public int MaxSessionCount { get; set; } = 100;
+
+        /// <summary>
+        /// The server's maximum failed-authentication attempts before a client is
+        /// locked out. Defaults to the production default (5). A value of zero or
+        /// less disables the brute-force lockout, which load/scale fixtures that
+        /// open many sessions from a single client certificate need so transient
+        /// connect failures cannot lock the shared certificate out.
+        /// </summary>
+        public int MaxFailedAuthenticationAttempts { get; set; } = 5;
+
+        /// <summary>
+        /// The server's maximum number of concurrent request-processing worker
+        /// slots. Each outstanding (long-polled) Publish request occupies one
+        /// slot for the duration it is held waiting for notifications, so a
+        /// server serving N sessions with active subscriptions needs at least
+        /// N slots plus head-room; otherwise held Publish requests exhaust the
+        /// pool and starve all other requests (CreateSession/ActivateSession/
+        /// Read), surfacing as BadRequestTimeout. Defaults to the production
+        /// default (100); load/scale fixtures that open many concurrent
+        /// sessions must raise it above the session count.
+        /// </summary>
+        public int MaxRequestThreadCount { get; set; } = 100;
+
+        /// <summary>
+        /// The server's maximum number of concurrent subscriptions. Each session
+        /// in the many-sessions scale test creates one subscription, so this must
+        /// be raised above the session count for high-session runs. Defaults to
+        /// 1000 (the fixture's prior fixed value).
+        /// </summary>
+        public int MaxSubscriptionCount { get; set; } = 1000;
+
+        /// <summary>
+        /// The server's minimum number of pre-spawned request-processing worker
+        /// slots (and thread-pool minimum). Raising this warms the request
+        /// pipeline so a burst of concurrent connects is not throttled by the
+        /// thread pool's slow cold-start ramp, which otherwise surfaces as
+        /// transient BadRequestTimeout on cheap operations while the pool grows.
+        /// Defaults to the production default (10); load/scale fixtures that open
+        /// many concurrent sessions raise it to smooth the connect burst.
+        /// </summary>
+        public int MinRequestThreadCount { get; set; } = 10;
         public bool SupportsExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
@@ -97,6 +139,18 @@ namespace Opc.Ua.Client.TestFramework
         public ExpandedNodeId[] TestSetDataSimulation { get; }
         public ExpandedNodeId[] TestSetHistory { get; }
         public ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// When set before <c>OneTimeSetUpCoreAsync</c>, the underlying
+        /// <see cref="ServerFixture"/> hands this registry to the
+        /// <see cref="ReferenceServer"/> via
+        /// <c>ServerBase.TransportBindings</c> immediately after
+        /// construction. Integration fixtures that test a specific binding
+        /// (Kestrel-TCP listener, custom transport, ...) use this hook to
+        /// override the default <c>opc.tcp</c> factories without touching
+        /// any process-wide state.
+        /// </summary>
+        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
 
         private readonly ILogger<ClientTestFramework> m_logger;
 
@@ -287,8 +341,9 @@ namespace Opc.Ua.Client.TestFramework
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn(
-                        $"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
+                    TestContext.Progress.WriteLine(
+                        $"OneTimeSetUp failed to create session with {ServerUrl}. Error: {e.Message}");
+                    throw;
                 }
             }
         }
@@ -309,7 +364,8 @@ namespace Opc.Ua.Client.TestFramework
                 AutoAccept = true,
                 AllNodeManagers = AllNodeManagers,
                 OperationLimits = true,
-                UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager
+                UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager,
+                TransportBindingRegistry = TransportBindingRegistry
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
@@ -368,7 +424,14 @@ namespace Opc.Ua.Client.TestFramework
             }
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
-            ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
+            ServerFixture.Config.ServerConfiguration.MaxSessionCount = MaxSessionCount;
+            ServerFixture.Config.ServerConfiguration.MaxFailedAuthenticationAttempts
+                = MaxFailedAuthenticationAttempts;
+            ServerFixture.Config.ServerConfiguration.MaxRequestThreadCount
+                = MaxRequestThreadCount;
+            ServerFixture.Config.ServerConfiguration.MinRequestThreadCount
+                = MinRequestThreadCount;
+            ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = MaxSubscriptionCount;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);

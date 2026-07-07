@@ -15,12 +15,20 @@
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="DotNext" Version="5.26.3" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
+    <PackageVersion Include="JsonSchema.Net" Version="7.4.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.28" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.28" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.28" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="8.0.28" />
+    <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.WebSockets" Version="2.3.10" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="10.0.8" />
@@ -44,7 +52,6 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.6.0" />
-    <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
     <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
@@ -58,8 +65,10 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <!--
       PacketDotNet and SharpPcap are native-code dependencies of
-      Opc.Ua.Core.Diagnostics. They dynamically load libpcap on
-      Linux/macOS and Npcap on Windows. Per SDL native-code policy:
+      Opc.Ua.Core.Diagnostics, Opc.Ua.PubSub.Diagnostics and (for the
+      opt-in WithPcap() backend, net8.0+ only) Opc.Ua.PubSub.Eth. They
+      dynamically load libpcap on Linux/macOS and Npcap on Windows. Per
+      SDL native-code policy:
       - Versions are pinned (no floating range)
       - SBOM tracking is required for every release
       - Subscribe to upstream CVE feeds:
@@ -92,7 +101,6 @@
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Formats.Asn1" Version="10.0.8" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
-    <PackageVersion Include="System.Net.NetworkInformation" Version="4.3.0" />
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
          net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
          - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57
@@ -111,11 +119,15 @@
   <!-- MQTTnet 5.x dropped net48/net472/netstandard2.1 support. Per-TFM pinning is
        required because CentralPackageTransitivePinningEnabled lets the central pin
        win over PubSub's VersionOverride for transitive consumers (e.g. samples
-       that ProjectReference Opc.Ua.PubSub). See Libraries/Opc.Ua.PubSub.csproj. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1'">
+       that ProjectReference Opc.Ua.PubSub). See Libraries/Opc.Ua.PubSub.csproj.
+       When the solution is pinned to netstandard2.1 (CustomTestTarget=netstandard2.1)
+       the libraries build as netstandard2.1 (MQTTnet v4) while their tests/apps build
+       as net8.0, so the net8.0 consumers must also use v4 to match the libraries. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1' OR '$(CustomTestTarget)' == 'netstandard2.1'">
     <PackageVersion Include="MQTTnet" Version="4.3.7.1207" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' != 'net472' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'netstandard2.1'">
+  <ItemGroup Condition="('$(TargetFramework)' != 'net472' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'netstandard2.1') AND '$(CustomTestTarget)' != 'netstandard2.1'">
     <PackageVersion Include="MQTTnet" Version="5.1.0.1559" />
+    <PackageVersion Include="MQTTnet.Server" Version="5.1.0.1559" />
   </ItemGroup>
 </Project>

@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -293,6 +295,27 @@ namespace Opc.Ua
 
             // recursively notify the parent.
             Parent?.ReportEvent(context, e);
+        }
+
+        /// <summary>
+        /// Asynchronously reports an event and recursively notifies the parent, awaiting any
+        /// asynchronous report sink so the caller is never blocked.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="e">The event to report.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public override async ValueTask ReportEventAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default)
+        {
+            await base.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+
+            // recursively notify the parent.
+            if (Parent != null)
+            {
+                await Parent.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

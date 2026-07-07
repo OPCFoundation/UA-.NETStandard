@@ -181,12 +181,26 @@ namespace Opc.Ua.SourceGeneration
                     bindings.Count > 0 ? reportBinding : null,
                     referencedDependencies);
 
-                // Process any remaining design files
+                // Process any remaining design files. Every NodeSet2 input
+                // (encoded with the prefix/name computed by the nodeset
+                // pass) and every other ModelDesign input is supplied as a
+                // dependency so cross-model references resolve — both
+                // ModelDesign -> NodeSet2 (e.g. an instance whose
+                // TypeDefinition is a NodeSet2-defined ObjectType) and
+                // ModelDesign -> ModelDesign across directories. A single
+                // GenerateCode call is kept so [NodeManager] attribute
+                // binding matching still sees all targets at once.
+                List<string> designTargets = [.. m_input
+                    .Where(f => !nodesets.Files.ContainsValue(f.Item1.Path))
+                    .Select(f => f.Item1.Path)];
+
+                var designDependencies = new List<string>(nodesets.DesignFileEntries);
+                designDependencies.AddRange(designTargets);
+
                 new DesignFileCollection
                 {
-                    Targets = [.. m_input
-                        .Where(f => !nodesets.Files.ContainsValue(f.Item1.Path))
-                        .Select(f => f.Item1.Path)],
+                    Targets = designTargets,
+                    Dependencies = designDependencies,
                     Options = m_options.Options
                 }.GenerateCode(
                     sourceFiles.WithFallback(vfs),

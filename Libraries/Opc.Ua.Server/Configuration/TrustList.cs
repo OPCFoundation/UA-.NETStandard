@@ -246,7 +246,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store.Close();
+                    store.Dispose();
                 }
 
                 store = m_issuerStore.OpenStore(m_telemetry);
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store.Close();
+                    store.Dispose();
                 }
 
                 if (mode == OpenFileMode.Read)
@@ -607,7 +607,8 @@ namespace Opc.Ua.Server
                     issuerCertificates = [];
                     foreach (ByteString cert in trustList.IssuerCertificates)
                     {
-                        issuerCertificates.Add(Certificate.FromRawData(cert));
+                        using Certificate certificate = Certificate.FromRawData(cert);
+                        issuerCertificates.Add(certificate);
                     }
                 }
                 if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
@@ -623,7 +624,8 @@ namespace Opc.Ua.Server
                     trustedCertificates = [];
                     foreach (ByteString cert in trustList.TrustedCertificates)
                     {
-                        trustedCertificates.Add(Certificate.FromRawData(cert));
+                        using Certificate certificate = Certificate.FromRawData(cert);
+                        trustedCertificates.Add(certificate);
                     }
                 }
                 if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -769,12 +771,12 @@ namespace Opc.Ua.Server
 
                 if (cert != null)
                 {
-                    CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
-                        ? m_trustedStore
-                        : m_issuerStore;
-                    ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
                     try
                     {
+                        CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
+                            ? m_trustedStore
+                            : m_issuerStore;
+                        using ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
                         if (store != null)
                         {
                             await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
@@ -782,7 +784,7 @@ namespace Opc.Ua.Server
                     }
                     finally
                     {
-                        store?.Close();
+                        cert.Dispose();
                     }
 
                     lock (m_lock)

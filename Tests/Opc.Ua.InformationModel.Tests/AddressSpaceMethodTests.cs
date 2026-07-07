@@ -44,9 +44,8 @@ namespace Opc.Ua.InformationModel.Tests
     public class AddressSpaceMethodTests : TestFixture
     {
         [OneTimeSetUp]
-        public new async Task OneTimeSetUp()
+        public void InitializeMethodNodeIds()
         {
-            await base.OneTimeSetUp().ConfigureAwait(false);
             m_methodsFolderId = ToNodeId(Constants.MethodsFolder);
             m_addMethodId = ToNodeId(
                 new ExpandedNodeId("Methods_Add", Constants.ReferenceServerNamespaceUri));

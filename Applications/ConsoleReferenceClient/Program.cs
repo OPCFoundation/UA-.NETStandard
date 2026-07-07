@@ -469,7 +469,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 verbose);
                             if (loadTypes)
                             {
-                                var complexTypeSystem = new ComplexTypeSystem(uaClient.Session, telemetry);
+                                var complexTypeSystem = ComplexTypeSystem.Create(uaClient.Session, telemetry);
                                 await samples.LoadTypeSystemAsync(complexTypeSystem, ct).ConfigureAwait(false);
                             }
 

@@ -2385,7 +2385,8 @@ namespace Opc.Ua
                 hasDiagnosticInfo =
                     hasDiagnosticInfo ||
                     value.AdditionalInfo != null ||
-                    value.InnerStatusCode != StatusCodes.Good;
+                    !value.InnerStatusCode.Equals(
+                        StatusCodes.Good, StatusCodeComparison.AllBits);
 
                 if (BeginField("InnerDiagnosticInfo", true))
                 {

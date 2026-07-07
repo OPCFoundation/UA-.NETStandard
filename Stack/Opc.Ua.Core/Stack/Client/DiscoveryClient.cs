@@ -758,6 +758,9 @@ namespace Opc.Ua
             Uri? endpointUrl = Utils.ParseUri(Endpoint.EndpointUrl);
             if (endpointUrl != null)
             {
+                string endpointHost = endpointUrl.IdnHost;
+                string endpointUrlString = Endpoint.EndpointUrl!;
+
                 // patch discovery Url to endpoint Url used for service call
                 foreach (EndpointDescription discoveryEndPoint in endpoints)
                 {
@@ -771,23 +774,31 @@ namespace Opc.Ua
                     }
 
                     if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
-                        (endpointUrl.Port == discoveryEndPointUri.Port))
+                        (endpointUrl.Port == discoveryEndPointUri.Port) &&
+                        !string.Equals(discoveryEndPointUri.IdnHost, endpointHost, StringComparison.Ordinal))
                     {
                         var builder = new UriBuilder(discoveryEndPointUri)
                         {
-                            Host = endpointUrl.IdnHost
+                            Host = endpointHost
                         };
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
 
                     if (discoveryEndPoint.Server != null &&
-                        !discoveryEndPoint.Server.DiscoveryUrls.IsNull)
+                        !discoveryEndPoint.Server.DiscoveryUrls.IsNull &&
+                        ShouldPatchDiscoveryUrls(discoveryEndPoint.Server.DiscoveryUrls, endpointUrlString))
                     {
-                        discoveryEndPoint.Server.DiscoveryUrls = [Endpoint.EndpointUrl!];
+                        discoveryEndPoint.Server.DiscoveryUrls = [endpointUrlString];
                     }
                 }
             }
             return endpoints;
+        }
+
+        private static bool ShouldPatchDiscoveryUrls(ArrayOf<string> discoveryUrls, string endpointUrl)
+        {
+            return discoveryUrls.Count != 1 ||
+                !string.Equals(discoveryUrls[0], endpointUrl, StringComparison.Ordinal);
         }
     }
 }

@@ -193,9 +193,58 @@ namespace Opc.Ua.Pcap.Tests.Capture
 
         private static async Task ForceDisposeWritersAsync(InProcessClientCaptureSource source)
         {
+            // ForceDisposeWriterAsync bypasses StopAsync's normal teardown and can race
+            // with the queue worker. Drain the queue + worker explicitly so the worker has
+            // written any pending packets to disk before the writers are forcibly disposed.
+            // Drain the queue + worker explicitly here so the worker has
+            // written any pending packets to disk before the writers are
+            // forcibly disposed.
+            await DrainWorkerAsync(source).ConfigureAwait(false);
+
             await ForceDisposeWriterAsync(source, "m_pcapWriter").ConfigureAwait(false);
             await ForceDisposeWriterAsync(source, "m_jsonKeyWriter").ConfigureAwait(false);
             await ForceDisposeWriterAsync(source, "m_textKeyWriter").ConfigureAwait(false);
+        }
+
+        private static async Task DrainWorkerAsync(InProcessClientCaptureSource source)
+        {
+            Type baseType = typeof(InProcessClientCaptureSource).BaseType!;
+
+            FieldInfo queueField = baseType.GetField(
+                "m_queue",
+                BindingFlags.NonPublic | BindingFlags.Instance) ??
+                throw new AssertionException("Missing m_queue field.");
+            object? queueObj = queueField.GetValue(source);
+            if (queueObj is not null)
+            {
+                // Channel<T>.Writer.TryComplete() — invoke via reflection
+                // because CaptureWorkItem is internal to Opc.Ua.Bindings.Pcap.
+                PropertyInfo writerProp = queueObj.GetType().GetProperty("Writer") ??
+                    throw new AssertionException("Channel.Writer property missing.");
+                object writer = writerProp.GetValue(queueObj)!;
+                MethodInfo tryComplete = writer.GetType().GetMethod(
+                    "TryComplete",
+                    BindingFlags.Public | BindingFlags.Instance) ??
+                    throw new AssertionException("ChannelWriter.TryComplete missing.");
+                tryComplete.Invoke(writer, [null]);
+            }
+
+            FieldInfo workerField = baseType.GetField(
+                "m_workerTask",
+                BindingFlags.NonPublic | BindingFlags.Instance) ??
+                throw new AssertionException("Missing m_workerTask field.");
+            if (workerField.GetValue(source) is Task worker)
+            {
+                try
+                {
+                    await worker.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // best effort drain — match StopAsync's swallow-and-continue.
+                }
+                workerField.SetValue(source, null);
+            }
         }
 
         private static async Task ForceDisposeWriterAsync(InProcessClientCaptureSource source, string fieldName)

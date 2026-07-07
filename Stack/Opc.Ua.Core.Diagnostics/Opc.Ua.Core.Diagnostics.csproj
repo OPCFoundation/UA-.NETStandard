@@ -9,6 +9,11 @@
          project to an empty no-op shell via $(RestrictForLegacyTfm). -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <!-- netstandard2.0/2.1 can't host the empty $(RestrictForLegacyTfm) shell
+         (CS8021 - no reference assembly defines System.Object), so build those
+         shells as net10.0 (same as the other .NET 8+-only no-op shells, e.g.
+         McpServer). net472/net48 shells compile empty fine and pass through. -->
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>$(AssemblyPrefix).Core.Diagnostics</AssemblyName>

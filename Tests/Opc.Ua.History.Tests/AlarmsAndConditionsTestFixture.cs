@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -175,6 +176,43 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
+        /// Polls a TwoStateVariable's boolean Id until it matches the
+        /// expected value or the timeout elapses. Returns the last
+        /// DataValue read. Used to bridge the race between an
+        /// asynchronous Acknowledge/Confirm method call on the server
+        /// and the subsequent committed state change becoming visible
+        /// to a Read on slow CI runners.
+        /// </summary>
+        protected async Task<DataValue> WaitForStateIdAsync(
+            NodeId conditionId,
+            string stateName,
+            bool expected,
+            TimeSpan? timeout = null,
+            TimeSpan? pollInterval = null)
+        {
+            TimeSpan budget = timeout ?? TimeSpan.FromSeconds(5);
+            TimeSpan interval = pollInterval ?? TimeSpan.FromMilliseconds(100);
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            DataValue last = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+            while (true)
+            {
+                last = await ReadStateIdAsync(conditionId, stateName)
+                    .ConfigureAwait(false);
+                if (StatusCode.IsGood(last.StatusCode) &&
+                    last.WrappedValue.TryGetValue(out bool current) &&
+                    current == expected)
+                {
+                    return last;
+                }
+                if (stopwatch.Elapsed >= budget)
+                {
+                    return last;
+                }
+                await Task.Delay(interval).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Reads a child variable's value by relative browse name path.
         /// </summary>
         protected async Task<DataValue> ReadChildValueAsync(
@@ -207,6 +245,32 @@ namespace Opc.Ua.History.Tests
                 return eventId;
             }
             return default;
+        }
+
+        /// <summary>
+        /// Polls the alarm's EventId until it becomes available or the timeout
+        /// elapses. Replaces fixed pre-waits: the server publish cycle can lag on
+        /// slow CI runners, so poll for the actual condition instead of sleeping a
+        /// fixed interval. Returns a null ByteString when the alarm exposes no
+        /// active event within the budget (it is not in an alarming state).
+        /// </summary>
+        protected async Task<ByteString> WaitForEventIdAsync(
+            NodeId conditionId,
+            TimeSpan? timeout = null,
+            TimeSpan? pollInterval = null)
+        {
+            TimeSpan budget = timeout ?? DefaultEventWaitTimeout;
+            TimeSpan interval = pollInterval ?? TimeSpan.FromMilliseconds(100);
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            ByteString eventId = await ReadEventIdAsync(conditionId)
+                .ConfigureAwait(false);
+            while (eventId.IsNull && stopwatch.Elapsed < budget)
+            {
+                await Task.Delay(interval).ConfigureAwait(false);
+                eventId = await ReadEventIdAsync(conditionId)
+                    .ConfigureAwait(false);
+            }
+            return eventId;
         }
 
         /// <summary>

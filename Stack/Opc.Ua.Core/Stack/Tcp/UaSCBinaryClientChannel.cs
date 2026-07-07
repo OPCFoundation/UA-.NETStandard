@@ -52,7 +52,7 @@ namespace Opc.Ua.Bindings
         public UaSCUaBinaryClientChannel(
             string contextId,
             BufferManager bufferManager,
-            IMessageSocketFactory socketFactory,
+            IUaSCByteTransportFactory transportFactory,
             ChannelQuotas quotas,
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain,
@@ -62,7 +62,7 @@ namespace Opc.Ua.Bindings
             : this(
                 contextId,
                 bufferManager,
-                socketFactory,
+                transportFactory,
                 quotas,
                 clientCertificate,
                 clientCertificateChain,
@@ -80,7 +80,7 @@ namespace Opc.Ua.Bindings
         public UaSCUaBinaryClientChannel(
             string contextId,
             BufferManager bufferManager,
-            IMessageSocketFactory socketFactory,
+            IUaSCByteTransportFactory transportFactory,
             ChannelQuotas quotas,
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain,
@@ -127,14 +127,24 @@ namespace Opc.Ua.Bindings
                 ClientCertificate = clientCertificate;
                 ClientCertificateChain = clientCertificateChain;
             }
+            else
+            {
+                // An unsecured channel does not use a client certificate. The
+                // caller (see UaSCUaBinaryTransportChannel.CreateChannel) hands
+                // us owning references, so release them here instead of leaking
+                // them - Dispose only frees ClientCertificate/Chain when they
+                // were stored above.
+                clientCertificate?.Dispose();
+                clientCertificateChain?.Dispose();
+            }
 
             m_requests = new ConcurrentDictionary<uint, WriteOperation>();
             m_startHandshake = new TimerCallback(OnScheduledHandshakeAsync);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
-            m_socketFactory = socketFactory;
+            m_transportFactory = transportFactory;
             m_implementationString = Utils.Format(
                 "UA.NETStandard ClientChannel {0} {1}",
-                m_socketFactory.Implementation,
+                m_transportFactory.Implementation,
                 Utils.GetAssemblyBuildNumber());
 
             // save the endpoint.
@@ -160,6 +170,7 @@ namespace Opc.Ua.Bindings
                 m_requests?.Clear();
                 m_handshakeOperation?.Dispose();
                 m_handshakeOperation = null;
+                ServerCertificate?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -185,7 +196,7 @@ namespace Opc.Ua.Bindings
             }
 
             WriteOperation operation;
-            IMessageSocket? socket;
+            IUaSCByteTransport? transport;
             lock (DataLock)
             {
                 if (State != TcpChannelState.Closed)
@@ -227,16 +238,19 @@ namespace Opc.Ua.Bindings
 
                 if (!ReverseSocket)
                 {
-                    Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+                    Transport = m_transportFactory.Create(
+                        BufferManager,
+                        Quotas.MaxBufferSize,
+                        m_telemetry);
                 }
-                socket = Socket;
+                transport = Transport;
             }
             try
             {
-                if (socket == null)
+                if (transport == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadNotConnected,
-                        "Could not create or get connected socket.");
+                        "Could not create or get connected transport.");
                 }
                 else if (ReverseSocket)
                 {
@@ -245,12 +259,12 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    await socket.ConnectAsync(url, ct).ConfigureAwait(false);
+                    await transport.ConnectAsync(url, ct).ConfigureAwait(false);
 
                     m_logger.LogInformation(
-                        "CLIENTCHANNEL SOCKET CONNECTED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                        "CLIENTCHANNEL CONNECTED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}",
                         url,
-                        Socket?.Handle,
+                        transport.RemoteEndpoint,
                         ChannelId);
 
                     CompleteConnect(operation);
@@ -262,9 +276,9 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.LogError(e,
-                    "CLIENTCHANNEL SOCKET CONNECT FAILED via {Url}: {Handle:X8}, ChannelId={ChannelId}",
+                    "CLIENTCHANNEL CONNECT FAILED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}",
                     url,
-                    Socket?.Handle,
+                    transport?.RemoteEndpoint,
                     ChannelId);
 
                 operation.Fault(StatusCodes.BadNotConnected);
@@ -970,15 +984,15 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    // check for closed socket.
-                    if (Socket == null)
+                    // check for closed transport.
+                    if (Transport == null)
                     {
                         operation.Fault(StatusCodes.BadSecureChannelClosed);
                         return;
                     }
 
                     // start reading messages.
-                    Socket.ReadNextMessage();
+                    StartReceiveLoop();
 
                     // send the hello message.
                     SendHelloMessage(operation);
@@ -1012,7 +1026,7 @@ namespace Opc.Ua.Bindings
                     ChannelId,
                     CurrentToken?.TokenId);
 
-                IMessageSocket? socket = null;
+                IUaSCByteTransport? transport = null;
                 WriteOperation? operation = null;
                 lock (DataLock)
                 {
@@ -1067,16 +1081,15 @@ namespace Opc.Ua.Bindings
                     ChannelId = 0;
                     DiscardTokens();
 
-                    socket = Socket;
-                    if (socket != null)
+                    IUaSCByteTransport? existing = Transport;
+                    if (existing != null)
                     {
-                        Socket = null;
+                        Transport = null;
                         m_logger.LogInformation(
-                            "ChannelId {ChannelId}: CLIENTCHANNEL SOCKET CLOSED ON SCHEDULED HANDSHAKE: {Handle:X8}",
+                            "ChannelId {ChannelId}: CLIENTCHANNEL TRANSPORT CLOSED ON SCHEDULED HANDSHAKE: {RemoteEndpoint}",
                             channelId,
-                            socket.Handle);
-                        socket.Close();
-                        socket = null;
+                            existing.RemoteEndpoint);
+                        existing.Close();
                     }
 
                     // set the state.
@@ -1091,10 +1104,13 @@ namespace Opc.Ua.Bindings
                             null);
 
                         State = TcpChannelState.Connecting;
-                        socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+                        transport = m_transportFactory.Create(
+                            BufferManager,
+                            Quotas.MaxBufferSize,
+                            m_telemetry);
 
                         operation = m_handshakeOperation;
-                        Socket = socket;
+                        Transport = transport;
 
                         // set the state.
                         ChannelStateChanged(TcpChannelState.Connecting, ServiceResult.Good);
@@ -1102,14 +1118,14 @@ namespace Opc.Ua.Bindings
                 }
 
                 // Reconnect
-                if (socket != null && operation != null)
+                if (transport != null && operation != null)
                 {
                     try
                     {
-                        await socket.ConnectAsync(m_via).ConfigureAwait(false);
+                        await transport.ConnectAsync(m_via, default).ConfigureAwait(false);
                         m_logger.LogInformation(
-                            "CLIENTCHANNEL SOCKET RECONNECTED: {Handle:X8}, ChannelId={ChannelId}",
-                            socket.Handle,
+                            "CLIENTCHANNEL TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}",
+                            transport.RemoteEndpoint,
                             ChannelId);
 
                         // Complete connect
@@ -1123,8 +1139,8 @@ namespace Opc.Ua.Bindings
                     catch (Exception e)
                     {
                         m_logger.LogError(e,
-                            "CLIENTCHANNEL SOCKET RECONNECT FAILED: {Handle:X8}, ChannelId={ChannelId}",
-                            Socket?.Handle,
+                            "CLIENTCHANNEL TRANSPORT RECONNECT FAILED: {RemoteEndpoint}, ChannelId={ChannelId}",
+                            transport.RemoteEndpoint,
                             ChannelId);
 
                         operation.Fault(StatusCodes.BadNotConnected);
@@ -1327,15 +1343,15 @@ namespace Opc.Ua.Bindings
                 m_requestedToken = null;
                 m_reconnecting = false;
 
-                IMessageSocket? socket = Socket;
-                if (socket != null)
+                IUaSCByteTransport? transport = Transport;
+                if (transport != null)
                 {
-                    Socket = null;
+                    Transport = null;
                     m_logger.LogInformation(
-                        "ChannelId {ChannelId}: CLIENTCHANNEL SOCKET CLOSED SHUTDOWN: {Handle:X8}",
+                        "ChannelId {ChannelId}: CLIENTCHANNEL TRANSPORT CLOSED SHUTDOWN: {RemoteEndpoint}",
                         channelId,
-                        socket.Handle);
-                    socket.Close();
+                        transport.RemoteEndpoint);
+                    transport.Close();
                 }
 
                 // set the state.
@@ -1803,7 +1819,7 @@ namespace Opc.Ua.Bindings
         private ITimer? m_handshakeTimer;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
-        private readonly IMessageSocketFactory m_socketFactory;
+        private readonly IUaSCByteTransportFactory m_transportFactory;
         private readonly string m_implementationString;
         private readonly TimerCallback m_startHandshake;
         private readonly AsyncCallback m_handshakeComplete;

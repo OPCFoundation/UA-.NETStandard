@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -70,11 +72,14 @@ namespace Opc.Ua
         /// <c>ServerCertificate.Thumbprint</c> matches this certificate
         /// are cut.
         /// </param>
+        /// <param name="ct">Cancellation token.</param>
         /// <returns>
         /// The global channel ids of the SecureChannels that were
         /// closed by this call, useful for diagnostics and tests.
         /// Returns an empty list when no channels matched.
         /// </returns>
-        IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate);
+        ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            Certificate oldCertificate,
+            CancellationToken ct = default);
     }
 }

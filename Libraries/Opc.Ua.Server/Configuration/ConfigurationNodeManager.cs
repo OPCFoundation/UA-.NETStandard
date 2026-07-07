@@ -197,104 +197,51 @@ namespace Opc.Ua.Server
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
-                            var activeNode = new ServerConfigurationState(passiveNode.Parent);
+                            var activeNode = (ServerConfigurationState)passiveNode;
 
-                            // Optional ServerConfigurationType methods this
-                            // SDK wires in CreateServerConfiguration but that
-                            // are no longer emitted by the singleton factory
-                            // (Optional per Part 12). Use the idempotent
-                            // generated Add{Method} helpers so the typed
-                            // slot is initialised with the type-level
-                            // factory (BrowseName, InputArguments, etc.)
-                            // before Create() copies the loaded passive
-                            // node into the active subtree. The new
-                            // Add{Method}(context, nodeId?) chains via the
-                            // owner state for fluent usage.
                             activeNode
                                 .AddGetCertificates(context)
                                 .AddCreateSelfSignedCertificate(context);
 
-                            activeNode.Create(context, passiveNode);
-
                             m_serverConfigurationNode = activeNode;
-
-                            // replace the node in the parent.
-                            if (passiveNode.Parent != null)
-                            {
-                                passiveNode.Parent.ReplaceChild(context, activeNode);
-                            }
-                            else
-                            {
-                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
-                                    .ConfigureAwait(false);
-                                serverNode?.ReplaceChild(context, activeNode);
-                            }
-                            // remove the reference to server node because it is set as parent
-                            activeNode.RemoveReference(
-                                ReferenceTypeIds.HasComponent,
-                                true,
-                                ObjectIds.Server);
 
                             return activeNode;
                         }
                         case ObjectTypes.CertificateGroupFolderType:
                         {
-                            var activeNode = new CertificateGroupFolderState(passiveNode.Parent);
-                            activeNode.Create(context, passiveNode);
-
-                            // delete unsupported groups
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultHttpsGroup == null ||
-                                    activeNode.DefaultHttpsGroup.BrowseName != group.BrowseName))
-                            {
-                                activeNode.DefaultHttpsGroup = null;
-                            }
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultUserTokenGroup == null ||
-                                    activeNode.DefaultUserTokenGroup.BrowseName != group.BrowseName))
-                            {
-                                activeNode.DefaultUserTokenGroup = null;
-                            }
-                            if (m_certificateGroups.All(group =>
-                                    activeNode.DefaultApplicationGroup == null ||
-                                    activeNode.DefaultApplicationGroup.BrowseName != group.BrowseName))
-                            {
-                                activeNode.DefaultApplicationGroup = null;
-                            }
-
-                            // replace the node in the parent.
-                            passiveNode.Parent?.ReplaceChild(context, activeNode);
-                            return activeNode;
-                        }
-                        case ObjectTypes.CertificateGroupType:
-                        {
-                            ServerCertificateGroup? result = m_certificateGroups
-                                .FirstOrDefault(group =>
-                                    group.NodeId == passiveNode.NodeId);
-
-                            if (result != null)
-                            {
-                                var activeNode = new CertificateGroupState(passiveNode.Parent);
-                                activeNode.Create(context, passiveNode);
-
-                                result.NodeId = activeNode.NodeId;
-                                result.Node = activeNode;
-
-                                // replace the node in the parent.
-                                passiveNode.Parent?.ReplaceChild(context, activeNode);
-                                return activeNode;
-                            }
-                        }
-                        break;
-                        case ObjectTypes.UserManagementType:
-                        {
-                            if (passiveNode is UserManagementState)
+                            // The standard nodeset contains CertificateGroupFolderType
+                            // instances under several types (e.g. ServerConfigurationType,
+                            // ApplicationConfigurationType, ProvisionableDeviceType). Only
+                            // the Server's own ServerConfiguration certificate groups folder
+                            // is managed here; the others must keep their loaded structure.
+                            if (passiveNode.NodeId != ObjectIds.ServerConfiguration_CertificateGroups)
                             {
                                 break;
                             }
-                            var activeNode = new UserManagementState(passiveNode.Parent);
-                            activeNode.Create(context, passiveNode);
-                            passiveNode.Parent?.ReplaceChild(context, activeNode);
+
+                            var activeNode = (CertificateGroupFolderState)passiveNode;
+
+                            ServerCertificateGroup? applicationGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultApplicationGroup);
+
+                            applicationGroup!.Node = activeNode.DefaultApplicationGroup!;
+
+                            ServerCertificateGroup? httpsGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultHttpsGroup);
+                            if (httpsGroup != null)
+                            {
+                                activeNode.AddDefaultHttpsGroup(context);
+                                httpsGroup.Node = activeNode.DefaultHttpsGroup!;
+                            }
+
+                            ServerCertificateGroup? userTokenGroup =
+                                m_certificateGroups.FirstOrDefault(m => m.BrowseName == BrowseNames.DefaultUserTokenGroup);
+                            if (userTokenGroup != null)
+                            {
+                                activeNode.AddDefaultUserTokenGroup(context);
+                                userTokenGroup.Node = activeNode.DefaultUserTokenGroup!;
+                            }
+
                             return activeNode;
                         }
                     }
@@ -519,16 +466,10 @@ namespace Opc.Ua.Server
                 }
 
                 // create the NamespaceMetadata node
-                namespaceMetadataState = new NamespaceMetadataState(serverNamespacesNode)
-                {
-                    BrowseName = new QualifiedName(namespaceUri, NamespaceIndex)
-                };
-                namespaceMetadataState.Create(
-                    SystemContext,
-                    default,
-                    namespaceMetadataState.BrowseName,
-                    default,
-                    true);
+                namespaceMetadataState = SystemContext.CreateInstanceOfNamespaceMetadataType(
+                    serverNamespacesNode,
+                    new QualifiedName(namespaceUri, NamespaceIndex));
+                namespaceMetadataState.NodeId = SystemContext.NodeIdFactory.New(SystemContext, namespaceMetadataState);
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState!.NamespaceUri!.Value = namespaceUri;
@@ -537,7 +478,8 @@ namespace Opc.Ua.Server
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
-                serverNamespacesNode.ClearChangeMasks(SystemContext, true);
+                await serverNamespacesNode.ClearChangeMasksAsync(SystemContext, true, cancellationToken)
+                    .ConfigureAwait(false);
                 await AddPredefinedNodeAsync(SystemContext, namespaceMetadataState, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -661,6 +603,7 @@ namespace Opc.Ua.Server
                 inputArguments,
                 m_logger);
             Certificate? newCert = null;
+            CertificateCollection? newIssuerCollection = null;
             try
             {
                 if (certificate.IsEmpty)
@@ -718,11 +661,16 @@ namespace Opc.Ua.Server
                     // Subject changed mid-rotation: use the manager registry's
                     // currently-registered cert for this type to identify the
                     // configured identifier (matches by certificate type).
-                    CertificateEntry currentEntry = registryFallback
-                        .GetApplicationCertificate(certificateTypeId) ??
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidArgument,
-                            "No existing certificate found for the specified certificate type and subject name.");
+                    using (CertificateEntry? currentEntry = registryFallback
+                        .AcquireApplicationCertificateByType(certificateTypeId))
+                    {
+                        if (currentEntry == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidArgument,
+                                "No existing certificate found for the specified certificate type and subject name.");
+                        }
+                    }
 
                     existingCertIdentifier = certificateGroup.ApplicationCertificates
                         .ToList()
@@ -738,14 +686,15 @@ namespace Opc.Ua.Server
                         "No existing certificate found for the specified certificate type and subject name.");
                 }
 
-                var newIssuerCollection = new CertificateCollection();
+                newIssuerCollection = new CertificateCollection();
 
                 try
                 {
                     // build issuer chain
                     foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        newIssuerCollection.Add(Certificate.FromRawData(issuerRawCert));
+                        using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
+                        newIssuerCollection.Add(issuerCertificate);
                     }
                 }
                 catch
@@ -768,74 +717,12 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // Verify chain integrity: build a chain rooted at any of the provided
-                        // issuer certificates and ensure all signatures are valid. We do not
-                        // consult the application's trust list here — the caller is supplying
-                        // the issuer chain as part of the UpdateCertificate input.
-                        var chainPolicy = new X509ChainPolicy
-                        {
-                            RevocationFlag = X509RevocationFlag.EntireChain,
-                            RevocationMode = X509RevocationMode.NoCheck,
-                            VerificationFlags =
-                                X509VerificationFlags.AllowUnknownCertificateAuthority |
-                                X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
-                                X509VerificationFlags.IgnoreEndRevocationUnknown |
-                                X509VerificationFlags.IgnoreRootRevocationUnknown,
-#if NET5_0_OR_GREATER
-                            DisableCertificateDownloads = true,
-#endif
-                            UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
-                        };
-
-                        var extraIssuers = new List<X509Certificate2>(newIssuerCollection.Count);
-                        foreach (Certificate issuerCert in newIssuerCollection)
-                        {
-                            X509Certificate2 issuerX509 = issuerCert.AsX509Certificate2();
-                            extraIssuers.Add(issuerX509);
-                            chainPolicy.ExtraStore.Add(issuerX509);
-                        }
-
-                        try
-                        {
-                            using var chain = new X509Chain { ChainPolicy = chainPolicy };
-                            using X509Certificate2 newCertX509 = newCert.AsX509Certificate2();
-                            chain.Build(newCertX509);
-
-                            foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
-                            {
-                                if (chainStatus.Status is X509ChainStatusFlags.NoError or
-                                    X509ChainStatusFlags.UntrustedRoot)
-                                {
-                                    continue;
-                                }
-                                if (chainStatus.Status is X509ChainStatusFlags.NotSignatureValid or
-                                    X509ChainStatusFlags.PartialChain or
-                                    X509ChainStatusFlags.NotValidForUsage or
-                                    X509ChainStatusFlags.InvalidBasicConstraints)
-                                {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadSecurityChecksFailed,
-                                        Utils.Format(
-                                            "Certificate chain validation failed. {0}: {1}",
-                                            chainStatus.Status,
-                                            chainStatus.StatusInformation));
-                                }
-                            }
-
-                            if (newIssuerCollection.Count + 1 != chain.ChainElements.Count)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadSecurityChecksFailed,
-                                    "The supplied issuer chain is incomplete.");
-                            }
-                        }
-                        finally
-                        {
-                            foreach (X509Certificate2 extra in extraIssuers)
-                            {
-                                extra.Dispose();
-                            }
-                        }
+                        await ValidatePushCertificateAndIssuerChainAsync(
+                            newCert,
+                            newIssuerCollection,
+                            m_configuration.SecurityConfiguration,
+                            Server.Telemetry,
+                            ct).ConfigureAwait(false);
                     }
                     catch (ServiceResultException)
                     {
@@ -880,7 +767,8 @@ namespace Opc.Ua.Server
                                             newCert,
                                             certificateGroup.TemporaryApplicationCertificate))
                                     {
-                                        // CA2000: disposed in the finally block of the surrounding try.
+                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
+                                        // cannot track disposal across the for-retry loop / try / catch structure.
 #pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certificateGroup.TemporaryApplicationCertificate,
@@ -900,7 +788,8 @@ namespace Opc.Ua.Server
                                             throw new ServiceResultException(
                                                 StatusCodes.BadSecurityChecksFailed,
                                                 "A private key was not found");
-                                        // CA2000: disposed in the finally block of the surrounding try.
+                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
+                                        // cannot track disposal across the for-retry loop / try / catch structure.
 #pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certWithPrivateKey,
@@ -908,6 +797,7 @@ namespace Opc.Ua.Server
 #pragma warning restore CA2000
                                     }
 
+                                    updateCertificate.CertificateWithPrivateKey?.Dispose();
                                     updateCertificate.CertificateWithPrivateKey =
                                         DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                                             newCert,
@@ -946,14 +836,17 @@ namespace Opc.Ua.Server
                                 // But it seems to work on .net 9 - and we prefer that over files
                                 const bool noEphemeralKeySet = false;
 #endif
-#pragma warning disable CA2000 // Dispose objects before losing scope
+                                // CA2000: certWithPrivateKey is a using declaration (disposed at scope exit);
+                                // the analyzer mis-flags it inside the for-retry loop with break.
+#pragma warning disable CA2000
                                 using Certificate certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
                                     privateKey.ToArray(),
                                     passwordProvider?.GetPassword(existingCertIdentifier),
                                     noEphemeralKeySet);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
                                 try
                                 {
+                                    updateCertificate.CertificateWithPrivateKey?.Dispose();
                                     updateCertificate.CertificateWithPrivateKey =
                                         DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                                             newCert,
@@ -977,6 +870,7 @@ namespace Opc.Ua.Server
                         case "PEM":
                             for (int attempt = 0; ; attempt++)
                             {
+                                updateCertificate.CertificateWithPrivateKey?.Dispose();
                                 updateCertificate.CertificateWithPrivateKey =
                                     DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                                         newCert,
@@ -1016,6 +910,10 @@ namespace Opc.Ua.Server
                 }
 
                 certificateGroup.UpdateCertificate = updateCertificate;
+                // Ownership of the issuer collection now belongs to the staged
+                // UpdateCertificate (and the certificate group); clear the local
+                // handle so the finally does not dispose the staged collection.
+                newIssuerCollection = null;
                 applyChangesRequired = true;
             }
             catch (Exception e)
@@ -1036,7 +934,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                // certWithPrivateKey?.Dispose();
+                newCert?.Dispose();
+                // Disposed only when ownership was not transferred to the staged
+                // UpdateCertificate (i.e. an exception occurred before staging).
+                newIssuerCollection?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult
@@ -1074,8 +975,8 @@ namespace Opc.Ua.Server
                     string? thumbprintToDelete = null;
                     if (m_configuration.CertificateManager is ICertificateRegistry registry)
                     {
-                        CertificateEntry? currentEntry = registry
-                            .GetApplicationCertificate(existingCertIdentifier.CertificateType);
+                        using CertificateEntry? currentEntry = registry
+                            .AcquireApplicationCertificateByType(existingCertIdentifier.CertificateType);
                         thumbprintToDelete = currentEntry?.Certificate.Thumbprint
                             ?? existingCertIdentifier.Thumbprint;
 
@@ -1185,7 +1086,7 @@ namespace Opc.Ua.Server
                     }
                     finally
                     {
-                        issuerStore?.Close();
+                        issuerStore?.Dispose();
                     }
 
                     updateCertificate.IssuerCollection?.Dispose();
@@ -1213,6 +1114,54 @@ namespace Opc.Ua.Server
                         ex);
                 }
             }
+        }
+
+        internal static async Task ValidatePushCertificateAndIssuerChainAsync(
+            Certificate newCertificate,
+            CertificateCollection issuerCertificates,
+            SecurityConfiguration securityConfiguration,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
+        {
+            if (newCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(newCertificate));
+            }
+
+            if (issuerCertificates == null)
+            {
+                throw new ArgumentNullException(nameof(issuerCertificates));
+            }
+
+            if (securityConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(securityConfiguration));
+            }
+
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+
+            using CertificateCollection validationChain = issuerCertificates.AddRef();
+            validationChain.Insert(0, newCertificate);
+
+            using var validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
+            var options = new Security.Certificates.CertificateValidationOptions
+            {
+                AllowCertificateDownload = false,
+                UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
+                AcceptError = static (_, serviceResult) =>
+                    serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted
+            };
+
+            CertificateValidationResult validationResult = await validator.ValidateAsync(
+                validationChain,
+                trustList: null,
+                options: options,
+                ct).ConfigureAwait(false);
+
+            validationResult.ThrowIfInvalid();
         }
 
         /// <summary>
@@ -1356,14 +1305,13 @@ namespace Opc.Ua.Server
                     cert => cert.CertificateType == certificateTypeId);
 
             // Look up the currently-active certificate via the manager
-            // registry — the configured identifier is metadata only.
-            Certificate? currentCert = null;
-            if (m_configuration.CertificateManager is ICertificateRegistry currentRegistry)
-            {
-                CertificateEntry? currentEntry = currentRegistry
-                    .GetApplicationCertificate(certificateTypeId);
-                currentCert = currentEntry?.Certificate;
-            }
+            // registry — the configured identifier is metadata only. The
+            // acquired entry is disposed at method scope; the borrowed
+            // certificate is only read.
+            using CertificateEntry? currentEntry =
+                (m_configuration.CertificateManager as ICertificateRegistry)
+                    ?.AcquireApplicationCertificateByType(certificateTypeId);
+            Certificate? currentCert = currentEntry?.Certificate;
 
             if (string.IsNullOrEmpty(subjectName))
             {
@@ -1402,19 +1350,29 @@ namespace Opc.Ua.Server
                     throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
             }
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Create signing request {Certificate}",
-                certWithPrivateKey);
-            var certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
-                certWithPrivateKey,
-                X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
-
-            return new CreateSigningRequestMethodStateResult
+            try
             {
-                ServiceResult = ServiceResult.Good,
-                CertificateRequest = certificateRequest
-            };
+                m_logger.LogInformation(
+                    Utils.TraceMasks.Security,
+                    "Create signing request {Certificate}",
+                    certWithPrivateKey);
+                var certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
+                    certWithPrivateKey,
+                    X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
+
+                return new CreateSigningRequestMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    CertificateRequest = certificateRequest
+                };
+            }
+            finally
+            {
+                if (!regeneratePrivateKey)
+                {
+                    certWithPrivateKey.Dispose();
+                }
+            }
         }
 
         private Certificate GenerateTemporaryApplicationCertificate(
@@ -1497,6 +1455,8 @@ namespace Opc.Ua.Server
                 });
                 certificateGroup.OriginalCertificate = null;
                 certificateGroup.OriginalCertificateType = NodeId.Null;
+                updateCertificate.CertificateWithPrivateKey?.Dispose();
+                updateCertificate.IssuerCollection?.Dispose();
                 certificateGroup.UpdateCertificate = null!;
             }
 
@@ -1616,7 +1576,8 @@ namespace Opc.Ua.Server
                             try
                             {
                                 IReadOnlyList<string> closed
-                                    = rotator.CloseChannelsForCertificate(rotation.OldCertificate);
+                                    = await rotator.CloseChannelsForCertificateAsync(rotation.OldCertificate)
+                                        .ConfigureAwait(false);
                                 totalCut += closed.Count;
                             }
                             catch (Exception ex)
@@ -1689,6 +1650,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private static void ResetPendingUpdateCertificate(ServerCertificateGroup certificateGroup)
         {
+            certificateGroup.UpdateCertificate?.CertificateWithPrivateKey?.Dispose();
+            certificateGroup.UpdateCertificate?.IssuerCollection?.Dispose();
             certificateGroup.UpdateCertificate = null!;
         }
 
@@ -1704,6 +1667,8 @@ namespace Opc.Ua.Server
             certificateGroup.OriginalCertificate?.Dispose();
             certificateGroup.OriginalCertificate = null;
             certificateGroup.OriginalCertificateType = NodeId.Null;
+            certificateGroup.UpdateCertificate?.CertificateWithPrivateKey?.Dispose();
+            certificateGroup.UpdateCertificate?.IssuerCollection?.Dispose();
             certificateGroup.UpdateCertificate = null!;
         }
 
@@ -1782,7 +1747,7 @@ namespace Opc.Ua.Server
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
             foreach (CertificateIdentifier appId in certificateGroup.ApplicationCertificates)
             {
-                CertificateEntry? entry = registry?.GetApplicationCertificate(appId.CertificateType);
+                using CertificateEntry? entry = registry?.AcquireApplicationCertificateByType(appId.CertificateType);
                 rawCerts.Add(entry?.Certificate?.RawData.ToByteString() ?? default);
             }
             certificates = rawCerts.ToArrayOf();

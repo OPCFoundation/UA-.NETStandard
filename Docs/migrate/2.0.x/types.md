@@ -166,6 +166,20 @@ There is no implicit conversion from `string` to `QualifiedName` or `LocalizedTe
 
 `StatusCode` contains now not only a uint code, but also a symbol.  Symbols are interned strings and using the `StatusCodes` constants therefore come with the symbol string. This removes the need to look up the symbolic id, however, when receiving a uint code it needs to be translated to a StatusCode constant to retain the Symbol. Older API has been obsoleted with proper instructions. Since types are immutable it is important to replace mutation calls with the proper replacement method and store the returned value.
 
+**Behavioral change — equality compares the code bits only.** The `==` / `!=` operators, the `Equals` overloads, and `GetHashCode` now compare only the 16 code bits (bits 16 - 31) of the status code and ignore the info, flag and additional bits. Previously the full 32-bit value was compared. This matches the almost-universal intent of comparing a received status against a well known `StatusCodes.XXX` constant (which never carries flag bits), so values such as `Good` with the `SemanticsChanged` flag set now compare equal to `StatusCodes.Good`. If you need an exact, all-bits comparison (for example to detect that the flag bits changed), use the new `Equals(StatusCode other, StatusCodeComparison comparison)` overload with `StatusCodeComparison.AllBits`:
+
+```csharp
+// Code-bits comparison (default): true even when statusCode carries flag bits.
+if (statusCode == StatusCodes.Good) { /* ... */ }
+
+// Exact comparison of all 32 bits.
+if (statusCode.Equals(other, StatusCodeComparison.AllBits)) { /* ... */ }
+```
+
+A matching `GetHashCode(StatusCodeComparison comparison)` overload is available when an all-bits hash is required (for example when using `StatusCode` keys in a dictionary that must distinguish flag bits).
+
+When migrating code that compared `statusCode.Code` (the raw `uint`) against a `StatusCodes.XXX` constant, prefer the `==` operator (`statusCode == StatusCodes.XXX`) so the comparison ignores the non-code bits. Likewise replace comparisons against `statusCode.CodeBits` with the `==` operator.
+
 ### NodeId/ExpandedNodeId
 
 `NodeId`s with integer identifiers (the most common case) now do not box the integer identifier anymore into an object, making the entire NodeId heap allocation free (*).  ExpandedNodeId with integer identifiers only contain an allocated namespace Uri, which is mostly a const (interned) string, reducing small allocations across both types. Because both types are now immutable, they must be mutated using the provided `With<X>`. Access to the identifier in boxed form (object) is deprecated. Instead use the `TryGetValue(out uint/string/Guid/byte[])` API. If you need to get the identifier only to "stringify" it, use the `IdentifierAsText` property which avoids boxing integer identifiers.

@@ -69,9 +69,9 @@ namespace Opc.Ua
         /// If <paramref name="registry"/> is supplied and the identifier
         /// has a non-empty <see cref="CertificateIdentifier.Thumbprint"/>,
         /// the registry's
-        /// <see cref="ICertificateRegistry.ApplicationCertificates"/> are
-        /// scanned for a thumbprint match. The borrowed entry's certificate
-        /// is <see cref="Certificate.AddRef"/>'d and returned.
+        /// <see cref="ICertificateRegistry.SnapshotApplicationCertificates"/>
+        /// snapshot is scanned for a thumbprint match. The matching entry's
+        /// certificate is <see cref="Certificate.AddRef"/>'d and returned.
         /// </description></item>
         /// <item><description>
         /// Otherwise the identifier's
@@ -124,7 +124,8 @@ namespace Opc.Ua
             // 1) Registry lookup by thumbprint.
             if (registry != null && !string.IsNullOrEmpty(identifier.Thumbprint))
             {
-                foreach (CertificateEntry entry in registry.ApplicationCertificates)
+                using CertificateEntryCollection snapshot = registry.SnapshotApplicationCertificates();
+                foreach (CertificateEntry entry in snapshot)
                 {
                     if (string.Equals(
                             entry.Certificate.Thumbprint,

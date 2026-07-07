@@ -32,43 +32,43 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// Creates a transport channel for the ITransportChannel interface.
     /// Implements the UA-SC security and UA Binary encoding.
-    /// The socket layer requires a IMessageSocketFactory implementation.
+    /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel,
-        IMessageSocketChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel
     {
         private const int kChannelCloseDefault = 1_000;
 
         /// <summary>
-        /// Create a transport channel from a message socket factory.
+        /// Create a transport channel from a byte transport factory.
         /// </summary>
-        /// <param name="messageSocketFactory">The message socket factory.</param>
+        /// <param name="transportFactory">The byte transport factory.</param>
         /// <param name="telemetry">Telemetry context to use</param>
         public UaSCUaBinaryTransportChannel(
-            IMessageSocketFactory messageSocketFactory,
+            IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry)
-            : this(messageSocketFactory, telemetry, null)
+            : this(transportFactory, telemetry, null)
         {
         }
 
         /// <summary>
-        /// Create a transport channel from a message socket factory.
+        /// Create a transport channel from a byte transport factory.
         /// </summary>
-        /// <param name="messageSocketFactory">The message socket factory.</param>
+        /// <param name="transportFactory">The byte transport factory.</param>
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="timeProvider">Time provider to use for timers and durations.</param>
         public UaSCUaBinaryTransportChannel(
-            IMessageSocketFactory messageSocketFactory,
+            IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
         {
-            m_messageSocketFactory = messageSocketFactory;
+            m_transportFactory = transportFactory;
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryTransportChannel>();
             m_timeProvider = timeProvider ?? TimeProvider.System;
@@ -103,16 +103,16 @@ namespace Opc.Ua.Bindings
                     m_connecting.Dispose();
                 }
 
-                m_settings?.ServerCertificate?.Dispose();
-                m_settings?.ClientCertificate?.Dispose();
-                m_settings?.ClientCertificateChain?.Dispose();
+                DisposeSettingsCertificates();
             }
         }
 
         /// <summary>
-        /// Returns the channel's underlying message socket if connected / available.
+        /// Returns the channel's underlying byte transport (TCP, WebSocket,
+        /// etc.) if connected, or <c>null</c> otherwise. Useful for advanced
+        /// scenarios — typical consumers should use <see cref="ITransportChannel"/>.
         /// </summary>
-        public IMessageSocket? Socket => m_channel?.Socket;
+        public IUaSCByteTransport? Transport => m_channel?.Transport;
 
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
@@ -123,7 +123,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
-            Socket?.MessageSocketFeatures ?? TransportChannelFeatures.None;
+            m_channel?.Transport?.Features ?? TransportChannelFeatures.None;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription
@@ -266,12 +266,42 @@ namespace Opc.Ua.Bindings
                     {
                         m_logger.LogError(e, "Ignoring error during close of channel.");
                     }
+                    finally
+                    {
+                        try
+                        {
+                            channel.Dispose();
+                        }
+                        finally
+                        {
+                            DisposeSettingsCertificates();
+                        }
+                    }
+                }
+                else
+                {
+                    DisposeSettingsCertificates();
                 }
             }
             finally
             {
                 m_connecting.Release();
             }
+        }
+
+        private void DisposeSettingsCertificates()
+        {
+            if (m_settings == null)
+            {
+                return;
+            }
+
+            m_settings.ServerCertificate?.Dispose();
+            m_settings.ServerCertificate = null;
+            m_settings.ClientCertificate?.Dispose();
+            m_settings.ClientCertificate = null;
+            m_settings.ClientCertificateChain?.Dispose();
+            m_settings.ClientCertificateChain = null;
         }
 
         /// <inheritdoc/>
@@ -380,6 +410,8 @@ namespace Opc.Ua.Bindings
                     // Reset as not opened to allow OpenAsync again.
                     m_channel = null;
                     m_url = null;
+                    channel.Dispose();
+                    DisposeSettingsCertificates();
                     throw;
                 }
                 finally
@@ -439,6 +471,30 @@ namespace Opc.Ua.Bindings
                 "Client",
                 configuration.MaxBufferSize,
                 m_telemetry);
+
+            // notify derived classes - e.g. WSS - that settings have been
+            // bound so they can push channel-level options (TLS cert validator,
+            // client TLS certificate) into the byte-transport factory before
+            // the channel attempts to connect.
+            OnSettingsSaved(settings, m_quotas);
+        }
+
+        /// <summary>
+        /// Hook called by the channel immediately after its settings and
+        /// quotas have been bound, but before any connect attempt. The
+        /// default implementation is a no-op; derived classes override to
+        /// push channel-level options into the byte-transport factory. For
+        /// example, the WSS channel uses this to propagate the OPC UA
+        /// certificate validator and the client TLS certificate into
+        /// <c>ClientWebSocketOptions.RemoteCertificateValidationCallback</c>
+        /// and <c>ClientWebSocketOptions.ClientCertificates</c>.
+        /// </summary>
+        /// <param name="settings">The bound transport channel settings.</param>
+        /// <param name="quotas">The bound channel quotas.</param>
+        protected virtual void OnSettingsSaved(
+            TransportChannelSettings settings,
+            ChannelQuotas quotas)
+        {
         }
 
         /// <summary>
@@ -459,34 +515,61 @@ namespace Opc.Ua.Bindings
                 throw BadNotConnected();
             }
 
-            IMessageSocket? socket = null;
+            IUaSCByteTransport? transport = null;
             if (connection != null)
             {
-                socket = connection.Handle as IMessageSocket
+                transport = connection.Handle as IUaSCByteTransport
                     ?? throw ServiceResultException.Unexpected(
-                        "Waiting Connection Handle is not of type IMessageSocket.");
+                        "Waiting Connection Handle is not of type IUaSCByteTransport.");
             }
 
             string id = Guid.NewGuid().ToString();
 
-            // create the channel.
-            var channel = new UaSCUaBinaryClientChannel(
-                id,
-                m_bufferManager,
-                m_messageSocketFactory,
-                m_quotas,
-                m_settings.ClientCertificate,
-                m_settings.ClientCertificateChain,
-                m_settings.ServerCertificate,
-                m_settings.Description,
-                telemetry,
-                m_timeProvider);
-
-            // use socket for reverse connections, ignore otherwise
-            if (socket != null)
+            // Hand the channel its own owning references to the shared
+            // certificates. The inner channel disposes ClientCertificate,
+            // ClientCertificateChain and ServerCertificate when it is
+            // disposed, while m_settings retains its own owning references
+            // (released by DisposeSettingsCertificates). A transport channel
+            // can create several inner channels over its lifetime (connect
+            // retry, reconnect, failover); without a per-channel AddRef the
+            // first channel's disposal would release the single shared
+            // reference and invalidate the certificate handle still used by
+            // the surviving channel - surfacing as a CryptographicException
+            // ("m_safeCertContext is an invalid handle") on the next signing.
+            Certificate? clientCertificate = m_settings.ClientCertificate?.AddRef();
+            CertificateCollection? clientCertificateChain =
+                m_settings.ClientCertificateChain?.AddRef();
+            Certificate? serverCertificate = m_settings.ServerCertificate?.AddRef();
+            UaSCUaBinaryClientChannel channel;
+            try
             {
-                channel.Socket = socket;
-                channel.Socket.ChangeSink(channel);
+                channel = new UaSCUaBinaryClientChannel(
+                    id,
+                    m_bufferManager,
+                    m_transportFactory,
+                    m_quotas,
+                    clientCertificate,
+                    clientCertificateChain,
+                    serverCertificate,
+                    m_settings.Description,
+                    telemetry,
+                    m_timeProvider);
+            }
+            catch
+            {
+                // The channel never took ownership; release the references
+                // we added above so they are not leaked.
+                clientCertificate?.Dispose();
+                clientCertificateChain?.Dispose();
+                serverCertificate?.Dispose();
+                throw;
+            }
+
+            // use transport for reverse connections, ignore otherwise
+            if (transport != null)
+            {
+                channel.Transport = transport;
+                channel.StartReceiveLoop();
                 channel.ReverseSocket = true;
             }
 
@@ -516,7 +599,7 @@ namespace Opc.Ua.Bindings
         private UaSCUaBinaryClientChannel? m_channel;
         private bool m_disposed;
         private event ChannelTokenActivatedEventHandler? m_OnTokenActivated;
-        private readonly IMessageSocketFactory m_messageSocketFactory;
+        private readonly IUaSCByteTransportFactory m_transportFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
     }

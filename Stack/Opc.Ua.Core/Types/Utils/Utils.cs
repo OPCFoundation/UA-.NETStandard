@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -72,6 +71,42 @@ namespace Opc.Ua
         public const string UriSchemeOpcHttps = "opc.https";
 
         /// <summary>
+        /// Internal URI scheme used by the registry-keyed channel factory
+        /// lookup to distinguish the HTTPS Web API binding (OPC UA Part 6
+        /// §G.3 "OpenAPI Mapping") from the binary / JSON-envelope HTTPS
+        /// channels that share the <see cref="UriSchemeOpcHttps"/> URL
+        /// scheme on the wire.
+        /// </summary>
+        /// <remarks>
+        /// This is not a wire URL scheme — Web API endpoints are still
+        /// served and addressed as <c>https://</c>. The constant exists
+        /// only as a synthetic registry key in the transport binding
+        /// registry so the client channel manager can map
+        /// <c>Profiles.HttpsOpenApiTransport</c> to the Web API channel
+        /// factory distinct from the HTTPS-binary / HTTPS-JSON channel
+        /// factory.
+        /// </remarks>
+        public const string UriSchemeOpcHttpsWebApi = "opc.https+webapi";
+
+        /// <summary>
+        /// Internal URI scheme used by the registry-keyed channel factory
+        /// lookup to distinguish the WSS Web API / OpenAPI binding (OPC
+        /// UA Part 6 §7.5.2 sub-protocol <c>opcua+openapi</c>) from the
+        /// UASC binary and JSON-envelope WSS channels that share the
+        /// <see cref="UriSchemeOpcWss"/> URL scheme on the wire.
+        /// </summary>
+        /// <remarks>
+        /// Like <see cref="UriSchemeOpcHttpsWebApi"/>, this is not a wire
+        /// URL scheme — Web API WSS endpoints are still addressed as
+        /// <c>wss://</c>. The constant exists only as a synthetic
+        /// registry key so the client channel manager can map
+        /// <c>Profiles.WssOpenApiTransport</c> to the WSS Web API
+        /// channel factory distinct from the binary
+        /// <c>opcua+uacp</c> channel.
+        /// </remarks>
+        public const string UriSchemeOpcWssOpenApi = "opc.wss+openapi";
+
+        /// <summary>
         /// The URI scheme for the UA TCP protocol.
         /// </summary>
         public const string UriSchemeOpcTcp = "opc.tcp";
@@ -80,6 +115,16 @@ namespace Opc.Ua
         /// The URI scheme for the UA TCP protocol over Secure WebSockets.
         /// </summary>
         public const string UriSchemeOpcWss = "opc.wss";
+
+        /// <summary>
+        /// The URI scheme for the standard Secure WebSockets protocol.
+        /// </summary>
+        public const string UriSchemeWss = "wss";
+
+        /// <summary>
+        /// The URI scheme for the standard WebSockets protocol (insecure).
+        /// </summary>
+        public const string UriSchemeWs = "ws";
 
         /// <summary>
         /// The URI scheme for the UDP protocol.
@@ -104,7 +149,8 @@ namespace Opc.Ua
             UriSchemeOpcTcp,
             UriSchemeOpcHttps,
             UriSchemeHttps,
-            UriSchemeOpcWss
+            UriSchemeOpcWss,
+            UriSchemeWss
         ];
 
         /// <summary>
@@ -175,27 +221,6 @@ namespace Opc.Ua
             .Name!;
 
         /// <summary>
-        /// Helper to get the name of the Opc.Ua.Bindings.Https assembly.
-        /// </summary>
-        private static string OpcUaHttpsAssemblyName()
-        {
-            string assemblyName = DefaultOpcUaCoreAssemblyName;
-            int offset = assemblyName.IndexOf("Core", StringComparison.Ordinal);
-            Debug.Assert(offset != -1);
-            return $"{assemblyName[0..offset]}Bindings.Https";
-        }
-
-        /// <summary>
-        /// List of known default bindings hosted in other assemblies.
-        /// </summary>
-        public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new(
-            new Dictionary<string, string>
-            {
-                { UriSchemeHttps, OpcUaHttpsAssemblyName() },
-                { UriSchemeOpcHttps, OpcUaHttpsAssemblyName() }
-            });
-
-        /// <summary>
         /// Returns <c>true</c> if the url starts with opc.https or https.
         /// </summary>
         /// <param name="url">The url</param>
@@ -203,6 +228,17 @@ namespace Opc.Ua
         {
             return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
                 url.StartsWith(UriSchemeOpcHttps, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the url starts with opc.wss or wss.
+        /// </summary>
+        /// <param name="url">The url</param>
+        public static bool IsUriWssScheme(string url)
+        {
+            return url.StartsWith(UriSchemeOpcWss, StringComparison.Ordinal) ||
+                url.StartsWith(UriSchemeWss + ":", StringComparison.Ordinal) ||
+                url.StartsWith(UriSchemeWss + "/", StringComparison.Ordinal);
         }
 
         /// <summary>

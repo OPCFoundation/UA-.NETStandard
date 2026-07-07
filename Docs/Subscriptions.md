@@ -321,7 +321,8 @@ The engine handles these as follows:
 
 The V2 subscription engine
 (`Opc.Ua.Client.Subscriptions.ISubscription`, returned from
-`ManagedSession.SubscriptionManager.Add(...)`) lets a single logical
+`session.TryGetSubscriptionManager(out var manager)` then `manager.Add(...)`)
+lets a single logical
 subscription hold an effectively unlimited number of monitored items.
 When the per-subscription cap (`MaxMonitoredItemsPerSubscription` from
 the server's capabilities, OPC UA Part 4 §5.13.2) would be exceeded,
@@ -835,7 +836,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 |---|---|
 | `Session.SubscriptionEngineFactory` defaulted to `ClassicSubscriptionEngineFactory.Instance` | Defaulted to `DefaultSubscriptionEngineFactory.Instance` on `ManagedSession`. Raw `Session` constructed with `DefaultSessionFactory` defaults to classic for backwards compatibility; opt in by passing `SubscriptionEngineFactory = DefaultSubscriptionEngineFactory.Instance`. |
 | `Session.AddSubscription(Subscription)` (classic-typed) | Unchanged — classic subscriptions are still added via this API on classic-engine sessions. On a V2-engine `ManagedSession`, classic subscriptions are bridged onto the V2 publish pipeline by an internal `SubscriptionBridge`. |
-| `ManagedSession.SubscriptionManager` (V2) | Available alongside `ManagedSession.Subscriptions` (classic API), so both surfaces coexist on the same session. |
+| `ISession.TryGetSubscriptionManager` (V2) | Returns the V2 manager alongside `ManagedSession.Subscriptions` (classic API), so both surfaces coexist on the same session. |
 
 ### Per-item options mapping
 

@@ -400,33 +400,31 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<CertificateEntry> ApplicationCertificates
-        {
-            get
-            {
-                lock (m_certificatesLock)
-                {
-                    // Return a snapshot so callers can iterate without
-                    // racing concurrent updates. The CertificateEntry
-                    // references remain owned by the manager — callers
-                    // must not Dispose them.
-                    return [.. m_applicationCertificates];
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public CertificateEntry? GetApplicationCertificate(NodeId certificateType)
+        public CertificateEntryCollection SnapshotApplicationCertificates()
         {
             lock (m_certificatesLock)
             {
-                return m_applicationCertificates.FirstOrDefault(
-                    e => e.CertificateType == certificateType);
+                // The collection takes an independent owning handle on each
+                // entry, so the caller can dispose the returned snapshot
+                // without affecting the manager's own entries, and a concurrent
+                // hot-update does not invalidate it.
+                return new CertificateEntryCollection(m_applicationCertificates);
             }
         }
 
         /// <inheritdoc/>
-        public CertificateEntry? GetInstanceCertificate(string securityPolicyUri)
+        public CertificateEntry? AcquireApplicationCertificateByType(NodeId certificateType)
+        {
+            lock (m_certificatesLock)
+            {
+                return m_applicationCertificates
+                    .FirstOrDefault(e => e.CertificateType == certificateType)
+                    ?.AddRef();
+            }
+        }
+
+        /// <inheritdoc/>
+        public CertificateEntry? AcquireApplicationCertificateBySecurityPolicy(string securityPolicyUri)
         {
             lock (m_certificatesLock)
             {
@@ -436,44 +434,14 @@ namespace Opc.Ua
                         e => e.CertificateType == certType);
                     if (entry != null)
                     {
-                        return entry;
+                        return entry.AddRef();
                     }
                 }
 
-                return m_applicationCertificates.Count > 0 ? m_applicationCertificates[0] : null;
+                return m_applicationCertificates.Count > 0
+                    ? m_applicationCertificates[0].AddRef()
+                    : null;
             }
-        }
-
-        /// <inheritdoc/>
-        public byte[] GetEncodedChainBlob(string securityPolicyUri)
-        {
-            CertificateEntry? entry = GetInstanceCertificate(securityPolicyUri);
-            return entry?.GetEncodedChainBlob() ?? [];
-        }
-
-        /// <inheritdoc/>
-        public byte[]? LoadCertificateChainRaw(Certificate certificate)
-        {
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            string thumbprint = certificate.Thumbprint;
-            lock (m_certificatesLock)
-            {
-                for (int i = 0; i < m_applicationCertificates.Count; i++)
-                {
-                    CertificateEntry entry = m_applicationCertificates[i];
-                    if (string.Equals(entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
-                    {
-                        return entry.GetEncodedChainBlob();
-                    }
-                }
-            }
-
-            // Not a registered application certificate: return the raw cert bytes.
-            return certificate.RawData;
         }
 
         /// <inheritdoc/>
@@ -492,9 +460,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(issuers));
             }
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
             return core.GetIssuersAsync(certificate, issuers, ct);
         }
 
@@ -539,9 +509,16 @@ namespace Opc.Ua
                         .ConfigureAwait(false);
                     if (certificate != null)
                     {
+                        // Resolve the issuer chain so that servers configured
+                        // with SendCertificateChain = true transmit the full
+                        // chain. The leaf alone is registered when no issuers
+                        // are found. (Regression #3896.)
+                        using CertificateCollection issuerChain =
+                            await ResolveIssuerChainAsync(certificate, ct)
+                                .ConfigureAwait(false);
                         newEntries.Add(new CertificateEntry(
                             certificate,
-                            [],
+                            issuerChain,
                             certId.CertificateType));
                     }
                 }
@@ -554,12 +531,10 @@ namespace Opc.Ua
                     m_applicationCertificates.AddRange(newEntries);
                 }
 
-                // Dispose old entries OUTSIDE the lock so that any concurrent
-                // reader who captured a borrowed reference before the swap
-                // still has time to AddRef before disposal completes.
-                // (Borrowed-reference consumers are expected to AddRef before
-                // any long-lived use; this gives them at least the lock-free
-                // window between snapshot and dispose.)
+                // Dispose the manager's own old entries OUTSIDE the lock.
+                // Accessors hand out independent AddRef'd handles (never the
+                // manager's own entries), so disposing these old entries here
+                // cannot affect any handle a consumer is still holding.
                 foreach (CertificateEntry oldEntry in oldEntries)
                 {
                     oldEntry.Dispose();
@@ -580,6 +555,69 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Resolves the issuer chain for an application certificate from the
+        /// configured trusted and issuer stores.
+        /// </summary>
+        /// <remarks>
+        /// Returns an owned <see cref="CertificateCollection"/> (never
+        /// <c>null</c>, possibly empty) that the caller must dispose. Every
+        /// resolved issuer is included irrespective of trust state: the
+        /// boolean returned by <see cref="GetIssuersAsync(Certificate, IList{CertificateIssuerReference}, CancellationToken)"/>
+        /// reports whether the issuer is <em>trusted</em> (only true when the
+        /// issuer is in the trusted store), not whether it was resolved, so it
+        /// is deliberately ignored — a server must send its chain even when the
+        /// issuing CA lives in the issuer store. Resolution failures are logged
+        /// and swallowed so they never block certificate registration / server
+        /// startup (a leaf-only chain is returned instead).
+        /// </remarks>
+        /// <param name="certificate">The application (leaf) certificate.</param>
+        /// <param name="ct">Cancellation token.</param>
+        private async Task<CertificateCollection> ResolveIssuerChainAsync(
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            var issuerChain = new CertificateCollection();
+            var issuerReferences = new List<CertificateIssuerReference>();
+            try
+            {
+                await GetIssuersAsync(certificate, issuerReferences, ct)
+                    .ConfigureAwait(false);
+
+                foreach (CertificateIssuerReference issuerReference in issuerReferences)
+                {
+                    issuerChain.Add(issuerReference.Certificate);
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Propagate caller-requested cancellation so shutdown / abort
+                // stays responsive; only genuine resolution failures are
+                // swallowed below. Dispose the (empty) chain to avoid a leak.
+                issuerChain.Dispose();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(
+                    ex,
+                    "Failed to resolve issuer chain for application certificate " +
+                    "{Certificate}; sending leaf certificate only.",
+                    certificate);
+            }
+            finally
+            {
+                // GetIssuersAsync hands back caller-owned references; the chain
+                // collection took its own AddRef in Add, so release ours here.
+                foreach (CertificateIssuerReference issuerReference in issuerReferences)
+                {
+                    issuerReference.Certificate.Dispose();
+                }
+            }
+
+            return issuerChain;
+        }
+
         /// <inheritdoc/>
         public async Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
@@ -588,16 +626,18 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(trustList);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
                 options?.AcceptError ?? m_acceptError;
 
             CertificateValidationResult result = await core
-                .ValidateAsync(chain, acceptError, ct)
+                .ValidateAsync(chain, acceptError, options, ct)
                 .ConfigureAwait(false);
 
             if (!result.IsValid && chain != null && chain.Count > 0)
@@ -663,9 +703,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
             try
             {
                 core.ValidateApplicationUri(serverCertificate, endpoint, m_acceptError);
@@ -712,9 +754,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
+            // CA2000: GetOrCreateCore returns a shared validation core owned by this
+            // manager (cached per well-known trust list, disposed in Dispose); borrowed here.
+#pragma warning disable CA2000
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-#pragma warning restore CA2000 // Dispose objects before losing scope
+#pragma warning restore CA2000
             try
             {
                 core.ValidateDomains(
@@ -750,12 +794,22 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task UpdateApplicationCertificateAsync(
+        public async Task UpdateApplicationCertificateAsync(
             NodeId certificateType,
             Certificate newCertificate,
             CertificateCollection? issuerChain = null,
             CancellationToken ct = default)
         {
+            // When the caller does not supply a chain (e.g. the GDS push /
+            // rotation flow), resolve it from the configured stores so the
+            // replaced certificate also emits its full chain immediately
+            // rather than waiting for the next reload (regression #3896).
+            // Resolution must happen outside the lock.
+            using CertificateCollection? resolvedChain = issuerChain == null
+                ? await ResolveIssuerChainAsync(newCertificate, ct).ConfigureAwait(false)
+                : null;
+            CertificateCollection effectiveChain = issuerChain ?? resolvedChain!;
+
             CertificateEntry? oldEntry = null;
             CertificateValidationCore? oldPeer;
             CertificateValidationCore? oldUser;
@@ -771,7 +825,7 @@ namespace Opc.Ua
                         oldEntry = m_applicationCertificates[i];
                         m_applicationCertificates[i] = new CertificateEntry(
                             newCertificate,
-                            issuerChain ?? [],
+                            effectiveChain,
                             certificateType);
                         break;
                     }
@@ -782,7 +836,7 @@ namespace Opc.Ua
                 {
                     m_applicationCertificates.Add(new CertificateEntry(
                         newCertificate,
-                        issuerChain ?? [],
+                        effectiveChain,
                         certificateType));
                 }
 
@@ -819,8 +873,6 @@ namespace Opc.Ua
             // Dispose the old entry after notification so observers
             // can still read the old certificate during the callback.
             oldEntry?.Dispose();
-
-            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>

@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -59,47 +59,6 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
-    /// The interface to manage transport bindings.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public interface ITransportBindings<T>
-    {
-        /// <summary>
-        /// Get a transport binding for a uri scheme.
-        /// </summary>
-        /// <param name="uriScheme">The uri scheme.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        [return: MaybeNull]
-        T GetBinding(string uriScheme, ITelemetryContext telemetry);
-
-        /// <summary>
-        /// Return if there is a transport listener for a uri scheme.
-        /// </summary>
-        /// <param name="uriScheme">The uri scheme.</param>
-        bool HasBinding(string uriScheme);
-
-        /// <summary>
-        /// Set the transport factory to the binding.
-        /// Overrides other bindings with the same uri scheme.
-        /// </summary>
-        void SetBinding(T binding);
-
-        /// <summary>
-        /// Add all bindings with interface exported from a assembly.
-        /// </summary>
-        /// <param name="assembly">The assembly with the bindings.</param>
-        [RequiresUnreferencedCode(
-            "Scans assembly types via reflection.")]
-        IEnumerable<Type> AddBindings(Assembly assembly);
-
-        /// <summary>
-        /// Add all bindings with interface from a list.
-        /// </summary>
-        /// <param name="bindings">The array of binding types with interface.</param>
-        IEnumerable<Type> AddBindings(IEnumerable<Type> bindings);
-    }
-
-    /// <summary>
     /// This is the transport listener factory interface for a binding (server).
     /// </summary>
     public interface ITransportListenerFactory : ITransportBindingFactory<ITransportListener>
@@ -120,7 +79,8 @@ namespace Opc.Ua.Bindings
         /// The validator used by the listener to validate inbound client
         /// certificates.
         /// </param>
-        List<EndpointDescription> CreateServiceHost(
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
@@ -128,7 +88,8 @@ namespace Opc.Ua.Bindings
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
             ICertificateRegistry serverCertificates,
-            ICertificateValidatorEx clientCertificateValidator);
+            ICertificateValidatorEx clientCertificateValidator,
+            CancellationToken ct = default);
     }
 
     /// <summary>

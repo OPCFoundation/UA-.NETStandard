@@ -282,7 +282,8 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Ignore("Server has no TrustedIssuerCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            await s.AddAsync(Certificate.FromRawData(caCert.RawData)).ConfigureAwait(false);
+            using Certificate issuer = Certificate.FromRawData(caCert.RawData);
+            await s.AddAsync(issuer).ConfigureAwait(false);
         }
 
         private async Task RemoveIssuerFromServerAsync(X509Certificate2 caCert)
@@ -306,7 +307,8 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Ignore("Server has no TrustedUserCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            await s.AddAsync(Certificate.FromRawData(cert.RawData)).ConfigureAwait(false);
+            using Certificate trusted = Certificate.FromRawData(cert.RawData);
+            await s.AddAsync(trusted).ConfigureAwait(false);
         }
 
         private async Task RemoveTrustedUserAsync(X509Certificate2 cert)

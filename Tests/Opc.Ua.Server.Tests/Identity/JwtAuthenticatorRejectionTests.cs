@@ -318,14 +318,22 @@ namespace Opc.Ua.Server.Tests.Identity
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
-#pragma warning disable CA2000 // IssuerVerificationKey owns verification key.
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
-            var publicKey = RSA.Create();
-            publicKey.ImportParameters(rsa.ExportParameters(false));
-            return new IssuerVerificationKey(keyId, publicKey, "RS256");
+            RSA publicKey = null;
+            try
+            {
+                publicKey = RSA.Create();
+                publicKey.ImportParameters(rsa.ExportParameters(false));
+                var key = new IssuerVerificationKey(keyId, publicKey, "RS256");
+                publicKey = null;
+                return key;
+            }
+            finally
+            {
+                publicKey?.Dispose();
+            }
         }
-#pragma warning restore CA2000
 
         private static string SignRsa(RSA rsa, string algorithm, string kid, string payload)
         {
@@ -360,11 +368,11 @@ namespace Opc.Ua.Server.Tests.Identity
 
             public string IssuerUri { get; }
 
-            public ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+            public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
                 string keyId,
                 CancellationToken ct = default)
             {
-                return new ValueTask<IReadOnlyList<IssuerVerificationKey>>(m_keys);
+                return new ValueTask<IReadOnlyList<IIssuerVerificationKey>>(m_keys);
             }
         }
 
@@ -380,7 +388,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             public string IssuerUri { get; }
 
-            public ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+            public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
                 string keyId,
                 CancellationToken ct = default)
             {

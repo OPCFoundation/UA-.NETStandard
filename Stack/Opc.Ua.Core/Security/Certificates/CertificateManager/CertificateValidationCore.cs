@@ -55,12 +55,23 @@ namespace Opc.Ua
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-        private readonly ConcurrentDictionary<string, Certificate> m_validatedCertificates;
-        private readonly List<Certificate> m_applicationCertificates;
-        private CertificateStoreIdentifier? m_trustedCertificateStore;
-        private ArrayOf<CertificateIdentifier> m_trustedCertificateList;
-        private CertificateStoreIdentifier? m_issuerCertificateStore;
-        private ArrayOf<CertificateIdentifier> m_issuerCertificateList;
+        private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
+
+        // Trust-list store instances, cached and reused across validations so
+        // that the on-disk trust material (and CRLs) is parsed only once per
+        // change rather than re-read on every validation. Keyed by the
+        // (immutable, write-once) store identifier held in m_state. Disposed
+        // when the core is disposed.
+        private readonly ConcurrentDictionary<CertificateStoreIdentifier, ICertificateStore> m_stores;
+
+        // Immutable trust-list state. It is published once at construction
+        // (the owning CertificateManager re-creates the core rather than
+        // mutating it when the trust list changes) and is read lock-free on
+        // the validation hot path, so concurrent validations no longer
+        // serialize on a shared lock. See the TrustListState record at the
+        // end of the class. The m_semaphore now only serializes the rare
+        // writer paths (Update / UpdateAsync / ResetValidatedCertificates).
+        private volatile TrustListState m_state;
 
         /// <summary>
         /// Initializes a new instance of the
@@ -71,7 +82,8 @@ namespace Opc.Ua
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<CertificateValidationCore>();
             m_validatedCertificates = [];
-            m_applicationCertificates = [];
+            m_stores = [];
+            m_state = new TrustListState(null, null, default);
             AutoAcceptUntrustedCertificates = false;
             RejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
             RejectUnknownRevocationStatus = false;
@@ -84,15 +96,20 @@ namespace Opc.Ua
         {
             InternalResetValidatedCertificates();
 
-            foreach (Certificate cert in m_applicationCertificates)
+            TrustListState state = m_state;
+            foreach (Certificate cert in state.ApplicationCertificates)
             {
                 cert?.Dispose();
             }
 
-            m_applicationCertificates.Clear();
+            // Dispose the cached trust-list store instances.
+            foreach (ICertificateStore store in m_stores.Values)
+            {
+                store?.Dispose();
+            }
+            m_stores.Clear();
 
-            m_trustedCertificateList = default;
-            m_issuerCertificateList = default;
+            m_state = new TrustListState(null, null, default);
             m_semaphore.Dispose();
         }
 
@@ -231,6 +248,8 @@ namespace Opc.Ua
 
                 if (!configuration.ApplicationCertificates.IsEmpty)
                 {
+                    List<Certificate> applicationCertificates =
+                        m_state.ApplicationCertificates.ToList();
                     ArrayOf<CertificateIdentifier> appCerts = configuration.ApplicationCertificates;
                     for (int i = 0; i < appCerts.Count; i++)
                     {
@@ -252,16 +271,21 @@ namespace Opc.Ua
                                 applicationCertificate);
                             continue;
                         }
-                        if (!m_applicationCertificates.Exists(
+                        if (!applicationCertificates.Exists(
                             cert => Utils.IsEqual(cert.RawData, certificate.RawData)))
                         {
-                            m_applicationCertificates.Add(certificate);
+                            applicationCertificates.Add(certificate);
                         }
                         else
                         {
                             certificate.Dispose();
                         }
                     }
+
+                    m_state = m_state with
+                    {
+                        ApplicationCertificates = applicationCertificates.ToArrayOf()
+                    };
                 }
             }
             finally
@@ -281,34 +305,22 @@ namespace Opc.Ua
         {
             InternalResetValidatedCertificates();
 
-            m_trustedCertificateStore = null;
-            m_trustedCertificateList = default;
+            CertificateStoreIdentifier? trustedCertificateStore = null;
             if (trustedStore != null)
             {
-                m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath!)
+                trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath!)
                 {
                     ValidationOptions = trustedStore.ValidationOptions
                 };
-
-                if (!trustedStore.TrustedCertificates.IsEmpty)
-                {
-                    m_trustedCertificateList = trustedStore.TrustedCertificates;
-                }
             }
 
-            m_issuerCertificateStore = null;
-            m_issuerCertificateList = default;
+            CertificateStoreIdentifier? issuerCertificateStore = null;
             if (issuerStore != null)
             {
-                m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath!)
+                issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath!)
                 {
                     ValidationOptions = issuerStore.ValidationOptions
                 };
-
-                if (!issuerStore.TrustedCertificates.IsEmpty)
-                {
-                    m_issuerCertificateList = issuerStore.TrustedCertificates;
-                }
             }
 
             // Note: the rejectedCertificateStore parameter is accepted for
@@ -316,6 +328,14 @@ namespace Opc.Ua
             // is intentionally ignored — rejected-store writes are owned by
             // the caller (CertificateManager) via RejectedCertificateProcessor.
             _ = rejectedCertificateStore;
+
+            // Publish the new immutable trust-list state. Application
+            // certificates are carried forward; they are changed only by
+            // UpdateAsync.
+            m_state = new TrustListState(
+                trustedCertificateStore,
+                issuerCertificateStore,
+                m_state.ApplicationCertificates);
         }
 
         /// <summary>
@@ -340,11 +360,6 @@ namespace Opc.Ua
         /// </summary>
         private void InternalResetValidatedCertificates()
         {
-            // dispose outdated list
-            foreach (KeyValuePair<string, Certificate> kvp in m_validatedCertificates)
-            {
-                kvp.Value?.Dispose();
-            }
             m_validatedCertificates.Clear();
         }
 
@@ -358,6 +373,9 @@ namespace Opc.Ua
         /// <see langword="true"/> accepts the error; returning
         /// <see langword="false"/> (or omitting the callback) rejects it.
         /// </param>
+        /// <param name="options">
+        /// Optional per-call certificate validation overrides.
+        /// </param>
         /// <param name="ct">A cancellation token.</param>
         /// <returns>
         /// A <see cref="CertificateValidationResult"/> describing the
@@ -367,6 +385,7 @@ namespace Opc.Ua
         public async Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             Func<Certificate, ServiceResult, bool>? acceptError,
+            Security.Certificates.CertificateValidationOptions? options,
             CancellationToken ct)
         {
             if (chain == null)
@@ -386,11 +405,11 @@ namespace Opc.Ua
 
             try
             {
-                await InternalValidateAsync(chain, endpoint: null, ct).ConfigureAwait(false);
+                await InternalValidateAsync(chain, endpoint: null, options, ct).ConfigureAwait(false);
 
                 m_validatedCertificates.GetOrAdd(
                    certificate.Thumbprint,
-                   _ => Certificate.FromRawData(certificate.RawData));
+                   _ => certificate.RawData);
                 return CertificateValidationResult.Success;
             }
             catch (ServiceResultException se)
@@ -434,6 +453,8 @@ namespace Opc.Ua
             }
             var untrustedCollection = untrustedList.ToArrayOf();
 
+            TrustListState state = m_state;
+
             do
             {
                 // check for root.
@@ -442,15 +463,35 @@ namespace Opc.Ua
                     break;
                 }
 
-                await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
-                try
+                if (validationErrors != null)
+                {
+                    (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
+                            certificate,
+                            default,
+                            state.TrustedStore,
+                            true,
+                            ct)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    issuer = await GetIssuerAsync(
+                            certificate,
+                            default,
+                            state.TrustedStore,
+                            true,
+                            ct)
+                        .ConfigureAwait(false);
+                }
+
+                if (issuer == null)
                 {
                     if (validationErrors != null)
                     {
                         (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
                                 certificate,
-                                m_trustedCertificateList,
-                                m_trustedCertificateStore,
+                                default,
+                                state.IssuerStore,
                                 true,
                                 ct)
                             .ConfigureAwait(false);
@@ -459,8 +500,8 @@ namespace Opc.Ua
                     {
                         issuer = await GetIssuerAsync(
                                 certificate,
-                                m_trustedCertificateList,
-                                m_trustedCertificateStore,
+                                default,
+                                state.IssuerStore,
                                 true,
                                 ct)
                             .ConfigureAwait(false);
@@ -472,8 +513,8 @@ namespace Opc.Ua
                         {
                             (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
                                     certificate,
-                                    m_issuerCertificateList,
-                                    m_issuerCertificateStore,
+                                    untrustedCollection,
+                                    null,
                                     true,
                                     ct)
                                 .ConfigureAwait(false);
@@ -481,80 +522,52 @@ namespace Opc.Ua
                         else
                         {
                             issuer = await GetIssuerAsync(
-                                    certificate,
-                                    m_issuerCertificateList,
-                                    m_issuerCertificateStore,
-                                    true,
-                                    ct)
+                                certificate,
+                                untrustedCollection,
+                                null,
+                                true,
+                                ct)
                                 .ConfigureAwait(false);
                         }
-
-                        if (issuer == null)
-                        {
-                            if (validationErrors != null)
-                            {
-                                (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
-                                        certificate,
-                                        untrustedCollection,
-                                        null,
-                                        true,
-                                        ct)
-                                    .ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                issuer = await GetIssuerAsync(
-                                    certificate,
-                                    untrustedCollection,
-                                    null,
-                                    true,
-                                    ct)
-                                    .ConfigureAwait(false);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        isTrusted = true;
-                    }
-
-                    if (issuer != null)
-                    {
-                        validationErrors?[certificate!] = revocationStatus!;
-
-                        bool alreadyPresent = false;
-                        foreach (CertificateIssuerReference existing in issuers)
-                        {
-                            if (string.Equals(
-                                existing.Certificate.Thumbprint,
-                                issuer.Certificate.Thumbprint,
-                                StringComparison.OrdinalIgnoreCase))
-                            {
-                                alreadyPresent = true;
-                                break;
-                            }
-                        }
-
-                        if (alreadyPresent)
-                        {
-                            issuer.Certificate.Dispose();
-                            break;
-                        }
-
-                        issuers.Add(issuer);
-
-                        // Advance the chain walk: the next iteration looks
-                        // up the issuer of the current issuer cert, so the
-                        // current `certificate` becomes the issuer cert
-                        // we just resolved. The reference is owned by the
-                        // `issuers` list (caller-owned via the returned
-                        // collection), so we just borrow the cert here.
-                        certificate = issuer.Certificate;
                     }
                 }
-                finally
+                else
                 {
-                    m_semaphore.Release();
+                    isTrusted = true;
+                }
+
+                if (issuer != null)
+                {
+                    validationErrors?[certificate!] = revocationStatus!;
+
+                    bool alreadyPresent = false;
+                    foreach (CertificateIssuerReference existing in issuers)
+                    {
+                        if (string.Equals(
+                            existing.Certificate.Thumbprint,
+                            issuer.Certificate.Thumbprint,
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            alreadyPresent = true;
+                            break;
+                        }
+                    }
+
+                    if (alreadyPresent)
+                    {
+                        issuer.Certificate.Dispose();
+                        break;
+                    }
+
+                    issuers.Add(issuer);
+
+                    // Advance the chain walk: the next iteration looks
+                    // up the issuer of the current issuer cert, so the
+                    // current `certificate` becomes the issuer cert
+                    // we just resolved. The reference is owned by the
+                    // `issuers` list (caller-owned via the returned
+                    // collection), so we just borrow the cert here.
+                    certificate = issuer.Certificate;
                 }
             } while (issuer != null);
 
@@ -582,8 +595,8 @@ namespace Opc.Ua
                 m_useValidatedCertificates &&
                 m_validatedCertificates.TryGetValue(
                     serverCertificate.Thumbprint,
-                    out Certificate? certificate2) &&
-                Utils.IsEqual(certificate2.RawData, serverCertificate.RawData))
+                    out byte[]? certificate2) &&
+                Utils.IsEqual(certificate2, serverCertificate.RawData))
             {
                 return;
             }
@@ -687,16 +700,20 @@ namespace Opc.Ua
         private async Task InternalValidateAsync(
             CertificateCollection certificates,
             ConfiguredEndpoint? endpoint,
+            Security.Certificates.CertificateValidationOptions? options,
             CancellationToken ct = default)
         {
             Certificate certificate = certificates[0];
+
+            // Capture the immutable trust-list state once for this validation.
+            TrustListState state = m_state;
 
             // check for previously validated certificate.
             if (UseValidatedCertificates &&
                 m_validatedCertificates.TryGetValue(
                     certificate.Thumbprint,
-                    out Certificate? certificate2) &&
-                Utils.IsEqual(certificate2.RawData, certificate.RawData))
+                    out byte[]? certificate2) &&
+                Utils.IsEqual(certificate2, certificate.RawData))
             {
                 return;
             }
@@ -726,9 +743,9 @@ namespace Opc.Ua
                     RevocationMode = X509RevocationMode.NoCheck,
                     VerificationFlags = X509VerificationFlags.NoFlag,
 #if NET5_0_OR_GREATER
-                    DisableCertificateDownloads = true,
+                    DisableCertificateDownloads = !(options?.AllowCertificateDownload ?? false),
 #endif
-                    UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
+                    UrlRetrievalTimeout = options?.UrlRetrievalTimeout ?? TimeSpan.FromMilliseconds(1)
                 };
 
                 var extraStoreCerts = new List<X509Certificate2>();
@@ -909,38 +926,28 @@ namespace Opc.Ua
                 // check if certificate is trusted.
                 if (trustedCertificate == null && !isIssuerTrusted)
                 {
-                    await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
-                    try
+                    // If the certificate is not trusted, check if the certificate
+                    // is amongst the application certificates.
+                    bool isApplicationCertificate = false;
+                    foreach (Certificate appCert in state.ApplicationCertificates)
                     {
-                        // If the certificate is not trusted, check if the certificate is amongst the application certificates
-                        bool isApplicationCertificate = false;
-                        if (m_applicationCertificates != null)
+                        if (Utils.IsEqual(appCert.RawData, certificate.RawData))
                         {
-                            foreach (Certificate appCert in m_applicationCertificates)
-                            {
-                                if (Utils.IsEqual(appCert.RawData, certificate.RawData))
-                                {
-                                    // certificate is the application certificate
-                                    isApplicationCertificate = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (m_applicationCertificates == null || !isApplicationCertificate)
-                        {
-                            const string message = "Certificate is not trusted.";
-                            sresult = new ServiceResult(
-                                null,
-                                StatusCodes.BadCertificateUntrusted,
-                                LocalizedText.From(message),
-                                null,
-                                sresult);
+                            // certificate is the application certificate
+                            isApplicationCertificate = true;
+                            break;
                         }
                     }
-                    finally
+
+                    if (!isApplicationCertificate)
                     {
-                        m_semaphore.Release();
+                        const string message = "Certificate is not trusted.";
+                        sresult = new ServiceResult(
+                            null,
+                            StatusCodes.BadCertificateUntrusted,
+                            LocalizedText.From(message),
+                            null,
+                            sresult);
                     }
                 }
 
@@ -982,6 +989,30 @@ namespace Opc.Ua
                         LocalizedText.From("Usage of RSA certificate is not allowed."),
                         null,
                         sresult);
+                }
+
+                // check that each Issuer/CA certificate in the chain asserts the
+                // KeyUsage required for a CA (keyCertSign and cRLSign).
+                // OPC 10000-6 (Mappings) §6.2.4 Table 52 (Issuer Certificate)
+                // requires these bits; OPC 10000-4 (Services) §6.1.3 Table 100
+                // ("Certificate Usage") maps a mismatch to the suppressible
+                // Bad_CertificateIssuerUseNotAllowed. The platform X509Chain does
+                // not reject a CA whose KeyUsage extension is absent (RFC 5280
+                // §4.2.1.3), so this is verified explicitly here.
+                foreach (CertificateIssuerReference issuer in issuers)
+                {
+                    if (!CertificateValidationHelpers.HasRequiredIssuerKeyUsage(issuer.Certificate))
+                    {
+                        sresult = new ServiceResult(
+                            null,
+                            StatusCodes.BadCertificateIssuerUseNotAllowed,
+                            LocalizedText.From(Utils.Format(
+                                "Issuer certificate '{0}' does not assert the KeyUsage " +
+                                "(keyCertSign, cRLSign) required for a CA.",
+                                issuer.Certificate.Subject)),
+                            null,
+                            sresult);
+                    }
                 }
 
                 // check if minimum requirements are met
@@ -1146,10 +1177,12 @@ namespace Opc.Ua
                     isSuppressible: true);
             }
 
-            // accepted; cache for future fast-path
-            m_validatedCertificates.GetOrAdd(
-                certificate.Thumbprint,
-                _ => Certificate.FromRawData(certificate.RawData));
+            // accepted; cache raw data for future fast-path without adding
+            // another disposable certificate owner to the validation cache.
+            if (!m_validatedCertificates.ContainsKey(certificate.Thumbprint))
+            {
+                m_validatedCertificates.TryAdd(certificate.Thumbprint, certificate.RawData);
+            }
             return CertificateValidationResult.Success;
         }
 
@@ -1183,74 +1216,66 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Opens the certificate store for the given identifier, caching and
+        /// reusing the instance across validations. The store keeps its own
+        /// parsed-certificate cache (refreshed when the backing directory
+        /// changes), so reusing it avoids re-reading the trust material from
+        /// disk on every validation. The cached stores are disposed when this
+        /// core is disposed; the owning CertificateManager re-creates the core
+        /// when the trust list changes.
+        /// </summary>
+        private ICertificateStore? OpenCachedStore(CertificateStoreIdentifier? storeIdentifier)
+        {
+            if (storeIdentifier == null)
+            {
+                return null;
+            }
+
+            if (m_stores.TryGetValue(storeIdentifier, out ICertificateStore? cached))
+            {
+                return cached;
+            }
+
+            // OpenStore itself returns a single cached instance per identifier,
+            // so a benign race here resolves to the same store instance.
+            ICertificateStore? store = storeIdentifier.OpenStore(m_telemetry);
+            if (store == null)
+            {
+                return null;
+            }
+
+            return m_stores.GetOrAdd(storeIdentifier, store);
+        }
+
+        /// <summary>
         /// Returns the certificate information for a trusted peer certificate.
         /// </summary>
         private async Task<CertificateIssuerReference?> GetTrustedCertificateAsync(
             Certificate certificate,
             CancellationToken ct = default)
         {
-            await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (!m_trustedCertificateList.IsEmpty)
-                {
-                    for (int ii = 0; ii < m_trustedCertificateList.Count; ii++)
-                    {
-                        Certificate? trusted = await CertificateIdentifierResolver
-                            .ResolveAsync(
-                                m_trustedCertificateList[ii],
-                                registry: null,
-                                needPrivateKey: false,
-                                applicationUri: null,
-                                m_telemetry,
-                                ct)
-                            .ConfigureAwait(false);
+            TrustListState state = m_state;
 
-                        if (trusted != null &&
-                            trusted.Thumbprint == certificate.Thumbprint &&
-                            Utils.IsEqual(trusted.RawData, certificate.RawData))
+            // check if in peer trust store.
+            if (state.TrustedStore != null)
+            {
+                ICertificateStore? store = OpenCachedStore(state.TrustedStore);
+                if (store != null)
+                {
+                    using CertificateCollection trusted = await store
+                        .FindByThumbprintAsync(certificate.Thumbprint, ct)
+                        .ConfigureAwait(false);
+
+                    for (int ii = 0; ii < trusted.Count; ii++)
+                    {
+                        if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
                         {
                             return new CertificateIssuerReference(
-                                trusted,
-                                m_trustedCertificateList[ii].ValidationOptions);
-                        }
-
-                        trusted?.Dispose();
-                    }
-                }
-
-                // check if in peer trust store.
-                if (m_trustedCertificateStore != null)
-                {
-                    ICertificateStore store = m_trustedCertificateStore.OpenStore(m_telemetry);
-                    if (store != null)
-                    {
-                        try
-                        {
-                            using CertificateCollection trusted = await store
-                                .FindByThumbprintAsync(certificate.Thumbprint, ct)
-                                .ConfigureAwait(false);
-
-                            for (int ii = 0; ii < trusted.Count; ii++)
-                            {
-                                if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
-                                {
-                                    return new CertificateIssuerReference(
-                                        trusted[ii].AddRef(),
-                                        m_trustedCertificateStore.ValidationOptions);
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            store.Dispose();
+                                trusted[ii].AddRef(),
+                                state.TrustedStore.ValidationOptions);
                         }
                     }
                 }
-            }
-            finally
-            {
-                m_semaphore.Release();
             }
 
             // not a trusted.
@@ -1380,84 +1405,77 @@ namespace Opc.Ua
             // check in certificate store.
             if (certificateStore != null)
             {
-                ICertificateStore store = certificateStore.OpenStore(m_telemetry);
+                ICertificateStore? store = OpenCachedStore(certificateStore);
 
-                try
+                if (store == null)
                 {
-                    if (store == null)
+                    m_logger.LogWarning("Failed to open issuer store: {CertificateStore}", Redact.Create(certificateStore));
+                    // not a trusted issuer.
+                    return (null, null);
+                }
+
+                using CertificateCollection certificates = await store.EnumerateAsync(ct)
+                    .ConfigureAwait(false);
+
+                for (int ii = 0; ii < certificates.Count; ii++)
+                {
+                    Certificate issuer = certificates[ii];
+
+                    if (issuer != null)
                     {
-                        m_logger.LogWarning("Failed to open issuer store: {CertificateStore}", Redact.Create(certificateStore));
-                        // not a trusted issuer.
-                        return (null, null);
-                    }
-
-                    using CertificateCollection certificates = await store.EnumerateAsync(ct)
-                        .ConfigureAwait(false);
-
-                    for (int ii = 0; ii < certificates.Count; ii++)
-                    {
-                        Certificate issuer = certificates[ii];
-
-                        if (issuer != null)
+                        if (!X509Utils.IsIssuerAllowed(issuer))
                         {
-                            if (!X509Utils.IsIssuerAllowed(issuer))
-                            {
-                                continue;
-                            }
+                            continue;
+                        }
 
-                            if (Match(issuer, subjectName, serialNumber, keyId))
-                            {
-                                CertificateValidationOptions options = certificateStore
-                                    .ValidationOptions;
+                        if (Match(issuer, subjectName, serialNumber, keyId))
+                        {
+                            CertificateValidationOptions options = certificateStore
+                                .ValidationOptions;
 
-                                if (checkRecovationStatus)
+                            if (checkRecovationStatus)
+                            {
+                                StatusCode status = await store
+                                    .IsRevokedAsync(issuer, certificate, ct)
+                                    .ConfigureAwait(false);
+
+                                if (StatusCode.IsBad(status) &&
+                                    status != StatusCodes.BadNotSupported)
                                 {
-                                    StatusCode status = await store
-                                        .IsRevokedAsync(issuer, certificate, ct)
-                                        .ConfigureAwait(false);
-
-                                    if (StatusCode.IsBad(status) &&
-                                        status != StatusCodes.BadNotSupported)
+                                    if (status == StatusCodes.BadCertificateRevocationUnknown)
                                     {
-                                        if (status == StatusCodes.BadCertificateRevocationUnknown)
+                                        if (X509Utils.IsCertificateAuthority(certificate))
                                         {
-                                            if (X509Utils.IsCertificateAuthority(certificate))
-                                            {
-                                                status = StatusCodes.BadCertificateIssuerRevocationUnknown;
-                                            }
-
-                                            if (m_rejectUnknownRevocationStatus &&
-                                                (
-                                                    options & CertificateValidationOptions.SuppressRevocationStatusUnknown
-                                                ) == 0)
-                                            {
-                                                serviceResult = new ServiceResultException(status);
-                                            }
+                                            status = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                         }
-                                        else
+
+                                        if (m_rejectUnknownRevocationStatus &&
+                                            (
+                                                options & CertificateValidationOptions.SuppressRevocationStatusUnknown
+                                            ) == 0)
                                         {
-                                            if (status == StatusCodes.BadCertificateRevoked &&
-                                                X509Utils.IsCertificateAuthority(certificate))
-                                            {
-                                                status = StatusCodes.BadCertificateIssuerRevoked;
-                                            }
                                             serviceResult = new ServiceResultException(status);
                                         }
                                     }
+                                    else
+                                    {
+                                        if (status == StatusCodes.BadCertificateRevoked &&
+                                            X509Utils.IsCertificateAuthority(certificate))
+                                        {
+                                            status = StatusCodes.BadCertificateIssuerRevoked;
+                                        }
+                                        serviceResult = new ServiceResultException(status);
+                                    }
                                 }
-
-                                // already checked revocation for file based stores. windows based stores always suppress.
-                                options
-                                    |= CertificateValidationOptions.SuppressRevocationStatusUnknown;
-
-                                return (new CertificateIssuerReference(issuer.AddRef(), options), serviceResult);
                             }
+
+                            // already checked revocation for file based stores. windows based stores always suppress.
+                            options
+                                |= CertificateValidationOptions.SuppressRevocationStatusUnknown;
+
+                            return (new CertificateIssuerReference(issuer.AddRef(), options), serviceResult);
                         }
                     }
-                }
-                finally
-                {
-                    store?.Dispose();
                 }
             }
 
@@ -1492,6 +1510,10 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
             if (srex != null)
             {
+                // GetIssuerNoExceptionAsync may return a resolved (AddRef'd)
+                // issuer reference alongside a revocation error; dispose that
+                // borrowed handle before propagating so it is not leaked.
+                result?.Certificate.Dispose();
                 throw srex;
             }
             return result;
@@ -1511,9 +1533,9 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.NotValidForUsage:
                     return ServiceResult.Create(
                         isIssuer
-                            ? StatusCodes.BadCertificateUseNotAllowed
-                            : StatusCodes.BadCertificateIssuerUseNotAllowed,
-                        "Certificate may not be used as an application instance certificate. {Status}: {Information}",
+                            ? StatusCodes.BadCertificateIssuerUseNotAllowed
+                            : StatusCodes.BadCertificateUseNotAllowed,
+                        "Certificate is not valid for the requested usage. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 case X509ChainStatusFlags.NoError:
@@ -1756,5 +1778,16 @@ namespace Opc.Ua
                 StatusCodes.BadCertificateUseNotAllowed,
                 StatusCodes.BadCertificateUntrusted
             ]);
+
+        /// <summary>
+        /// Immutable snapshot of the trust-list configuration and resolved
+        /// application certificates. A new instance is published atomically
+        /// (see <see cref="m_state"/>) whenever the validator is updated, so
+        /// the validation hot path can read it without taking a lock.
+        /// </summary>
+        private sealed record TrustListState(
+            CertificateStoreIdentifier? TrustedStore,
+            CertificateStoreIdentifier? IssuerStore,
+            ArrayOf<Certificate> ApplicationCertificates);
     }
 }

@@ -290,7 +290,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 using (var output = File.Create(saveFile))
                 {
-                    await originSession.SubscriptionManager.SaveAsync(
+                    await originSession.RequireSubscriptionManager().SaveAsync(
                         output, originSession.MessageContext, null, ct)
                         .ConfigureAwait(false);
                 }
@@ -303,7 +303,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 IReadOnlyList<ISubscription> loaded;
                 using (var input = File.OpenRead(saveFile))
                 {
-                    loaded = await targetSession.SubscriptionManager
+                    loaded = await targetSession.RequireSubscriptionManager()
                         .LoadAsync(input, targetSession.MessageContext,
                             _ => targetHandler,
                             transferSubscriptions: false, ct)
@@ -371,7 +371,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // The option lives on the V2 SubscriptionManager. We can
                 // verify the manager has the property set so the recreate
                 // path will request transfer when it runs.
-                ISubscriptionManager manager = session.SubscriptionManager;
+                ISubscriptionManager manager = session.RequireSubscriptionManager();
                 Assert.That(manager, Is.Not.Null);
                 // The interface itself doesn't surface the flag (it's on
                 // the concrete SubscriptionManager). We exercise the
@@ -455,7 +455,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 using (var output = File.Create(saveFile))
                 {
-                    await session.SubscriptionManager.SaveAsync(
+                    await session.RequireSubscriptionManager().SaveAsync(
                         output, session.MessageContext, null, ct)
                         .ConfigureAwait(false);
                 }
@@ -468,7 +468,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 IReadOnlyList<ISubscription> loaded;
                 using (var input = File.OpenRead(saveFile))
                 {
-                    loaded = await target.SubscriptionManager.LoadAsync(input,
+                    loaded = await target.RequireSubscriptionManager().LoadAsync(input,
                         target.MessageContext, _ => targetHandler,
                         transferSubscriptions: false, ct).ConfigureAwait(false);
                 }

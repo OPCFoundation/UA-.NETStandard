@@ -38,9 +38,6 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public static class LeakDetectionSetup
     {
-        private static readonly TimeSpan s_finalizerSweepTimeout =
-            TimeSpan.FromSeconds(30);
-
         [Before(Assembly)]
         public static void GlobalSetup(AssemblyHookContext context)
         {
@@ -50,51 +47,27 @@ namespace Opc.Ua.Aot.Tests
         [After(Assembly)]
         public static void GlobalTeardown(AssemblyHookContext context)
         {
-            // Force GC to finalize any abandoned certificates. Multiple
-            // cycles ensure that finalizable objects whose finalizer
-            // creates new garbage are themselves collected. The sweep
-            // is bounded by a watchdog so a stuck finalizer cannot hang
-            // the test host indefinitely during assembly teardown.
-            // (The AOT project doesn't reference Opc.Ua.Test.Common, so
-            // the same watchdog primitive is inlined here.)
-            if (!TryRunFinalizerSweep(s_finalizerSweepTimeout))
-            {
-                Console.WriteLine(
-                    $"[WARNING] Finalizer sweep exceeded {s_finalizerSweepTimeout.TotalSeconds:0}s " +
-                    "watchdog; at least one finalizer is stuck. Leak counts below may be inaccurate.");
-            }
-
+            // The certificate leak count is driven by explicit Dispose, not by
+            // finalizers, so it needs no forced GC/finalizer sweep (a no-op for
+            // the count that can hang on unrelated server/socket finalizers).
+            // A positive count is re-checked over a short, hard-bounded poll
+            // first so an in-flight background disposal is not misreported as a
+            // leak (no finalizer wait, so it cannot hang).
             long leaked = Certificate.InstancesLeaked;
+            for (int i = 0; leaked > 0 && i < 50; i++)
+            {
+                Thread.Sleep(100);
+                leaked = Certificate.InstancesLeaked;
+            }
             if (leaked > 0)
             {
-                // TUnit doesn't have Assert.Warn; log via Console (visible
-                // in CI test output) without failing the assembly hook.
-                Console.WriteLine(
-                    $"[WARNING] Certificate leak detected: {leaked} instance(s) created " +
+                // TUnit has no Assert.Warn; throwing from the assembly hook
+                // fails the run, which is the intended hard error.
+                throw new InvalidOperationException(
+                    $"Certificate leak detected: {leaked} instance(s) created " +
                     $"but not disposed (created={Certificate.InstancesCreated}, " +
                     $"disposed={Certificate.InstancesDisposed}).");
             }
-        }
-
-        private static bool TryRunFinalizerSweep(TimeSpan timeout)
-        {
-            var sweep = new Thread(() =>
-            {
-                for (int i = 0; i < 5; i++)
-                {
-                    GC.Collect(
-                        GC.MaxGeneration,
-                        GCCollectionMode.Forced,
-                        blocking: true);
-                    GC.WaitForPendingFinalizers();
-                }
-            })
-            {
-                IsBackground = true,
-                Name = "LeakDetection.FinalizerSweep"
-            };
-            sweep.Start();
-            return sweep.Join(timeout);
         }
     }
 }

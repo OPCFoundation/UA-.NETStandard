@@ -170,7 +170,7 @@ namespace Opc.Ua.Server
             bool wasEmpty = DataChangeMonitoredItems.IsEmpty;
             DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
 
-            Node.OnStateChanged = OnMonitoredNodeChanged;
+            Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
 
             // Subscribe to namespace default permission changes when the first item is added.
             if (wasEmpty && m_server.ConfigurationNodeManager != null)
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server
 
             if (DataChangeMonitoredItems.IsEmpty)
             {
-                Node.OnStateChanged = null;
+                Node.OnStateChangedAsync = null;
 
                 // Unsubscribe from namespace default permission changes when the last item is removed.
                 m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server
         {
             EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
 
-            Node.OnReportEvent = OnReportEvent;
+            Node.OnReportEventAsync = OnReportEventAsync;
 
             // Scale up: add a consumer task for each new event MI beyond the first.
             if (m_useMultipleConsumers && m_additionalConsumers != null)
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server
 
             if (EventMonitoredItems.IsEmpty)
             {
-                Node.OnReportEvent = null;
+                Node.OnReportEventAsync = null;
             }
 
             // Scale down: remove a consumer task when MIs decrease (keep at least 1 total = primary).
@@ -257,12 +257,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Called when a Node produces an event.
+        /// Called asynchronously when a Node produces an event. Clones the event state and enqueues
+        /// it for the consumer, awaiting the (bounded) channel so back-pressure is preserved without
+        /// blocking a thread.
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="node">The affected node.</param>
         /// <param name="e">The event.</param>
-        public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask OnReportEventAsync(
+            ISystemContext context,
+            NodeState node,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default)
         {
             if (m_disposed)
             {
@@ -284,7 +291,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
+                await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
             }
             catch (ChannelClosedException)
             {
@@ -293,15 +300,37 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Called when the state of a Node changes.
+        /// Synchronous wrapper over <see cref="OnReportEventAsync"/>. Completes inline when the
+        /// channel has capacity; blocks only when the bounded channel is full (only synchronous
+        /// callers pay that cost).
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="node">The affected node.</param>
+        /// <param name="e">The event.</param>
+        public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
+        {
+            ValueTask report = OnReportEventAsync(context, node, e, default);
+            if (!report.IsCompletedSuccessfully)
+            {
+                report.AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+        /// <summary>
+        /// Called asynchronously when the state of a Node changes. Reads each monitored attribute at
+        /// enqueue time - through the async entry point, so a genuinely asynchronous read handler is
+        /// honored - and enqueues the snapshot, awaiting the bounded channel for back-pressure. No
+        /// thread is blocked.
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="node">The affected node.</param>
         /// <param name="changes">The mask indicating what changes have occurred.</param>
-        public void OnMonitoredNodeChanged(
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask OnMonitoredNodeChangedAsync(
             ISystemContext context,
             NodeState node,
-            NodeStateChangeMasks changes)
+            NodeStateChangeMasks changes,
+            CancellationToken cancellationToken = default)
         {
             if (m_disposed)
             {
@@ -342,12 +371,17 @@ namespace Opc.Ua.Server
                     m_timeProvider.GetUtcNow().UtcDateTime,
                     DateTime.MinValue);
 
-                (_, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
+                // Read at enqueue time via the async entry point: ReadAttributeAsync honors an
+                // asynchronous value read handler (OnReadValueAsync) when one is registered and
+                // otherwise completes synchronously. The value is therefore materialised for this
+                // change before it is enqueued (strict enqueue-time snapshot) without blocking.
+                (_, attributeSnapshots[attributeId]) = await node.ReadAttributeAsync(
                     context,
                     attributeId,
                     default,
                     QualifiedName.Null,
-                    dataValue).AsTask().GetAwaiter().GetResult();
+                    dataValue,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             var notification = new DataChangeSnapshot
@@ -360,11 +394,31 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
+                await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
             }
             catch (ChannelClosedException)
             {
                 // The channel was completed during shutdown/disposal.
+            }
+        }
+
+        /// <summary>
+        /// Synchronous wrapper over <see cref="OnMonitoredNodeChangedAsync"/>. Completes inline for a
+        /// synchronously-readable node with channel capacity; blocks only when a read is genuinely
+        /// asynchronous or the bounded channel is full (only synchronous callers pay that cost).
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="node">The affected node.</param>
+        /// <param name="changes">The mask indicating what changes have occurred.</param>
+        public void OnMonitoredNodeChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
+        {
+            ValueTask change = OnMonitoredNodeChangedAsync(context, node, changes, default);
+            if (!change.IsCompletedSuccessfully)
+            {
+                change.AsTask().GetAwaiter().GetResult();
             }
         }
 

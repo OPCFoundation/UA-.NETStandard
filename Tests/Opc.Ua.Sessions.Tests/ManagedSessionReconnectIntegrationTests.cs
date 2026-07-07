@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Sessions.Tests
                 // SubscriptionManager type is internal but accessible
                 // to this test project via InternalsVisibleTo.
                 var concreteManager =
-                    (Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
+                    (Client.Subscriptions.SubscriptionManager)session.RequireSubscriptionManager();
                 concreteManager.TransferSubscriptionsOnRecreate = true;
 
                 int snapshotCountBeforeTransfer = handler.DataChangeCount;
@@ -1134,7 +1134,7 @@ namespace Opc.Ua.Sessions.Tests
                 // After connect the V2 manager must already report the
                 // opt-in flag set.
                 var manager =
-                    (Client.Subscriptions.SubscriptionManager)session.SubscriptionManager;
+                    (Client.Subscriptions.SubscriptionManager)session.RequireSubscriptionManager();
                 Assert.That(
                     manager.TransferSubscriptionsOnRecreate, Is.True,
                     "Builder.WithTransferSubscriptionsOnRecreate must " +
@@ -1212,7 +1212,7 @@ namespace Opc.Ua.Sessions.Tests
                     Is.True,
                     "InnerSession must remain the same instance.");
                 Assert.That(
-                    ReferenceEquals(session.SubscriptionManager, manager),
+                    ReferenceEquals(session.RequireSubscriptionManager(), manager),
                     Is.True,
                     "V2 SubscriptionManager must survive the failover.");
                 Assert.That(

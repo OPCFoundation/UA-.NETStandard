@@ -1175,11 +1175,15 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     It.IsAny<Uri>(),
                     It.IsAny<TransportChannelSettings>(),
                     It.IsAny<CancellationToken>()))
+                .Callback<Uri, TransportChannelSettings, CancellationToken>(
+                    (_, settings, _) => DisposeMockOwnedCertificates(settings))
                 .Returns(new ValueTask());
             chMock.Setup(c => c.OpenAsync(
                     It.IsAny<ITransportWaitingConnection>(),
                     It.IsAny<TransportChannelSettings>(),
                     It.IsAny<CancellationToken>()))
+                .Callback<ITransportWaitingConnection, TransportChannelSettings, CancellationToken>(
+                    (_, settings, _) => DisposeMockOwnedCertificates(settings))
                 .Returns(new ValueTask());
             chMock.Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask());
@@ -1197,6 +1201,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 reconnectPolicy,
                 timeProvider);
             return (sut, serverCert, chMock);
+        }
+
+        private static void DisposeMockOwnedCertificates(TransportChannelSettings settings)
+        {
+            settings.ServerCertificate?.Dispose();
+            settings.ServerCertificate = null;
         }
 
         private static ConfiguredEndpoint GetTestEndpoint(Certificate serverCert)
@@ -1315,7 +1325,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             Assert.That(diagnostic.LastError, Is.Null);
         }
 
-        public interface IChannel : ITransportChannel, ISecureChannel, IMessageSocketChannel;
+        public interface IChannel : ITransportChannel, ISecureChannel;
 
         private sealed class SessionChannelHarness : IAsyncDisposable
         {
@@ -1421,7 +1431,6 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 Mock.SetupSet(c => c.OperationTimeout = It.IsAny<int>())
                     .Callback<int>(value => m_operationTimeout = value);
                 Mock.Setup(c => c.CurrentToken).Returns((ChannelToken?)null);
-                Mock.Setup(c => c.Socket).Returns((IMessageSocket?)null);
                 Mock.Setup(c => c.OpenAsync(
                         It.IsAny<Uri>(),
                         It.IsAny<TransportChannelSettings>(),
