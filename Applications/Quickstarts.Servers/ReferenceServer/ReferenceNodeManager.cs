@@ -302,25 +302,38 @@ namespace Quickstarts.ReferenceServer
                     // on the Int32 static scalar so the conformance attribute
                     // tests (AttributeReadComplexTests RolePermissions /
                     // UserRolePermissions read) return Good rather than
-                    // BadAttributeIdInvalid. Anonymous users are granted
-                    // Browse + Read + ReadRolePermissions; SecurityAdmin gets
-                    // full permissions for write-attribute scenarios.
+                    // BadAttributeIdInvalid. Because RolePermissions are
+                    // enforced once present, every role the CTT connects as
+                    // must be listed or it is denied all access: the CTT main
+                    // session authenticates as user1 (AuthenticatedUser), so
+                    // Anonymous AND AuthenticatedUser are granted
+                    // Browse + Read + Write + ReadHistory + ReadRolePermissions
+                    // (write/history are exercised by the WriteMask, Historical
+                    // Access and Aggregate conformance units); SecurityAdmin
+                    // gets full permissions for write-attribute scenarios.
+                    const uint kTestNodePermissions =
+                        (uint)PermissionType.Browse |
+                        (uint)PermissionType.Read |
+                        (uint)PermissionType.Write |
+                        (uint)PermissionType.ReadHistory |
+                        (uint)PermissionType.ReadRolePermissions;
                     var anonPerms = new RolePermissionType
                     {
                         RoleId = ObjectIds.WellKnownRole_Anonymous,
-                        Permissions =
-                            (uint)PermissionType.Browse |
-                            (uint)PermissionType.Read |
-                            (uint)PermissionType.Write |
-                            (uint)PermissionType.ReadRolePermissions
+                        Permissions = kTestNodePermissions
+                    };
+                    var authPerms = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = kTestNodePermissions
                     };
                     var adminPerms = new RolePermissionType
                     {
                         RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
                         Permissions = 0xFFFF
                     };
-                    int32Static.RolePermissions = new[] { anonPerms, adminPerms }.ToArrayOf();
-                    int32Static.UserRolePermissions = new[] { anonPerms }.ToArrayOf();
+                    int32Static.RolePermissions = new[] { anonPerms, authPerms, adminPerms }.ToArrayOf();
+                    int32Static.UserRolePermissions = new[] { anonPerms, authPerms }.ToArrayOf();
                     variables.Add(int32Static);
                     variables.Add(
                         CreateVariable(
