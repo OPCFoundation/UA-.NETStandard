@@ -396,16 +396,21 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
             FakeTimeProvider clock,
             Func<Task<bool>> condition)
         {
-            for (int i = 0; i < 32; i++)
+            for (int i = 0; i < 80; i++)
             {
                 if (await condition().ConfigureAwait(false))
                 {
                     return;
                 }
 
-                await Task.Yield();
                 clock.Advance(TimeSpan.FromSeconds(1));
-                await Task.Yield();
+
+                // The coordinator loops run on background threads driven by the
+                // fake clock; a short real delay reliably yields CPU so they can
+                // observe the advance and apply the resulting role change before
+                // the next check. Task.Yield alone starves them on contended
+                // CI agents (observed flaky on the net48 Windows runner).
+                await Task.Delay(25).ConfigureAwait(false);
             }
 
             Assert.Fail("The expected HA role transition did not occur.");
