@@ -129,6 +129,42 @@ namespace Opc.Ua.Server.Tests
             Assert.That(() => manager.ClearAuthenticationLockouts(), Throws.Nothing);
         }
 
+        [Test]
+        public void ValidateSessionLessRequestEventCanBeSubscribedAndRemoved()
+        {
+            using CoverageSessionManager manager = CreateManager();
+            void Handler(object? sender, ValidateSessionLessRequestEventArgs e)
+            {
+            }
+
+            Assert.That(
+                () =>
+                {
+                    manager.ValidateSessionLessRequest += Handler;
+                    manager.ValidateSessionLessRequest -= Handler;
+                },
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void ImpersonateUserEventCanBeSubscribedAndRemoved()
+        {
+            using CoverageSessionManager manager = CreateManager();
+            void Handler(ISession session, ImpersonateEventArgs e)
+            {
+            }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(
+                () =>
+                {
+                    manager.ImpersonateUser += Handler;
+                    manager.ImpersonateUser -= Handler;
+                },
+                Throws.Nothing);
+#pragma warning restore CS0618
+        }
+
         [TestCase(SessionEventReason.Created)]
         [TestCase(SessionEventReason.Activated)]
         [TestCase(SessionEventReason.Closing)]
