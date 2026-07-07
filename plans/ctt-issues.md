@@ -180,11 +180,28 @@ this.GetRequestEntry = function ( requestEntries, requestDefinition ) {
 
 ## Notes on items that are **not** CTT defects
 
-* **Auditing Connections** / **WriteMask** / **Historical Access** / **Aggregates**
-  `BadUserAccessDenied`: these were a *server* defect — the reference server's
-  `Scalar_Static_Int32` exposed `RolePermissions` for Anonymous + SecurityAdmin
-  only, denying the CTT's authenticated `user1`. Fixed server-side by granting
-  `AuthenticatedUser` (Browse|Read|Write|ReadHistory|ReadRolePermissions).
+* **Auditing Connections** (`Unable to Find Entry for ClientAuditEntryId`,
+  `AuditValidationHelper.js:346`, ~1690 occurrences): the **server side is
+  verified correct**. The reference server emits `AuditOpenSecureChannel`,
+  `AuditCreateSession`, `AuditActivateSession` and `AuditCloseSession` events,
+  each carrying `ClientAuditEntryId` copied from the request's
+  `RequestHeader.AuditEntryId`; and per **Part 3 §8.55** the events are delivered
+  to a subscriber holding `ReceiveEvents` on the event type (an `ObjectType`,
+  universally accessible) and the Server source node (granted to
+  `AuthenticatedUser` in CTT mode). A regression test —
+  `AuditingOperationTests.AuditEventDeliveredToAuthenticatedUserAsync` — proves an
+  `AuthenticatedUser` (`user1`, the CTT's main-session role) subscription actually
+  **receives** the audit event. Because the CTT's `Test.Audit` collection does not
+  find the entries despite confirmed server-side delivery, the residual failure is
+  in the CTT-side audit collection/matching (its audit-monitoring subscription
+  parameters, the `FindEntryVerbose` `whereClause`, or `ClientAuditEntryId`
+  comparison / publish timing) — the CTT team should re-verify that path. This was
+  *not* pinpointed to a single line and is therefore not listed as a defect above.
+* **Auditing / WriteMask / Historical Access / Aggregates** `BadUserAccessDenied`:
+  these were a *server* defect — the reference server's `Scalar_Static_Int32`
+  exposed `RolePermissions` for Anonymous + SecurityAdmin only, denying the CTT's
+  authenticated `user1`. Fixed server-side by granting `AuthenticatedUser`
+  (Browse|Read|Write|ReadHistory|ReadRolePermissions).
 * **`initialize.js:57` `Value.clone()`**: a symptom of the denied HistoryRead
   above (the item `.Value` was empty for denied nodes); expected to clear once the
   server permission fix lets the initial read succeed. Re-confirm on the next CTT
