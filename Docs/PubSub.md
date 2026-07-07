@@ -389,6 +389,12 @@ builder.Services.AddMqttPubSub(mqtt => mqtt.WithConnectionOptions(options =>
 }));
 
 builder.Services.AddEthPubSub();
+
+builder.Services.AddKafkaPubSub(kafka =>
+{
+    kafka.Endpoint = "kafkas://broker.example.com:9092";
+    kafka.Topics.Prefix = "plant.a";
+});
 ```
 
 The `AddPubSub(Action<IPubSubBuilder>)` overload hands a fluent
@@ -1768,6 +1774,25 @@ services.AddOpcUa()
         ownerId: Environment.MachineName,
         leaseDuration: TimeSpan.FromSeconds(15)));
 ```
+
+The same wiring is available as a one-shot preset — `WithLeaseActivation(...)`
+registers a `LeaseActivationCoordinator` over the registered
+`IPubSubLeaseStore` (or an in-memory store when none is present):
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub()
+    .WithLeaseStore<RedisPubSubLeaseStore>()          // container-constructed, cross-instance
+    .WithLeaseActivation(o =>
+    {
+        o.OwnerId = Environment.MachineName;
+        o.LeaseDuration = TimeSpan.FromSeconds(15);
+    });
+```
+
+Providers can be registered by type — `WithActivationCoordinator<TCoordinator>()`
+/ `WithLeaseStore<TStore>()` — or by instance via the
+`WithActivationCoordinator(...)` / `WithLeaseStore(...)` builder methods.
 
 `PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally tracks live sequence / keep-alive state so take-over introduces no gap.
 

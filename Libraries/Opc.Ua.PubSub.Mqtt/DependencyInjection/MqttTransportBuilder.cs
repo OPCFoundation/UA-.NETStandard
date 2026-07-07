@@ -34,6 +34,7 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 
@@ -114,6 +115,18 @@ namespace Microsoft.Extensions.DependencyInjection
         public IPubSubBuilder WithSecurityKeyStore(IPubSubSecurityKeyStore store)
         {
             return PubSubBuilder.WithSecurityKeyStore(store);
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithActivationCoordinator(IPubSubActivationCoordinator coordinator)
+        {
+            return PubSubBuilder.WithActivationCoordinator(coordinator);
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithLeaseStore(IPubSubLeaseStore leaseStore)
+        {
+            return PubSubBuilder.WithLeaseStore(leaseStore);
         }
 
         /// <inheritdoc/>

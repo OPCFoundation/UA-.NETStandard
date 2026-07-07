@@ -35,6 +35,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Kafka.Internal;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
@@ -175,6 +176,62 @@ namespace Opc.Ua.PubSub.Kafka.Tests
 
             Assert.That(options.Endpoint, Is.EqualTo("kafka://broker.example.com:9092"));
             Assert.That(options.Topics.Prefix, Is.EqualTo("custom"));
+        }
+
+        [Test]
+        public async Task AddKafkaTransportFactoriesParticipateInDecoratorPipelineAsync()
+        {
+            var decorator = new CountingTransportFactoryDecorator();
+            var services = new ServiceCollection();
+            services.AddSingleton<IPubSubTransportFactoryDecorator>(decorator);
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.AddKafkaTransport());
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubTransportFactory[] factories =
+                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(factories, Has.Length.EqualTo(2));
+                Assert.That(decorator.DecoratedCount, Is.EqualTo(2));
+                Assert.That(factories.All(static f => f is KafkaPubSubTransportFactory), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task AddKafkaPubSubRegistersPublisherSubscriberAndFactoriesAsync()
+        {
+            var services = new ServiceCollection();
+
+            services.AddKafkaPubSub(options => options.ClientId = "one-shot-client");
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            KafkaConnectionOptions options = serviceProvider
+                .GetRequiredService<IOptions<KafkaConnectionOptions>>()
+                .Value;
+            IPubSubTransportFactory[] factories =
+                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(serviceProvider.GetService<IPubSubApplication>(), Is.Not.Null);
+                Assert.That(factories.OfType<KafkaPubSubTransportFactory>().Count(), Is.EqualTo(2));
+                Assert.That(options.ClientId, Is.EqualTo("one-shot-client"));
+            });
+        }
+
+        private sealed class CountingTransportFactoryDecorator : IPubSubTransportFactoryDecorator
+        {
+            public int DecoratedCount { get; private set; }
+
+            public IPubSubTransportFactory Decorate(
+                IServiceProvider provider,
+                IPubSubTransportFactory factory)
+            {
+                DecoratedCount++;
+                return factory;
+            }
         }
     }
 }
