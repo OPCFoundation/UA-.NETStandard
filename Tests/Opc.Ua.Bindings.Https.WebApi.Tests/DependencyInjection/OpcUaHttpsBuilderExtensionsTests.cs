@@ -55,6 +55,34 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
                 Throws.ArgumentNullException);
         }
 
+#if NET8_0_OR_GREATER
+        [Test]
+        public void AddHttpsRateLimiterThrowsForNullBuilder()
+        {
+            Assert.That(
+                () => OpcUaHttpsBuilderExtensions.AddHttpsRateLimiter(null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddHttpsRateLimiterWithConfigureThrowsForNullBuilder()
+        {
+            Assert.That(
+                () => OpcUaHttpsBuilderExtensions.AddHttpsRateLimiter(null!, _ => { }),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddHttpsRateLimiterWithConfigureThrowsForNullConfigure()
+        {
+            var services = new ServiceCollection();
+
+            Assert.That(
+                () => services.AddOpcUa().AddHttpsRateLimiter(null!),
+                Throws.ArgumentNullException);
+        }
+#endif
+
         [Test]
         public void AddHttpsTransportRegistersHttpsListenerFactory()
         {
@@ -129,6 +157,44 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
             Assert.That(returned, Is.SameAs(builder));
         }
+
+#if NET8_0_OR_GREATER
+        [Test]
+        public void AddHttpsRateLimiterAddsContributorToHttpsListenerFactory()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddHttpsTransport()
+                .AddHttpsRateLimiter();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
+
+            Assert.That(
+                factory.StartupContributors,
+                Has.Exactly(1).InstanceOf<HttpsRateLimiterStartupContributor>());
+        }
+
+        [Test]
+        public void AddHttpsRateLimiterAddsConfiguredContributorToWssListenerFactory()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddWssTransport()
+                .AddHttpsRateLimiter(options => options.RejectionStatusCode = 429);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeWss)!;
+
+            Assert.That(
+                factory.StartupContributors,
+                Has.Exactly(1).InstanceOf<HttpsRateLimiterStartupContributor>());
+        }
+#endif
 
         [Test]
         public void AddHttpsTransportIsIdempotent()

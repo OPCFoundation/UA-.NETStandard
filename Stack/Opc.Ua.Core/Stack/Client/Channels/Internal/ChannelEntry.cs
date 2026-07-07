@@ -407,6 +407,19 @@ namespace Opc.Ua
             return tcs.Task.WaitAsync(ct);
         }
 
+        private TimeSpan? ConsumeServerRetryAfterHint()
+        {
+            ITransportChannel? underlying;
+            lock (m_lock)
+            {
+                underlying = m_underlying;
+            }
+
+            return underlying is IServerRetryAfterHintProvider provider
+                ? provider.ConsumeServerRetryAfterHint()
+                : null;
+        }
+
         private IRetryBudget? GetEffectiveBudget()
         {
             lock (m_lock)
@@ -662,6 +675,13 @@ namespace Opc.Ua
                         attempt,
                         budget);
 #endif
+                    TimeSpan? serverRetryAfter = ConsumeServerRetryAfterHint();
+                    delay = RetryAfterHint.ApplyReconnectDelayLowerBound(
+                        m_host.ReconnectPolicy,
+                        delay,
+                        serverRetryAfter);
+                    delay = ChannelReconnectPolicyBudget.ClampDelayToBudget(delay, budget);
+
                     if (delay < TimeSpan.Zero)
                     {
                         var error = ServiceResult.Create(

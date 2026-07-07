@@ -106,6 +106,7 @@
             <xs:element name="MinRequestThreadCount" type="xs:int" minOccurs="0" />
             <xs:element name="MaxRequestThreadCount" type="xs:int" minOccurs="0" />
             <xs:element name="MaxQueuedRequestCount" type="xs:int" minOccurs="0" />
+            <xs:element name="DecoupleHeldPublishRequests" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
     </xs:complexType>
 

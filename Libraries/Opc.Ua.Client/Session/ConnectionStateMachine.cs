@@ -399,9 +399,13 @@ namespace Opc.Ua.Client
             m_connected.Reset();
             IRetryBudget budget = GetOrCreateReconnectBudget();
 
+            StatusCode lastStatus = StatusCodes.Good;
+            string? lastAdditionalInfo = null;
+            string? lastMessage = null;
             for (int attempt = 0; !ct.IsCancellationRequested; attempt++)
             {
-                TimeSpan? delay = m_reconnectPolicy.GetNextDelay(attempt, ct);
+                TimeSpan? delay = GetAdaptiveDelay(
+                    attempt, lastStatus, lastAdditionalInfo, lastMessage, ct);
 
                 if (delay == null)
                 {
@@ -435,6 +439,13 @@ namespace Opc.Ua.Client
 
                 ServiceResult result = await InvokeReconnectAsync(budget, ct)
                     .ConfigureAwait(false);
+
+                // Remember the outcome so the next backoff can react to a
+                // server-busy signal (adaptive policies back off harder) and honor
+                // a server-provided retry-after hint when present.
+                lastStatus = result.StatusCode;
+                lastAdditionalInfo = result.AdditionalInfo;
+                lastMessage = result.LocalizedText.Text;
 
                 if (ServiceResult.IsGood(result))
                 {
@@ -490,6 +501,46 @@ namespace Opc.Ua.Client
             budget = new RetryBudget(m_maxTotalReconnectTime, m_timeProvider);
             m_reconnectBudget = budget;
             return budget;
+        }
+
+        /// <summary>
+        /// Computes the next backoff delay, using the policy's server-signal-aware
+        /// <see cref="IReconnectPolicy.TryGetNextDelay"/> and falling back to the
+        /// basic attempt-based delay when the policy reports no adaptive behavior.
+        /// </summary>
+        /// <param name="attempt">Zero-based attempt number.</param>
+        /// <param name="lastStatus">The status code of the previous attempt.</param>
+        /// <param name="lastAdditionalInfo">
+        /// The previous attempt's fault <c>AdditionalInfo</c>, parsed for a
+        /// server-provided retry-after hint.
+        /// </param>
+        /// <param name="lastMessage">
+        /// The previous attempt's localized message, parsed for a server-provided
+        /// retry-after hint when it is not carried in <c>AdditionalInfo</c> (e.g. a
+        /// transport-level UA-TCP <c>Error</c> reason).
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The delay before the next attempt, or <c>null</c> to stop.</returns>
+        private TimeSpan? GetAdaptiveDelay(
+            int attempt,
+            StatusCode lastStatus,
+            string? lastAdditionalInfo,
+            string? lastMessage,
+            CancellationToken ct)
+        {
+            // A retry-after hint may arrive in the fault AdditionalInfo (diagnostics
+            // path) or, for transport-level signals, in the localized message; honor
+            // whichever carries it.
+            TimeSpan? serverRetryAfter =
+                ReconnectPolicy.ParseServerRetryAfter(lastAdditionalInfo)
+                ?? ReconnectPolicy.ParseServerRetryAfter(lastMessage);
+            if (m_reconnectPolicy.TryGetNextDelay(
+                attempt, lastStatus, serverRetryAfter, out TimeSpan? delay, ct))
+            {
+                return delay;
+            }
+
+            return m_reconnectPolicy.GetNextDelay(attempt, ct);
         }
 
         private void ClearReconnectBudget()

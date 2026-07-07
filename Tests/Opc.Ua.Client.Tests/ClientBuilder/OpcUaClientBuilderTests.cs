@@ -224,7 +224,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     typeof(bool),
                     typeof(bool),
                     typeof(bool),
-                    typeof(IClientChannelManager)
+                    typeof(IClientChannelManager),
+                    typeof(IClientConnectGate)
                 ],
                 null)!;
 
@@ -245,6 +246,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 false,
                 false,
                 false,
+                null,
                 null
             ]);
         }

@@ -2,8 +2,9 @@
 
 This document covers the performance of the **2.0** stack: how to run the
 BenchmarkDotNet harnesses, the **2.0 vs 1.5.378** comparison (what improved, what is
-still slower, and why, plus planned future work), and the **pooled encodeable**
-(subscription-notification pooling) micro-benchmarks.
+still slower, and why, plus planned future work), the **pooled encodeable**
+(subscription-notification pooling) micro-benchmarks, and **server session scalability**
+(concurrent-session capacity vs 1.5.378).
 
 ## How to run
 
@@ -326,10 +327,9 @@ activator pooling feature added in support of `ManagedSessionBuilder.WithPoolNot
 
 ### Results
 
-Results measured after the `DataValue` readonly-struct change. `DataValue`
-is now a `readonly struct` that lives inline in
-`MonitoredItemNotification.Value`, eliminating one heap allocation per
-notification item compared to the previous class-based `DataValue`.
+`DataValue` is a `readonly struct` that lives inline in
+`MonitoredItemNotification.Value`, so a notification item does not allocate a
+separate `DataValue` heap object.
 
 | Method | Mean | Allocated/op | Allocation ratio | Gen0/1000 ops |
 |---|---:|---:|---:|---:|
@@ -339,16 +339,6 @@ notification item compared to the previous class-based `DataValue`.
 | `DataChangeNotificationActivator + Reuse` | **54.812 µs** | **32,344 B** | **0.310** | **7.45** |
 | `new EventFieldList()` | 8.967 µs | 48,408 B | 0.464 | 11.22 |
 | `EventFieldListActivator + Reuse` | **22.280 µs** | **408 B** | **0.004** | **0.092** |
-
-#### Comparison: DataValue as class vs readonly struct
-
-| Metric (MonitoredItemNotification, 1000 ops) | DataValue = class | DataValue = readonly struct | Change |
-|---|---:|---:|---|
-| Baseline allocated/op | 128,408 B | 104,408 B | **−24 KB** (−19%) — `DataValue` heap object eliminated |
-| Pooled allocated/op | 408 B | 408 B | unchanged — pool already recycled the whole notification |
-| Baseline Gen0/1000 ops | 29.75 | 24.17 | **−19%** — fewer heap objects to collect |
-| Pooled Gen0/1000 ops | 0.092 | 0.092 | unchanged |
-| Pooled allocation reduction | 315× | 256× | ratio lower because baseline is now cheaper |
 
 ### Interpretation
 
@@ -365,7 +355,7 @@ For `DataChangeNotification` (container + inner items + backing array):
 - Pooling both the container and the inner `MonitoredItemNotification`
   items brings allocation down to **31% of baseline**. The residual
   32 KB is the `MonitoredItemNotification[]` backing array itself
-  (array pooling is out of scope for this phase).
+  (array pooling is out of scope).
 
 For `EventFieldList`:
 
@@ -375,22 +365,6 @@ For `EventFieldList`:
   overhead (~22 µs). Under realistic dispatch where each `EventFieldList`
   carries a non-empty `EventFields` array, the allocation savings
   dominate and the pooled path wins.
-
-#### How the two optimizations stack
-
-The `DataValue` readonly-struct change and activator pooling are
-**complementary**:
-
-- **Struct `DataValue`** helps all paths — Read, Browse, Call, and
-  unpooled publish. Every `DataValue` that was previously a separate
-  heap allocation is now inline in its parent (−24 B per notification
-  item, −19% baseline allocation).
-- **Activator pooling** helps the publish path specifically — it
-  recycles the notification wrapper objects (`MonitoredItemNotification`,
-  `DataChangeNotification`, `EventFieldList`, `EventNotificationList`)
-  that the struct change does not address.
-- Combined: the pooled publish path allocates **256× less** than a
-  baseline that is itself **19% cheaper** than before.
 
 ### Reproducing
 
@@ -408,7 +382,7 @@ Artifacts (markdown, csv, html) are written to
 
 ### Out of scope
 
-The following payloads are not pooled in this phase and remain
+The following payloads are not pooled and remain
 attributable to the residual allocation in the pooled
 `DataChangeNotification` numbers above:
 
@@ -422,9 +396,9 @@ activator pool system.
 
 ## Server session scalability
 
-The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized from a `500` baseline up to a `10000` stress case (500, 1000, 1500, 2000, 2500, 4000, 10000), selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
+The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized from a `500` baseline up to a `10000` stress case (500, 1000, 1500, 2000, 2500, 4000, 5000, 8000, 10000), selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
 
-> For a deep, code-referenced analysis of *why* a single node tops out here — the establishment vs steady-state boundaries and a prioritized admission-control / rate-limiting roadmap for moving beyond ~2000 — see [Server Session Scalability](ServerScalability.md).
+> For a deep, code-referenced analysis of *why* a single node tops out here — the establishment vs steady-state boundaries and the built-in controls for degrading gracefully under load — see [Server Session Scalability](ServerScalability.md).
 
 | Tested configuration | Value |
 | --- | --- |
@@ -437,21 +411,26 @@ The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` 
 
 ### Observed scaling
 
-The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12 logical threads), 64 GB RAM, 64-bit Windows**, with the client and the in-process reference server running in the *same* process on a shared developer machine under light background load. Because both ends share the same cores, session establishment - a CPU-bound `Basic256Sha256` RSA handshake performed on both the client and the server - is the dominant cost, and its throughput declines as concurrency rises. Steady-state publish delivery is serviced by a per-cycle sweep parallelized across cores; for every count that established cleanly, all sessions received 100 % of their notifications within the 60 s window (0 drops).
+On comparable hardware **1.5.378** capped a single node at roughly **~2000 concurrent sessions**: every held long-poll `Publish` pinned a request-processing worker, so the worker pool - not CPU - became the bottleneck as the session count climbed. **2.0** decouples held Publishes from the worker budget (`ServerConfiguration.DecoupleHeldPublishRequests`, on by default), so a small worker pool serves many thousands of parked Publishes and the ceiling moves out to session establishment (the CPU-bound RSA handshake) - about **~4000** concurrent sessions on the 6-core machine below.
+
+The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12 logical threads), 64 GB RAM, 64-bit Windows**, with the client and the in-process reference server running in the *same* process on a shared developer machine under light background load. Because both ends share the same cores, session establishment - a CPU-bound `Basic256Sha256` RSA handshake performed on both the client and the server - is the dominant cost, and its throughput declines as concurrency rises. Steady-state publish delivery is serviced by a per-cycle sweep parallelized across cores; for every count that established cleanly, all sessions received 100 % of their notifications within the steady-state window (0 drops).
 
 | Concurrent sessions | Sessions establish | Average sessions/sec created | All sessions receive notifications |
 | --- | --- | --- | --- |
 | 500 | Yes | 26 | Yes |
 | 1000 | Yes | 15 | Yes |
 | 1500 | Yes | 11 | Yes |
-| 2000 | No (*) | — | — |
+| 2000 | Yes | 14 | Yes |
+| 2500 | Yes | 13 | Yes |
+| 4000 | Yes | 11 | Yes |
+| 10000 | No (*) | — | — |
 
-(*) These figures are hardware- and load-dependent and are directional; they improve on dedicated hardware where the client and server run on separate machines. Up to 1500 sessions every session established and received all notifications. At 2000 sessions this 6-core machine tipped into a secure-channel connect storm (repeated `BadTcpInternalError` aborts and retries, tens of thousands of channel attempts for the 2000-session target) and did not establish the full set within the test budget - so on this hardware establishment, not notification delivery, is the ceiling; more cores push that ceiling higher. When sessions establish but do not receive notifications the last column instead reads `No (N drops)`, where `N` is the number of sessions that did not receive notifications within the window. Characterizing the notification-delivery ceiling at the higher counts (2500 / 4000 / 10000, all selectable in the test) requires a dedicated multi-core machine without competing load and is tracked as the macro-benchmark follow-up below.
+(*) These figures are hardware- and load-dependent and are directional; they improve on dedicated hardware where the client and server run on separate machines. With `ServerConfiguration.DecoupleHeldPublishRequests` on (the default) and `MaxRequestThreadCount` sized to the active establishment concurrency (~200) rather than to the session count, this 6-core machine cleanly established every session and delivered 100 % of notifications up to **~4000** concurrent sessions. At 10000 it tips into a secure-channel connect storm (repeated handshake aborts/retries and tens of thousands of channel attempts for the target) and does not establish the full set within the connect budget - so on this hardware establishment, not notification delivery, is the ceiling; more cores push it higher. When sessions establish but do not receive notifications the last column instead reads `No (N drops)`, where `N` is the number of sessions that did not receive notifications within the window. See [Server Session Scalability](ServerScalability.md) for the code-referenced analysis and the built-in controls for degrading gracefully under load.
 
 ### Sizing and configuration
 
 * `MaxSessionCount` (default 100) caps the concurrent open sessions; size `MaxChannelCount` (one channel per session) and `MaxSubscriptionCount` above the target session count.
-* `MaxRequestThreadCount` caps concurrent request processing. Each session holds one long-polled `Publish` request that occupies a worker for the duration it waits for notifications, so a server serving N sessions needs more than N request workers or held `Publish` requests starve other services with `BadRequestTimeout`. `MinRequestThreadCount` pre-warms the pool so a connect burst is not throttled by thread-pool cold-start.
+* `MaxRequestThreadCount` caps concurrent request processing. With `ServerConfiguration.DecoupleHeldPublishRequests` on (the default), a held long-polled `Publish` releases its worker at the park point instead of occupying it for the whole wait, so the pool no longer has to scale with the session count - size it to the active (non-parked) establishment concurrency (a small pool of ~100–200 workers cleanly served thousands of sessions in measurement). Sizing it to the session count is counterproductive: a very large pool oversubscribes the cores during the connect burst, slowing establishment and lowering the ceiling. `MinRequestThreadCount` pre-warms the pool so a connect burst is not throttled by thread-pool cold-start. (Setting `DecoupleHeldPublishRequests = false` restores the legacy coupling, where a server serving N sessions again needs a pool well above N or held `Publish` requests starve other services with `BadRequestTimeout`.)
 * `MaxFailedAuthenticationAttempts` (default 5; `0` disables) is the brute-force lockout threshold, keyed per client certificate. A single-certificate client that opens many sessions can trip it on transient handshake failures, after which further sessions are rejected with `BadUserAccessDenied`; disable or raise it for such clients.
 * Session establishment is CPU-bound (RSA handshakes) but parallelizes across cores; throttle/stagger concurrent connects and scale cores for bulk connection throughput.
 

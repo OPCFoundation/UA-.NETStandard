@@ -93,6 +93,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new OpcUaClientOptions();
             configure(options);
+            EnsureClientConnectGate(options);
             builder.Services.TryAddSingleton(options);
             RegisterOptionsValidation(builder.Services, options);
 
@@ -153,6 +154,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new OpcUaClientOptions();
             section.Bind(options);
+            EnsureClientConnectGate(options);
             builder.Services.TryAddSingleton(options);
             RegisterOptionsValidation(builder.Services, options);
 
@@ -941,6 +943,13 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithChannelManager(mgr);
             }
+
+            IClientConnectGate? connectGate =
+                sessionOptions.ConnectGate ?? sp.GetService<IClientConnectGate>();
+            if (connectGate != null)
+            {
+                builder.WithConnectRateLimiter(connectGate);
+            }
         }
 
         private static IClientIdentityProvider? ResolveIdentityProvider(IServiceProvider sp)
@@ -967,6 +976,21 @@ namespace Microsoft.Extensions.DependencyInjection
                 return providers[0];
             }
             return new CompositeClientIdentityProvider(providers);
+        }
+
+        private static void EnsureClientConnectGate(OpcUaClientOptions options)
+        {
+            if (options.Session.ConnectGate != null ||
+                options.Session.ConnectRateLimiterMaxConcurrency == null)
+            {
+                return;
+            }
+
+            options.Session = options.Session with
+            {
+                ConnectGate = new RateLimiterClientConnectGate(
+                    options.Session.ConnectRateLimiterMaxConcurrency.Value)
+            };
         }
 
         /// <summary>

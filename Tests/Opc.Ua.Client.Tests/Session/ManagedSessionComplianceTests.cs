@@ -733,7 +733,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(bool),
                         typeof(bool),
                         typeof(IClientChannelManager),
-                        typeof(ReverseConnectManager)
+                        typeof(IClientConnectGate)
                     ],
                     null);
 

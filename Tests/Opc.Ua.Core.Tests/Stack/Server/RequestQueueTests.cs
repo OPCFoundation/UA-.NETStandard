@@ -69,6 +69,37 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
         }
 
+        private sealed class ParkableTestRequest : IParkableIncomingRequest
+        {
+            public TaskCompletionSource<bool> ProcessingStarted { get; } = new TaskCompletionSource<bool>();
+            public TaskCompletionSource<bool> ProcessingCompleted { get; } = new TaskCompletionSource<bool>();
+            public StatusCode? CompletedStatusCode { get; private set; }
+
+            public IServiceRequest Request => null;
+
+            public SecureChannelContext SecureChannelContext => null;
+
+            RequestParkSink IParkableIncomingRequest.ParkSink => m_parkSink;
+
+            public ValueTask CallAsync(CancellationToken cancellationToken = default)
+            {
+                ProcessingStarted.TrySetResult(true);
+
+                // Simulate reaching the park point (queued waiting for a notification):
+                // the worker should be released even though processing has not completed.
+                m_parkSink.NotifyParked();
+                return new ValueTask(ProcessingCompleted.Task);
+            }
+
+            public void OperationCompleted(IServiceResponse response, ServiceResult error)
+            {
+                CompletedStatusCode = error?.StatusCode;
+                ProcessingCompleted.TrySetResult(true);
+            }
+
+            private readonly RequestParkSink m_parkSink = new RequestParkSink();
+        }
+
         private sealed class TestServer : ServerBase
         {
             public TestServer()
@@ -76,7 +107,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
             }
 
-            public void ReplaceRequestQueue(int minThreads, int maxThreads, int maxQueue)
+            public void ReplaceRequestQueue(
+                int minThreads,
+                int maxThreads,
+                int maxQueue,
+                bool decoupleHeldPublishRequests = true)
             {
                 FieldInfo field = typeof(ServerBase).GetField(
                     "m_requestQueue",
@@ -85,7 +120,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 var oldQueue = field.GetValue(this) as IDisposable;
                 oldQueue?.Dispose();
 
-                var newQueue = new RequestQueue(this, minThreads, maxThreads, maxQueue);
+                var newQueue = new RequestQueue(
+                    this, minThreads, maxThreads, maxQueue, decoupleHeldPublishRequests);
                 field.SetValue(this, newQueue);
             }
 
@@ -267,6 +303,117 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             req1.ProcessingCompleted.TrySetResult(true);
             await disposeTask.ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ParkedRequestReleasesWorkerForNextRequestAsync()
+        {
+            using var server = new TestServer();
+
+            // A single worker: only the park decoupling can let a second request be
+            // serviced while the first is still parked waiting for a notification.
+            server.ReplaceRequestQueue(1, 1, 10, decoupleHeldPublishRequests: true);
+
+            var reqA = new ParkableTestRequest();
+            var reqB = new ParkableTestRequest();
+
+            server.ScheduleIncomingRequest(reqA);
+            await AwaitOrFailAsync(reqA.ProcessingStarted.Task, "request A to start").ConfigureAwait(false);
+
+            server.ScheduleIncomingRequest(reqB);
+            await AwaitOrFailAsync(reqB.ProcessingStarted.Task, "request B to start while A is parked")
+                .ConfigureAwait(false);
+
+            Assert.That(
+                reqA.ProcessingCompleted.Task.IsCompleted,
+                Is.False,
+                "Request A should still be parked while B is serviced.");
+
+            reqA.ProcessingCompleted.TrySetResult(true);
+            reqB.ProcessingCompleted.TrySetResult(true);
+        }
+
+        [Test]
+        public async Task DisabledDecouplingKeepsWorkerBlockedUntilCompletionAsync()
+        {
+            using var server = new TestServer();
+
+            // Decoupling disabled: the single worker stays bound to the parked request,
+            // so a second request cannot start until the first completes.
+            server.ReplaceRequestQueue(1, 1, 10, decoupleHeldPublishRequests: false);
+
+            var reqA = new ParkableTestRequest();
+            var reqB = new ParkableTestRequest();
+
+            server.ScheduleIncomingRequest(reqA);
+            await AwaitOrFailAsync(reqA.ProcessingStarted.Task, "request A to start").ConfigureAwait(false);
+
+            server.ScheduleIncomingRequest(reqB);
+
+            bool bStarted = await CompletedWithinAsync(reqB.ProcessingStarted.Task, 500).ConfigureAwait(false);
+            Assert.That(
+                bStarted,
+                Is.False,
+                "Request B must not start while the only worker is blocked on parked A.");
+
+            // Completing A frees the worker to service B.
+            reqA.ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(reqB.ProcessingStarted.Task, "request B to start after A completes")
+                .ConfigureAwait(false);
+            reqB.ProcessingCompleted.TrySetResult(true);
+        }
+
+        [Test]
+        public async Task ManyParkedRequestsAreServedBySmallWorkerPoolAsync()
+        {
+            using var server = new TestServer();
+
+            // Two workers must be able to service far more concurrently-parked requests
+            // than the worker count, because a parked request does not hold a worker.
+            server.ReplaceRequestQueue(2, 2, 1000, decoupleHeldPublishRequests: true);
+
+            const int count = 200;
+            var requests = new ParkableTestRequest[count];
+            for (int i = 0; i < count; i++)
+            {
+                requests[i] = new ParkableTestRequest();
+                server.ScheduleIncomingRequest(requests[i]);
+            }
+
+            Task allStarted = Task.WhenAll(Array.ConvertAll(requests, r => r.ProcessingStarted.Task));
+            await AwaitOrFailAsync(allStarted, "all parked requests to start", 15000).ConfigureAwait(false);
+
+            // None of them have completed - they are all still parked - yet all were
+            // admitted and started by only two workers.
+            foreach (ParkableTestRequest request in requests)
+            {
+                Assert.That(
+                    request.CompletedStatusCode,
+                    Is.Null,
+                    "A parked request should not have been faulted.");
+                request.ProcessingCompleted.TrySetResult(true);
+            }
+        }
+
+        private static async Task AwaitOrFailAsync(Task task, string what, int timeoutMs = 5000)
+        {
+            using var cts = new CancellationTokenSource();
+            Task delay = Task.Delay(timeoutMs, cts.Token);
+            if (await Task.WhenAny(task, delay).ConfigureAwait(false) != task)
+            {
+                Assert.Fail($"Timed out waiting for {what}.");
+            }
+            cts.Cancel();
+            await task.ConfigureAwait(false);
+        }
+
+        private static async Task<bool> CompletedWithinAsync(Task task, int timeoutMs)
+        {
+            using var cts = new CancellationTokenSource();
+            Task delay = Task.Delay(timeoutMs, cts.Token);
+            Task completed = await Task.WhenAny(task, delay).ConfigureAwait(false);
+            cts.Cancel();
+            return completed == task;
         }
     }
 }

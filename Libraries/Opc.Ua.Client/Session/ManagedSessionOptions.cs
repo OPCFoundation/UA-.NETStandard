@@ -94,6 +94,21 @@ namespace Opc.Ua.Client
         public ReconnectPolicyOptions ReconnectPolicy { get; init; } = new();
 
         /// <summary>
+        /// Optional shared gate that asynchronously admits initial
+        /// <see cref="ManagedSession"/> connect attempts. Default:
+        /// <c>null</c> (no client-side connect admission limit).
+        /// </summary>
+        public IClientConnectGate? ConnectGate { get; init; }
+
+        /// <summary>
+        /// Optional max concurrency used by DI/configuration to create a
+        /// shared <see cref="RateLimiterClientConnectGate"/> when
+        /// <see cref="ConnectGate"/> is not supplied. Default:
+        /// <c>null</c> (no client-side connect admission limit).
+        /// </summary>
+        public int? ConnectRateLimiterMaxConcurrency { get; init; }
+
+        /// <summary>
         /// When set, server-side redundancy failover is enabled using a
         /// default <see cref="DefaultServerRedundancyHandler"/>. To use a
         /// custom handler, pass it explicitly to

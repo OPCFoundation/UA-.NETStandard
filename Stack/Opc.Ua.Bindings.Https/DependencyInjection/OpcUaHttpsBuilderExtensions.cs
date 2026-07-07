@@ -29,6 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+#if NET8_0_OR_GREATER
+using Microsoft.AspNetCore.RateLimiting;
+#endif
 using Opc.Ua;
 using Opc.Ua.Bindings;
 #if NET8_0_OR_GREATER
@@ -46,6 +49,16 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </summary>
     public static class OpcUaHttpsBuilderExtensions
     {
+#if NET8_0_OR_GREATER
+        private static readonly string[] s_httpsUriSchemes =
+        [
+            Utils.UriSchemeHttps,
+            Utils.UriSchemeOpcHttps,
+            Utils.UriSchemeWss,
+            Utils.UriSchemeOpcWss
+        ];
+#endif
+
         /// <summary>
         /// Registers the HTTPS listener factories
         /// (<see cref="HttpsTransportListenerFactory"/>,
@@ -233,6 +246,58 @@ namespace Microsoft.Extensions.DependencyInjection
                 contributors.Add(contributor);
             }
         }
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Adds the default ASP.NET Core rate limiter to Kestrel-hosted HTTPS and WSS transport listeners.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddHttpsRateLimiter(this IOpcUaBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+
+            return AddHttpsRateLimiter(builder, new HttpsRateLimiterStartupContributor());
+        }
+
+        /// <summary>
+        /// Adds a caller-configured ASP.NET Core rate limiter to Kestrel-hosted HTTPS and WSS transport listeners.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">The callback that configures the listener host's rate limiter options.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> or <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public static IOpcUaBuilder AddHttpsRateLimiter(
+            this IOpcUaBuilder builder,
+            Action<RateLimiterOptions> configure)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            ArgumentNullException.ThrowIfNull(configure);
+
+            return AddHttpsRateLimiter(builder, new HttpsRateLimiterStartupContributor(configure));
+        }
+
+        private static IOpcUaBuilder AddHttpsRateLimiter(
+            IOpcUaBuilder builder,
+            IHttpsListenerStartupContributor contributor)
+        {
+            builder.Services.AddTransportBindingRegistry();
+            builder.Services.AddSingleton<ITransportBindingConfigurator>(
+                new TransportBindingConfigurator(registry =>
+                {
+                    foreach (string scheme in s_httpsUriSchemes)
+                    {
+                        if (registry.GetListenerFactory(scheme) is HttpsServiceHost factory)
+                        {
+                            factory.StartupContributors.Add(contributor);
+                        }
+                    }
+                }));
+            return builder;
+        }
+#endif
     }
 
     /// <summary>
