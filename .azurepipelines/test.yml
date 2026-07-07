@@ -297,8 +297,9 @@ jobs:
   # both success and failure because the dotnet test task uses
   # publishTestResults: false + failTaskOnFailedTests: false, so a crash or
   # hang may not surface as failed() on this step even when the testhost
-  # dumped; continueOnError swallows the PublishPipelineArtifact "no files"
-  # error when no dumps were produced.
+  # dumped.  A probe step sets HAS_DUMPS so the publish task only runs when
+  # there is at least one file to upload - PublishPipelineArtifact@1 emits a
+  # warning on an empty targetPath, which we do NOT want on healthy runs.
   - task: CopyFiles@2
     displayName: 'Stage diagnostic dumps'
     condition: succeededOrFailed()
@@ -313,10 +314,24 @@ jobs:
         **/core.*
       TargetFolder: '$(Build.ArtifactStagingDirectory)/dumps'
       flattenFolders: true
+  - task: PowerShell@2
+    name: dumpProbe
+    displayName: 'Detect diagnostic dumps'
+    condition: succeededOrFailed()
+    inputs:
+      targetType: inline
+      pwsh: true
+      script: |
+        $dir = '$(Build.ArtifactStagingDirectory)/dumps'
+        $found = (Test-Path $dir) -and @(Get-ChildItem -Path $dir -File -ErrorAction SilentlyContinue).Count -gt 0
+        Write-Host "Diagnostic dumps present: $found"
+        Write-Host "##vso[task.setvariable variable=HAS_DUMPS;isOutput=true]$($found.ToString().ToLowerInvariant())"
   - task: PublishPipelineArtifact@1
     displayName: 'Publish diagnostic dumps'
-    condition: succeededOrFailed()
-    continueOnError: true
+    # Only publish when the probe found at least one dump; otherwise
+    # PublishPipelineArtifact@1 warns on an empty targetPath and the whole
+    # step lights up yellow on healthy runs.
+    condition: and(succeededOrFailed(), eq(variables['dumpProbe.HAS_DUMPS'], 'true'))
     inputs:
       targetPath: '$(Build.ArtifactStagingDirectory)/dumps'
       artifact: 'dumps-$(System.JobId)'
