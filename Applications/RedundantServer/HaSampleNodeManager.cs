@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -260,10 +261,18 @@ namespace RedundantServer
         {
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             bool wasLeader = false;
+            DateTime lastHeartbeat = DateTime.MinValue;
             while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (!m_leaderElection.IsLeader)
                 {
+                    if (wasLeader)
+                    {
+                        // A failover moved the write role away from this replica.
+                        m_logger.LogInformation(
+                            "HA: replica {ReplicaId} became STANDBY (no longer the active writer).",
+                            m_replicaInfo.NodeId);
+                    }
                     wasLeader = false;
                     UpdateActiveReplica("standby");
                     continue;
@@ -276,11 +285,28 @@ namespace RedundantServer
                     // last value shared through the distributed store instead of
                     // restarting from the local count.
                     await SeedCounterFromCacheAsync(cancellationToken).ConfigureAwait(false);
+                    m_logger.LogInformation(
+                        "HA: replica {ReplicaId} became ACTIVE writer (Counter={Counter}).",
+                        m_replicaInfo.NodeId,
+                        Volatile.Read(ref m_counterValue));
                     wasLeader = true;
                 }
 
                 await UpdateCounterAsync(cancellationToken).ConfigureAwait(false);
                 UpdateActiveReplica(m_replicaInfo.NodeId);
+
+                // Periodic heartbeat so the log shows liveness, which replica is
+                // producing which Counter values, and (across replicas) the
+                // per-replica divergence a client observes on failover.
+                DateTime now = DateTime.UtcNow;
+                if (now - lastHeartbeat >= TimeSpan.FromSeconds(5))
+                {
+                    lastHeartbeat = now;
+                    m_logger.LogInformation(
+                        "HA: replica {ReplicaId} ACTIVE, Counter={Counter}.",
+                        m_replicaInfo.NodeId,
+                        Volatile.Read(ref m_counterValue));
+                }
             }
         }
 

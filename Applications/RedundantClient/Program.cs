@@ -166,22 +166,29 @@ namespace RedundantClient
 
                 await using (session.ConfigureAwait(false))
                 {
-                    session.ConnectionStateChanged += OnConnectionStateChanged;
+                    var haMonitor = new HaMonitor();
+                    void OnConnState(object? s, ConnectionStateChangedEventArgs e)
+                        => haMonitor.OnConnectionStateChanged(
+                            e, session.ConfiguredEndpoint?.EndpointUrl?.ToString());
+                    session.ConnectionStateChanged += OnConnState;
 
                     await LogRedundancyInfoAsync(session, ct).ConfigureAwait(false);
                     if (suite)
                     {
-                        await RunClientSuiteAsync(session, ct).ConfigureAwait(false);
+                        await RunClientSuiteAsync(session, haMonitor, ct).ConfigureAwait(false);
                     }
                     else
                     {
-                        await SubscribeToCurrentTimeAsync(session, ct).ConfigureAwait(false);
+                        await SubscribeToCurrentTimeAsync(session, haMonitor, ct).ConfigureAwait(false);
                     }
 
-                    Console.WriteLine("Monitoring ServerStatus.CurrentTime and the replicated HighAvailability.Counter. Press Ctrl+C to stop.");
+                    Console.WriteLine(
+                        "Monitoring ServerStatus.CurrentTime and the replicated HighAvailability.Counter / " +
+                        "ActiveReplica. Failover and data-loss events are logged as they happen. " +
+                        "Press Ctrl+C to stop.");
                     await RunForDurationAsync(duration, ct).ConfigureAwait(false);
 
-                    session.ConnectionStateChanged -= OnConnectionStateChanged;
+                    session.ConnectionStateChanged -= OnConnState;
                 }
             }
         }
@@ -219,7 +226,8 @@ namespace RedundantClient
             }
         }
 
-        private static async Task RunClientSuiteAsync<TSession>(TSession session, CancellationToken ct)
+        private static async Task RunClientSuiteAsync<TSession>(
+            TSession session, HaMonitor monitor, CancellationToken ct)
             where TSession : ISession
         {
             // A compact browse / read / subscribe workload against the redundant session. It
@@ -263,10 +271,11 @@ namespace RedundantClient
             }
 
             Console.WriteLine("Suite: subscribing to data changes...");
-            await SubscribeToCurrentTimeAsync(session, ct).ConfigureAwait(false);
+            await SubscribeToCurrentTimeAsync(session, monitor, ct).ConfigureAwait(false);
         }
 
-        private static async Task SubscribeToCurrentTimeAsync<TSession>(TSession session, CancellationToken ct)
+        private static async Task SubscribeToCurrentTimeAsync<TSession>(
+            TSession session, HaMonitor monitor, CancellationToken ct)
             where TSession : ISession
         {
             // The managed session uses the V2 subscription engine, which delivers
@@ -283,7 +292,7 @@ namespace RedundantClient
             }
 
             Opc.Ua.Client.Subscriptions.ISubscription subscription = manager.Add(
-                new MonitoringHandler(),
+                new MonitoringHandler(monitor),
                 new OptionsMonitor<Opc.Ua.Client.Subscriptions.SubscriptionOptions>(
                     new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
@@ -322,6 +331,21 @@ namespace RedundantClient
                         DiscardOldest = true
                     },
                     out _);
+
+                // Monitor which replica is currently serving this session. In
+                // active/active every replica writes its own node id here, so the
+                // value the client sees identifies the connected replica; when it
+                // changes, the session has failed over to a different server.
+                subscription.TryAddMonitoredItem(
+                    "HighAvailability.ActiveReplica",
+                    new NodeId("ActiveReplica", (ushort)haNamespaceIndex),
+                    o => o with
+                    {
+                        SamplingInterval = TimeSpan.FromSeconds(1),
+                        QueueSize = 10,
+                        DiscardOldest = true
+                    },
+                    out _);
             }
 
             // The V2 engine creates the subscription and its monitored items on the
@@ -335,10 +359,16 @@ namespace RedundantClient
 
         /// <summary>
         /// V2 subscription notification handler that logs data changes for the
-        /// monitored CurrentTime and replicated Counter values.
+        /// monitored CurrentTime and replicated Counter values and forwards each
+        /// change to the <see cref="HaMonitor"/> for failover / data-loss analysis.
         /// </summary>
         private sealed class MonitoringHandler : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
         {
+            public MonitoringHandler(HaMonitor monitor)
+            {
+                m_monitor = monitor;
+            }
+
             public ValueTask OnDataChangeNotificationAsync(
                 Opc.Ua.Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
@@ -351,11 +381,13 @@ namespace RedundantClient
                 for (int ii = 0; ii < changes.Length; ii++)
                 {
                     Opc.Ua.Client.Subscriptions.DataValueChange change = changes[ii];
+                    string name = change.MonitoredItem?.Name ?? "Value";
                     Console.WriteLine(
                         "{0}={1} Status={2}",
-                        change.MonitoredItem?.Name ?? "Value",
+                        name,
                         change.Value.WrappedValue,
                         change.Value.StatusCode);
+                    m_monitor.Observe(name, change.Value);
                 }
 
                 return default;
@@ -389,11 +421,162 @@ namespace RedundantClient
             {
                 return default;
             }
+
+            private readonly HaMonitor m_monitor;
         }
 
-        private static void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
+        /// <summary>
+        /// Tracks the monitored high-availability values across reconnects and
+        /// failovers and logs the failover and data-loss events they reveal:
+        /// gaps in <c>ServerStatus.CurrentTime</c> (missed updates), regressions or
+        /// divergence of the replicated <c>Counter</c> (state that did not carry
+        /// over), continuity of the <c>Counter</c> (no data loss), and changes of
+        /// <c>ActiveReplica</c> (the replica now serving the session).
+        /// </summary>
+        private sealed class HaMonitor
         {
-            Console.WriteLine("Connection state: {0} -> {1}", e.PreviousState, e.NewState);
+            /// <summary>
+            /// Records a connection-state transition and, on (re)connect, arms the
+            /// failover context so the next data-change assessment is framed as a
+            /// failover.
+            /// </summary>
+            public void OnConnectionStateChanged(ConnectionStateChangedEventArgs e, string? endpoint)
+            {
+                Console.WriteLine("Connection state: {0} -> {1}", e.PreviousState, e.NewState);
+                if (e.NewState is ConnectionState.Reconnecting or ConnectionState.Failover)
+                {
+                    Console.WriteLine("FAILOVER: connection lost, selecting a healthy replica...");
+                }
+                else if (e.NewState == ConnectionState.Connected &&
+                    e.PreviousState != ConnectionState.Connected)
+                {
+                    lock (m_lock)
+                    {
+                        m_failoverContext = true;
+                    }
+                    Console.WriteLine("CONNECTED: session (re)connected to {0}.", endpoint ?? "(unknown)");
+                }
+            }
+
+            /// <summary>
+            /// Dispatches a monitored value to the matching per-item analysis.
+            /// </summary>
+            public void Observe(string name, DataValue value)
+            {
+                switch (name)
+                {
+                    case "ServerStatus.CurrentTime":
+                        if (value.WrappedValue.TryGetValue(out DateTimeUtc serverTime))
+                        {
+                            OnCurrentTime(serverTime.ToDateTime());
+                        }
+                        break;
+                    case "HighAvailability.Counter":
+                        if (value.WrappedValue.TryGetValue(out int counter))
+                        {
+                            OnCounter(counter);
+                        }
+                        break;
+                    case "HighAvailability.ActiveReplica":
+                        if (value.WrappedValue.TryGetValue(out string? replica) && replica != null)
+                        {
+                            OnActiveReplica(replica);
+                        }
+                        break;
+                }
+            }
+
+            private void OnCurrentTime(DateTime serverTime)
+            {
+                DateTime? last;
+                bool failover;
+                lock (m_lock)
+                {
+                    last = m_lastServerTime;
+                    m_lastServerTime = serverTime;
+                    failover = m_failoverContext;
+                }
+                if (last.HasValue)
+                {
+                    TimeSpan gap = serverTime - last.Value;
+                    if (gap > kExpectedInterval * 3)
+                    {
+                        int missed = Math.Max(0, (int)(gap.TotalSeconds / kExpectedInterval.TotalSeconds) - 1);
+                        Console.WriteLine(
+                            "DATA LOSS: CurrentTime jumped {0:0.0}s ({1} update(s) missed{2}).",
+                            gap.TotalSeconds,
+                            missed,
+                            failover ? " during failover" : string.Empty);
+                    }
+                }
+            }
+
+            private void OnCounter(int value)
+            {
+                int? last;
+                bool failover;
+                lock (m_lock)
+                {
+                    last = m_lastCounter;
+                    m_lastCounter = value;
+                    failover = m_failoverContext;
+                    m_failoverContext = false;
+                }
+                if (!last.HasValue)
+                {
+                    return;
+                }
+                if (value < last.Value)
+                {
+                    Console.WriteLine(
+                        "DATA LOSS: Counter regressed {0} -> {1} ({2} increment(s) lost){3}.",
+                        last.Value,
+                        value,
+                        last.Value - value,
+                        failover ? " across failover" : string.Empty);
+                }
+                else if (failover && value > last.Value + kCounterJumpSlack)
+                {
+                    Console.WriteLine(
+                        "DATA LOSS: Counter jumped {0} -> {1} across failover " +
+                        "(replica values diverged; state did not carry over).",
+                        last.Value,
+                        value);
+                }
+                else if (failover)
+                {
+                    Console.WriteLine(
+                        "HA OK: Counter continued {0} -> {1} across failover (no data loss).",
+                        last.Value,
+                        value);
+                }
+            }
+
+            private void OnActiveReplica(string replica)
+            {
+                string? previous;
+                lock (m_lock)
+                {
+                    previous = m_lastReplica;
+                    m_lastReplica = replica;
+                }
+                if (previous == null)
+                {
+                    Console.WriteLine("Connected replica: '{0}'.", replica);
+                }
+                else if (!string.Equals(previous, replica, StringComparison.Ordinal))
+                {
+                    Console.WriteLine("FAILOVER: now served by replica '{0}' (was '{1}').", replica, previous);
+                }
+            }
+
+            private static readonly TimeSpan kExpectedInterval = TimeSpan.FromSeconds(1);
+            private const int kCounterJumpSlack = 5;
+            private readonly Lock m_lock = new();
+            private DateTime? m_lastServerTime;
+            private int? m_lastCounter;
+            private string? m_lastReplica;
+            private bool m_failoverContext;
         }
 
         private static async Task RunForDurationAsync(TimeSpan duration, CancellationToken ct)

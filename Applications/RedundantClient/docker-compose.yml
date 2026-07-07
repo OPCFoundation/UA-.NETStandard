@@ -1,0 +1,83 @@
+# RedundantClient + RedundantServer — one compose file, client and server scale INDEPENDENTLY.
+#
+# This is the client-centric demo: a redundant OPC UA server set (active/active, eventual
+# consistency over CRDT gossip with DNS peer discovery) and one or more managed clients that
+# connect through WithServerRedundancy() and fail over transparently. Both services scale
+# independently, and BOTH sides log their failover / HA behavior — including data loss.
+#
+# Run from the repository ROOT (the build context is the repo root):
+#   docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+#
+# Defaults: 2 servers + 1 client (failover is demoable out of the box). Scale each side
+# independently — --scale overrides the deploy.replicas defaults:
+#   docker compose -f Applications/RedundantClient/docker-compose.yml up --build \
+#     --scale server=3 --scale client=2
+#   docker compose -f Applications/RedundantClient/docker-compose.yml up --scale client=5   # clients only
+#
+# Demonstrate FAILOVER + DATA LOSS (active/active eventual):
+#   1. Start with >= 2 servers and >= 1 client (the default is enough).
+#   2. Kill the replica a client is on, e.g. scale the servers down:
+#        docker compose -f Applications/RedundantClient/docker-compose.yml up -d --scale server=1
+#      (or `docker kill <one server container>`).
+#   3. Watch the CLIENT log. The managed session reconnects to a surviving replica and logs:
+#        Connection state: Connected -> Reconnecting / Failover
+#        CONNECTED: session (re)connected to opc.tcp://server:62543/RedundantServer.
+#        FAILOVER: now served by replica '<id>' (was '<other id>').
+#        DATA LOSS: CurrentTime jumped 6.0s (5 update(s) missed during failover).
+#        DATA LOSS: Counter jumped 122 -> 7 across failover (replica values diverged;
+#                   state did not carry over).
+#      Each replica runs its own Counter in active/active eventual, so on failover the value
+#      does NOT carry over — the client makes that data loss explicit. The SERVER logs show the
+#      other side: "HA: replica <id> ACTIVE, Counter=<n>" per replica, and role transitions.
+#   4. Scale back up (`--scale server=3`) and the new replicas join the gossip fabric via DNS.
+#
+# For the NO-DATA-LOSS contrast (the Counter continues across failover), use the strong
+# (Raft) topology in Strong/docker-compose.yml — the client logs "HA OK: Counter continued".
+# Strong consistency needs a fixed odd Raft quorum and therefore is not --scale-able.
+#
+# No host ports are published (so --scale works); clients run inside the compose network.
+
+services:
+  server:
+    build:
+      context: ../..
+      dockerfile: Applications/RedundantServer/Dockerfile
+    image: opcua-redundant-server
+    deploy:
+      replicas: 2
+    environment:
+      HA_MODE: aa
+      HA_CONSISTENCY: eventual
+      HA_PEER_DISCOVERY: dns
+      HA_SERVICE_NAME: server
+      HA_GOSSIP_PORT: "4840"
+      # Isolated demo posture: run without record protection / gossip auth. For a
+      # secure run, REMOVE HA_INSECURE and configure gossip mutual TLS + HA_RECORD_KEY.
+      HA_INSECURE: "true"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export HA_HOST="$$(hostname)"
+        export HA_NODE_ID="$${HA_NODE_ID:-$$(hostname)}"
+        exec dotnet RedundantServer.dll --port 62543
+
+  client:
+    build:
+      context: ../..
+      dockerfile: Applications/RedundantClient/Dockerfile
+    image: opcua-redundant-client
+    deploy:
+      replicas: 1
+    depends_on:
+      - server
+    # Connects to the `server` DNS alias (resolves to any replica); WithServerRedundancy()
+    # discovers the set and fails over transparently. --duration 00:00:00 runs until the
+    # container is stopped, so the client keeps logging across scale-up / scale-down events.
+    command:
+      - "--server"
+      - "opc.tcp://server:62543/RedundantServer"
+      - "--autoaccept"
+      - "--nosecurity"
+      - "--duration"
+      - "00:00:00"
