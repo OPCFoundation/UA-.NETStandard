@@ -258,6 +258,60 @@ namespace Opc.Ua.SourceGeneration
                 "instance output should reference the generated NodeSet2 type class");
         }
 
+        [Theory]
+        public void GenerateAndCompileModelDesignReferencingNodeSet2TypesReversedInputOrderTest(
+            LanguageVersion languageVersion)
+        {
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
+
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+
+            options.TextOptions["CrossModelTypes.NodeSet2.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Types",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] = "CrossModelTypes",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "CrossModelTypes"
+                };
+            options.TextOptions["CrossModelInstances.ModelDesign.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Instances"
+                };
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                // Ensure resolution is independent of AdditionalFiles order.
+                .AddAdditionalTexts(
+                [
+                    EmbeddedText.From("CrossModelInstances.ModelDesign.xml"),
+                    EmbeddedText.From("CrossModelTypes.NodeSet2.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options)
+                ;
+
+            GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
+
+            string allSources = string.Join(
+                "\n",
+                generatorResult.GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(allSources,
+                Does.Contain("CrossModelTypes.WidgetState"),
+                "cross-model type resolution should not depend on file order");
+        }
+
         private static string ValidateXmlSchema(
             LanguageVersion languageVersion,
             GeneratorRunResult generatorResult)
