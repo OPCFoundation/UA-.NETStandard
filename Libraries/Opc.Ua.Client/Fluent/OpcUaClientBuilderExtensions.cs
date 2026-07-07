@@ -143,6 +143,22 @@ namespace Microsoft.Extensions.DependencyInjection
             this IOpcUaBuilder builder,
             IConfigurationSection section)
         {
+            return builder.AddClient(section, postConfigure: null);
+        }
+
+        /// <summary>
+        /// Registers OPC UA client services with options bound from the
+        /// supplied <paramref name="section"/>, applying an optional
+        /// <paramref name="postConfigure"/> callback to the bound options
+        /// before they are registered. Used by feature builders (e.g.
+        /// <c>AddManagedClient</c>) to set option flags without depending
+        /// on how the options are later resolved.
+        /// </summary>
+        internal static IOpcUaClientBuilder AddClient(
+            this IOpcUaBuilder builder,
+            IConfigurationSection section,
+            Action<OpcUaClientOptions>? postConfigure)
+        {
             if (builder is null)
             {
                 throw new ArgumentNullException(nameof(builder));
@@ -154,6 +170,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new OpcUaClientOptions();
             section.Bind(options);
+            postConfigure?.Invoke(options);
             EnsureClientConnectGate(options);
             builder.Services.TryAddSingleton(options);
             RegisterOptionsValidation(builder.Services, options);

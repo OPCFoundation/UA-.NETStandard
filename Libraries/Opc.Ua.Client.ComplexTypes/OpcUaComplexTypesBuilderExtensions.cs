@@ -150,27 +150,15 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
 
-            IOpcUaClientBuilder clientBuilder = builder.AddClient(section);
-            EnableComplexTypeLoading(clientBuilder.Services);
+            IOpcUaClientBuilder clientBuilder = builder.AddClient(
+                section,
+                options =>
+                {
+                    options.Session = options.Session with { LoadComplexTypes = true };
+                });
             return clientBuilder.AddComplexTypes();
         }
 
-
-        private static void EnableComplexTypeLoading(IServiceCollection services)
-        {
-            for (int i = services.Count - 1; i >= 0; i--)
-            {
-                if (services[i].ServiceType == typeof(OpcUaClientOptions) &&
-                    services[i].ImplementationInstance is OpcUaClientOptions options)
-                {
-                    options.Session = options.Session with { LoadComplexTypes = true };
-                    return;
-                }
-            }
-
-            throw new InvalidOperationException(
-                "AddManagedClient requires AddClient to register OpcUaClientOptions.");
-        }
 
         private sealed class BuilderAdapter : IOpcUaBuilder
         {
