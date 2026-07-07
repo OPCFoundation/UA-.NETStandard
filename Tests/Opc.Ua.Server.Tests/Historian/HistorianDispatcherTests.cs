@@ -274,6 +274,122 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task RawReadWithUnknownContinuationPointReturnsBadContinuationPointInvalidAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(10);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("CpVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                NumValuesPerNode = 1,
+                IsReadModified = false
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                // A ContinuationPoint the server never issued (e.g. from a Browse).
+                ContinuationPoint = new ByteString(new byte[] { 1, 2, 3, 4 })
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                nodeToRead,
+                details,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+
+            // Per OPC UA Part 11 (CTT HA Read Raw Err-014/Err-024): an unknown/foreign
+            // ContinuationPoint is Bad_ContinuationPointInvalid.
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadContinuationPointInvalid));
+        }
+
+        [Test]
+        public async Task PagedRawReadFinalPageHasNoContinuationPointAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(3);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("PageVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                NumValuesPerNode = 1,
+                IsReadModified = false
+            };
+
+            ByteString cp = ByteString.Empty;
+            int pages = 0;
+            int total = 0;
+            bool finalHadContinuation = true;
+
+            while (pages < 20)
+            {
+                var nodeToRead = new HistoryReadValueId { NodeId = nodeId, ContinuationPoint = cp };
+                var result = new HistoryReadResult();
+
+                ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                    h.SystemContext,
+                    h.Provider,
+                    variable,
+                    nodeToRead,
+                    details,
+                    TimestampsToReturn.Source,
+                    result,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(error), Is.True);
+                pages++;
+                if (result.HistoryData.TryGetValue(out HistoryData? hd))
+                {
+                    DataValue[]? values = hd.DataValues.ToArray();
+                    if (values != null)
+                    {
+                        total += values.Length;
+                    }
+                }
+
+                if (result.ContinuationPoint.IsEmpty)
+                {
+                    finalHadContinuation = false;
+                    break;
+                }
+                cp = result.ContinuationPoint;
+            }
+
+            // Reading one value at a time over exactly three samples yields three pages,
+            // and the final page must NOT carry a ContinuationPoint (CTT HA Read Raw 008/009).
+            Assert.That(total, Is.EqualTo(3));
+            Assert.That(pages, Is.EqualTo(3));
+            Assert.That(finalHadContinuation, Is.False,
+                "The final page of a paged raw read must not return a ContinuationPoint.");
+        }
+
+        [Test]
         public async Task AnnotationUpdateDispatchInsertsAndDeletesAsync()
         {
             HarnessFixture h = CreateHarness();

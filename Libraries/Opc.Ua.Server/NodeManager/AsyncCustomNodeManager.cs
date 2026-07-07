@@ -3543,8 +3543,10 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // check timestamps to return.
-            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
+            // check timestamps to return. Neither is not valid for HistoryRead: historical
+            // values always carry a source and/or server timestamp (OPC UA Part 11; CTT
+            // HA Read Raw Err-002).
+            if (timestampsToReturn is < TimestampsToReturn.Source or >= TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }

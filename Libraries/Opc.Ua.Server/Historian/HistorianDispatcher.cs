@@ -142,6 +142,16 @@ namespace Opc.Ua.Server.Historian
                     ? HistorianReadKind.Modified
                     : HistorianReadKind.Raw);
 
+            // A non-empty ContinuationPoint that does not resolve to a saved history
+            // continuation (unknown, released, foreign, or a Browse CP) is invalid
+            // (OPC UA Part 11; CTT HA Read Raw Err-014/Err-024).
+            if (state == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                result.ContinuationPoint = ByteString.Empty;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
             HistorianOperationContext opContext = new(
                 systemContext,
                 systemContext.OperationContext!,
