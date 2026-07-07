@@ -48,5 +48,12 @@ namespace Opc.Ua
         /// Padding bytes added to randomize the length of messages.
         /// </summary>
         public const string Padding = "Padding";
+
+        /// <summary>
+        /// A server backpressure retry-after hint in milliseconds (encoded as an
+        /// <c>Int64</c>), carried in a response's additional parameters so a client
+        /// can honor it without requesting diagnostics.
+        /// </summary>
+        public const string RetryAfterMs = "RetryAfterMs";
     }
 }
