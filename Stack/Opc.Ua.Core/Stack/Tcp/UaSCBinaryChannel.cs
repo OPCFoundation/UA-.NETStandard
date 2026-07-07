@@ -949,7 +949,11 @@ namespace Opc.Ua.Bindings
 
             reason ??= new ServiceResult(statusCode).ToString();
 
-            return ServiceResult.Create(statusCode, "Error received from remote host: {0}", reason);
+            return new ServiceResult(
+                null,
+                statusCode,
+                LocalizedText.From(Utils.Format("Error received from remote host: {0}", reason)),
+                reason);
         }
 
         /// <summary>

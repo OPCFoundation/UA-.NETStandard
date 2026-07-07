@@ -60,6 +60,13 @@ namespace Opc.Ua.Client
     public class ReconnectPolicy : IReconnectPolicy
     {
         /// <summary>
+        /// The multiplier applied to the computed backoff delay when the previous
+        /// attempt failed with a "server busy" signal, so the client backs off more
+        /// aggressively instead of hammering an overloaded server.
+        /// </summary>
+        public const double ServerBusyBackoffMultiplier = 4.0;
+
+        /// <summary>
         /// Default initial delay (1 second).
         /// </summary>
         public static readonly TimeSpan DefaultInitialDelay = TimeSpan.FromSeconds(1);
@@ -155,6 +162,115 @@ namespace Opc.Ua.Client
             }
 
             return TimeSpan.FromMilliseconds(Math.Max(delayMs, 0));
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetNextDelay(
+            int attempt,
+            StatusCode lastStatus,
+            TimeSpan? serverRetryAfter,
+            out TimeSpan? delay,
+            CancellationToken ct = default)
+        {
+            TimeSpan? baseDelay = GetNextDelay(attempt, ct);
+            if (baseDelay == null)
+            {
+                // Retry budget exhausted.
+                delay = null;
+                return true;
+            }
+
+            double delayMs = baseDelay.Value.TotalMilliseconds;
+
+            // Back off more aggressively when the server signalled overload, so the
+            // client ramps down instead of amplifying a connect storm.
+            if (IsServerBusySignal(lastStatus))
+            {
+                delayMs = Math.Min(
+                    delayMs * ServerBusyBackoffMultiplier,
+                    MaxDelay.TotalMilliseconds);
+            }
+
+            // Honor a server-provided retry-after hint as a lower bound, clamped to
+            // the maximum delay so a pathological hint cannot stall reconnection.
+            if (serverRetryAfter.HasValue && serverRetryAfter.Value > TimeSpan.Zero)
+            {
+                double hintMs = Math.Min(
+                    serverRetryAfter.Value.TotalMilliseconds,
+                    MaxDelay.TotalMilliseconds);
+                delayMs = Math.Max(delayMs, hintMs);
+            }
+
+            delay = TimeSpan.FromMilliseconds(Math.Max(delayMs, 0));
+            return true;
+        }
+
+        /// <summary>
+        /// Indicates whether a status code signals that the server is overloaded
+        /// (too busy, too many sessions/operations, or a transient timeout) and the
+        /// client should back off rather than retry immediately.
+        /// </summary>
+        /// <param name="status">The status code to classify.</param>
+        /// <returns><c>true</c> if the client should back off more aggressively.</returns>
+        public static bool IsServerBusySignal(StatusCode status)
+        {
+            return status == StatusCodes.BadServerTooBusy
+                || status == StatusCodes.BadTcpServerTooBusy
+                || status == StatusCodes.BadTooManySessions
+                || status == StatusCodes.BadTooManyOperations
+                || status == StatusCodes.BadTooManyPublishRequests
+                || status == StatusCodes.BadRequestTimeout
+                || status == StatusCodes.BadTimeout;
+        }
+
+        /// <summary>
+        /// Parses a server-provided retry-after hint from a fault's
+        /// <c>AdditionalInfo</c>, if present (a <c>RetryAfterMs=N</c> token).
+        /// </summary>
+        /// <remarks>
+        /// The token literal must stay in sync with the server
+        /// (<c>StandardServer.RetryAfterHintPrefix</c>). The hint is best-effort:
+        /// <c>AdditionalInfo</c> only reaches the client when it requests
+        /// diagnostics, so a missing hint simply falls back to signal-based backoff.
+        /// </remarks>
+        /// <param name="additionalInfo">The fault's additional info, or <c>null</c>.</param>
+        /// <returns>The retry-after duration, or <c>null</c> when absent/invalid.</returns>
+        public static TimeSpan? ParseServerRetryAfter(string? additionalInfo)
+        {
+            if (string.IsNullOrEmpty(additionalInfo))
+            {
+                return null;
+            }
+
+            const string prefix = "RetryAfterMs=";
+            int index = additionalInfo!.IndexOf(prefix, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                return null;
+            }
+
+            int start = index + prefix.Length;
+            int end = start;
+            long milliseconds = 0;
+            while (end < additionalInfo.Length && char.IsDigit(additionalInfo[end]))
+            {
+                milliseconds = (milliseconds * 10) + (additionalInfo[end] - '0');
+                end++;
+
+                // Cap at one day to avoid overflow / a pathological hint.
+                if (milliseconds >= 86_400_000)
+                {
+                    milliseconds = 86_400_000;
+                    break;
+                }
+            }
+
+            if (end > start && milliseconds > 0)
+            {
+                return TimeSpan.FromMilliseconds(milliseconds);
+            }
+
+            return null;
         }
 
         /// <inheritdoc/>

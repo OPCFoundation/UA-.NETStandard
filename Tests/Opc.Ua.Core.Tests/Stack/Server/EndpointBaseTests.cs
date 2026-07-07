@@ -92,6 +92,41 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         [Test]
+        public void CreateFaultAttachesRetryAfterForServerBusy()
+        {
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 7 }
+            };
+            var exception = new ServerBusyException(
+                new ServiceResult(StatusCodes.BadServerTooBusy),
+                TimeSpan.FromSeconds(2));
+
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
+
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(
+                RetryAfterHeader.Read(fault.ResponseHeader),
+                Is.EqualTo(TimeSpan.FromSeconds(2)));
+        }
+
+        [Test]
+        public void CreateFaultOmitsRetryAfterForOrdinaryFault()
+        {
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader()
+            };
+            var exception = new ServiceResultException(StatusCodes.BadNotFound);
+
+            ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
+
+            Assert.That(RetryAfterHeader.Read(fault.ResponseHeader), Is.Null);
+        }
+
+        [Test]
         public void CreateFaultWithNullRequest()
         {
             var exception = new ServiceResultException(StatusCodes.BadSessionClosed);

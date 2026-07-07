@@ -400,7 +400,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     typeof(bool),
                     typeof(bool),
                     typeof(bool),
-                    typeof(IClientChannelManager)
+                    typeof(IClientChannelManager),
+                    typeof(IClientConnectGate)
                 ],
                 null);
 
@@ -423,6 +424,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 false,
                 false,
                 false,
+                null,
                 null
             ]);
 
