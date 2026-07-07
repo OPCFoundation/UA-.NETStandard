@@ -1036,12 +1036,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a subscription.
+        /// Publishes a subscription. When the request parks (waits for the next
+        /// notification), the supplied park sink is notified so the request-processing
+        /// worker can be released for the duration of the wait.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public async Task<PublishResponse> PublishAsync(
             OperationContext context,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
+            IRequestParkSink? parkSink,
             CancellationToken cancellationToken = default)
         {
             // get publish queue for session.
@@ -1102,6 +1105,7 @@ namespace Opc.Ua.Server
                         context.ChannelContext!.SecureChannelId,
                         context.OperationDeadline,
                         requeue,
+                        parkSink,
                         cancellationToken).ConfigureAwait(false);
 
                     // check for pending status message that may have arrived while waiting.

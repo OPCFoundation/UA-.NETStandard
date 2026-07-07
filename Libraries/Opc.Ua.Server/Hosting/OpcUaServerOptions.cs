@@ -198,5 +198,18 @@ namespace Opc.Ua.Server.Hosting
         /// override quotas, or add custom security stores.
         /// </summary>
         public Action<IApplicationConfigurationBuilderServerSelected>? ConfigureBuilder { get; set; }
+
+        /// <summary>
+        /// Optional callback to tune the server's admission-control (rate limiting)
+        /// limits: the listener backlog, the inbound-connection token bucket, and
+        /// the session-establishment concurrency limit.
+        /// </summary>
+        /// <remarks>
+        /// Rate limiting is ON by default with conservative limits, so this is only
+        /// needed to tune or disable it. Ignored when a custom
+        /// <see cref="IServerRateLimiterProvider"/> is registered in dependency
+        /// injection, which takes precedence.
+        /// </remarks>
+        public Action<ServerRateLimitOptions>? ConfigureRateLimits { get; set; }
     }
 }

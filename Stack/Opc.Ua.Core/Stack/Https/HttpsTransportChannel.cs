@@ -284,6 +284,16 @@ namespace Opc.Ua.Bindings
                     content,
                     linkedCts.Token).ConfigureAwait(false);
 
+                // Translate an HTTP 429/503 (e.g. from an AddHttpsRateLimiter
+                // gate) into BadServerTooBusy, honoring the standard HTTP
+                // Retry-After header so the adaptive reconnect policy can back
+                // off without requesting OPC UA diagnostics.
+                if ((int)response.StatusCode == 429 ||
+                    response.StatusCode == HttpStatusCode.ServiceUnavailable)
+                {
+                    throw CreateServerTooBusyException(response);
+                }
+
                 response.EnsureSuccessStatusCode();
 
 #if NET6_0_OR_GREATER
@@ -350,6 +360,75 @@ namespace Opc.Ua.Bindings
                     "Error sending request: {0}",
                     ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Builds a <c>BadServerTooBusy</c> exception from an HTTP 429/503
+        /// response, carrying the standard HTTP <c>Retry-After</c> hint (when
+        /// present) as a machine-readable token the adaptive reconnect policy can
+        /// honor without requesting OPC UA diagnostics.
+        /// </summary>
+        /// <param name="response">
+        /// The throttled HTTP response.
+        /// </param>
+        /// <returns>
+        /// The exception to throw.
+        /// </returns>
+        internal static ServiceResultException CreateServerTooBusyException(
+            HttpResponseMessage response)
+        {
+            TimeSpan? retryAfter = GetRetryAfter(response);
+            if (retryAfter.HasValue)
+            {
+                long retryAfterMs = (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds);
+                return new ServiceResultException(
+                    new ServiceResult(
+                        null,
+                        StatusCodes.BadServerTooBusy,
+                        new LocalizedText(
+                            Utils.Format(
+                                "The server is too busy (HTTP {0}). Retry after {1} ms.",
+                                (int)response.StatusCode,
+                                retryAfterMs)),
+                        Utils.Format("RetryAfterMs={0}", retryAfterMs)));
+            }
+
+            return ServiceResultException.Create(
+                StatusCodes.BadServerTooBusy,
+                "The server is too busy (HTTP {0}).",
+                (int)response.StatusCode);
+        }
+
+        /// <summary>
+        /// Reads the standard HTTP <c>Retry-After</c> header (delay seconds or an
+        /// HTTP date) from a response, if present.
+        /// </summary>
+        /// <param name="response">
+        /// The HTTP response.
+        /// </param>
+        /// <returns>
+        /// The retry-after delay, or <c>null</c> when absent.
+        /// </returns>
+        internal static TimeSpan? GetRetryAfter(HttpResponseMessage response)
+        {
+            RetryConditionHeaderValue? retryAfter = response.Headers.RetryAfter;
+            if (retryAfter == null)
+            {
+                return null;
+            }
+
+            if (retryAfter.Delta.HasValue)
+            {
+                return retryAfter.Delta.Value;
+            }
+
+            if (retryAfter.Date.HasValue)
+            {
+                TimeSpan delta = retryAfter.Date.Value - DateTimeOffset.UtcNow;
+                return delta > TimeSpan.Zero ? delta : TimeSpan.Zero;
+            }
+
+            return null;
         }
 
         /// <summary>

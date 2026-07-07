@@ -90,6 +90,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new OpcUaClientOptions();
             configure(options);
+            EnsureClientConnectGate(options);
             builder.Services.TryAddSingleton(options);
 
             RegisterCoreServices(builder.Services);
@@ -149,6 +150,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new OpcUaClientOptions();
             section.Bind(options);
+            EnsureClientConnectGate(options);
             builder.Services.TryAddSingleton(options);
 
             RegisterCoreServices(builder.Services);
@@ -643,6 +645,21 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOpcUa();
         }
 
+        private static void EnsureClientConnectGate(OpcUaClientOptions options)
+        {
+            if (options.Session.ConnectGate != null ||
+                options.Session.ConnectRateLimiterMaxConcurrency == null)
+            {
+                return;
+            }
+
+            options.Session = options.Session with
+            {
+                ConnectGate = new RateLimiterClientConnectGate(
+                    options.Session.ConnectRateLimiterMaxConcurrency.Value)
+            };
+        }
+
         /// <summary>
         /// Builds a <see cref="ReverseConnectManager"/> on first resolution
         /// when client reverse-connect options are configured. The
@@ -803,6 +820,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     builder.WithPoolNotifications();
                 }
+                IClientConnectGate? connectGate =
+                    options.Session.ConnectGate ?? m_sp.GetService<IClientConnectGate>();
+                if (connectGate != null)
+                {
+                    builder.WithConnectRateLimiter(connectGate);
+                }
+
                 IClientChannelManager? mgr = m_sp.GetService<IClientChannelManager>();
                 if (mgr != null)
                 {

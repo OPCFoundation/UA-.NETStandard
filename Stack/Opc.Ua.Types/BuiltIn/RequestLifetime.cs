@@ -62,6 +62,15 @@ namespace Opc.Ua
         public StatusCode StatusCode => m_statusCode;
 
         /// <summary>
+        /// Gets or sets the optional sink that is notified when the request
+        /// parks (suspends waiting for an out-of-band completion, such as a held
+        /// <c>Publish</c>). When set, the request-processing worker is released
+        /// at the park point instead of remaining blocked for the whole wait.
+        /// <c>null</c> (the default) preserves the legacy inline behavior.
+        /// </summary>
+        public IRequestParkSink? ParkSink { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the RequestLifetime class.
         /// </summary>
         public RequestLifetime(params CancellationToken[] externalTokens)

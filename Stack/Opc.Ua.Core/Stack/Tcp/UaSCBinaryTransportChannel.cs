@@ -41,7 +41,7 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel, IServerRetryAfterHintProvider
     {
         private const int kChannelCloseDefault = 1_000;
 
@@ -309,6 +309,10 @@ namespace Opc.Ua.Bindings
             IServiceRequest request,
             CancellationToken ct)
         {
+            // A UA-TCP server retry-after hint arrives on an Error message that faults the
+            // channel; it is captured out-of-band by OnInnerChannelStateChanged. This send
+            // path therefore stays a lean pass-through with no per-request try/catch (and no
+            // async state machine), keeping the hot path allocation- and overhead-free.
             UaSCUaBinaryClientChannel? channel = m_channel;
             if (channel != null)
             {
@@ -579,7 +583,43 @@ namespace Opc.Ua.Bindings
                     this,
                     current,
                     previous);
+            channel.SetStateChangedCallback(OnInnerChannelStateChanged);
             return channel;
+        }
+
+        TimeSpan? IServerRetryAfterHintProvider.ConsumeServerRetryAfterHint()
+        {
+            long ticks = Interlocked.Exchange(ref m_serverRetryAfterHintTicks, 0);
+            return ticks > 0 ? TimeSpan.FromTicks(ticks) : null;
+        }
+
+        private void OnInnerChannelStateChanged(
+            UaSCUaBinaryChannel channel,
+            TcpChannelState state,
+            ServiceResult error)
+        {
+            _ = channel;
+
+            if (state != TcpChannelState.Faulted)
+            {
+                return;
+            }
+
+            StoreServerRetryAfterHint(error);
+        }
+
+        private void StoreServerRetryAfterHint(ServiceResult? error)
+        {
+            TimeSpan? serverRetryAfter = RetryAfterHint.ParseServerBusyRetryAfter(error);
+            if (!serverRetryAfter.HasValue)
+            {
+                return;
+            }
+
+            Interlocked.Exchange(ref m_serverRetryAfterHintTicks, serverRetryAfter.Value.Ticks);
+            m_logger.LogInformation(
+                "TransportChannel: received UA-TCP server retry-after hint {Delay} ms.",
+                serverRetryAfter.Value.TotalMilliseconds);
         }
 
         private ServiceResultException BadNotConnected()
@@ -602,5 +642,6 @@ namespace Opc.Ua.Bindings
         private readonly IUaSCByteTransportFactory m_transportFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private long m_serverRetryAfterHintTicks;
     }
 }

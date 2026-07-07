@@ -30,6 +30,7 @@
 using System;
 using System.Net.Http;
 using System.Threading;
+using System.Threading.RateLimiting;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -404,6 +405,49 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Use a shared gate to asynchronously limit concurrent initial
+        /// connect attempts.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="connectGate"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithConnectRateLimiter(IClientConnectGate connectGate)
+        {
+            if (connectGate == null)
+            {
+                throw new ArgumentNullException(nameof(connectGate));
+            }
+            m_options = m_options with { ConnectGate = connectGate };
+            return this;
+        }
+
+        /// <summary>
+        /// Use a shared <see cref="RateLimiter"/> to asynchronously limit
+        /// concurrent initial connect attempts.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="rateLimiter"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithConnectRateLimiter(RateLimiter rateLimiter)
+        {
+            if (rateLimiter == null)
+            {
+                throw new ArgumentNullException(nameof(rateLimiter));
+            }
+#pragma warning disable CA2000 // Lifetime is owned by the builder/options; TODO: model owned gate disposal explicitly.
+            return WithConnectRateLimiter(new RateLimiterClientConnectGate(rateLimiter));
+#pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Use a shared concurrency limiter to asynchronously limit
+        /// concurrent initial connect attempts.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public ManagedSessionBuilder WithConnectRateLimiter(int maxConcurrency)
+        {
+#pragma warning disable CA2000 // Lifetime is owned by the builder/options; TODO: model owned gate disposal explicitly.
+            return WithConnectRateLimiter(new RateLimiterClientConnectGate(maxConcurrency));
+#pragma warning restore CA2000
+        }
+
+        /// <summary>
         /// Use a central <see cref="IClientChannelManager"/> so that
         /// multiple sessions to the same endpoint share one underlying
         /// transport channel and reconnect is coordinated centrally.
@@ -702,6 +746,7 @@ namespace Opc.Ua.Client
                 opts.TimeProvider,
                 channelManager,
                 opts.NetworkRedundancy,
+                opts.ConnectGate,
                 ct).ConfigureAwait(false);
 
             if (opts.ModelChangeTracking)

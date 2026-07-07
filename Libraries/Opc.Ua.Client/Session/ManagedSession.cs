@@ -81,7 +81,8 @@ namespace Opc.Ua.Client
             bool poolNotifications,
             bool enableTokenReuseFailover,
             NetworkRedundancyOptions? networkRedundancy,
-            IClientChannelManager? channelManager)
+            IClientChannelManager? channelManager,
+            IClientConnectGate? connectGate)
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
@@ -114,6 +115,7 @@ namespace Opc.Ua.Client
                         endpoint,
                         networkRedundancy.AlternateEndpoints);
             m_channelManager = channelManager;
+            m_connectGate = connectGate;
 
             StateMachine = new ConnectionStateMachine(
                 reconnectPolicy,
@@ -182,6 +184,8 @@ namespace Opc.Ua.Client
         /// Optional alternate Endpoints for OPC 10000-4 §6.6.4 non-transparent network redundancy. Transparent network
         /// redundancy is handled by the infrastructure endpoint and does not require alternates.
         /// </param>
+        /// <param name="connectGate">Optional shared initial connect
+        /// admission gate.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -204,6 +208,7 @@ namespace Opc.Ua.Client
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
             NetworkRedundancyOptions? networkRedundancy = null,
+            IClientConnectGate? connectGate = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -246,7 +251,8 @@ namespace Opc.Ua.Client
                 poolNotifications,
                 enableTokenReuseFailover,
                 networkRedundancy,
-                channelManager)
+                channelManager,
+                connectGate)
             {
                 m_engineFactory = engineFactory
             };
@@ -970,43 +976,58 @@ namespace Opc.Ua.Client
                 bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
                     && !Profiles.IsWssOpenApi(profile);
 
+                IDisposable? connectLease = null;
                 Session session;
-                if (m_channelManager != null)
+                try
                 {
-                    // Channel-manager-aware path: acquire a shared
-                    // managed channel and let the manager drive any
-                    // future reconnect transparently. Other sessions
-                    // sharing this endpoint join the same channel.
-                    session = await Session.CreateAsync(
-                        m_channelManager,
-                        m_configuration,
-                        ConfiguredEndpoint,
-                        updateBeforeConnect,
-                        m_checkDomain,
-                        m_sessionName,
-                        m_sessionTimeout,
-                        m_identityProvider == null ? m_identity : null,
-                        m_preferredLocales,
-                        m_engineFactory,
-                        m_timeProvider,
-                        ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    session = (Session)await SessionFactory.CreateAsync(
-                        m_configuration,
-                        ConfiguredEndpoint,
-                        updateBeforeConnect,
-                        m_checkDomain,
-                        m_sessionName,
-                        m_sessionTimeout,
-                        m_identityProvider == null ? m_identity : null,
-                        m_preferredLocales,
-                        ct).ConfigureAwait(false);
-                }
+                    if (m_connectGate != null)
+                    {
+                        connectLease = await m_connectGate
+                            .AcquireAsync(ct)
+                            .ConfigureAwait(false);
+                    }
 
-                WireSessionEvents(session);
-                m_session = session;
+                    if (m_channelManager != null)
+                    {
+                        // Channel-manager-aware path: acquire a shared
+                        // managed channel and let the manager drive any
+                        // future reconnect transparently. Other sessions
+                        // sharing this endpoint join the same channel.
+                        session = await Session.CreateAsync(
+                            m_channelManager,
+                            m_configuration,
+                            ConfiguredEndpoint,
+                            updateBeforeConnect,
+                            m_checkDomain,
+                            m_sessionName,
+                            m_sessionTimeout,
+                            m_identityProvider == null ? m_identity : null,
+                            m_preferredLocales,
+                            m_engineFactory,
+                            m_timeProvider,
+                            ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        session = (Session)await SessionFactory.CreateAsync(
+                            m_configuration,
+                            ConfiguredEndpoint,
+                            updateBeforeConnect,
+                            m_checkDomain,
+                            m_sessionName,
+                            m_sessionTimeout,
+                            m_identityProvider == null ? m_identity : null,
+                            m_preferredLocales,
+                            ct).ConfigureAwait(false);
+                    }
+
+                    WireSessionEvents(session);
+                    m_session = session;
+                }
+                finally
+                {
+                    connectLease?.Dispose();
+                }
 
                 if (m_identityProvider != null)
                 {
@@ -1065,7 +1086,7 @@ namespace Opc.Ua.Client
                 m_logger.LogError(
                     ex,
                     "ManagedSession: Connect failed.");
-                return new ServiceResult(ex);
+                return ToAttemptFailure(ex);
             }
         }
 
@@ -1153,7 +1174,7 @@ namespace Opc.Ua.Client
                 m_logger.LogWarning(
                     ex,
                     "ManagedSession: Reconnect attempt failed.");
-                return new ServiceResult(ex);
+                return ToAttemptFailure(ex);
             }
         }
 
@@ -1205,6 +1226,35 @@ namespace Opc.Ua.Client
                 statusCode == StatusCodes.BadSessionNotActivated ||
                 statusCode == StatusCodes.BadSecureChannelIdInvalid ||
                 statusCode == StatusCodes.BadIdentityTokenInvalid;
+        }
+
+        /// <summary>
+        /// Builds the <see cref="ServiceResult"/> reported to the connection state
+        /// machine for a failed connect, reconnect, or failover attempt.
+        /// </summary>
+        /// <remarks>
+        /// For a <see cref="ServiceResultException"/> the inner
+        /// <see cref="ServiceResultException.Result"/> is preserved so a
+        /// server-provided retry-after hint (carried in
+        /// <see cref="ServiceResult.AdditionalInfo"/> or the localized message)
+        /// survives to the adaptive reconnect policy. <c>new ServiceResult(ex)</c>
+        /// would otherwise overwrite <see cref="ServiceResult.AdditionalInfo"/> with
+        /// the exception message and drop the hint.
+        /// </remarks>
+        /// <param name="ex">
+        /// The exception that caused the attempt to fail.
+        /// </param>
+        /// <returns>
+        /// The result forwarded to the connection state machine.
+        /// </returns>
+        private static ServiceResult ToAttemptFailure(Exception ex)
+        {
+            if (ex is ServiceResultException sre)
+            {
+                return sre.Result;
+            }
+
+            return new ServiceResult(ex);
         }
 
         private async Task<ServiceResult> HandleFailoverAsync(
@@ -1272,7 +1322,7 @@ namespace Opc.Ua.Client
                 m_logger.LogError(
                     ex,
                     "ManagedSession: Failover failed.");
-                return new ServiceResult(ex);
+                return ToAttemptFailure(ex);
             }
         }
 
@@ -1847,6 +1897,7 @@ namespace Opc.Ua.Client
         private readonly bool m_enableTokenReuseFailover;
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
+        private readonly IClientConnectGate? m_connectGate;
         private ISubscriptionEngineFactory? m_engineFactory;
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;

@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Tests
                 publishTasks.Add(Task.Run(() =>
                 {
                     startGate.Wait();
-                    return queue.PublishAsync("channel1", DateTime.MaxValue, false, CancellationToken.None);
+                    return queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
                 }));
             }
 
