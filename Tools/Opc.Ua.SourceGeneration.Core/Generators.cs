@@ -66,6 +66,20 @@ namespace Opc.Ua.SourceGeneration
         /// error (e.g. unmatched URI, ambiguous fallback). Implementations
         /// typically convert these into Roslyn diagnostics.
         /// </param>
+        /// <param name="sharedUsedBindings">
+        /// Optional caller-owned set that accumulates the bindings matched
+        /// across multiple generation passes (NodeSet2 and ModelDesign).
+        /// When supplied, this pass records its matches in the set and does
+        /// <b>not</b> report unmatched bindings itself; the caller reports
+        /// them once, after all passes, via
+        /// <see cref="ReportUnmatchedNodeManagerBindings"/>. When <c>null</c>
+        /// the pass keeps a private set and reports directly (single pass).
+        /// </param>
+        /// <param name="bindingModelCount">
+        /// Total number of generatable models across all passes, used for
+        /// single-model binding fallback and ambiguity detection. When
+        /// <c>0</c> the per-pass model count is used (single-pass callers).
+        /// </param>
         public static void GenerateCode(
             this DesignFileCollection designFiles,
             IFileSystem fileSystem,
@@ -76,7 +90,9 @@ namespace Opc.Ua.SourceGeneration
             List<string> identifierFiles = null,
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null)
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
+            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
+            int bindingModelCount = 0)
         {
             if (designFiles.Targets == null || designFiles.Targets.Count == 0)
             {
@@ -90,11 +106,13 @@ namespace Opc.Ua.SourceGeneration
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
                 .WithFallback(fileSystem);
 
-            HashSet<NodeManagerAttributeBinding> usedBindings = nodeManagerBindings is { Count: > 0 }
-                ? []
-                : null;
+            HashSet<NodeManagerAttributeBinding> usedBindings = sharedUsedBindings
+                ?? (nodeManagerBindings is { Count: > 0 } ? [] : null);
+            bool deferBindingDiagnostics = sharedUsedBindings != null;
 
-            int totalDesigns = designFiles.Targets.Count;
+            int totalDesigns = bindingModelCount > 0
+                ? bindingModelCount
+                : designFiles.Targets.Count;
 
             foreach (DesignFileCollection model in designFiles.Group(identifierFiles))
             {
@@ -132,8 +150,7 @@ namespace Opc.Ua.SourceGeneration
                     modelDesign,
                     nodeManagerBindings,
                     usedBindings,
-                    totalDesigns,
-                    reportBindingDiagnostic);
+                    totalDesigns);
 
                 Generate(new GeneratorContext
                 {
@@ -148,28 +165,13 @@ namespace Opc.Ua.SourceGeneration
                 designOptions: effectiveOptions);
             }
 
-            if (usedBindings != null && nodeManagerBindings != null && reportBindingDiagnostic != null)
+            if (!deferBindingDiagnostics)
             {
-                foreach (NodeManagerAttributeBinding binding in nodeManagerBindings)
-                {
-                    if (!usedBindings.Contains(binding))
-                    {
-                        string selector = !string.IsNullOrEmpty(binding.NamespaceUri)
-                            ? "NamespaceUri='" + binding.NamespaceUri + "'"
-                            : !string.IsNullOrEmpty(binding.Design)
-                                ? "Design='" + binding.Design + "'"
-                                : "(no selector)";
-                        reportBindingDiagnostic(
-                            binding,
-                            "[NodeManager] on '" +
-                            binding.TargetNamespace +
-                            "." +
-                            binding.TargetClassName +
-                            "' did not match any model design (" +
-                            selector +
-                            ").");
-                    }
-                }
+                ReportUnmatchedNodeManagerBindings(
+                    nodeManagerBindings,
+                    usedBindings,
+                    totalDesigns,
+                    reportBindingDiagnostic);
             }
         }
 
@@ -241,8 +243,7 @@ namespace Opc.Ua.SourceGeneration
             IModelDesign modelDesign,
             IReadOnlyList<NodeManagerAttributeBinding> bindings,
             HashSet<NodeManagerAttributeBinding> usedBindings,
-            int totalDesigns,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic)
+            int totalDesigns)
         {
             DesignFileOptions effective = model.Options;
             if (bindings == null || bindings.Count == 0)
@@ -279,25 +280,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (match == null)
-
             {
-                return effective;
-            }
-            // Detect ambiguity: multiple designs but binding has no selector.
-            if (totalDesigns > 1 &&
-                string.IsNullOrEmpty(match.NamespaceUri) &&
-                string.IsNullOrEmpty(match.Design) &&
-                reportBindingDiagnostic != null)
-            {
-                reportBindingDiagnostic(
-                    match,
-                    "[NodeManager] on '" +
-                    match.TargetNamespace +
-                    "." +
-                    match.TargetClassName +
-                    "' has no NamespaceUri/Design selector but the project " +
-                    "contains multiple designs. Specify NamespaceUri to " +
-                    "disambiguate.");
                 return effective;
             }
 
@@ -310,6 +293,78 @@ namespace Opc.Ua.SourceGeneration
                 NodeManagerClassName = match.TargetClassName,
                 EmitNodeManagerFactory = match.GenerateFactory
             };
+        }
+
+        /// <summary>
+        /// Report a diagnostic for every <c>[NodeManager]</c> binding that
+        /// no generation pass matched. Binding resolution runs in two
+        /// independent passes (NodeSet2 and ModelDesign); a binding matched
+        /// by either pass is recorded in the shared
+        /// <paramref name="usedBindings"/> set, so the report must be made
+        /// once — after both passes — against that aggregated set. Reporting
+        /// per pass would false-positive a binding matched by the other pass
+        /// (issue #3937). A selector-less binding in a multi-model project is
+        /// reported as an ambiguity (the user must add a <c>NamespaceUri</c>);
+        /// everything else is reported as an unmatched selector.
+        /// </summary>
+        /// <param name="bindings">
+        /// The full set of discovered <c>[NodeManager]</c> bindings.
+        /// </param>
+        /// <param name="usedBindings">
+        /// The bindings that were matched to a model across all passes.
+        /// </param>
+        /// <param name="totalModelCount">
+        /// Total number of generatable models across all passes.
+        /// </param>
+        /// <param name="reportBindingDiagnostic">
+        /// Callback invoked for each unmatched or ambiguous binding.
+        /// </param>
+        public static void ReportUnmatchedNodeManagerBindings(
+            IReadOnlyList<NodeManagerAttributeBinding> bindings,
+            ICollection<NodeManagerAttributeBinding> usedBindings,
+            int totalModelCount,
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic)
+        {
+            if (bindings == null || bindings.Count == 0 || reportBindingDiagnostic == null)
+            {
+                return;
+            }
+            foreach (NodeManagerAttributeBinding binding in bindings)
+            {
+                if (usedBindings != null && usedBindings.Contains(binding))
+                {
+                    continue;
+                }
+                bool hasSelector = !string.IsNullOrEmpty(binding.NamespaceUri) ||
+                    !string.IsNullOrEmpty(binding.Design);
+                if (!hasSelector && totalModelCount > 1)
+                {
+                    reportBindingDiagnostic(
+                        binding,
+                        "[NodeManager] on '" +
+                        binding.TargetNamespace +
+                        "." +
+                        binding.TargetClassName +
+                        "' has no NamespaceUri/Design selector but the " +
+                        "project contains multiple models. Specify " +
+                        "NamespaceUri to disambiguate.");
+                    continue;
+                }
+                string selector = !string.IsNullOrEmpty(binding.NamespaceUri)
+                    ? "NamespaceUri='" + binding.NamespaceUri + "'"
+                    : !string.IsNullOrEmpty(binding.Design)
+                        ? "Design='" + binding.Design + "'"
+                        : "(no selector)";
+                reportBindingDiagnostic(
+                    binding,
+                    "[NodeManager] on '" +
+                    binding.TargetNamespace +
+                    "." +
+                    binding.TargetClassName +
+                    "' did not match any model design (" +
+                    selector +
+                    ").");
+            }
         }
 
         /// <summary>
@@ -346,6 +401,20 @@ namespace Opc.Ua.SourceGeneration
         /// so downstream models can resolve upstream types without an
         /// explicit <c>AdditionalFiles</c> entry for them.
         /// </param>
+        /// <param name="sharedUsedBindings">
+        /// Optional caller-owned set that accumulates the bindings matched
+        /// across multiple generation passes (NodeSet2 and ModelDesign).
+        /// When supplied, this pass records its matches in the set and does
+        /// <b>not</b> report unmatched bindings itself; the caller reports
+        /// them once, after all passes, via
+        /// <see cref="ReportUnmatchedNodeManagerBindings"/>. When <c>null</c>
+        /// the pass keeps a private set and reports directly (single pass).
+        /// </param>
+        /// <param name="bindingModelCount">
+        /// Total number of generatable models across all passes, used for
+        /// single-model binding fallback and ambiguity detection. When
+        /// <c>0</c> the per-pass model count is used (single-pass callers).
+        /// </param>
         public static void GenerateCode(
             this NodesetFileCollection nodesets,
             IFileSystem fileSystem,
@@ -356,7 +425,9 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null)
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null,
+            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
+            int bindingModelCount = 0)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -370,11 +441,13 @@ namespace Opc.Ua.SourceGeneration
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
                 .WithFallback(fileSystem);
 
-            HashSet<NodeManagerAttributeBinding> usedBindings = nodeManagerBindings is { Count: > 0 }
-                ? []
-                : null;
+            HashSet<NodeManagerAttributeBinding> usedBindings = sharedUsedBindings
+                ?? (nodeManagerBindings is { Count: > 0 } ? [] : null);
+            bool deferBindingDiagnostics = sharedUsedBindings != null;
 
-            int totalDesigns = nodesets.ModelUris.Count();
+            int totalDesigns = bindingModelCount > 0
+                ? bindingModelCount
+                : nodesets.ModelUris.Count();
 
             foreach (string modelUri in nodesets.ModelUris)
             {
@@ -421,8 +494,7 @@ namespace Opc.Ua.SourceGeneration
                     modelDesign,
                     nodeManagerBindings,
                     usedBindings,
-                    totalDesigns,
-                    reportBindingDiagnostic);
+                    totalDesigns);
 
                 Generate(new GeneratorContext
                 {
@@ -437,28 +509,13 @@ namespace Opc.Ua.SourceGeneration
                 designOptions: effectiveOptions);
             }
 
-            if (usedBindings != null && nodeManagerBindings != null && reportBindingDiagnostic != null)
+            if (!deferBindingDiagnostics)
             {
-                foreach (NodeManagerAttributeBinding binding in nodeManagerBindings)
-                {
-                    if (!usedBindings.Contains(binding))
-                    {
-                        string selector = !string.IsNullOrEmpty(binding.NamespaceUri)
-                            ? "NamespaceUri='" + binding.NamespaceUri + "'"
-                            : !string.IsNullOrEmpty(binding.Design)
-                                ? "Design='" + binding.Design + "'"
-                                : "(no selector)";
-                        reportBindingDiagnostic(
-                            binding,
-                            "[NodeManager] on '" +
-                            binding.TargetNamespace +
-                            "." +
-                            binding.TargetClassName +
-                            "' did not match any model design (" +
-                            selector +
-                            ").");
-                    }
-                }
+                ReportUnmatchedNodeManagerBindings(
+                    nodeManagerBindings,
+                    usedBindings,
+                    totalDesigns,
+                    reportBindingDiagnostic);
             }
         }
 
