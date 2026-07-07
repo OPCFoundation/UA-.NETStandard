@@ -284,6 +284,38 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public void Read_StampsFreshServerTimestampForStaticNode()
+        {
+            using Harness h = CreateHarness();
+            BaseDataVariableState variable = h.NewVariable("StaleVar", 42);
+
+            // simulate a static node whose value was produced in the past.
+            DateTimeUtc staleTimestamp = DateTimeUtc.Now - TimeSpan.FromMinutes(1);
+            variable.Timestamp = staleTimestamp;
+            h.Manager.AddPredefinedNodePublic(h.Context, variable);
+
+            var nodesToRead = new List<ReadValueId>
+            {
+                new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value }
+            };
+            var values = new List<DataValue> { new DataValue() };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            DateTimeUtc beforeRead = DateTimeUtc.Now;
+            h.Manager.Read(h.NewContext(RequestType.Read), 0, nodesToRead, values, errors);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+
+            // SourceTimestamp reflects the (stale) time the value was produced.
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(staleTimestamp));
+
+            // ServerTimestamp reflects when the server verified the value: the
+            // read time, so a MaxAge read is satisfied even for a static value.
+            Assert.That(values[0].ServerTimestamp, Is.GreaterThanOrEqualTo(beforeRead));
+            Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(values[0].SourceTimestamp));
+        }
+
+        [Test]
         public void Read_ReturnsBrowseNameForNonValueAttribute()
         {
             using Harness h = CreateHarness();
