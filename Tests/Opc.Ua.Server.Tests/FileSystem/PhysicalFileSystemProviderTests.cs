@@ -78,6 +78,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return new PhysicalFileSystemProvider(m_root, mountName, isWritable);
         }
 
+        /// <summary>
+        /// Writes a byte array to a stream using the best overload available on the current target.
+        /// </summary>
         private static Task WriteAsync(Stream stream, byte[] payload, CancellationToken cancellationToken = default)
         {
 #if NET472 || NET48
