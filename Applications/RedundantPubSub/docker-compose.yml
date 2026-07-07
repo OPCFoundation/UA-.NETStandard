@@ -1,0 +1,78 @@
+# RedundantPubSub — OPC UA PubSub active/standby HA sample.
+#
+# Profiles:
+#   strong  fixed 3-node Raft publisher set + one subscriber (default, real cross-container active/standby)
+#   demo    single container running two in-process publishers + subscriber over multicast loopback/bridge
+#
+# Run from the repository ROOT:
+#   docker compose -f Applications/RedundantPubSub/docker-compose.yml up --build
+#
+# Observe subscriber logs. With HA_MODE=hot, killing the active publisher should produce:
+#   HA OK: sequence continued <n> -> <m> across failover (gap, no reset)
+# With HA_MODE=cold, the promoted publisher restarts its local writer SequenceNumber and the subscriber logs:
+#   DATA LOSS: sequence reset <n> -> <k> (subscriber must reset de-duplication)
+
+x-pubsub-image: &pubsub-image
+  build:
+    context: ../..
+    dockerfile: Applications/RedundantPubSub/Dockerfile
+  image: opcua-redundant-pubsub
+
+x-publisher-env: &publisher-env
+  ROLE: publisher
+  HA_MODE: ${HA_MODE:-hot}
+  HA_ELECTION: leader-election
+  HA_RAFT_MEMBERS: "3"
+  HA_RAFT_BIND: tcp://0.0.0.0:6560
+  HA_INSECURE: ${HA_INSECURE:-true}
+  HA_RECORD_KEY: ${HA_RECORD_KEY:-}
+  PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://239.0.0.1:4840}
+  PUBLISH_INTERVAL_MS: ${PUBLISH_INTERVAL_MS:-1000}
+
+services:
+  publisher-a:
+    <<: *pubsub-image
+    profiles: ["strong"]
+    hostname: publisher-a
+    environment:
+      <<: *publisher-env
+      OWNER_ID: publisher-a
+      HA_RAFT_ID: "1"
+      HA_RAFT_PEERS: tcp://publisher-b:6560,tcp://publisher-c:6560
+
+  publisher-b:
+    <<: *pubsub-image
+    profiles: ["strong"]
+    hostname: publisher-b
+    environment:
+      <<: *publisher-env
+      OWNER_ID: publisher-b
+      HA_RAFT_ID: "2"
+      HA_RAFT_PEERS: tcp://publisher-a:6560,tcp://publisher-c:6560
+
+  publisher-c:
+    <<: *pubsub-image
+    profiles: ["strong"]
+    hostname: publisher-c
+    environment:
+      <<: *publisher-env
+      OWNER_ID: publisher-c
+      HA_RAFT_ID: "3"
+      HA_RAFT_PEERS: tcp://publisher-a:6560,tcp://publisher-b:6560
+
+  subscriber:
+    <<: *pubsub-image
+    profiles: ["strong"]
+    environment:
+      ROLE: subscriber
+      PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://239.0.0.1:4840}
+
+  demo:
+    <<: *pubsub-image
+    profiles: ["demo"]
+    environment:
+      ROLE: demo
+      HA_MODE: ${HA_MODE:-hot}
+      PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://239.0.0.1:4840}
+      DEMO_FIRST_SECONDS: ${DEMO_FIRST_SECONDS:-6}
+      DEMO_SECOND_SECONDS: ${DEMO_SECOND_SECONDS:-6}

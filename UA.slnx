@@ -4,6 +4,7 @@
     <Project Path="Applications/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
     <Project Path="Applications/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
     <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
+    <Project Path="Applications/RedundantPubSub/RedundantPubSub.csproj" />
     <Project Path="Applications/RedundantServer/RedundantServer.csproj" />
     <Project Path="Applications/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="Applications/MinimalCalcServer/MinimalCalcServer.csproj" />
