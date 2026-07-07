@@ -224,6 +224,54 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
 
         [Test]
         [TestSpec("9.1.6")]
+        public async Task WriterGroup_ActiveTakeoverRestoresSequenceNumberFromCheckpointAsync()
+        {
+            const uint checkpoint = 5000;
+            PubSubComponentRole role = PubSubComponentRole.Standby;
+            Mock<IPubSubActivationCoordinator> coordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => role);
+            var captured = new List<PubSubNetworkMessage>();
+            WriterGroup group = CreateWriterGroup(coordinator.Object, captured);
+            group.ConfigureWriterCheckpointStore(new FixedCheckpointStore(checkpoint));
+
+            await group.EnableAsync().ConfigureAwait(false);
+            role = PubSubComponentRole.Active;
+            coordinator.Raise(
+                c => c.RoleChanged += null!,
+                new PubSubRoleChangedEventArgs(WriterComponentId, PubSubComponentRole.Active));
+            await group.PublishOnceAsync().ConfigureAwait(false);
+
+            Assert.That(captured, Has.Count.EqualTo(1));
+            UadpDataSetMessage dataSetMessage = GetSingleDataSetMessage(captured[0]);
+            Assert.That(dataSetMessage.SequenceNumber, Is.GreaterThan(checkpoint));
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
+        public async Task WriterGroup_NullCheckpointStoreKeepsInitialSequenceNumberAsync()
+        {
+            PubSubComponentRole role = PubSubComponentRole.Standby;
+            Mock<IPubSubActivationCoordinator> coordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => role);
+            var captured = new List<PubSubNetworkMessage>();
+            WriterGroup group = CreateWriterGroup(coordinator.Object, captured);
+
+            await group.EnableAsync().ConfigureAwait(false);
+            role = PubSubComponentRole.Active;
+            coordinator.Raise(
+                c => c.RoleChanged += null!,
+                new PubSubRoleChangedEventArgs(WriterComponentId, PubSubComponentRole.Active));
+            await group.PublishOnceAsync().ConfigureAwait(false);
+
+            Assert.That(captured, Has.Count.EqualTo(1));
+            UadpDataSetMessage dataSetMessage = GetSingleDataSetMessage(captured[0]);
+            Assert.That(dataSetMessage.SequenceNumber, Is.EqualTo(1u));
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
         public async Task ReaderGroup_StandbyRoleSuppressesDispatchUntilActiveAsync()
         {
             PubSubComponentRole role = PubSubComponentRole.Standby;
@@ -362,6 +410,13 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
             };
         }
 
+        private static UadpDataSetMessage GetSingleDataSetMessage(PubSubNetworkMessage message)
+        {
+            var networkMessage = (UadpNetworkMessage)message;
+            Assert.That(((PubSubDataSetMessage[]?)networkMessage.DataSetMessages) ?? [], Has.Length.EqualTo(1));
+            return (UadpDataSetMessage)networkMessage.DataSetMessages[0];
+        }
+
         private static async Task WaitForRolesAsync(
             FakeTimeProvider clock,
             LeaseActivationCoordinator first,
@@ -450,6 +505,33 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 CancellationToken cancellationToken = default)
             {
                 CallCount++;
+                return default;
+            }
+        }
+
+        private sealed class FixedCheckpointStore : IPubSubWriterCheckpointStore
+        {
+            private readonly uint m_checkpoint;
+
+            public FixedCheckpointStore(uint checkpoint)
+            {
+                m_checkpoint = checkpoint;
+            }
+
+            public ValueTask<uint?> GetSequenceNumberAsync(
+                string writerGroupComponentId,
+                ushort dataSetWriterId,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<uint?>(m_checkpoint);
+            }
+
+            public ValueTask SetSequenceNumberAsync(
+                string writerGroupComponentId,
+                ushort dataSetWriterId,
+                uint sequenceNumber,
+                CancellationToken cancellationToken = default)
+            {
                 return default;
             }
         }

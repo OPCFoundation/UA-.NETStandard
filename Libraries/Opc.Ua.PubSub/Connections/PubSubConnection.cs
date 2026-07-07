@@ -77,6 +77,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IDataSetMetaDataRegistry m_metaDataRegistry;
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
+        private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
         private readonly UadpSecurityWrapper? m_securityWrapper;
         private readonly UadpSecurityWrapOptions m_securityWrapOptions;
         private readonly MessageSecurityMode m_requiredSecurityMode;
@@ -177,6 +178,7 @@ namespace Opc.Ua.PubSub.Connections
         /// Optional scheduler used for periodic discovery announcements.
         /// </param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
         public PubSubConnection(
             PubSubConnectionDataType configuration,
             IPubSubTransportFactory transportFactory,
@@ -193,7 +195,8 @@ namespace Opc.Ua.PubSub.Connections
             int maxNetworkMessageSize = 0,
             MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None,
             IPubSubScheduler? scheduler = null,
-            IPubSubActivationCoordinator? activationCoordinator = null)
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
         {
             if (configuration is null)
             {
@@ -234,6 +237,7 @@ namespace Opc.Ua.PubSub.Connections
             m_metaDataRegistry = metaDataRegistry;
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
+            m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_scheduler = scheduler ?? new PubSubScheduler(telemetry, timeProvider);
@@ -258,6 +262,7 @@ namespace Opc.Ua.PubSub.Connections
                 wg.ConfigureActivationCoordinator(
                     BuildWriterGroupComponentId(Name, wg.Name),
                     m_activationCoordinator);
+                wg.ConfigureWriterCheckpointStore(m_writerCheckpointStore);
                 wg.EncodingProfileOverride = ResolveEncoderProfile();
                 wg.PubSubAddressing = new WriterGroup.PublisherIdHolder
                 {

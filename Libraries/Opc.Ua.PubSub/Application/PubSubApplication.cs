@@ -76,6 +76,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly IPubSubSecurityPolicy[] m_securityPolicies;
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
+        private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
         private readonly TimeProvider m_timeProvider;
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
             m_publishedDataSetSources;
@@ -137,6 +138,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="configurationStore">Optional external configuration store.</param>
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -154,7 +156,8 @@ namespace Opc.Ua.PubSub.Application
             Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
-            IPubSubActivationCoordinator? activationCoordinator = null)
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -174,7 +177,8 @@ namespace Opc.Ua.PubSub.Application
                 runtimeStateStore,
                 dataSetSourceProvider: null,
                 dataSetSinkProvider: null,
-                activationCoordinator)
+                activationCoordinator: activationCoordinator,
+                writerCheckpointStore: writerCheckpointStore)
         {
         }
 
@@ -212,6 +216,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="configurationStore">Optional external configuration store.</param>
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -231,7 +236,8 @@ namespace Opc.Ua.PubSub.Application
             Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
-            IPubSubActivationCoordinator? activationCoordinator = null)
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -251,7 +257,8 @@ namespace Opc.Ua.PubSub.Application
                 runtimeStateStore,
                 dataSetSourceProvider,
                 dataSetSinkProvider,
-                activationCoordinator)
+                activationCoordinator,
+                writerCheckpointStore)
         {
         }
 
@@ -274,7 +281,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IDataSetSourceProvider? dataSetSourceProvider = null,
             IDataSetSinkProvider? dataSetSinkProvider = null,
-            IPubSubActivationCoordinator? activationCoordinator = null)
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
         {
             if (snapshot is null)
             {
@@ -322,6 +330,7 @@ namespace Opc.Ua.PubSub.Application
             m_securityPolicies = securityPolicies.ToArray();
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
+            m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
@@ -542,7 +551,8 @@ namespace Opc.Ua.PubSub.Application
                 maxMessageSize,
                 requiredSecurityMode,
                 m_scheduler,
-                m_activationCoordinator);
+                m_activationCoordinator,
+                m_writerCheckpointStore);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)

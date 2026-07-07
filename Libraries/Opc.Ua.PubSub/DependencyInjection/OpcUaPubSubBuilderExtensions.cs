@@ -269,6 +269,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IPubSubRuntimeStateStore, InMemoryPubSubRuntimeStateStore>();
             services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
             services.TryAddSingleton<IPubSubActivationCoordinator>(AlwaysActiveCoordinator.Instance);
+            services.TryAddSingleton<IPubSubWriterCheckpointStore>(NullPubSubWriterCheckpointStore.Instance);
             services.TryAddSingleton<IDataSetSourceProvider, MutableDataSetSourceProvider>();
             services.TryAddSingleton<IDataSetSinkProvider, MutableDataSetSinkProvider>();
 
@@ -304,7 +305,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     configurationStore: store,
                     runtimeStateStore: sp.GetRequiredService<IPubSubRuntimeStateStore>(),
                     activationCoordinator:
-                        sp.GetRequiredService<IPubSubActivationCoordinator>());
+                        sp.GetRequiredService<IPubSubActivationCoordinator>(),
+                    writerCheckpointStore:
+                        sp.GetRequiredService<IPubSubWriterCheckpointStore>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

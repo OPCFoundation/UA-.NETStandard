@@ -67,11 +67,16 @@ namespace Opc.Ua.PubSub.Groups
         private readonly Dictionary<ushort, WriterRuntimeState> m_writerState;
         private readonly System.Threading.Lock m_gate = new();
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
+        private IPubSubWriterCheckpointStore m_checkpointStore = NullPubSubWriterCheckpointStore.Instance;
         private string m_componentId = string.Empty;
         private bool m_roleChangedSubscribed;
         private IAsyncDisposable? m_schedule;
         private long m_lastPublishedTicks;
+        private long m_lastCheckpointTicks;
+        private int m_restorePending;
         private bool m_disposed;
+        private const uint kSequenceRestoreMargin = 1000;
+        private static readonly TimeSpan kCheckpointInterval = TimeSpan.FromSeconds(1);
 
         /// <summary>
         /// Initializes a new <see cref="WriterGroup"/>.
@@ -132,6 +137,7 @@ namespace Opc.Ua.PubSub.Groups
                 m_writerState[writer.DataSetWriterId] = new WriterRuntimeState();
             }
             m_lastPublishedTicks = timeProvider.GetTimestamp();
+            m_lastCheckpointTicks = m_lastPublishedTicks;
         }
 
         /// <inheritdoc/>
@@ -222,6 +228,10 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return;
             }
+            if (Interlocked.Exchange(ref m_restorePending, 0) == 1)
+            {
+                await RestoreSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
+            }
             var dataSetMessages = new List<PubSubDataSetMessage>(m_writers.Count);
             for (int i = 0; i < m_writers.Count; i++)
             {
@@ -265,6 +275,12 @@ namespace Opc.Ua.PubSub.Groups
                 await PublishSink(networkMessage, cancellationToken)
                     .ConfigureAwait(false);
                 Interlocked.Exchange(ref m_lastPublishedTicks, m_timeProvider.GetTimestamp());
+                long nowTicks = m_timeProvider.GetTimestamp();
+                if (m_timeProvider.GetElapsedTime(m_lastCheckpointTicks, nowTicks) >= kCheckpointInterval)
+                {
+                    m_lastCheckpointTicks = nowTicks;
+                    await CheckpointSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -300,6 +316,14 @@ namespace Opc.Ua.PubSub.Groups
             {
                 previous.RoleChanged -= OnRoleChanged;
                 SubscribeRoleChanges();
+            }
+        }
+
+        internal void ConfigureWriterCheckpointStore(IPubSubWriterCheckpointStore? checkpointStore)
+        {
+            lock (m_gate)
+            {
+                m_checkpointStore = checkpointStore ?? NullPubSubWriterCheckpointStore.Instance;
             }
         }
 
@@ -368,6 +392,7 @@ namespace Opc.Ua.PubSub.Groups
                 return;
             }
 
+            Interlocked.Exchange(ref m_restorePending, 1);
             if (State.State == PubSubState.Paused)
             {
                 _ = State.TryResume(PubSubStateTransitionReason.ByParent);
@@ -379,6 +404,55 @@ namespace Opc.Ua.PubSub.Groups
             if (State.State == PubSubState.Operational)
             {
                 _ = State.TryResumeCascade();
+            }
+        }
+
+        private async ValueTask RestoreSequenceNumbersAsync(CancellationToken cancellationToken)
+        {
+            IPubSubWriterCheckpointStore store;
+            string componentId;
+            lock (m_gate)
+            {
+                store = m_checkpointStore;
+                componentId = m_componentId;
+            }
+
+            foreach (KeyValuePair<ushort, WriterRuntimeState> entry in m_writerState)
+            {
+                uint? checkpoint = await store.GetSequenceNumberAsync(componentId, entry.Key, cancellationToken)
+                    .ConfigureAwait(false);
+                if (checkpoint is uint value)
+                {
+                    WriterRuntimeState runtime = entry.Value;
+                    uint resumed = value + kSequenceRestoreMargin;
+                    if (resumed > runtime.SequenceNumber)
+                    {
+                        runtime.SequenceNumber = resumed;
+                    }
+                    runtime.CyclesSinceKeyFrame = 0;
+                    runtime.LastSnapshot = null;
+                }
+            }
+        }
+
+        private async ValueTask CheckpointSequenceNumbersAsync(CancellationToken cancellationToken)
+        {
+            IPubSubWriterCheckpointStore store;
+            string componentId;
+            lock (m_gate)
+            {
+                store = m_checkpointStore;
+                componentId = m_componentId;
+            }
+            if (store is NullPubSubWriterCheckpointStore)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<ushort, WriterRuntimeState> entry in m_writerState)
+            {
+                await store.SetSequenceNumberAsync(componentId, entry.Key, entry.Value.SequenceNumber, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
