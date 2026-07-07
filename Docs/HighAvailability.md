@@ -4,6 +4,8 @@ This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 ย
 
 Redundancy and high availability are opt-in and require adding the extra `OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet packages (for example `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` or `.Client`) to your application. A server or client built only with the standard `OPCFoundation.NetStandard.Opc.Ua.Client` and `OPCFoundation.NetStandard.Opc.Ua.Server` libraries does not support OPC UA redundancy.
 
+For distributed PubSub active/standby publishers and subscribers, see the PubSub counterpart: [PubSub High Availability](PubSubHighAvailability.md).
+
 ## Redundancy overview (as per Part 4 ยง6.6.1)
 
 OPC UA defines three independent but composable redundancy dimensions: **server redundancy** gives clients multiple servers that expose the same data, **client redundancy** lets backup clients take over work from an active client, and **network redundancy** gives a client and server more than one communication path. The stack implements standardized discovery and failover metadata in the core server/client packages, and adds opt-in distributed state through `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server`.
