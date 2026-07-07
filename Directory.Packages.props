@@ -114,6 +114,7 @@
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="System.Security.Cryptography.Cng" Version="5.0.0" />
     <PackageVersion Include="System.Threading.Channels" Version="10.0.8" />
+    <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.8" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
   </ItemGroup>
   <!-- MQTTnet 5.x dropped net48/net472/netstandard2.1 support. Per-TFM pinning is

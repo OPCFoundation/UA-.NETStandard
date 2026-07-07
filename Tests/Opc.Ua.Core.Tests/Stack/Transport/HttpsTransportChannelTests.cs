@@ -30,6 +30,9 @@
 #nullable enable
 
 using System;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -404,6 +407,88 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             // OpenAsync must succeed without throwing even for opc.https URLs.
             await channel.OpenAsync(url, settings, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// <see cref="HttpsTransportChannel.GetRetryAfter"/> must read a
+        /// delta-seconds HTTP <c>Retry-After</c> header.
+        /// </summary>
+        [Test]
+        public void GetRetryAfterReadsDeltaSeconds()
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            response.Headers.RetryAfter =
+                new RetryConditionHeaderValue(TimeSpan.FromSeconds(5));
+
+            Assert.That(
+                HttpsTransportChannel.GetRetryAfter(response),
+                Is.EqualTo(TimeSpan.FromSeconds(5)));
+        }
+
+        /// <summary>
+        /// <see cref="HttpsTransportChannel.GetRetryAfter"/> must read an
+        /// HTTP-date <c>Retry-After</c> header as a forward-looking delay.
+        /// </summary>
+        [Test]
+        public void GetRetryAfterReadsHttpDate()
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            DateTimeOffset when = DateTimeOffset.UtcNow.AddSeconds(30);
+            response.Headers.RetryAfter = new RetryConditionHeaderValue(when);
+
+            TimeSpan? delay = HttpsTransportChannel.GetRetryAfter(response);
+
+            Assert.That(delay, Is.Not.Null);
+            Assert.That(
+                delay!.Value,
+                Is.GreaterThan(TimeSpan.FromSeconds(20))
+                    .And.LessThanOrEqualTo(TimeSpan.FromSeconds(31)));
+        }
+
+        /// <summary>
+        /// <see cref="HttpsTransportChannel.GetRetryAfter"/> must return
+        /// <c>null</c> when no <c>Retry-After</c> header is present.
+        /// </summary>
+        [Test]
+        public void GetRetryAfterReturnsNullWhenAbsent()
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            Assert.That(HttpsTransportChannel.GetRetryAfter(response), Is.Null);
+        }
+
+        /// <summary>
+        /// <see cref="HttpsTransportChannel.CreateServerTooBusyException"/> must
+        /// map a throttled response to <see cref="StatusCodes.BadServerTooBusy"/>
+        /// and carry the retry-after as a machine-readable token.
+        /// </summary>
+        [Test]
+        public void CreateServerTooBusyExceptionCarriesRetryAfterToken()
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            response.Headers.RetryAfter =
+                new RetryConditionHeaderValue(TimeSpan.FromSeconds(2));
+
+            ServiceResultException ex =
+                HttpsTransportChannel.CreateServerTooBusyException(response);
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerTooBusy));
+            Assert.That(ex.Result.AdditionalInfo, Does.Contain("RetryAfterMs=2000"));
+        }
+
+        /// <summary>
+        /// <see cref="HttpsTransportChannel.CreateServerTooBusyException"/> must
+        /// still map to <see cref="StatusCodes.BadServerTooBusy"/> when no
+        /// <c>Retry-After</c> header is present.
+        /// </summary>
+        [Test]
+        public void CreateServerTooBusyExceptionWithoutHintMapsBusy()
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+
+            ServiceResultException ex =
+                HttpsTransportChannel.CreateServerTooBusyException(response);
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerTooBusy));
         }
 
         /// <summary>
