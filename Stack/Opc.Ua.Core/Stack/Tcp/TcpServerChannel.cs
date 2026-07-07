@@ -152,8 +152,11 @@ namespace Opc.Ua.Bindings
             object callbackData,
             int timeout)
         {
-            var transport = new TcpByteTransport(BufferManager, ReceiveBufferSize, Telemetry);
+#pragma warning disable CA2000 // transport ownership is transferred to BeginReverseConnect below
+            IUaSCByteTransport transport = new TcpByteTransport(BufferManager, ReceiveBufferSize, Telemetry);
+            transport = TransportDecorator?.Invoke(transport) ?? transport;
             return BeginReverseConnect(channelId, endpointUrl, transport, callback, callbackData, timeout);
+#pragma warning restore CA2000
         }
 
         /// <summary>

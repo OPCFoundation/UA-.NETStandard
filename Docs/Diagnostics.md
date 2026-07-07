@@ -672,7 +672,7 @@ as a secret.
 
 | Capability | Default | Opt-in mechanism |
 |---|---|---|
-| Frame capture (`start_capture`) | available | `PcapBindings.Install()` or `AddPcap()` |
+| Frame capture (`start_capture`) | available | `PcapBindings.Install()` / `InstallClient()` / `InstallServer()`, or `AddPcap()` |
 | Keylog extraction | available when capture runs | implicit when capture is active |
 | MCP `dump_keys` / `decode_pcap_with_keys` / `replay_pcap` | **off** | `PcapOptions.EnableDiagnosticsTools = true` or env `OPCUA_PCAP_ENABLE_DIAGNOSTICS=1` |
 | Mock-client replay | **off** | `PcapOptions.AllowMockClientReplay = true` AND populate `PcapOptions.AllowedReplayEndpoints` |
@@ -953,7 +953,9 @@ Registration order does not strictly matter (the binding installs
 synchronously into the process-wide registry), but the order above
 reads top-down as "register the channel manager, then your services,
 then opt in to capture". For non-DI consumers, call
-`PcapBindings.Install()` at startup to achieve the same effect.
+`PcapBindings.Install()` / `InstallClient()` / `InstallServer()` at
+startup to achieve the same effect &mdash; see
+[Enabling pcap capture without dependency injection](#enabling-pcap-capture-without-dependency-injection).
 
 ### Capture sources
 
@@ -973,6 +975,130 @@ accepted by a hosted OPC UA server. It uses the same frame sink plus
 **Replay (`replay`)** reads an existing pcap or pcapng plus
 `.uakeys.json` or `.uakeys.txt`. Use it for offline decode, summaries,
 and mock-client or mock-server replay.
+
+### Enabling pcap capture without dependency injection
+
+The `AddPcap()` DI extension is a convenience wrapper. Everything it
+does can be wired by hand, which is the right approach for a console
+server, a `ServerBase`/`StandardServer` host that is not built around
+`Microsoft.Extensions.DependencyInjection`, or any client that creates
+sessions through the static/fluent APIs.
+
+There are **two independent steps**, and forgetting the second is the
+most common reason "nothing is captured":
+
+1. **Install a binding** so the affected channels become
+   capture-*aware*. This alone records nothing.
+2. **Start a capture session** (a `CaptureSessionManager` session)
+   sharing the *same* `IChannelCaptureRegistry`. Recording is gated by
+   the registry's `CurrentObserver`, which is `null` until a session is
+   running. Only traffic that flows *while a session is active* is
+   written.
+
+There are three install helpers, all returning (or accepting) the
+shared `IChannelCaptureRegistry`:
+
+| Helper | Wraps | Captures |
+|---|---|---|
+| `PcapBindings.InstallClient(registry)` | the `opc.tcp` **channel** factory | outbound client channels created through `ClientChannelManager` |
+| `PcapBindings.InstallServer(registry)` | the `opc.tcp` **listener** factory | inbound client→server channels accepted by a hosted server |
+| `PcapBindings.Install(registry)` | both of the above | both directions on that one registry |
+
+> **Two registries.** A hosted server and an in-process client use
+> *different* transport binding registries. A server accepts inbound
+> connections through the **listener** factory in
+> `server.Server.TransportBindings` (a per-server registry). A non-DI
+> client creates outbound channels through the process-wide
+> `ClientChannelManager.DefaultChannelBindings`. Installing the server
+> binding does **not** make client channels capture-aware, and vice
+> versa. Install into the registry that matches the traffic you want,
+> and share one `IChannelCaptureRegistry` across both installs so a
+> single session records everything.
+
+#### Server capture (inbound client→server traffic)
+
+Install the server binding on the server's transport bindings
+**before** the server is started (before its listeners open), then
+drive a `CaptureSessionManager`:
+
+```csharp
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.Models;
+
+// 1. Install the server listener binding BEFORE starting the server.
+//    (Reuse the returned registry for the capture session below.)
+IChannelCaptureRegistry registry =
+    PcapBindings.InstallServer(server.Server!.TransportBindings);
+
+// ... configure node managers, certificates, etc. ...
+await server.StartAsync().ConfigureAwait(false);   // listeners open now
+
+// 2. Start recording. The capture source factory and the binding MUST
+//    share the same registry instance.
+var manager = new CaptureSessionManager(
+    new DefaultCaptureSourceFactory(registry),
+    baseFolder: @"C:\captures");
+await using (manager.ConfigureAwait(false))
+{
+    CaptureSession session = await manager.StartAsync(new StartCaptureRequest
+    {
+        Source = CaptureSourceKind.InProcessServer,
+        SessionFolder = @"C:\captures\server-run",
+    }, ct).ConfigureAwait(false);
+
+    // 3. Every client that connects while the session is running has its
+    //    inbound/outbound frames and channel-token key material recorded.
+
+    await manager.StopAsync(session.SessionId, ct).ConfigureAwait(false);
+    // session.SessionFolder now contains capture.pcap (+ keys.uakeys.json).
+}
+```
+
+`InstallServer` is a no-op when the registry has no `opc.tcp` listener
+factory, and idempotent when the binding is already installed.
+
+#### Client capture (outbound channels the app opens)
+
+Install the channel binding into the registry the client actually uses.
+For the non-DI/static client path that is
+`ClientChannelManager.DefaultChannelBindings`:
+
+```csharp
+using Opc.Ua;                    // ClientChannelManager
+using Opc.Ua.Pcap.Bindings;
+
+IChannelCaptureRegistry registry =
+    PcapBindings.InstallClient(ClientChannelManager.DefaultChannelBindings);
+
+// then start a CaptureSessionManager session with
+// Source = CaptureSourceKind.InProcessClient, exactly as above.
+```
+
+#### Both directions in one process
+
+Share a single registry so one session records inbound and outbound
+traffic together:
+
+```csharp
+var registry = new ChannelCaptureRegistry();
+
+// server side (inbound): the hosted server's per-server registry
+PcapBindings.InstallServer(server.Server!.TransportBindings, registry);
+
+// client side (outbound): the process-wide client default registry
+PcapBindings.InstallClient(ClientChannelManager.DefaultChannelBindings, registry);
+
+// one CaptureSessionManager + one StartAsync(Source = InProcessServer or
+// InProcessClient) now records both, because both bindings publish to the
+// same registry observer.
+```
+
+> When a *single* binding registry serves both roles (for example a
+> combined host that opens listeners and also acts as a client through
+> that same registry), `PcapBindings.Install(registry)` wires both in
+> one call.
 
 ### Quick start: in-process client capture
 
