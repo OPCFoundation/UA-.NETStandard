@@ -108,6 +108,13 @@ namespace Opc.Ua.PubSub.Redundancy
                     sp.GetRequiredService<IServiceMessageContext>());
             }));
 
+            if (options.Mode == PubSubRedundancyMode.Hot)
+            {
+                services.Replace(ServiceDescriptor.Singleton<IPubSubWriterCheckpointStore>(sp =>
+                    new SharedStorePubSubWriterCheckpointStore(
+                        sp.GetRequiredService<ISharedKeyValueStore>())));
+            }
+
             return services;
         }
 
