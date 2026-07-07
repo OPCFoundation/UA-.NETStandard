@@ -361,7 +361,7 @@ namespace Opc.Ua.SourceGeneration
                     binding.TargetNamespace +
                     "." +
                     binding.TargetClassName +
-                    "' did not match any model design (" +
+                    "' did not match any model (" +
                     selector +
                     ").");
             }

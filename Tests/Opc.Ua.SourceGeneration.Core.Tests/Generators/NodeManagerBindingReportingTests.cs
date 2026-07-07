@@ -81,7 +81,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 (_, message) => reports.Add(message));
 
             Assert.That(reports, Has.Count.EqualTo(1));
-            Assert.That(reports[0], Does.Contain("did not match any model design"));
+            Assert.That(reports[0], Does.Contain("did not match any model"));
             Assert.That(reports[0], Does.Contain("NamespaceUri='urn:missing'"));
         }
 
@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 (_, message) => reports.Add(message));
 
             Assert.That(reports, Has.Count.EqualTo(1));
-            Assert.That(reports[0], Does.Contain("did not match any model design"));
+            Assert.That(reports[0], Does.Contain("did not match any model"));
             Assert.That(reports[0], Does.Contain("(no selector)"));
         }
 
@@ -160,7 +160,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 report: (_, message) => reports.Add(message));
 
             Assert.That(reports, Has.Count.EqualTo(1));
-            Assert.That(reports[0], Does.Contain("did not match any model design"));
+            Assert.That(reports[0], Does.Contain("did not match any model"));
         }
 
         private static NodeManagerAttributeBinding CreateBinding(
@@ -184,7 +184,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
-            string resources = Path.Combine(Directory.GetCurrentDirectory(), "Resources");
+            string resources = Path.Combine(TestContext.CurrentContext.TestDirectory, "Resources");
 
             new DesignFileCollection
             {

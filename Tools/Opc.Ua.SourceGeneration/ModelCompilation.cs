@@ -176,8 +176,13 @@ namespace Opc.Ua.SourceGeneration
                 // with both passes: [NodeManager] bindings are resolved across
                 // both passes, so single-model fallback / ambiguity detection
                 // must see the global model count, not the per-pass count.
+                // Use a set for O(1) membership tests instead of an O(n)
+                // ContainsValue scan per input (Ordinal preserves the previous
+                // dictionary-value equality semantics exactly).
+                var nodesetPaths = new HashSet<string>(
+                    nodesets.Files.Values, StringComparer.Ordinal);
                 List<string> designTargets = [.. m_input
-                    .Where(f => !nodesets.Files.ContainsValue(f.Item1.Path))
+                    .Where(f => !nodesetPaths.Contains(f.Item1.Path))
                     .Select(f => f.Item1.Path)];
 
                 var designDependencies = new List<string>(nodesets.DesignFileEntries);
