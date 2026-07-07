@@ -79,14 +79,24 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
-        /// Writes a byte array to a stream using the best overload available on the current target.
+        /// Writes a byte array to a stream by using the legacy array overload on .NET Framework
+        /// targets and the memory-based overload on newer targets.
         /// </summary>
-        private static Task WriteAsync(Stream stream, byte[] payload, CancellationToken cancellationToken = default)
+        /// <param name="stream">
+        /// The destination stream.
+        /// </param>
+        /// <param name="payload">
+        /// The bytes to write.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// The cancellation token to observe while writing.
+        /// </param>
+        private static Task WritePayloadAsync(Stream stream, byte[] payload, CancellationToken cancellationToken = default)
         {
 #if NET472 || NET48
             return stream.WriteAsync(payload, 0, payload.Length, cancellationToken);
 #else
-            return stream.WriteAsync(payload, cancellationToken).AsTask();
+            return stream.WriteAsync((ReadOnlyMemory<byte>)payload, cancellationToken).AsTask();
 #endif
         }
 
@@ -164,7 +174,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using (Stream write = await provider.OpenWriteAsync(
                 "file.txt", FileWriteMode.Truncate, CancellationToken.None))
             {
-                await WriteAsync(write, payload, CancellationToken.None);
+                await WritePayloadAsync(write, payload, CancellationToken.None);
             }
 
             using Stream read = await provider.OpenReadAsync("file.txt", CancellationToken.None);
@@ -184,7 +194,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 "log.txt", FileWriteMode.Append, CancellationToken.None))
             {
                 byte[] payload = Encoding.UTF8.GetBytes("b");
-                await WriteAsync(write, payload, CancellationToken.None);
+                await WritePayloadAsync(write, payload, CancellationToken.None);
             }
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "log.txt")), Is.EqualTo("ab"));
@@ -199,7 +209,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 "new.bin", FileWriteMode.OpenOrCreate, CancellationToken.None))
             {
                 byte[] payload = new byte[] { 1, 2, 3 };
-                await WriteAsync(write, payload, CancellationToken.None);
+                await WritePayloadAsync(write, payload, CancellationToken.None);
             }
 
             Assert.That(File.Exists(Path.Combine(m_root, "new.bin")), Is.True);
@@ -464,7 +474,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(
                     entry!.Value.MimeType,
                     Is.EqualTo(expectation.Value),
-                    $"MIME for {expectation.Key}");
+                    "MIME for " + expectation.Key);
             }
         }
     }
