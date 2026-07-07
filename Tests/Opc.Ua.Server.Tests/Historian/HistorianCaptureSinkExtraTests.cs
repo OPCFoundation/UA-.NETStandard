@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianProviderBase,
             IHistorianBulkInsertProvider
         {
-            private readonly object m_lock = new();
+            private readonly System.Threading.Lock m_lock = new();
 
             public List<int> BatchSizes { get; } = [];
 
