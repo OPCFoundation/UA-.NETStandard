@@ -41,6 +41,7 @@ using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.StateMachine;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Redundancy
@@ -50,6 +51,8 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
     /// by redundant PubSub publishers and subscribers.
     /// </summary>
     [TestFixture]
+    [Category("PubSub")]
+    [Category("Redundancy")]
     [TestSpec("9.1.6", Summary = "PubSub HA activation coordinator failover")]
     public class PubSubActivationFailoverTests
     {
@@ -118,6 +121,64 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 Has.Some.Matches<PubSubRoleChangedEventArgs>(e =>
                     string.Equals(e.ComponentId, WriterComponentId, StringComparison.Ordinal)
                     && e.Role == PubSubComponentRole.Active));
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
+        public async Task SharedStoreLeaseActivationCoordinatorElectsSingleActiveAndFailsOverAsync()
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using var sharedBackend = new InMemorySharedKeyValueStore();
+            var store = new SharedStorePubSubLeaseStore(sharedBackend, clock);
+            TimeSpan ttl = TimeSpan.FromSeconds(9);
+            TimeSpan interval = TimeSpan.FromSeconds(1);
+
+            await using var first = new LeaseActivationCoordinator(
+                store,
+                NUnitTelemetryContext.Create(),
+                ownerId: "publisher-a",
+                leaseDuration: ttl,
+                renewInterval: interval,
+                retryInterval: interval,
+                timeProvider: clock);
+            await using var second = new LeaseActivationCoordinator(
+                store,
+                NUnitTelemetryContext.Create(),
+                ownerId: "publisher-b",
+                leaseDuration: ttl,
+                renewInterval: interval,
+                retryInterval: interval,
+                timeProvider: clock);
+
+            await first.StartAsync().ConfigureAwait(false);
+            await second.StartAsync().ConfigureAwait(false);
+            _ = await first.GetRoleAsync(WriterComponentId).ConfigureAwait(false);
+            _ = await second.GetRoleAsync(WriterComponentId).ConfigureAwait(false);
+
+            await WaitForRolesAsync(
+                clock,
+                first,
+                second,
+                activeCount: 1).ConfigureAwait(false);
+
+            PubSubComponentRole firstRole = await first.GetRoleAsync(WriterComponentId).ConfigureAwait(false);
+            PubSubComponentRole secondRole = await second.GetRoleAsync(WriterComponentId).ConfigureAwait(false);
+            LeaseActivationCoordinator active = firstRole == PubSubComponentRole.Active ? first : second;
+            LeaseActivationCoordinator standby = ReferenceEquals(active, first) ? second : first;
+
+            Assert.That(
+                new[] { firstRole, secondRole },
+                Has.Exactly(1).EqualTo(PubSubComponentRole.Active));
+
+            await active.DisposeAsync().ConfigureAwait(false);
+            clock.Advance(ttl + interval);
+            await Task.Delay(25).ConfigureAwait(false);
+
+            await WaitForRoleAsync(
+                clock,
+                standby,
+                PubSubComponentRole.Active).ConfigureAwait(false);
         }
 
         [Test]
@@ -224,6 +285,88 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
 
         [Test]
         [TestSpec("9.1.6")]
+        public async Task WriterGroup_HotStandbyContinuesSequenceNumberFromSharedCheckpointAsync()
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using var sharedBackend = new InMemorySharedKeyValueStore();
+            var checkpointStore = new SharedStorePubSubWriterCheckpointStore(sharedBackend);
+            PubSubComponentRole activeRole = PubSubComponentRole.Active;
+            PubSubComponentRole standbyRole = PubSubComponentRole.Standby;
+            Mock<IPubSubActivationCoordinator> activeCoordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => activeRole);
+            Mock<IPubSubActivationCoordinator> standbyCoordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => standbyRole);
+            var activeMessages = new List<PubSubNetworkMessage>();
+            var promotedMessages = new List<PubSubNetworkMessage>();
+            WriterGroup activeGroup = CreateWriterGroup(activeCoordinator.Object, activeMessages, clock);
+            WriterGroup promotedGroup = CreateWriterGroup(standbyCoordinator.Object, promotedMessages, clock);
+            activeGroup.ConfigureWriterCheckpointStore(checkpointStore);
+            promotedGroup.ConfigureWriterCheckpointStore(checkpointStore);
+
+            await activeGroup.EnableAsync().ConfigureAwait(false);
+            await activeGroup.PublishOnceAsync().ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(1100));
+            await activeGroup.PublishOnceAsync().ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(1100));
+            await activeGroup.PublishOnceAsync().ConfigureAwait(false);
+            uint lastActiveSequenceNumber = GetSingleDataSetMessage(activeMessages[^1]).SequenceNumber;
+
+            await promotedGroup.EnableAsync().ConfigureAwait(false);
+            standbyRole = PubSubComponentRole.Active;
+            standbyCoordinator.Raise(
+                c => c.RoleChanged += null!,
+                new PubSubRoleChangedEventArgs(WriterComponentId, PubSubComponentRole.Active));
+            await promotedGroup.PublishOnceAsync().ConfigureAwait(false);
+
+            Assert.That(promotedMessages, Has.Count.EqualTo(1));
+            uint promotedSequenceNumber = GetSingleDataSetMessage(promotedMessages[0]).SequenceNumber;
+            Assert.Multiple(() =>
+            {
+                Assert.That(lastActiveSequenceNumber, Is.GreaterThan(1u));
+                Assert.That(promotedSequenceNumber, Is.GreaterThan(lastActiveSequenceNumber));
+            });
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
+        public async Task WriterGroup_ColdStandbyWithoutCheckpointResetsSequenceNumberAsync()
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            PubSubComponentRole activeRole = PubSubComponentRole.Active;
+            PubSubComponentRole standbyRole = PubSubComponentRole.Standby;
+            Mock<IPubSubActivationCoordinator> activeCoordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => activeRole);
+            Mock<IPubSubActivationCoordinator> standbyCoordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => standbyRole);
+            var activeMessages = new List<PubSubNetworkMessage>();
+            var promotedMessages = new List<PubSubNetworkMessage>();
+            WriterGroup activeGroup = CreateWriterGroup(activeCoordinator.Object, activeMessages, clock);
+            WriterGroup promotedGroup = CreateWriterGroup(standbyCoordinator.Object, promotedMessages, clock);
+
+            await activeGroup.EnableAsync().ConfigureAwait(false);
+            await activeGroup.PublishOnceAsync().ConfigureAwait(false);
+            await activeGroup.PublishOnceAsync().ConfigureAwait(false);
+            uint lastActiveSequenceNumber = GetSingleDataSetMessage(activeMessages[^1]).SequenceNumber;
+
+            await promotedGroup.EnableAsync().ConfigureAwait(false);
+            standbyRole = PubSubComponentRole.Active;
+            standbyCoordinator.Raise(
+                c => c.RoleChanged += null!,
+                new PubSubRoleChangedEventArgs(WriterComponentId, PubSubComponentRole.Active));
+            await promotedGroup.PublishOnceAsync().ConfigureAwait(false);
+
+            Assert.That(lastActiveSequenceNumber, Is.GreaterThan(1u));
+            Assert.That(GetSingleDataSetMessage(promotedMessages[0]).SequenceNumber, Is.EqualTo(1u));
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
         public async Task WriterGroup_ActiveTakeoverRestoresSequenceNumberFromCheckpointAsync()
         {
             const uint checkpoint = 5000;
@@ -323,7 +466,8 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
 
         private static WriterGroup CreateWriterGroup(
             IPubSubActivationCoordinator coordinator,
-            List<PubSubNetworkMessage> captured)
+            List<PubSubNetworkMessage> captured,
+            TimeProvider? timeProvider = null)
         {
             var dataSetConfig = new PublishedDataSetDataType
             {
@@ -359,7 +503,7 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                     TimeSpan.Zero),
                 NoOpScheduler.Instance,
                 NUnitTelemetryContext.Create(),
-                TimeProvider.System,
+                timeProvider ?? TimeProvider.System,
                 coordinator,
                 WriterComponentId)
             {

@@ -83,6 +83,26 @@ namespace Opc.Ua.PubSub.Redundancy
         }
 
         [Test]
+        public async Task HotLeaderElectionModeWiresCheckpointStoreAndSharedStoresAsync()
+        {
+            await using ServiceProvider provider = BuildProvider(
+                new InMemorySharedKeyValueStore(),
+                PubSubRedundancyElection.LeaderElection,
+                registerElection: true,
+                PubSubRedundancyMode.Hot);
+
+            Assert.That(
+                provider.GetRequiredService<IPubSubActivationCoordinator>(),
+                Is.TypeOf<LeaderElectionActivationCoordinator>());
+            Assert.That(
+                provider.GetRequiredService<IPubSubRuntimeStateStore>(),
+                Is.TypeOf<SharedStorePubSubRuntimeStateStore>());
+            Assert.That(
+                provider.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                Is.TypeOf<SharedStorePubSubWriterCheckpointStore>());
+        }
+
+        [Test]
         public async Task NetworkedStoreWithoutProtectorFailsClosedForSecurityKeyStoreAsync()
         {
             var networkedStore = new Mock<ISharedKeyValueStore>(MockBehavior.Loose).Object;
@@ -136,10 +156,15 @@ namespace Opc.Ua.PubSub.Redundancy
         private static ServiceProvider BuildProvider(
             ISharedKeyValueStore store,
             PubSubRedundancyElection election,
-            bool registerElection)
+            bool registerElection,
+            PubSubRedundancyMode mode = PubSubRedundancyMode.Warm)
         {
             ServiceCollection services = CreateServices(store, registerElection);
-            services.AddPubSubRedundancy(o => o.Election = election);
+            services.AddPubSubRedundancy(o =>
+            {
+                o.Election = election;
+                o.Mode = mode;
+            });
             return services.BuildServiceProvider();
         }
     }
