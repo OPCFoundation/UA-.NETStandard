@@ -63,17 +63,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Directory.CreateDirectory(m_root);
             m_telemetry = NUnitTelemetryContext.Create();
 
-            Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
-            mockServer.Setup(s => s.Telemetry).Returns(m_telemetry);
-            var provider = new PhysicalFileSystemProvider(m_root, "TestMount");
-            m_manager = new FileSystemNodeManager(mockServer.Object, new ApplicationConfiguration(), provider);
-            m_context = m_manager.SystemContext;
+            UseProvider(new PhysicalFileSystemProvider(m_root, "TestMount"));
         }
 
         [TearDown]
         public void TearDown()
         {
             m_manager?.Dispose();
+            m_manager = null!;
+            m_context = null!;
             try
             {
                 if (Directory.Exists(m_root))
@@ -85,6 +83,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
             {
                 // best-effort
             }
+        }
+
+        private void UseProvider(IFileSystemProvider provider)
+        {
+            m_manager?.Dispose();
+            Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
+            mockServer.Setup(s => s.Telemetry).Returns(m_telemetry);
+            m_manager = new FileSystemNodeManager(mockServer.Object, new ApplicationConfiguration(), provider);
+            m_context = m_manager.SystemContext;
         }
 
         private DirectoryObjectState CreateRootDirectory()
@@ -365,19 +372,26 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public async Task DeleteFileSystemObjectWithLockedFileReturnsBadAsync()
+        public async Task DeleteFileSystemObjectWhenProviderDeniesDeleteReturnsBadAsync()
         {
-            DirectoryObjectState state = CreateRootDirectory();
-            string full = Path.Combine(m_root, "locked.txt");
-            File.WriteAllText(full, "x");
-            NodeId target = FileSystemNodeId.BuildFile("locked.txt", m_manager.NamespaceIndex);
+            var provider = new Mock<IFileSystemProvider>(MockBehavior.Strict);
+            provider.SetupGet(p => p.MountName).Returns("TestMount");
+            provider.SetupGet(p => p.IsWritable).Returns(true);
+            provider
+                .Setup(p => p.DeleteAsync("locked.txt", It.IsAny<CancellationToken>()))
+                .Returns<string, CancellationToken>((_, _) => throw new IOException("locked"));
+            UseProvider(provider.Object);
 
-            using var stream = new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.None);
+            DirectoryObjectState state = CreateRootDirectory();
+            NodeId target = FileSystemNodeId.BuildFile("locked.txt", m_manager.NamespaceIndex);
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
                 m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None);
 
             Assert.That(result.ServiceResult.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            provider.Verify(
+                p => p.DeleteAsync("locked.txt", It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Test]

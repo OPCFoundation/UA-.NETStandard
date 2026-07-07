@@ -51,6 +51,8 @@ namespace Opc.Ua.Server.Tests
     public class SessionCoverageTests
     {
         private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
+        private static readonly string[] s_preferredLocales = ["en-US", "de-DE"];
+        private static readonly string[] s_singlePreferredLocale = ["en-US"];
 
         private ITelemetryContext m_telemetry = null!;
         private Mock<IServerInternal> m_serverMock = null!;
@@ -214,9 +216,9 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerSession session = CreateSession(CreateEndpoint());
 
-            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(new[] { "en-US", "de-DE" })), Is.True);
-            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(new[] { "en-US", "de-DE" })), Is.False);
-            Assert.That(session.PreferredLocales, Is.EqualTo(new[] { "en-US", "de-DE" }));
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(s_preferredLocales)), Is.True);
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(s_preferredLocales)), Is.False);
+            Assert.That(session.PreferredLocales, Is.EqualTo(s_preferredLocales));
         }
 
         [Test]
@@ -661,7 +663,7 @@ namespace Opc.Ua.Server.Tests
                 handler!,
                 new UserIdentity(),
                 new UserIdentity(),
-                new ArrayOf<string>(new[] { "en-US" }),
+                new ArrayOf<string>(s_singlePreferredLocale),
                 Nonce.CreateNonce(SecurityPolicies.None));
 
             Assert.That(session.Activated, Is.True);
@@ -674,7 +676,7 @@ namespace Opc.Ua.Server.Tests
                 handler!,
                 new UserIdentity(),
                 new UserIdentity(),
-                new ArrayOf<string>(new[] { "en-US" }),
+                new ArrayOf<string>(s_singlePreferredLocale),
                 Nonce.CreateNonce(SecurityPolicies.None));
 
             Assert.That(session.SecureChannelId, Is.EqualTo("channel-2"));
