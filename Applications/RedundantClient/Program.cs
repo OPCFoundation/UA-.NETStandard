@@ -30,13 +30,25 @@
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
+using System.Globalization;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Crdt;
+using Crdt.Transport;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Redundancy;
 using Opc.Ua.Configuration;
+using Opc.Ua.Redundancy;
+using Opc.Ua.Redundancy.Client;
+using Raft;
+using Raft.Configuration;
+using Raft.Storage;
+using Raft.Transport.NanoMsg;
 
 namespace RedundantClient
 {
@@ -138,15 +150,30 @@ namespace RedundantClient
                     throw new InvalidOperationException("Application instance certificate invalid.");
                 }
 
-                EndpointDescription selectedEndpoint = await CoreClientUtils
-                    .SelectEndpointAsync(configuration, serverUrl, useSecurity: !noSecurity, telemetry, ct)
-                    .ConfigureAwait(false)
-                    ?? throw new InvalidOperationException(
-                        $"No endpoint could be selected for '{serverUrl}'.");
+                // Wait for a reachable endpoint rather than failing if the server set is not
+                // up yet - the client and server containers start independently (no compose
+                // depends_on across the HA matrix), so the client tolerates a lagging server.
+                EndpointDescription selectedEndpoint = await SelectEndpointWithRetryAsync(
+                        configuration, serverUrl, useSecurity: !noSecurity, telemetry, ct)
+                    .ConfigureAwait(false);
                 var endpoint = new ConfiguredEndpoint(
                     null,
                     selectedEndpoint,
                     EndpointConfiguration.Create(configuration));
+
+                // A coordinated client replica set (CLIENT_MODE=eventual|strong) elects one
+                // active client that holds the session and shares its session secrets; the
+                // others stand by and take over on active-client loss. The default
+                // (CLIENT_MODE=independent) is a plain managed client that fails over on its own.
+                string clientMode = (Environment.GetEnvironmentVariable("CLIENT_MODE") ?? "independent")
+                    .Trim().ToLowerInvariant();
+                if (clientMode is "eventual" or "strong")
+                {
+                    await RunCoordinatedClientAsync(
+                            clientMode, configuration, endpoint, telemetry, serverUrl, suite, duration, ct)
+                        .ConfigureAwait(false);
+                    return;
+                }
 
                 Console.WriteLine("Connecting managed client to {0}", serverUrl);
 
@@ -223,6 +250,298 @@ namespace RedundantClient
                     server.ServerState,
                     server.ServiceLevel,
                     server.Endpoint?.EndpointUrl?.ToString() ?? "(unresolved)");
+            }
+        }
+
+        private static async Task RunCoordinatedClientAsync(
+            string mode,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry,
+            string serverUrl,
+            bool suite,
+            TimeSpan duration,
+            CancellationToken ct)
+        {
+            string nodeId = Environment.GetEnvironmentVariable("CLIENT_NODE_ID") ?? Dns.GetHostName();
+            bool strong = string.Equals(mode, "strong", StringComparison.Ordinal);
+            var haMonitor = new HaMonitor();
+
+            // Elect the active client with a real Raft quorum among the client replicas - the
+            // same building blocks the server uses, mirrored on the client side. A coordinated
+            // set shares the leader's protected session secrets through a networked store, so it
+            // fails closed without a record protector (see CreateClientRecordProtector).
+            DefaultRaftConsensus consensus = BuildClientRaftCluster();
+            AesCbcHmacRecordProtector protector = CreateClientRecordProtector();
+            ISharedKeyValueStore store = CreateClientSharedStore(strong, nodeId, consensus);
+            // Ownership of the election transfers to the RedundantClientSession's coordinator,
+            // which disposes it in DisposeAsync (see ClientReplicaCoordinator).
+#pragma warning disable CA2000
+            var election = new RaftLeaderElection(consensus, telemetry.CreateLogger<RaftLeaderElection>());
+#pragma warning restore CA2000
+
+            try
+            {
+                RedundantClientSession session = new RedundantClientSessionBuilder(telemetry)
+                    .WithNodeId(nodeId)
+                    .WithStandbyMode(ClientStandbyMode.Cold)
+                    .UseSession(token => ConnectLeaderSessionAsync(configuration, endpoint, telemetry, token))
+                    .ConfigureLeader(async (leaderSession, fastActivated, cfgCt) =>
+                    {
+                        Console.WriteLine(
+                            "ACTIVE CLIENT: replica '{0}' is now the active client; establishing monitoring.",
+                            nodeId);
+                        await LogRedundancyInfoAsync(leaderSession, cfgCt).ConfigureAwait(false);
+                        if (suite)
+                        {
+                            await RunClientSuiteAsync(leaderSession, haMonitor, cfgCt).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await SubscribeToCurrentTimeAsync(leaderSession, haMonitor, cfgCt)
+                                .ConfigureAwait(false);
+                        }
+                    })
+                    .UseRedundancy(election, store, protector)
+                    .Build();
+
+                await using (session.ConfigureAwait(false))
+                {
+                    session.RoleChanged += haMonitor.OnRoleChanged;
+                    await session.StartAsync(ct).ConfigureAwait(false);
+                    Console.WriteLine(
+                        "Coordinated client replica '{0}' started ({1} shared store) against {2}. Exactly one " +
+                        "replica is active; on active-client loss a standby is promoted and resumes monitoring. " +
+                        "Failover and data-loss events are logged as they happen. Press Ctrl+C to stop.",
+                        nodeId, mode, serverUrl);
+                    await RunForDurationAsync(duration, ct).ConfigureAwait(false);
+                    session.RoleChanged -= haMonitor.OnRoleChanged;
+                }
+            }
+            finally
+            {
+                // The coordinator disposes the election on session dispose; dispose the shared
+                // store, the record protector, and the Raft consensus here (the stores hold the
+                // consensus with ownsConsensus:false).
+                if (store is IAsyncDisposable disposableStore)
+                {
+                    await disposableStore.DisposeAsync().ConfigureAwait(false);
+                }
+                protector.Dispose();
+                await consensus.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static async ValueTask<ManagedSession> ConnectLeaderSessionAsync(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
+        {
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return await new ManagedSessionBuilder(configuration, telemetry)
+                        .UseEndpoint(endpoint)
+                        .WithSessionName(kApplicationName)
+                        .WithUserIdentity(new UserIdentity())
+                        .WithServerRedundancy()
+                        .ConnectAsync(ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (attempt < 30 && !ct.IsCancellationRequested)
+                {
+                    Console.WriteLine(
+                        "Active client connect attempt {0} failed ({1}); retrying...", attempt, ex.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private static ISharedKeyValueStore CreateClientSharedStore(
+            bool strong, string nodeId, IRaftConsensus consensus)
+        {
+            // CA2000: ownership of the stores created here transfers to the returned store (the
+            // Hybrid owns its inner stores via ownsStores:true) and to the caller, which disposes
+            // it. The shared Raft consensus is NOT owned by these stores (ownsConsensus:false); the
+            // caller disposes it after the store.
+#pragma warning disable CA2000
+            var raftStore = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
+            if (strong)
+            {
+                return raftStore;
+            }
+
+            (IPAddress address, int port, List<IPEndPoint> peers) = ReadClientGossip();
+            var gossip = new TcpGossipTransport(new TcpGossipTransportOptions { Address = address, Port = port });
+            gossip.AddPeers(peers);
+            var replicated = new ReplicatedSharedKeyValueStore(
+                ReplicaIdFromNodeId(nodeId), gossip, TimeProvider.System, CrdtReaderOptions.Default);
+            return new HybridSharedKeyValueStore(replicated, raftStore, default, ownsStores: true);
+#pragma warning restore CA2000
+        }
+
+        private static AesCbcHmacRecordProtector CreateClientRecordProtector()
+        {
+            // A coordinated client set mirrors the leader's session secrets through a networked
+            // store, so ClientReplicaCoordinator fails closed on a NullRecordProtector. Use the
+            // shared CLIENT_RECORD_KEY when supplied; otherwise, for an explicit isolated demo
+            // (CLIENT_INSECURE=true), derive a well-known NON-SECRET demo key so all replicas
+            // agree - never do this in production.
+            string? recordKeyBase64 = Environment.GetEnvironmentVariable("CLIENT_RECORD_KEY");
+            if (!string.IsNullOrWhiteSpace(recordKeyBase64))
+            {
+                return new AesCbcHmacRecordProtector(Convert.FromBase64String(recordKeyBase64));
+            }
+
+            bool insecure = bool.TryParse(
+                Environment.GetEnvironmentVariable("CLIENT_INSECURE"), out bool value) && value;
+            if (insecure)
+            {
+                Console.Error.WriteLine(
+                    "[HA][WARNING] CLIENT_INSECURE=true: protecting mirrored client session secrets with a " +
+                    "well-known, NON-SECRET demo key derived from a constant. Use only for an isolated demo; " +
+                    "set CLIENT_RECORD_KEY to a shared base64 32-byte key in production.");
+                byte[] demoKey = SHA256.HashData(
+                    Encoding.UTF8.GetBytes("OPCFoundation/RedundantClient/insecure-demo/record-key"));
+                return new AesCbcHmacRecordProtector(demoKey);
+            }
+
+            throw new InvalidOperationException(
+                "A coordinated client set mirrors session secrets through a networked store and requires a " +
+                "record protector. Set CLIENT_RECORD_KEY to a shared base64 32-byte key (the same value on " +
+                "every client replica) to encrypt mirrored secrets, or set CLIENT_INSECURE=true to run this " +
+                "isolated demo without a real key.");
+        }
+
+        private static DefaultRaftConsensus BuildClientRaftCluster()
+        {
+            ulong raftId = ulong.TryParse(
+                Environment.GetEnvironmentVariable("CLIENT_RAFT_ID"), out ulong id) ? id : 1;
+            List<string> peers = ReadEnvList("CLIENT_RAFT_PEERS");
+            int members = int.TryParse(
+                Environment.GetEnvironmentVariable("CLIENT_RAFT_MEMBERS"), out int m) ? m : peers.Count + 1;
+            string bind = Environment.GetEnvironmentVariable("CLIENT_RAFT_BIND") ?? "tcp://0.0.0.0:6561";
+
+            var memberIds = new List<ulong>(members);
+            for (int i = 1; i <= members; i++)
+            {
+                memberIds.Add((ulong)i);
+            }
+
+            var transportOptions = new NanoMsgBusTransportOptions { BindAddress = bind };
+            foreach (string peer in peers)
+            {
+                transportOptions.Peers.Add(peer);
+            }
+
+            // The DefaultRaftConsensus adapter owns the node (which disposes the transport);
+            // MemoryStorage is volatile, so a restarted replica re-syncs from the leader.
+#pragma warning disable CA2000
+            var transport = new NanoMsgBusTransport(transportOptions);
+            var storage = new MemoryStorage(new ConfState(memberIds));
+            return DefaultRaftConsensus.CreateCluster(
+                raftId,
+                transport,
+                storage,
+                new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(50) },
+                config =>
+                {
+                    config.ElectionTick = 10;
+                    config.PreVote = true;
+                    config.CheckQuorum = true;
+                },
+                TimeSpan.FromSeconds(30));
+#pragma warning restore CA2000
+        }
+
+        private static (IPAddress Address, int Port, List<IPEndPoint> Peers) ReadClientGossip()
+        {
+            int port = int.TryParse(
+                Environment.GetEnvironmentVariable("CLIENT_GOSSIP_PORT"), out int p) ? p : 4841;
+            var peers = new List<IPEndPoint>();
+            foreach (string peer in ReadEnvList("CLIENT_GOSSIP_PEERS"))
+            {
+                peers.Add(ParseGossipEndpoint(peer));
+            }
+            return (IPAddress.Any, port, peers);
+        }
+
+        private static IPEndPoint ParseGossipEndpoint(string hostPort)
+        {
+            int separator = hostPort.LastIndexOf(':');
+            if (separator <= 0 || separator == hostPort.Length - 1)
+            {
+                throw new FormatException($"Invalid gossip endpoint '{hostPort}'; expected host:port.");
+            }
+
+            string host = hostPort[..separator];
+            int port = int.Parse(hostPort[(separator + 1)..], CultureInfo.InvariantCulture);
+            IPAddress address = IPAddress.TryParse(host, out IPAddress? ip)
+                ? ip
+                : Dns.GetHostAddresses(host)[0];
+            return new IPEndPoint(address, port);
+        }
+
+        private static ReplicaId ReplicaIdFromNodeId(string nodeId)
+        {
+            // Derive a stable replica identity from the node id so it survives restarts.
+            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(nodeId));
+            return new ReplicaId(new Guid(hash.AsSpan(0, 16).ToArray()));
+        }
+
+        private static List<string> ReadEnvList(string key)
+        {
+            var items = new List<string>();
+            string? value = Environment.GetEnvironmentVariable(key);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return items;
+            }
+
+            foreach (string item in value.Split(
+                [',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                items.Add(item);
+            }
+
+            return items;
+        }
+
+        private static async Task<EndpointDescription> SelectEndpointWithRetryAsync(
+            ApplicationConfiguration configuration,
+            string serverUrl,
+            bool useSecurity,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
+        {
+            const int maxAttempts = 60;
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    EndpointDescription? selected = await CoreClientUtils
+                        .SelectEndpointAsync(configuration, serverUrl, useSecurity, telemetry, ct)
+                        .ConfigureAwait(false);
+                    if (selected != null)
+                    {
+                        return selected;
+                    }
+                }
+                catch (Exception ex) when (attempt < maxAttempts && !ct.IsCancellationRequested)
+                {
+                    Console.WriteLine(
+                        "Waiting for server '{0}' (attempt {1}/{2}): {3}",
+                        serverUrl, attempt, maxAttempts, ex.Message);
+                }
+
+                if (attempt >= maxAttempts)
+                {
+                    throw new InvalidOperationException($"No endpoint could be selected for '{serverUrl}'.");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
             }
         }
 
@@ -455,6 +774,26 @@ namespace RedundantClient
                         m_failoverContext = true;
                     }
                     Console.WriteLine("CONNECTED: session (re)connected to {0}.", endpoint ?? "(unknown)");
+                }
+            }
+
+            /// <summary>
+            /// Records a coordinated-client role change. On promotion it arms the failover
+            /// context so the next data-change assessment is framed as a (client-side) failover;
+            /// on demotion it notes that a peer client took over.
+            /// </summary>
+            public void OnRoleChanged(bool isLeader)
+            {
+                if (isLeader)
+                {
+                    lock (m_lock)
+                    {
+                        m_failoverContext = true;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("STANDBY: this replica is no longer the active client; a peer took over.");
                 }
             }
 

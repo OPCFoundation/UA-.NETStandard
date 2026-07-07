@@ -275,7 +275,7 @@ docker compose -f Applications\RedundantServer\Scale\docker-compose.yml --profil
 
 For a *coordinated* single-active client replica set (exactly one client active, the rest hot/warm/cold standbys), use `AddRedundantClientSession` + a CAS-capable `AddRaftClientSharedStore` (a fixed Raft quorum, like the server's active/passive) rather than independent clients — see [HighAvailability.md](../../Docs/HighAvailability.md). Each client replica is its own process; there is no in-process replica set.
 
-For a **client-centric** compose that scales the client and server independently and logs failover / HA / **data loss** on both sides, use [`Applications/RedundantClient/docker-compose.yml`](../RedundantClient/docker-compose.yml) (eventual, shows data loss) and its `Strong/docker-compose.yml` (Raft, no data loss). See the [RedundantClient README](../RedundantClient/README.md#run-with-docker-compose-scale-the-client-and-server-independently-see-failover--data-loss).
+For a **client-centric** compose that runs the full HA matrix (server consistency × client mode) from one env-driven file and logs failover / HA / **data loss** on both sides, use [`Applications/RedundantClient/docker-compose.yml`](../RedundantClient/docker-compose.yml): `COMPOSE_PROFILES` selects `server-eventual` (shows data loss) or `server-strong` (Raft, no data loss) crossed with `client-independent` or `client-coordinated`. See the [RedundantClient README](../RedundantClient/README.md#run-with-docker-compose-one-file-the-full-ha-matrix-env-driven).
 
 ### Watch replication and failover
 
