@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ * Regression fixture for issue #3964.
+ *
+ * A concrete predefined instance ("AnalogDevice") of an ObjectType whose
+ * mandatory child variable ("Measurement") is a BaseAnalogType. The
+ * instance explicitly declares the Measurement variable together with its
+ * EURange / EngineeringUnits property children. Those properties are only
+ * Optional on BaseAnalogType (they are not restated as Mandatory on the
+ * concrete instance), so before the fix the generated instance factory
+ * emitted their creation inside the `if (!forInstance)` type-template block
+ * and dropped them from the actual instance.
+-->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/AnalogInstance/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/AnalogInstance/" PublicationDate="2024-01-01T00:00:00Z" Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" PublicationDate="2024-01-01T00:00:00Z" Version="1.05.03"/>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+  </Aliases>
+
+  <UAObjectType NodeId="ns=1;i=1000" BrowseName="1:AnalogDeviceType">
+    <DisplayName>AnalogDeviceType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1001</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAVariable DataType="Double" NodeId="ns=1;i=1001" BrowseName="1:Measurement" ParentNodeId="ns=1;i=1000">
+    <DisplayName>Measurement</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable DataType="i=884" NodeId="ns=1;i=1002" BrowseName="EURange" ParentNodeId="ns=1;i=1001">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable DataType="i=887" NodeId="ns=1;i=1003" BrowseName="EngineeringUnits" ParentNodeId="ns=1;i=1001">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+
+  <UAObject NodeId="ns=1;i=2000" BrowseName="1:AnalogDevice" ParentNodeId="i=85">
+    <DisplayName>AnalogDevice</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1000</Reference>
+    </References>
+  </UAObject>
+
+  <UAVariable DataType="Double" NodeId="ns=1;i=2001" BrowseName="1:Measurement" ParentNodeId="ns=1;i=2000">
+    <DisplayName>Measurement</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=15318</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=2002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=2003</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable DataType="i=884" NodeId="ns=1;i=2002" BrowseName="EURange" ParentNodeId="ns=1;i=2001">
+    <DisplayName>EURange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject>
+        <uax:TypeId>
+          <uax:Identifier>i=885</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:Range>
+            <uax:Low>-5</uax:Low>
+            <uax:High>95</uax:High>
+          </uax:Range>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <UAVariable DataType="i=887" NodeId="ns=1;i=2003" BrowseName="EngineeringUnits" ParentNodeId="ns=1;i=2001">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject>
+        <uax:TypeId>
+          <uax:Identifier>i=888</uax:Identifier>
+        </uax:TypeId>
+        <uax:Body>
+          <uax:EUInformation>
+            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+            <uax:UnitId>4408652</uax:UnitId>
+            <uax:DisplayName>
+              <uax:Text>°C</uax:Text>
+            </uax:DisplayName>
+            <uax:Description>
+              <uax:Text>degree Celsius</uax:Text>
+            </uax:Description>
+          </uax:EUInformation>
+        </uax:Body>
+      </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+</UANodeSet>

@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging;
@@ -351,6 +354,136 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     "state.NodeId = global::Opc.Ua.NodeId.Create(11492u, global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);"),
                     "The Server singleton dispatch should override state.NodeId to Server_GetMonitoredItems (11492).");
             });
+        }
+
+        /// <summary>
+        /// Regression test for issue #3964. A concrete predefined instance
+        /// (<c>AnalogDevice</c>) declares a <c>BaseAnalogType</c> variable
+        /// (<c>Measurement</c>) whose <c>EURange</c> / <c>EngineeringUnits</c>
+        /// property children are explicitly present on the instance but only
+        /// resolve to <c>Optional</c> (inherited from <c>BaseAnalogType</c>,
+        /// not restated as Mandatory on the instance). Before the fix the
+        /// generated instance-level factory emitted the creation of those
+        /// children inside the <c>if (!forInstance)</c> type-template block,
+        /// so — because the factory is always invoked with
+        /// <c>forInstance: true</c> — the properties were dropped from the
+        /// actual instance. They must instead be created unconditionally,
+        /// exactly like the type-level factory does.
+        /// </summary>
+        [Test]
+        public void ConcreteInstanceAnalogChildren_AreMaterializedUnconditionally()
+        {
+            // Arrange
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+
+            // Act
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "AnalogInstance.NodeSet2.xml", telemetry);
+
+            // Assert
+            string ex = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+
+            // The concrete-instance factory for the analog variable
+            // (Create<Instance>_<Var>) is distinct from the type-level
+            // factory (Create<Type>_<Var>). Only the instance one regressed.
+            string instanceFactory = ExtractMethodBody(ex, "CreateAnalogDevice_Measurement");
+
+            // The variable must be recognised as an analog state so that the
+            // typed EngineeringUnits / EURange children (and the fluent
+            // WithEURange / WithEngineeringUnits helpers) are available.
+            Assert.That(instanceFactory,
+                Does.Contain("global::Opc.Ua.BaseAnalogState"),
+                "Measurement should be generated as a BaseAnalogState.");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(instanceFactory, Does.Contain("CreateOrReplaceEURange"),
+                    "Instance factory must create the EURange child.");
+                Assert.That(instanceFactory, Does.Contain("CreateOrReplaceEngineeringUnits"),
+                    "Instance factory must create the EngineeringUnits child.");
+            });
+
+            int idxGate = instanceFactory.IndexOf(
+                "if (!forInstance)", StringComparison.Ordinal);
+            int idxEuRange = instanceFactory.IndexOf(
+                "CreateOrReplaceEURange", StringComparison.Ordinal);
+            int idxEngineeringUnits = instanceFactory.IndexOf(
+                "CreateOrReplaceEngineeringUnits", StringComparison.Ordinal);
+
+            if (idxGate >= 0)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(idxEuRange, Is.LessThan(idxGate),
+                        "EURange must be created before the `if (!forInstance)` gate " +
+                        "so it materialises on the actual instance (issue #3964).");
+                    Assert.That(idxEngineeringUnits, Is.LessThan(idxGate),
+                        "EngineeringUnits must be created before the `if (!forInstance)` " +
+                        "gate so it materialises on the actual instance (issue #3964).");
+                });
+            }
+        }
+
+        private static Dictionary<string, string> GenerateFromNodeSet(
+            string nodeSetResource,
+            ITelemetryContext telemetry)
+        {
+            using var fileSystem = new VirtualFileSystem();
+            string path = Path.Combine(
+                Directory.GetCurrentDirectory(), "Resources", nodeSetResource);
+
+            var nodesets = new global::Opc.Ua.SourceGeneration.NodesetFileCollection(
+                ImmutableArray.Create(
+                    (path, new global::Opc.Ua.SourceGeneration.NodesetFileOptions())),
+                fileSystem,
+                telemetry);
+
+            // The test compilation has no Opc.Ua.Server reference, so
+            // suppress fluent-builder emission (mirrors model-only projects).
+            nodesets.GenerateCode(
+                fileSystem,
+                string.Empty,
+                telemetry,
+                new GeneratorOptions { OmitFluentApi = true });
+
+            return fileSystem.CreatedFiles
+                .Where(c => Path.GetExtension(c) == ".cs")
+                .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
+        }
+
+        /// <summary>
+        /// Extracts the source of the factory method whose signature begins
+        /// with <c>internal static … {methodName}(</c>. Returns the body from
+        /// the method definition up to (but not including) the next
+        /// static-method definition, so callers can assert on ordering within
+        /// a single method without matching call sites elsewhere in the file.
+        /// </summary>
+        private static string ExtractMethodBody(string code, string methodName)
+        {
+            System.Text.RegularExpressions.Match match = Regex.Match(
+                code,
+                @"internal static [^\r\n]*\b" + Regex.Escape(methodName) + @"\(");
+            Assert.That(match.Success, Is.True,
+                $"Method definition '{methodName}' not found in generated code.");
+
+            int start = match.Index;
+            int end = code.Length;
+            foreach (string marker in new[]
+            {
+                "\n        internal static",
+                "\n        public static",
+                "\n        private static"
+            })
+            {
+                int idx = code.IndexOf(
+                    marker, start + match.Length, StringComparison.Ordinal);
+                if (idx >= 0 && idx < end)
+                {
+                    end = idx;
+                }
+            }
+            return code.Substring(start, end - start);
         }
 
         private Mock<IFileSystem> m_mockFileSystem;

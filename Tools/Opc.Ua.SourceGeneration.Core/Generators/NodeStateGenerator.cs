@@ -1579,6 +1579,32 @@ namespace Opc.Ua.SourceGeneration
                 (node.Parent.Design is not InstanceDesign ||
                     !m_context.Options.UseTypeDefinitionModellingRules);
 
+            // Explicitly-declared descendants of a concrete predefined instance
+            // (a user-modelled <opc:Object>/<opc:Variable> declared under
+            // Objects, e.g. a device instance) must be materialised on the
+            // actual instance regardless of their (possibly type-inherited)
+            // modelling rule: they are real nodes present in the model, not
+            // modelling-rule-driven optional children the SDK adds on demand.
+            // The topLevelInstanceException above only covers the instance's
+            // DIRECT children (node.Parent.Parent == null); deeper descendants
+            // — e.g. the EURange / EngineeringUnits properties of a
+            // BaseAnalogType / AnalogUnitType variable nested under the
+            // instance (issue #3964) — inherit IsUnderSingletonInstance and
+            // would otherwise land in the `if (!forInstance)` type-template
+            // block and be dropped from the instance. SDK-managed singletons
+            // (Server, ServerConfiguration, …) are generated with
+            // UseTypeDefinitionModellingRules on and keep the #3768
+            // optional-child suppression, so they are excluded here.
+            bool concreteInstanceDescendant =
+                node.IsUnderSingletonInstance &&
+                !node.RootIsTypeDefinition &&
+                node.InstanceOf == null &&
+                !node.IsNotExplicitlyDefined &&
+                !m_context.Options.UseTypeDefinitionModellingRules;
+
+            bool alwaysEmitInstanceChild =
+                topLevelInstanceException || concreteInstanceDescendant;
+
             if (context.Token == Tokens.ListOfOptionalChildNodeStates)
             {
                 if (effectiveRule == ModellingRule.Mandatory)
@@ -1588,7 +1614,7 @@ namespace Opc.Ua.SourceGeneration
                 // Real instance children of a top-level (non-typed) parent belong in
                 // the always-emitted list so they materialize for the actual instance,
                 // not only when the node is treated as a type template.
-                if (topLevelInstanceException)
+                if (alwaysEmitInstanceChild)
                 {
                     return null;
                 }
@@ -1598,7 +1624,7 @@ namespace Opc.Ua.SourceGeneration
             else if (effectiveRule != ModellingRule.Mandatory)
             {
                 // Exception: real instance children of a top-level (non-typed) parent.
-                if (!topLevelInstanceException)
+                if (!alwaysEmitInstanceChild)
                 {
                     return null;
                 }
