@@ -224,6 +224,56 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task RawReadWithIndexRangeOnScalarReturnsBadIndexRangeNoDataAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(10);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("ScalarVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                NumValuesPerNode = 0,
+                IsReadModified = false
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                IndexRange = "1:3",
+                ParsedIndexRange = NumericRange.Parse("1:3"),
+                ContinuationPoint = ByteString.Empty
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                nodeToRead,
+                details,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+
+            // Per OPC UA Part 11 (CTT HA Read Raw Err-009): an IndexRange cannot select
+            // data from scalar history, so the operation result is Bad_IndexRangeNoData.
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeNoData));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [Test]
         public async Task AnnotationUpdateDispatchInsertsAndDeletesAsync()
         {
             HarnessFixture h = CreateHarness();

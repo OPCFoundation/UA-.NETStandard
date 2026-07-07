@@ -1590,6 +1590,18 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
+            // An IndexRange selects elements from an array Value; it cannot select
+            // anything from scalar history values, so report Bad_IndexRangeNoData at
+            // the operation level (OPC UA Part 11; CTT HA Read Raw Err-009).
+            if (!nodeToRead.ParsedIndexRange.IsNull &&
+                node is BaseVariableState scalarCheck &&
+                scalarCheck.ValueRank == ValueRanks.Scalar)
+            {
+                result.StatusCode = StatusCodes.BadIndexRangeNoData;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
+
             HistorianRawReadRequest request;
             HistorianResumeToken token;
             if (state is { Kind: HistorianReadKind.Raw, RawRequest: { } existingRaw })

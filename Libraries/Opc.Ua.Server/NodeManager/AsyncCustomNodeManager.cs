@@ -3575,7 +3575,10 @@ namespace Opc.Ua.Server
                     if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue &&
                         readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
                     {
-                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        // Fewer than two of {startTime, endTime, numValuesPerNode} were
+                        // specified: the details are invalid (OPC UA Part 11 6.5.3.2),
+                        // which is reported with Bad_HistoryOperationInvalid.
+                        throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                     }
 
                     // if one is null the num values must be provided.
@@ -3584,7 +3587,7 @@ namespace Opc.Ua.Server
                     {
                         if (readRawModifiedDetails.NumValuesPerNode == 0)
                         {
-                            throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                            throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                         }
                     }
                 }
