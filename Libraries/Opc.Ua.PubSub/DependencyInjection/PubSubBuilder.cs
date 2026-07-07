@@ -37,6 +37,7 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
@@ -156,6 +157,30 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             Services.AddSingleton(store);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithActivationCoordinator(IPubSubActivationCoordinator coordinator)
+        {
+            if (coordinator is null)
+            {
+                throw new ArgumentNullException(nameof(coordinator));
+            }
+
+            Services.AddSingleton(coordinator);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithLeaseStore(IPubSubLeaseStore leaseStore)
+        {
+            if (leaseStore is null)
+            {
+                throw new ArgumentNullException(nameof(leaseStore));
+            }
+
+            Services.AddSingleton(leaseStore);
             return this;
         }
 

@@ -34,6 +34,7 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 
@@ -114,6 +115,22 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="store">Security-key store.</param>
         IPubSubBuilder WithSecurityKeyStore(IPubSubSecurityKeyStore store);
+
+        /// <summary>
+        /// Uses a custom PubSub activation coordinator that decides, per
+        /// component, whether this instance is active or on standby in a
+        /// redundant (high-availability) deployment (Part 14 §9.1.6).
+        /// </summary>
+        /// <param name="coordinator">Activation coordinator.</param>
+        IPubSubBuilder WithActivationCoordinator(IPubSubActivationCoordinator coordinator);
+
+        /// <summary>
+        /// Uses a custom PubSub lease store for leader election in a redundant
+        /// deployment. A distributed store enables genuine multi-instance
+        /// failover.
+        /// </summary>
+        /// <param name="leaseStore">Lease store.</param>
+        IPubSubBuilder WithLeaseStore(IPubSubLeaseStore leaseStore);
 
         /// <summary>
         /// Adds a responder-side PubSub Action handler.
