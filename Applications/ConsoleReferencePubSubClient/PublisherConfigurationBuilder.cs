@@ -31,12 +31,13 @@ using System;
 using Opc.Ua;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Eth;
+using Opc.Ua.PubSub.Kafka;
 
 namespace Quickstarts.ConsoleReferencePubSubClient
 {
     /// <summary>
     /// Builds minimal Part 14 <see cref="PubSubConfigurationDataType"/>
-    /// payloads for the three demo wire profiles using the fluent
+    /// payloads for the demo wire profiles using the fluent
     /// <see cref="PubSubConfigurationBuilder"/>. The payloads use the
     /// "Simple" DataSet exposed by <see cref="SampleDataSetSource"/>
     /// (BoolToggle, Int32 counter, DateTime).
@@ -47,7 +48,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         public const string DefaultUdpEndpoint = "opc.udp://239.0.0.1:4840";
         public const string DefaultEthEndpoint = "opc.eth://01-00-5E-7F-00-01";
         public const string DefaultMqttEndpoint = "mqtt://localhost:1883";
+        public const string DefaultKafkaEndpoint = "kafka://localhost:9092";
         private const string MqttQueueName = "Quickstarts/Reference/Simple";
+        private const string KafkaTopicName = "Quickstarts.Reference.Simple";
 
         public static string DefaultEndpointFor(PublisherProfile profile)
         {
@@ -55,7 +58,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             {
                 PublisherProfile.UdpUadp => DefaultUdpEndpoint,
                 PublisherProfile.EthUadp => DefaultEthEndpoint,
-                _ => DefaultMqttEndpoint
+                PublisherProfile.KafkaUadp or PublisherProfile.KafkaJson => DefaultKafkaEndpoint,
+                PublisherProfile.MqttUadp or PublisherProfile.MqttJson => DefaultMqttEndpoint,
+                _ => throw new ArgumentOutOfRangeException(nameof(profile))
             };
         }
 
@@ -68,13 +73,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             int intervalMs)
         {
             // UDP and Ethernet are datagram transports (no broker queue);
-            // the MQTT profiles use broker transport settings instead.
+            // broker profiles use broker transport settings instead.
             bool udp = profile is PublisherProfile.UdpUadp or PublisherProfile.EthUadp;
 
             // UADP message security (SignAndEncrypt) is wired for the UADP
             // profiles via the shared StaticSecurityKeyProvider. The JSON
             // profile has no UADP security wrapper, so it stays unsecured.
-            bool secured = profile != PublisherProfile.MqttJson;
+            bool secured = profile is not (PublisherProfile.MqttJson or PublisherProfile.KafkaJson);
+            string brokerQueueName = profile is PublisherProfile.KafkaUadp or PublisherProfile.KafkaJson
+                ? KafkaTopicName
+                : MqttQueueName;
 
             string transportProfileUri = profile switch
             {
@@ -82,6 +90,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 PublisherProfile.EthUadp => EthProfiles.PubSubEthUadpTransport,
                 PublisherProfile.MqttUadp => Profiles.PubSubMqttUadpTransport,
                 PublisherProfile.MqttJson => Profiles.PubSubMqttJsonTransport,
+                PublisherProfile.KafkaUadp => KafkaProfiles.PubSubKafkaUadpTransport,
+                PublisherProfile.KafkaJson => KafkaProfiles.PubSubKafkaJsonTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(profile))
             };
 
@@ -104,7 +114,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                                     ? new DatagramWriterGroupTransportDataType()
                                     : new BrokerWriterGroupTransportDataType
                                     {
-                                        QueueName = MqttQueueName
+                                        QueueName = brokerQueueName
                                     });
                             if (secured)
                             {
@@ -126,7 +136,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                                     writer.WithTransportSettings(
                                         new BrokerDataSetWriterTransportDataType
                                         {
-                                            QueueName = MqttQueueName,
+                                            QueueName = brokerQueueName,
                                             RequestedDeliveryGuarantee
                                                 = BrokerTransportQualityOfService.BestEffort
                                         });
@@ -138,7 +148,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
 
         private static IEncodeable WriterGroupMessageSettings(PublisherProfile profile)
         {
-            if (profile == PublisherProfile.MqttJson)
+            if (profile is PublisherProfile.MqttJson or PublisherProfile.KafkaJson)
             {
                 return new JsonWriterGroupMessageDataType
                 {
@@ -163,7 +173,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
 
         private static IEncodeable WriterMessageSettings(PublisherProfile profile)
         {
-            if (profile == PublisherProfile.MqttJson)
+            if (profile is PublisherProfile.MqttJson or PublisherProfile.KafkaJson)
             {
                 return new JsonDataSetWriterMessageDataType
                 {
