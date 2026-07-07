@@ -6,7 +6,7 @@ parameters:
 - name: managedPool
   displayName: 'Use the netstandard Managed DevOps Pool (adds ImageOverride demands per OS)'
   type: boolean
-  default: true
+  default: false
 
 trigger:
   batch: 'true'
@@ -107,6 +107,19 @@ stages:
       customtestarget: net10.0
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net10.0
+      agents: '@{ mac = "${{ variables.macImage }}" }'
+      jobnamesuffix: net100mac
+      customtestarget: net10.0
+      hosted: true
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
+      # macOS runs only on Schedule/Manual (nightly + on-demand), not on
+      # PR or master push, to keep the PR gate fast and Windows-focused.
+      condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
@@ -141,8 +154,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -165,8 +176,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -189,8 +198,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -243,8 +250,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: coverage
   dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'

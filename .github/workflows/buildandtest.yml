@@ -19,6 +19,16 @@ on:
     - 'nuget.config'
     - 'NuGet.config'
     - '.github/workflows/buildandtest.yml'
+  # Weekly nightly run mirroring azure-pipelines.yml — Sun 02:00 UTC.
+  schedule:
+    - cron: '0 2 * * 0'
+  # Manual dispatch with an opt-in for macOS runners.
+  workflow_dispatch:
+    inputs:
+      include_macos:
+        description: 'Include macOS runners in the test / AoT matrix'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -33,11 +43,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       csprojs: ${{ steps.list.outputs.csprojs }}
+      test_os: ${{ steps.list.outputs.test_os }}
+      aot_matrix: ${{ steps.list.outputs.aot_matrix }}
     steps:
     - uses: actions/checkout@v7
     - name: Enumerate Tests/Opc.Ua.*.Tests projects
       id: list
       shell: pwsh
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
       run: |
         # Discover test projects from the filesystem so this matrix does
         # not have to be hand-maintained as projects are added/renamed.
@@ -54,6 +69,26 @@ jobs:
         Write-Host "Discovered $(@($projects).Count) project(s): $json"
         "csprojs=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+        # macOS is opt-in on pull_request events (default off) and included
+        # by default on push/schedule/workflow_dispatch.  When dispatched
+        # manually the include_macos input can be flipped to false to skip.
+        $includeMac = switch ($env:EVENT_NAME) {
+            'pull_request' { $false }
+            'workflow_dispatch' { $env:INCLUDE_MACOS -eq 'true' }
+            default { $true }
+        }
+        $testOs = @('ubuntu-latest')
+        $aotMatrix = @(@{ os = 'ubuntu-latest'; rid = 'linux-x64' })
+        if ($includeMac) {
+            $testOs += 'macOS-latest'
+            $aotMatrix += @{ os = 'macos-13';     rid = 'osx-x64'  }
+            $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
+        }
+        Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
+        Write-Host "test_os=$($testOs -join ', ')"
+        "test_os=$(ConvertTo-Json -InputObject @($testOs) -Compress)"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "aot_matrix=$(ConvertTo-Json -InputObject @($aotMatrix) -Compress)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
   build-and-test:
     needs: discover
     name: test-${{matrix.os}}-${{matrix.csproj}}
@@ -61,9 +96,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Linux + macOS only — Windows is covered by the AzDO testfastpr stage,
-        # so the GH Actions matrix focuses on the platforms AzDO does not.
-        os: [ubuntu-latest, macOS-latest]
+        # macOS is on by default for push/schedule/workflow_dispatch and
+        # off by default on pull_request; controlled via discover.test_os.
+        os: ${{ fromJSON(needs.discover.outputs.test_os) }}
         csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
         include:
           - framework: 'net10.0'
@@ -146,48 +181,41 @@ jobs:
       if: ${{ always() }}
 
   aot-test:
+    needs: discover
     name: aot-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # Linux + macOS (Intel + Apple Silicon).  Windows AoT is covered by
-        # the AzDO testaot stage.  Each OS maps to the RID that `dotnet
-        # publish` will emit on that host, which the Run step uses to
-        # locate the published executable.
-        os: [ubuntu-latest, macos-13, macos-latest]
-        dotnet-version: ['10.0.x']
-        configuration: ['Release']
-        include:
-          - os: ubuntu-latest
-            rid: linux-x64
-          - os: macos-13
-            rid: osx-x64
-          - os: macos-latest
-            rid: osx-arm64
+        # OS + RID pairs computed by `discover` so macOS entries drop out
+        # entirely on pull_request (default off).  Windows AoT is covered
+        # by the AzDO testaot stage.
+        include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
       AOTPROJECT: './Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
+      DOTNET_VERSION: '10.0.x'
+      CONFIGURATION: 'Release'
 
     steps:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
-    - name: Setup .NET ${{ matrix.dotnet-version }}
+    - name: Setup .NET ${{ env.DOTNET_VERSION }}
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: ${{ matrix.dotnet-version }}
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Set Cloud Version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
 
     - name: Publish NativeAOT
-      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ matrix.configuration }}
+      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }}
 
     - name: Run NativeAOT Tests
-      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ matrix.configuration }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
+      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
 
     - name: Upload test results
       uses: actions/upload-artifact@v7
