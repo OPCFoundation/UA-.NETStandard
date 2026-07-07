@@ -49,7 +49,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
     /// One executable exposes three command-line-selectable modes:
     /// <list type="bullet">
     /// <item><description>
-    /// <c>publisher</c> - publishes sample DataSets over UDP/UADP or MQTT (UADP/JSON).
+    /// <c>publisher</c> - publishes sample DataSets over UDP/UADP, Ethernet/UADP, MQTT, or Kafka (UADP/JSON).
     /// </description></item>
     /// <item><description>
     /// <c>subscriber</c> - receives DataSets and logs each decoded message.
@@ -88,14 +88,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         }
 
         /// <summary>
-        /// Builds the <c>publisher</c> subcommand: a UDP/UADP or MQTT publisher
+        /// Builds the <c>publisher</c> subcommand: a UDP/UADP, Ethernet/UADP, MQTT, or Kafka publisher
         /// that publishes a built-in sample DataSet.
         /// </summary>
         private static Command BuildPublisherCommand(Action<int> setExitCode)
         {
             var profileOption = new Option<string>("--profile")
             {
-                Description = "Transport profile: udp-uadp | mqtt-uadp | mqtt-json.",
+                Description =
+                    "Transport profile: udp-uadp | eth-uadp | mqtt-uadp | mqtt-json | " +
+                    "kafka-uadp | kafka-json.",
                 DefaultValueFactory = _ => "udp-uadp"
             };
             var configFileOption = new Option<string?>("--config-file")
@@ -121,7 +123,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             {
                 Description =
                     "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 (UDP), " +
-                    "mqtt://localhost:1883 (MQTT)."
+                    "opc.eth://01-00-5E-7F-00-01 (Ethernet), mqtt://localhost:1883 (MQTT), " +
+                    "kafka://localhost:9092 (Kafka)."
             };
             var intervalOption = new Option<int>("--interval")
             {
@@ -131,7 +134,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
 
             var command = new Command(
                 "publisher",
-                "Publish a sample DataSet over UDP/UADP or MQTT (UADP/JSON).")
+                "Publish a sample DataSet over UDP/UADP, Ethernet/UADP, MQTT, or Kafka (UADP/JSON).")
             {
                 profileOption,
                 configFileOption,
@@ -149,7 +152,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 {
                     await Console.Error.WriteLineAsync(
                         $"Unknown --profile value '{profileArg}'. " +
-                        "Expected one of: udp-uadp, mqtt-uadp, mqtt-json.")
+                        "Expected one of: udp-uadp, eth-uadp, mqtt-uadp, mqtt-json, kafka-uadp, kafka-json.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -169,14 +172,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         }
 
         /// <summary>
-        /// Builds the <c>subscriber</c> subcommand: a UDP/UADP or MQTT subscriber
+        /// Builds the <c>subscriber</c> subcommand: a UDP/UADP, Ethernet/UADP, MQTT, or Kafka subscriber
         /// that logs each decoded DataSetMessage.
         /// </summary>
         private static Command BuildSubscriberCommand(Action<int> setExitCode)
         {
             var profileOption = new Option<string>("--profile")
             {
-                Description = "Transport profile: udp-uadp | mqtt-uadp | mqtt-json.",
+                Description =
+                    "Transport profile: udp-uadp | eth-uadp | mqtt-uadp | mqtt-json | " +
+                    "kafka-uadp | kafka-json.",
                 DefaultValueFactory = _ => "udp-uadp"
             };
             var configFileOption = new Option<string?>("--config-file")
@@ -200,8 +205,10 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             };
             var endpointOption = new Option<string?>("--endpoint")
             {
-                Description = "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 " +
-                    "(UDP), mqtt://localhost:1883 (MQTT)."
+                Description =
+                    "Transport endpoint URL. Defaults: opc.udp://239.0.0.1:4840 (UDP), " +
+                    "opc.eth://01-00-5E-7F-00-01 (Ethernet), mqtt://localhost:1883 (MQTT), " +
+                    "kafka://localhost:9092 (Kafka)."
             };
 
             var command = new Command(
@@ -223,7 +230,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 {
                     await Console.Error.WriteLineAsync(
                         $"Unknown --profile value '{profileArg}'. " +
-                        "Expected one of: udp-uadp, mqtt-uadp, mqtt-json.")
+                        "Expected one of: udp-uadp, eth-uadp, mqtt-uadp, mqtt-json, kafka-uadp, kafka-json.")
                         .ConfigureAwait(false);
                     setExitCode(2);
                     return;
@@ -373,13 +380,23 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     .AddUdpTransport()
                     .AddSecurityKeyProvider(SampleSecurity.CreateKeyProvider())
                     .AddDataSetSource(PublisherConfigurationBuilder.DataSetName, sampleSource);
-                if (profile == PublisherProfile.EthUadp)
+                switch (profile)
                 {
-                    publisher.AddEthTransport();
-                }
-                else if (profile != PublisherProfile.UdpUadp)
-                {
-                    publisher.AddMqttTransport();
+                    case PublisherProfile.UdpUadp:
+                        break;
+                    case PublisherProfile.EthUadp:
+                        publisher.AddEthTransport();
+                        break;
+                    case PublisherProfile.MqttUadp:
+                    case PublisherProfile.MqttJson:
+                        publisher.AddMqttTransport();
+                        break;
+                    case PublisherProfile.KafkaUadp:
+                    case PublisherProfile.KafkaJson:
+                        publisher.AddKafkaTransport();
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(profile), profile, null);
                 }
                 publisher.ConfigureApplication(app =>
                 {
@@ -441,13 +458,23 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                         sp => new ConsoleLoggingSink(
                             sp.GetRequiredService<ILoggerFactory>()
                                 .CreateLogger<ConsoleLoggingSink>()));
-                if (profile == SubscriberProfile.EthUadp)
+                switch (profile)
                 {
-                    subscriber.AddEthTransport();
-                }
-                else if (profile != SubscriberProfile.UdpUadp)
-                {
-                    subscriber.AddMqttTransport();
+                    case SubscriberProfile.UdpUadp:
+                        break;
+                    case SubscriberProfile.EthUadp:
+                        subscriber.AddEthTransport();
+                        break;
+                    case SubscriberProfile.MqttUadp:
+                    case SubscriberProfile.MqttJson:
+                        subscriber.AddMqttTransport();
+                        break;
+                    case SubscriberProfile.KafkaUadp:
+                    case SubscriberProfile.KafkaJson:
+                        subscriber.AddKafkaTransport();
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(profile), profile, null);
                 }
                 subscriber.ConfigureApplication(app =>
                 {
@@ -719,6 +746,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 case "eth-uadp":
                     profile = PublisherProfile.EthUadp;
                     return true;
+                case "kafka-uadp":
+                    profile = PublisherProfile.KafkaUadp;
+                    return true;
+                case "kafka-json":
+                    profile = PublisherProfile.KafkaJson;
+                    return true;
                 default:
                     profile = PublisherProfile.UdpUadp;
                     return false;
@@ -740,6 +773,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     return true;
                 case "eth-uadp":
                     profile = SubscriberProfile.EthUadp;
+                    return true;
+                case "kafka-uadp":
+                    profile = SubscriberProfile.KafkaUadp;
+                    return true;
+                case "kafka-json":
+                    profile = SubscriberProfile.KafkaJson;
                     return true;
                 default:
                     profile = SubscriberProfile.UdpUadp;
@@ -843,7 +882,17 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         /// <summary>
         /// Ethernet (Layer 2) transport with UADP message mapping.
         /// </summary>
-        EthUadp = 3
+        EthUadp = 3,
+
+        /// <summary>
+        /// Kafka broker transport with UADP message mapping.
+        /// </summary>
+        KafkaUadp = 4,
+
+        /// <summary>
+        /// Kafka broker transport with JSON message mapping.
+        /// </summary>
+        KafkaJson = 5
     }
 
     /// <summary>
@@ -869,7 +918,17 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         /// <summary>
         /// Ethernet (Layer 2) transport with UADP message mapping.
         /// </summary>
-        EthUadp = 3
+        EthUadp = 3,
+
+        /// <summary>
+        /// Kafka broker transport with UADP message mapping.
+        /// </summary>
+        KafkaUadp = 4,
+
+        /// <summary>
+        /// Kafka broker transport with JSON message mapping.
+        /// </summary>
+        KafkaJson = 5
     }
 
     /// <summary>
