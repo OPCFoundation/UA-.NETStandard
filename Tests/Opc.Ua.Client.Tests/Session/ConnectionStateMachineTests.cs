@@ -31,6 +31,7 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -186,6 +187,45 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     return m_transitions.Any(
                         t => t.NewState == state);
                 }
+            }
+        }
+
+        /// <summary>
+        /// A reconnect policy test double that records the server-provided
+        /// retry-after passed to
+        /// <see cref="IReconnectPolicy.TryGetNextDelay"/> and stops retrying
+        /// once one is observed so the machine transitions deterministically.
+        /// </summary>
+        private sealed class CapturingReconnectPolicy : IReconnectPolicy
+        {
+            public ConcurrentQueue<TimeSpan?> CapturedRetryAfter { get; } = new();
+
+            public TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default)
+            {
+                return TimeSpan.FromMilliseconds(5);
+            }
+
+            public bool TryGetNextDelay(
+                int attempt,
+                StatusCode lastStatus,
+                TimeSpan? serverRetryAfter,
+                out TimeSpan? delay,
+                CancellationToken ct = default)
+            {
+                CapturedRetryAfter.Enqueue(serverRetryAfter);
+
+                if (serverRetryAfter.HasValue)
+                {
+                    delay = null;
+                    return true;
+                }
+
+                delay = TimeSpan.FromMilliseconds(5);
+                return true;
+            }
+
+            public void Reset()
+            {
             }
         }
 
@@ -567,6 +607,74 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(
                 sm.State,
                 Is.EqualTo(ConnectionState.Disconnected));
+        }
+
+        [Test]
+        public async Task ReconnectHonorsRetryAfterFromAdditionalInfo()
+        {
+            var policy = new CapturingReconnectPolicy();
+            await using ConnectionStateMachine sm = new(policy, m_logger);
+
+            sm.ConnectAsync = _ => Task.FromResult(
+                new ServiceResult(StatusCodes.BadConnectionClosed));
+            sm.ReconnectAsync = _ => Task.FromResult(
+                new ServiceResult(
+                    null,
+                    StatusCodes.BadServerTooBusy,
+                    new LocalizedText("The server is too busy."),
+                    "RetryAfterMs=2000"));
+            sm.FailoverAsync = _ => Task.FromResult(
+                new ServiceResult(StatusCodes.BadNotSupported));
+
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+
+            await recorder.WaitForStateAsync(
+                    ConnectionState.Disconnected, 5000)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                policy.CapturedRetryAfter.Any(r => r == TimeSpan.FromSeconds(2)),
+                Is.True,
+                "The retry-after carried in AdditionalInfo should reach the policy.");
+        }
+
+        [Test]
+        public async Task ReconnectHonorsRetryAfterFromLocalizedMessage()
+        {
+            var policy = new CapturingReconnectPolicy();
+            await using ConnectionStateMachine sm = new(policy, m_logger);
+
+            sm.ConnectAsync = _ => Task.FromResult(
+                new ServiceResult(StatusCodes.BadConnectionClosed));
+
+            // The hint is only in the localized message (as it would be for a
+            // transport-level UA-TCP Error reason), not in AdditionalInfo.
+            sm.ReconnectAsync = _ => Task.FromResult(
+                new ServiceResult(
+                    null,
+                    StatusCodes.BadServerTooBusy,
+                    new LocalizedText(
+                        "Error received from remote host: RetryAfterMs=2000"),
+                    "server overloaded"));
+            sm.FailoverAsync = _ => Task.FromResult(
+                new ServiceResult(StatusCodes.BadNotSupported));
+
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+
+            await recorder.WaitForStateAsync(
+                    ConnectionState.Disconnected, 5000)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                policy.CapturedRetryAfter.Any(r => r == TimeSpan.FromSeconds(2)),
+                Is.True,
+                "The retry-after carried in the localized message should reach the policy.");
         }
 
         [Test]

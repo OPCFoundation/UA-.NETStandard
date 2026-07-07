@@ -589,11 +589,39 @@ namespace Opc.Ua
 
             if (StatusCode.IsBad(header.ServiceResult))
             {
-                throw new ServiceResultException(
-                    new ServiceResult(
-                        header.ServiceResult,
-                        header.ServiceDiagnostics,
-                        header.StringTable));
+                var result = new ServiceResult(
+                    header.ServiceResult,
+                    header.ServiceDiagnostics,
+                    header.StringTable);
+
+                // Surface a server retry-after hint carried on the AdditionalHeader
+                // (delivered independently of diagnostics) as a machine-readable
+                // AdditionalInfo token so the adaptive reconnect policy honors it.
+                // Merge into any existing AdditionalInfo; skip only when a
+                // RetryAfterMs token is already present (e.g. from diagnostics).
+                const string retryAfterToken = AdditionalParameterNames.RetryAfterMs + "=";
+                if (result.AdditionalInfo == null ||
+                    result.AdditionalInfo.IndexOf(retryAfterToken, StringComparison.Ordinal) < 0)
+                {
+                    TimeSpan? retryAfter = RetryAfterHeader.Read(header);
+                    if (retryAfter.HasValue)
+                    {
+                        string hint = Utils.Format(
+                            "{0}{1}",
+                            retryAfterToken,
+                            (long)Math.Ceiling(retryAfter.Value.TotalMilliseconds));
+                        result = new ServiceResult(
+                            result.NamespaceUri,
+                            result.StatusCode,
+                            result.LocalizedText,
+                            string.IsNullOrEmpty(result.AdditionalInfo)
+                                ? hint
+                                : result.AdditionalInfo + " " + hint,
+                            result.InnerResult);
+                    }
+                }
+
+                throw new ServiceResultException(result);
             }
         }
 

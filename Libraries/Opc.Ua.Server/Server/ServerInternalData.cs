@@ -304,8 +304,28 @@ namespace Opc.Ua.Server
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
+            if (sessionManager == null)
+            {
+                throw new ArgumentNullException(nameof(sessionManager));
+            }
+
+            if (subscriptionManager == null)
+            {
+                throw new ArgumentNullException(nameof(subscriptionManager));
+            }
+
+            if (SessionManager != null)
+            {
+                SessionManager.SessionCreated -= OnSessionCountChanged;
+                SessionManager.SessionClosing -= OnSessionCountChanged;
+            }
+
             SessionManager = sessionManager;
             SubscriptionManager = subscriptionManager;
+
+            SessionManager.SessionCreated += OnSessionCountChanged;
+            SessionManager.SessionClosing += OnSessionCountChanged;
+            UpdateServerServiceLevel();
         }
 
         /// <summary>
@@ -782,6 +802,47 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Updates Server.ServiceLevel after the session count changes.
+        /// </summary>
+        private void OnSessionCountChanged(ISession session, SessionEventReason reason)
+        {
+            UpdateServerServiceLevel();
+        }
+
+        /// <summary>
+        /// Recomputes Server.ServiceLevel from current session-establishment headroom.
+        /// </summary>
+        private void UpdateServerServiceLevel()
+        {
+            if (ServerObject?.ServiceLevel == null || SessionManager == null)
+            {
+                return;
+            }
+
+            int currentSessionCount = SessionManager.GetSessions().Count;
+            int maxSessionCount = m_configuration.ServerConfiguration!.MaxSessionCount;
+            byte targetServiceLevel = ServerServiceLevelCalculator.CalculateTarget(
+                currentSessionCount,
+                maxSessionCount);
+
+            lock (m_serviceLevelLock)
+            {
+                byte currentServiceLevel = Convert.ToByte(
+                    ServerObject.ServiceLevel.Value,
+                    CultureInfo.InvariantCulture);
+
+                if (!ServerServiceLevelCalculator.ShouldUpdate(currentServiceLevel, targetServiceLevel))
+                {
+                    return;
+                }
+
+                ServerObject.ServiceLevel.Value = targetServiceLevel;
+                ServerObject.ServiceLevel.Timestamp = TimeProvider.GetUtcNow().UtcDateTime;
+                ServerObject.ServiceLevel.ClearChangeMasks(DefaultSystemContext, false);
+            }
+        }
+
+        /// <summary>
         /// Creates the ServerObject and attaches it to the NodeManager.
         /// </summary>
         [MemberNotNull(
@@ -796,7 +857,7 @@ namespace Opc.Ua.Server
 
             // update server capabilities.
             ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
-            serverObject.ServiceLevel!.Value = 255;
+            serverObject.ServiceLevel!.Value = (byte)255;
             serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
             serverCapabilities.ServerProfileArray!.Value =
@@ -1151,6 +1212,7 @@ namespace Opc.Ua.Server
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
+        private readonly Lock m_serviceLevelLock = new();
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
     }

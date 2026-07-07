@@ -3212,7 +3212,17 @@ namespace Opc.Ua.Client
 
             using Activity? activity = m_telemetry.StartActivity();
             bool resetReconnect = false;
-            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException) when (Disposed)
+            {
+                // The session was disposed while this reconnect was pending (for
+                // example during teardown); the reconnect is moot, so fail
+                // gracefully instead of surfacing an unobserved exception.
+                return;
+            }
             try
             {
                 bool reconnecting = Reconnecting;
