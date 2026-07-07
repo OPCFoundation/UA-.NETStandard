@@ -425,7 +425,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 AuthenticationContext context,
                 CancellationToken ct = default)
             {
-                return ValueTask.FromResult(AuthenticationResult.NotHandled);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
             }
 
             public ValueTask<AuthenticationResult> AugmentAsync(
@@ -433,7 +433,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 AuthenticationContext context,
                 CancellationToken ct = default)
             {
-                return ValueTask.FromResult(AuthenticationResult.NotHandled);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
             }
         }
     }

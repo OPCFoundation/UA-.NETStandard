@@ -400,7 +400,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 ArrayOf<string> serverUris = default,
                 CancellationToken ct = default)
             {
-                return ValueTask.FromResult(ArrayOf<ApplicationDescription>.Empty);
+                return new ValueTask<ArrayOf<ApplicationDescription>>(
+                    ArrayOf<ApplicationDescription>.Empty);
             }
 
             public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
@@ -408,7 +409,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 ArrayOf<string> profileUris = default,
                 CancellationToken ct = default)
             {
-                return ValueTask.FromResult(ArrayOf<EndpointDescription>.Empty);
+                return new ValueTask<ArrayOf<EndpointDescription>>(
+                    ArrayOf<EndpointDescription>.Empty);
             }
         }
     }
