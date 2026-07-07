@@ -78,6 +78,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return new PhysicalFileSystemProvider(m_root, mountName, isWritable);
         }
 
+        private static Task WriteAsync(Stream stream, byte[] payload, CancellationToken cancellationToken = default)
+        {
+#if NET472 || NET48
+            return stream.WriteAsync(payload, 0, payload.Length, cancellationToken);
+#else
+            return stream.WriteAsync(payload, cancellationToken).AsTask();
+#endif
+        }
+
         [Test]
         public void ConstructorWithNullRootThrows()
         {
@@ -131,7 +140,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task GetEntryAsyncReturnsFileEntryWithMetadataAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await File.WriteAllTextAsync(Path.Combine(m_root, "data.json"), "{}");
+            File.WriteAllText(Path.Combine(m_root, "data.json"), "{}");
 
             FileSystemEntry? entry = await provider.GetEntryAsync("data.json", CancellationToken.None);
 
@@ -149,13 +158,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await provider.CreateFileAsync("file.txt", CancellationToken.None);
 
             byte[] payload = Encoding.UTF8.GetBytes("hello world");
-            await using (Stream write = await provider.OpenWriteAsync(
+            using (Stream write = await provider.OpenWriteAsync(
                 "file.txt", FileWriteMode.Truncate, CancellationToken.None))
             {
-                await write.WriteAsync(payload);
+                await WriteAsync(write, payload, CancellationToken.None);
             }
 
-            await using Stream read = await provider.OpenReadAsync("file.txt", CancellationToken.None);
+            using Stream read = await provider.OpenReadAsync("file.txt", CancellationToken.None);
             using var ms = new MemoryStream();
             await read.CopyToAsync(ms);
 
@@ -166,15 +175,16 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task OpenWriteAppendPreservesExistingContentAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await File.WriteAllTextAsync(Path.Combine(m_root, "log.txt"), "a");
+            File.WriteAllText(Path.Combine(m_root, "log.txt"), "a");
 
-            await using (Stream write = await provider.OpenWriteAsync(
+            using (Stream write = await provider.OpenWriteAsync(
                 "log.txt", FileWriteMode.Append, CancellationToken.None))
             {
-                await write.WriteAsync(Encoding.UTF8.GetBytes("b"));
+                byte[] payload = Encoding.UTF8.GetBytes("b");
+                await WriteAsync(write, payload, CancellationToken.None);
             }
 
-            Assert.That(await File.ReadAllTextAsync(Path.Combine(m_root, "log.txt")), Is.EqualTo("ab"));
+            Assert.That(File.ReadAllText(Path.Combine(m_root, "log.txt")), Is.EqualTo("ab"));
         }
 
         [Test]
@@ -182,10 +192,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
 
-            await using (Stream write = await provider.OpenWriteAsync(
+            using (Stream write = await provider.OpenWriteAsync(
                 "new.bin", FileWriteMode.OpenOrCreate, CancellationToken.None))
             {
-                await write.WriteAsync(new byte[] { 1, 2, 3 });
+                byte[] payload = new byte[] { 1, 2, 3 };
+                await WriteAsync(write, payload, CancellationToken.None);
             }
 
             Assert.That(File.Exists(Path.Combine(m_root, "new.bin")), Is.True);
@@ -206,7 +217,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
             Directory.CreateDirectory(Path.Combine(m_root, "sub"));
-            await File.WriteAllTextAsync(Path.Combine(m_root, "a.txt"), "x");
+            File.WriteAllText(Path.Combine(m_root, "a.txt"), "x");
 
             var entries = new List<FileSystemEntry>();
             await foreach (FileSystemEntry entry in provider.EnumerateAsync(string.Empty, CancellationToken.None))
@@ -223,7 +234,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
             Directory.CreateDirectory(Path.Combine(m_root, "sub"));
-            await File.WriteAllTextAsync(Path.Combine(m_root, "sub", "b.txt"), "y");
+            File.WriteAllText(Path.Combine(m_root, "sub", "b.txt"), "y");
 
             var entries = new List<FileSystemEntry>();
             await foreach (FileSystemEntry entry in provider.EnumerateAsync("sub", CancellationToken.None))
@@ -310,7 +321,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task MoveAsyncRenamesFileAndDirectoryAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await File.WriteAllTextAsync(Path.Combine(m_root, "src.txt"), "z");
+            File.WriteAllText(Path.Combine(m_root, "src.txt"), "z");
             await provider.CreateDirectoryAsync("srcdir", CancellationToken.None);
 
             await provider.MoveAsync("src.txt", "dst.txt", CancellationToken.None);
@@ -346,11 +357,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task CopyAsyncCopiesFileAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await File.WriteAllTextAsync(Path.Combine(m_root, "orig.txt"), "content");
+            File.WriteAllText(Path.Combine(m_root, "orig.txt"), "content");
 
             await provider.CopyAsync("orig.txt", "copy.txt", CancellationToken.None);
 
-            Assert.That(await File.ReadAllTextAsync(Path.Combine(m_root, "copy.txt")), Is.EqualTo("content"));
+            Assert.That(File.ReadAllText(Path.Combine(m_root, "copy.txt")), Is.EqualTo("content"));
         }
 
         [Test]
@@ -358,8 +369,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
             Directory.CreateDirectory(Path.Combine(m_root, "tree", "nested"));
-            await File.WriteAllTextAsync(Path.Combine(m_root, "tree", "root.txt"), "1");
-            await File.WriteAllTextAsync(Path.Combine(m_root, "tree", "nested", "leaf.txt"), "2");
+            File.WriteAllText(Path.Combine(m_root, "tree", "root.txt"), "1");
+            File.WriteAllText(Path.Combine(m_root, "tree", "nested", "leaf.txt"), "2");
 
             await provider.CopyAsync("tree", "treecopy", CancellationToken.None);
 
@@ -443,11 +454,14 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 ["a.unknownext"] = "application/octet-stream"
             };
 
-            foreach ((string name, string mime) in expectations)
+            foreach (KeyValuePair<string, string> expectation in expectations)
             {
-                await File.WriteAllTextAsync(Path.Combine(m_root, name), "x");
-                FileSystemEntry? entry = await provider.GetEntryAsync(name, CancellationToken.None);
-                Assert.That(entry!.Value.MimeType, Is.EqualTo(mime), $"MIME for {name}");
+                File.WriteAllText(Path.Combine(m_root, expectation.Key), "x");
+                FileSystemEntry? entry = await provider.GetEntryAsync(expectation.Key, CancellationToken.None);
+                Assert.That(
+                    entry!.Value.MimeType,
+                    Is.EqualTo(expectation.Value),
+                    $"MIME for {expectation.Key}");
             }
         }
     }
