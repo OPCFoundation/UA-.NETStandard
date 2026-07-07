@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
+using MQTTnet.Packets;
 using MQTTnet.Protocol;
 using Opc.Ua.Security.Certificates;
 #if NET8_0_OR_GREATER
@@ -328,7 +329,31 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 builder = builder.WithResponseTopic(message.ResponseTopic);
             }
 
-            await m_client.PublishAsync(builder.Build(), ct).ConfigureAwait(false);
+            MqttApplicationMessage applicationMessage = builder.Build();
+            if (message.UserProperties is { Count: > 0 } userProperties)
+            {
+                applicationMessage.UserProperties ??=
+                    new List<MqttUserProperty>(userProperties.Count);
+                foreach (KeyValuePair<string, string> property in userProperties)
+                {
+                    applicationMessage.UserProperties.Add(
+                        CreateUserProperty(property.Key, property.Value));
+                }
+            }
+
+            await m_client.PublishAsync(applicationMessage, ct).ConfigureAwait(false);
+        }
+
+        private static MqttUserProperty CreateUserProperty(string name, string value)
+        {
+#if NET8_0_OR_GREATER
+            // MQTTnet v5 marks the string-valued ctor obsolete in favour of the
+            // pre-encoded UTF-8 value; user-property values are UTF-8 on the wire.
+            return new MqttUserProperty(
+                name, new ReadOnlyMemory<byte>(System.Text.Encoding.UTF8.GetBytes(value)));
+#else
+            return new MqttUserProperty(name, value);
+#endif
         }
 
         /// <inheritdoc/>

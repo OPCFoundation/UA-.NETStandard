@@ -35,7 +35,7 @@ namespace Opc.Ua.Encoders
     /// <summary>
     /// Enumeration wrapping an enum definition
     /// </summary>
-    public sealed class Enumeration : IEnumeratedType
+    public sealed class Enumeration : IEnumeratedType, IDataTypeDefinitionSource
     {
         /// <summary>
         /// Create enumeration
@@ -89,6 +89,12 @@ namespace Opc.Ua.Encoders
             }
             value = default;
             return false;
+        }
+
+        /// <inheritdoc/>
+        public DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
+        {
+            return m_definition;
         }
 
         private readonly EnumDefinition m_definition;

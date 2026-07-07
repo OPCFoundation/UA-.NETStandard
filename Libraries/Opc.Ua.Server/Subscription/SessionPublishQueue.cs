@@ -109,11 +109,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Waits for a subscription to be ready to publish.
+        /// Waits for a subscription to be ready to publish. When the request parks (is
+        /// queued to wait for the next notification), the supplied park sink is notified
+        /// so the request-processing worker can be released for the duration of the wait.
         /// </summary>
         public Task<ISubscription> PublishAsync(string secureChannelId,
                                                 DateTime operationTimeout,
                                                 bool requeue,
+                                                IRequestParkSink? parkSink,
                                                 CancellationToken cancellationToken)
         {
             if (m_queuedSubscriptions.IsEmpty)
@@ -151,6 +154,10 @@ namespace Opc.Ua.Server
                 {
                     m_queuedRequests.AddLast(request);
                 }
+
+                // The request is now parked waiting for a notification: release the
+                // processing worker so it does not remain blocked for the whole wait.
+                parkSink?.NotifyParked();
 
                 return request.Tcs.Task;
             }

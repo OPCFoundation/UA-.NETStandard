@@ -51,7 +51,8 @@ namespace Opc.Ua.Encoders
     /// </remarks>
     public sealed class OptionSet :
         Ua.OptionSet,
-        IEncodeableType
+        IEncodeableType,
+        IDataTypeDefinitionSource
     {
         /// <summary>
         /// Create a new OptionSet runtime type.
@@ -125,6 +126,12 @@ namespace Opc.Ua.Encoders
         public IEncodeable CreateInstance()
         {
             return new OptionSet(this, copyValues: false);
+        }
+
+        /// <inheritdoc/>
+        public DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
+        {
+            return Definition;
         }
 
         /// <inheritdoc/>

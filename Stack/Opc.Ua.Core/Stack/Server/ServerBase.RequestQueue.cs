@@ -49,15 +49,23 @@ namespace Opc.Ua
             /// <param name="minThreadCount">The minimum number of threads in the pool.</param>
             /// <param name="maxThreadCount">The maximum number of threads  in the pool.</param>
             /// <param name="maxRequestCount">The maximum number of requests that will placed in the queue.</param>
+            /// <param name="decoupleHeldPublishRequests">
+            /// When <c>true</c> (the default) a request that parks (for example a held
+            /// <c>Publish</c> waiting for notifications) releases its worker at the park
+            /// point instead of occupying it for the whole wait, so the worker/thread
+            /// budget need not scale with the number of concurrently-held requests.
+            /// </param>
             public RequestQueue(
                 ServerBase server,
                 int minThreadCount,
                 int maxThreadCount,
-                int maxRequestCount)
+                int maxRequestCount,
+                bool decoupleHeldPublishRequests = true)
             {
                 m_server = server;
                 m_minThreadCount = minThreadCount;
                 m_maxThreadCount = maxThreadCount;
+                m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
 
                 var options = new System.Threading.Channels.BoundedChannelOptions(maxRequestCount)
                 {
@@ -198,20 +206,31 @@ namespace Opc.Ua
                     {
                         while (m_queue.Reader.TryRead(out IEndpointIncomingRequest? request))
                         {
-                            try
+                            // A request that parks (e.g. a held Publish waiting for
+                            // notifications) releases the worker at the park point so a
+                            // small worker pool can hold many outstanding requests. The
+                            // response is still delivered out-of-band by the request
+                            // itself, so the worker does not need to await completion.
+                            // Requests that cannot park (ParkSink is null) use the legacy
+                            // inline path with no additional per-request overhead.
+                            if (m_decoupleHeldPublishRequests &&
+                                request is IParkableIncomingRequest parkable &&
+                                parkable.ParkSink is RequestParkSink parkSink)
                             {
-                                Interlocked.Increment(ref m_activeThreadCount);
-                                await m_server.ProcessRequestAsync(request, ct)
+                                await ProcessWithParkAsync(request, parkSink, ct)
                                     .ConfigureAwait(false);
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
-                                request.OperationCompleted(null, StatusCodes.BadInternalError);
-                            }
-                            finally
-                            {
-                                Interlocked.Decrement(ref m_activeThreadCount);
+                                Interlocked.Increment(ref m_activeThreadCount);
+                                try
+                                {
+                                    await ProcessRequestSafeAsync(request, ct).ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    Interlocked.Decrement(ref m_activeThreadCount);
+                                }
                             }
                         }
                     }
@@ -230,9 +249,73 @@ namespace Opc.Ua
                 }
             }
 
+            /// <summary>
+            /// Processes a request, releasing the worker as soon as the request either
+            /// completes or parks (whichever comes first). The active-worker counter is
+            /// held only until the park point, so parked requests do not consume a
+            /// worker slot for the duration of their wait.
+            /// </summary>
+            private async Task ProcessWithParkAsync(
+                IEndpointIncomingRequest request,
+                RequestParkSink parkSink,
+                CancellationToken ct)
+            {
+                Interlocked.Increment(ref m_activeThreadCount);
+
+                // ProcessRequestSafeAsync never throws and always completes the request,
+                // so the detached continuation for a parked request is fault-safe.
+                Task processing = ProcessRequestSafeAsync(request, ct);
+
+                try
+                {
+                    if (!processing.IsCompleted)
+                    {
+                        await Task.WhenAny(processing, parkSink.ParkedTask).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref m_activeThreadCount);
+                }
+
+                // If the request parked it completes independently; the response is
+                // delivered via the request's value-task source. Nothing further is
+                // required here because ProcessRequestSafeAsync observes all faults.
+            }
+
+            /// <summary>
+            /// Invokes the server request handler and traps any unexpected error the same
+            /// way the legacy inline path did, guaranteeing the request is always faulted
+            /// to the client and that the returned task never throws.
+            /// </summary>
+            private async Task ProcessRequestSafeAsync(
+                IEndpointIncomingRequest request,
+                CancellationToken ct)
+            {
+                try
+                {
+                    await m_server.ProcessRequestAsync(request, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
+                    try
+                    {
+                        request.OperationCompleted(null, StatusCodes.BadInternalError);
+                    }
+                    catch (Exception completeError)
+                    {
+                        m_server.m_logger.LogError(
+                            completeError,
+                            "Failed to fault an incoming request after an error.");
+                    }
+                }
+            }
+
             private readonly ServerBase m_server;
             private readonly int m_minThreadCount;
             private readonly int m_maxThreadCount;
+            private readonly bool m_decoupleHeldPublishRequests;
             private readonly System.Threading.Channels.Channel<IEndpointIncomingRequest> m_queue;
             private readonly List<Task> m_workers;
             private readonly CancellationTokenSource m_cts;

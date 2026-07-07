@@ -27,48 +27,46 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-using System.Xml;
+using System.Threading.Tasks;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua
 {
     /// <summary>
-    /// Default complex type factory
+    /// An incoming request that can notify the request-processing worker when it
+    /// parks (suspends waiting for an out-of-band completion). Implemented by the
+    /// stack's own request wrapper so the request queue can release the worker at
+    /// the park point; external <see cref="IEndpointIncomingRequest"/> implementers
+    /// that do not implement this interface fall back to the legacy inline path.
     /// </summary>
-    public sealed class DefaultComplexTypeFactory : IComplexTypeFactory
+    internal interface IParkableIncomingRequest : IEndpointIncomingRequest
     {
-        /// <inheritdoc/>
-        public DefaultComplexTypeFactory()
-        {
-        }
-
-        /// <inheritdoc/>
-        public IComplexTypeBuilder Create(
-            string targetNamespace,
-            int targetNamespaceIndex,
-            string? moduleName = null)
-        {
-            return new DefaultComplexTypeBuilder(
-                this,
-                targetNamespace,
-                targetNamespaceIndex);
-        }
-
-        /// <inheritdoc/>
-        public IReadOnlyList<IType> GetTypes()
-        {
-            return [.. m_types.Values];
-        }
-
         /// <summary>
-        /// Called when a new type was created during complex type system
-        /// loading
+        /// Gets the park sink observed by the request-processing worker, or <c>null</c>
+        /// when the request cannot park (so the worker uses the legacy inline path with
+        /// no additional per-request overhead).
         /// </summary>
-        internal void OnTypeCreated(IType type)
+        RequestParkSink? ParkSink { get; }
+    }
+
+    /// <summary>
+    /// One-shot signal a request handler raises when it parks so the
+    /// request-processing worker can be released while the parked request
+    /// completes independently.
+    /// </summary>
+    internal sealed class RequestParkSink : IRequestParkSink
+    {
+        /// <summary>
+        /// A task that completes the first time the request parks.
+        /// </summary>
+        public Task ParkedTask => m_tcs.Task;
+
+        /// <inheritdoc/>
+        public void NotifyParked()
         {
-            m_types[type.XmlName] = type;
+            m_tcs.TrySetResult(true);
         }
 
-        private readonly Dictionary<XmlQualifiedName, IType> m_types = [];
+        private readonly TaskCompletionSource<bool> m_tcs = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }

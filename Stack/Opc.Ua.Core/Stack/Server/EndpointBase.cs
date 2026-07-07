@@ -475,6 +475,17 @@ namespace Opc.Ua
 
             fault.ResponseHeader.StringTable = stringTable.ToArray();
 
+            // Surface a server retry-after hint on the always-delivered
+            // AdditionalHeader (independent of ReturnDiagnostics) so a cooperating
+            // client can back off without requesting diagnostics.
+            if (exception is ServerBusyException serverBusy &&
+                serverBusy.RetryAfter.HasValue)
+            {
+                RetryAfterHeader.AttachTo(
+                    fault.ResponseHeader,
+                    serverBusy.RetryAfter.Value);
+            }
+
             return fault;
         }
 

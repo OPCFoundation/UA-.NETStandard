@@ -102,6 +102,21 @@ namespace Opc.Ua
         public int MaxChannelCount { get; set; }
 
         /// <summary>
+        /// The size of the listener socket's pending-connection backlog.
+        /// 0 selects the transport default. A larger backlog absorbs bursts of
+        /// simultaneous connects so they are not dropped by the OS before the
+        /// accept loop can service them.
+        /// </summary>
+        public int ListenBacklog { get; set; }
+
+        /// <summary>
+        /// Optional connection admission rate limiter consulted for each inbound
+        /// connection before a channel is created. When <c>null</c>, no
+        /// connection rate limiting is applied.
+        /// </summary>
+        public IConnectionRateLimiter? ConnectionRateLimiter { get; set; }
+
+        /// <summary>
         /// Indicates if Http listener requires mutual TLS
         /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.

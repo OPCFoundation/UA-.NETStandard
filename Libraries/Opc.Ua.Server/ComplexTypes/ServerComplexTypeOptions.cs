@@ -27,44 +27,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Adds static methods to create a complex type system to load
-    /// custom types using reflection emit (legacy).
+    /// Options that control how a server builds dynamic stand-in encodeables
+    /// for DataTypes that were loaded from a NodeSet at runtime.
     /// </summary>
-    public static class ComplexTypesExtensions
+    public sealed class ServerComplexTypeOptions
     {
-        extension(ComplexTypeSystem)
-        {
-            /// <summary>
-            /// Initializes the type system with a session to load the
-            /// custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                ISession session,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    session,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
+        /// <summary>
+        /// When <c>true</c> (the default) the server loads stand-in encodeables
+        /// for custom DataTypes on startup. Set to <c>false</c> to opt out, which
+        /// maps to <see cref="StandardServer.LoadComplexTypes"/>.
+        /// </summary>
+        public bool Enabled { get; set; } = true;
 
-            /// <summary>
-            /// Initializes the type system with a complex type resolver
-            /// to load the custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                IComplexTypeResolver complexTypeResolver,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    complexTypeResolver,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
+        /// <summary>
+        /// When <c>true</c> only enumeration types are loaded and structured
+        /// types are skipped. Defaults to <c>false</c>.
+        /// </summary>
+        public bool OnlyEnumTypes { get; set; }
 
-        }
+        /// <summary>
+        /// When <c>true</c> loading throws if a custom DataType could not be
+        /// turned into a stand-in encodeable. When <c>false</c> the failure is
+        /// logged and loading continues. Defaults to <c>false</c>.
+        /// </summary>
+        public bool ThrowOnError { get; set; }
     }
 }
