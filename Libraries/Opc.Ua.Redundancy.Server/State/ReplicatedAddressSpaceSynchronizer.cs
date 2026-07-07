@@ -71,7 +71,8 @@ namespace Opc.Ua.Redundancy.Server
         {
             m_addressSpace = addressSpace ?? throw new ArgumentNullException(nameof(addressSpace));
             m_messageContext = messageContext ?? throw new ArgumentNullException(nameof(messageContext));
-            m_transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            m_transport = new FramingGossipTransport(
+                transport ?? throw new ArgumentNullException(nameof(transport)));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_readerOptions = readerOptions ?? throw new ArgumentNullException(nameof(readerOptions));
             m_logger = logger;
@@ -634,7 +635,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly ILocalAddressSpace m_addressSpace;
         private readonly IServiceMessageContext m_messageContext;
-        private readonly ITransport m_transport;
+        private readonly FramingGossipTransport m_transport;
         private readonly TimeProvider m_timeProvider;
         private readonly CrdtReaderOptions m_readerOptions;
         private readonly ILogger? m_logger;

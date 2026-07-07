@@ -63,7 +63,8 @@ namespace Opc.Ua.Redundancy
             TimeProvider timeProvider,
             CrdtReaderOptions readerOptions)
         {
-            m_transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            m_transport = new FramingGossipTransport(
+                transport ?? throw new ArgumentNullException(nameof(transport)));
             m_readerOptions = readerOptions ?? throw new ArgumentNullException(nameof(readerOptions));
             m_clock = new HybridLogicalClock(
                 replicaId,
@@ -212,7 +213,7 @@ namespace Opc.Ua.Redundancy
             return m_map.ToByteArray(CrdtValues.String, ByteStringCrdtSerializer.Instance);
         }
 
-        private readonly ITransport m_transport;
+        private readonly FramingGossipTransport m_transport;
         private readonly CrdtReaderOptions m_readerOptions;
         private readonly HybridLogicalClock m_clock;
         private readonly Lock m_lock = new();

@@ -32,6 +32,7 @@
 #nullable enable
 
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
@@ -121,6 +122,45 @@ namespace Opc.Ua.Redundancy.Server.Tests
             Assert.That(() => store.WatchAsync("session/"), Throws.TypeOf<NotSupportedException>());
         }
 
+        [Test]
+        public async Task ReplicatesOverRealTcpGossipAsync()
+        {
+            // Regression for the reported runtime failure: SetAsync mirrored through a real
+            // TcpGossipTransport threw "Frame length does not match the encoded body length"
+            // because the store sent a raw CRDT snapshot instead of a FrameCodec frame. The
+            // in-memory transport used by the other tests is a transparent passthrough and
+            // hid the bug. This test exercises two real TCP transports over loopback.
+            int portA = FreeTcpPort();
+            int portB = FreeTcpPort(portA);
+
+            var transportA = new TcpGossipTransport(
+                IPAddress.Loopback, portA, TimeSpan.FromMilliseconds(100));
+            var transportB = new TcpGossipTransport(
+                IPAddress.Loopback, portB, TimeSpan.FromMilliseconds(100));
+            transportA.AddPeer(new IPEndPoint(IPAddress.Loopback, portB));
+            transportB.AddPeer(new IPEndPoint(IPAddress.Loopback, portA));
+
+            await using var storeA = new ReplicatedSharedKeyValueStore(
+                ReplicaId.FromUInt64(1), transportA, TimeProvider.System, CrdtReaderOptions.Default);
+            await using var storeB = new ReplicatedSharedKeyValueStore(
+                ReplicaId.FromUInt64(2), transportB, TimeProvider.System, CrdtReaderOptions.Default);
+
+            // Warm up both transports so neither misses the other's broadcasts.
+            await storeA.TryGetAsync("warmup").ConfigureAwait(false);
+            await storeB.TryGetAsync("warmup").ConfigureAwait(false);
+
+            var value = new ByteString(new byte[] { 9, 8, 7, 6 });
+            await storeA.SetAsync("session/tcp", value).ConfigureAwait(false);
+
+            await AssertEventuallyAsync(
+                async () =>
+                {
+                    (bool found, ByteString stored) = await storeB.TryGetAsync("session/tcp").ConfigureAwait(false);
+                    return found && stored.ToArray().AsSpan().SequenceEqual(value.ToArray());
+                },
+                "a value set on A should replicate to B over real TCP gossip").ConfigureAwait(false);
+        }
+
         private static ReplicatedSharedKeyValueStore CreateStore(InMemoryNetwork network, ulong replica)
         {
             return new ReplicatedSharedKeyValueStore(
@@ -147,5 +187,21 @@ namespace Opc.Ua.Redundancy.Server.Tests
         }
 
         private static readonly string[] s_sessionKeys = ["session/a", "session/b"];
+
+        private static int FreeTcpPort(int exclude = -1)
+        {
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+                listener.Start();
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+                if (port != exclude)
+                {
+                    return port;
+                }
+            }
+            throw new InvalidOperationException("Could not find a free TCP port.");
+        }
     }
 }
