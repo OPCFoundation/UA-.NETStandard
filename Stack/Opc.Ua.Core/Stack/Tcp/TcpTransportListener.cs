@@ -256,9 +256,12 @@ namespace Opc.Ua.Bindings
     public class TcpTransportListener : ITransportListener, ITcpChannelListener, ITransportListenerCertificateRotation
     {
         /// <summary>
-        /// The limit of queued connections for the listener socket..
+        /// The default pending-connection backlog for the listener socket when the
+        /// configured <see cref="TransportListenerSettings.ListenBacklog"/> is not
+        /// set. Sized to absorb bursts of simultaneous connects rather than the
+        /// historical value of 10, which overflowed under a connect storm.
         /// </summary>
-        private const int kSocketBacklog = 10;
+        private const int kDefaultSocketBacklog = 512;
 
         /// <summary>
         /// Create listener
@@ -393,6 +396,8 @@ namespace Opc.Ua.Bindings
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
             MaxChannelCount = settings.MaxChannelCount;
+            m_listenBacklog = settings.ListenBacklog > 0 ? settings.ListenBacklog : kDefaultSocketBacklog;
+            m_connectionRateLimiter = settings.ConnectionRateLimiter;
 
             // save the callback to the server.
             m_callback = callback;
@@ -641,7 +646,7 @@ namespace Opc.Ua.Bindings
                         LingerState = new LingerOption(true, 5)
                     };
                     m_listeningSocket.Bind(endpoint);
-                    m_listeningSocket.Listen(kSocketBacklog);
+                    m_listeningSocket.Listen(m_listenBacklog);
 
                     m_inactivityDetectionTimer = m_timeProvider.CreateTimer(
                         DetectInactiveChannels,
@@ -693,7 +698,7 @@ namespace Opc.Ua.Bindings
                             LingerState = new LingerOption(true, 5)
                         };
                         m_listeningSocketIPv6.Bind(endpointIPv6);
-                        m_listeningSocketIPv6.Listen(kSocketBacklog);
+                        m_listeningSocketIPv6.Listen(m_listenBacklog);
 
                         SocketAsyncEventArgs? args = null;
                         try
@@ -964,6 +969,44 @@ namespace Opc.Ua.Bindings
                         m_logger.LogError("OnAccept: Listensocket was null.");
                         e.Dispose();
                         return;
+                    }
+
+                    // Apply connection admission rate limiting before spending any
+                    // resources on a channel. On rejection the socket is dropped so a
+                    // connection storm is shed cheaply; the peer's transport error and
+                    // the session-establishment BadServerTooBusy fault (see the session
+                    // rate limiter) drive an adaptive client back off.
+                    if (!isBlocked &&
+                        m_connectionRateLimiter != null &&
+                        e.AcceptSocket != null &&
+                        e.SocketError == SocketError.Success)
+                    {
+                        EndPoint? remoteEndPoint = null;
+                        try
+                        {
+                            remoteEndPoint = e.AcceptSocket.RemoteEndPoint;
+                        }
+                        catch (SocketException)
+                        {
+                            // The socket may already have been reset by the peer.
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            // The socket may already have been disposed.
+                        }
+
+                        if (!m_connectionRateLimiter.TryAdmitConnection(
+                            remoteEndPoint,
+                            out TimeSpan? retryAfter))
+                        {
+                            m_logger.LogWarning(
+                                "OnAccept: connection from {RemoteEndPoint} rejected by the connection " +
+                                "rate limiter; server is too busy (retry after {RetryAfter}).",
+                                remoteEndPoint,
+                                retryAfter);
+                            e.AcceptSocket.Dispose();
+                            isBlocked = true;
+                        }
                     }
 
                     ConcurrentDictionary<uint, TcpListenerChannel>? channels = m_channels;
@@ -1368,6 +1411,8 @@ namespace Opc.Ua.Bindings
         private int m_inactivityDetectPeriod;
         private ITimer? m_inactivityDetectionTimer;
         private ActiveClientTracker? m_activeClientTracker;
+        private int m_listenBacklog;
+        private IConnectionRateLimiter? m_connectionRateLimiter;
     }
 
     /// <summary>

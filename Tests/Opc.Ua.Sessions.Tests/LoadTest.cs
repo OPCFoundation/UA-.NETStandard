@@ -82,18 +82,18 @@ namespace Opc.Ua.Sessions.Tests
             MaxSessionCount = 10100;
             MaxSubscriptionCount = 10100;
 
-            // Each session keeps a Publish request outstanding, and a held
-            // (long-polled) Publish occupies one request-processing worker slot for
-            // as long as it waits for notifications. With the default limit of 100
-            // slots the held Publishes exhaust the pool once a few hundred sessions
-            // are connected, starving CreateSession/Read and surfacing as
-            // BadRequestTimeout. Size the pool above the largest session count so held
-            // Publishes never starve the other services, and warm a large minimum
-            // so the connect burst is not throttled by the thread pool's slow
-            // cold-start ramp. Workers grow on demand up to the maximum, so a small
-            // case only ever spins up the minimum.
-            MaxRequestThreadCount = 10500;
-            MinRequestThreadCount = 200;
+            // Each session keeps one long-polled Publish request outstanding. With
+            // ServerConfiguration.DecoupleHeldPublishRequests on (the default), a held
+            // Publish releases its request-processing worker at the park point instead of
+            // occupying it for the whole wait, so the worker pool no longer has to scale
+            // with the session count - size it to the active (non-parked) establishment
+            // concurrency instead. Measurement on a 6-core box showed a 200-worker pool
+            // cleanly established and served ~4000 concurrent sessions, whereas a pool
+            // sized to the session count (e.g. 10500) was materially slower to establish
+            // and reached a lower ceiling (thread oversubscription). Workers grow on
+            // demand from the warm minimum up to the maximum.
+            MaxRequestThreadCount = 200;
+            MinRequestThreadCount = 50;
 
             // Disable the brute-force authentication lockout for this fixture. All
             // sessions share a single client certificate, so once a handful of
@@ -831,6 +831,8 @@ namespace Opc.Ua.Sessions.Tests
         [TestCase(2000)]
         [TestCase(2500)]
         [TestCase(4000)]
+        [TestCase(5000)]
+        [TestCase(8000)]
         [TestCase(10000)]
         public async Task ServerManySessionsLoadTestAsync(int sessionCount)
         {
@@ -1001,6 +1003,14 @@ namespace Opc.Ua.Sessions.Tests
                     $"Established {sessions.Count} sessions in {swConnect.ElapsedMilliseconds} ms " +
                     $"({sessions.Count / Math.Max(swConnect.Elapsed.TotalSeconds, 0.001):F0} sessions/sec).");
 
+                // Opt-in machine-readable capture of the establishment metric. Written the
+                // moment it is measured so a flaky teardown cannot swallow the result.
+                AppendBenchmarkResult(
+                    $"ESTABLISH sessionCount={sessionCount} established={sessions.Count} " +
+                    $"perSec={sessions.Count / Math.Max(swConnect.Elapsed.TotalSeconds, 0.001):F0} " +
+                    $"ms={swConnect.ElapsedMilliseconds} errors={createErrors.Count} " +
+                    $"firstError=[{(createErrors.IsEmpty ? "none" : createErrors.First().Replace('\r', ' ').Replace('\n', ' '))}]");
+
                 if (!createErrors.IsEmpty)
                 {
                     foreach (string error in createErrors.Take(10))
@@ -1094,6 +1104,10 @@ namespace Opc.Ua.Sessions.Tests
                     $"{sessionsWithNotifications}/{sessionCount} sessions received notifications " +
                     $"(total {totalNotifications}).");
 
+                AppendBenchmarkResult(
+                    $"NOTIFY sessionCount={sessionCount} withNotifications={sessionsWithNotifications} " +
+                    $"total={totalNotifications} writes={writeCount}");
+
                 Assert.That(
                     sessionsWithNotifications,
                     Is.EqualTo(sessionCount),
@@ -1119,6 +1133,31 @@ namespace Opc.Ua.Sessions.Tests
                     }
                 })).ToList();
                 await Task.WhenAll(closeTasks).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Appends a machine-readable benchmark result line to the file named by the
+        /// <c>BENCH_RESULT_FILE</c> environment variable, if set. This is a no-op for
+        /// normal test runs (the variable is unset) and lets a load-test harness capture
+        /// the establishment / notification metrics even when a flaky teardown would
+        /// otherwise prevent the run from completing.
+        /// </summary>
+        private static void AppendBenchmarkResult(string line)
+        {
+            string path = Environment.GetEnvironmentVariable("BENCH_RESULT_FILE");
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            try
+            {
+                System.IO.File.AppendAllText(path, line + Environment.NewLine);
+            }
+            catch (System.IO.IOException)
+            {
+                // Best-effort capture only; never fail the test on a logging error.
             }
         }
 

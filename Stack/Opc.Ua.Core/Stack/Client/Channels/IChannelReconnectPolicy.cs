@@ -125,6 +125,18 @@ namespace Opc.Ua
 #endif
     }
 
+    /// <summary>
+    /// Provides a one-shot server retry-after hint for the next reconnect attempt.
+    /// </summary>
+    internal interface IServerRetryAfterHintProvider
+    {
+        /// <summary>
+        /// Consumes the pending server retry-after hint, if one is available.
+        /// </summary>
+        /// <returns>The retry-after hint, or <c>null</c> when none is pending.</returns>
+        TimeSpan? ConsumeServerRetryAfterHint();
+    }
+
     internal static class ChannelReconnectPolicyBudget
     {
         internal static TimeSpan GetDelay(

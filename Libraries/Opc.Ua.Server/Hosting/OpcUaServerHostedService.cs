@@ -237,6 +237,22 @@ namespace Opc.Ua.Server.Hosting
                 m_server.LoadComplexTypes = complexTypeOptions.Enabled;
             }
 
+            // Apply admission-control (rate limiting) configuration: a DI-registered
+            // provider wins; otherwise apply the options callback (rate limiting is
+            // on by default with conservative limits when neither is supplied).
+            IServerRateLimiterProvider? rateLimiterProvider =
+                m_services.GetService<IServerRateLimiterProvider>();
+            if (rateLimiterProvider != null)
+            {
+                m_server.RateLimiterProvider = rateLimiterProvider;
+            }
+            else if (m_options.ConfigureRateLimits != null)
+            {
+                var rateLimitOptions = new ServerRateLimitOptions();
+                m_options.ConfigureRateLimits(rateLimitOptions);
+                m_server.RateLimitOptions = rateLimitOptions;
+            }
+
             foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
             {
                 if (reg.AsyncFactory is not null)
