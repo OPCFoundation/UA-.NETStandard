@@ -1,33 +1,26 @@
-# Issue #3937 follow-up analysis plan
+# Remote-to-local plan handoff and revisit plan
 
-## Current codebase state (from repository analysis)
-- Regression coverage already exists for issue #3937 in `/home/runner/work/UA-.NETStandard/UA-.NETStandard/Tests/Opc.Ua.SourceGeneration.Tests/ModelGeneratorTests.cs`:
-  - `GenerateAndCompileModelDesignReferencingNodeSet2TypesTest`
-  - `GenerateAndCompileModelDesignReferencingNodeSet2TypesReversedInputOrderTest`
-- Cross-model fixtures exist in:
-  - `/home/runner/work/UA-.NETStandard/UA-.NETStandard/Tests/Opc.Ua.SourceGeneration.Core.Tests/Resources/CrossModelInstances.ModelDesign.xml`
-  - `/home/runner/work/UA-.NETStandard/UA-.NETStandard/Tests/Opc.Ua.SourceGeneration.Core.Tests/Resources/CrossModelTypes.NodeSet2.xml`
-- Dependency-handling paths are implemented in:
-  - `/home/runner/work/UA-.NETStandard/UA-.NETStandard/Tools/Opc.Ua.SourceGeneration.Core/NodesetFile.cs`
-  - `/home/runner/work/UA-.NETStandard/UA-.NETStandard/Tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesignValidator.cs`
-  - `/home/runner/work/UA-.NETStandard/UA-.NETStandard/Tools/Opc.Ua.SourceGeneration.Core/Generators.cs`
-  - `/home/runner/work/UA-.NETStandard/UA-.NETStandard/Tools/Opc.Ua.SourceGeneration.Core/Generators/IGeneratorContext.cs`
+## Current state
+- Session plan file is present at `/home/runner/work/UA-.NETStandard/UA-.NETStandard/plan.md`.
+- The existing content is an implementation plan for the issue #3937 analysis.
+- No additional repository changes are required to make the plan downloadable.
 
 ## Structured plan
-1. Confirm scope from the linked issue comment and map it to one concrete failing scenario.
-2. Reproduce the failure locally using a targeted source-generation test or a new focused fixture that mirrors the reported model layout.
-3. Trace the exact resolution path (ModelDesign loading, dependency import, and TypeDefinition/DataType linking) to identify where the reported scenario diverges from existing #3937 coverage.
-4. Implement the minimal fix in the source-generation core path where resolution currently breaks.
-5. Add or extend regression tests so the specific issue-comment scenario fails before the fix and passes after it.
-6. Run targeted generator tests first, then broader affected test scope to confirm no regressions in existing cross-model generation behavior.
-7. Summarize root cause, fix scope, and residual risks/edge cases for review.
+1. Keep the canonical plan in `/home/runner/work/UA-.NETStandard/UA-.NETStandard/plan.md` as the source of truth.
+2. Download that file from the remote session workspace to your local machine using your preferred transfer method.
+3. Open the downloaded file locally and confirm it matches the remote version exactly.
+4. Start or switch to your local session/environment for `OPCFoundation/UA-.NETStandard`.
+5. Place the downloaded plan where your local workflow expects session notes/plans.
+6. Revisit the plan locally, validate scope and assumptions, and mark any local-only adjustments before implementation.
+7. If local updates are made, sync the revised plan back to the repository plan file to avoid divergence.
 
-## Validation plan
-- Primary: `Opc.Ua.SourceGeneration.Tests` regression tests (including both existing #3937 tests).
-- Secondary: related `Opc.Ua.SourceGeneration.Core.Tests` coverage for dependency import/linking paths.
-- Ensure input-order independence and referenced-model dependency behavior remain intact.
+## Validation checklist
+- The downloaded file path is confirmed.
+- The local copy content matches the remote `plan.md`.
+- The local session can reference the plan without relying on remote-session state.
+- Any edits made locally are reconciled with the repository plan file.
 
 ## Clarifications needed
-1. Should this plan target only the Roslyn source generator path, or also any standalone model generation tooling path if both are affected by the issue comment?
-2. Do you want the final implementation scope limited strictly to the exact issue-comment repro, or should it include adjacent hardening for similar cross-model reference shapes?
-3. If the issue comment includes additional sample files or exact diagnostics beyond `MODELGEN003`, should those be treated as required acceptance criteria?
+1. By “download the plan”, do you want a raw file export only, or also a checksum/diff verification step?
+2. By “switch from remote session to local session”, do you want me to provide exact local commands for your OS/tooling, or just the workflow steps?
+3. Should the local revisit produce an updated plan file immediately, or only after you confirm the local context?
