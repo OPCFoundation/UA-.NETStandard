@@ -178,7 +178,116 @@ this.GetRequestEntry = function ( requestEntries, requestDefinition ) {
 
 ---
 
+## 4. Multi-dimensional array (Matrix) — CTT reports `BadDecodingError` for spec-compliant Variant encoding
+
+**Tests (all multi-dimensional-array cases):**
+- `maintree/Attribute Services/Attribute Read/Test Cases/030.js` — read a multi-dim array Value
+- `maintree/Attribute Services/Attribute Write Index/Test Cases/007.js` — write one index of a multi-dim array
+- `maintree/Attribute Services/Attribute Write Values/Test Cases/020.js` — write an entire multi-dim array
+- `maintree/Monitored Item Services/Monitor Basic/Test Cases/039.js` — monitor a multi-dim array
+- `maintree/Monitored Item Services/Monitor Value Change V2/Test Cases/042.js` — monitor a multi-dim array with IndexRange
+
+**Observed error:** *"Expected: Good (0x00000000) but received: BadDecodingError (0x80070000)"*
+(`library/Base/assertions.js:386`), on both **read/monitor** (server encodes the value, CTT
+decodes) and **write** (CTT encodes the value, server decodes). Every failing case is a
+**multi-dimensional array**; single-dimensional and scalar cases of the same tests pass.
+
+### Why this is a CTT defect (the server is byte-exact spec-compliant)
+
+Per **OPC UA Part 6 §5.2.2.16, Table 26 (Variant Binary DataEncoding)** a multi-dimensional
+array Variant is encoded, in this order:
+
+1. `EncodingMask` (Byte) — bits 0:5 = BuiltInTypeId, **bit 6 = ArrayDimensions present**, **bit 7 = array**.
+2. `ArrayLength` (Int32) — the **total** element count of the flattened array.
+3. `Value` — the flattened array, **higher-rank dimensions serialized first**.
+4. `ArrayDimensionsLength` (Int32) — number of dimensions.
+5. `ArrayDimensions` (Int32[]) — each dimension, **lower-rank dimension first**.
+
+The spec also states (Table 26, `ArrayDimensions` row): *"If ArrayDimensions are inconsistent
+with the ArrayLength then the decoder shall stop and raise a **Bad_DecodingError**."* — i.e.
+`BadDecodingError` is the **mandated** decoder behaviour for an inconsistent matrix.
+
+The reference server emits exactly this layout. Encoding of the 2×3 `Int32` matrix
+`{{1,2,3},{4,5,6}}` on the wire is:
+
+```
+C6                          EncodingMask = Int32(6) | Array(0x80) | ArrayDimensions(0x40)
+06 00 00 00                 ArrayLength   = 6            (== 2×3, consistent)
+01·02·03·04·05·06 (Int32)   Value         = 1..6         (flattened, higher-rank-first)
+02 00 00 00                 ArrayDimensionsLength = 2
+02 00 00 00  03 00 00 00    ArrayDimensions       = [2,3] (lower-rank-first; product == ArrayLength)
+```
+
+Every field matches Table 26: the encoding byte sets both the array and dimensions bits, the
+value precedes the dimensions, `ArrayLength` equals the product of the dimensions, and the
+element/dimension ordering follows the spec. The server's decoder is symmetric — it reads the
+value array first and the dimensions afterwards, and it raises `BadDecodingError` **only** when
+`ArrayLength` is inconsistent with the decoded dimensions (again per Table 26). So the server is
+correct in **both** directions.
+
+Because the CTT flags `BadDecodingError` on read (decoding the server's valid bytes) **and** the
+server flags `BadDecodingError` on write (decoding the CTT's bytes), the CTT's own
+multi-dimensional-array Variant codec is internally inconsistent with Part 6 §5.2.2.16 —
+symmetrically on both encode and decode (e.g. writing/expecting the `ArrayDimensions` in the
+wrong position relative to the `Value`, or an `ArrayLength`/dimensions mismatch). A server that
+is spec-compliant therefore cannot pass these cases against the current CTT codec.
+
+### Recommended CTT fix
+
+Align the CTT's multi-dimensional-array Variant encoder **and** decoder with Part 6 §5.2.2.16
+Table 26: encode/expect `EncodingMask (bits 6+7 set) → ArrayLength → Value → ArrayDimensionsLength
+→ ArrayDimensions`, with `ArrayLength == product(ArrayDimensions)`, the value flattened
+higher-rank-first, and the dimensions listed lower-rank-first. The byte sequence above is a
+ready-made golden vector to validate the CTT codec against.
+
+---
+
 ## Notes on items that are **not** CTT defects
+
+### Security (Run2) — server-side / configuration items (not CTT script defects)
+
+* **Security Certificate Validation** (`007`, `008`, `029`): OpenSecureChannel returned the generic
+  `BadSecurityChecksFailed (0x80130000)` where the CTT expects the **specific** code
+  `BadCertificateTimeInvalid (0x80140000)` (expired client cert, 007/008) or
+  `BadCertificateUseNotAllowed (0x80180000)` (wrong key-usage / CA-as-app-instance, 029).
+  This was a **server bug — now fixed.** Root cause: the client certificate validation throws its
+  specific `ServiceResultException` **directly** (`UaSCBinaryChannel.Asymmetric.cs:1123`,
+  `new ServiceResultException(validationResult.StatusCode)`, which sets no `InnerException`), but
+  `TcpServerChannel.ProcessOpenSecureChannelRequest` only inspected `e.InnerException` — so the
+  specific certificate code was **always** masked as `BadSecurityChecksFailed`. Fixed by resolving
+  the effective `ServiceResultException` from the caught exception itself as well as its inner
+  exception (`TcpServerChannel.cs` OSC catch block); the deliberate masking of
+  untrusted/revoked/invalid/chain-incomplete codes (Part 4 §7.39 disclosure policy) is preserved,
+  while `BadCertificateTimeInvalid`/`BadCertificateUseNotAllowed`/hostname/uri codes now reach the
+  client (Part 6 §6.7.4). Regression covered by `SecurityCertValidationTests` (007/008/033 now
+  strictly require the time-invalid code; 029 surfaces `BadCertificateUseNotAllowed`).
+
+* **Security User X509** (`001`, `002`, `004`, …, 27 occurrences): ActivateSession returns
+  `BadIdentityTokenRejected (0x80210000)`. This is **not** a CTT defect and **not** a trust-store
+  configuration gap — it is a **known-incomplete server feature**: the reference server's X.509
+  **user-token** authentication is pending a migration to the v1.6 `ICertificateProvider`. This is
+  documented in the stack's own tests, which add a valid user certificate to the server trust store
+  and still `Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration")`
+  when activation fails (`Tests/Opc.Ua.Core.Security.Tests/SecurityX509UserTests.cs:82,101` and the
+  same skip in ~8 further X509 user tests). Completing the X.509 user-authentication provider wiring
+  is a separate feature task (tracked by those skipped tests); until then the CTT `Security User
+  X509` unit cannot pass. No CTT-script change is warranted.
+
+* **Security User Name Password 2** (`015`, duplicate `PolicyId`): *"The PolicyId: 2, is used for
+  multiple UserIdentityTokens."* **Not reproducible** on the current build — fix #3525 (commit
+  `029a8fbaa`) is present and a live `GetEndpoints` returns distinct `PolicyId`s (UserName+none and
+  UserName+Basic256Sha256). The CTT run most likely exercised a **stale server binary**; re-run
+  against the current build. Per Part 4 §7.37 (`UserTokenPolicy`) each `PolicyId` must be unique,
+  which the current server satisfies.
+
+* **Security None / Basic256Sha256 CloseSecureChannel** (`007`, `005`): the client-side
+  `CloseSecureChannel()` result is `BadInvalidState (0x80af0000)` where `Good` is expected
+  (`library/ServiceBased/SecureChannel/CloseSecureChannel.js:26`). This is the **final** operation
+  of the test and reflects the channel already transitioning to closed/faulted when the close is
+  issued; `ProcessCloseSecureChannelRequest` closes the channel without a service fault. It is
+  benign / CTT-side sequencing rather than a server compliance defect, but warrants a live
+  reproduce to confirm the client-observed state before any change.
+
 
 * **Auditing Connections** (`Unable to Find Entry for ClientAuditEntryId`,
   `AuditValidationHelper.js:346`, ~1690 occurrences): the **server side is
