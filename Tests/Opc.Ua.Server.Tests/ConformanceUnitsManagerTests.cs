@@ -137,6 +137,50 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        [Test]
+        public void ConstructorRejectsNullServer()
+        {
+            Assert.That(
+                () => new ConformanceUnitsManager(null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void RegisterRejectsNullContributor()
+        {
+            var server = new Mock<IServerInternal>();
+            var manager = new ConformanceUnitsManager(server.Object);
+            Assert.That(
+                () => manager.Register(null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void DisposeIsIdempotent()
+        {
+            var server = new Mock<IServerInternal>();
+            var manager = new ConformanceUnitsManager(server.Object);
+            Assert.That(() =>
+            {
+                manager.Dispose();
+                manager.Dispose();
+            }, Throws.Nothing);
+        }
+
+        [Test]
+        public void RegisterIgnoresNullUnitsAndEmptyProfiles()
+        {
+            var server = new Mock<IServerInternal>();
+            var manager = new ConformanceUnitsManager(server.Object);
+
+            manager.Register(new FakeContributor(
+                units: [QualifiedName.Null, new("Real Unit")],
+                profiles: [string.Empty, "urn:profile:x"]));
+
+            Assert.That(manager.IsSupported(new QualifiedName("Real Unit")), Is.True);
+            Assert.That(manager.IsSupported(QualifiedName.Null), Is.False);
+        }
+
         private static readonly string[] s_expectedSortedUnitNames =
             ["Alpha Unit", "Mid Unit", "Zeta Unit"];
 
