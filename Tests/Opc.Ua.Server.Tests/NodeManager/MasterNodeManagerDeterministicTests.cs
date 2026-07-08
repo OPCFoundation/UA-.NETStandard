@@ -787,9 +787,9 @@ namespace Opc.Ua.Server.Tests
                     0.0,
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
@@ -810,8 +810,8 @@ namespace Opc.Ua.Server.Tests
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
                     null!,
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
@@ -831,8 +831,8 @@ namespace Opc.Ua.Server.Tests
                     0.0,
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
+                    [],
+                    [],
                     null!,
                     false,
                     CancellationToken.None).ConfigureAwait(false),
@@ -853,9 +853,9 @@ namespace Opc.Ua.Server.Tests
                     -1.0,
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentOutOfRangeException>()
@@ -875,9 +875,9 @@ namespace Opc.Ua.Server.Tests
                     0.0,
                     (TimestampsToReturn)99,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
@@ -894,10 +894,10 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.ModifyMonitoredItemsAsync(
                     null!,
                     TimestampsToReturn.Both,
-                    new List<IMonitoredItem>(),
+                    [],
                     System.Array.Empty<MonitoredItemModifyRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
@@ -913,10 +913,10 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.ModifyMonitoredItemsAsync(
                     ctx,
                     (TimestampsToReturn)99,
-                    new List<IMonitoredItem>(),
+                    [],
                     System.Array.Empty<MonitoredItemModifyRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
@@ -932,8 +932,8 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.DeleteMonitoredItemsAsync(
                     null!,
                     1u,
-                    new List<IMonitoredItem>(),
-                    new List<ServiceResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
@@ -968,8 +968,8 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.SetMonitoringModeAsync(
                     null!,
                     MonitoringMode.Reporting,
-                    new List<IMonitoredItem>(),
-                    new List<ServiceResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
@@ -1004,8 +1004,8 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.TransferMonitoredItemsAsync(
                     null!,
                     false,
-                    new List<IMonitoredItem>(),
-                    new List<ServiceResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));

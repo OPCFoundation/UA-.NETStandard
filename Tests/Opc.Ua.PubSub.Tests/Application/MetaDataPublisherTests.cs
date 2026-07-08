@@ -351,7 +351,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             public bool IsConnected { get; private set; }
 
             public List<(ReadOnlyMemory<byte> Payload, string? Topic)> Sends { get; }
-                = new();
+                = [];
 
             public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
             {

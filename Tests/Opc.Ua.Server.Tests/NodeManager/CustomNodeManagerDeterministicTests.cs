@@ -755,25 +755,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var references = new Dictionary<NodeId, IList<IReference>>
             {
-                [node.NodeId] = new List<IReference>
-                {
+                [node.NodeId] =
+                [
                     new ReferenceNode
                     {
                         ReferenceTypeId = ReferenceTypeIds.HasComponent,
                         IsInverse = false,
                         TargetId = targetId
                     }
-                },
+                ],
                 // Unknown source node is silently skipped.
-                [new NodeId("Missing", h.NamespaceIndex)] = new List<IReference>
-                {
+                [new NodeId("Missing", h.NamespaceIndex)] =
+                [
                     new ReferenceNode
                     {
                         ReferenceTypeId = ReferenceTypeIds.HasComponent,
                         IsInverse = false,
                         TargetId = targetId
                     }
-                }
+                ]
             };
 
             h.Manager.AddReferences(references);

@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 // Truncated mid-nonce.
                 Assert.That(UadpSecurityHeader.TryRead(buffer.AsSpan(0, 10), out _, out _), Is.False);
                 // Truncated header preamble.
-                Assert.That(UadpSecurityHeader.TryRead(ReadOnlySpan<byte>.Empty, out _, out _), Is.False);
+                Assert.That(UadpSecurityHeader.TryRead([], out _, out _), Is.False);
                 Assert.That(UadpSecurityHeader.TryRead(buffer.AsSpan(0, 5), out _, out _), Is.False);
             });
         }

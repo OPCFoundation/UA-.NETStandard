@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
         public int CallCount => Volatile.Read(ref m_callCount);
 
-        public IList<SksKeyRequest> Requests { get; } = new List<SksKeyRequest>();
+        public IList<SksKeyRequest> Requests { get; } = [];
 
         public void FailOnce(OpcUaSksException exception)
         {

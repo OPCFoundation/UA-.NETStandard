@@ -114,7 +114,7 @@ namespace Opc.Ua.Fuzzing
         public void VariableNodeWithEmptyArrayDimensionsRoundTripsCleanly()
         {
             VariableNode original = BuildPopulatedVariableNode();
-            original.ArrayDimensions = ArrayOf<uint>.Empty;
+            original.ArrayDimensions = [];
 
             byte[] serialized = BinaryEncoder.EncodeMessage(original, FuzzableCode.MessageContext);
 

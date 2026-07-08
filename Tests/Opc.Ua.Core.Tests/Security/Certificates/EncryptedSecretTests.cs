@@ -740,7 +740,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 receiverCertificate,
                 receiverEphemeralKey,
                 null!,
@@ -766,7 +766,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 senderCertificate,
                 null!,
                 senderCertificate,
@@ -792,7 +792,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 senderCertificate,
                 receiverEphemeralKey,
                 senderCertificate,
@@ -896,7 +896,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 receiverCertificate,
                 receiverEphemeralKey,
                 senderCertificate,
@@ -914,7 +914,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 receiverCertificate,
                 receiverEphemeralKey,
                 senderCertificate!,

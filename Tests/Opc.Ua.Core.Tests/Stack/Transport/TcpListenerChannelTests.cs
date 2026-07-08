@@ -297,7 +297,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 bufferManager: m_buffers,
                 quotas: m_quotas,
                 serverCertificates: null!,
-                endpoints: new List<EndpointDescription>(),
+                endpoints: [],
                 telemetry: m_telemetry);
         }
     }

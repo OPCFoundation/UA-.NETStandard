@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var addressSpace = CreateAddressSpace(predefinedNodes);
 
-            NodeState[] nodes = addressSpace.Nodes.ToArray();
+            NodeState[] nodes = [.. addressSpace.Nodes];
 
             Assert.That(nodes, Has.Length.EqualTo(1));
             Assert.That(nodes[0], Is.SameAs(parent));

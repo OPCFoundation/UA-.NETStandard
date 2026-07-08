@@ -168,8 +168,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // but distinct ClientHandles — verify global handle
                 // uniqueness and that each item belongs to exactly
                 // one partition's collection.
-                IMonitoredItem[] allItems = subscription.MonitoredItems.Items
-                    .ToArray();
+                IMonitoredItem[] allItems = [.. subscription.MonitoredItems.Items];
                 Assert.That(allItems, Has.Length.EqualTo(totalItems));
                 Assert.That(allItems.Select(i => i.ClientHandle).Distinct().ToArray(), Has.Length.EqualTo(totalItems),
                     "ClientHandle must be globally unique across partitions");

@@ -218,9 +218,7 @@ namespace Opc.Ua.Redundancy.Server
 
             if (m_queueFactory != null)
             {
-                HashSet<uint> liveMonitoredItemIds = createdSubscriptions
-                    .SelectMany(pair => pair.Value.Memory.ToArray())
-                    .ToHashSet();
+                HashSet<uint> liveMonitoredItemIds = [.. createdSubscriptions.SelectMany(pair => pair.Value.Memory.ToArray())];
                 await m_queueFactory
                     .CleanupAsync(liveMonitoredItemIds, cancellationToken)
                     .ConfigureAwait(false);

@@ -273,7 +273,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
                 channel => channel.FeedIncomingMessage(
-                    0x00FFFFFFu, new ArraySegment<byte>(Array.Empty<byte>())))
+                    0x00FFFFFFu, new ArraySegment<byte>([])))
                 .ConfigureAwait(false);
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
@@ -575,7 +575,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class RecordingByteTransport : IUaSCByteTransport
         {
             private readonly object m_lock = new();
-            private readonly List<byte[]> m_sent = new();
+            private readonly List<byte[]> m_sent = [];
 
             private readonly TaskCompletionSource<bool> m_closed =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);

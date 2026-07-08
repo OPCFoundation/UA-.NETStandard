@@ -50,8 +50,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
     internal sealed class FakeMqttClientAdapter : IMqttClientAdapter
     {
         private readonly ConcurrentQueue<MqttMessage> m_published = new();
-        private readonly List<MqttTopicFilter> m_subscriptions = new();
-        private readonly List<string> m_unsubscribed = new();
+        private readonly List<MqttTopicFilter> m_subscriptions = [];
+        private readonly List<string> m_unsubscribed = [];
         private bool m_isConnected;
         private bool m_disposed;
 

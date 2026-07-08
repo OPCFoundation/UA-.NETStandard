@@ -200,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 listener: listenerMock.Object,
                 bufferManager: m_buffers,
                 quotas: m_quotas,
-                endpoints: new List<EndpointDescription>(),
+                endpoints: [],
                 telemetry: m_telemetry);
         }
     }

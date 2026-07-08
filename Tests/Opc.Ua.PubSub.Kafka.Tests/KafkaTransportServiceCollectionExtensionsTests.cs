@@ -68,10 +68,9 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             KafkaConnectionOptions options = serviceProvider
                 .GetRequiredService<IOptions<KafkaConnectionOptions>>()
                 .Value;
-            KafkaPubSubTransportFactory[] factories = serviceProvider
+            KafkaPubSubTransportFactory[] factories = [.. serviceProvider
                 .GetServices<IPubSubTransportFactory>()
-                .OfType<KafkaPubSubTransportFactory>()
-                .ToArray();
+                .OfType<KafkaPubSubTransportFactory>()];
 
             Assert.That(options.ClientId, Is.EqualTo("callback-client"));
             Assert.That(options.GroupId, Is.EqualTo("callback-group"));
@@ -189,7 +188,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {
@@ -211,7 +210,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 .GetRequiredService<IOptions<KafkaConnectionOptions>>()
                 .Value;
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {

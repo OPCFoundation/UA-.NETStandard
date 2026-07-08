@@ -172,7 +172,7 @@ namespace Opc.Ua.Sessions.Tests
             ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
             return new TransportListenerSettings
             {
-                Descriptions = new System.Collections.Generic.List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 NamespaceUris = context.NamespaceUris,
                 Factory = context.Factory,

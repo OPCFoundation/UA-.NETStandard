@@ -201,7 +201,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         new() {
                             StatusCode = StatusCodes.BadNotFound,
-                            Targets = ArrayOf.Empty<BrowsePathTarget>()
+                            Targets = []
                         }
                     }.ToArrayOf()
                 });

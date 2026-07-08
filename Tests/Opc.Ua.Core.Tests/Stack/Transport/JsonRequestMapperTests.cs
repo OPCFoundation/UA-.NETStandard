@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void DecodeRequestRejectsEmptyBody()
         {
             ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
-            using var stream = new MemoryStream(Array.Empty<byte>());
+            using var stream = new MemoryStream([]);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await JsonRequestMapper.DecodeRequestAsync(stream, context, CancellationToken.None)

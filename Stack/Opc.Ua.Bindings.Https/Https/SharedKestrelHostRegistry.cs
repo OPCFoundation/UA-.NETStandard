@@ -131,7 +131,7 @@ namespace Opc.Ua.Bindings
         /// and Release awaits StopAsync inside the registry-wide barrier.
         /// </summary>
         private readonly SemaphoreSlim m_lock = new(1, 1);
-        private readonly Dictionary<SharedHostKey, SharedKestrelHost> m_hosts = new();
+        private readonly Dictionary<SharedHostKey, SharedKestrelHost> m_hosts = [];
 
         /// <summary>
         /// Acquires (or creates) the shared host for <paramref name="key"/>

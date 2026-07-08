@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         {
             if (nodesToRead.IsNull || nodesToRead.Count == 0)
             {
-                return ArrayOf<DataValue>.Empty;
+                return [];
             }
 
             try

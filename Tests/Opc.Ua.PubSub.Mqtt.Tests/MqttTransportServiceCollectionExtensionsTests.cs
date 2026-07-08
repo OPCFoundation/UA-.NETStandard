@@ -87,10 +87,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             MqttConnectionOptions options =
                 serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
-            MqttPubSubTransportFactory[] factories = serviceProvider
+            MqttPubSubTransportFactory[] factories = [.. serviceProvider
                 .GetServices<IPubSubTransportFactory>()
-                .OfType<MqttPubSubTransportFactory>()
-                .ToArray();
+                .OfType<MqttPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {
@@ -222,10 +221,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             MqttConnectionOptions options =
                 serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
-            MqttPubSubTransportFactory[] factories = serviceProvider
+            MqttPubSubTransportFactory[] factories = [.. serviceProvider
                 .GetServices<IPubSubTransportFactory>()
-                .OfType<MqttPubSubTransportFactory>()
-                .ToArray();
+                .OfType<MqttPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {

@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.DataSets
         /// </summary>
         public ArrayOf<ActionMethodDataType> ActionMethods => m_action is PublishedActionMethodDataType methodAction
             ? methodAction.ActionMethods
-            : ArrayOf.Empty<ActionMethodDataType>();
+            : [];
 
         /// <inheritdoc/>
         public DataSetMetaDataType BuildMetaData()

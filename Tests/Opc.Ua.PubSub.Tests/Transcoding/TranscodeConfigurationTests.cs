@@ -66,13 +66,13 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 AllowInsecureCrossEncoding = true,
                 DropKeepAlive = true,
                 RenameFields = new Dictionary<string, string> { ["a"] = "b" },
-                SelectFields = new List<string> { "b" },
-                PromoteFields = new List<string> { "b" },
+                SelectFields = ["b"],
+                PromoteFields = ["b"],
                 PromotedFieldPrefix = "p_",
-                KeepMessageTypes = new List<PubSubDataSetMessageType>
-                {
+                KeepMessageTypes =
+                [
                     PubSubDataSetMessageType.KeyFrame
-                },
+                ],
                 RemapIds = new TranscodeIdRemapOptions
                 {
                     PublisherIdNumber = 7,
@@ -310,7 +310,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
 
         private static PubSubTranscodingOptions Options(params TranscodeRouteOptions[] routes)
         {
-            return new PubSubTranscodingOptions { Routes = new List<TranscodeRouteOptions>(routes) };
+            return new PubSubTranscodingOptions { Routes = [.. routes] };
         }
 
         private static TranscodeRouteOptions Route(string name, TranscodeEncoding encoding)

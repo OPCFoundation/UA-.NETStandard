@@ -739,7 +739,7 @@ namespace Opc.Ua.PubSub.Configuration
                     (PubSubMqttsScheme, "MQTT over TLS")
                 ];
             }
-            return Array.Empty<(string, string)>();
+            return [];
         }
 
         private readonly HashSet<string> m_registeredTransportProfileUris;

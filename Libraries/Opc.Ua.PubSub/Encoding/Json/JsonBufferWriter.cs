@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             byte[]? buffer = m_buffer;
             if (buffer.Length > 0)
             {
-                m_buffer = Array.Empty<byte>();
+                m_buffer = [];
                 ArrayPool<byte>.Shared.Return(buffer, clearArray: false);
             }
         }

@@ -162,8 +162,8 @@ namespace Opc.Ua.PubSub.Server
             m_options = options;
             m_telemetry = telemetry;
             m_actionMethodRegistrations = actionMethodRegistrations?.ToArray()
-                ?? Array.Empty<PubSubActionMethodRegistration>();
-            m_pushKeyProviders = pushKeyProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
+                ?? [];
+            m_pushKeyProviders = pushKeyProviders?.ToArray() ?? [];
             m_idAllocator = idAllocator ?? new InMemoryPubSubIdAllocator();
             m_methodHandlers = new PubSubMethodHandlers(
                 pubSubApplication,

@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ConstructorNullConfigurationThrows()
         {
-            var strategy = new RecordingReadStrategy(ArrayOf<DataValue>.Empty);
+            var strategy = new RecordingReadStrategy([]);
 
             Assert.That(
                 () => new ServerPublishedDataSetSource(
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ConstructorNullMetaDataBuilderThrows()
         {
-            var strategy = new RecordingReadStrategy(ArrayOf<DataValue>.Empty);
+            var strategy = new RecordingReadStrategy([]);
 
             Assert.That(
                 () => new ServerPublishedDataSetSource(
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(new DataSetMetaDataType { Name = "Delegated" });
             var source = new ServerPublishedDataSetSource(
                 new PublishedDataSetDataType(),
-                new RecordingReadStrategy(ArrayOf<DataValue>.Empty),
+                new RecordingReadStrategy([]),
                 builder.Object,
                 AdapterTestHelpers.Telemetry());
 
@@ -236,7 +236,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             var source = new ServerPublishedDataSetSource(
                 config,
-                new RecordingReadStrategy(ArrayOf<DataValue>.Empty),
+                new RecordingReadStrategy([]),
                 MetaDataBuilder(),
                 AdapterTestHelpers.Telemetry());
             using var cts = new CancellationTokenSource();
@@ -256,7 +256,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(new ValueTask<DataSetMetaDataType>(new DataSetMetaDataType()));
             var source = new ServerPublishedDataSetSource(
                 new PublishedDataSetDataType(),
-                new RecordingReadStrategy(ArrayOf<DataValue>.Empty),
+                new RecordingReadStrategy([]),
                 builder.Object,
                 AdapterTestHelpers.Telemetry());
             int changeCount = 0;

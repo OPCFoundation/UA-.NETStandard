@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             session
                 .Setup(s => s.WriteAsync(
                     It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ArrayOf<StatusCode>>(ArrayOf<StatusCode>.Empty));
+                .Returns(new ValueTask<ArrayOf<StatusCode>>([]));
             var writer = new ServerTargetVariableWriter(
                 session.Object, AdapterTestHelpers.Telemetry());
 

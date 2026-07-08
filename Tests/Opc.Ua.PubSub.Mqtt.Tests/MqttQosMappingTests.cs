@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             const string topic = "opcua/pubsub/json/data/1/2";
             await transport.SendAsync(new byte[] { 1 }, topic).ConfigureAwait(false);
 
-            MqttMessage[] published = factory.Adapter.PublishedMessages.ToArray();
+            MqttMessage[] published = [.. factory.Adapter.PublishedMessages];
             Assert.That(published, Has.Length.EqualTo(1));
             Assert.That(published[0].Qos, Is.EqualTo(qos));
             Assert.That((int)published[0].Qos, Is.EqualTo(expectedNumericValue));

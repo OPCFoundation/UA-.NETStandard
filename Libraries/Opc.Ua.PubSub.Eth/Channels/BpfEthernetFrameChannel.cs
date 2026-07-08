@@ -306,7 +306,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             if (m_parameters.Promiscuous)
             {
                 // BIOCPROMISC (_IO, no argument).
-                Ioctl(fd, IocVoid | ((uint)'B' << 8) | 105, Array.Empty<byte>(), "BIOCPROMISC");
+                Ioctl(fd, IocVoid | ((uint)'B' << 8) | 105, [], "BIOCPROMISC");
             }
         }
 

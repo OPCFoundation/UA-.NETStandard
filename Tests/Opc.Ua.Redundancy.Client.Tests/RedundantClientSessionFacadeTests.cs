@@ -61,8 +61,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
     public sealed class RedundantClientSessionFacadeTests
     {
         private ITelemetryContext m_telemetry = null!;
-        private readonly List<RedundantClientSession> m_facades = new();
-        private readonly List<IDisposable> m_disposables = new();
+        private readonly List<RedundantClientSession> m_facades = [];
+        private readonly List<IDisposable> m_disposables = [];
 
         [SetUp]
         public void SetUp()
@@ -731,8 +731,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(await facade.CloseAsync(ct).ConfigureAwait(false), Is.EqualTo(StatusCodes.Good));
             Assert.That(await facade.RemoveSubscriptionAsync(null!, ct).ConfigureAwait(false), Is.True);
             Assert.That(await facade.RemoveSubscriptionsAsync(Array.Empty<Subscription>(), ct).ConfigureAwait(false), Is.True);
-            Assert.That(await facade.ReactivateSubscriptionsAsync(new SubscriptionCollection(), true, ct).ConfigureAwait(false), Is.True);
-            Assert.That(await facade.TransferSubscriptionsAsync(new SubscriptionCollection(), false, ct).ConfigureAwait(false), Is.True);
+            Assert.That(await facade.ReactivateSubscriptionsAsync([], true, ct).ConfigureAwait(false), Is.True);
+            Assert.That(await facade.TransferSubscriptionsAsync([], false, ct).ConfigureAwait(false), Is.True);
 
             (bool republished, ServiceResult republishResult) = await facade.RepublishAsync(1, 2, ct).ConfigureAwait(false);
             Assert.That(republished, Is.True);
@@ -881,8 +881,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 s => s.PublishSequenceNumbersToAcknowledge += null,
                 session.Object,
                 new PublishSequenceNumbersToAcknowledgeEventArgs(
-                    new List<SubscriptionAcknowledgement>(),
-                    new List<SubscriptionAcknowledgement>()));
+                    [],
+                    []));
             session.Raise(s => s.SubscriptionsChanged += null, session.Object, EventArgs.Empty);
             session.Raise(s => s.SessionClosing += null, session.Object, EventArgs.Empty);
             session.Raise(s => s.SessionConfigurationChanged += null, session.Object, EventArgs.Empty);

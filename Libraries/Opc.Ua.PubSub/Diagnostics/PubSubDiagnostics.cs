@@ -111,14 +111,14 @@ namespace Opc.Ua.PubSub.Diagnostics
             {
                 if (m_errorHistory == null)
                 {
-                    return ArrayOf<PubSubErrorEntry>.Empty;
+                    return [];
                 }
                 lock (m_lock)
                 {
                     int count = m_errorHistoryCount;
                     if (count == 0)
                     {
-                        return ArrayOf<PubSubErrorEntry>.Empty;
+                        return [];
                     }
                     var snapshot = new PubSubErrorEntry[count];
                     int head = m_errorHistoryHead;

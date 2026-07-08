@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             ValidateCredentialTransport(options.UserName, useTls, options.AllowCredentialsOverPlaintext);
             if (!string.IsNullOrEmpty(options.UserName))
             {
-                byte[] passwordBytes = options.PasswordBytes ?? Array.Empty<byte>();
+                byte[] passwordBytes = options.PasswordBytes ?? [];
                 builder = builder.WithCredentials(options.UserName, passwordBytes);
             }
             X509Certificate2Collection? trustChain = useTls
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             if (!string.IsNullOrEmpty(options.WillTopic))
             {
                 mqttOptions.WillTopic = options.WillTopic;
-                mqttOptions.WillPayload = options.WillPayload ?? Array.Empty<byte>();
+                mqttOptions.WillPayload = options.WillPayload ?? [];
                 mqttOptions.WillQualityOfServiceLevel = MapQos(options.WillQos);
                 mqttOptions.WillRetain = options.WillRetain;
             }
@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 byte[] payloadCopy;
                 if (sequence.IsEmpty)
                 {
-                    payloadCopy = Array.Empty<byte>();
+                    payloadCopy = [];
                 }
                 else
                 {

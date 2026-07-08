@@ -100,24 +100,24 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<string, NodeId> m_connectionNodeIdsByName
             = new(StringComparer.Ordinal);
 
-        private readonly Dictionary<NodeId, string> m_connectionNamesByNodeId = new();
+        private readonly Dictionary<NodeId, string> m_connectionNamesByNodeId = [];
 
         private readonly Dictionary<NodeId, (string ConnectionName, string GroupName)>
-            m_groupRefs = new();
+            m_groupRefs = [];
 
         private readonly Dictionary<NodeId, (string ConnectionName,
-            string GroupName, string WriterName)> m_writerRefs = new();
+            string GroupName, string WriterName)> m_writerRefs = [];
 
         private readonly Dictionary<NodeId, (string ConnectionName,
-            string GroupName, string ReaderName)> m_readerRefs = new();
+            string GroupName, string ReaderName)> m_readerRefs = [];
 
-        private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
+        private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = [];
 
         private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler,
             bool AllowUnsecured, PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionHandlers = [];
 
-        private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = new();
+        private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = [];
         private readonly IPubSubConfigurationStore m_configurationStore;
         private readonly IPubSubRuntimeStateStore m_runtimeStateStore;
 
@@ -336,10 +336,10 @@ namespace Opc.Ua.PubSub.Application
             {
                 throw new ArgumentNullException(nameof(timeProvider));
             }
-            m_factories = transportFactories.ToArray();
-            m_encoderArray = encoders.ToArray();
-            m_decoderArray = decoders.ToArray();
-            m_securityPolicies = securityPolicies.ToArray();
+            m_factories = [.. transportFactories];
+            m_encoderArray = [.. encoders];
+            m_decoderArray = [.. decoders];
+            m_securityPolicies = [.. securityPolicies];
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;

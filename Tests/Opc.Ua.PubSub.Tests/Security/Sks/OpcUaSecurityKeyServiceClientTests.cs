@@ -102,7 +102,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             {
                 ResponseHeader = new ResponseHeader(),
                 Results = new[] { result },
-                DiagnosticInfos = ArrayOf<DiagnosticInfo>.Empty
+                DiagnosticInfos = []
             };
         }
 

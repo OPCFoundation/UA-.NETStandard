@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [Test]
         public void Reader_TruncatedScalars_ReturnFalse()
         {
-            var reader = new UadpBinaryReader(Array.Empty<byte>(), 0, 0);
+            var reader = new UadpBinaryReader([], 0, 0);
             Assert.That(reader.TryReadByte(out _), Is.False);
             Assert.That(reader.TryReadUInt16Le(out _), Is.False);
             Assert.That(reader.TryReadUInt32Le(out _), Is.False);
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             byte[] buffer = new byte[8];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
-            writer.WriteBytes(Array.Empty<byte>());
+            writer.WriteBytes([]);
             Assert.That(writer.Position, Is.Zero);
         }
 

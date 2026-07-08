@@ -236,7 +236,7 @@ namespace Opc.Ua.Di.Client
                 for (int i = 0; i < data.ParameterDefs.Count; i++)
                 {
                     Opc.Ua.Di.ParameterResultDataType p = data.ParameterDefs[i];
-                    QualifiedName[] nodePath = p.NodePath.ToArray() ?? Array.Empty<QualifiedName>();
+                    QualifiedName[] nodePath = p.NodePath.ToArray() ?? [];
                     entries.Add(new ParameterFetchEntry(
                         NodePath: nodePath,
                         StatusCode: p.StatusCode));

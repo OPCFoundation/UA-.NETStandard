@@ -277,7 +277,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             services.AddPcapFromEnvironment();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            IHostedService[] hostedServices = provider.GetServices<IHostedService>().ToArray();
+            IHostedService[] hostedServices = [.. provider.GetServices<IHostedService>()];
             IHostedService autoStart = hostedServices.Single(static s
                 => s is PcapEnvironmentAutoStartHostedService);
 

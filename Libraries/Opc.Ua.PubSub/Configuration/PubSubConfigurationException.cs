@@ -77,10 +77,9 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 return "PubSub configuration is invalid.";
             }
-            PubSubConfigurationIssue[] errors = issues
+            PubSubConfigurationIssue[] errors = [.. issues
                 .Where(static i => i.Severity == PubSubConfigurationIssueSeverity.Error)
-                .Take(MaxErrorsInMessage + 1)
-                .ToArray();
+                .Take(MaxErrorsInMessage + 1)];
             if (errors.Length == 0)
             {
                 return "PubSub configuration is invalid.";

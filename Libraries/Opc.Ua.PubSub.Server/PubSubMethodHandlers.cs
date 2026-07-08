@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly SksMethodHandler? m_sks;
         private readonly PushSecurityKeyProvider[] m_pushProviders;
         private readonly ILogger m_logger;
-        private readonly Dictionary<NodeId, string> m_securityGroupNodeIds = new();
+        private readonly Dictionary<NodeId, string> m_securityGroupNodeIds = [];
         private readonly System.Threading.Lock m_gate = new();
         private ushort m_securityGroupNamespaceIndex;
 
@@ -102,7 +102,7 @@ namespace Opc.Ua.PubSub.Server
             m_keyService = keyService;
             m_options = options;
             m_sks = keyService is null ? null : new SksMethodHandler(keyService, telemetry);
-            m_pushProviders = pushProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
+            m_pushProviders = pushProviders?.ToArray() ?? [];
             m_logger = telemetry.CreateLogger<PubSubMethodHandlers>();
         }
 

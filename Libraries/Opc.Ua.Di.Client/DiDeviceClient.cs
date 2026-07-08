@@ -205,8 +205,8 @@ namespace Opc.Ua.Di.Client
                 .ConfigureAwait(false);
 
             // Collect resolved NodeIds for a batch read.
-            List<int> resolvedIndices = new();
-            List<ReadValueId> readItems = new();
+            List<int> resolvedIndices = [];
+            List<ReadValueId> readItems = [];
             for (int i = 0; i < translateResponse.Results.Count; i++)
             {
                 BrowsePathResult result = translateResponse.Results[i];

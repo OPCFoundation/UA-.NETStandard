@@ -936,10 +936,10 @@ namespace Opc.Ua.Subscriptions.Tests
         private sealed class StubMonitoredItemCollection : IMonitoredItemCollection
         {
             private readonly object m_lock = new();
-            private readonly Dictionary<uint, StubMonitoredItem> m_items = new();
-            private readonly List<StubMonitoredItem> m_added = new();
-            private readonly List<uint> m_removed = new();
-            private readonly List<uint> m_removeAttempts = new();
+            private readonly Dictionary<uint, StubMonitoredItem> m_items = [];
+            private readonly List<StubMonitoredItem> m_added = [];
+            private readonly List<uint> m_removed = [];
+            private readonly List<uint> m_removeAttempts = [];
             private readonly bool m_failItemAdd;
             private readonly bool m_failRemove;
             private readonly Action? m_onItemAdded;
@@ -981,7 +981,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return m_added.ToArray();
+                        return [.. m_added];
                     }
                 }
             }

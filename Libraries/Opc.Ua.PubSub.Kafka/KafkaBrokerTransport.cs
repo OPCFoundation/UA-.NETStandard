@@ -166,7 +166,7 @@ namespace Opc.Ua.PubSub.Kafka
             m_logger = telemetry.CreateLogger<KafkaBrokerTransport>();
             m_transportProfileUri = DetermineTransportProfileUri(connection);
             m_partitionKey = BuildPartitionKey(connection);
-            Subscriptions = new List<string>();
+            Subscriptions = [];
             AddDefaultSubscriptions();
         }
 

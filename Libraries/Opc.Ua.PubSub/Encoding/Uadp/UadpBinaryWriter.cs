@@ -573,7 +573,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private void WritePaddedBytes(ByteString value, uint maxLength)
         {
             ReadOnlySpan<byte> src = value.IsNull
-                ? ReadOnlySpan<byte>.Empty
+                ? []
                 : value.Span;
             if ((uint)src.Length > maxLength)
             {

@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
             EthTransportOptions options =
                 serviceProvider.GetRequiredService<IOptions<EthTransportOptions>>().Value;
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {

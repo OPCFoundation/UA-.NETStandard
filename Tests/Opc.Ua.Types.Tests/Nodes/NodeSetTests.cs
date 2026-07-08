@@ -106,8 +106,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddDuplicateNodeThrowsArgumentException()
         {
-            var set = new NodeSet();
-            set.Add(CreateObject(1));
+            var set = new NodeSet
+            {
+                CreateObject(1)
+            };
             Assert.Throws<ArgumentException>(() => set.Add(CreateObject(1)));
         }
 
@@ -130,10 +132,12 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void EnumeratorYieldsAllNodes()
         {
-            var set = new NodeSet();
-            set.Add(CreateObject(1, 0, "A"));
-            set.Add(CreateObject(2, 0, "B"));
-            set.Add(CreateObject(3, 0, "C"));
+            var set = new NodeSet
+            {
+                CreateObject(1, 0, "A"),
+                CreateObject(2, 0, "B"),
+                CreateObject(3, 0, "C")
+            };
 
             var ids = new List<NodeId>();
             foreach (Node node in set)
@@ -147,9 +151,11 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void NonGenericEnumeratorYieldsAllNodes()
         {
-            var set = new NodeSet();
-            set.Add(CreateObject(1, 0, "A"));
-            set.Add(CreateObject(2, 0, "B"));
+            var set = new NodeSet
+            {
+                CreateObject(1, 0, "A"),
+                CreateObject(2, 0, "B")
+            };
 
             var ids = new List<NodeId>();
             foreach (object node in (IEnumerable)set)
@@ -163,8 +169,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void RemoveExistingNodeReturnsTrue()
         {
-            var set = new NodeSet();
-            set.Add(CreateObject(1));
+            var set = new NodeSet
+            {
+                CreateObject(1)
+            };
             Assert.That(set.Remove(new NodeId(1u)), Is.True);
             Assert.That(set.Contains(new NodeId(1u)), Is.False);
             Assert.That(set.Count(), Is.Zero);
@@ -212,8 +220,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithNamespaceTableUnknownIndexReturnsNull()
         {
-            var set = new NodeSet();
-            set.Add(CreateObject(1));
+            var set = new NodeSet
+            {
+                CreateObject(1)
+            };
             // Namespace index 5 is not present in the supplied table.
             Assert.That(set.Find(new NodeId(1u, 5), new NamespaceTable()), Is.Null);
         }
@@ -221,8 +231,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithNamespaceTableUnknownUriReturnsNull()
         {
-            var set = new NodeSet();
-            set.Add(CreateObject(1, 1));
+            var set = new NodeSet
+            {
+                CreateObject(1, 1)
+            };
             NamespaceTable source = SourceTable(kCustomUri); // index 1 -> custom uri
             // The nodeset table does not contain the custom uri, so lookup fails.
             Assert.That(set.Find(new NodeId(1u, 1), source), Is.Null);

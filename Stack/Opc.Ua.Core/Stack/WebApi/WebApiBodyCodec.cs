@@ -192,7 +192,7 @@ namespace Opc.Ua.Bindings
             {
                 if (contentLengthHint == 0)
                 {
-                    return Array.Empty<byte>();
+                    return [];
                 }
                 var exact = new byte[contentLengthHint];
                 int total = 0;

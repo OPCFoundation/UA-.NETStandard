@@ -375,10 +375,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
             await AwaitBoundedAsync(transport.WaitUntilSentAsync(3), "generic probe responses")
                 .ConfigureAwait(false);
-            UadpDiscoveryType[] types = encoder.Messages
+            UadpDiscoveryType[] types = [.. encoder.Messages
                 .Cast<UadpDiscoveryResponseMessage>()
-                .Select(m => m.DiscoveryType)
-                .ToArray();
+                .Select(m => m.DiscoveryType)];
             Assert.Multiple(() =>
             {
                 Assert.That(transport.SentPayloads, Has.Count.EqualTo(3));
@@ -958,12 +957,12 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static Dictionary<string, INetworkMessageEncoder> NoEncoders()
         {
-            return new Dictionary<string, INetworkMessageEncoder>();
+            return [];
         }
 
         private static Dictionary<string, INetworkMessageDecoder> NoDecoders()
         {
-            return new Dictionary<string, INetworkMessageDecoder>();
+            return [];
         }
 
         private static PubSubConnection CreateConnection(
@@ -1332,7 +1331,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     lock (m_sync)
                     {
-                        return m_messages.ToArray();
+                        return [.. m_messages];
                     }
                 }
             }

@@ -348,7 +348,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 ByteString key = keys[i];
                 packed[i] = key.IsNull
-                    ? Array.Empty<byte>()
+                    ? []
                     : key.Span.ToArray();
             }
 

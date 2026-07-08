@@ -211,7 +211,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             using var strategy = new SubscriptionReadStrategy(AdapterTestHelpers.Telemetry());
 
-            ArrayOf<DataValue> values = await strategy.ReadAsync(ArrayOf<ReadValueId>.Empty).ConfigureAwait(false);
+            ArrayOf<DataValue> values = await strategy.ReadAsync([]).ConfigureAwait(false);
 
             Assert.That(values.Count, Is.Zero);
         }

@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             ServiceResult result = handler.HandleGetSecurityKeys(
                 ctx,
                 ObjectIds.PublishSubscribe,
-                new List<Variant> { Variant.From("group-1") },
+                [Variant.From("group-1")],
                 outputs);
             Assert.That(
                 result.StatusCode.Code,
@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
                 result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
                 result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
@@ -182,7 +182,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
                 result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadNotFound));
@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
                 result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -228,7 +228,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
                 result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));

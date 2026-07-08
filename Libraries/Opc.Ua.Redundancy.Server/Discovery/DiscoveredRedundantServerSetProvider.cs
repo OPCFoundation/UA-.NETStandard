@@ -71,7 +71,7 @@ namespace Opc.Ua.Redundancy.Server
                 });
             }
 
-            Volatile.Write(ref m_descriptions, descriptions.ToArray());
+            Volatile.Write(ref m_descriptions, [.. descriptions]);
         }
 
         private ApplicationDescription[] m_descriptions = [];

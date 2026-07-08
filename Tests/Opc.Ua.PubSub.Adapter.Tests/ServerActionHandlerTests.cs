@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     objectId, methodId,
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    StatusCodes.Good, ArrayOf<Variant>.Empty)));
+                    StatusCodes.Good, [])));
 
             var map = new ActionMethodMap().Add("Reset", objectId, methodId);
             var handler = new ServerActionHandler(
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<NodeId>(), It.IsAny<NodeId>(),
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    StatusCodes.BadArgumentsMissing, ArrayOf<Variant>.Empty)));
+                    StatusCodes.BadArgumentsMissing, [])));
 
             var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(

@@ -343,7 +343,7 @@ namespace Opc.Ua.Bindings.WebApi
         private static class ProjectionContext
         {
             private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IUserIdentity, Projection> s_table
-                = new();
+                = [];
 
             public static void Attach(
                 IUserIdentity identity,

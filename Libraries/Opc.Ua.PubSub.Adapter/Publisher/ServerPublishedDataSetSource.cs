@@ -217,7 +217,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             {
                 return items.PublishedData;
             }
-            return ArrayOf<PublishedVariableDataType>.Empty;
+            return [];
         }
     }
 }

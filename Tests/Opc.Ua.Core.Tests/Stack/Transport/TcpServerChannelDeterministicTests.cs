@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             channel.CurrentState = TcpChannelState.Opening;
 
             channel.FeedIncomingMessage(
-                TcpMessageType.Hello, new ArraySegment<byte>(Array.Empty<byte>()));
+                TcpMessageType.Hello, new ArraySegment<byte>([]));
 
             Assert.That(
                 await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
@@ -215,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             channel.SetTransport(transport);
             channel.CurrentState = TcpChannelState.Connecting;
 
-            channel.FeedIncomingMessage(0x00FFFFFFu, new ArraySegment<byte>(Array.Empty<byte>()));
+            channel.FeedIncomingMessage(0x00FFFFFFu, new ArraySegment<byte>([]));
 
             Assert.That(
                 await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
@@ -319,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 listener: listenerMock.Object,
                 bufferManager: m_buffers,
                 quotas: m_quotas,
-                endpoints: new List<EndpointDescription>(),
+                endpoints: [],
                 telemetry: m_telemetry,
                 timeProvider: new FakeTimeProvider());
         }
@@ -471,7 +471,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class RecordingByteTransport : IUaSCByteTransport
         {
             private readonly object m_lock = new();
-            private readonly List<byte[]> m_sent = new();
+            private readonly List<byte[]> m_sent = [];
 
             private readonly TaskCompletionSource<bool> m_closed =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);

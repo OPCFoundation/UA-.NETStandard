@@ -131,12 +131,12 @@ namespace Opc.Ua.PubSub.Server.Tests
             MethodState read = FindConfigurationFileMethod(harness, "Read");
 
             ServiceResult missingArguments = read.OnCallMethod!(
-                harness.Context, read, BuildArray(Variant.From(1u)), new List<Variant>());
+                harness.Context, read, BuildArray(Variant.From(1u)), []);
             ServiceResult unknownHandle = read.OnCallMethod!(
                 harness.Context,
                 read,
                 BuildArray(Variant.From(4242u), Variant.From(1024)),
-                new List<Variant>());
+                []);
 
             Assert.Multiple(() =>
             {
@@ -191,7 +191,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 read,
                 BuildArray(Variant.From(handle), Variant.From(1024)),
-                new List<Variant>());
+                []);
             ServiceResult missingArguments = close.OnCallMethod!(
                 harness.Context, close, BuildArray(), []);
 
@@ -222,11 +222,11 @@ namespace Opc.Ua.PubSub.Server.Tests
                 []);
 
             ServiceResult missingArguments = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(), new List<Variant>());
+                harness.Context, closeAndUpdate, BuildArray(), []);
             ServiceResult unknownHandle = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(Variant.From(9999u)), new List<Variant>());
+                harness.Context, closeAndUpdate, BuildArray(Variant.From(9999u)), []);
             ServiceResult corruptPayload = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(Variant.From(writeHandle)), new List<Variant>());
+                harness.Context, closeAndUpdate, BuildArray(Variant.From(writeHandle)), []);
 
             Assert.Multiple(() =>
             {
@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 reserve,
                 BuildArray(Variant.From(Profiles.PubSubUdpUadpTransport), Variant.From((ushort)1)),
-                new List<Variant>());
+                []);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -262,9 +262,9 @@ namespace Opc.Ua.PubSub.Server.Tests
             MethodState addFolder = harness.AddDataSetFolderMethod;
 
             ServiceResult emptyName = addFolder.OnCallMethod!(
-                harness.Context, addFolder, BuildArray(Variant.From(string.Empty)), new List<Variant>());
+                harness.Context, addFolder, BuildArray(Variant.From(string.Empty)), []);
             ServiceResult missingArguments = addFolder.OnCallMethod!(
-                harness.Context, addFolder, BuildArray(), new List<Variant>());
+                harness.Context, addFolder, BuildArray(), []);
 
             Assert.Multiple(() =>
             {
@@ -305,7 +305,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 addPushTarget,
                 BuildArray(Variant.From("app"), Variant.From("endpoint")),
-                new List<Variant>());
+                []);
             ServiceResult emptyApplicationUri = addPushTarget.OnCallMethod!(
                 harness.Context,
                 addPushTarget,
@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     Variant.From(UserTokenType.Anonymous),
                     Variant.From((ushort)1),
                     Variant.From(1000.0)),
-                new List<Variant>());
+                []);
 
             Assert.Multiple(() =>
             {
@@ -461,7 +461,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 connect,
                 BuildArray(Variant.From(new ArrayOf<NodeId>(new[] { groupNodeId }))),
-                new List<Variant>());
+                []);
             var disconnectOutputs = new List<Variant>();
             ServiceResult disconnectResult = disconnect.OnCallMethod!(
                 harness.Context,

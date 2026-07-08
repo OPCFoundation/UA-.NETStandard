@@ -685,7 +685,7 @@ namespace Opc.Ua.Server
                         "No existing certificate found for the specified certificate type and subject name.");
                 }
 
-                newIssuerCollection = new CertificateCollection();
+                newIssuerCollection = [];
 
                 try
                 {

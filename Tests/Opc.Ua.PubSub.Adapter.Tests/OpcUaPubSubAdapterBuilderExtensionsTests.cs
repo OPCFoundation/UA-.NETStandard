@@ -288,10 +288,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     o.Connection.EndpointUrl = "opc.tcp://localhost:4840";
                     o.AllowUnsecured = true;
                     o.MethodMap.Add("DoIt", new NodeId(1u), new NodeId(2u));
-                    o.Targets = new List<PubSubActionTarget>
-                    {
+                    o.Targets =
+                    [
                         new() { ActionName = "DoIt" }
-                    };
+                    ];
                 }));
             ServiceProvider sp = services.BuildServiceProvider();
 

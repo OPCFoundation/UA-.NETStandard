@@ -140,7 +140,7 @@ namespace Opc.Ua.Bindings
 
             ListenerId = Guid.NewGuid().ToString();
             EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions ?? new List<EndpointDescription>();
+            m_descriptions = settings.Descriptions ?? [];
 
             EndpointConfiguration? configuration = settings.Configuration;
             var messageContext = new ServiceMessageContext(Telemetry, settings.Factory!)
@@ -263,7 +263,7 @@ namespace Opc.Ua.Bindings
             // any lock the per-channel close paths might also need.
             (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries =
                 m_channels?.Values.ToArray()
-                ?? Array.Empty<(TcpListenerChannel, TaskCompletionSource<bool>)>();
+                ?? [];
 
             if (entries.Length == 0)
             {

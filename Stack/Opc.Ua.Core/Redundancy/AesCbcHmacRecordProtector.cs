@@ -78,7 +78,7 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public ByteString Protect(ByteString plaintext)
         {
-            byte[] data = plaintext.IsNull ? Array.Empty<byte>() : plaintext.ToArray();
+            byte[] data = plaintext.IsNull ? [] : plaintext.ToArray();
 
             byte[] cipher;
             byte[] iv;

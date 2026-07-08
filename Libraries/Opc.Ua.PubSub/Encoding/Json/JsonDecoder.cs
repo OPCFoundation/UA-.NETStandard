@@ -1278,7 +1278,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     list.Add(entry.GetString() ?? string.Empty);
                 }
             }
-            return list.ToArray();
+            return [.. list];
         }
 
         /// <summary>

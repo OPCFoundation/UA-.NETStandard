@@ -1057,7 +1057,7 @@ namespace Opc.Ua
                     }
                 }
 
-                var entry = new CrlCacheEntry(crls.ToArray(), names, lengths, ticks, nowTicks);
+                var entry = new CrlCacheEntry([.. crls], names, lengths, ticks, nowTicks);
                 m_crlCache = entry;
                 return entry.Crls;
             }

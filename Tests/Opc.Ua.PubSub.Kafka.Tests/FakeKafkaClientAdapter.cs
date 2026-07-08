@@ -46,8 +46,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         private readonly TimeProvider m_timeProvider;
         private readonly ConcurrentQueue<KafkaMessage> m_produced = new();
         private readonly Lock m_sync = new();
-        private readonly List<string> m_subscriptions = new();
-        private readonly List<string> m_unsubscriptions = new();
+        private readonly List<string> m_subscriptions = [];
+        private readonly List<string> m_unsubscriptions = [];
         private bool m_isConnected;
         private bool m_disposed;
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 {
                     if (!m_subscribers.TryGetValue(topic, out List<FakeKafkaClientAdapter>? subscribers))
                     {
-                        subscribers = new List<FakeKafkaClientAdapter>();
+                        subscribers = [];
                         m_subscribers[topic] = subscribers;
                     }
                     if (!subscribers.Contains(adapter))
@@ -293,8 +293,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             lock (m_sync)
             {
                 subscribers = m_subscribers.TryGetValue(message.Topic, out List<FakeKafkaClientAdapter>? targets)
-                    ? targets.ToArray()
-                    : Array.Empty<FakeKafkaClientAdapter>();
+                    ? [.. targets]
+                    : [];
             }
             foreach (FakeKafkaClientAdapter subscriber in subscribers)
             {

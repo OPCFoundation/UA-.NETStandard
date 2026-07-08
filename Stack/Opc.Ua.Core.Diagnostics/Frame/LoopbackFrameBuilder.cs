@@ -43,8 +43,8 @@ namespace Opc.Ua.Pcap.Frame
         public static byte[] Build(bool fromClient, uint channelId, ReadOnlySpan<byte> chunkBytes)
         {
             byte host = (byte)(channelId & 0xFFU);
-            Span<byte> clientAddress = stackalloc byte[] { 127, 0, 1, host };
-            Span<byte> serverAddress = stackalloc byte[] { 127, 0, 2, host };
+            Span<byte> clientAddress = [127, 0, 1, host];
+            Span<byte> serverAddress = [127, 0, 2, host];
             ushort clientPort = checked((ushort)(49152U + (channelId & 0x3FFFU)));
             const ushort serverPort = 4840;
             ReadOnlySpan<byte> sourceAddress = fromClient ? clientAddress : serverAddress;

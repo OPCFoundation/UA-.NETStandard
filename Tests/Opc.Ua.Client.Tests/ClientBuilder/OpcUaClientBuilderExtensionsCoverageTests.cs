@@ -401,7 +401,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 CancellationToken ct = default)
             {
                 return new ValueTask<ArrayOf<ApplicationDescription>>(
-                    ArrayOf<ApplicationDescription>.Empty);
+                    []);
             }
 
             public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
@@ -410,7 +410,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 CancellationToken ct = default)
             {
                 return new ValueTask<ArrayOf<EndpointDescription>>(
-                    ArrayOf<EndpointDescription>.Empty);
+                    []);
             }
         }
     }

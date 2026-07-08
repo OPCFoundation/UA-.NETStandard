@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var strategy = new CyclicReadStrategy(session.Object, AdapterTestHelpers.Telemetry());
 
             ArrayOf<DataValue> result = await strategy
-                .ReadAsync(ArrayOf<ReadValueId>.Empty)
+                .ReadAsync([])
                 .ConfigureAwait(false);
 
             Assert.That(result.Count, Is.Zero);

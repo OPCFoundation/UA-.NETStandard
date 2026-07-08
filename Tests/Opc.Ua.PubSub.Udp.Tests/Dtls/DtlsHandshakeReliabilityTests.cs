@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void FragmentsReassembleOutOfOrder()
         {
-            byte[] body = Enumerable.Range(0, 100).Select(value => (byte)value).ToArray();
+            byte[] body = [.. Enumerable.Range(0, 100).Select(value => (byte)value)];
             var fragments = DtlsHandshakeReassembler.Fragment(DtlsHandshakeType.Certificate, 3, body, 37);
             var reassembler = new DtlsHandshakeReassembler();
 

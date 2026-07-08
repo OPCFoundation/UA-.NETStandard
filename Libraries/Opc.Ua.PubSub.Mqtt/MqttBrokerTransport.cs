@@ -218,7 +218,7 @@ namespace Opc.Ua.PubSub.Mqtt
         /// before <see cref="OpenAsync"/>
         /// so the adapter knows what topics to subscribe to.
         /// </summary>
-        public IList<MqttTopicFilter> Subscriptions { get; } = new List<MqttTopicFilter>();
+        public IList<MqttTopicFilter> Subscriptions { get; } = [];
 
         /// <inheritdoc/>
         public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged;

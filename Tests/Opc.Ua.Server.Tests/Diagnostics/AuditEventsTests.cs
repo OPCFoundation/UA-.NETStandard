@@ -712,7 +712,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
         private static OperationContext CreateOperationContext(RequestType requestType)
         {
-            var identity = new UserIdentity("audit-user", Array.Empty<byte>())
+            var identity = new UserIdentity("audit-user", [])
             {
                 DisplayName = UserDisplayName
             };
@@ -733,7 +733,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
         private static ISession CreateSession()
         {
-            var identity = new UserIdentity("session-user", Array.Empty<byte>())
+            var identity = new UserIdentity("session-user", [])
             {
                 DisplayName = SessionUserDisplayName
             };

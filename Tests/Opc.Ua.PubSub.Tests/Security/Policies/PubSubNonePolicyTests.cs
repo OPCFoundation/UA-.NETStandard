@@ -62,9 +62,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
             byte[] plaintext = [1, 2, 3, 4, 5];
             byte[] ciphertext = new byte[5];
             byte[] roundTrip = new byte[5];
-            Policy.Encrypt(plaintext, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, ciphertext);
+            Policy.Encrypt(plaintext, [], [], ciphertext);
             Assert.That(ciphertext, Is.EqualTo(plaintext));
-            Policy.Decrypt(ciphertext, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, roundTrip);
+            Policy.Decrypt(ciphertext, [], [], roundTrip);
             Assert.That(roundTrip, Is.EqualTo(plaintext));
         }
 
@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void Verify_AcceptsEmptySignature()
         {
             byte[] data = [1, 2, 3];
-            Assert.That(Policy.Verify(data, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty), Is.True);
+            Assert.That(Policy.Verify(data, [], []), Is.True);
         }
 
         [Test]
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         {
             byte[] data = [1, 2, 3];
             byte[] signature = new byte[1];
-            Assert.That(Policy.Verify(data, signature, ReadOnlySpan<byte>.Empty), Is.False);
+            Assert.That(Policy.Verify(data, signature, []), Is.False);
         }
 
         [Test]
@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
             byte[] data = [1];
             byte[] signature = new byte[1];
             Assert.That(
-                () => Policy.Sign(data, ReadOnlySpan<byte>.Empty, signature),
+                () => Policy.Sign(data, [], signature),
                 Throws.ArgumentException);
         }
 
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
             byte[] plaintext = new byte[5];
             byte[] ciphertext = new byte[3];
             Assert.That(
-                () => Policy.Encrypt(plaintext, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, ciphertext),
+                () => Policy.Encrypt(plaintext, [], [], ciphertext),
                 Throws.ArgumentException);
         }
 
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
             byte[] ciphertext = new byte[5];
             byte[] plaintext = new byte[3];
             Assert.That(
-                () => Policy.Decrypt(ciphertext, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, plaintext),
+                () => Policy.Decrypt(ciphertext, [], [], plaintext),
                 Throws.ArgumentException);
         }
     }

@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     Connection = new ServerConnectionOptions { EndpointUrl = "opc.tcp://actions:4840" },
                     AllowUnsecured = true,
                     MethodMap = new ActionMethodMap().Add("DoIt", new NodeId(10u), new NodeId(11u)),
-                    Targets = new List<PubSubActionTarget> { target }
+                    Targets = [target]
                 });
             await WaitForReplaceAsync(context).ConfigureAwait(false);
 
@@ -235,7 +235,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     Connection = new ServerConnectionOptions { EndpointUrl = "opc.tcp://actions:4840" },
                     AllowUnsecured = true,
                     MethodMap = new ActionMethodMap().Add("DoIt", new NodeId(10u), new NodeId(11u)),
-                    Targets = new List<PubSubActionTarget> { target }
+                    Targets = [target]
                 });
             context.Coordinator.RegisterActionResponderBinding("action1");
             context.Coordinator.ApplyInitialConfiguration(new PubSubConfigurationDataType(), CreateBuilder());
@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     Connection = new ServerConnectionOptions { EndpointUrl = "opc.tcp://actions:4840" },
                     AllowUnsecured = false,
                     MethodMap = new ActionMethodMap().Add("DoIt", new NodeId(10u), new NodeId(11u)),
-                    Targets = new List<PubSubActionTarget> { target }
+                    Targets = [target]
                 });
             await WaitForReplaceAsync(context).ConfigureAwait(false);
 
@@ -370,7 +370,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Setup(a => a.ReplaceConfigurationAsync(
                     It.IsAny<PubSubConfigurationDataType>(), It.IsAny<CancellationToken>()))
                 .Callback(() => replaceCount++)
-                .Returns(new ValueTask<ArrayOf<StatusCode>>(ArrayOf<StatusCode>.Empty));
+                .Returns(new ValueTask<ArrayOf<StatusCode>>([]));
 
             var coordinator = new ServerAdapterReloadCoordinator(
                 store,
@@ -450,7 +450,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         private static async Task<ArrayOf<StatusCode>> WaitForReleaseAsync(Task release)
         {
             await release.ConfigureAwait(false);
-            return ArrayOf<StatusCode>.Empty;
+            return [];
         }
 
         private sealed class TestContext : IAsyncDisposable

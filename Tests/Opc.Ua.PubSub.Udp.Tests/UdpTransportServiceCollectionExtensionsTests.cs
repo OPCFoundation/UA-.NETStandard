@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             UdpTransportOptions options =
                 serviceProvider.GetRequiredService<IOptions<UdpTransportOptions>>().Value;
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {
@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
             DtlsTransportOptions dtlsOptions =
                 serviceProvider.GetRequiredService<IOptions<DtlsTransportOptions>>().Value;
 

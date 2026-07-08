@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private SksSecurityGroup DeserializeSecurityGroup(ByteString plaintext)
         {
-            byte[] buffer = plaintext.IsNull ? Array.Empty<byte>() : plaintext.ToArray();
+            byte[] buffer = plaintext.IsNull ? [] : plaintext.ToArray();
             using var stream = new MemoryStream(buffer, false);
             using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, false);
             int version = reader.ReadInt32();
@@ -338,7 +338,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             int length = reader.ReadInt32();
             if (length == NullByteStringLength)
             {
-                return Array.Empty<byte>();
+                return [];
             }
             if (length < NullByteStringLength)
             {

@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 ArrayOf<ReadValueId> nodesToRead,
                 CancellationToken cancellationToken = default)
             {
-                return new ValueTask<ArrayOf<DataValue>>(ArrayOf<DataValue>.Empty);
+                return new ValueTask<ArrayOf<DataValue>>([]);
             }
         }
 

@@ -368,7 +368,7 @@ namespace Opc.Ua.Gds.Tests
                     string.Empty,
                     default,
                     string.Empty,
-                    Array.Empty<char>()).AsTask());
+                    []).AsTask());
             AssertThrowsEndpointNull(
                 () => client.StartSigningRequestAsync(
                     NodeId.Null, NodeId.Null, NodeId.Null, default).AsTask());

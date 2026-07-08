@@ -336,7 +336,7 @@ namespace Opc.Ua.Bindings
                 using System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
                     clientCert.AsX509Certificate2();
                 ws.Options.ClientCertificates ??=
-                    new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
+                    [];
                 ws.Options.ClientCertificates.Add(x509);
             }
 #endif

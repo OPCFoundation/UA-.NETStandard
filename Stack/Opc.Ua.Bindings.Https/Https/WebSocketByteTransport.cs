@@ -408,7 +408,7 @@ namespace Opc.Ua.Bindings
                 if (ClientTlsCertificate != null)
                 {
                     using X509Certificate2 clientCert = ClientTlsCertificate.AsX509Certificate2();
-                    ws.Options.ClientCertificates ??= new X509CertificateCollection();
+                    ws.Options.ClientCertificates ??= [];
                     ws.Options.ClientCertificates.Add(clientCert);
                 }
 #else

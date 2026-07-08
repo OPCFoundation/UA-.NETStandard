@@ -510,7 +510,7 @@ namespace Opc.Ua.Bindings
             ListenerId = Guid.NewGuid().ToString();
 
             EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions ?? new List<EndpointDescription>();
+            m_descriptions = settings.Descriptions ?? [];
             EndpointConfiguration configuration = settings.Configuration ?? EndpointConfiguration.Create();
             IEncodeableFactory factory = settings.Factory ?? ServiceMessageContext.Create(m_telemetry).Factory;
             NamespaceTable namespaceUris = settings.NamespaceUris ?? new NamespaceTable();

@@ -119,7 +119,7 @@ namespace Opc.Ua.Di.Tests
             // non-device) return empty.
             SetupBrowseSequential(sessionMock,
                 first: [deviceRef, nonDeviceRef],
-                rest: Array.Empty<ReferenceDescription>());
+                rest: []);
 
             // Stub the DeviceClass property lookup so it returns
             // empty (no targets → empty deviceClass).
@@ -145,7 +145,7 @@ namespace Opc.Ua.Di.Tests
 
             SetupBrowseSequential(sessionMock,
                 first: [nonDeviceRef],
-                rest: Array.Empty<ReferenceDescription>());
+                rest: []);
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(

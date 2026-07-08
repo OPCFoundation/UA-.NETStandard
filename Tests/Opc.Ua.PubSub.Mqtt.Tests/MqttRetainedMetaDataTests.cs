@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 dataSetWriterId: 3);
             await transport.SendAsync(new byte[] { 1, 2 }, topic).ConfigureAwait(false);
 
-            MqttMessage[] msgs = factory.Adapter.PublishedMessages.ToArray();
+            MqttMessage[] msgs = [.. factory.Adapter.PublishedMessages];
             Assert.That(msgs, Has.Length.EqualTo(1));
             Assert.That(msgs[0].Topic, Does.Contain("/metadata/"));
             Assert.That(msgs[0].Retain, Is.True);
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 dataSetWriterId: 3);
             await transport.SendAsync(new byte[] { 1, 2 }, topic).ConfigureAwait(false);
 
-            MqttMessage[] msgs = factory.Adapter.PublishedMessages.ToArray();
+            MqttMessage[] msgs = [.. factory.Adapter.PublishedMessages];
             Assert.That(msgs, Has.Length.EqualTo(1));
             Assert.That(msgs[0].Retain, Is.False);
         }
@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 dataSetWriterId: 3);
             await transport.SendAsync(new byte[] { 1, 2 }, topic).ConfigureAwait(false);
 
-            MqttMessage[] msgs = factory.Adapter.PublishedMessages.ToArray();
+            MqttMessage[] msgs = [.. factory.Adapter.PublishedMessages];
             Assert.That(msgs, Has.Length.EqualTo(1));
             Assert.That(msgs[0].Topic, Does.Contain("/data/"));
             Assert.That(msgs[0].Retain, Is.False);
@@ -188,7 +188,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 null);
             await transport.SendAsync(new byte[] { 1 }, topic).ConfigureAwait(false);
 
-            MqttMessage[] msgs = factory.Adapter.PublishedMessages.ToArray();
+            MqttMessage[] msgs = [.. factory.Adapter.PublishedMessages];
             Assert.That(msgs[0].ContentType, Is.EqualTo("application/json"));
         }
 
@@ -235,7 +235,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 null);
             await transport.SendAsync(new byte[] { 1 }, topic).ConfigureAwait(false);
 
-            MqttMessage[] msgs = factory.Adapter.PublishedMessages.ToArray();
+            MqttMessage[] msgs = [.. factory.Adapter.PublishedMessages];
             Assert.That(transport.TransportProfileUri, Is.EqualTo(Profiles.PubSubMqttUadpTransport));
             Assert.That(msgs[0].ContentType, Is.EqualTo("application/opcua+uadp"));
         }

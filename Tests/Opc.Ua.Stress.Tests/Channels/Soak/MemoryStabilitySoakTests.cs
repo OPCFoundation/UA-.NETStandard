@@ -96,8 +96,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
                         .ConfigureAwait(false));
                 }
 
-                var snapshots = new List<MemorySnapshot>(SnapshotCount);
-                snapshots.Add(CaptureSnapshot(manager, "T=0"));
+                var snapshots = new List<MemorySnapshot>(SnapshotCount)
+                {
+                    CaptureSnapshot(manager, "T=0")
+                };
 
                 Func<CancellationToken, Task>[] operations = CreateReadOperations(sessions);
                 var runner = new StressRunner(

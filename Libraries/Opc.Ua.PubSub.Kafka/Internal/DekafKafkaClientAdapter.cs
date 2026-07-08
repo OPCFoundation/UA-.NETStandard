@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         private readonly TimeProvider m_timeProvider;
         private readonly Lock m_sync = new();
         private readonly SemaphoreSlim m_clientGate = new(1, 1);
-        private readonly List<string> m_subscribedTopics = new();
+        private readonly List<string> m_subscribedTopics = [];
 
         private KafkaConnectionOptions? m_options;
         private IKafkaProducer<byte[], byte[]>? m_producer;
@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 }
                 if (changed)
                 {
-                    consumer.Subscribe(m_subscribedTopics.ToArray());
+                    consumer.Subscribe([.. m_subscribedTopics]);
                 }
                 if (m_consumeTask is null)
                 {
@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     else
                     {
-                        m_consumer.Subscribe(m_subscribedTopics.ToArray());
+                        m_consumer.Subscribe([.. m_subscribedTopics]);
                     }
                 }
             }
@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
             Headers headers = CreateHeaders(message);
             byte[] key = message.Key.IsEmpty ? null! : message.Key.ToArray();
-            byte[] value = message.Value.IsEmpty ? Array.Empty<byte>() : message.Value.ToArray();
+            byte[] value = message.Value.IsEmpty ? [] : message.Value.ToArray();
             var record = new ProducerMessage<byte[], byte[]>
             {
                 Topic = message.Topic,
@@ -462,8 +462,8 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
             byte[]? keyOrNull = result.Key;
             byte[]? valueOrNull = result.Value;
-            byte[] key = keyOrNull ?? Array.Empty<byte>();
-            byte[] value = valueOrNull ?? Array.Empty<byte>();
+            byte[] key = keyOrNull ?? [];
+            byte[] value = valueOrNull ?? [];
             var message = new KafkaMessage(result.Topic, key, value, contentType, extraHeaders);
             var args = new KafkaIncomingMessageEventArgs(
                 message,

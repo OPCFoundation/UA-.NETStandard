@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public void AddClientWithIConfiguration_NullBuilder_Throws()
         {
-            IConfiguration cfg = BuildConfig(new Dictionary<string, string?>());
+            IConfiguration cfg = BuildConfig([]);
 
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddClient(null!, cfg),
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public void AddClientWithSection_NullBuilder_Throws()
         {
-            IConfiguration cfg = BuildConfig(new Dictionary<string, string?>());
+            IConfiguration cfg = BuildConfig([]);
             IConfigurationSection section = cfg.GetSection("OpcUa:Client");
 
             Assert.That(

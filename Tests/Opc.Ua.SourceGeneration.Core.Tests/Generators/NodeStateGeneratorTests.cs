@@ -434,8 +434,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Directory.GetCurrentDirectory(), "Resources", nodeSetResource);
 
             var nodesets = new NodesetFileCollection(
-                ImmutableArray.Create(
-                    (path, new NodesetFileOptions())),
+                [(path, new NodesetFileOptions())],
                 fileSystem,
                 telemetry);
 
