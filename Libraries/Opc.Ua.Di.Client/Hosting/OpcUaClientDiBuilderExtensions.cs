@@ -190,6 +190,25 @@ namespace Microsoft.Extensions.DependencyInjection
                 };
             });
 
+            // Transfer client factory: callers supply the NodeId of a
+            // TransferServicesType instance on the server.
+            builder.Services.TryAddSingleton<
+                Func<NodeId, CancellationToken, ValueTask<DiTransferClient>>>(sp =>
+            {
+                Func<CancellationToken, Task<ManagedSession>> accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires AddClient() to be called first.");
+                ITelemetryContext telemetry = sp.GetService<ITelemetryContext>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires an ITelemetryContext.");
+
+                return async (transferNodeId, ct) =>
+                {
+                    ManagedSession session = await accessor(ct).ConfigureAwait(false);
+                    return new DiTransferClient(session, transferNodeId, telemetry);
+                };
+            });
+
             return builder;
         }
     }

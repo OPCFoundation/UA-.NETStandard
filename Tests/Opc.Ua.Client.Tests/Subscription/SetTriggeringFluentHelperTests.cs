@@ -104,12 +104,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             await m_subscription.SetTriggeringAsync("trig", "tgt1", "tgt2").ConfigureAwait(false);
 
             // Assert: helper resolved names, forwarded references.
-            Assert.That(capturedTrig?.Name, Is.EqualTo("trig"));
+            Assert.That(GetCapturedTriggerName(), Is.EqualTo("trig"));
             Assert.That(capturedAdd, Is.Not.Null);
             Assert.That(capturedAdd!, Has.Count.EqualTo(2));
             Assert.That(capturedAdd!.Select(x => x.Name),
                 Is.EquivalentTo(["tgt1", "tgt2"]));
             Assert.That(capturedRemove, Is.Null);
+
+            string? GetCapturedTriggerName()
+            {
+                return capturedTrig?.Name;
+            }
         }
 
         [Test]

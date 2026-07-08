@@ -137,6 +137,52 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// One-shot: registers a PubSub publisher and subscriber together with
+        /// the Apache Kafka transport (JSON + UADP profiles) on a fresh OPC UA
+        /// DI root.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configure">Optional Kafka connection options callback.</param>
+        /// <returns>The same <paramref name="services"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddKafkaPubSub(
+            this IServiceCollection services,
+            Action<KafkaConnectionOptions>? configure = null)
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            services.AddOpcUa().AddKafkaPubSub(configure);
+            return services;
+        }
+
+        /// <summary>
+        /// One-shot: registers a PubSub publisher and subscriber together with
+        /// the Apache Kafka transport (JSON + UADP profiles).
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">Optional Kafka connection options callback.</param>
+        /// <returns>The same <paramref name="builder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddKafkaPubSub(
+            this IOpcUaBuilder builder,
+            Action<KafkaConnectionOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddPubSub(pubsub =>
+                pubsub.AddPublisher()
+                    .AddSubscriber()
+                    .AddKafkaTransport(configure));
+            return builder;
+        }
+
         private static void RegisterShared(IServiceCollection services)
         {
 #if NET10_0_OR_GREATER
@@ -144,22 +190,20 @@ namespace Microsoft.Extensions.DependencyInjection
 #else
             services.TryAddSingleton<IKafkaClientFactory, ConfluentKafkaClientFactory>();
 #endif
-            services.Add(
-                ServiceDescriptor.Singleton<IPubSubTransportFactory>(sp =>
-                    new KafkaPubSubTransportFactory(
-                        KafkaProfiles.PubSubKafkaJsonTransport,
-                        sp.GetRequiredService<IKafkaClientFactory>(),
-                        sp.GetRequiredService<IOptions<KafkaConnectionOptions>>(),
-                        sp.GetService<ISecretRegistry>(),
-                        sp.GetService<IPubSubDiagnostics>())));
-            services.Add(
-                ServiceDescriptor.Singleton<IPubSubTransportFactory>(sp =>
-                    new KafkaPubSubTransportFactory(
-                        KafkaProfiles.PubSubKafkaUadpTransport,
-                        sp.GetRequiredService<IKafkaClientFactory>(),
-                        sp.GetRequiredService<IOptions<KafkaConnectionOptions>>(),
-                        sp.GetService<ISecretRegistry>(),
-                        sp.GetService<IPubSubDiagnostics>())));
+            services.AddPubSubTransportFactory(sp =>
+                new KafkaPubSubTransportFactory(
+                    KafkaProfiles.PubSubKafkaJsonTransport,
+                    sp.GetRequiredService<IKafkaClientFactory>(),
+                    sp.GetRequiredService<IOptions<KafkaConnectionOptions>>(),
+                    sp.GetService<ISecretRegistry>(),
+                    sp.GetService<IPubSubDiagnostics>()));
+            services.AddPubSubTransportFactory(sp =>
+                new KafkaPubSubTransportFactory(
+                    KafkaProfiles.PubSubKafkaUadpTransport,
+                    sp.GetRequiredService<IKafkaClientFactory>(),
+                    sp.GetRequiredService<IOptions<KafkaConnectionOptions>>(),
+                    sp.GetService<ISecretRegistry>(),
+                    sp.GetService<IPubSubDiagnostics>()));
         }
     }
 }

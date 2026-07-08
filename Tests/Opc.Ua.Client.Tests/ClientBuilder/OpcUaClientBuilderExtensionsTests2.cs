@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddWebApiTransportChannel_NullBuilder_Throws()
         {
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel(null!),
+                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel((IOpcUaBuilder)null!),
                 Throws.ArgumentNullException);
         }
 

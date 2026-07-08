@@ -28,11 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 #if NET8_0_OR_GREATER
 using Microsoft.AspNetCore.RateLimiting;
 #endif
 using Opc.Ua;
 using Opc.Ua.Bindings;
+#if NET8_0_OR_GREATER
+using Opc.Ua.Bindings.WebApi;
+#endif
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -69,7 +73,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// (<c>application/opcua+uabinary</c>) and HTTPS-JSON
         /// (<c>application/opcua+uajson</c>) requests via content-type
         /// negotiation, so a single
-        /// <see cref="OpcUaHttpsBuilderExtensions.AddHttpsTransport"/>
+        /// <see cref="OpcUaHttpsBuilderExtensions.AddHttpsTransport(IOpcUaBuilder)"/>
         /// call enables both sub-profiles.
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
@@ -77,20 +81,43 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaBuilder AddHttpsTransport(this IOpcUaBuilder builder)
         {
+            return AddHttpsBindings(builder, includeWss: false);
+        }
+
+        /// <summary>
+        /// Registers the one-shot Kestrel-backed HTTPS/WSS transport stack
+        /// and optionally attaches the OPC UA REST binding and
+        /// authentication services.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">Callback used to configure the composed
+        /// HTTPS transport registration.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddHttpsTransport(
+            this IOpcUaBuilder builder,
+            Action<OpcUaHttpsTransportOptions> configure)
+        {
             if (builder is null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
 
-            builder.Services.AddTransportBindingRegistry();
-            builder.Services.AddSingleton<ITransportBindingConfigurator>(
-                new TransportBindingConfigurator(registry =>
-                {
-                    registry.RegisterListenerFactory(new HttpsTransportListenerFactory());
-                    registry.RegisterListenerFactory(new OpcHttpsTransportListenerFactory());
-                    registry.RegisterChannelFactory(new HttpsTransportChannelFactory());
-                    registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
-                }));
+            var options = new OpcUaHttpsTransportOptions();
+            configure(options);
+            AddHttpsBindings(builder, options.IncludeWss);
+#if NET8_0_OR_GREATER
+            if (options.IncludeWebApi)
+            {
+                builder.AddWebApiTransport(options.ConfigureWebApi);
+            }
+#endif
+            options.ConfigureAuthentication?.Invoke(builder);
             return builder;
         }
 
@@ -114,24 +141,111 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         public static IOpcUaBuilder AddWssTransport(this IOpcUaBuilder builder)
         {
+            return AddWssBindings(builder);
+        }
+
+        /// <summary>
+        /// Registers the one-shot Kestrel-backed WSS transport stack and optionally
+        /// attaches the OPC UA REST binding and authentication services.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">Callback used to configure the composed WSS transport registration.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddWssTransport(
+            this IOpcUaBuilder builder,
+            Action<OpcUaWssTransportOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new OpcUaWssTransportOptions();
+            configure(options);
+            AddWssBindings(builder);
+#if NET8_0_OR_GREATER
+            if (options.IncludeWebApi)
+            {
+                builder.AddWebApiTransport(options.ConfigureWebApi);
+            }
+#endif
+            options.ConfigureAuthentication?.Invoke(builder);
+            return builder;
+        }
+
+        private static IOpcUaBuilder AddHttpsBindings(IOpcUaBuilder builder, bool includeWss)
+        {
             if (builder is null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
             builder.Services.AddTransportBindingRegistry();
-            builder.Services.AddSingleton<ITransportBindingConfigurator>(
+            builder.Services.AddSingleton<ITransportBindingConfigurator>(provider =>
                 new TransportBindingConfigurator(registry =>
                 {
-                    registry.RegisterListenerFactory(new WssTransportListenerFactory());
-                    registry.RegisterListenerFactory(new OpcWssTransportListenerFactory());
-                    registry.RegisterChannelFactory(new WssTransportChannelFactory());
-                    registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
-                    registry.RegisterChannelFactory(new WssJsonTransportChannelFactory());
+                    RegisterHttpsListener(registry, provider, new HttpsTransportListenerFactory());
+                    RegisterHttpsListener(registry, provider, new OpcHttpsTransportListenerFactory());
+                    registry.RegisterChannelFactory(new HttpsTransportChannelFactory());
+                    registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
+                    if (includeWss)
+                    {
+                        RegisterWssFactories(registry, provider);
+                    }
                 }));
             return builder;
         }
 
+        private static IOpcUaBuilder AddWssBindings(IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddTransportBindingRegistry();
+            builder.Services.AddSingleton<ITransportBindingConfigurator>(provider =>
+                new TransportBindingConfigurator(registry => RegisterWssFactories(registry, provider)));
+            return builder;
+        }
+
+        private static void RegisterWssFactories(ITransportBindingRegistry registry, IServiceProvider provider)
+        {
+            RegisterHttpsListener(registry, provider, new WssTransportListenerFactory());
+            RegisterHttpsListener(registry, provider, new OpcWssTransportListenerFactory());
+            registry.RegisterChannelFactory(new WssTransportChannelFactory());
+            registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
+            registry.RegisterChannelFactory(new WssJsonTransportChannelFactory());
+        }
+
+        private static void RegisterHttpsListener(
+            ITransportBindingRegistry registry,
+            IServiceProvider provider,
+            HttpsServiceHost factory)
+        {
+            foreach (IHttpsListenerStartupContributor contributor in
+                provider.GetServices<IHttpsListenerStartupContributor>())
+            {
+                AddContributor(factory.StartupContributors, contributor);
+            }
+            registry.RegisterListenerFactory(factory);
+        }
+
+        private static void AddContributor(
+            IList<IHttpsListenerStartupContributor> contributors,
+            IHttpsListenerStartupContributor contributor)
+        {
+            if (!contributors.Contains(contributor))
+            {
+                contributors.Add(contributor);
+            }
+        }
 #if NET8_0_OR_GREATER
         /// <summary>
         /// Adds the default ASP.NET Core rate limiter to Kestrel-hosted HTTPS and WSS transport listeners.
@@ -184,5 +298,63 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 #endif
+    }
+
+    /// <summary>
+    /// Options for the one-shot
+    /// <see cref="OpcUaHttpsBuilderExtensions.AddHttpsTransport(IOpcUaBuilder, Action{OpcUaHttpsTransportOptions})"/>
+    /// overload.
+    /// </summary>
+    public sealed class OpcUaHttpsTransportOptions
+    {
+        /// <summary>
+        /// Gets or sets a value indicating whether the WSS listener and
+        /// channel factories are registered together with HTTPS.
+        /// </summary>
+        public bool IncludeWss { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the OPC UA REST binding
+        /// is attached to the HTTPS/WSS Kestrel host.
+        /// </summary>
+        public bool IncludeWebApi { get; set; }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Gets or sets the optional WebApi transport configuration.
+        /// </summary>
+        public Action<WebApiTransportOptions>? ConfigureWebApi { get; set; }
+#endif
+
+        /// <summary>
+        /// Gets or sets optional authentication registrations, such as
+        /// <c>builder.AddWebApiBearerAuth(...)</c>.
+        /// </summary>
+        public Action<IOpcUaBuilder>? ConfigureAuthentication { get; set; }
+    }
+
+    /// <summary>
+    /// Options for the one-shot
+    /// <see cref="OpcUaHttpsBuilderExtensions.AddWssTransport(IOpcUaBuilder, Action{OpcUaWssTransportOptions})"/>
+    /// overload.
+    /// </summary>
+    public sealed class OpcUaWssTransportOptions
+    {
+        /// <summary>
+        /// Gets or sets a value indicating whether the OPC UA REST binding is attached to the WSS Kestrel host.
+        /// </summary>
+        public bool IncludeWebApi { get; set; }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Gets or sets the optional WebApi transport configuration.
+        /// </summary>
+        public Action<WebApiTransportOptions>? ConfigureWebApi { get; set; }
+#endif
+
+        /// <summary>
+        /// Gets or sets optional authentication registrations, such as <c>builder.AddWebApiBearerAuth(...)</c>.
+        /// </summary>
+        public Action<IOpcUaBuilder>? ConfigureAuthentication { get; set; }
     }
 }

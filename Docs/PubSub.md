@@ -370,12 +370,40 @@ IHost host = builder.Build();
 await host.RunAsync();
 ```
 
+For common "host PubSub over one transport" scenarios, use the one-shot
+helpers. They register OPC UA services, add publisher and subscriber roles,
+and add the selected transport in a single call:
+
+```csharp
+builder.Services.AddUdpPubSub(udp => udp.WithDtls());
+
+builder.Services.AddSecureUdpPubSub(
+    "Group-1",
+    PubSubSecurityPolicyUri.PubSubAes256Ctr,
+    sp => sp.GetRequiredService<ISecurityKeyService>());
+
+builder.Services.AddMqttPubSub(mqtt => mqtt.WithConnectionOptions(options =>
+{
+    options.Endpoint = "mqtts://broker.example.com:8883";
+    options.Tls = new MqttTlsOptions { UseTls = true };
+}));
+
+builder.Services.AddEthPubSub();
+
+builder.Services.AddKafkaPubSub(kafka =>
+{
+    kafka.Endpoint = "kafkas://broker.example.com:9092";
+    kafka.Topics.Prefix = "plant.a";
+});
+```
+
 The `AddPubSub(Action<IPubSubBuilder>)` overload hands a fluent
 `IPubSubBuilder` to the callback. It removes the need to pre-register a
 hand-rolled `IPubSubApplication` factory: `ConfigureApplication` runs the
 supplied callbacks against the `PubSubApplicationBuilder` after the
 builder has auto-added every registered `IPubSubTransportFactory`,
-security key provider, dataset source and sink. A default
+`INetworkMessageEncoder`, `INetworkMessageDecoder`, security wrapper
+resolver / key provider, dataset source and sink. A default
 `IPubSubApplication` is still registered, so the direct
 `AddPubSub(Action<PubSubApplicationOptions>?)` / `AddPubSub(IConfiguration)`
 overloads keep working unchanged.
@@ -384,27 +412,46 @@ DI extension methods provided by `Opc.Ua.PubSub`:
 
 | Extension                                  | Description                                                        |
 | ------------------------------------------ | ------------------------------------------------------------------ |
-| `AddPubSub(Action<IPubSubBuilder>)`        | Fluent composition root. Exposes `AddPublisher` / `AddSubscriber`, `ConfigureApplication`, `AddSecurityKeyProvider`, `AddDataSetSource`, `AddSubscribedDataSetSink`, `UseConfiguration` / `UseConfigurationFile`, `Configure`, plus the transport extensions. |
+| `AddPubSub(Action<IPubSubBuilder>)`        | Fluent composition root. Exposes `AddPublisher` / `AddSubscriber`, `ConfigureApplication`, `ConfigureConfiguration`, `AddSecurityKeyProvider`, `AddDataSetSource`, `AddSubscribedDataSetSink`, `UseConfiguration` / `UseConfigurationFile`, `Configure`, plus the transport extensions. |
 | `AddPubSub(Action<PubSubApplicationOptions>?)` | Registers the `IPubSubApplication`, its hosted-service driver, all standard encoders/decoders, the scheduler, the diagnostics aggregator and the security policies. |
 | `AddPubSub(IConfiguration)`                | Same, binding `PubSubApplicationOptions` from the `OpcUa:PubSub` section. |
 | `AddPubSubPublisher` / `AddPubSubSubscriber` | Convenience aliases. Both register the full surface; "publisher" / "subscriber" only changes the `Role` field on the options bag. |
-| `AddPubSubSecurityKeyServiceClient(Action<PullSecurityKeyProviderOptions>?)` | Configures the per-group `PullSecurityKeyProvider` so subscribers can pull keys from a remote SKS. |
+| `AddPubSubSecurityKeyServiceClient(securityGroupId, securityPolicyUri, Func<IServiceProvider,ISecurityKeyService>, Action<PullSecurityKeyProviderOptions>?)` | Registers a `PullSecurityKeyProvider` for one SecurityGroup as an `IPubSubSecurityKeyProvider`, plus a hosted service that starts its initial pull and background refresh so subscribers can pull keys from a remote SKS. An overload taking an SKS `EndpointDescription` builds the `OpcUaSecurityKeyServiceClient` for you (requires a registered `ApplicationConfiguration`). |
 | `AddPubSubSecurityKeyServiceServer(Action<InMemoryPubSubKeyServiceServer>?)` | Registers an in-process SKS with optional initial groups. |
+| `IPubSubBuilder.AddSecurityKeyServiceClient(...)`, `AddSecurityKeyServiceServer(...)`, `AddSecurityKeyPushTarget(...)` | Fluent-builder aliases for the SKS registrations above, so SKS composes inside the same `AddPubSub(pubsub => ...)` callback. |
+| `AddSecureUdpPubSub(...)`                 | One-shot UDP runtime with publisher/subscriber roles, an SKS pull client and a default secured writer group. |
+| `IPubSubBuilder.AddSchema()`               | Registers PubSub DataSet schema generation services from the fluent PubSub chain. |
+| `IPubSubBuilder.AddPcapCapture()`          | Registers packet capture diagnostics from the fluent PubSub chain. Capture decoration is order-independent relative to built-in transport registration. |
 
 Transport-specific extensions
-(`Opc.Ua.PubSub.Udp` / `.Mqtt` / `.Kafka`) supply the matching
+(`Opc.Ua.PubSub.Udp` / `.Mqtt` / `.Eth` / `.Kafka`) supply the matching
 `IPubSubTransportFactory` and hang off `IPubSubBuilder` — a transport
 only makes sense together with the PubSub feature:
 
 - `IPubSubBuilder.AddUdpTransport(Action<UdpTransportOptions>?)` — UDP
-  unicast / multicast / broadcast.
+  unicast / multicast / broadcast, returning `IUdpTransportBuilder` for
+  `.WithDtls(...)`. Both `AddUdpTransport` and `WithDtls` accept
+  `Action<TOptions>`, `IConfiguration`, or `IConfigurationSection`.
 - `IPubSubBuilder.AddMqttTransport(Action<MqttConnectionOptions>?)` —
-  MQTT 3.1.1 + 5.0 via MQTTnet.
+  MQTT 3.1.1 + 5.0 via MQTTnet, returning `IMqttTransportBuilder` for
+  `.WithConnectionOptions(...)`. Both methods accept `Action<TOptions>`,
+  `IConfiguration`, or `IConfigurationSection`.
 - `IPubSubBuilder.AddKafkaTransport(Action<KafkaConnectionOptions>?)` —
   Apache Kafka broker transport; see [Apache Kafka](#apache-kafka).
 - `IPubSubBuilder.AddEthTransport(Action<EthTransportOptions>?)` —
   Ethernet Layer 2 (`opc.eth://`); chain `.WithPcap()` for the
   SharpPcap (libpcap / Npcap) backend.
+
+Inline configuration can now stay in the same chain:
+
+```csharp
+builder.Services.AddOpcUa().AddPubSub(pubsub => pubsub
+    .AddPublisher()
+    .AddUdpTransport()
+    .ConfigureConfiguration(configuration => configuration
+        .AddConnection("udp", connection => connection
+            .WithTransportProfile(Profiles.PubSubUdpUadpTransport))));
+```
 
 Server-side address space — see
 [Server-side address space](#server-side-address-space):
@@ -1132,20 +1179,28 @@ KeyCredential components.
 ```csharp
 builder.Services.AddOpcUa()
     .AddPubSub(...)
-    .AddPubSubSecurityKeyServiceClient(opt =>
-    {
-        opt.SecurityKeyServiceUri = "opc.tcp://sks.example.com:4840";
-        opt.SecurityGroupId = "Group-1";
-        opt.PollInterval = TimeSpan.FromSeconds(30);
-    });
+    .AddPubSubSecurityKeyServiceClient(
+        securityGroupId: "Group-1",
+        securityPolicyUri: PubSubSecurityPolicyUri.PubSubAes128Ctr,
+        endpoint: sksEndpoint, // remote SKS EndpointDescription
+        configure: opt =>
+        {
+            opt.RequestedFutureKeyCount = 4;
+            opt.RefreshLeadTime = TimeSpan.FromMinutes(5);
+        });
 ```
 
-The `PullSecurityKeyProvider` opens a managed session against the SKS
-endpoint, calls `GetSecurityKeys` per
-the configured poll interval, and feeds each rotated key into the
-ring. Failure modes: `OpcUaSksException` carries the SKS-side
-StatusCode; the consumer falls back to the cached future keys until
-the next poll succeeds.
+The endpoint overload resolves the application's `ApplicationConfiguration`
+from the container to open the managed session; use the
+`Func<IServiceProvider, ISecurityKeyService>` overload to supply a custom
+`ISecurityKeyService` (for example an already-configured
+`OpcUaSecurityKeyServiceClient`). The `PullSecurityKeyProvider` opens a
+managed session against the SKS endpoint, calls `GetSecurityKeys`, and feeds
+each rotated key into the ring; the next pull is scheduled
+`RefreshLeadTime` before the active key expires. A hosted service registered
+by the extension drives the initial pull and background refresh loop. Failure
+modes: `OpcUaSksException` carries the SKS-side StatusCode; the consumer falls
+back to the cached future keys until the next pull succeeds.
 
 ### Push targets and in-memory server
 
@@ -1160,8 +1215,9 @@ builder.Services.AddOpcUa()
     .AddPubSubSecurityKeyPushTarget("Group-1");
 
 builder.Services.AddOpcUa()
-    .AddServer(opt => opt.ApplicationName = "PubSubSubscriber")
-        .AddPubSub()
+    .AddPubSubServer(
+        opt => opt.ApplicationName = "PubSubSubscriber",
+        pubsub => pubsub.UseConfigurationFile("subscriber-pubsub.xml"))
         .WithSecurityKeyPushTarget("Group-1");
 ```
 
@@ -1239,10 +1295,9 @@ onto a hosted OPC UA server. Wiring is one chain:
 
 ```csharp
 builder.Services.AddOpcUa()
-    .AddServer(opt => opt.ApplicationName = "RefServerWithPubSub")
-        .AddPubSub();          // <-- PublishSubscribe Object + methods + diagnostics
-builder.Services.AddOpcUa()
-    .AddPubSub(opt => opt.ConfigurationFilePath = "pubsub.xml");
+    .AddPubSubServer(
+        opt => opt.ApplicationName = "RefServerWithPubSub",
+        pubsub => pubsub.UseConfigurationFile("pubsub.xml")); // runtime first, then node manager
 ```
 
 What the server side adds:
@@ -1296,6 +1351,9 @@ await fileTransfer.WriteAsync(pubSubConfigurationFileNodeId, replacementStream);
 The `IPubSubServerBuilder` returned by `AddPubSub()` lets you
 register optional companion features
 (`WithSecurityKeyPushTarget`, `WithSecurityKeyServiceServer`, etc.).
+Use `IOpcUaBuilder.AddPubSubServer(...)` when the hosted OPC UA server
+and PubSub runtime are registered together; it registers the runtime before
+the address-space node manager so startup is order-independent.
 See `Libraries/Opc.Ua.PubSub.Server/Hosting/IPubSubServerBuilder.cs`.
 
 ## Binding PubSub to an external OPC UA server (client-session adapters)
@@ -1311,7 +1369,7 @@ Use this package when you need to bridge an existing server into PubSub without 
 | Assembly | `Opc.Ua.PubSub.Adapter` |
 | NuGet package | `OPCFoundation.NetStandard.Opc.Ua.PubSub.Adapter` |
 | Main namespaces | `Opc.Ua.PubSub.Adapter`, `Opc.Ua.PubSub.Adapter.Session`, `Opc.Ua.PubSub.Adapter.Actions`, `Opc.Ua.PubSub.Adapter.DependencyInjection` |
-| DI entry points | `AddServerAsPublisher`, `AddServerAsSubscriber`, `AddServerAsActionResponder` on `IPubSubBuilder` |
+| DI entry points | `AddServerAdapterPubSub` on `IServiceCollection` / `IOpcUaBuilder`; granular `AddServerAsPublisher`, `AddServerAsSubscriber`, `AddServerAsActionResponder` on `IPubSubBuilder` |
 
 The adapter implements Part 14 DataSet and Action seams rather than a new transport. You still register UDP, MQTT, encoders, security key providers, and the PubSub configuration through the normal `AddPubSub` builder.
 
@@ -1328,6 +1386,11 @@ The DI extensions create one `IServerSession` per adapter registration. `ServerS
 The PubSub configuration must be supplied before an `AddServerAs*` extension runs. The extensions enumerate configured PublishedDataSets, DataSetWriters, DataSetReaders, TargetVariables, and action targets during application composition and then register the appropriate sources, sinks, or handlers.
 
 ```csharp
+builder.Services.AddServerAdapterPubSub(
+    configuration,
+    publisher => publisher.Connection.EndpointUrl = "opc.tcp://localhost:4840",
+    subscriber => subscriber.Connection.EndpointUrl = "opc.tcp://localhost:4840");
+
 builder.Services.AddOpcUa()
     .AddPubSub(pubsub => pubsub
         .AddPublisher()
@@ -1711,6 +1774,25 @@ services.AddOpcUa()
         ownerId: Environment.MachineName,
         leaseDuration: TimeSpan.FromSeconds(15)));
 ```
+
+The same wiring is available as a one-shot preset — `WithLeaseActivation(...)`
+registers a `LeaseActivationCoordinator` over the registered
+`IPubSubLeaseStore` (or an in-memory store when none is present):
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub()
+    .WithLeaseStore<RedisPubSubLeaseStore>()          // container-constructed, cross-instance
+    .WithLeaseActivation(o =>
+    {
+        o.OwnerId = Environment.MachineName;
+        o.LeaseDuration = TimeSpan.FromSeconds(15);
+    });
+```
+
+Providers can be registered by type — `WithActivationCoordinator<TCoordinator>()`
+/ `WithLeaseStore<TStore>()` — or by instance via the
+`WithActivationCoordinator(...)` / `WithLeaseStore(...)` builder methods.
 
 `PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally tracks live sequence / keep-alive state so take-over introduces no gap.
 

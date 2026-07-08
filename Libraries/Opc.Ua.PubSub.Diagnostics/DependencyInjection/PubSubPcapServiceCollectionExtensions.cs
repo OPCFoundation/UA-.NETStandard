@@ -51,8 +51,10 @@ namespace Opc.Ua.PubSub.Pcap
         /// <see cref="PubSubCaptureSessionManager"/>, and decorates every
         /// already-registered <see cref="Opc.Ua.PubSub.Transports.IPubSubTransportFactory"/>
         /// with a <see cref="CapturingPubSubTransportFactory"/> so capture is
-        /// injected only when this method is called. Call it AFTER the
-        /// transport registrations (<c>AddUdpTransport</c> / <c>AddMqttTransport</c>).
+        /// injected only when this method is called. The decorator also applies
+        /// to transport factories registered later, so registration order does
+        /// not matter for <c>AddUdpTransport</c>, <c>AddMqttTransport</c> or
+        /// <c>AddEthTransport</c>.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <returns>The service collection for chaining.</returns>
@@ -61,8 +63,27 @@ namespace Opc.Ua.PubSub.Pcap
             ArgumentNullException.ThrowIfNull(services);
             services.TryAddSingleton<IPubSubCaptureRegistry, PubSubCaptureRegistry>();
             services.TryAddSingleton<PubSubCaptureSessionManager>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<
+                IPubSubTransportFactoryDecorator,
+                CapturingPubSubTransportFactoryDecorator>());
             DecorateTransportFactories(services);
             return services;
+        }
+
+        /// <summary>
+        /// Registers PubSub packet capture diagnostics on the fluent PubSub builder.
+        /// </summary>
+        /// <param name="builder">The PubSub builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IPubSubBuilder AddPcapCapture(this IPubSubBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddPubSubPcap();
+            return builder;
         }
 
         /// <summary>
@@ -113,13 +134,19 @@ namespace Opc.Ua.PubSub.Pcap
                 {
                     continue;
                 }
+                if (descriptor.ImplementationType is not null &&
+                    typeof(IPubSubTransportFactoryRegistration).IsAssignableFrom(descriptor.ImplementationType))
+                {
+                    continue;
+                }
+                if (descriptor.ImplementationFactory?.Target is IPubSubTransportFactoryRegistration)
+                {
+                    continue;
+                }
                 ServiceDescriptor original = descriptor;
                 services[i] = ServiceDescriptor.Describe(
                     typeof(IPubSubTransportFactory),
-                    sp => new CapturingPubSubTransportFactory(
-                        (IPubSubTransportFactory)ResolveInner(sp, original),
-                        sp.GetRequiredService<IPubSubCaptureRegistry>(),
-                        sp.GetService<ILoggerFactory>()),
+                    new CapturingPubSubTransportFactoryRegistration(original).Resolve,
                     descriptor.Lifetime);
             }
         }
@@ -140,6 +167,39 @@ namespace Opc.Ua.PubSub.Pcap
             }
             throw new InvalidOperationException(
                 "Transport factory descriptor has no resolvable implementation.");
+        }
+
+        private sealed class CapturingPubSubTransportFactoryDecorator : IPubSubTransportFactoryDecorator
+        {
+            public IPubSubTransportFactory Decorate(
+                IServiceProvider provider,
+                IPubSubTransportFactory factory)
+            {
+                return new CapturingPubSubTransportFactory(
+                    factory,
+                    provider.GetRequiredService<IPubSubCaptureRegistry>(),
+                    provider.GetService<ILoggerFactory>());
+            }
+        }
+
+        private sealed class CapturingPubSubTransportFactoryRegistration : IPubSubTransportFactoryRegistration
+        {
+            private readonly ServiceDescriptor m_original;
+
+            public CapturingPubSubTransportFactoryRegistration(ServiceDescriptor original)
+            {
+                m_original = original;
+            }
+
+            public bool AppliesDecorators => true;
+
+            public CapturingPubSubTransportFactory Resolve(IServiceProvider provider)
+            {
+                return new CapturingPubSubTransportFactory(
+                    (IPubSubTransportFactory)ResolveInner(provider, m_original),
+                    provider.GetRequiredService<IPubSubCaptureRegistry>(),
+                    provider.GetService<ILoggerFactory>());
+            }
         }
     }
 }

@@ -23,6 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.TestFramework" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />

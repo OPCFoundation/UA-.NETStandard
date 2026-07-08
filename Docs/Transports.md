@@ -74,11 +74,20 @@ For both WSS variants the HTTPS / WSS factories live in
 and calling `RegisterListenerFactory` / `RegisterChannelFactory`
 directly for non-DI hosts.
 
+`AddHttpsTransport(options => ...)` is available as a one-shot registration
+for the Kestrel HTTPS stack. It registers HTTPS and WSS by default and can
+attach the WebApi binding and authentication callbacks in the same fluent
+chain. `AddWebApiTransport()` and `AddKestrelOpcTcpTransport()` are
+order-independent with the underlying HTTPS/TCP registrations.
+
 ## Server-side configuration
 
 Servers declare endpoints via `ApplicationConfiguration` →
 `ServerConfiguration` → `BaseAddresses`. Each base address yields a
 single listener for its scheme.
+If a discovery or hosted server has a non-TCP base address but the matching
+transport binding has not been registered, startup throws a clear error that
+names the missing scheme and suggested `Add*Transport()` method.
 
 ```xml
 <BaseAddresses>
