@@ -23,7 +23,7 @@
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Redundancy\Opc.Ua.PubSub.Redundancy.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.PubSub\Opc.Ua.Redundancy.PubSub.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
   </ItemGroup>
 </Project>

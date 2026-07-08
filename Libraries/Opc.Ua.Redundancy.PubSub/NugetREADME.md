@@ -1,4 +1,4 @@
-# OPCFoundation.NetStandard.Opc.Ua.PubSub.Redundancy
+# OPCFoundation.NetStandard.Opc.Ua.Redundancy.PubSub
 
 Distributed High-Availability for OPC UA PubSub (OPC UA Part 14 §9.1.6).
 

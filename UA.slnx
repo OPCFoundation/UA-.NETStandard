@@ -79,7 +79,7 @@
     <Project Path="Libraries/Opc.Ua.PubSub.Eth/Opc.Ua.PubSub.Eth.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Kafka/Opc.Ua.PubSub.Kafka.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Udp/Opc.Ua.PubSub.Udp.csproj" />
-    <Project Path="Libraries/Opc.Ua.PubSub.Redundancy/Opc.Ua.PubSub.Redundancy.csproj" />
+    <Project Path="Libraries/Opc.Ua.Redundancy.PubSub/Opc.Ua.Redundancy.PubSub.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.Redundancy.Server/Opc.Ua.Redundancy.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
@@ -239,7 +239,7 @@
     <Project Path="Tests/Opc.Ua.PubSub.Schema.Tests/Opc.Ua.PubSub.Schema.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.PubSub.Redundancy.Tests/Opc.Ua.PubSub.Redundancy.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />

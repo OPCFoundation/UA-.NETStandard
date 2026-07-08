@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
-    <RootNamespace>Opc.Ua.PubSub.Redundancy.Tests</RootNamespace>
+    <RootNamespace>Opc.Ua.Redundancy.PubSub.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
@@ -31,7 +31,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Redundancy\Opc.Ua.PubSub.Redundancy.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.PubSub\Opc.Ua.Redundancy.PubSub.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>
