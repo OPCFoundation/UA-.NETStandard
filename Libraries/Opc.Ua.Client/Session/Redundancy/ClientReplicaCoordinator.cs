@@ -177,6 +177,7 @@ namespace Opc.Ua.Client.Redundancy
                 return false;
             }
 
+            bool mutatedForReuse = false;
             try
             {
                 (bool found, ByteString stored) = await m_store
@@ -191,6 +192,7 @@ namespace Opc.Ua.Client.Redundancy
                     }
                     if (m_session.ApplySessionConfiguration(config))
                     {
+                        mutatedForReuse = true;
                         await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
                             .ConfigureAwait(false);
                         return true;
@@ -200,8 +202,32 @@ namespace Opc.Ua.Client.Redundancy
             catch (Exception ex)
             {
                 m_logger.LogInformation(ex, "Token-reuse fast-activate failed; using a fresh session.");
+                if (mutatedForReuse)
+                {
+                    // ApplySessionConfiguration already overwrote this session's identity with
+                    // the stored (now-unreactivatable) configuration; left as-is it points at a
+                    // SessionId the server will reject on every subsequent call. Discard it and
+                    // create a genuinely fresh, activated session rather than limping on with a
+                    // session that looks like the old leader's but was never reactivated as it.
+                    ManagedSession broken = m_session;
+                    m_session = null;
+                    await DisposeQuietlyAsync(broken).ConfigureAwait(false);
+                    m_session = await m_options.CreateSessionAsync!(ct).ConfigureAwait(false);
+                }
             }
             return false;
+        }
+
+        private async ValueTask DisposeQuietlyAsync(ManagedSession session)
+        {
+            try
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(ex, "Disposing a token-reuse session that failed to reactivate threw; ignoring.");
+            }
         }
 
         private static TimeSpan GetPromotionRetryDelay(int attempt)

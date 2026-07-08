@@ -251,6 +251,61 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(coordinator.CurrentSession, Is.SameAs(session));
         }
 
+        [Test]
+        public async Task LeaderPromotionRecoversWithFreshSessionWhenTokenReuseReactivationFailsAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            SetServerNonce(seedSession, [1, 2, 3, 4]);
+            using var stream = new MemoryStream();
+            seedSession.SaveSessionConfiguration(stream);
+            // A stored config from a since-superseded leader: reactivating it fails
+            // (its server-side session no longer exists), exercising the
+            // failure-recovery path in EnsureLeaderSessionAsync.
+            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+
+            ConfiguredEndpoint expectedEndpoint = seedSession.ConfiguredEndpoint;
+            ManagedSession brokenSession = CreateManagedSessionThatFailsReactivation(expectedEndpoint);
+            ManagedSession freshSession = CreateManagedSessionForTokenReuse(
+                expectedEndpoint, NodeId.Parse("s=fresh-auth"));
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int created = 0;
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Cold,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    return new ValueTask<ManagedSession>(created == 1 ? brokenSession : freshSession);
+                },
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options,
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+
+            bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(created, Is.EqualTo(2), "a failed reactivation must fall back to creating a fresh session");
+            Assert.That(fastActivated, Is.False);
+            Assert.That(
+                coordinator.CurrentSession,
+                Is.SameAs(freshSession),
+                "the coordinator must not be left holding the broken, half-reactivated session");
+        }
+
         private sealed class FakeNetworkedStore : ISharedKeyValueStore
         {
             public ValueTask<(bool Found, ByteString Value)> TryGetAsync(string key, CancellationToken ct = default)
@@ -342,6 +397,67 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IManagedTransportChannel>(managedChannel.Object))
                 .Verifiable(Times.Once);
+            typeof(Session)
+                .GetMethod(
+                    "BindManagedChannel",
+                    BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(innerSession, [channelManager.Object, managedChannel.Object]);
+
+            ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                endpoint,
+                innerSession,
+                telemetry);
+            managedSession.EnableTokenReuseFailover = true;
+            return managedSession;
+        }
+
+        private static ManagedSession CreateManagedSessionThatFailsReactivation(ConfiguredEndpoint endpoint)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = new(telemetry)
+            {
+                ApplicationName = "ClientReplicaCoordinatorTests",
+                ApplicationUri = "urn:localhost:ClientReplicaCoordinatorTests",
+                ProductUri = "urn:localhost:ClientReplicaCoordinatorTests",
+                ApplicationType = ApplicationType.Client,
+                ClientConfiguration = new ClientConfiguration(),
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    ApplicationCertificate = new CertificateIdentifier()
+                }
+            };
+            var innerSession = SessionMock.Create(new EndpointDescription
+            {
+                SecurityMode = endpoint.Description.SecurityMode,
+                SecurityPolicyUri = endpoint.Description.SecurityPolicyUri,
+                EndpointUrl = endpoint.Description.EndpointUrl,
+                UserIdentityTokens = [new UserTokenPolicy()]
+            });
+            IServiceMessageContext messageContext = configuration.CreateMessageContext();
+            var managedChannel = new Mock<IManagedTransportChannel>();
+            managedChannel.SetupGet(c => c.MessageContext).Returns(messageContext);
+            managedChannel.SetupGet(c => c.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+            managedChannel.SetupGet(c => c.EndpointDescription).Returns(endpoint.Description);
+            managedChannel.SetupGet(c => c.EndpointConfiguration).Returns(new EndpointConfiguration());
+            managedChannel.SetupGet(c => c.ChannelThumbprint).Returns([]);
+            managedChannel.SetupGet(c => c.ClientChannelCertificate).Returns([]);
+            managedChannel.SetupGet(c => c.ServerChannelCertificate).Returns([]);
+            // Simulate the prior leader's session no longer existing server-side:
+            // the failover server rejects the reactivation's ActivateSession call.
+            managedChannel
+                .Setup(c => c.SendRequestAsync(It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(
+                    StatusCodes.BadSessionIdInvalid,
+                    "simulated: the prior leader's session no longer exists on the failover server"));
+            var channelManager = new Mock<IClientChannelManager>();
+            channelManager
+                .Setup(m => m.GetAsync(
+                    endpoint,
+                    It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
+                    null,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IManagedTransportChannel>(managedChannel.Object));
             typeof(Session)
                 .GetMethod(
                     "BindManagedChannel",
