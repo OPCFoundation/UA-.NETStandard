@@ -41,7 +41,7 @@ services:
       HA_NODE_ID: replica-a
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
-      REDUNDANCY_MODE: ${REDUNDANCY_MODE:-hot}
+      REDUNDANCY_MODE: ${REDUNDANCY_MODE:-}
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: "server-b:4840,server-c:4840"
       HA_RAFT_ID: "1"
@@ -60,7 +60,7 @@ services:
       HA_NODE_ID: replica-b
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
-      REDUNDANCY_MODE: ${REDUNDANCY_MODE:-hot}
+      REDUNDANCY_MODE: ${REDUNDANCY_MODE:-}
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: "server-a:4840,server-c:4840"
       HA_RAFT_ID: "2"
@@ -79,7 +79,7 @@ services:
       HA_NODE_ID: replica-c
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
-      REDUNDANCY_MODE: ${REDUNDANCY_MODE:-hot}
+      REDUNDANCY_MODE: ${REDUNDANCY_MODE:-}
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: "server-a:4840,server-b:4840"
       HA_RAFT_ID: "3"

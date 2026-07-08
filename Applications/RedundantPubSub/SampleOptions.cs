@@ -211,9 +211,14 @@ namespace RedundantPubSub
         public const string ReaderName = "Reader 1";
 
         /// <summary>
-        /// The default PubSub UDP multicast endpoint.
+        /// The default PubSub endpoint for multi-process publisher/subscriber roles.
         /// </summary>
         public const string DefaultEndpoint = "opc.udp://239.0.0.1:4840";
+
+        /// <summary>
+        /// The default PubSub endpoint for the single-process local demo.
+        /// </summary>
+        public const string DefaultDemoEndpoint = "opc.udp://127.0.0.1:4840";
 
         /// <summary>
         /// The default PublisherId.

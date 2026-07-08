@@ -136,69 +136,105 @@ namespace RedundantPubSub
 
         private static async Task<int> RunDemoAsync(SampleOptions options, CancellationToken cancellationToken)
         {
+            const uint simulatedPostFailoverMargin = 5;
+            const int simulatedPreFailoverCount = 3;
+            const int simulatedPostFailoverCount = 2;
+            SampleOptions demoOptions = GetDemoOptions(options);
             using var store = new InMemorySharedKeyValueStore();
             var election = new ManualLeaderElection();
             election.SetLeader("publisher-a");
-            using IHost subscriber = BuildDemoSubscriber(options);
-            using IHost publisherA = BuildDemoPublisher(options, "publisher-a", store, election);
-            using IHost publisherB = BuildDemoPublisher(options, "publisher-b", store, election);
+            using IHost subscriber = BuildDemoSubscriber(demoOptions);
+            using IHost publisherA = BuildDemoPublisher(demoOptions, "publisher-a", store, election);
+            using IHost publisherB = BuildDemoPublisher(demoOptions, "publisher-b", store, election);
+            if (!string.Equals(demoOptions.Endpoint, options.Endpoint, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine(
+                    "DEMO: using local loopback UDP endpoint {0}. Override PUBSUB_ENDPOINT to use multicast or another address.",
+                    demoOptions.Endpoint);
+            }
+            if (demoOptions.HaMode == PubSubRedundancyMode.Warm)
+            {
+                Console.WriteLine(
+                    "WARM MODE: standby activation is exercised, but without hot checkpoints the promoted " +
+                    "publisher restarts its local SequenceNumber state in this demo.");
+            }
             await subscriber.StartAsync(cancellationToken).ConfigureAwait(false);
             await publisherA.StartAsync(cancellationToken).ConfigureAwait(false);
             await publisherB.StartAsync(cancellationToken).ConfigureAwait(false);
-            SequenceContinuityMonitor monitor = subscriber.Services.GetRequiredService<SequenceContinuityMonitor>();
-            await EmitDemoSequencesAsync(options, store, monitor, "publisher-a", 0, 3, cancellationToken)
-                .ConfigureAwait(false);
-            await Task.Delay(options.DemoFirstActiveDuration, cancellationToken).ConfigureAwait(false);
+            Console.WriteLine(
+                "SIMULATED DEMO NARRATIVE: the SequenceNumber continuity lines below are illustrative and do not come " +
+                "from the live UDP pipeline also running in this mode.");
+            uint? simulatedLastSequence = null;
+            string simulatedLastOwner = "unknown";
+            EmitSimulatedSequences(
+                ownerId: "publisher-a",
+                start: 0,
+                count: simulatedPreFailoverCount,
+                ref simulatedLastSequence,
+                ref simulatedLastOwner);
+            await Task.Delay(demoOptions.DemoFirstActiveDuration, cancellationToken).ConfigureAwait(false);
             Console.WriteLine("FAILOVER: stopping publisher-a; publisher-b is promoted.");
             await publisherA.StopAsync(cancellationToken).ConfigureAwait(false);
             election.SetLeader("publisher-b");
-            uint start = 0;
-            if (options.HaMode == PubSubRedundancyMode.Hot)
-            {
-                var checkpointStore = new SharedStorePubSubWriterCheckpointStore(store);
-                start = (await checkpointStore
-                    .GetSequenceNumberAsync("demo-writer-group", options.DataSetWriterId, cancellationToken)
-                    .ConfigureAwait(false) ??
-                    0) +
-                    5;
-            }
-            await EmitDemoSequencesAsync(options, store, monitor, "publisher-b", start, 2, cancellationToken)
-                .ConfigureAwait(false);
-            await Task.Delay(options.DemoSecondActiveDuration, cancellationToken).ConfigureAwait(false);
+            EmitSimulatedSequences(
+                ownerId: "publisher-b",
+                start: demoOptions.HaMode == PubSubRedundancyMode.Hot
+                    ? (uint)simulatedPreFailoverCount + simulatedPostFailoverMargin
+                    : 0,
+                count: simulatedPostFailoverCount,
+                ref simulatedLastSequence,
+                ref simulatedLastOwner);
+            await Task.Delay(demoOptions.DemoSecondActiveDuration, cancellationToken).ConfigureAwait(false);
             return 0;
         }
 
-        private static async Task EmitDemoSequencesAsync(
-            SampleOptions options,
-            ISharedKeyValueStore store,
-            SequenceContinuityMonitor monitor,
+        private static SampleOptions GetDemoOptions(SampleOptions options)
+        {
+            if (string.Equals(options.Endpoint, SampleConstants.DefaultEndpoint, StringComparison.OrdinalIgnoreCase))
+            {
+                return options with { Endpoint = SampleConstants.DefaultDemoEndpoint };
+            }
+
+            return options;
+        }
+
+        private static void EmitSimulatedSequences(
             string ownerId,
             uint start,
             int count,
-            CancellationToken cancellationToken)
+            ref uint? lastSequence,
+            ref string lastOwner)
         {
-            var checkpointStore = new SharedStorePubSubWriterCheckpointStore(store);
             uint sequence = start;
             for (int ii = 0; ii < count; ii++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 sequence++;
-                monitor.OnSequence(sequence, BuildDemoFields(ownerId));
-                if (options.HaMode == PubSubRedundancyMode.Hot)
+                if (lastSequence is null)
                 {
-                    await checkpointStore
-                        .SetSequenceNumberAsync("demo-writer-group", options.DataSetWriterId, sequence, cancellationToken)
-                        .ConfigureAwait(false);
+                    Console.WriteLine("SIMULATED: SequenceNumber {0} received.", sequence);
                 }
-            }
-        }
+                else if (sequence <= lastSequence.Value)
+                {
+                    Console.WriteLine(
+                        "SIMULATED: DATA LOSS: sequence reset {0} -> {1} (subscriber must reset de-duplication).",
+                        lastSequence.Value,
+                        sequence);
+                }
+                else if (!string.Equals(lastOwner, ownerId, StringComparison.Ordinal))
+                {
+                    Console.WriteLine(
+                        "SIMULATED: HA OK: sequence continued {0} -> {1} across failover (gap, no reset).",
+                        lastSequence.Value,
+                        sequence);
+                }
+                else
+                {
+                    Console.WriteLine("SIMULATED: SequenceNumber {0} -> {1}.", lastSequence.Value, sequence);
+                }
 
-        private static ArrayOf<DataSetField> BuildDemoFields(string ownerId)
-        {
-            return new ArrayOf<DataSetField>(new[]
-            {
-                new DataSetField { Name = "OwnerId", Value = new Variant(ownerId) }
-            });
+                lastSequence = sequence;
+                lastOwner = ownerId;
+            }
         }
 
         private static IHost BuildDemoPublisher(

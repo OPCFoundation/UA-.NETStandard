@@ -375,7 +375,7 @@ static byte GetDisplayedServiceLevel(bool activeActive, RedundancySupport redund
 static ArrayOf<RedundantPeer> ReadRedundantPeers(IConfiguration configuration)
 {
     var peers = new List<RedundantPeer>();
-    foreach (string entry in ReadList(configuration, "REDUNDANT_PEERS"))
+    foreach (string entry in ReadList(configuration, "HA_REDUNDANT_PEERS"))
     {
         string[] fields = entry.Split('|', StringSplitOptions.TrimEntries);
         if (fields.Length is < 1 or > 3 || string.IsNullOrWhiteSpace(fields[0]))

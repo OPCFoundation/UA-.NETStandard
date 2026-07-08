@@ -3,7 +3,7 @@
 # Profiles:
 #   strong  fixed 3-node Raft publisher set + fixed 3-node Raft subscriber set
 #           (default, real cross-container active/standby on BOTH sides)
-#   demo    single container running two in-process publishers + subscriber over multicast loopback/bridge
+#   demo    single container running two in-process publishers + subscriber over loopback UDP by default
 #
 # Run from the repository ROOT:
 #   docker compose -f Applications/RedundantPubSub/docker-compose.yml up --build
@@ -34,7 +34,7 @@ x-publisher-env: &publisher-env
   HA_RAFT_BIND: tcp://0.0.0.0:6560
   HA_INSECURE: ${HA_INSECURE:-true}
   HA_RECORD_KEY: ${HA_RECORD_KEY:-}
-  PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://239.0.0.1:4840}
+  PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://127.0.0.1:4840}
   PUBLISH_INTERVAL_MS: ${PUBLISH_INTERVAL_MS:-1000}
 
 x-subscriber-env: &subscriber-env
