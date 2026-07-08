@@ -288,6 +288,50 @@ ready-made golden vector to validate the CTT codec against.
   benign / CTT-side sequencing rather than a server compliance defect, but warrants a live
   reproduce to confirm the client-observed state before any change.
 
+### Alarms & Conditions / Aggregates / GDS (Run1) — diagnosed; blocked on a CTT re-run or the CTT loop
+
+These three clusters were investigated by direct source inspection against the OPC UA
+specification. The server-side logic was found correct (or the residual is already-documented
+CTT-script noise), so the remaining failures cannot be pinned to a concrete server bug from the
+results XML alone — they need either a fresh CTT run (to clear cascades) or the CTT's own state
+model / test-script inputs (which the XML does not carry).
+
+* **Aggregates — 1156 `Aggregate –` errors are ~99% already-documented CTT-script defects.** 886
+  are the `requestEntries` [null] `TypeError` documented in **§3** above, and 266 are the
+  `CUVariables.ArrayItems` [undefined] `TypeError` documented in **§2**; one residual
+  `BadUserAccessDenied` is the `Scalar_Static_Int32` RolePermissions gap already fixed server-side.
+  The genuine aggregate-value comparisons (Count / PercentGood-Bad / Duration* / Start-End(Bound) /
+  WorstQuality / NumberOfTransitions / AnnotationCount via `AggregateCalculator`) are **masked**
+  behind that cascade and cannot be assessed until a CTT re-run that includes the RolePermissions
+  fix **and** the §2/§3 CTT-script fixes. → **Blocked on a CTT re-run.**
+
+* **Alarms & Conditions — "After Acknowledge Retain in invalid state" (14, one per alarm type) and
+  "Error validating variables for state ConditionDisabled" (A&C Enable Test_002): server Retain and
+  enable/disable logic verified spec-correct.** The Retain calculation was checked at every layer
+  and follows **Part 9**: `ConditionState.UpdateStateAfterDisable` sets `Retain = false` on Disable
+  (`ConditionState.cs:781`); `AlarmConditionState.GetRetainState` keeps `Retain = true` while
+  `ActiveState.Id` is set (`AlarmConditionState.cs:346-348`); `AcknowledgeableConditionState`/
+  `AlarmConditionTypeHolder`/`AcknowledgeableConditionTypeHolder` all keep `Retain = true` until the
+  condition is inactive **and** acked **and** (when confirm is supported) confirmed; and the SDK
+  updates Retain **before** it reports the Acknowledge event
+  (`AcknowledgeableConditionState.cs:181` precedes `:189/:221`). No server-side defect was found.
+  The CTT's `AlarmCollector` reports only *"Retain in invalid state"* without the expected-vs-actual
+  Retain value or the exact drive sequence, so isolating the discrepancy requires the CTT loop
+  (subscribe → drive Active/Ack/Confirm → observe) with the CTT's own state model. → **Blocked on
+  the CTT loop** (no speculative change made to spec-correct alarm code).
+
+* **GDS — 186 errors: 134 are the documented `CUVariables.ArrayItems` CTT bug (§2); the ~52 genuine
+  ones need the CTT scripts / a stateful register→query loop.** The `GDS Application Directory` /
+  `GDS Query Applications` status-code mismatches are **input-specific and mutually contradictory**
+  across test cases — some expect the server to be *stricter* (`Good` → `BadInvalidArgument`: 004,
+  005, 012, 032, 078), others *looser* (`BadInvalidArgument` → `Good`: 027, 060, 067, 069), and
+  others a *different* code (`BadNotFound` → `BadInvalidArgument`: 029, 038, 039). The exact
+  argument each numbered CTT case passes (empty/wildcard `ApplicationUri`, malformed `applicationId`,
+  specific capability filters, …) is **not** carried in the results XML, so mapping each case to its
+  Part 12 validation rule requires the CTT test scripts. The remaining directory/query
+  count mismatches (Expected *N* got 0/*M*) and AliasName replication to the GDS are **stateful** and
+  need a live register→query CTT loop. → **Blocked on the CTT scripts / loop.**
+
 
 * **Auditing Connections** (`Unable to Find Entry for ClientAuditEntryId`,
   `AuditValidationHelper.js:346`, ~1690 occurrences): the **server side is
