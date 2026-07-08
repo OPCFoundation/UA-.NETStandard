@@ -44,16 +44,37 @@ namespace Opc.Ua.Redundancy.Kubernetes
 {
     internal sealed class KubernetesHttpApiClient : IKubernetesApiClient, IDisposable
     {
-        public KubernetesHttpApiClient(string host, int port, string namespaceName, string token, string caPath)
-            : this(CreateHttpClient(host, port, token, caPath), namespaceName, ownsClient: true)
+        public KubernetesHttpApiClient(
+            string host,
+            int port,
+            string namespaceName,
+            string token,
+            string caPath,
+            string? tokenPath = null)
+            : this(
+                CreateHttpClient(host, port, caPath),
+                namespaceName,
+                ownsClient: true,
+                token,
+                tokenPath)
         {
         }
 
-        internal KubernetesHttpApiClient(HttpClient httpClient, string namespaceName, bool ownsClient = false)
+        internal KubernetesHttpApiClient(
+            HttpClient httpClient,
+            string namespaceName,
+            bool ownsClient = false,
+            string? token = null,
+            string? tokenPath = null)
         {
             m_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             DefaultNamespace = namespaceName ?? throw new ArgumentNullException(nameof(namespaceName));
             m_ownsClient = ownsClient;
+            m_tokenPath = tokenPath;
+            if (!string.IsNullOrEmpty(token))
+            {
+                m_staticAuthorization = new AuthenticationHeaderValue("Bearer", token);
+            }
         }
 
         public bool IsInCluster => true;
@@ -62,8 +83,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
 
         public async ValueTask<KubernetesLease?> GetLeaseAsync(string namespaceName, string name, CancellationToken ct)
         {
-            using HttpResponseMessage response = await m_httpClient
-                .GetAsync(new Uri(LeasePath(namespaceName, name), UriKind.Relative), ct)
+            using HttpResponseMessage response = await SendAsync(
+                HttpMethod.Get,
+                new Uri(LeasePath(namespaceName, name), UriKind.Relative),
+                content: null,
+                ct)
                 .ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
@@ -78,11 +102,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
             CancellationToken ct)
         {
             using StringContent content = JsonContent(lease, KubernetesJsonContext.Default.KubernetesLease);
-            using HttpResponseMessage response = await m_httpClient
-                .PostAsync(
-                    new Uri($"apis/coordination.k8s.io/v1/namespaces/{Escape(namespaceName)}/leases", UriKind.Relative),
-                    content,
-                    ct)
+            using HttpResponseMessage response = await SendAsync(
+                HttpMethod.Post,
+                new Uri($"apis/coordination.k8s.io/v1/namespaces/{Escape(namespaceName)}/leases", UriKind.Relative),
+                content,
+                ct)
                 .ConfigureAwait(false);
             return await ReadAsync(response, KubernetesJsonContext.Default.KubernetesLease, ct).ConfigureAwait(false);
         }
@@ -94,16 +118,22 @@ namespace Opc.Ua.Redundancy.Kubernetes
             CancellationToken ct)
         {
             using StringContent content = JsonContent(lease, KubernetesJsonContext.Default.KubernetesLease);
-            using HttpResponseMessage response = await m_httpClient
-                .PutAsync(new Uri(LeasePath(namespaceName, name), UriKind.Relative), content, ct)
+            using HttpResponseMessage response = await SendAsync(
+                HttpMethod.Put,
+                new Uri(LeasePath(namespaceName, name), UriKind.Relative),
+                content,
+                ct)
                 .ConfigureAwait(false);
             return await ReadAsync(response, KubernetesJsonContext.Default.KubernetesLease, ct).ConfigureAwait(false);
         }
 
         public async ValueTask DeleteLeaseAsync(string namespaceName, string name, CancellationToken ct)
         {
-            using HttpResponseMessage response = await m_httpClient
-                .DeleteAsync(new Uri(LeasePath(namespaceName, name), UriKind.Relative), ct)
+            using HttpResponseMessage response = await SendAsync(
+                HttpMethod.Delete,
+                new Uri(LeasePath(namespaceName, name), UriKind.Relative),
+                content: null,
+                ct)
                 .ConfigureAwait(false);
             if (response.StatusCode != HttpStatusCode.NotFound)
             {
@@ -119,8 +149,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
             string selector = Uri.EscapeDataString("kubernetes.io/service-name=" + serviceName);
             string path = $"apis/discovery.k8s.io/v1/namespaces/{Escape(namespaceName)}/endpointslices" +
                 $"?labelSelector={selector}";
-            using HttpResponseMessage response = await m_httpClient
-                .GetAsync(new Uri(path, UriKind.Relative), ct)
+            using HttpResponseMessage response = await SendAsync(
+                HttpMethod.Get,
+                new Uri(path, UriKind.Relative),
+                content: null,
+                ct)
                 .ConfigureAwait(false);
             return await ReadAsync(response, KubernetesJsonContext.Default.KubernetesEndpointSliceList, ct)
                 .ConfigureAwait(false);
@@ -134,7 +167,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
         }
 
-        private static HttpClient CreateHttpClient(string host, int port, string token, string caPath)
+        private static HttpClient CreateHttpClient(string host, int port, string caPath)
         {
             // Ownership transfers to HttpClient via disposeHandler; TODO remove when analyzer recognizes it.
             // CA5400: Kubernetes in-cluster CA bundles usually do not publish revocation information.
@@ -160,8 +193,32 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 BaseAddress = new Uri($"https://{host}:{port}/")
             };
 #pragma warning restore CA2000, CA5400
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             return client;
+        }
+
+        private async ValueTask<HttpResponseMessage> SendAsync(
+            HttpMethod method,
+            Uri requestUri,
+            HttpContent? content,
+            CancellationToken ct)
+        {
+            using var request = new HttpRequestMessage(method, requestUri)
+            {
+                Content = content
+            };
+            request.Headers.Authorization = ResolveAuthorization();
+            return await m_httpClient.SendAsync(request, ct).ConfigureAwait(false);
+        }
+
+        private AuthenticationHeaderValue? ResolveAuthorization()
+        {
+            string? token = ReadTrimmed(m_tokenPath);
+            if (string.IsNullOrEmpty(token))
+            {
+                return m_staticAuthorization;
+            }
+
+            return new AuthenticationHeaderValue("Bearer", token);
         }
 
         internal static bool ValidateServerCertificate(
@@ -244,7 +301,19 @@ namespace Opc.Ua.Redundancy.Kubernetes
             return Uri.EscapeDataString(value);
         }
 
+        private static string? ReadTrimmed(string? path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                return null;
+            }
+
+            return File.ReadAllText(path).Trim();
+        }
+
         private readonly HttpClient m_httpClient;
         private readonly bool m_ownsClient;
+        private readonly AuthenticationHeaderValue? m_staticAuthorization;
+        private readonly string? m_tokenPath;
     }
 }

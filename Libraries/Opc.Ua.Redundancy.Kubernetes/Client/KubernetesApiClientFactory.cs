@@ -54,7 +54,13 @@ namespace Opc.Ua.Redundancy.Kubernetes
 
             string namespaceName = options.Namespace ?? ReadTrimmed(options.NamespacePath) ?? "default";
             string token = ReadTrimmed(options.TokenPath) ?? string.Empty;
-            return new KubernetesHttpApiClient(host, port, namespaceName, token, options.CertificateAuthorityPath);
+            return new KubernetesHttpApiClient(
+                host,
+                port,
+                namespaceName,
+                token,
+                options.CertificateAuthorityPath,
+                options.TokenPath);
         }
 
         public static string ResolveNamespace(KubernetesServerOptions options, IKubernetesApiClient client)

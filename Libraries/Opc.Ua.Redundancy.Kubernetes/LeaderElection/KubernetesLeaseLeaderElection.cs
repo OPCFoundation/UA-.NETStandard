@@ -93,13 +93,13 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 return false;
             }
 
-            DateTimeOffset now = m_timeProvider.GetUtcNow();
-            KubernetesLease? current = await m_apiClient
-                .GetLeaseAsync(m_namespace, m_options.LeaseName, ct)
-                .ConfigureAwait(false);
-
             try
             {
+                DateTimeOffset now = m_timeProvider.GetUtcNow();
+                KubernetesLease? current = await m_apiClient
+                    .GetLeaseAsync(m_namespace, m_options.LeaseName, ct)
+                    .ConfigureAwait(false);
+
                 if (current == null)
                 {
                     KubernetesLease created = NewLease(now);
@@ -134,6 +134,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
             {
                 SetLeader(false);
                 return false;
+            }
+            catch
+            {
+                SetLeader(false);
+                throw;
             }
         }
 

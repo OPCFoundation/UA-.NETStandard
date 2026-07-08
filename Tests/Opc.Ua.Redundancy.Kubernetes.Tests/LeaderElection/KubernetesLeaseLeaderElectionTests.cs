@@ -291,18 +291,50 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             api.SetupGet(x => x.IsInCluster).Returns(true);
             var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
-                .Callback(() => signal.TrySetResult())
-                .ThrowsAsync(new InvalidOperationException("boom"));
+                .ReturnsAsync((KubernetesLease?)null);
+            api.Setup(x => x.CreateLeaseAsync("ns", It.IsAny<KubernetesLease>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string _, KubernetesLease lease, CancellationToken _) => lease);
             var logger = new CountingLogger();
             KubernetesLeaderElectionOptions options = NewOptions();
             options.RenewInterval = TimeSpan.FromMilliseconds(5);
 
             var election = new KubernetesLeaseLeaderElection(api.Object, options, new FakeTimeProvider(), logger);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(election.IsLeader, Is.True);
+            api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
+                .Callback(() => signal.TrySetResult())
+                .ThrowsAsync(new InvalidOperationException("boom"));
             election.Start();
             await signal.Task.ConfigureAwait(false);
             await election.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(logger.ErrorCount, Is.GreaterThan(0));
+            Assert.That(election.IsLeader, Is.False);
+        }
+
+        [Test]
+        public async Task RenewalFailureWithoutHttpStatusClearsLeadershipAsync()
+        {
+            Mock<IKubernetesApiClient> api = NewApi();
+            api.SetupSequence(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
+                .ReturnsAsync((KubernetesLease?)null)
+                .ThrowsAsync(new HttpRequestException("connection lost"));
+            api.Setup(x => x.CreateLeaseAsync("ns", It.IsAny<KubernetesLease>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string _, KubernetesLease createdLease, CancellationToken _) => createdLease);
+
+            await using var election = new KubernetesLeaseLeaderElection(
+                api.Object,
+                NewOptions(),
+                new FakeTimeProvider(ParseUtc("2026-01-01T00:00:10Z")));
+
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(election.IsLeader, Is.True);
+
+            Assert.That(async () =>
+            {
+                await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+            }, Throws.TypeOf<HttpRequestException>().With.Message.EqualTo("connection lost"));
+            Assert.That(election.IsLeader, Is.False);
         }
 
         [Test]

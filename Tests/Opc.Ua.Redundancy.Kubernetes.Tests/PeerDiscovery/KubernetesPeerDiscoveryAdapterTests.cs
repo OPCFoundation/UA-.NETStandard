@@ -57,7 +57,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         {
             var inner = new Mock<IKubernetesPeerDiscovery>();
             inner.Setup(d => d.RefreshAsync(It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ArrayOf<string>>((ArrayOf<string>)new[] { "urn:a", "urn:b" }));
+                .Returns(new ValueTask<ArrayOf<string>>(s_twoUris));
 
             var adapter = new KubernetesPeerDiscoveryAdapter(inner.Object);
 
@@ -77,10 +77,13 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             ArrayOf<DiscoveredPeer> observed = default;
             adapter.PeersChanged += p => observed = p;
 
-            inner.Raise(d => d.PeerServerUrisChanged += null, (ArrayOf<string>)new[] { "urn:a" });
+            inner.Raise(d => d.PeerServerUrisChanged += null, s_singleUri);
 
             Assert.That(observed.Count, Is.EqualTo(1));
             Assert.That(observed[0].ServerUri, Is.EqualTo("urn:a"));
         }
+
+        private static readonly ArrayOf<string> s_singleUri = (ArrayOf<string>)["urn:a"];
+        private static readonly ArrayOf<string> s_twoUris = (ArrayOf<string>)["urn:a", "urn:b"];
     }
 }

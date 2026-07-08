@@ -213,6 +213,34 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         }
 
         [Test]
+        public async Task TokenFileIsReReadBetweenRequestsAsync()
+        {
+            string tokenPath = WriteTestFile("token-a");
+            try
+            {
+                var handler = new StubHandler(_ => JsonResponse(HttpStatusCode.OK, Serialize(NewLease("pod-a"))));
+                using KubernetesHttpApiClient api = NewClient(handler, tokenPath: tokenPath);
+
+                await api.GetLeaseAsync("ns", "opcua", CancellationToken.None);
+                Assert.That(handler.LastAuthorizationScheme, Is.EqualTo("Bearer"));
+                Assert.That(handler.LastAuthorizationParameter, Is.EqualTo("token-a"));
+
+                File.WriteAllText(tokenPath, "token-b");
+
+                await api.GetLeaseAsync("ns", "opcua", CancellationToken.None);
+                Assert.That(handler.LastAuthorizationScheme, Is.EqualTo("Bearer"));
+                Assert.That(handler.LastAuthorizationParameter, Is.EqualTo("token-b"));
+            }
+            finally
+            {
+                if (File.Exists(tokenPath))
+                {
+                    File.Delete(tokenPath);
+                }
+            }
+        }
+
+        [Test]
         public void ConstructorRejectsNullHttpClient()
         {
             Assert.That(
@@ -295,10 +323,19 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             }
         }
 
-        private static KubernetesHttpApiClient NewClient(StubHandler handler, string namespaceName = "ns")
+        private static KubernetesHttpApiClient NewClient(
+            StubHandler handler,
+            string namespaceName = "ns",
+            string? tokenPath = null,
+            string token = "token")
         {
             var httpClient = new HttpClient(handler) { BaseAddress = s_baseAddress };
-            return new KubernetesHttpApiClient(httpClient, namespaceName, ownsClient: true);
+            return new KubernetesHttpApiClient(
+                httpClient,
+                namespaceName,
+                ownsClient: true,
+                token: token,
+                tokenPath: tokenPath);
         }
 
         private static KubernetesLease NewLease(string holder)
@@ -373,6 +410,15 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             return certificate.Export(X509ContentType.Cert);
         }
 
+        private static string WriteTestFile(string content)
+        {
+            string path = Path.Combine(
+                AppContext.BaseDirectory,
+                "k8s-http-" + Guid.NewGuid().ToString("N") + ".txt");
+            File.WriteAllText(path, content);
+            return path;
+        }
+
         private sealed class StubHandler : HttpMessageHandler
         {
             public StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder)
@@ -388,6 +434,10 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
 
             public string? LastContentType { get; private set; }
 
+            public string? LastAuthorizationScheme { get; private set; }
+
+            public string? LastAuthorizationParameter { get; private set; }
+
             public bool Disposed { get; private set; }
 
             protected override async Task<HttpResponseMessage> SendAsync(
@@ -397,6 +447,8 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 LastMethod = request.Method;
                 LastRequestUri = request.RequestUri;
                 LastContentType = request.Content?.Headers.ContentType?.MediaType;
+                LastAuthorizationScheme = request.Headers.Authorization?.Scheme;
+                LastAuthorizationParameter = request.Headers.Authorization?.Parameter;
                 if (request.Content != null)
                 {
                     LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);

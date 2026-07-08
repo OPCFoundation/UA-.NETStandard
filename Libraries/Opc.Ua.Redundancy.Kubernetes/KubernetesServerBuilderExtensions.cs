@@ -161,7 +161,6 @@ namespace Opc.Ua.Redundancy.Kubernetes
             var options = new KubernetesReadinessOptions();
             configure?.Invoke(options);
 
-            builder.Services.TryAddSingleton<IServiceLevelProvider>(_ => new ConstantServiceLevelProvider());
             builder.Services.TryAddSingleton(sp =>
             {
                 ILogger<KubernetesReadinessServer>? logger = sp.GetService<ILogger<KubernetesReadinessServer>>();
