@@ -326,7 +326,7 @@ namespace OpcUaPubSubJsonTests
             using var writer = new JsonBufferWriter(8);
             Memory<byte> memory = writer.GetMemory(4096);
             Assert.That(memory.Length, Is.GreaterThanOrEqualTo(4096));
-            memory.Span.Slice(0, 4096).Fill(0x41);
+            memory.Span[..4096].Fill(0x41);
             writer.Advance(4096);
             Assert.That(writer.WrittenCount, Is.EqualTo(4096));
             Assert.That(writer.WrittenSpan.Length, Is.EqualTo(4096));

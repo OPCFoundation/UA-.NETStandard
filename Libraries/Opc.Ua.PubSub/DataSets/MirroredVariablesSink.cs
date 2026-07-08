@@ -78,11 +78,7 @@ namespace Opc.Ua.PubSub.DataSets
         public MirroredVariablesSink(
             SubscribedDataSetMirrorDataType configuration)
         {
-            if (configuration == null)
-            {
-                throw new ArgumentNullException(nameof(configuration));
-            }
-            Configuration = configuration;
+            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
         /// <summary>

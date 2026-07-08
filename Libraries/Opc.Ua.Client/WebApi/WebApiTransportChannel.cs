@@ -176,14 +176,11 @@ namespace Opc.Ua.Client.WebApi
             {
                 throw new ArgumentNullException(nameof(url));
             }
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+
             ThrowIfDisposed();
 
             m_url = NormalizeUrl(url);
-            m_settings = settings;
+            m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             OperationTimeout = settings.Configuration?.OperationTimeout ?? 60000;
 
             m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)

@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 ProcessingCompleted.TrySetResult(true);
             }
 
-            private readonly RequestParkSink m_parkSink = new RequestParkSink();
+            private readonly RequestParkSink m_parkSink = new();
         }
 
         private sealed class TestServer : ServerBase

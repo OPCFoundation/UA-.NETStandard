@@ -240,7 +240,7 @@ namespace Opc.Ua.PubSub.Mqtt
             {
                 throw new ArgumentException("Prefix cannot be empty.", nameof(prefix));
             }
-            if (prefix[0] == '/' || prefix[prefix.Length - 1] == '/')
+            if (prefix[0] == '/' || prefix[^1] == '/')
             {
                 throw new ArgumentException(
                     "Prefix must not start or end with a '/' character.",
@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Mqtt
             for (int i = 0; i < value.Length; i++)
             {
                 char c = value[i];
-                if (c == '#' || c == '+')
+                if (c is '#' or '+')
                 {
                     throw new ArgumentException(
                         "MQTT topic wildcard characters '#' and '+' are not allowed in topic-builder inputs.",

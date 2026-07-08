@@ -162,7 +162,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 // Transports created during the first two reconnect attempts
                 // fail; the transport allocated for the third attempt is
                 // healthy and completes the cycle.
-                if (sequence == 2 || sequence == 3)
+                if (sequence is 2 or 3)
                 {
                     transport.ConfigureFault(FaultMode.OpenFails);
                 }

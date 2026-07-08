@@ -129,17 +129,13 @@ namespace Opc.Ua.Bindings
             ITransportListenerCallback callback,
             CancellationToken ct = default)
         {
-            if (baseAddress == null)
-            {
-                throw new ArgumentNullException(nameof(baseAddress));
-            }
             if (settings == null)
             {
                 throw new ArgumentNullException(nameof(settings));
             }
 
             ListenerId = Guid.NewGuid().ToString();
-            EndpointUrl = baseAddress;
+            EndpointUrl = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
             m_descriptions = settings.Descriptions ?? [];
 
             EndpointConfiguration? configuration = settings.Configuration;
@@ -236,10 +232,7 @@ namespace Opc.Ua.Bindings
             // renegotiation. The Kestrel listener has no TLS bind to
             // rotate (opc.tcp is plaintext), so the only listener-side
             // state to update is the references we hold.
-            if (m_quotas != null)
-            {
-                m_quotas.CertificateValidator = validator;
-            }
+            m_quotas?.CertificateValidator = validator;
             m_serverCertificates = serverCertificates;
         }
 

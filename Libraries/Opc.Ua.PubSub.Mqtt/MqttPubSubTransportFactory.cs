@@ -316,13 +316,9 @@ namespace Opc.Ua.PubSub.Mqtt
                     "ISecretRegistry was registered with the transport factory.");
             }
             SecretIdentifier id = ParseSecretIdentifier(options.PasswordSecretId);
-            ISecret? secret = m_secretRegistry.TryGet(id);
-            if (secret is null)
-            {
-                throw new InvalidOperationException(
+            ISecret? secret = m_secretRegistry.TryGet(id) ?? throw new InvalidOperationException(
                     $"Password secret '{options.PasswordSecretId}' could not be " +
                     "resolved from the registered secret stores.");
-            }
             try
             {
                 options.PasswordBytes = secret.Bytes.ToArray();
@@ -340,8 +336,8 @@ namespace Opc.Ua.PubSub.Mqtt
             {
                 return new SecretIdentifier(secretId, DefaultSecretStoreType);
             }
-            string storeType = secretId.Substring(0, separator);
-            string name = secretId.Substring(separator + 1);
+            string storeType = secretId[..separator];
+            string name = secretId[(separator + 1)..];
             return new SecretIdentifier(name, storeType);
         }
 

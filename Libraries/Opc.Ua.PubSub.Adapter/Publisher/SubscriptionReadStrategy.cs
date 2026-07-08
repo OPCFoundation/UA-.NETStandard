@@ -114,10 +114,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             ThrowIfDisposed();
 
-            if (m_subscription is not null)
-            {
-                m_subscription.DataChanged -= OnDataChanged;
-            }
+            m_subscription?.DataChanged -= OnDataChanged;
             m_subscription = subscription;
             subscription.DataChanged += OnDataChanged;
         }
@@ -188,11 +185,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 return;
             }
             m_disposed = true;
-            if (m_subscription is not null)
-            {
-                m_subscription.DataChanged -= OnDataChanged;
-                m_subscription = null;
-            }
+            m_subscription?.DataChanged -= OnDataChanged;
+            m_subscription = null;
             m_cache.Clear();
             m_handleToKey.Clear();
         }

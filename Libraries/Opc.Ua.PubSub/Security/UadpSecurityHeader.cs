@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Security
                 SecurityTokenId);
             offset += 4;
             buffer[offset++] = (byte)MessageNonce.Length;
-            MessageNonce.Span.CopyTo(buffer.Slice(offset));
+            MessageNonce.Span.CopyTo(buffer[offset..]);
             offset += MessageNonce.Length;
             if ((SecurityFlags & (byte)UadpSecurityFlagsEncodingMask.SecurityFooterEnabled) != 0)
             {

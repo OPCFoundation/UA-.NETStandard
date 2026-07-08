@@ -565,7 +565,7 @@ namespace Opc.Ua.Redundancy.Server
         {
 #if NETFRAMEWORK
             return uint.TryParse(
-                key.Substring(prefix.Length),
+                key[prefix.Length..],
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out monitoredItemId);

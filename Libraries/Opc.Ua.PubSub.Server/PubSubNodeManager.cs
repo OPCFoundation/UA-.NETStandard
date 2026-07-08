@@ -287,14 +287,8 @@ namespace Opc.Ua.PubSub.Server
             MethodState? removeConn = diagnosticsNodeManager
                 .FindPredefinedNode<MethodState>(new NodeId(RemoveConnectionNodeId));
 
-            if (enable is not null)
-            {
-                enable.OnCallMethod = m_methodHandlers.OnEnable;
-            }
-            if (disable is not null)
-            {
-                disable.OnCallMethod = m_methodHandlers.OnDisable;
-            }
+            enable?.OnCallMethod = m_methodHandlers.OnEnable;
+            disable?.OnCallMethod = m_methodHandlers.OnDisable;
             if (m_options.ExposeConfigurationMethods)
             {
                 if (setKeys is not null)
@@ -309,14 +303,8 @@ namespace Opc.Ua.PubSub.Server
                         }
                     ];
                 }
-                if (addConn is not null)
-                {
-                    addConn.OnCallMethod = m_methodHandlers.OnAddConnection;
-                }
-                if (removeConn is not null)
-                {
-                    removeConn.OnCallMethod = m_methodHandlers.OnRemoveConnection;
-                }
+                addConn?.OnCallMethod = m_methodHandlers.OnAddConnection;
+                removeConn?.OnCallMethod = m_methodHandlers.OnRemoveConnection;
                 BindPublishedDataSetFolderMethods(diagnosticsNodeManager);
             }
 
@@ -334,30 +322,12 @@ namespace Opc.Ua.PubSub.Server
                     .FindPredefinedNode<MethodState>(new NodeId(AddPushTargetNodeId));
                 MethodState? removePushTarget = diagnosticsNodeManager
                     .FindPredefinedNode<MethodState>(new NodeId(RemovePushTargetNodeId));
-                if (getKeys is not null)
-                {
-                    getKeys.OnCallMethod2 = m_methodHandlers.OnGetSecurityKeys;
-                }
-                if (getGroup is not null)
-                {
-                    getGroup.OnCallMethod = OnGetSecurityGroup;
-                }
-                if (addGroup is not null)
-                {
-                    addGroup.OnCallMethod = OnAddSecurityGroup;
-                }
-                if (removeGroup is not null)
-                {
-                    removeGroup.OnCallMethod = OnRemoveSecurityGroup;
-                }
-                if (addPushTarget is not null)
-                {
-                    addPushTarget.OnCallMethod = OnAddPushTarget;
-                }
-                if (removePushTarget is not null)
-                {
-                    removePushTarget.OnCallMethod = OnRemovePushTarget;
-                }
+                getKeys?.OnCallMethod2 = m_methodHandlers.OnGetSecurityKeys;
+                getGroup?.OnCallMethod = OnGetSecurityGroup;
+                addGroup?.OnCallMethod = OnAddSecurityGroup;
+                removeGroup?.OnCallMethod = OnRemoveSecurityGroup;
+                addPushTarget?.OnCallMethod = OnAddPushTarget;
+                removePushTarget?.OnCallMethod = OnRemovePushTarget;
             }
 
             m_methodsBound = enable is not null || disable is not null;
@@ -383,10 +353,7 @@ namespace Opc.Ua.PubSub.Server
         {
             MethodState? method = diagnosticsNodeManager
                 .FindPredefinedNode<MethodState>(new NodeId(nodeId));
-            if (method is not null)
-            {
-                method.OnCallMethod = handler;
-            }
+            method?.OnCallMethod = handler;
         }
 
         private void OnConfigurationChanged(

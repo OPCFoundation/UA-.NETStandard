@@ -482,7 +482,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     end = idx;
                 }
             }
-            return code.Substring(start, end - start);
+            return code[start..end];
         }
 
         private Mock<IFileSystem> m_mockFileSystem;

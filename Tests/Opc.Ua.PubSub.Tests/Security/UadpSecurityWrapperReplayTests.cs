@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .ConfigureAwait(false);
 
             UadpSecurityWrapper.UnwrapResult firstResult = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
             Assert.That(firstResult.IsSuccess, Is.True, firstResult.Reason);
 
@@ -119,7 +119,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                     .WrapAsync(s_outerPrefix, s_innerPayload)
                     .ConfigureAwait(false);
                 UadpSecurityWrapper.UnwrapResult ok = await receiver
-                    .TryUnwrapAsync(s_outerPrefix.AsMemory(), next.Slice(s_outerPrefix.Length))
+                    .TryUnwrapAsync(s_outerPrefix.AsMemory(), next[s_outerPrefix.Length..])
                     .ConfigureAwait(false);
                 Assert.That(ok.IsSuccess, Is.True, ok.Reason);
             }
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             // Replaying the captured frame is still rejected even though
             // its nonce was long since evicted from any bounded set.
             UadpSecurityWrapper.UnwrapResult replay = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         private static (ulong SequenceNumber, byte[] Nonce) ReadNonce(
             ReadOnlyMemory<byte> wrapped)
         {
-            ReadOnlyMemory<byte> securityAndPayload = wrapped.Slice(s_outerPrefix.Length);
+            ReadOnlyMemory<byte> securityAndPayload = wrapped[s_outerPrefix.Length..];
             Assert.That(
                 UadpSecurityHeader.TryRead(
                     securityAndPayload.Span, out UadpSecurityHeader header, out _),

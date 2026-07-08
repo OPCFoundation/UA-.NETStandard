@@ -93,12 +93,8 @@ namespace Opc.Ua.PubSub.Security
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            PubSubSecurityKey? current = m_ring.Current;
-            if (current is null)
-            {
-                throw new InvalidOperationException(
+            PubSubSecurityKey? current = m_ring.Current ?? throw new InvalidOperationException(
                     $"No current key available for SecurityGroupId '{SecurityGroupId}'.");
-            }
             return new ValueTask<PubSubSecurityKey>(current);
         }
 

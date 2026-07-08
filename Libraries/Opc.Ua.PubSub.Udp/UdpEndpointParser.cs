@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub.Udp
             if (address.AddressFamily == AddressFamily.InterNetwork)
             {
                 byte[] octets = address.GetAddressBytes();
-                if (octets[0] >= 224 && octets[0] <= 239)
+                if (octets[0] is >= 224 and <= 239)
                 {
                     return UdpAddressType.Multicast;
                 }

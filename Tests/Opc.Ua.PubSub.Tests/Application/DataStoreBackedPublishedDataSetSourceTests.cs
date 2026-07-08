@@ -164,8 +164,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType
-                        {
+                        new() {
                             PublishedVariable = nodeId,
                             AttributeId = Attributes.Value
                         }
@@ -182,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             var metaData = new DataSetMetaDataType
             {
                 Fields = new ArrayOf<FieldMetaData>(
-                    new FieldMetaData[] { new FieldMetaData { Name = "Temperature" } })
+                    new FieldMetaData[] { new() { Name = "Temperature" } })
             };
 
             PublishedDataSetSnapshot snapshot =
@@ -209,8 +208,8 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(1u) },
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(2u) }
+                        new() { PublishedVariable = new NodeId(1u) },
+                        new() { PublishedVariable = new NodeId(2u) }
                     })
             };
 
@@ -225,7 +224,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             var metaData = new DataSetMetaDataType
             {
                 Fields = new ArrayOf<FieldMetaData>(
-                    new FieldMetaData[] { new FieldMetaData { Name = "OnlyOne" } })
+                    new FieldMetaData[] { new() { Name = "OnlyOne" } })
             };
 
             PublishedDataSetSnapshot snapshot =
@@ -256,8 +255,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                     new PublishedVariableDataType[]
                     {
                         // NodeId is a readonly struct; use NodeId.Null (zero NodeId)
-                        new PublishedVariableDataType
-                        {
+                        new() {
                             PublishedVariable = NodeId.Null,
                             AttributeId = Attributes.Value
                         }
@@ -302,7 +300,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(1u) }
+                        new() { PublishedVariable = new NodeId(1u) }
                     })
             };
 
@@ -342,7 +340,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(1u) }
+                        new() { PublishedVariable = new NodeId(1u) }
                     })
             };
 
@@ -377,7 +375,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(5u) }
+                        new() { PublishedVariable = new NodeId(5u) }
                     })
             };
 

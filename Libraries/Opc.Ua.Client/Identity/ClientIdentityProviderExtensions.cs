@@ -645,7 +645,7 @@ namespace Opc.Ua.Identity
             }
 
             return string.Concat(
-                value.Substring(0, MaxDiagnosticFieldLength),
+                value[..MaxDiagnosticFieldLength],
                 "…(truncated)");
         }
 

@@ -679,8 +679,8 @@ namespace Opc.Ua.PubSub.Udp
                     {
                         break;
                     }
-                    catch (SocketException ex) when (ex.SocketErrorCode == SocketError.OperationAborted ||
-                        ex.SocketErrorCode == SocketError.Interrupted)
+                    catch (SocketException ex) when (ex.SocketErrorCode is SocketError.OperationAborted or
+                        SocketError.Interrupted)
                     {
                         break;
                     }

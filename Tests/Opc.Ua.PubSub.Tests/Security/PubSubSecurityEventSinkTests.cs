@@ -101,10 +101,10 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .WrapAsync(s_outerPrefix, s_innerPayload)
                 .ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult first = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult replay = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>

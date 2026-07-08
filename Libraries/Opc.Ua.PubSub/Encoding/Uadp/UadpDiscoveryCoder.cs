@@ -906,10 +906,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int written;
             using (var encoder = new BinaryEncoder(buffer, absoluteStart, available, context))
             {
-                if (value is not null)
-                {
-                    value.Encode(encoder);
-                }
+                value?.Encode(encoder);
                 written = encoder.Close();
             }
             writer.Advance(written);

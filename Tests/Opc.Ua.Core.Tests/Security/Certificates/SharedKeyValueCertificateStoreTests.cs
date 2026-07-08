@@ -326,12 +326,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 ReadOnlySpan<byte> span = protectedRecord.Span;
                 if (span.Length < s_marker.Length ||
-                    !span.Slice(0, s_marker.Length).SequenceEqual(s_marker))
+                    !span[..s_marker.Length].SequenceEqual(s_marker))
                 {
                     plaintext = ByteString.Empty;
                     return false;
                 }
-                plaintext = new ByteString(span.Slice(s_marker.Length).ToArray());
+                plaintext = new ByteString(span[s_marker.Length..].ToArray());
                 return true;
             }
         }

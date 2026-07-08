@@ -305,24 +305,14 @@ namespace Opc.Ua.Server
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
-            if (sessionManager == null)
-            {
-                throw new ArgumentNullException(nameof(sessionManager));
-            }
-
-            if (subscriptionManager == null)
-            {
-                throw new ArgumentNullException(nameof(subscriptionManager));
-            }
-
             if (SessionManager != null)
             {
                 SessionManager.SessionCreated -= OnSessionCountChanged;
                 SessionManager.SessionClosing -= OnSessionCountChanged;
             }
 
-            SessionManager = sessionManager;
-            SubscriptionManager = subscriptionManager;
+            SessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+            SubscriptionManager = subscriptionManager ?? throw new ArgumentNullException(nameof(subscriptionManager));
 
             SessionManager.SessionCreated += OnSessionCountChanged;
             SessionManager.SessionClosing += OnSessionCountChanged;

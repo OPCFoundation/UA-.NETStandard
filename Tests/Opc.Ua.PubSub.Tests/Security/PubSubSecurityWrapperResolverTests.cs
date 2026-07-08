@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .WrapAsync(prefix, plaintext, context.WrapOptions)
                 .ConfigureAwait(false);
 
-            ReadOnlyMemory<byte> body = wrapped.Slice(prefix.Length);
+            ReadOnlyMemory<byte> body = wrapped[prefix.Length..];
 
             Assert.Multiple(() =>
             {

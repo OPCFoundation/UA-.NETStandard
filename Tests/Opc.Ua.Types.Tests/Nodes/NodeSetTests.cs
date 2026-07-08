@@ -243,8 +243,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithNamespaceTableTranslatesAndReturnsNode()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf()
+            };
             Node node = CreateObject(7, 1, "Boiler");
             set.Add(node);
 
@@ -277,8 +279,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ImportNodeIdRemapsIntoCallerTable()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             NodeId imported = set.Import(new NodeId("Boiler", 2), callerTable);
@@ -338,8 +342,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ImportExpandedNodeIdRemapsIntoCallerTables()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var callerServers = new StringTable();
@@ -653,8 +659,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithScalarNodeIdValueRemapsIntoCallerTable()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var variable = CreateVariable(
@@ -673,8 +681,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithScalarExpandedNodeIdValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var variable = CreateVariable(
@@ -691,8 +701,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithScalarQualifiedNameValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var variable = CreateVariable(
@@ -708,8 +720,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithScalarExtensionObjectValuePreservesArgument()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var argument = new Argument { Name = "arg", DataType = new NodeId(60u), ValueRank = -1 };
@@ -727,8 +741,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithNodeIdArrayValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var value = new Variant(new[] { new NodeId("A", 2), new NodeId("B", 2) }.ToArrayOf());
@@ -743,8 +759,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithExpandedNodeIdArrayValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var value = new Variant(new[]
@@ -762,8 +780,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithQualifiedNameArrayValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var value = new Variant(new[] { new QualifiedName("A", 2), new QualifiedName("B", 2) }.ToArrayOf());
@@ -778,8 +798,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithExtensionObjectArrayValuePreservesArguments()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var value = new Variant(new[]
@@ -797,8 +819,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithNodeIdMatrixValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var matrix = new NodeId[,] { { new NodeId("A", 2), new NodeId("B", 2) } }.ToMatrixOf();
@@ -813,8 +837,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithExpandedNodeIdMatrixValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var matrix = new ExpandedNodeId[,]
@@ -831,8 +857,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithQualifiedNameMatrixValueRemaps()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kOtherUri, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var matrix = new QualifiedName[,] { { new QualifiedName("A", 2), new QualifiedName("B", 2) } }.ToMatrixOf();
@@ -847,8 +875,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithExtensionObjectMatrixValuePreservesArguments()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var matrix = new ExtensionObject[,]
@@ -868,8 +898,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void CopyVariableWithReferencesTranslatesTargets()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri }.ToArrayOf()
+            };
 
             var callerTable = new NamespaceTable();
             var variable = CreateVariable(new NodeId(75u, 1), new Variant(1), new NodeId(76u));
@@ -888,8 +920,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void NamespaceUrisRoundTripThroughProperty()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri, kOtherUri }.ToArrayOf();
+            var set = new NodeSet
+            {
+                NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri, kOtherUri }.ToArrayOf()
+            };
             Assert.That(set.NamespaceUris.ToArray(),
                 Is.EqualTo([Namespaces.OpcUa, kCustomUri, kOtherUri]));
         }
@@ -897,8 +931,10 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void NamespaceUrisNullResetsToDefaultTable()
         {
-            var set = new NodeSet();
-            set.NamespaceUris = ArrayOf.Null<string>();
+            var set = new NodeSet
+            {
+                NamespaceUris = ArrayOf.Null<string>()
+            };
             Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa]));
         }
 

@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 return (ushort)field.FieldIndex;
             }
-            if (index < 0 || index > ushort.MaxValue)
+            if (index is < 0 or > ushort.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }

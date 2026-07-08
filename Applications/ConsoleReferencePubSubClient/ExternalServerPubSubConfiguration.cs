@@ -221,7 +221,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             {
                 return "External Server Publisher Connection";
             }
-            if (modes == BridgeMode.Subscriber || modes == BridgeMode.Responder)
+            if (modes is BridgeMode.Subscriber or BridgeMode.Responder)
             {
                 return "External Server Subscriber Connection";
             }

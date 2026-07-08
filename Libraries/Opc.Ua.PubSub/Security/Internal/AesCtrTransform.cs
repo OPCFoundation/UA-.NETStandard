@@ -227,7 +227,7 @@ namespace Opc.Ua.PubSub.Security.Internal
 
         private static void ValidateKey(ReadOnlySpan<byte> key)
         {
-            if (key.Length != 16 && key.Length != 24 && key.Length != 32)
+            if (key.Length is not 16 and not 24 and not 32)
             {
                 throw new ArgumentException(
                     "AES key must be 16, 24, or 32 bytes long.",
@@ -281,7 +281,7 @@ namespace Opc.Ua.PubSub.Security.Internal
             }
             Span<byte> counter = stackalloc byte[BlockSize];
             nonce.CopyTo(counter);
-            BinaryPrimitives.WriteUInt32BigEndian(counter.Slice(12), startingBlock);
+            BinaryPrimitives.WriteUInt32BigEndian(counter[12..], startingBlock);
             TransformWithCounter(key, counter, input, output);
         }
     }

@@ -233,7 +233,7 @@ namespace Opc.Ua.Bindings
                 int sent = 0;
                 while (sent < chunk.Length)
                 {
-                    ReadOnlyMemory<byte> slice = chunk.Slice(sent);
+                    ReadOnlyMemory<byte> slice = chunk[sent..];
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                     int n = await socket
                         .SendAsync(slice, SocketFlags.None, ct)

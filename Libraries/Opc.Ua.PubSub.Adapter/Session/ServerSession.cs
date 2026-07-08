@@ -127,10 +127,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             {
                 // Idempotent: only create the managed session once. A concurrent
                 // caller may have established it while this call awaited the lock.
-                if (m_session == null)
-                {
-                    m_session = await CreateSessionAsync(ct).ConfigureAwait(false);
-                }
+                m_session ??= await CreateSessionAsync(ct).ConfigureAwait(false);
             }
             finally
             {

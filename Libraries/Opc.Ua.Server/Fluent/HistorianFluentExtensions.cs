@@ -357,6 +357,6 @@ namespace Opc.Ua.Server.Fluent
         }
 
         private static readonly ConditionalWeakTable<INodeManagerBuilder, HistorianBuilder> s_builders
-            = [];
+            = new();
     }
 }

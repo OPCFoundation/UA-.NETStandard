@@ -48,7 +48,7 @@ namespace Opc.Ua.Di.Tests
     public sealed class DiTransferClientTests
     {
         private static readonly NodeId kTransferServicesId =
-            new NodeId("TransferServices", 2);
+            new("TransferServices", 2);
 
         private static Mock<ISession> CreateSessionMock()
         {
@@ -133,8 +133,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new CallMethodResult[]
                     {
-                        new CallMethodResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.BadInvalidArgument,
                             OutputArguments = global::Opc.Ua.ArrayOf.Empty<Variant>()
                         }
@@ -255,8 +254,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new CallMethodResult[]
                     {
-                        new CallMethodResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             // TransferToDevice / TransferFromDevice in OPC
                             // 10000-100 §10.4 return two output arguments:
@@ -265,8 +263,8 @@ namespace Opc.Ua.Di.Tests
                             OutputArguments =
                                 new Variant[]
                                 {
-                                    new Variant(transferId),
-                                    new Variant(0)
+                                    new(transferId),
+                                    new(0)
                                 }.ToArrayOf()
                         }
                     }.ToArrayOf()
@@ -280,11 +278,10 @@ namespace Opc.Ua.Di.Tests
             {
                 Results = new CallMethodResult[]
                 {
-                    new CallMethodResult
-                    {
+                    new() {
                         StatusCode = StatusCodes.Good,
                         OutputArguments =
-                            new Variant[] { new Variant(ext) }.ToArrayOf()
+                            new Variant[] { new(ext) }.ToArrayOf()
                     }
                 }.ToArrayOf()
             };

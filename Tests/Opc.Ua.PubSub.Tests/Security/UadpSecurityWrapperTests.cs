@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -173,7 +173,7 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -191,10 +191,10 @@ namespace Opc.Ua.PubSub.Tests.Security
             ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload).ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult first = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult replay = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {

@@ -143,10 +143,7 @@ namespace Opc.Ua.PubSub.Redundancy
                 loops = [.. m_loops.Values];
                 m_loops.Clear();
             }
-            if (cts is not null)
-            {
-                cts.Cancel();
-            }
+            cts?.Cancel();
             foreach (ComponentLoop loop in loops)
             {
                 await loop.StopAsync().ConfigureAwait(false);

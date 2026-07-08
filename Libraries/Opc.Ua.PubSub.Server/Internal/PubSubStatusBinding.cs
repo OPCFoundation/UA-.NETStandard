@@ -203,10 +203,7 @@ namespace Opc.Ua.PubSub.Server.Internal
                 m_disposed = true;
             }
             m_application.State.StateChanged -= OnStateChanged;
-            if (m_stateVariable is not null)
-            {
-                m_stateVariable.OnSimpleReadValue = null;
-            }
+            m_stateVariable?.OnSimpleReadValue = null;
             foreach (BoundCounter bound in m_boundCounters)
             {
                 bound.Variable.OnSimpleReadValue = null;

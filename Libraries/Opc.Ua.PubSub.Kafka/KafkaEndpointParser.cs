@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Kafka
                 throw new FormatException(
                     "Kafka endpoint must be of the form kafka[s]://host[:port][,host[:port]...].");
             }
-            string scheme = url.Substring(0, schemeEnd);
+            string scheme = url[..schemeEnd];
             bool useTls;
             if (string.Equals(scheme, KafkaScheme, StringComparison.OrdinalIgnoreCase))
             {
@@ -114,11 +114,11 @@ namespace Opc.Ua.PubSub.Kafka
                     "Kafka endpoint scheme must be 'kafka' or 'kafkas'.");
             }
 
-            string authority = url.Substring(schemeEnd + 3);
+            string authority = url[(schemeEnd + 3)..];
             int pathStart = authority.IndexOf('/', StringComparison.Ordinal);
             if (pathStart >= 0)
             {
-                authority = authority.Substring(0, pathStart);
+                authority = authority[..pathStart];
             }
             if (authority.Length == 0)
             {
@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Kafka
                     throw new FormatException(
                         "Kafka endpoint has an unterminated IPv6 literal.");
                 }
-                string ipv6Host = entry.Substring(1, hostEnd - 1);
+                string ipv6Host = entry[1..hostEnd];
                 if (ipv6Host.Length == 0)
                 {
                     throw new FormatException("Kafka endpoint has an empty IPv6 literal.");
@@ -170,7 +170,7 @@ namespace Opc.Ua.PubSub.Kafka
                         throw new FormatException(
                             "Kafka endpoint has an unexpected character after the IPv6 literal.");
                     }
-                    ipv6Port = ParsePort(entry.Substring(hostEnd + 2));
+                    ipv6Port = ParsePort(entry[(hostEnd + 2)..]);
                 }
                 else
                 {
@@ -184,8 +184,8 @@ namespace Opc.Ua.PubSub.Kafka
             int port;
             if (colon >= 0)
             {
-                host = entry.Substring(0, colon);
-                port = ParsePort(entry.Substring(colon + 1));
+                host = entry[..colon];
+                port = ParsePort(entry[(colon + 1)..]);
             }
             else
             {

@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -176,10 +176,10 @@ namespace Opc.Ua.PubSub.Tests.Security
             // but length and structure match).
             UadpSecurityWrapper.UnwrapResult implicitResult = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                implicitWrap.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                implicitWrap[s_outerPrefix.Length..]).ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult explicitResult = await receiver2.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                explicitWrap.Slice(s_outerPrefix.Length)).ConfigureAwait(false);
+                explicitWrap[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {

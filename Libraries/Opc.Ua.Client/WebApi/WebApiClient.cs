@@ -72,12 +72,7 @@ namespace Opc.Ua.Client.WebApi
             bool ownsHttpClient,
             WebApiClientOptions? options)
         {
-            if (httpClient == null)
-            {
-                throw new ArgumentNullException(nameof(httpClient));
-            }
-
-            m_httpClient = httpClient;
+            m_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             m_ownsHttpClient = ownsHttpClient;
             m_options = options ?? new WebApiClientOptions();
             m_messageContext = m_options.MessageContext

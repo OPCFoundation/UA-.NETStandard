@@ -483,9 +483,7 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 return groupQueue;
             }
-            string? writerSegment = dataSetWriterId.HasValue
-                ? dataSetWriterId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                : null;
+            string? writerSegment = dataSetWriterId?.ToString(System.Globalization.CultureInfo.InvariantCulture);
             return BuildDefaultTopic(
                 ResolveEncoding(m_transportProfileUri),
                 "data",
@@ -716,10 +714,10 @@ namespace Opc.Ua.PubSub.Kafka
             var builder = new StringBuilder(segment.Length);
             foreach (char c in segment)
             {
-                bool allowed = (c >= 'a' && c <= 'z') ||
-                    (c >= 'A' && c <= 'Z') ||
-                    (c >= '0' && c <= '9') ||
-                    c is '_' or '-';
+                bool allowed = c is >= 'a' and <= 'z' or
+                    >= 'A' and <= 'Z' or
+                    >= '0' and <= '9' or
+                    '_' or '-';
                 builder.Append(allowed ? c : '_');
             }
             return builder.ToString();

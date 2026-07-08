@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestSpec("7.2.4.5.11")]
         public void String_WithMaxStringLength10_AlwaysEmits10Bytes(int payloadLength)
         {
-            string payload = new string('x', payloadLength);
+            string payload = new('x', payloadLength);
             byte[] buffer = new byte[64];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);

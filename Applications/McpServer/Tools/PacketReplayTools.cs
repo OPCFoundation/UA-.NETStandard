@@ -165,12 +165,10 @@ namespace Opc.Ua.Mcp.Tools
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            ReplaySessionManager? manager = services.GetService<ReplaySessionManager>();
-            if (manager is null)
-            {
-                // TODO: Remove this guard once replay registration is mandatory for every host using these tools.
-                throw new NotSupportedException("Replay support is not yet wired - replay agent has not completed.");
-            }
+            // TODO: Remove this guard once replay registration is mandatory for every host using these tools.
+            ReplaySessionManager? manager = services.GetService<ReplaySessionManager>()
+                ?? throw new NotSupportedException(
+                    "Replay support is not yet wired - replay agent has not completed.");
 
             return manager;
         }

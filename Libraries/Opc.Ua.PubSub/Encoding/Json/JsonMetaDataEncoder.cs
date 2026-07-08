@@ -94,8 +94,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 writer.WriteNullValue();
                 return;
             }
-            if (valueElement.ValueKind == JsonValueKind.Null ||
-                valueElement.ValueKind == JsonValueKind.Undefined)
+            if (valueElement.ValueKind is JsonValueKind.Null or
+                JsonValueKind.Undefined)
             {
                 writer.WriteNullValue();
                 return;

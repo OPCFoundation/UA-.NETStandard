@@ -2661,7 +2661,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return result;
             }
-            string relativeSuffix = childName.Substring(typeRootName.Length);
+            string relativeSuffix = childName[typeRootName.Length..];
 
             // Only count singletons whose corresponding child has actually
             // been collected (m_nodes contains the singleton-instance

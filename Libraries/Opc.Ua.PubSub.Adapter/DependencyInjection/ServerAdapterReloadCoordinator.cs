@@ -319,12 +319,9 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                     m_pendingConfiguration = null;
                 }
 
-                if (configuration is null)
-                {
-                    configuration = await m_configurationStore
+                configuration ??= await m_configurationStore
                         .LoadAsync(debounce.Token)
                         .ConfigureAwait(false);
-                }
 
                 await ApplyConfigurationAsync(
                     configuration, builder: null, replaceApplication: true, debounce.Token).ConfigureAwait(false);
@@ -387,10 +384,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                     }
                 }
 
-                if (application is not null)
-                {
-                    application.ClearActionHandlers();
-                }
+                application?.ClearActionHandlers();
 
                 foreach (AdapterBinding binding in bindings)
                 {

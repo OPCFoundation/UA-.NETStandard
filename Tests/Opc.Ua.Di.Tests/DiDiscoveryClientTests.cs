@@ -180,8 +180,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new BrowseResult[]
                     {
-                        new BrowseResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             References = new[] { nonDeviceRef }.ToArrayOf()
                         }
@@ -255,8 +254,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new BrowseResult[]
                     {
-                        new BrowseResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             References = global::Opc.Ua.ArrayOf.Empty<ReferenceDescription>()
                         }
@@ -286,8 +284,7 @@ namespace Opc.Ua.Di.Tests
                     {
                         Results = new BrowseResult[]
                         {
-                            new BrowseResult
-                            {
+                            new() {
                                 StatusCode = StatusCodes.Good,
                                 References = refs.ToArrayOf()
                             }

@@ -78,11 +78,8 @@ namespace Opc.Ua.PubSub.DataSets
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
-            if (writer == null)
-            {
-                throw new ArgumentNullException(nameof(writer));
-            }
-            m_writer = writer;
+
+            m_writer = writer ?? throw new ArgumentNullException(nameof(writer));
             m_targets = configuration.TargetVariables;
             m_lastGood = new DataValue[m_targets.Count];
         }

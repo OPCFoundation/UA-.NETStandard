@@ -422,8 +422,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// </summary>
         private sealed class TestConnectionContext : ConnectionContext, IDisposable
         {
-            private readonly Pipe m_inputPipe = new Pipe();
-            private readonly Pipe m_outputPipe = new Pipe();
+            private readonly Pipe m_inputPipe = new();
+            private readonly Pipe m_outputPipe = new();
 
             public TestConnectionContext()
             {

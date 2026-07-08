@@ -87,21 +87,21 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Address = new ExtensionObject(new NetworkAddressUrlDataType
                 {
                     Url = "opc.udp://239.0.0.1:7210"
+                }),
+                ConnectionProperties = new ArrayOf<KeyValuePair>(new[]
+                {
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From("Unrelated"),
+                        Value = "value"
+                    },
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.Null,
+                        Value = "anonymous"
+                    }
                 })
             };
-            connection.ConnectionProperties = new ArrayOf<KeyValuePair>(new[]
-            {
-                new KeyValuePair
-                {
-                    Key = QualifiedName.From("Unrelated"),
-                    Value = "value"
-                },
-                new KeyValuePair
-                {
-                    Key = QualifiedName.Null,
-                    Value = "anonymous"
-                }
-            });
 
             IPubSubTransport transport = factory.Create(
                 connection,
@@ -123,16 +123,16 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Address = new ExtensionObject(new NetworkAddressUrlDataType
                 {
                     Url = "opc.udp://239.0.0.1:7220"
+                }),
+                ConnectionProperties = new ArrayOf<KeyValuePair>(new[]
+                {
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(UdpPubSubTransportFactory.NetworkInterfacePropertyKey),
+                        Value = string.Empty
+                    }
                 })
             };
-            connection.ConnectionProperties = new ArrayOf<KeyValuePair>(new[]
-            {
-                new KeyValuePair
-                {
-                    Key = QualifiedName.From(UdpPubSubTransportFactory.NetworkInterfacePropertyKey),
-                    Value = string.Empty
-                }
-            });
 
             IPubSubTransport transport = factory.Create(
                 connection,

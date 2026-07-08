@@ -223,7 +223,7 @@ namespace Opc.Ua.Pcap.Replay
 
                 uint messageType = BitConverter.ToUInt32(frame.Data.Span[..sizeof(uint)]);
                 uint baseType = messageType & TcpMessageType.MessageTypeMask;
-                if (baseType != TcpMessageType.Message && baseType != TcpMessageType.Close)
+                if (baseType is not TcpMessageType.Message and not TcpMessageType.Close)
                 {
                     continue;
                 }

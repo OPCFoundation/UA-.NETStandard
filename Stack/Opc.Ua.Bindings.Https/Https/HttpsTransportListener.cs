@@ -1887,7 +1887,7 @@ namespace Opc.Ua.Bindings
                 }
                 try
                 {
-                    if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                    if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                     {
                         await ws.CloseAsync(
                             WebSocketCloseStatus.NormalClosure,
@@ -2085,7 +2085,7 @@ namespace Opc.Ua.Bindings
                 }
                 try
                 {
-                    if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                    if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                     {
                         await ws.CloseAsync(
                             WebSocketCloseStatus.NormalClosure,

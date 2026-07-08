@@ -571,7 +571,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             state[12] = BinaryPrimitives.ReadUInt32LittleEndian(counter);
-            state[13] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(0, 4));
+            state[13] = BinaryPrimitives.ReadUInt32LittleEndian(nonce[..4]);
             state[14] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(4, 4));
             state[15] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(8, 4));
             Span<uint> working = stackalloc uint[16];

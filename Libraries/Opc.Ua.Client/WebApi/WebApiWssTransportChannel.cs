@@ -153,14 +153,11 @@ namespace Opc.Ua.Client.WebApi
             {
                 throw new ArgumentNullException(nameof(url));
             }
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+
             ThrowIfDisposed();
 
             m_url = NormalizeUrl(url);
-            m_settings = settings;
+            m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             OperationTimeout = settings.Configuration?.OperationTimeout ?? 60000;
 
             m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)
@@ -363,7 +360,7 @@ namespace Opc.Ua.Client.WebApi
 
             try
             {
-                if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                 {
                     await ws.CloseAsync(
                         WebSocketCloseStatus.NormalClosure,

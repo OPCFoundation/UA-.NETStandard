@@ -224,9 +224,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
 
         private static KafkaMessage Copy(KafkaMessage message)
         {
-            IReadOnlyDictionary<string, string>? headers = message.Headers is null
-                ? null
-                : message.Headers.ToDictionary(
+            IReadOnlyDictionary<string, string>? headers = message.Headers?.ToDictionary(
                     static header => header.Key,
                     static header => header.Value,
                     StringComparer.Ordinal);

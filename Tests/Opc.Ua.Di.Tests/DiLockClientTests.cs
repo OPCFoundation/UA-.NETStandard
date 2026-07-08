@@ -56,7 +56,7 @@ namespace Opc.Ua.Di.Tests
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant(0) }
+                OutputArguments = new Variant[] { new(0) }
             }, r => captured = r);
 
             var client = new DiLockClient(
@@ -88,7 +88,7 @@ namespace Opc.Ua.Di.Tests
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant(1) }
+                OutputArguments = new Variant[] { new(1) }
             }, r => captured = r);
 
             var client = new DiLockClient(
@@ -116,7 +116,7 @@ namespace Opc.Ua.Di.Tests
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant(0) }
+                OutputArguments = new Variant[] { new(0) }
             }, r => captured = r);
 
             var client = new DiLockClient(
@@ -143,7 +143,7 @@ namespace Opc.Ua.Di.Tests
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant(0) }
+                OutputArguments = new Variant[] { new(0) }
             }, r => captured = r);
 
             var client = new DiLockClient(
@@ -167,7 +167,7 @@ namespace Opc.Ua.Di.Tests
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.BadUserAccessDenied,
-                OutputArguments = new Variant[] { new Variant(0) }
+                OutputArguments = new Variant[] { new(0) }
             });
 
             var client = new DiLockClient(
@@ -203,7 +203,7 @@ namespace Opc.Ua.Di.Tests
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant("not-an-int") }
+                OutputArguments = new Variant[] { new("not-an-int") }
             });
 
             var client = new DiLockClient(

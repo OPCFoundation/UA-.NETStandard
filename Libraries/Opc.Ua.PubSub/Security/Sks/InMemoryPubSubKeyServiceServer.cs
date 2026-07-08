@@ -112,13 +112,9 @@ namespace Opc.Ua.PubSub.Security.Sks
             cancellationToken.ThrowIfCancellationRequested();
 
             IPubSubSecurityPolicy? policy =
-                PubSubSecurityPolicyRegistry.GetByUri(group.SecurityPolicyUri);
-            if (policy is null)
-            {
-                throw new OpcUaSksException(
+                PubSubSecurityPolicyRegistry.GetByUri(group.SecurityPolicyUri) ?? throw new OpcUaSksException(
                     StatusCodes.BadSecurityPolicyRejected,
                     $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
-            }
 
             SksSecurityGroup? snapshot = null;
             lock (m_lock)
@@ -475,7 +471,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                         $"SecurityGroup '{securityGroupId}' is not registered.");
                 }
 
-                uint nextTokenId = unchecked(state.Keys[state.Keys.Count - 1].TokenId + 1u);
+                uint nextTokenId = unchecked(state.Keys[^1].TokenId + 1u);
                 for (int i = state.CurrentIndex; i < state.Keys.Count; i++)
                 {
                     state.Keys[i].Dispose();
@@ -652,7 +648,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return 1u;
             }
-            return unchecked(keys[keys.Count - 1].TokenId + 1u);
+            return unchecked(keys[^1].TokenId + 1u);
         }
 
         private sealed class SecurityGroupState

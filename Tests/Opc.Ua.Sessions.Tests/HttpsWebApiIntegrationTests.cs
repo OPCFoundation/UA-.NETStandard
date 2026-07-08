@@ -297,8 +297,7 @@ namespace Opc.Ua.Sessions.Tests
                 TimestampsToReturn = TimestampsToReturn.Both,
                 NodesToRead = new ArrayOf<ReadValueId>(new ReadValueId[]
                 {
-                    new ReadValueId
-                    {
+                    new() {
                         NodeId = VariableIds.Server_NamespaceArray,
                         AttributeId = Attributes.Value
                     }

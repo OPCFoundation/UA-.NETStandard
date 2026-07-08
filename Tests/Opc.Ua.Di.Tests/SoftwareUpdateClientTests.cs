@@ -54,8 +54,7 @@ namespace Opc.Ua.Di.Tests
                 StatusCode = StatusCodes.Good,
                 Targets = new BrowsePathTarget[]
                 {
-                    new BrowsePathTarget
-                    {
+                    new() {
                         TargetId = new ExpandedNodeId("sv-1", 2),
                         RemainingPathIndex = uint.MaxValue
                     }
@@ -114,8 +113,7 @@ namespace Opc.Ua.Di.Tests
                 StatusCode = StatusCodes.Good,
                 Targets = new BrowsePathTarget[]
                 {
-                    new BrowsePathTarget
-                    {
+                    new() {
                         TargetId = new ExpandedNodeId("sv-1", 2),
                         RemainingPathIndex = uint.MaxValue
                     }
@@ -140,8 +138,7 @@ namespace Opc.Ua.Di.Tests
                 StatusCode = StatusCodes.Good,
                 Targets = new BrowsePathTarget[]
                 {
-                    new BrowsePathTarget
-                    {
+                    new() {
                         TargetId = new ExpandedNodeId("sv-1", 2),
                         RemainingPathIndex = uint.MaxValue
                     }

@@ -100,7 +100,7 @@ namespace Opc.Ua.PubSub.Security
                     nameof(nonce));
             }
             BinaryPrimitives.WriteUInt32BigEndian(
-                nonce.Slice(0, MessageRandomLength),
+                nonce[..MessageRandomLength],
                 messageRandom);
             BinaryPrimitives.WriteUInt64LittleEndian(
                 nonce.Slice(MessageRandomLength, SequenceNumberLength),
@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Security
                     nameof(nonce));
             }
             uint messageRandom = BinaryPrimitives.ReadUInt32BigEndian(
-                nonce.Slice(0, MessageRandomLength));
+                nonce[..MessageRandomLength]);
             ulong messageSequenceNumber = BinaryPrimitives.ReadUInt64LittleEndian(
                 nonce.Slice(MessageRandomLength, SequenceNumberLength));
             return new AesCtrNonceComponents(messageRandom, messageSequenceNumber);
@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Security
             written = SystemEncoding.UTF8.GetBytes(value.AsSpan(), buffer);
             if (written < PublisherIdLength)
             {
-                buffer.Slice(written).Clear();
+                buffer[written..].Clear();
             }
 #else
             byte[] utf8 = SystemEncoding.UTF8.GetBytes(value);
@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub.Security
             utf8.AsSpan(0, copy).CopyTo(buffer);
             if (copy < PublisherIdLength)
             {
-                buffer.Slice(copy).Clear();
+                buffer[copy..].Clear();
             }
             written = copy;
 #endif
@@ -223,7 +223,7 @@ namespace Opc.Ua.PubSub.Security
             guidBytes.AsSpan().CopyTo(buffer);
 #endif
             return BinaryPrimitives.ReadUInt64LittleEndian(
-                buffer.Slice(0, PublisherIdLength));
+                buffer[..PublisherIdLength]);
         }
 
         /// <summary>

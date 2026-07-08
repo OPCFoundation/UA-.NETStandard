@@ -464,7 +464,7 @@ namespace Opc.Ua
             try
             {
                 certificate = Certificate.FromRawData(
-                    plaintext.Span.Slice(TimestampLength).ToArray());
+                    plaintext.Span[TimestampLength..].ToArray());
                 return true;
             }
             catch (Exception ex)

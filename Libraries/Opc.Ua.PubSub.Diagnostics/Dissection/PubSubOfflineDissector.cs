@@ -191,7 +191,7 @@ namespace Opc.Ua.PubSub.Pcap
                     : PubSubDissectionMessageType.Uadp;
                 return Project(frame, message, messageType);
             }
-            catch (Exception ex) when (ex is FormatException || ex is ArgumentException || ex is InvalidOperationException)
+            catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException)
             {
                 return CreateUndecodable(frame, PubSubDissectionMessageType.Uadp, ex.Message);
             }
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Pcap
                     : PubSubDissectionMessageType.Json;
                 return Project(frame, message, messageType);
             }
-            catch (Exception ex) when (ex is FormatException || ex is ArgumentException || ex is InvalidOperationException)
+            catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException)
             {
                 return CreateUndecodable(frame, PubSubDissectionMessageType.Json, ex.Message);
             }
@@ -255,8 +255,8 @@ namespace Opc.Ua.PubSub.Pcap
 
                 using DecryptWrapperLease wrapperLease = CreateDecryptWrapper(keyMaterial, policy);
                 UadpSecurityWrapper.UnwrapResult unwrap = await wrapperLease.Wrapper.TryUnwrapAsync(
-                    frame.Data.Slice(0, secured.PrefixLength),
-                    frame.Data.Slice(secured.PrefixLength),
+                    frame.Data[..secured.PrefixLength],
+                    frame.Data[secured.PrefixLength..],
                     cancellationToken).ConfigureAwait(false);
                 if (!unwrap.IsSuccess || !unwrap.InnerPayload.HasValue)
                 {
@@ -267,7 +267,7 @@ namespace Opc.Ua.PubSub.Pcap
                 }
 
                 byte[] cleartext = new byte[secured.PrefixLength + unwrap.InnerPayload.Value.Length];
-                frame.Data.Span.Slice(0, secured.PrefixLength).CopyTo(cleartext);
+                frame.Data.Span[..secured.PrefixLength].CopyTo(cleartext);
                 unwrap.InnerPayload.Value.Span.CopyTo(cleartext.AsSpan(secured.PrefixLength));
                 var clearFrame = new PubSubCaptureFrame(
                     frame.Timestamp,
@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub.Pcap
                     secured.SecurityTokenId,
                     "decrypted");
             }
-            catch (Exception ex) when (ex is FormatException || ex is ArgumentException || ex is InvalidOperationException)
+            catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException)
             {
                 return secured.Result with
                 {
@@ -521,7 +521,7 @@ namespace Opc.Ua.PubSub.Pcap
             for (int i = 0; i < data.Length; i++)
             {
                 byte value = data[i];
-                if (value == (byte)'{' || value == (byte)'[')
+                if (value is ((byte)'{') or ((byte)'['))
                 {
                     return PubSubDissectionMessageType.Json;
                 }

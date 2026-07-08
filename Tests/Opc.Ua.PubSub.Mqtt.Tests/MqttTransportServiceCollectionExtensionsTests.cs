@@ -161,8 +161,10 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 mqttBuilder.WithConnectionOptions(options =>
                 {
                     options.Endpoint = "mqtts://broker.example.com:8883";
-                    options.Tls = new MqttTlsOptions();
-                    options.Tls.UseTls = true;
+                    options.Tls = new MqttTlsOptions
+                    {
+                        UseTls = true
+                    };
                 });
             });
 

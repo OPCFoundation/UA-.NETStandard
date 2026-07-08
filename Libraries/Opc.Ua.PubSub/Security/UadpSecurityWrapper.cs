@@ -291,7 +291,7 @@ namespace Opc.Ua.PubSub.Security
                 outerPrefix.Span.CopyTo(signedBuffer.AsSpan(0, outerPrefix.Length));
                 securityAndPayload
                     .Span
-                    .Slice(0, headerLength + payloadAndFooterLength)
+[..(headerLength + payloadAndFooterLength)]
                     .CopyTo(signedBuffer.AsSpan(outerPrefix.Length, headerLength + payloadAndFooterLength));
 
                 if (signed && signatureLength > 0)

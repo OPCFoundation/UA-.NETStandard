@@ -599,7 +599,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     lock (m_lock)
                     {
-                        return m_sent[m_sent.Count - 1];
+                        return m_sent[^1];
                     }
                 }
             }

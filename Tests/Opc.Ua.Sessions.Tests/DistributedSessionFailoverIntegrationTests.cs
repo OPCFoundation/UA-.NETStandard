@@ -206,8 +206,10 @@ namespace Opc.Ua.Sessions.Tests
         {
             var fixture = new ServerFixture<ReferenceServer>(telemetry =>
             {
-                var server = new ReferenceServer(telemetry);
-                server.SessionManagerFactory = factory;
+                var server = new ReferenceServer(telemetry)
+                {
+                    SessionManagerFactory = factory
+                };
                 return server;
             })
             {

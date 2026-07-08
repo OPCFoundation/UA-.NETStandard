@@ -300,8 +300,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                 NewContext(),
                 out int payloadOffset);
             ReadOnlyMemory<byte> secured = await wrapper.WrapAsync(
-                encoded.Slice(0, payloadOffset),
-                encoded.Slice(payloadOffset),
+                encoded[..payloadOffset],
+                encoded[payloadOffset..],
                 UadpSecurityWrapOptions.SignAndEncrypt).ConfigureAwait(false);
             return new SecuredFrame(secured.ToArray(), material);
         }

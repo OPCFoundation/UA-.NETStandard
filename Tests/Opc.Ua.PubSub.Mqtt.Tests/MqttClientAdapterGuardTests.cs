@@ -239,7 +239,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
 
             var filters = new List<MqttTopicFilter>
             {
-                new MqttTopicFilter("test/topic", MqttQualityOfService.AtMostOnce)
+                new("test/topic", MqttQualityOfService.AtMostOnce)
             };
 
             Assert.ThrowsAsync<ObjectDisposedException>(

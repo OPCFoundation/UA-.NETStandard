@@ -189,7 +189,7 @@ namespace Opc.Ua.Bindings
 #pragma warning disable CA1845 // Substring+'+' kept for predictable behaviour across all TFMs
             // (the span-based string.Concat overload silently affects the
             // Assembly.Load probing path observed in CI on net10 PCap tests).
-            string candidate = coreName.Substring(0, offset) + "Bindings.Https";
+            string candidate = coreName[..offset] + "Bindings.Https";
 #pragma warning restore CA1845
             try
             {

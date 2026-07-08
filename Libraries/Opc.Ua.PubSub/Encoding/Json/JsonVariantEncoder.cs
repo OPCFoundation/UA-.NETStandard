@@ -224,8 +224,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return;
             }
             destination.WritePropertyName(propertyName);
-            if (valueElement.ValueKind == JsonValueKind.Null ||
-                valueElement.ValueKind == JsonValueKind.Undefined)
+            if (valueElement.ValueKind is JsonValueKind.Null or
+                JsonValueKind.Undefined)
             {
                 destination.WriteNullValue();
                 return;

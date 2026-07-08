@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Mqtt
                 throw new FormatException(
                     "MQTT endpoint must be of the form mqtt[s]://host[:port].");
             }
-            string scheme = url.Substring(0, schemeEnd);
+            string scheme = url[..schemeEnd];
             bool useTls;
             int defaultPort;
             bool isWebSocket;
@@ -155,13 +155,13 @@ namespace Opc.Ua.PubSub.Mqtt
                     "MQTT endpoint scheme must be 'mqtt', 'mqtts', 'ws', or 'wss'.");
             }
 
-            string authority = url.Substring(schemeEnd + 3);
+            string authority = url[(schemeEnd + 3)..];
             string path = string.Empty;
             int pathStart = authority.IndexOf('/', StringComparison.Ordinal);
             if (pathStart >= 0)
             {
-                path = authority.Substring(pathStart);
-                authority = authority.Substring(0, pathStart);
+                path = authority[pathStart..];
+                authority = authority[..pathStart];
             }
             if (authority.Length == 0)
             {
@@ -178,7 +178,7 @@ namespace Opc.Ua.PubSub.Mqtt
                     throw new FormatException(
                         "MQTT endpoint has an unterminated IPv6 literal.");
                 }
-                host = authority.Substring(1, hostEnd - 1);
+                host = authority[1..hostEnd];
                 if (host.Length == 0)
                 {
                     throw new FormatException("MQTT endpoint has an empty IPv6 literal.");
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Mqtt
                         throw new FormatException(
                             "MQTT endpoint has an unexpected character after the IPv6 literal.");
                     }
-                    port = ParsePort(authority.Substring(hostEnd + 2));
+                    port = ParsePort(authority[(hostEnd + 2)..]);
                 }
                 else
                 {
@@ -202,8 +202,8 @@ namespace Opc.Ua.PubSub.Mqtt
                 int colon = authority.LastIndexOf(':');
                 if (colon >= 0)
                 {
-                    host = authority.Substring(0, colon);
-                    port = ParsePort(authority.Substring(colon + 1));
+                    host = authority[..colon];
+                    port = ParsePort(authority[(colon + 1)..]);
                 }
                 else
                 {

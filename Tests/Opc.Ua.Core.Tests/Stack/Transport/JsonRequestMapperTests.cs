@@ -131,13 +131,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             var nodesToRead = new ArrayOf<ReadValueId>(new ReadValueId[]
             {
-                new ReadValueId
-                {
+                new() {
                     NodeId = new NodeId("Var1", 2),
                     AttributeId = Attributes.Value
                 },
-                new ReadValueId
-                {
+                new() {
                     NodeId = new NodeId(42u, 0),
                     AttributeId = Attributes.DisplayName
                 }
@@ -180,9 +178,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             var results = new ArrayOf<DataValue>(new DataValue[]
             {
-                new DataValue(new Variant(123), StatusCodes.Good),
-                new DataValue(new Variant("hello"), StatusCodes.Good),
-                new DataValue(Variant.Null, StatusCodes.BadAttributeIdInvalid)
+                new(new Variant(123), StatusCodes.Good),
+                new(new Variant("hello"), StatusCodes.Good),
+                new(Variant.Null, StatusCodes.BadAttributeIdInvalid)
             }.AsMemory());
             var response = new ReadResponse
             {

@@ -180,8 +180,10 @@ namespace Opc.Ua.Bindings
             ReverseConnectionUrl = endpointUrl;
             SetEndpointUrl(Listener.EndpointUrl.ToString());
 
-            var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger);
-            ar.Transport = transport;
+            var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger)
+            {
+                Transport = transport
+            };
             Transport = transport;
 
             _ = ReverseConnectAsync(transport, endpointUrl, ar);

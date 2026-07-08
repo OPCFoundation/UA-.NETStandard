@@ -317,8 +317,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             PubSubNetworkMessageContext context = NewContext();
             ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
                 msg, context, out int payloadOffset);
-            ReadOnlyMemory<byte> prefix = encoded.Slice(0, payloadOffset);
-            ReadOnlyMemory<byte> inner = encoded.Slice(payloadOffset);
+            ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
+            ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
             ReadOnlyMemory<byte> wrapped = await publisher
                 .WrapAsync(prefix, inner, UadpSecurityWrapOptions.SignAndEncrypt)
                 .ConfigureAwait(false);

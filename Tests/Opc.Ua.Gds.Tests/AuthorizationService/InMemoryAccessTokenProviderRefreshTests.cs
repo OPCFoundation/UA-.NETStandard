@@ -244,12 +244,12 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             var options = new AuthorizationServiceOptions
             {
                 IssuerUri = Issuer,
-                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint },
+                // These tests exercise refresh mechanics, so the operator authorizes
+                // the requested roles; the fail-closed default (no roles) is covered
+                // by StartRequestTokenTests.
+                AuthorizeRoles = (identity, audience, requestedRoles) => requestedRoles
             };
-            // These tests exercise refresh mechanics, so the operator authorizes
-            // the requested roles; the fail-closed default (no roles) is covered
-            // by StartRequestTokenTests.
-            options.AuthorizeRoles = (identity, audience, requestedRoles) => requestedRoles;
             return options;
         }
 

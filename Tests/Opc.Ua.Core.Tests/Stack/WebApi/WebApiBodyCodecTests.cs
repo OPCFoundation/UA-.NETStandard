@@ -149,11 +149,11 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
                 },
                 Results = new ArrayOf<DataValue>(new DataValue[]
                 {
-                    new DataValue(
+                    new(
                         new Variant(42),
                         StatusCodes.Good,
                         sourceTimestamp),
-                    new DataValue(
+                    new(
                         new Variant("hello"),
                         StatusCodes.GoodEntryInserted)
                 }.AsMemory())
@@ -289,13 +289,11 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
                 TimestampsToReturn = TimestampsToReturn.Both,
                 NodesToRead = new ArrayOf<ReadValueId>(new ReadValueId[]
                 {
-                    new ReadValueId
-                    {
+                    new() {
                         NodeId = new NodeId("Var1", 2),
                         AttributeId = Attributes.Value
                     },
-                    new ReadValueId
-                    {
+                    new() {
                         NodeId = new NodeId(42u, 0),
                         AttributeId = Attributes.DisplayName
                     }

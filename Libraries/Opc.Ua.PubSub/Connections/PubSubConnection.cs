@@ -2462,8 +2462,8 @@ namespace Opc.Ua.PubSub.Connections
             {
                 ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
                     message, context, out int payloadOffset);
-                ReadOnlyMemory<byte> prefix = encoded.Slice(0, payloadOffset);
-                ReadOnlyMemory<byte> inner = encoded.Slice(payloadOffset);
+                ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
+                ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
                 return await m_securityWrapper!
                     .WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken)
                     .ConfigureAwait(false);
@@ -2543,7 +2543,7 @@ namespace Opc.Ua.PubSub.Connections
             ushort writerGroupId)
         {
             m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksReceived);
-            ReadOnlyMemory<byte> inner = frame.Slice(prefixLength);
+            ReadOnlyMemory<byte> inner = frame[prefixLength..];
             if (!UadpChunker.TryParseChunk(inner,
                 out _, out _, out _, out _))
             {
@@ -2578,8 +2578,8 @@ namespace Opc.Ua.PubSub.Connections
         {
             try
             {
-                ReadOnlyMemory<byte> prefix = frame.Slice(0, prefixLength);
-                ReadOnlyMemory<byte> securityAndPayload = frame.Slice(prefixLength);
+                ReadOnlyMemory<byte> prefix = frame[..prefixLength];
+                ReadOnlyMemory<byte> securityAndPayload = frame[prefixLength..];
 
                 UadpSecurityWrapper.UnwrapResult result = await m_securityWrapper!
                     .TryUnwrapAsync(prefix, securityAndPayload, cancellationToken)

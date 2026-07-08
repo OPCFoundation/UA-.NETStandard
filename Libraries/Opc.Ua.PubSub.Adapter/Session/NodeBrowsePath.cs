@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     index++;
                 }
 
-                string segment = text.Substring(start, index - start);
+                string segment = text[start..index];
                 if (segment.Length == 0)
                 {
                     throw ServiceResultException.Create(

@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
         {
             return m_receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                m_wrapped.Slice(s_outerPrefix.Length));
+                m_wrapped[s_outerPrefix.Length..]);
         }
 
         private sealed class NullTelemetryContext : TelemetryContextBase

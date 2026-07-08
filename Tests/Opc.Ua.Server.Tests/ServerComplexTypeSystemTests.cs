@@ -253,8 +253,8 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName(BrowseNames.EnumStrings),
                 Value = new Variant(new LocalizedText[]
                 {
-                    new LocalizedText("Red"),
-                    new LocalizedText("Green")
+                    new("Red"),
+                    new("Green")
                 })
             };
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = enumStringsPropId,
                 BrowseName = new QualifiedName(BrowseNames.EnumStrings),
-                Value = new Variant(new LocalizedText[] { new LocalizedText("Red") })
+                Value = new Variant(new LocalizedText[] { new("Red") })
             };
             m_nodesById[enumValuesPropId] = new BaseDataVariableState(null)
             {
@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName("EnumValues"),
                 Value = new Variant(new ExtensionObject[]
                 {
-                    new ExtensionObject(new EnumValueType
+                    new(new EnumValueType
                     {
                         Value = 0,
                         DisplayName = new LocalizedText("Red")

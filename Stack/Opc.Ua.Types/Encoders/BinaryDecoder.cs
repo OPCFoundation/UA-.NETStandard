@@ -2077,7 +2077,7 @@ namespace Opc.Ua
 #else
                 byte[] buffer = m_reader.ReadBytes(destination.Length - offset);
                 length = buffer.Length;
-                buffer.AsSpan().CopyTo(destination.Slice(offset));
+                buffer.AsSpan().CopyTo(destination[offset..]);
 #endif
 
                 if (length == 0)

@@ -75,49 +75,37 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(service));
             }
-            if (lockState.InitLock != null)
-            {
-                lockState.InitLock.OnCall = (ISystemContext ctx, MethodState _method,
+            lockState.InitLock?.OnCall = (ISystemContext ctx, MethodState _method,
                                               NodeId _objectId, string context,
                                               ref int initLockStatus) =>
                 {
                     initLockStatus = service.InitLock(ctx, elementId, context);
                     return ServiceResult.Good;
                 };
-            }
 
-            if (lockState.RenewLock != null)
-            {
-                lockState.RenewLock.OnCall = (ISystemContext ctx, MethodState _method,
+            lockState.RenewLock?.OnCall = (ISystemContext ctx, MethodState _method,
                                                NodeId _objectId,
                                                ref int renewLockStatus) =>
                 {
                     renewLockStatus = service.RenewLock(ctx, elementId);
                     return ServiceResult.Good;
                 };
-            }
 
-            if (lockState.ExitLock != null)
-            {
-                lockState.ExitLock.OnCall = (ISystemContext ctx, MethodState _method,
+            lockState.ExitLock?.OnCall = (ISystemContext ctx, MethodState _method,
                                               NodeId _objectId,
                                               ref int exitLockStatus) =>
                 {
                     exitLockStatus = service.ExitLock(ctx, elementId);
                     return ServiceResult.Good;
                 };
-            }
 
-            if (lockState.BreakLock != null)
-            {
-                lockState.BreakLock.OnCall = (ISystemContext ctx, MethodState _method,
+            lockState.BreakLock?.OnCall = (ISystemContext ctx, MethodState _method,
                                                NodeId _objectId,
                                                ref int breakLockStatus) =>
                 {
                     breakLockStatus = service.BreakLock(ctx, elementId);
                     return ServiceResult.Good;
                 };
-            }
         }
     }
 }

@@ -157,8 +157,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Assert.That(received.Length, Is.EqualTo(datagram.Length));
 
                 int prefixLength = s_outerPrefix.Length;
-                ReadOnlyMemory<byte> prefix = received.Slice(0, prefixLength);
-                ReadOnlyMemory<byte> securityAndPayload = received.Slice(prefixLength);
+                ReadOnlyMemory<byte> prefix = received[..prefixLength];
+                ReadOnlyMemory<byte> securityAndPayload = received[prefixLength..];
 
                 UadpSecurityWrapper.UnwrapResult result = await subscriberWrapper
                     .TryUnwrapAsync(prefix, securityAndPayload)

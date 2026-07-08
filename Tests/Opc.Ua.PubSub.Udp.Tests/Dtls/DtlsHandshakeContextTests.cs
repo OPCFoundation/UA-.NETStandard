@@ -571,7 +571,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             }
 
             /// <inheritdoc/>
-            public IPEndPoint? RemoteEndpoint => new IPEndPoint(IPAddress.Loopback, 4843);
+            public IPEndPoint? RemoteEndpoint => new(IPAddress.Loopback, 4843);
 
             /// <inheritdoc/>
             public ValueTask SendAsync(

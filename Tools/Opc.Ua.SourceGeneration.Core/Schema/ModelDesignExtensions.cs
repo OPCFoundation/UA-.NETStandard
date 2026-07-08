@@ -440,18 +440,14 @@ namespace Opc.Ua.Schema.Model
                     // (ScalarOrArray, ScalarOrOneDimension, Any, or matrix
                     // over an abstract numeric base) stays on the Variant
                     // fallback.
-                    if (variable.ValueRank == ValueRank.OneOrMoreDimensions &&
-                        variable.DataTypeNode != null &&
-                        variable.DataTypeNode.SupportsMatrixOf() &&
-                        variable.DataTypeNode.BasicDataType
+                    return variable.ValueRank != ValueRank.OneOrMoreDimensions ||
+                        variable.DataTypeNode == null ||
+                        !variable.DataTypeNode.SupportsMatrixOf() ||
+                        !(variable.DataTypeNode.BasicDataType
                             is not BasicDataType.BaseDataType
                             and not BasicDataType.Number
                             and not BasicDataType.UInteger
-                            and not BasicDataType.Integer)
-                    {
-                        return false;
-                    }
-                    return true;
+                            and not BasicDataType.Integer);
                 }
                 if (variable.DataType ==
                     new XmlQualifiedName(BrowseNames.Enumeration, Namespaces.OpcUa))

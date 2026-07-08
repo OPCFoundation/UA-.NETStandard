@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptedSecret = CreateRsa();
             byte[] nonce = NonceBytes();
             byte[] encoded = encryptedSecret.EncryptRsa(SecretBytes(), nonce);
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
 
             Assert.That(
                 () => encryptedSecret.TryDecryptRsa(encoded, nonce, out _),
@@ -642,7 +642,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = CreateEccEncryptor(
                 policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
             byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
             Assert.That(
@@ -691,7 +691,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = CreateEccEncryptor(
                 policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
             byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
             bool ok = decryptor.TryDecrypt(encoded, NonceBytes(), out byte[] decrypted);
@@ -715,7 +715,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = CreateEccEncryptor(
                 policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
             byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
             (bool success, byte[] decrypted) = await decryptor

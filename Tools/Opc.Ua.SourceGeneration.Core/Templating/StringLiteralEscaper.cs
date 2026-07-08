@@ -168,7 +168,7 @@ namespace Opc.Ua.SourceGeneration.Templating
         private static bool IsControl(char c)
         {
             // C0 control range and DEL.
-            return c < 0x20 || c == 0x7f;
+            return c is < (char)0x20 or (char)0x7f;
         }
     }
 }

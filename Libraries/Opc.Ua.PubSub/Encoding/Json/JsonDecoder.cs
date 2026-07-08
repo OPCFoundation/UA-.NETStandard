@@ -1389,7 +1389,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             for (int i = 0; i < value.Length; i++)
             {
-                if (value[i] < '0' || value[i] > '9')
+                if (value[i] is < '0' or > '9')
                 {
                     return false;
                 }

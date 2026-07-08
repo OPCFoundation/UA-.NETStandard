@@ -686,8 +686,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 message.MetaDataVersion.MajorVersion);
             MetaData.MetaDataMatchResult match =
                 context.MetaDataRegistry.TryGet(key, out DataSetMetaDataType? meta);
-            if (match == MetaData.MetaDataMatchResult.Match ||
-                match == MetaData.MetaDataMatchResult.MinorVersionMismatch)
+            if (match is MetaData.MetaDataMatchResult.Match or
+                MetaData.MetaDataMatchResult.MinorVersionMismatch)
             {
                 return meta;
             }

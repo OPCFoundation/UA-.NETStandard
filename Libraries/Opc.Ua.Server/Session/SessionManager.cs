@@ -406,11 +406,8 @@ namespace Opc.Ua.Server
                         // the restored, single-use serverNonce) still runs. The
                         // token is a lookup key only, never an authenticator.
                         session = await RestoreSessionAsync(
-                            authenticationToken, context, cancellationToken).ConfigureAwait(false);
-                        if (session == null)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
-                        }
+                            authenticationToken, context, cancellationToken).ConfigureAwait(false)
+                            ?? throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                         if (!m_sessions.TryAdd(authenticationToken, session) &&
                             !m_sessions.TryGetValue(authenticationToken, out session))
                         {
