@@ -205,7 +205,13 @@ namespace Opc.Ua.Redundancy.Client
                 {
                     NodeId = options.NodeId,
                     Mode = options.Mode,
-                    CreateSessionAsync = options.CreateSessionAsync,
+                    EnableTokenReuse = options.EnableTokenReuse,
+                    CreateSessionAsync = async ct =>
+                    {
+                        ManagedSession session = await options.CreateSessionAsync!(ct).ConfigureAwait(false);
+                        session.EnableTokenReuseFailover = options.EnableTokenReuse;
+                        return session;
+                    },
                     ConfigureLeaderAsync = options.ConfigureLeaderAsync,
                 };
 

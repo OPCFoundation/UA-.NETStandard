@@ -40,11 +40,16 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Identity;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Client;
 using Opc.Ua.Tests;
@@ -784,6 +789,47 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         [Test]
+        public async Task WaitForLeadershipRetriesAfterPromotionSessionCreationFailureAsync()
+        {
+            ManagedSession? current = null;
+            var election = new ManualLeaderElection();
+            using var store = new InMemorySharedKeyValueStore();
+            int attempts = 0;
+            var coordinator = new ClientReplicaCoordinator(
+                new ClientReplicaOptions
+                {
+                    EnableTokenReuse = false,
+                    CreateSessionAsync = _ =>
+                    {
+                        attempts++;
+                        if (attempts == 1)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCommunicationError);
+                        }
+
+                        current = CreateManagedSession();
+                        return new ValueTask<ManagedSession>(current);
+                    }
+                },
+                election,
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+            var facade = new RedundantClientSession(coordinator, () => current);
+            m_facades.Add(facade);
+
+            await facade.StartAsync(CancellationToken.None);
+            Task waitForLeadership = facade.WaitForLeadershipAsync(CancellationToken.None);
+
+            election.Promote();
+            await waitForLeadership.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(facade.IsLeader, Is.True);
+            Assert.That(facade.Current, Is.SameAs(current));
+        }
+
+        [Test]
         public async Task StartAsyncStartsCoordinatorAndWiresSessionAsync()
         {
             var session = new Mock<ISession>();
@@ -1042,6 +1088,86 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var facade = new RedundantClientSession(coordinator, () => null);
             m_facades.Add(facade);
             return facade;
+        }
+
+        private static ManagedSession CreateManagedSession()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = new(telemetry)
+            {
+                ApplicationName = "RedundantClientSessionFacadeTests",
+                ApplicationType = ApplicationType.Client,
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    ApplicationCertificate = new CertificateIdentifier()
+                }
+            };
+            ConfiguredEndpoint endpoint = new(
+                null!,
+                new EndpointDescription("opc.tcp://localhost:4840")
+                {
+                    UserIdentityTokens = [new UserTokenPolicy()]
+                });
+            Session innerSession = SessionMock.Create(endpoint.Description);
+            ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
+            var sessionFactory = new Mock<ISessionFactory>();
+            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+
+            ConstructorInfo? ctor = typeof(ManagedSession).GetConstructor(
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                [
+                    typeof(ApplicationConfiguration),
+                    typeof(ConfiguredEndpoint),
+                    typeof(ISessionFactory),
+                    typeof(IReconnectPolicy),
+                    typeof(IServerRedundancyHandler),
+                    typeof(ILogger),
+                    typeof(IUserIdentity),
+                    typeof(IClientIdentityProvider),
+                    typeof(TimeProvider),
+                    typeof(ArrayOf<string>),
+                    typeof(string),
+                    typeof(uint),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(NetworkRedundancyOptions),
+                    typeof(IClientChannelManager),
+                    typeof(IClientConnectGate)
+                ],
+                null);
+
+            Assert.That(ctor, Is.Not.Null);
+
+            var managedSession = (ManagedSession)ctor!.Invoke(
+            [
+                configuration,
+                endpoint,
+                sessionFactory.Object,
+                new ReconnectPolicy(),
+                null,
+                logger,
+                null,
+                null,
+                null,
+                default(ArrayOf<string>),
+                "FacadeManagedSession",
+                60000u,
+                false,
+                false,
+                false,
+                false,
+                null,
+                null,
+                null
+            ]);
+
+            typeof(ManagedSession)
+                .GetField("m_session", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(managedSession, innerSession);
+            return managedSession;
         }
 
         private sealed class ManualLeaderElection : ILeaderElection

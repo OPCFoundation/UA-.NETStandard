@@ -480,6 +480,24 @@ namespace Opc.Ua.Client
             set => m_session?.TransferSubscriptionsOnReconnect = value;
         }
 
+        /// <summary>
+        /// Gets or sets whether failover reuses the current
+        /// <c>AuthenticationToken</c> to reactivate the existing session on a
+        /// redundant server instead of creating a new one.
+        /// </summary>
+        public bool EnableTokenReuseFailover
+        {
+            get => m_enableTokenReuseFailover;
+            set
+            {
+                m_enableTokenReuseFailover = value;
+                if (m_session != null)
+                {
+                    m_session.EnableTokenReuseFailover = value;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public bool CheckDomain
             => m_session?.CheckDomain ?? m_checkDomain;
@@ -1145,7 +1163,7 @@ namespace Opc.Ua.Client
                             session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
                         {
                             ConfiguredEndpoint? alternateEndpoint =
-                                SelectNextNetworkEndpoint(session.ConfiguredEndpoint);
+                                SelectNextNetworkEndpoint(ConfiguredEndpoint);
                             if (alternateEndpoint == null)
                             {
                                 m_logger.LogInformation(
@@ -1922,7 +1940,7 @@ namespace Opc.Ua.Client
         private readonly bool m_checkDomain;
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
-        private readonly bool m_enableTokenReuseFailover;
+        private bool m_enableTokenReuseFailover;
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
         private ReverseConnectManager? m_reverseConnectManager;

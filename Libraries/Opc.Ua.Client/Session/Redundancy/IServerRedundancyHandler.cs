@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -55,21 +56,6 @@ namespace Opc.Ua.Client
             CancellationToken ct = default);
 
         /// <summary>
-        /// Determines whether a failover is warranted for the current server.
-        /// </summary>
-        /// <param name="redundancyInfo">
-        /// The redundancy information previously obtained via
-        /// <see cref="FetchRedundancyInfoAsync"/>.
-        /// </param>
-        /// <param name="currentEndpoint">
-        /// The endpoint the session is currently connected to.
-        /// </param>
-        /// <returns>The failover decision.</returns>
-        ServerFailoverDecision ShouldFailover(
-            ServerRedundancyInfo redundancyInfo,
-            ConfiguredEndpoint currentEndpoint);
-
-        /// <summary>
         /// Selects the best server to fail over to from the redundant
         /// server set.
         /// </summary>
@@ -89,5 +75,45 @@ namespace Opc.Ua.Client
         ConfiguredEndpoint? SelectFailoverTarget(
             ServerRedundancyInfo redundancyInfo,
             ConfiguredEndpoint currentEndpoint);
+    }
+
+    /// <summary>
+    /// Extension methods for <see cref="IServerRedundancyHandler"/>.
+    /// </summary>
+    public static class ServerRedundancyHandlerExtensions
+    {
+        /// <summary>
+        /// Determines whether a failover is warranted for the current server.
+        /// </summary>
+        public static ServerFailoverDecision ShouldFailover(
+            this IServerRedundancyHandler redundancyHandler,
+            ServerRedundancyInfo redundancyInfo,
+            ConfiguredEndpoint currentEndpoint)
+        {
+            if (redundancyHandler is null)
+            {
+                throw new ArgumentNullException(nameof(redundancyHandler));
+            }
+
+            if (redundancyInfo is null)
+            {
+                throw new ArgumentNullException(nameof(redundancyInfo));
+            }
+
+            if (currentEndpoint is null)
+            {
+                throw new ArgumentNullException(nameof(currentEndpoint));
+            }
+
+            return redundancyHandler.SelectFailoverTarget(redundancyInfo, currentEndpoint) != null
+                ? new ServerFailoverDecision(
+                    isFailoverWarranted: true,
+                    DateTime.MinValue,
+                    "A redundant failover target is available.")
+                : new ServerFailoverDecision(
+                    isFailoverWarranted: false,
+                    DateTime.MinValue,
+                    "No redundant failover target is available.");
+        }
     }
 }
