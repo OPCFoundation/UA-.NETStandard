@@ -342,69 +342,74 @@ namespace Opc.Ua.Features.Tests
             {
             }
 
+            // A minimal method node with a valid NodeId so the On*Called
+            // handlers can populate audit events (which read method.NodeId when
+            // EventsMonitored() is true) without a NullReferenceException.
+            private static readonly MethodState s_method = new(null) { NodeId = NodeId.Null };
+
             public ServiceResult CallSilence(ISystemContext c)
             {
-                return OnSilenceCalled(c, null!, default, []);
+                return OnSilenceCalled(c, s_method, default, []);
             }
 
             public ServiceResult CallSuppress(ISystemContext c)
             {
-                return OnSuppressCalled(c, null!, default, []);
+                return OnSuppressCalled(c, s_method, default, []);
             }
 
             public ServiceResult CallSuppress2(ISystemContext c, LocalizedText comment)
             {
-                return OnSuppress2Called(c, null!, NodeId.Null, comment);
+                return OnSuppress2Called(c, s_method, NodeId.Null, comment);
             }
 
             public ServiceResult CallUnsuppress(ISystemContext c)
             {
-                return OnUnsuppressCalled(c, null!, default, []);
+                return OnUnsuppressCalled(c, s_method, default, []);
             }
 
             public ServiceResult CallUnsuppress2(ISystemContext c, LocalizedText comment)
             {
-                return OnUnsuppress2Called(c, null!, NodeId.Null, comment);
+                return OnUnsuppress2Called(c, s_method, NodeId.Null, comment);
             }
 
             public ServiceResult CallRemoveFromService(ISystemContext c)
             {
-                return OnRemoveFromServiceCalled(c, null!, default, []);
+                return OnRemoveFromServiceCalled(c, s_method, default, []);
             }
 
             public ServiceResult CallRemoveFromService2(ISystemContext c, LocalizedText comment)
             {
-                return OnRemoveFromService2Called(c, null!, NodeId.Null, comment);
+                return OnRemoveFromService2Called(c, s_method, NodeId.Null, comment);
             }
 
             public ServiceResult CallPlaceInService(ISystemContext c)
             {
-                return OnPlaceInServiceCalled(c, null!, default, []);
+                return OnPlaceInServiceCalled(c, s_method, default, []);
             }
 
             public ServiceResult CallPlaceInService2(ISystemContext c, LocalizedText comment)
             {
-                return OnPlaceInService2Called(c, null!, NodeId.Null, comment);
+                return OnPlaceInService2Called(c, s_method, NodeId.Null, comment);
             }
 
             public ServiceResult CallReset(ISystemContext c)
             {
-                return OnResetCalled(c, null!, default, []);
+                return OnResetCalled(c, s_method, default, []);
             }
 
             public ServiceResult CallReset2(ISystemContext c, LocalizedText comment)
             {
-                return OnReset2Called(c, null!, NodeId.Null, comment);
+                return OnReset2Called(c, s_method, NodeId.Null, comment);
             }
 
             public ServiceResult CallGetGroupMemberships(ISystemContext c, ref ArrayOf<NodeId> groups)
             {
-                return OnGetGroupMembershipsCalled(c, null!, NodeId.Null, ref groups);
+                return OnGetGroupMembershipsCalled(c, s_method, NodeId.Null, ref groups);
             }
 
             public ServiceResult CallAcknowledge(ISystemContext c, ByteString eventId, LocalizedText comment)
             {
-                return OnAcknowledgeCalled(c, null!, NodeId.Null, eventId, comment);
+                return OnAcknowledgeCalled(c, s_method, NodeId.Null, eventId, comment);
             }
         }
 
