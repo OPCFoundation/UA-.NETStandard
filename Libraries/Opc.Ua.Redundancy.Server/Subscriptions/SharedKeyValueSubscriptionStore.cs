@@ -360,7 +360,14 @@ namespace Opc.Ua.Redundancy.Server
         public async ValueTask DisposeAsync()
         {
             m_channel.Writer.TryComplete();
-            await m_drainTask.ConfigureAwait(false);
+            m_drainCts.Cancel();
+            try
+            {
+                await m_drainTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
             m_drainCts.Dispose();
         }
 
@@ -483,20 +490,31 @@ namespace Opc.Ua.Redundancy.Server
 
         private async Task DrainAsync()
         {
-            await foreach (MirrorCommand command in m_channel.Reader
-                .ReadAllAsync(m_drainCts.Token)
-                .ConfigureAwait(false))
+            try
             {
-                try
+                await foreach (MirrorCommand command in m_channel.Reader
+                    .ReadAllAsync(m_drainCts.Token)
+                    .ConfigureAwait(false))
                 {
-                    await DrainPendingAsync(m_drainCts.Token).ConfigureAwait(false);
-                    command.Completion?.SetResult(true);
+                    try
+                    {
+                        await DrainPendingAsync(m_drainCts.Token).ConfigureAwait(false);
+                        command.Completion?.SetResult(true);
+                    }
+                    catch (OperationCanceledException) when (m_drainCts.IsCancellationRequested)
+                    {
+                        command.Completion?.SetCanceled();
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger?.LogWarning(ex, "Failed to mirror subscription retransmission state.");
+                        command.Completion?.SetException(ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    m_logger?.LogWarning(ex, "Failed to mirror subscription retransmission state.");
-                    command.Completion?.SetException(ex);
-                }
+            }
+            catch (OperationCanceledException) when (m_drainCts.IsCancellationRequested)
+            {
             }
         }
 
@@ -1159,7 +1177,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private sealed class SharedDefinitionCache
         {
-            public object Lock { get; } = new();
+            public Lock Lock { get; } = new();
 
             public Dictionary<uint, StoredSubscription> Subscriptions { get; } = [];
         }

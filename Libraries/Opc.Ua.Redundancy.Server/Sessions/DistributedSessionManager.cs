@@ -99,6 +99,9 @@ namespace Opc.Ua.Redundancy.Server
             m_options = options ?? new DistributedSessionOptions();
             m_telemetry = server.Telemetry;
             m_logger = server.Telemetry.CreateLogger<DistributedSessionManager>();
+            m_restoreTimeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -228,6 +231,15 @@ namespace Opc.Ua.Redundancy.Server
                 return null;
             }
 
+            if (IsRestoreExpired(entry))
+            {
+                m_logger.LogWarning(
+                    "Distributed session restore for {Token} rejected: {Reason}.",
+                    TokenDigest(authenticationToken),
+                    RestoreDecision.Expired);
+                return null;
+            }
+
             EndpointDescription endpoint = context.ChannelContext!.EndpointDescription!;
             RestoreDecision decision = await AuthorizeAndConsumeAsync(
                 entry,
@@ -283,6 +295,9 @@ namespace Opc.Ua.Redundancy.Server
             /// <summary>The restore is authorized and the nonce was consumed.</summary>
             Authorized,
 
+            /// <summary>The mirrored session timed out before the restore attempt.</summary>
+            Expired,
+
             /// <summary>The SecurityPolicy/Mode does not match the original.</summary>
             PolicyMismatch,
 
@@ -301,6 +316,11 @@ namespace Opc.Ua.Redundancy.Server
             MessageSecurityMode securityMode,
             CancellationToken cancellationToken = default)
         {
+            if (IsRestoreExpired(entry))
+            {
+                return RestoreDecision.Expired;
+            }
+
             if (!string.Equals(entry.SecurityPolicyUri, securityPolicyUri, StringComparison.Ordinal) ||
                 entry.SecurityMode != (int)securityMode)
             {
@@ -421,8 +441,8 @@ namespace Opc.Ua.Redundancy.Server
                 SessionId = result.SessionId,
                 AuthenticationToken = result.AuthenticationToken,
                 SessionName = sessionName ?? string.Empty,
-                CreatedAt = DateTimeUtc.Now,
-                LastActivatedAt = DateTimeUtc.Now,
+                CreatedAt = UtcNow(),
+                LastActivatedAt = UtcNow(),
                 ServerNonce = result.ServerNonce,
                 ClientNonce = clientNonce,
                 ClientCertificateChain = clientCertBlob,
@@ -450,9 +470,27 @@ namespace Opc.Ua.Redundancy.Server
             SharedSessionEntry updated = existing with
             {
                 ServerNonce = serverNonce,
-                LastActivatedAt = DateTimeUtc.Now
+                LastActivatedAt = UtcNow()
             };
             await m_sessionStore.PutAsync(updated, cancellationToken).ConfigureAwait(false);
+        }
+
+        private bool IsRestoreExpired(SharedSessionEntry entry)
+        {
+            if (entry.LastActivatedAt.IsNull)
+            {
+                return false;
+            }
+
+            DateTime expiry = entry.LastActivatedAt
+                .ToDateTime()
+                .AddMilliseconds(Math.Max(entry.SessionTimeout, 0));
+            return m_restoreTimeProvider.GetUtcNow().UtcDateTime >= expiry;
+        }
+
+        private DateTimeUtc UtcNow()
+        {
+            return DateTimeUtc.From(m_restoreTimeProvider.GetUtcNow().UtcDateTime);
         }
 
         private static string TokenDigest(NodeId authenticationToken)
@@ -477,6 +515,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly DistributedSessionOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_restoreTimeProvider;
         private readonly ConcurrentDictionary<NodeId, NodeId> m_tokensBySession = new();
     }
 }
