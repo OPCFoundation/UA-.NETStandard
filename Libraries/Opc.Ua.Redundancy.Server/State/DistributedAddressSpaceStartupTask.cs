@@ -116,7 +116,7 @@ namespace Opc.Ua.Redundancy.Server
 
                 ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
                 var synchronizer = new AddressSpaceSynchronizer(
-                    store, addressSpace, () => m_election.IsLeader, logger);
+                    store, addressSpace, m_election, logger);
                 await synchronizer.SeedOrHydrateAsync(cancellationToken).ConfigureAwait(false);
                 synchronizer.Start();
                 lock (m_lock)

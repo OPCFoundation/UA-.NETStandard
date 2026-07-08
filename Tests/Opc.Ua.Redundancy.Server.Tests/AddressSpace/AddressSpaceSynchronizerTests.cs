@@ -34,6 +34,7 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -321,6 +322,82 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.Nothing);
         }
 
+        [Test]
+        public async Task PromotedReaderMirrorsLocalChangeToStoreAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var testStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var testSpace = new DictionaryAddressSpace(m_systemContext);
+            var xId = new NodeId("X", NamespaceIndex);
+
+            // Seed the store so the standby has something to hydrate.
+            await testStore.UpsertNodeAsync(
+                new StoredNode(xId, NodeStateSerializer.Serialize(m_systemContext, NewVariable("X", 1.0)))).ConfigureAwait(false);
+            await testStore.WriteValueAsync(
+                xId, new DataValue(new Variant(1.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
+
+            // The replica under test starts as a standby (reader) driven by a
+            // leader election, hydrates X, and initially never writes.
+            await using var election = new MutableLeaderElection(false);
+            await using var replica = new AddressSpaceSynchronizer(testStore, testSpace, election);
+            await replica.SeedOrHydrateAsync().ConfigureAwait(false);
+            Assert.That(testSpace.TryGetNode(xId, out _), Is.True, "standby hydrated X from the store");
+            replica.Start();
+            Assert.That(replica.WriterRoleActive, Is.False, "a standby must not write");
+
+            // Promote the standby and wait for the writer role to activate.
+            Task<bool> promoted = WaitForRoleAsync(replica, writer: true);
+            election.Set(true);
+            await AwaitWithTimeoutAsync(promoted).ConfigureAwait(false);
+            Assert.That(replica.WriterRoleActive, Is.True, "a promoted standby must attach outbound handlers");
+
+            // A local change on the promoted replica must now mirror to the store.
+            Assert.That(testSpace.TryGetNode(xId, out NodeState? node), Is.True);
+            var variable = (BaseDataVariableState)node!;
+            variable.Value = new Variant(77.0);
+            variable.ClearChangeMasks(m_systemContext, false);
+
+            await WaitForStoreValueAsync(kv, xId, new Variant(77.0)).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DemotedWriterStopsWritingAndFollowsNewWriterAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var testStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var externalStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var testSpace = new DictionaryAddressSpace(m_systemContext);
+            var xId = new NodeId("X", NamespaceIndex);
+            await testSpace.AddOrUpdateNodeAsync(NewVariable("X", 1.0)).ConfigureAwait(false);
+
+            // The replica under test starts as the active writer and seeds the store.
+            await using var election = new MutableLeaderElection(true);
+            await using var replica = new AddressSpaceSynchronizer(testStore, testSpace, election);
+            await replica.SeedOrHydrateAsync().ConfigureAwait(false);
+            replica.Start();
+            Assert.That(replica.WriterRoleActive, Is.True);
+
+            // Demote it and wait for the reader role to activate.
+            Task<bool> demoted = WaitForRoleAsync(replica, writer: false);
+            election.Set(false);
+            await AwaitWithTimeoutAsync(demoted).ConfigureAwait(false);
+            Assert.That(
+                replica.WriterRoleActive,
+                Is.False,
+                "a demoted writer must detach its outbound handlers");
+
+            // A new external leader writes X; the demoted replica must apply the
+            // change, proving it now follows the store change-feed as a reader.
+            Task<bool> applied = WaitForInboundAsync(
+                replica, c => c.Kind == NodeStateChangeKind.Value && c.NodeId == xId);
+            await externalStore.WriteValueAsync(
+                xId, new DataValue(new Variant(555.0), StatusCodes.Good, DateTimeUtc.Now)).ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(applied).ConfigureAwait(false);
+
+            Assert.That(testSpace.TryGetNode(xId, out NodeState? node), Is.True);
+            Assert.That(((BaseDataVariableState)node!).Value, Is.EqualTo(new Variant(555.0)));
+        }
+
         private BaseDataVariableState NewVariable(string id, double value)
         {
             return new BaseDataVariableState(null)
@@ -358,6 +435,77 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
             Assert.That(completed, Is.SameAs(task), "replication did not complete within the timeout");
             await task.ConfigureAwait(false);
+        }
+
+        private static Task<bool> WaitForRoleAsync(AddressSpaceSynchronizer synchronizer, bool writer)
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            void Handler(bool isWriter)
+            {
+                if (isWriter == writer)
+                {
+                    synchronizer.RoleActivated -= Handler;
+                    tcs.TrySetResult(true);
+                }
+            }
+
+            synchronizer.RoleActivated += Handler;
+            return tcs.Task;
+        }
+
+        private async Task WaitForStoreValueAsync(
+            InMemorySharedKeyValueStore kv,
+            NodeId nodeId,
+            Variant expected)
+        {
+            using var verify = new InMemoryNodeStateStore(kv, m_messageContext);
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < deadline)
+            {
+                (bool found, DataValue value) = await verify.TryReadValueAsync(nodeId).ConfigureAwait(false);
+                if (found && Equals(value.WrappedValue, expected))
+                {
+                    return;
+                }
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+
+            Assert.Fail("the promoted replica did not mirror the local change to the shared store");
+        }
+
+        private sealed class MutableLeaderElection : ILeaderElection
+        {
+            public MutableLeaderElection(bool isLeader)
+            {
+                m_isLeader = isLeader ? 1 : 0;
+            }
+
+            public bool IsLeader => Volatile.Read(ref m_isLeader) != 0;
+
+            public event Action<bool>? LeadershipChanged;
+
+            public void Set(bool isLeader)
+            {
+                Volatile.Write(ref m_isLeader, isLeader ? 1 : 0);
+                LeadershipChanged?.Invoke(isLeader);
+            }
+
+            public ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(IsLeader);
+            }
+
+            public void Start()
+            {
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+
+            private int m_isLeader;
         }
     }
 }

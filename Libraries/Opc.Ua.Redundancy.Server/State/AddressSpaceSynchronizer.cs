@@ -44,13 +44,16 @@ namespace Opc.Ua.Redundancy.Server
     public sealed class AddressSpaceSynchronizer : IAddressSpaceSynchronizer
     {
         /// <summary>
-        /// Creates a synchronizer between a local graph and a shared store.
+        /// Creates a synchronizer with a fixed writer/reader role.
         /// </summary>
         /// <param name="store">The shared node state store.</param>
         /// <param name="addressSpace">The local node graph.</param>
         /// <param name="isWriter">
         /// Predicate that reports whether this replica is the writer
-        /// (leader). Defaults to always-writer (single instance).
+        /// (leader). Defaults to always-writer (single instance). The role is
+        /// evaluated once at <see cref="Start"/> and never re-evaluated; use
+        /// the <see cref="ILeaderElection"/> overload for a role that follows
+        /// leadership changes.
         /// </param>
         /// <param name="logger">Optional logger for replication errors.</param>
         public AddressSpaceSynchronizer(
@@ -58,14 +61,61 @@ namespace Opc.Ua.Redundancy.Server
             ILocalAddressSpace addressSpace,
             Func<bool>? isWriter = null,
             ILogger? logger = null)
+            : this(store, addressSpace, isWriter, election: null, logger)
+        {
+        }
+
+        /// <summary>
+        /// Creates a synchronizer whose writer/reader role follows the supplied
+        /// leader election.
+        /// </summary>
+        /// <remarks>
+        /// The synchronizer subscribes to
+        /// <see cref="ILeaderElection.LeadershipChanged"/> and switches role at
+        /// runtime: a standby promoted to leader attaches the outbound
+        /// local-change handlers and begins mirroring writes to the store, and
+        /// a demoted leader detaches them and follows the store change-feed.
+        /// </remarks>
+        /// <param name="store">The shared node state store.</param>
+        /// <param name="addressSpace">The local node graph.</param>
+        /// <param name="election">The leader election that drives the role.</param>
+        /// <param name="logger">Optional logger for replication errors.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="election"/> is <c>null</c>.
+        /// </exception>
+        public AddressSpaceSynchronizer(
+            INodeStateStore store,
+            ILocalAddressSpace addressSpace,
+            ILeaderElection election,
+            ILogger? logger = null)
+            : this(
+                store,
+                addressSpace,
+                isWriter: null,
+                election: election ?? throw new ArgumentNullException(nameof(election)),
+                logger)
+        {
+        }
+
+        private AddressSpaceSynchronizer(
+            INodeStateStore store,
+            ILocalAddressSpace addressSpace,
+            Func<bool>? isWriter,
+            ILeaderElection? election,
+            ILogger? logger)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_addressSpace = addressSpace ?? throw new ArgumentNullException(nameof(addressSpace));
-            m_isWriter = isWriter ?? (static () => true);
+            m_election = election;
+            m_isWriter = isWriter ?? (election != null ? () => election.IsLeader : static () => true);
             m_logger = logger;
             m_onChanged = OnLocalNodeChanged;
             m_onNodeAdded = OnLocalNodeAdded;
             m_onNodeRemoved = OnLocalNodeRemoved;
+            if (m_election != null)
+            {
+                m_election.LeadershipChanged += OnLeadershipChanged;
+            }
         }
 
         /// <inheritdoc/>
@@ -75,6 +125,28 @@ namespace Opc.Ua.Redundancy.Server
         /// Raised (for tests) after each inbound change is applied.
         /// </summary>
         internal event Action<NodeStateChange>? InboundApplied;
+
+        /// <summary>
+        /// Raised (for tests) after a runtime role transition completes; the
+        /// argument is <c>true</c> when the writer role was activated and
+        /// <c>false</c> when the reader role was activated.
+        /// </summary>
+        internal event Action<bool>? RoleActivated;
+
+        /// <summary>
+        /// <c>true</c> (for tests) when the outbound writer role is currently
+        /// active.
+        /// </summary>
+        internal bool WriterRoleActive
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_role == Role.Writer;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public async ValueTask SeedOrHydrateAsync(CancellationToken ct = default)
@@ -204,32 +276,174 @@ namespace Opc.Ua.Redundancy.Server
 
                 if (m_isWriter())
                 {
-                    m_outbound = Channel.CreateUnbounded<OutboundOp>(
-                        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
-                    m_addressSpace.NodeAdded += m_onNodeAdded;
-                    m_addressSpace.NodeRemoved += m_onNodeRemoved;
-                    foreach (NodeState node in m_addressSpace.Nodes)
-                    {
-                        AttachStateChanged(node);
-                    }
-                    m_outboundTask = Task.Run(() => DrainOutboundAsync(m_cts.Token));
+                    StartWriter();
+                    m_role = Role.Writer;
                 }
                 else
                 {
-                    // Register the change-feed watcher synchronously (the
-                    // first MoveNextAsync runs the iterator prefix that adds
-                    // the watcher) so no change published after Start()
-                    // returns is missed, then consume it on a background task.
-                    m_inboundEnumerator = m_store.SubscribeChangesAsync(m_cts.Token).GetAsyncEnumerator();
-                    ValueTask<bool> firstMove = m_inboundEnumerator.MoveNextAsync();
-                    m_inboundTask = Task.Run(() => ApplyInboundLoopAsync(firstMove));
+                    StartReader();
+                    m_role = Role.Reader;
                 }
             }
+        }
+
+        private void OnLeadershipChanged(bool isLeader)
+        {
+            RequestRoleEvaluation();
+        }
+
+        private void RequestRoleEvaluation()
+        {
+            lock (m_lock)
+            {
+                if (m_disposed || !m_started)
+                {
+                    return;
+                }
+                m_roleDirty = true;
+                if (!m_roleRunning)
+                {
+                    m_roleRunning = true;
+                    m_roleWorker = Task.Run(RoleWorkerAsync);
+                }
+            }
+        }
+
+        private async Task RoleWorkerAsync()
+        {
+            while (true)
+            {
+                bool desiredWriter;
+                lock (m_lock)
+                {
+                    if (m_disposed || !m_roleDirty)
+                    {
+                        m_roleRunning = false;
+                        return;
+                    }
+                    m_roleDirty = false;
+                    desiredWriter = m_isWriter();
+                }
+
+                try
+                {
+                    await ApplyRoleAsync(desiredWriter).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger?.LogError(ex, "Distributed address-space role transition failed.");
+                }
+            }
+        }
+
+        private async Task ApplyRoleAsync(bool writer)
+        {
+            if (writer)
+            {
+                if (m_role == Role.Writer)
+                {
+                    return;
+                }
+                // Promotion: stop following the store, then catch up to the
+                // latest committed store state before taking over writes so a
+                // change the previous leader made that had not yet reached this
+                // replica through the change-feed is not lost. Only then attach
+                // the outbound handlers so future local changes mirror out.
+                await StopReaderAsync().ConfigureAwait(false);
+                await SeedOrHydrateAsync(m_cts.Token).ConfigureAwait(false);
+                StartWriter();
+                lock (m_lock)
+                {
+                    m_role = Role.Writer;
+                }
+                RoleActivated?.Invoke(true);
+            }
+            else
+            {
+                if (m_role == Role.Reader)
+                {
+                    return;
+                }
+                // Demotion: detach the outbound handlers and drain any pending
+                // writes, then follow the new leader through the change-feed.
+                await StopWriterAsync().ConfigureAwait(false);
+                StartReader();
+                lock (m_lock)
+                {
+                    m_role = Role.Reader;
+                }
+                RoleActivated?.Invoke(false);
+            }
+        }
+
+        private void StartWriter()
+        {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token);
+            m_writerCts = cts;
+            m_outbound = Channel.CreateUnbounded<OutboundOp>(
+                new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+            m_addressSpace.NodeAdded += m_onNodeAdded;
+            m_addressSpace.NodeRemoved += m_onNodeRemoved;
+            foreach (NodeState node in m_addressSpace.Nodes)
+            {
+                AttachStateChanged(node);
+            }
+            CancellationToken token = cts.Token;
+            m_outboundTask = Task.Run(() => DrainOutboundAsync(token));
+        }
+
+        private async Task StopWriterAsync()
+        {
+            m_addressSpace.NodeAdded -= m_onNodeAdded;
+            m_addressSpace.NodeRemoved -= m_onNodeRemoved;
+            DetachAll();
+            m_outbound?.Writer.TryComplete();
+            m_writerCts?.Cancel();
+
+            // Await the drain first: it is what assigns m_snapshotTask, so once
+            // it has finished no further snapshot publish can be scheduled.
+            await AwaitQuietlyAsync(m_outboundTask).ConfigureAwait(false);
+            await AwaitQuietlyAsync(m_snapshotTask).ConfigureAwait(false);
+
+            m_writerCts?.Dispose();
+            m_writerCts = null;
+            m_outbound = null;
+            m_outboundTask = null;
+            m_snapshotTask = null;
+        }
+
+        private void StartReader()
+        {
+            // Register the change-feed watcher synchronously (the first
+            // MoveNextAsync runs the iterator prefix that adds the watcher) so
+            // no change published after this returns is missed, then consume it
+            // on a background task.
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token);
+            m_readerCts = cts;
+            m_inboundEnumerator = m_store.SubscribeChangesAsync(cts.Token).GetAsyncEnumerator();
+            ValueTask<bool> firstMove = m_inboundEnumerator.MoveNextAsync();
+            CancellationToken token = cts.Token;
+            m_inboundTask = Task.Run(() => ApplyInboundLoopAsync(firstMove, token));
+        }
+
+        private async Task StopReaderAsync()
+        {
+            m_readerCts?.Cancel();
+            await AwaitQuietlyAsync(m_inboundTask).ConfigureAwait(false);
+            if (m_inboundEnumerator != null)
+            {
+                await m_inboundEnumerator.DisposeAsync().ConfigureAwait(false);
+                m_inboundEnumerator = null;
+            }
+            m_readerCts?.Dispose();
+            m_readerCts = null;
+            m_inboundTask = null;
         }
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            Task? roleWorker;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -237,25 +451,25 @@ namespace Opc.Ua.Redundancy.Server
                     return;
                 }
                 m_disposed = true;
+                roleWorker = m_roleWorker;
             }
+
+            if (m_election != null)
+            {
+                m_election.LeadershipChanged -= OnLeadershipChanged;
+            }
+
+            // Let any in-flight role transition finish before tearing down the
+            // loops it owns.
+            await AwaitQuietlyAsync(roleWorker).ConfigureAwait(false);
 
             m_cts.Cancel();
-            m_outbound?.Writer.TryComplete();
 
-            await AwaitQuietlyAsync(m_outboundTask).ConfigureAwait(false);
-            await AwaitQuietlyAsync(m_inboundTask).ConfigureAwait(false);
-            await AwaitQuietlyAsync(m_snapshotTask).ConfigureAwait(false);
+            // Stop whichever role is active; both helpers are no-ops for the
+            // inactive role (handlers unattached, tasks null).
+            await StopWriterAsync().ConfigureAwait(false);
+            await StopReaderAsync().ConfigureAwait(false);
 
-            // The inbound loop has finished; dispose the enumerator it owned.
-            if (m_inboundEnumerator != null)
-            {
-                await m_inboundEnumerator.DisposeAsync().ConfigureAwait(false);
-                m_inboundEnumerator = null;
-            }
-
-            m_addressSpace.NodeAdded -= m_onNodeAdded;
-            m_addressSpace.NodeRemoved -= m_onNodeRemoved;
-            DetachAll();
             m_cts.Dispose();
         }
 
@@ -326,7 +540,7 @@ namespace Opc.Ua.Redundancy.Server
                                 break;
                         }
 
-                        MaybeTriggerSnapshotPublish();
+                        MaybeTriggerSnapshotPublish(ct);
                     }
                     catch (OperationCanceledException)
                     {
@@ -344,7 +558,7 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private void MaybeTriggerSnapshotPublish()
+        private void MaybeTriggerSnapshotPublish(CancellationToken ct)
         {
             if (m_store is not INodeStateSnapshotStore snapshotStore)
             {
@@ -362,14 +576,14 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
             Interlocked.Exchange(ref m_writesSinceSnapshot, 0);
-            m_snapshotTask = PublishSnapshotAsync(snapshotStore);
+            m_snapshotTask = PublishSnapshotAsync(snapshotStore, ct);
         }
 
-        private async Task PublishSnapshotAsync(INodeStateSnapshotStore snapshotStore)
+        private async Task PublishSnapshotAsync(INodeStateSnapshotStore snapshotStore, CancellationToken ct)
         {
             try
             {
-                await snapshotStore.WriteSnapshotAsync(m_cts.Token).ConfigureAwait(false);
+                await snapshotStore.WriteSnapshotAsync(ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -385,7 +599,7 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private async Task ApplyInboundLoopAsync(ValueTask<bool> firstMove)
+        private async Task ApplyInboundLoopAsync(ValueTask<bool> firstMove, CancellationToken ct)
         {
             try
             {
@@ -395,7 +609,7 @@ namespace Opc.Ua.Redundancy.Server
                     NodeStateChange change = m_inboundEnumerator!.Current;
                     try
                     {
-                        await ApplyInboundAsync(change, m_cts.Token).ConfigureAwait(false);
+                        await ApplyInboundAsync(change, ct).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -550,6 +764,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly INodeStateStore m_store;
         private readonly ILocalAddressSpace m_addressSpace;
         private readonly Func<bool> m_isWriter;
+        private readonly ILeaderElection? m_election;
         private readonly ILogger? m_logger;
         private readonly NodeStateChangedHandler m_onChanged;
         private readonly Action<NodeState> m_onNodeAdded;
@@ -559,16 +774,29 @@ namespace Opc.Ua.Redundancy.Server
         private readonly HashSet<NodeState> m_attached = [];
         private readonly NodeIdDictionary<ulong> m_nodeSequence = [];
         private readonly NodeIdDictionary<ulong> m_valueSequence = [];
+        private CancellationTokenSource? m_writerCts;
+        private CancellationTokenSource? m_readerCts;
         private Channel<OutboundOp>? m_outbound;
         private IAsyncEnumerator<NodeStateChange>? m_inboundEnumerator;
         private Task? m_outboundTask;
         private Task? m_inboundTask;
         private Task? m_snapshotTask;
+        private Task? m_roleWorker;
         private long m_writesSinceSnapshot;
         private int m_snapshotInFlight;
         private bool m_started;
         private bool m_disposed;
+        private bool m_roleDirty;
+        private bool m_roleRunning;
+        private Role m_role = Role.None;
 
         private const int SnapshotWriteThreshold = 1024;
+
+        private enum Role
+        {
+            None,
+            Writer,
+            Reader
+        }
     }
 }
