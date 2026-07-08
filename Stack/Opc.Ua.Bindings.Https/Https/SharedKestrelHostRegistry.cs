@@ -70,6 +70,7 @@ namespace Opc.Ua.Bindings
         }
 
         public override bool Equals(object? obj) => obj is SharedHostKey other && Equals(other);
+
         public override int GetHashCode()
         {
             return HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(Host), Port);
@@ -351,6 +352,7 @@ namespace Opc.Ua.Bindings
 
         internal SharedHostKey Key { get; }
         internal string ServerCertificateThumbprint { get; }
+
         internal int ListenerCount
         {
             get
@@ -512,8 +514,10 @@ namespace Opc.Ua.Bindings
 
         private IHost? m_host;
         private readonly Lock m_lock = new();
+
         private readonly Dictionary<string, HttpsTransportListener> m_listeners =
             new(StringComparer.OrdinalIgnoreCase);
+
         private IReadOnlyList<string> m_routeOrder = Array.Empty<string>();
     }
 }

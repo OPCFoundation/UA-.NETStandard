@@ -52,6 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         private const string CallerId = "client/cn=test";
 
         private static readonly byte[] s_outerPrefix = [0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01];
+
         private static readonly byte[] s_innerPayload =
         [
             0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE,

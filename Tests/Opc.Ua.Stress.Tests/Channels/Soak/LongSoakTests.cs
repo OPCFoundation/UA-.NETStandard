@@ -329,7 +329,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
             return string.Format(
                 CultureInfo.InvariantCulture,
                 "Seed={0} Ops attempted={1} succeeded={2} failed={3} failure-rate={4:P} " +
-                    "p50={5} p95={6} p99={7} ReconnectStarted={8} ReconnectCompleted={9} ReconnectFailed={10}",
+                "p50={5} p95={6} p99={7} ReconnectStarted={8} ReconnectCompleted={9} ReconnectFailed={10}",
                 seed,
                 runner.TotalOpsAttempted,
                 runner.TotalOpsSucceeded,

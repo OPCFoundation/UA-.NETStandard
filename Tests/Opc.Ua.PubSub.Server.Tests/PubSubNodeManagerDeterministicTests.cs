@@ -447,7 +447,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Array.Empty<PubSubSecurityKey>())).ConfigureAwait(false);
             await harness.Manager.RebuildSksAddressSpaceForTestsAsync().ConfigureAwait(false);
             NodeId groupNodeId = harness.Manager.MethodHandlers
-                .TryGetSecurityGroupNodeId("grp-disconnect") ?? NodeId.Null;
+                .TryGetSecurityGroupNodeId("grp-disconnect") ??
+                NodeId.Null;
             NodeId targetNodeId = AddPushTarget(harness, "disconnect-app", "disconnect-endpoint");
             BaseObjectState targetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(targetNodeId);
             ushort ns = harness.Manager.AddressSpaceNamespaceIndex;

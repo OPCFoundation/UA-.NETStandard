@@ -565,8 +565,9 @@ namespace Opc.Ua.WotCon.Server
 
             WotManagementAccessPolicy policy = m_options.ManagementAccess;
 
-            MessageSecurityMode securityMode = operationContext.ChannelContext
-                ?.EndpointDescription?.SecurityMode ?? MessageSecurityMode.None;
+            MessageSecurityMode securityMode = operationContext.ChannelContext?
+                .EndpointDescription?.SecurityMode ??
+                MessageSecurityMode.None;
             if (securityMode != policy.MinimumSecurityMode)
             {
                 m_logger.LogWarning(

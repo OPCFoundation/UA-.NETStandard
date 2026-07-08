@@ -179,11 +179,19 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await session.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
             }
         }
 
@@ -262,11 +270,19 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await session.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
             }
         }
 
@@ -334,11 +350,19 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await originSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await originSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await originSession.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await originSession.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
             }
 
             // Restore phase — fresh session, regroup the snapshots
@@ -381,11 +405,19 @@ namespace Opc.Ua.Subscriptions.Tests
             finally
             {
                 try
-                { await targetSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await targetSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
                 try
-                { await targetSession.DisposeAsync().ConfigureAwait(false); }
-                catch { /* best effort */ }
+                {
+                    await targetSession.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                { /* best effort */
+                }
             }
         }
 

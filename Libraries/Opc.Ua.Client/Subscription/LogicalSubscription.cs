@@ -539,7 +539,8 @@ namespace Opc.Ua.Client.Subscriptions
                         "Triggered item entries must not be null.");
                 }
                 IManagedSubscription? itemPartition = ResolveOwningPartition(
-                    item, partitions) ?? throw new ArgumentException(
+                    item, partitions) ??
+                    throw new ArgumentException(
                         "Monitored item is not part of this subscription.",
                         paramName);
                 if (!ReferenceEquals(itemPartition, owner))

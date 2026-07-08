@@ -438,11 +438,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
 
         private static bool IsExpectedAcceptStop(Exception ex, CancellationToken ct)
         {
-            return ct.IsCancellationRequested || ex is ObjectDisposedException ||
-                ex is InvalidOperationException || ex is SocketException socketException &&
-                (socketException.SocketErrorCode == SocketError.Interrupted ||
-                    socketException.SocketErrorCode == SocketError.OperationAborted ||
-                    socketException.SocketErrorCode == SocketError.InvalidArgument);
+            return ct.IsCancellationRequested ||
+                ex is ObjectDisposedException ||
+                ex is InvalidOperationException ||
+                (ex is SocketException socketException &&
+                    (socketException.SocketErrorCode == SocketError.Interrupted ||
+                        socketException.SocketErrorCode == SocketError.OperationAborted ||
+                        socketException.SocketErrorCode == SocketError.InvalidArgument));
         }
 
         private static bool IsExpectedSocketClose(Exception ex)

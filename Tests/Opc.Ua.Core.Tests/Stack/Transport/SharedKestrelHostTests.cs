@@ -72,7 +72,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     key,
                     listener!,
                     "/test",
-                    acc => { factoryInvocations++; return MakeStubHost(); },
+                    acc =>
+                    {
+                        factoryInvocations++;
+                        return MakeStubHost();
+                    },
                     kThumbprint).ConfigureAwait(false);
                 Assert.That(factoryInvocations, Is.EqualTo(1));
                 Assert.That(SharedKestrelHostRegistry.Instance.Count, Is.GreaterThan(0));
@@ -93,13 +97,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 key,
                 null!,
                 "/listenerA",
-                acc => { factoryInvocations++; return MakeStubHost(); },
+                acc =>
+                {
+                    factoryInvocations++;
+                    return MakeStubHost();
+                },
                 kThumbprint).ConfigureAwait(false);
             await using SharedHostLease lease2 = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 null!,
                 "/listenerB",
-                acc => { factoryInvocations++; return MakeStubHost(); },
+                acc =>
+                {
+                    factoryInvocations++;
+                    return MakeStubHost();
+                },
                 kThumbprint).ConfigureAwait(false);
             Assert.That(factoryInvocations, Is.EqualTo(1), "Second Acquire must reuse host, not call factory.");
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(2));

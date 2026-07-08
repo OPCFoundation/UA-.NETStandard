@@ -169,7 +169,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 ContainsInnerOfType<System.Security.Authentication.AuthenticationException>(ex);
             Assert.That(isCertRejection, Is.True,
                 "Expected a TLS-layer rejection caused by the CertificateValidator, " +
-                "got " + ex!.GetType().FullName + ": " + ex.Message);
+                "got " +
+                ex!.GetType().FullName +
+                ": " +
+                ex.Message);
 
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }

@@ -61,35 +61,43 @@ namespace Opc.Ua
             CancellationToken ct);
 
         Activity? StartReconnectActivity(ChannelEntry entry);
+
         void CompleteReconnectActivity(
             Activity? activity,
             ChannelEntry entry,
             int attemptCount,
             string outcome,
             ServiceResult? error);
+
         void OnEntryReconnectFailed(
             ChannelEntry entry,
             int attempt,
             string outcome,
             ServiceResult? error);
+
         void OnEntryOpened(ChannelEntry entry);
+
         void OnEntryParticipantAttached(
             ChannelEntry entry,
             string participantId,
             int refCount,
             int participantCount);
+
         void OnEntryParticipantDetached(
             ChannelEntry entry,
             string participantId,
             int refCount,
             int participantCount);
+
         void RecordChannelOpen(ChannelEntry entry);
         void RecordChannelActiveChanged(ChannelEntry entry, long delta);
         void RecordReconnectAttempt(ChannelEntry entry, string outcome);
+
         void RecordReconnectDuration(
             ChannelEntry entry,
             TimeSpan duration,
             string outcome);
+
         void RecordGateWait(ChannelEntry entry, TimeSpan duration);
         void RecordParticipantTimeout(ChannelEntry entry, string participantId);
         void RecordParticipantRecreate(ChannelEntry entry, string participantId, bool success);

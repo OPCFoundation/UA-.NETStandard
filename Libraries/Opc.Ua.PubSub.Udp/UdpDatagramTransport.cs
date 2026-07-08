@@ -72,6 +72,7 @@ namespace Opc.Ua.PubSub.Udp
         private const int StandardDiscoveryPort = 4840;
 
         private static readonly byte[] s_disableConnReset = [0, 0, 0, 0];
+
         private static readonly IPEndPoint s_standardDiscoveryEndpoint = new(
             IPAddress.Parse("224.0.2.14"),
             StandardDiscoveryPort);

@@ -130,16 +130,19 @@ namespace Opc.Ua.Pcap.Capture.Sources
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment above.")]
         private PcapFileWriter? m_pcapWriter;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment on m_pcapWriter.")]
         private UaKeyLogJsonWriter? m_jsonKeyWriter;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment on m_pcapWriter.")]
         private UaKeyLogTextWriter? m_textKeyWriter;
+
         private string? m_sessionFolder;
         private string? m_resolvedPcapPath;
         private string? m_resolvedJsonKeyLogPath;

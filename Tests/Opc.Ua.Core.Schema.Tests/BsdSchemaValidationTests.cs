@@ -154,7 +154,8 @@ namespace Opc.Ua.Schema.Tests
                     "<opc:TypeDictionary xmlns:opc=\"http://opcfoundation.org/BinarySchema/\" " +
                     "TargetNamespace=\"urn:test:main\">" +
                     "<opc:Import Namespace=\"urn:test:evil\" Location=\"" +
-                    System.Security.SecurityElement.Escape(evilPath) + "\" />" +
+                    System.Security.SecurityElement.Escape(evilPath) +
+                    "\" />" +
                     "<opc:StructuredType Name=\"Main\">" +
                     "<opc:Field Name=\"X\" TypeName=\"opc:Int32\" /></opc:StructuredType>" +
                     "</opc:TypeDictionary>";

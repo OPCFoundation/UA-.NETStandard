@@ -458,8 +458,8 @@ namespace Opc.Ua.PubSub.Configuration
                 bool isVariableLengthScalar =
                     field.ValueRank == ValueRanks.Scalar &&
                     (builtIn == BuiltInType.String ||
-                     builtIn == BuiltInType.ByteString ||
-                     builtIn == BuiltInType.XmlElement);
+                        builtIn == BuiltInType.ByteString ||
+                        builtIn == BuiltInType.XmlElement);
                 bool needsArrayDimensions =
                     field.ValueRank > 0 &&
                     (field.ArrayDimensions.IsNull || field.ArrayDimensions.Count == 0);
@@ -660,7 +660,7 @@ namespace Opc.Ua.PubSub.Configuration
                             PubSubConfigurationIssueSeverity.Warning,
                             IssueCodes.SecurityModeInvalid,
                             "SecurityMode is unset (Invalid) and is treated as None; " +
-                                "configure an explicit SecurityMode to silence this warning.",
+                            "configure an explicit SecurityMode to silence this warning.",
                             path,
                             SpecClauses.PubSubSecurity));
                     }

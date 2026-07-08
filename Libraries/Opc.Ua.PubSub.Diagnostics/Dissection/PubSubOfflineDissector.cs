@@ -363,7 +363,8 @@ namespace Opc.Ua.PubSub.Pcap
                 out int prefixLength,
                 out bool securityEnabled,
                 out PublisherId publisherId,
-                out ushort writerGroupId) || !securityEnabled)
+                out ushort writerGroupId) ||
+                !securityEnabled)
             {
                 return false;
             }

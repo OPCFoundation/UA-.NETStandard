@@ -78,15 +78,20 @@ namespace Opc.Ua.PubSub.Application
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
         private readonly TimeProvider m_timeProvider;
+
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
             m_publishedDataSetSources;
+
         private readonly IReadOnlyDictionary<string, ISubscribedDataSetSink>?
             m_subscribedDataSetSinks;
+
         private readonly IDataSetSourceProvider? m_publishedDataSetSourceProvider;
         private readonly IDataSetSinkProvider? m_subscribedDataSetSinkProvider;
         private readonly IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
+
         private readonly Func<PubSubConnectionDataType, int>?
             m_maxNetworkMessageSizeResolver;
+
         private readonly Dictionary<string, IPubSubTransportFactory> m_factoryMap;
         private readonly Dictionary<string, INetworkMessageEncoder> m_encoderMap;
         private readonly Dictionary<string, INetworkMessageDecoder> m_decoderMap;
@@ -94,17 +99,24 @@ namespace Opc.Ua.PubSub.Application
 
         private readonly Dictionary<string, NodeId> m_connectionNodeIdsByName
             = new(StringComparer.Ordinal);
+
         private readonly Dictionary<NodeId, string> m_connectionNamesByNodeId = new();
+
         private readonly Dictionary<NodeId, (string ConnectionName, string GroupName)>
             m_groupRefs = new();
+
         private readonly Dictionary<NodeId, (string ConnectionName,
             string GroupName, string WriterName)> m_writerRefs = new();
+
         private readonly Dictionary<NodeId, (string ConnectionName,
             string GroupName, string ReaderName)> m_readerRefs = new();
+
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
+
         private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler,
             bool AllowUnsecured, PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionHandlers = [];
+
         private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = new();
         private readonly IPubSubConfigurationStore m_configurationStore;
         private readonly IPubSubRuntimeStateStore m_runtimeStateStore;

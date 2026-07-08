@@ -274,15 +274,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private readonly struct ListenerScope : IDisposable
         {
             private readonly TcpListener m_listener;
+
             internal ListenerScope(TcpListener listener)
             {
                 m_listener = listener;
             }
+
             public void Dispose()
             {
                 try
-                { m_listener?.Stop(); }
-                catch { }
+                {
+                    m_listener?.Stop();
+                }
+                catch
+                {
+                }
             }
         }
     }

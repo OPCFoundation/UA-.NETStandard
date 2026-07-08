@@ -482,8 +482,10 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_startLock = new(1, 1);
         private readonly List<SubscriptionGroup> m_groups = [];
+
         private readonly Dictionary<string, SubscriptionReadStrategy> m_strategiesByDataSet =
             new(StringComparer.Ordinal);
+
         private readonly Dictionary<string, PublishedDataSetDataType> m_dataSetsByName;
         private bool m_started;
         private bool m_disposed;

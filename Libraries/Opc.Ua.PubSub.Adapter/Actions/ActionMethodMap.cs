@@ -48,6 +48,7 @@ namespace Opc.Ua.PubSub.Adapter.Actions
     {
         private readonly Dictionary<(ushort, ushort), ActionMethodBinding> m_byTargetId
             = [];
+
         private readonly Dictionary<string, ActionMethodBinding> m_byActionName
             = new(StringComparer.Ordinal);
 

@@ -374,7 +374,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
         private static bool MetaDataEquals(DataSetMetaDataType left, DataSetMetaDataType right)
         {
-            if (left.Fields.IsNull || right.Fields.IsNull ||
+            if (left.Fields.IsNull ||
+                right.Fields.IsNull ||
                 left.Fields.Count != right.Fields.Count)
             {
                 return false;
@@ -383,7 +384,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             {
                 FieldMetaData a = left.Fields[i];
                 FieldMetaData b = right.Fields[i];
-                if (a is null || b is null ||
+                if (a is null ||
+                    b is null ||
                     !string.Equals(a.Name, b.Name, StringComparison.Ordinal) ||
                     a.BuiltInType != b.BuiltInType ||
                     a.ValueRank != b.ValueRank ||

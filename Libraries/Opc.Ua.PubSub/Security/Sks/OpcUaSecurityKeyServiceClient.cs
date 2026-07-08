@@ -274,9 +274,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                     m_session = null;
                 }
                 ISession session = await m_sessionFactory(ct).ConfigureAwait(false);
-                m_session = session ?? throw new OpcUaSksException(
-                    StatusCodes.BadCommunicationError,
-                    "SKS session factory returned null.");
+                m_session = session ??
+                    throw new OpcUaSksException(
+                        StatusCodes.BadCommunicationError,
+                        "SKS session factory returned null.");
                 return m_session;
             }
             finally

@@ -97,7 +97,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             byte[] payload = new byte[100];
             using (var rng = RandomNumberGenerator.Create())
-            { rng.GetBytes(payload); }
+            {
+                rng.GetBytes(payload);
+            }
             var chunker = new UadpChunker();
             byte[] frame = chunker.Split(payload, 0xABCD, 200)[0];
 
@@ -150,7 +152,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             byte[] payload = new byte[1500];
             using (var rng = RandomNumberGenerator.Create())
-            { rng.GetBytes(payload); }
+            {
+                rng.GetBytes(payload);
+            }
             var chunker = new UadpChunker();
             byte[][] chunks = [.. chunker.Split(payload, 9, 256)];
             // Reverse order
@@ -173,7 +177,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             byte[] payload = new byte[512];
             using (var rng = RandomNumberGenerator.Create())
-            { rng.GetBytes(payload); }
+            {
+                rng.GetBytes(payload);
+            }
             var chunker = new UadpChunker();
             IReadOnlyList<byte[]> chunks = chunker.Split(payload, 4, 256);
             Assert.That(chunks, Has.Count.GreaterThanOrEqualTo(2));
@@ -215,7 +221,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             byte[] payload = new byte[2048];
             using (var rng = RandomNumberGenerator.Create())
-            { rng.GetBytes(payload); }
+            {
+                rng.GetBytes(payload);
+            }
             IReadOnlyList<byte[]> chunks = new UadpChunker().Split(payload, 7, 256);
 
             var pid = PublisherId.FromByte(7);

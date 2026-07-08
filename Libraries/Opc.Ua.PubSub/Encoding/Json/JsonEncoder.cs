@@ -454,7 +454,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                             WriteApplicationInformation(
                                 writer,
                                 message.ApplicationInformation
-                                    ?? new Uadp.UadpApplicationInformation());
+                                ?? new Uadp.UadpApplicationInformation());
                         }
                         break;
                     case Uadp.UadpDiscoveryType.PubSubConnection:

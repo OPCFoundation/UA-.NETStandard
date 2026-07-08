@@ -70,8 +70,10 @@ namespace Opc.Ua.PubSub.Security
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly INonceProvider? m_nonceProvider;
+
         private readonly Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>
             m_policySelector;
+
         private readonly int m_replayWindowSize;
 
         /// <summary>

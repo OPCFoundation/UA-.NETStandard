@@ -315,10 +315,12 @@ namespace Opc.Ua.Pcap.Tests.Capture
         private sealed class ManagerScope : IDisposable
         {
             public CaptureSessionManager Manager { get; }
+
             public ManagerScope(ICaptureSourceFactory factory, string baseFolder)
             {
                 Manager = new CaptureSessionManager(factory, baseFolder);
             }
+
             public void Dispose()
             {
                 Manager.DisposeAsync().AsTask().GetAwaiter().GetResult();

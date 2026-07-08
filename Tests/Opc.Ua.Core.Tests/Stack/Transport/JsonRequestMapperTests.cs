@@ -345,13 +345,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public override bool CanSeek => false;
             public override bool CanWrite => false;
             public override long Length => throw new NotSupportedException();
+
             public override long Position
             {
                 get => throw new NotSupportedException();
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() { }
+            public override void Flush()
+            {
+            }
             public override int Read(byte[] buffer, int offset, int count) => 0;
 
             public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)

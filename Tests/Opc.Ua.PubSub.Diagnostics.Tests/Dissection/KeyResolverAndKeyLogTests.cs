@@ -167,9 +167,12 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
         {
             string jsonLines = Environment.NewLine +
                 "{\"securityGroupId\":\"hex-group\",\"tokenId\":7," +
-                "\"securityPolicyUri\":\"" + PubSubAes128CtrPolicy.Instance.PolicyUri + "\"," +
+                "\"securityPolicyUri\":\"" +
+                PubSubAes128CtrPolicy.Instance.PolicyUri +
+                "\"," +
                 "\"encoding\":\"hex\",\"signingKey\":\"01020304\",\"encryptingKey\":\"05060708\"," +
-                "\"keyNonce\":\"090A\"}" + Environment.NewLine +
+                "\"keyNonce\":\"090A\"}" +
+                Environment.NewLine +
                 Environment.NewLine;
             using var stream = new MemoryStream(TextEncoding.UTF8.GetBytes(jsonLines));
 

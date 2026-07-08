@@ -1308,8 +1308,8 @@ namespace Opc.Ua.Server
             // acquired entry is disposed at method scope; the borrowed
             // certificate is only read.
             using CertificateEntry? currentEntry =
-                (m_configuration.CertificateManager as ICertificateRegistry)
-                    ?.AcquireApplicationCertificateByType(certificateTypeId);
+                (m_configuration.CertificateManager as ICertificateRegistry)?
+                    .AcquireApplicationCertificateByType(certificateTypeId);
             Certificate? currentCert = currentEntry?.Certificate;
 
             if (string.IsNullOrEmpty(subjectName))

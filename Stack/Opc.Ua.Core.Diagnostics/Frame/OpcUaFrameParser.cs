@@ -125,7 +125,7 @@ namespace Opc.Ua.Pcap.Frame
             {
                 return false;
             }
-            return port is 4840 or >= 48010 and <= 48020;
+            return port is 4840 or (>= 48010 and <= 48020);
         }
 
         private static int FindNextValidStart(ReadOnlySpan<byte> span)

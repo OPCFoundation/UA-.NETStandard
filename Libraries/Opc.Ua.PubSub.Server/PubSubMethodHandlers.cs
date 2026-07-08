@@ -1785,8 +1785,10 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            if (!inputArguments[0].TryGetValue(out string? securityGroupId) || string.IsNullOrEmpty(securityGroupId) ||
-                !inputArguments[1].TryGetValue(out string? policyUri) || string.IsNullOrEmpty(policyUri) ||
+            if (!inputArguments[0].TryGetValue(out string? securityGroupId) ||
+                string.IsNullOrEmpty(securityGroupId) ||
+                !inputArguments[1].TryGetValue(out string? policyUri) ||
+                string.IsNullOrEmpty(policyUri) ||
                 !inputArguments[2].TryGetValue(out uint currentTokenId) ||
                 !inputArguments[3].TryGetValue(out ByteString currentKey) ||
                 !inputArguments[4].TryGetValue(out ArrayOf<ByteString> futureKeys) ||

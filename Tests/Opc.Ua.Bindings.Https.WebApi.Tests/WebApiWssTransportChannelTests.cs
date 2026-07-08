@@ -352,6 +352,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 "When the server closes the WebSocket while a request is " +
                 "in flight, the channel surfaces BadConnectionClosed.");
         }
+
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(
             WebApiClientOptions? options = null)
         {
@@ -388,7 +389,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .FirstOrDefault();
             if (subProtocol == null ||
                 (!string.Equals(subProtocol, Profiles.OpcUaWsSubProtocolOpenApi, StringComparison.Ordinal) &&
-                 !subProtocol.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal)))
+                    !subProtocol.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal)))
             {
                 context.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest;
                 return;

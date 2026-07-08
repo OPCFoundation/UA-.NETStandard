@@ -192,6 +192,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         {
             public List<(NodeId NodeId, uint AttributeId, DataValue Value)> Writes { get; }
                 = [];
+
             public StatusCode NextStatus { get; set; } = StatusCodes.Good;
 
             public ValueTask<StatusCode> WriteAsync(

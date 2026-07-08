@@ -100,26 +100,26 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             Assert.That(async () => await adapter.ConnectAsync(null!, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(async () => await adapter.ConnectAsync(new KafkaConnectionOptions
-                {
-                    Endpoint = KafkaTestHelper.EndpointUrl,
-                    SaslMechanism = KafkaSaslMechanism.Plain,
-                    UserName = "alice"
-                }, CancellationToken.None).ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>());
+            {
+                Endpoint = KafkaTestHelper.EndpointUrl,
+                SaslMechanism = KafkaSaslMechanism.Plain,
+                UserName = "alice"
+            }, CancellationToken.None).ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>());
             Assert.That(async () => await adapter.ConnectAsync(new KafkaConnectionOptions
-                {
-                    Endpoint = KafkaTestHelper.EndpointUrl,
-                    SaslMechanism = KafkaSaslMechanism.OAuthBearer,
-                    AllowCredentialsOverPlaintext = true
-                }, CancellationToken.None).ConfigureAwait(false), Throws.TypeOf<NotSupportedException>());
+            {
+                Endpoint = KafkaTestHelper.EndpointUrl,
+                SaslMechanism = KafkaSaslMechanism.OAuthBearer,
+                AllowCredentialsOverPlaintext = true
+            }, CancellationToken.None).ConfigureAwait(false), Throws.TypeOf<NotSupportedException>());
             Assert.That(async () => await adapter.ConnectAsync(new KafkaConnectionOptions
+            {
+                Endpoint = KafkaTestHelper.EndpointUrl,
+                Tls = new KafkaTlsOptions
                 {
-                    Endpoint = KafkaTestHelper.EndpointUrl,
-                    Tls = new KafkaTlsOptions
-                    {
-                        UseTls = true,
-                        ClientCertificatePath = "client.pem"
-                    }
-                }, CancellationToken.None).ConfigureAwait(false), Throws.TypeOf<NotSupportedException>());
+                    UseTls = true,
+                    ClientCertificatePath = "client.pem"
+                }
+            }, CancellationToken.None).ConfigureAwait(false), Throws.TypeOf<NotSupportedException>());
         }
 
         [Test]

@@ -75,7 +75,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => throw new InvalidOperationException("no secondary expected"),
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                _ => { disposeCalls++; return default; });
+                _ =>
+                {
+                    disposeCalls++;
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -107,7 +111,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                p => { disposeSignal.TrySetResult(p); return default; });
+                p =>
+                {
+                    disposeSignal.TrySetResult(p);
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -149,7 +157,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                _ => { disposeCalls++; return default; });
+                _ =>
+                {
+                    disposeCalls++;
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -191,7 +203,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 Timeout.InfiniteTimeSpan,
-                _ => { disposeCalls++; return default; });
+                _ =>
+                {
+                    disposeCalls++;
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out _), Is.True);
@@ -222,6 +238,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             private readonly Dictionary<string, FakeMonitoredItem> m_byName
                 = new(StringComparer.Ordinal);
+
             private readonly Dictionary<uint, FakeMonitoredItem> m_byHandle = [];
 
             public uint Count => (uint)m_byHandle.Count;
@@ -319,6 +336,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public uint ClientHandle { get; }
             public IEnumerable<IMonitoredItem> TriggeringItems => [];
             public IEnumerable<IMonitoredItem> TriggeredItems => [];
+
             public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
             {
                 return default;

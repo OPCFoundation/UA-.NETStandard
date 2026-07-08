@@ -169,8 +169,9 @@ namespace Opc.Ua.PubSub.Security.Sks
             var unpacked = new PubSubSecurityKey[Keys.Count];
             for (int i = 0; i < Keys.Count; i++)
             {
-                byte[] packed = Keys[i] ?? throw new InvalidOperationException(
-                    "Packed key material must not be null.");
+                byte[] packed = Keys[i] ??
+                    throw new InvalidOperationException(
+                        "Packed key material must not be null.");
                 if (packed.Length != totalLength)
                 {
                     throw new InvalidOperationException(

@@ -59,10 +59,13 @@ namespace Opc.Ua.Subscriptions.Tests
     public sealed class StreamingSubscriptionCoverageTests
     {
         private static readonly TimeSpan s_safetyTimeout = TimeSpan.FromSeconds(10);
+
         private static readonly DateTime s_publishTime =
             new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         private static readonly IReadOnlyList<string> s_emptyStringTable =
             Array.Empty<string>();
+
         private static readonly NodeId s_nodeA = new("SensorA", 2);
         private static readonly NodeId s_nodeB = new("SensorB", 2);
         private static readonly NodeId s_notifier = new("Area1", 3);

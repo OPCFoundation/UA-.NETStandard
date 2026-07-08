@@ -299,7 +299,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .ConfigureAwait(false);
 
             if (!results[0].WrappedValue.TryGetValue(out ArrayOf<string> namespaces) ||
-                namespaces.IsNull || namespaces.Count == 0)
+                namespaces.IsNull ||
+                namespaces.Count == 0)
             {
                 throw new InvalidOperationException("Server namespace array is empty.");
             }

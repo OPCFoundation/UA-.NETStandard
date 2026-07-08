@@ -1097,6 +1097,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         {
             private readonly Channel<byte[]> m_inbound =
                 Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleReader = true });
+
             private readonly object m_sync = new();
             private readonly List<byte[]> m_sentPayloads = [];
             private readonly List<string> m_sentTopics = [];

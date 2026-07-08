@@ -436,7 +436,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
         private static string CreateTempFileUnderCurrentDirectory(string extension)
         {
             string fileName = "pubsub-pcap-test-" +
-                Guid.NewGuid().ToString("N") + extension;
+                Guid.NewGuid().ToString("N") +
+                extension;
             return Path.Combine(Directory.GetCurrentDirectory(), fileName);
         }
 

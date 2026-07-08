@@ -55,6 +55,7 @@ namespace Opc.Ua.PubSub.DataSets
     {
         private readonly Dictionary<string, Variant> m_values =
             new(StringComparer.Ordinal);
+
         private readonly Lock m_gate = new();
 
         /// <summary>

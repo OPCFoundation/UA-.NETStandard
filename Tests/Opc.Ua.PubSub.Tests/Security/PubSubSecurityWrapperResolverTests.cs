@@ -50,6 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Security
     {
         private const string UdpProfile =
             "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+
         private const string DemoGroup = "DemoSecurityGroup";
 
         [Test]

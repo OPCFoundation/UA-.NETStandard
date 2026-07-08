@@ -92,6 +92,7 @@ namespace Opc.Ua.Client.Discovery
                 configuration,
                 ct: ct);
         }
+
         private readonly OpcUaClientOptions m_options;
     }
 }

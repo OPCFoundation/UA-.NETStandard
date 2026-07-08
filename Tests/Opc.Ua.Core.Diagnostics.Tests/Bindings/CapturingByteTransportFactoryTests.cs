@@ -107,10 +107,16 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public ValueTask ConnectAsync(Uri url, CancellationToken ct) => default;
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct) => default;
             public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct) => default;
+
             public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
                 => new(new ArraySegment<byte>([]));
-            public void Close() { }
-            public void Dispose() { }
+
+            public void Close()
+            {
+            }
+            public void Dispose()
+            {
+            }
         }
     }
 }

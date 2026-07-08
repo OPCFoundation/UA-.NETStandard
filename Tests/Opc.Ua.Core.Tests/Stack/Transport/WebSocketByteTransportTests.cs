@@ -502,10 +502,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public void Dispose()
             {
-                try { Server.Dispose(); } catch { }
-                try { Client.Dispose(); } catch { }
-                try { m_serverTcp.Dispose(); } catch { }
-                try { m_clientTcp.Dispose(); } catch { }
+                try
+                {
+                    Server.Dispose();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    Client.Dispose();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    m_serverTcp.Dispose();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    m_clientTcp.Dispose();
+                }
+                catch
+                {
+                }
             }
 
             private readonly TcpClient m_serverTcp;

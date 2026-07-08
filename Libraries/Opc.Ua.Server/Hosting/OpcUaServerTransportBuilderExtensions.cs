@@ -115,6 +115,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 Services = services;
             }
+
             public IServiceCollection Services { get; }
         }
     }

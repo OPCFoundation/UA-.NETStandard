@@ -60,6 +60,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
     public sealed class ServerSession : IServerSession
     {
         private static readonly TimeSpan s_applyPollInterval = TimeSpan.FromMilliseconds(25);
+
         private static readonly long s_modelChangeCoalesceTicks =
             (long)(TimeSpan.FromMilliseconds(250).TotalSeconds * Stopwatch.Frequency);
 
@@ -482,9 +483,10 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 return session;
             }
             await ConnectAsync(ct).ConfigureAwait(false);
-            return m_session ?? throw ServiceResultException.Create(
-                StatusCodes.BadNotConnected,
-                "External server session is not connected.");
+            return m_session ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotConnected,
+                    "External server session is not connected.");
         }
 
         private void ThrowIfDisposed()

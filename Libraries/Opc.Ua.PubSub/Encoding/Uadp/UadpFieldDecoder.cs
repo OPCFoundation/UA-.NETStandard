@@ -177,7 +177,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             string name = string.Empty;
             FieldMetaData? fmd = null;
-            if (metaData is not null && metadataIndex >= 0 &&
+            if (metaData is not null &&
+                metadataIndex >= 0 &&
                 metadataIndex < metaData.Fields.Count)
             {
                 fmd = metaData.Fields[metadataIndex];

@@ -305,7 +305,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 if (message.DataSetMessages[i] is not UadpDataSetMessage uadpMsg)
                 {
                     throw new InvalidOperationException(
-                        "DataSetMessage at index " + i.ToString(
+                        "DataSetMessage at index " +
+                        i.ToString(
                             System.Globalization.CultureInfo.InvariantCulture) +
                         " is not a UadpDataSetMessage.");
                 }
@@ -772,7 +773,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
             const byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
 
-            int envelopeSize = 1 + 1 + 1 +
+            int envelopeSize = 1 +
+                1 +
+                1 +
                 EstimatePublisherIdSize(publisherId, pidType) +
                 (writerGroupId.HasValue ? 3 : 0);
             byte[] result = new byte[envelopeSize + chunkFrame.Length];

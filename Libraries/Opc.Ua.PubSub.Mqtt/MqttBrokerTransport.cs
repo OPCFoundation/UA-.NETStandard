@@ -407,8 +407,8 @@ namespace Opc.Ua.PubSub.Mqtt
 
             bool isMetaData = IsMetaDataTopic(topic);
             bool isDiscovery = IsDiscoveryTopic(topic);
-            bool retain = isMetaData && m_options.Topics.RetainMetaDataMessages ||
-                isDiscovery && m_options.Topics.RetainDiscoveryMessages;
+            bool retain = (isMetaData && m_options.Topics.RetainMetaDataMessages) ||
+                (isDiscovery && m_options.Topics.RetainDiscoveryMessages);
             string? contentType = MapContentType(m_transportProfileUri);
             var message = new MqttMessage(
                 topic,

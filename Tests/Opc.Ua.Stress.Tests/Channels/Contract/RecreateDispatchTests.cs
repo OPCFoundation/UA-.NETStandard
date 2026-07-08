@@ -122,6 +122,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
 
             private readonly TaskCompletionSource<bool> m_recreateInvoked = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_reconnectInvocationCount;
             private int m_recreateInvocationCount;
         }

@@ -77,8 +77,9 @@ namespace Opc.Ua.PubSub.DataSets
             Configuration = configuration;
             m_source = source;
             DataSetMetaDataType? sourceMetaData = source.BuildMetaData();
-            m_metaData = sourceMetaData ?? configuration.DataSetMetaData
-                ?? new DataSetMetaDataType();
+            m_metaData = sourceMetaData ??
+                configuration.DataSetMetaData
+                    ?? new DataSetMetaDataType();
             if (m_metaData.ConfigurationVersion is null ||
                 m_metaData.ConfigurationVersion.MajorVersion == 0)
             {

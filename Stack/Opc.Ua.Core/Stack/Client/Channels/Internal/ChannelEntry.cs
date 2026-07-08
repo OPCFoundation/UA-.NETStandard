@@ -969,6 +969,7 @@ namespace Opc.Ua
 
             private readonly TaskCompletionSource<bool> m_taskSource = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+
             private CancellationTokenRegistration m_registration;
             private ITimer? m_timer;
         }

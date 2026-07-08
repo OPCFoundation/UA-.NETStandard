@@ -66,7 +66,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var lockObj = new object();
             var composite = new CompositeMonitoredItemCollection(
                 partitions, lockObj, policy,
-                () => { factoryCalls++; return secondary; });
+                () =>
+                {
+                    factoryCalls++;
+                    return secondary;
+                });
 
             // Until the reactive fallback fires the policy sees an
             // unbounded cap on the primary, so any TryAdd targets it.

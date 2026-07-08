@@ -824,6 +824,7 @@ namespace Opc.Ua.Bindings
 
         private static readonly MediaTypeHeaderValue s_binaryMediaTypeHeaderValue = new(
             "application/octet-stream");
+
         private static readonly MediaTypeHeaderValue s_jsonMediaTypeHeaderValue = new(
             Profiles.OpcUaJsonContentType);
     }

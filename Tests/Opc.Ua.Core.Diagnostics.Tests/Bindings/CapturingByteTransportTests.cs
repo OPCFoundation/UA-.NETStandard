@@ -163,9 +163,13 @@ namespace Opc.Ua.Pcap.Tests.Bindings
                 return new ValueTask<ArraySegment<byte>>(new ArraySegment<byte>(chunk));
             }
 
-            public void Close() { }
+            public void Close()
+            {
+            }
 
-            public void Dispose() { }
+            public void Dispose()
+            {
+            }
         }
 
         private sealed class RecordingFrameCaptureSink : IFrameCaptureSink

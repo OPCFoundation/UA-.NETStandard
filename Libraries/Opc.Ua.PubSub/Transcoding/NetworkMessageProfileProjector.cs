@@ -57,10 +57,10 @@ namespace Opc.Ua.PubSub.Transcoding
     {
         private const UadpDataSetMessageContentMask k_uadpDataSetMask
             = UadpDataSetMessageContentMask.SequenceNumber |
-            UadpDataSetMessageContentMask.Status |
-            UadpDataSetMessageContentMask.Timestamp |
-            UadpDataSetMessageContentMask.MajorVersion |
-            UadpDataSetMessageContentMask.MinorVersion;
+                UadpDataSetMessageContentMask.Status |
+                UadpDataSetMessageContentMask.Timestamp |
+                UadpDataSetMessageContentMask.MajorVersion |
+                UadpDataSetMessageContentMask.MinorVersion;
 
         /// <summary>
         /// Shared stateless instance.

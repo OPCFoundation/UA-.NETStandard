@@ -835,8 +835,10 @@ namespace Opc.Ua.WotCon.Tests
 
         private static readonly string[] s_validPropertyAndActionMix_ExpectedProps =
             ["Voltage", "Set-Point"];
+
         private static readonly string[] s_validPropertyAndActionMix_ExpectedActions =
             ["Reset"];
+
         private static readonly string[] s_tooLongChildName_ExpectedProps =
             ["Voltage"];
 

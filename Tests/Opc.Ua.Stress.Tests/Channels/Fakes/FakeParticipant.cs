@@ -189,8 +189,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         }
 
         private readonly Lock m_lock = new();
+
         private Func<IManagedTransportChannel, int, CancellationToken, ValueTask<ParticipantReconnectResult>>
             m_onReconnect = ReactivatedAsync;
+
         private TimeSpan? m_hangFor;
         private int m_notificationCount;
         private int m_lastAttempt = -1;

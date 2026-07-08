@@ -177,10 +177,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 dataSetClassId = (Uuid)g;
             }
 
-            if ((ext2 & ExtendedFlags2EncodingMask
-                .NetworkMessageWithDiscoveryRequest) != 0 ||
-                (ext2 & ExtendedFlags2EncodingMask
-                    .NetworkMessageWithDiscoveryResponse) != 0)
+            if ((ext2 &
+                ExtendedFlags2EncodingMask
+                    .NetworkMessageWithDiscoveryRequest) != 0 ||
+                (ext2 &
+                    ExtendedFlags2EncodingMask
+                        .NetworkMessageWithDiscoveryResponse) != 0)
             {
                 var header = new UadpDecodedHeader
                 {
@@ -239,8 +241,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     groupVersion = gv;
                     contentMask |= UadpNetworkMessageContentMask.GroupVersion;
                 }
-                if ((groupFlags & GroupFlagsEncodingMask
-                    .NetworkMessageNumberEnabled) != 0)
+                if ((groupFlags &
+                    GroupFlagsEncodingMask
+                        .NetworkMessageNumberEnabled) != 0)
                 {
                     if (!reader.TryReadUInt16Le(out ushort nmn))
                     {
@@ -515,10 +518,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             // Discovery frames are not in scope for security wrapping
             // — keep them detectable so the caller can route them elsewhere.
-            if ((ext2 & ExtendedFlags2EncodingMask
-                .NetworkMessageWithDiscoveryRequest) != 0 ||
-                (ext2 & ExtendedFlags2EncodingMask
-                    .NetworkMessageWithDiscoveryResponse) != 0)
+            if ((ext2 &
+                ExtendedFlags2EncodingMask
+                    .NetworkMessageWithDiscoveryRequest) != 0 ||
+                (ext2 &
+                    ExtendedFlags2EncodingMask
+                        .NetworkMessageWithDiscoveryResponse) != 0)
             {
                 prefixLength = reader.Position;
                 return true;

@@ -223,9 +223,10 @@ namespace Opc.Ua.Pcap.Audit
                     return Corrupt(linesVerified, lineNumber, error);
                 }
 
-                if (expectedPreviousHmac is not null && !CryptographicOperations.FixedTimeEquals(
-                    previousHmac,
-                    expectedPreviousHmac))
+                if (expectedPreviousHmac is not null &&
+                    !CryptographicOperations.FixedTimeEquals(
+                        previousHmac,
+                        expectedPreviousHmac))
                 {
                     return Corrupt(linesVerified, lineNumber, "Previous HMAC does not match the prior line HMAC.");
                 }

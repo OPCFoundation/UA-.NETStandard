@@ -858,7 +858,10 @@ namespace Opc.Ua.Bindings
         private sealed class WebHostAsIHost : IHost
         {
             private readonly IWebHost m_webHost;
-            public WebHostAsIHost(IWebHost webHost) { m_webHost = webHost; }
+            public WebHostAsIHost(IWebHost webHost)
+            {
+                m_webHost = webHost;
+            }
             public IServiceProvider Services => m_webHost.Services;
             public Task StartAsync(CancellationToken ct = default) => m_webHost.StartAsync(ct);
             public Task StopAsync(CancellationToken ct = default) => m_webHost.StopAsync(ct);
@@ -1326,7 +1329,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 input.RequestHeader ??= new RequestHeader();
-                if (input.RequestHeader.AuthenticationToken.IsNull && !authenticationToken.IsNull &&
+                if (input.RequestHeader.AuthenticationToken.IsNull &&
+                    !authenticationToken.IsNull &&
                     input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
                     input.RequestHeader.AuthenticationToken = authenticationToken;

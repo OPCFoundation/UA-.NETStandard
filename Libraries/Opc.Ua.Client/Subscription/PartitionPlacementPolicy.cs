@@ -393,8 +393,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private readonly uint m_maxItemsPerPartition;
         private readonly uint m_maxPartitionCount;
         private readonly Dictionary<IManagedSubscription, uint> m_perPartitionCount = [];
+
         private readonly Dictionary<string, IManagedSubscription> m_affinityIndex
             = new(StringComparer.Ordinal);
+
         private readonly HashSet<IManagedSubscription> m_noGrow = [];
     }
 

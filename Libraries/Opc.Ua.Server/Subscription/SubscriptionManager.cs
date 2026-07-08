@@ -2322,6 +2322,7 @@ namespace Opc.Ua.Server
         /// thousands of subscriptions instead of serializing on a single thread.
         /// </summary>
         private const int kParallelPublishThreshold = 256;
+
         private static readonly ParallelOptions s_parallelPublishOptions = new()
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount

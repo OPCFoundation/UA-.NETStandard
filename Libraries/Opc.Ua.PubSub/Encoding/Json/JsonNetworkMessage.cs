@@ -72,9 +72,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         public JsonNetworkMessageContentMask ContentMask { get; init; }
             = JsonNetworkMessageContentMask.NetworkMessageHeader |
-            JsonNetworkMessageContentMask.DataSetMessageHeader |
-            JsonNetworkMessageContentMask.PublisherId |
-            JsonNetworkMessageContentMask.DataSetClassId;
+                JsonNetworkMessageContentMask.DataSetMessageHeader |
+                JsonNetworkMessageContentMask.PublisherId |
+                JsonNetworkMessageContentMask.DataSetClassId;
 
         /// <summary>
         /// DataSetClassId of the published dataset class. May be

@@ -921,8 +921,10 @@ namespace Opc.Ua
         private Certificate? m_clientCertificate;
         private CertificateCollection? m_clientCertificateChain;
         private long m_clientCertificateVersion;
+
         private readonly IChannelReconnectPolicy m_reconnectPolicy
             = new ExponentialBackoffChannelReconnectPolicy();
+
         private readonly TimeProvider m_timeProvider = TimeProvider.System;
         private readonly ILogger? m_logger;
 

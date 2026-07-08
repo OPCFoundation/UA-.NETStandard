@@ -91,10 +91,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 new DateTimeOffset(2026, 6, 16, 12, 0, 1, TimeSpan.Zero));
             PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
                 DataSetFieldContentMask.StatusCode |
-                    DataSetFieldContentMask.SourceTimestamp |
-                    DataSetFieldContentMask.SourcePicoSeconds |
-                    DataSetFieldContentMask.ServerTimestamp |
-                    DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.ServerPicoSeconds,
                 new DataSetField
                 {
                     Value = new Variant(7.0),

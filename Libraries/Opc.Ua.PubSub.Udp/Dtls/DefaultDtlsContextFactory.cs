@@ -191,9 +191,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             try
             {
-                ICertificatePasswordProvider? passwordProvider = ApplicationConfiguration
-                    ?.SecurityConfiguration
-                    ?.CertificatePasswordProvider;
+                ICertificatePasswordProvider? passwordProvider = ApplicationConfiguration?
+                    .SecurityConfiguration?
+                    .CertificatePasswordProvider;
                 string? applicationUri = ApplicationConfiguration?.ApplicationUri;
                 foreach (CertificateIdentifier identifier in Options.LocalCertificateIdentifiers)
                 {

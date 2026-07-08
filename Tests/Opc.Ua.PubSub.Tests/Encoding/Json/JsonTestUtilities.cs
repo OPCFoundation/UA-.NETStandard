@@ -64,7 +64,8 @@ namespace OpcUaPubSubJsonTests
                 ServiceMessageContext.CreateEmpty(null!),
                 registry ?? new DataSetMetaDataRegistry(),
                 diagnostics ?? new PubSubDiagnostics(PubSubDiagnosticsLevel.High),
-                timeProvider ?? new FakeTimeProvider(
+                timeProvider ??
+                new FakeTimeProvider(
                     new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero)));
         }
 

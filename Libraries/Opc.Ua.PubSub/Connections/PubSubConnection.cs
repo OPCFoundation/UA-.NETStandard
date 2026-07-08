@@ -1714,9 +1714,12 @@ namespace Opc.Ua.PubSub.Connections
             RecordSecurityFailure(
                 StatusCodes.BadSecurityModeRejected,
                 "Refusing to publish a PubSub Action response to the " +
-                "requestor-supplied address '" + (responseAddress ?? string.Empty) +
-                "' for writer " + dataSetWriterId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
-                ", target " + actionTargetId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "requestor-supplied address '" +
+                (responseAddress ?? string.Empty) +
+                "' for writer " +
+                dataSetWriterId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                ", target " +
+                actionTargetId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                 ": it does not match the configured response-address policy (" +
                 responder.ResponseAddressPolicy.Description +
                 "). An attacker can otherwise turn the responder into a publishing " +
@@ -2313,9 +2316,10 @@ namespace Opc.Ua.PubSub.Connections
                 payload = await EncodeAndWrapUadpAsync(uadp, context, cancellationToken)
                     .ConfigureAwait(false);
             }
-            else if (RequiresInboundSecurity || m_securityWrapper is not null &&
-                m_requiredSecurityMode is MessageSecurityMode.Sign
-                    or MessageSecurityMode.SignAndEncrypt)
+            else if (RequiresInboundSecurity ||
+                (m_securityWrapper is not null &&
+                    m_requiredSecurityMode is MessageSecurityMode.Sign
+                        or MessageSecurityMode.SignAndEncrypt))
             {
                 // Fail-closed: never emit plaintext for a secured group.
                 // This path is only reachable for non-UADP messages, which

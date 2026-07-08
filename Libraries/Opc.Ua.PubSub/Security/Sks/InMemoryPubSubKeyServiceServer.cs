@@ -56,8 +56,10 @@ namespace Opc.Ua.PubSub.Security.Sks
         private const int DefaultMaxPastKeyCount = 4;
 
         private readonly Lock m_lock = new();
+
         private readonly Dictionary<string, SecurityGroupState> m_groups =
             new(StringComparer.Ordinal);
+
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly IPubSubSecurityEventSink? m_securityEventSink;

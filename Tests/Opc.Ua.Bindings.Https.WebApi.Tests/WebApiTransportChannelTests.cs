@@ -239,6 +239,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConfigureAwait(false);
             Assert.That(response, Is.InstanceOf<ReadResponse>());
         }
+
         private async Task<WebApiTransportChannel> OpenChannelAsync()
         {
             var channel = new WebApiTransportChannel(
@@ -263,6 +264,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConfigureAwait(false);
             return channel;
         }
+
         private sealed class UnknownRequest : IServiceRequest
         {
             public RequestHeader RequestHeader { get; set; } = new();
@@ -270,8 +272,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId JsonEncodingId => ExpandedNodeId.Null;
-            public void Decode(IDecoder decoder) { }
-            public void Encode(IEncoder encoder) { }
+            public void Decode(IDecoder decoder)
+            {
+            }
+            public void Encode(IEncoder encoder)
+            {
+            }
             public bool IsEqual(IEncodeable? encodeable) => false;
             public object Clone() => new UnknownRequest();
         }

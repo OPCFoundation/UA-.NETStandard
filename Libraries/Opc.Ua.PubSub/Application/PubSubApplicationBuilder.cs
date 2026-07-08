@@ -74,13 +74,17 @@ namespace Opc.Ua.PubSub.Application
         private readonly List<IPubSubSecurityPolicy> m_policies = [];
         private readonly List<EndpointDescription> m_sksEndpoints = [];
         private readonly List<IPubSubSecurityKeyProvider> m_keyProviders = [];
+
         private readonly Dictionary<string, IPublishedDataSetSource> m_dataSetSources
             = new(StringComparer.Ordinal);
+
         private readonly Dictionary<string, ISubscribedDataSetSink> m_dataSetSinks
             = new(StringComparer.Ordinal);
+
         private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler,
             bool AllowUnsecured, PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionResponders = [];
+
         private readonly PubSubApplicationOptions m_options = new();
         private IUaPubSubDataStore? m_dataStore;
         private IDataSetSourceProvider? m_dataSetSourceProvider;
@@ -90,6 +94,7 @@ namespace Opc.Ua.PubSub.Application
         private PubSubConfigurationDataType? m_configuration;
         private string? m_configurationFilePath;
         private IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
+
         private Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>?
             m_securityPolicySelector;
 

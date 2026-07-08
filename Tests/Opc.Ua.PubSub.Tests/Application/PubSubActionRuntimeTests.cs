@@ -188,7 +188,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             return ex is System.Net.Sockets.SocketException ||
                 ex is NotSupportedException ||
-                ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException);
+                (ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException));
         }
     }
 }

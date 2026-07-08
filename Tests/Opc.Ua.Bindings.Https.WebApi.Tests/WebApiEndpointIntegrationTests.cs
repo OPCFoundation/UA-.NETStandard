@@ -217,6 +217,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConfigureAwait(false);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         }
+
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string path,
             TRequest request,

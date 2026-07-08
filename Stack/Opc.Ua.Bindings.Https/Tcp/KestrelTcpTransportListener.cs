@@ -95,8 +95,10 @@ namespace Opc.Ua.Bindings
 
         internal ITelemetryContext Telemetry { get; }
         internal ILogger Logger { get; }
+
         internal BufferManager BufferManager => m_bufferManager
             ?? throw new InvalidOperationException("KestrelTcpTransportListener is not opened.");
+
         internal ChannelQuotas Quotas => m_quotas
             ?? throw new InvalidOperationException("KestrelTcpTransportListener is not opened.");
 

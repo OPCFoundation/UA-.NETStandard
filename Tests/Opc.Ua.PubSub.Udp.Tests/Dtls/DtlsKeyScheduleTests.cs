@@ -109,6 +109,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             transcript.Append(bytes);
             return transcript.GetHash();
         }
+
         private static void FillRandom(byte[] buffer)
         {
 #if NET8_0_OR_GREATER

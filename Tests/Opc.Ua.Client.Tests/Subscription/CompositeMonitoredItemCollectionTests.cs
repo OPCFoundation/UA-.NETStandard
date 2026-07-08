@@ -135,7 +135,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 [primary],
                 new object(),
                 policy,
-                () => { factoryInvocations++; return NewFake(99); });
+                () =>
+                {
+                    factoryInvocations++;
+                    return NewFake(99);
+                });
 
             Assert.That(composite.TryAdd("a",
                 MakeOptions(new V2Options()),
@@ -160,7 +164,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 [primary],
                 new object(),
                 policy,
-                () => { factoryInvocations++; return secondary; });
+                () =>
+                {
+                    factoryInvocations++;
+                    return secondary;
+                });
 
             Assert.That(composite.TryAdd("a",
                 MakeOptions(new V2Options()), out _), Is.True);
@@ -379,12 +387,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             public uint Count
             {
-                get { CountCalls++; return 0; }
+                get
+                {
+                    CountCalls++;
+                    return 0;
+                }
             }
 
             public IEnumerable<IMonitoredItem> Items
             {
-                get { ItemsCalls++; return []; }
+                get
+                {
+                    ItemsCalls++;
+                    return [];
+                }
             }
 
             public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
@@ -438,6 +454,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             private readonly Dictionary<string, FakeMonitoredItem> m_byName
                 = new(StringComparer.Ordinal);
+
             private readonly Dictionary<uint, FakeMonitoredItem> m_byHandle = [];
 
             public uint Count => (uint)m_byHandle.Count;

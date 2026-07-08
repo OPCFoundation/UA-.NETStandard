@@ -443,8 +443,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
         private sealed class ProgrammableTransport : IPubSubTransport
         {
             private readonly IReadOnlyList<byte[]> m_frames;
+
             private readonly TaskCompletionSource<bool> m_drained =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private bool m_isConnected;
 
             public ProgrammableTransport(IReadOnlyList<byte[]> frames)

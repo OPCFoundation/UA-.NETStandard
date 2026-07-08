@@ -472,8 +472,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             private readonly object m_lock = new();
             private readonly List<byte[]> m_sent = new();
+
             private readonly TaskCompletionSource<bool> m_closed =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<bool> m_firstSend =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 

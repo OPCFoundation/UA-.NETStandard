@@ -135,7 +135,9 @@ public static class Program
             var checkpointStore = new SharedStorePubSubWriterCheckpointStore(store);
             start = (await checkpointStore
                 .GetSequenceNumberAsync("demo-writer-group", options.DataSetWriterId, cancellationToken)
-                .ConfigureAwait(false) ?? 0) + 5;
+                .ConfigureAwait(false) ??
+                0) +
+                5;
         }
         await EmitDemoSequencesAsync(options, store, monitor, "publisher-b", start, 2, cancellationToken)
             .ConfigureAwait(false);

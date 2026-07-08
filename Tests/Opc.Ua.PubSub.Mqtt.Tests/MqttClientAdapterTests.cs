@@ -111,7 +111,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -156,7 +158,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -219,7 +223,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -272,7 +278,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -316,7 +324,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -396,7 +406,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -461,7 +473,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -543,7 +557,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -625,7 +641,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             int port;
             try
-            { port = ReserveEphemeralTcpPort(); }
+            {
+                port = ReserveEphemeralTcpPort();
+            }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");

@@ -53,8 +53,10 @@ namespace Opc.Ua.PubSub.Transcoding
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_reloadLock = new(1, 1);
         private readonly Lock m_gate = new();
+
         private readonly Dictionary<string, ActiveRoute> m_active
             = new(StringComparer.Ordinal);
+
         private TranscodingBridgeActivator? m_activator;
         private IDisposable? m_changeSubscription;
         private CancellationTokenSource? m_debounce;

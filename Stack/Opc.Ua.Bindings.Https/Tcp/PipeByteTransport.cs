@@ -252,9 +252,27 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
-            try { m_connection.Transport.Input.Complete(); } catch { }
-            try { m_connection.Transport.Output.Complete(); } catch { }
-            try { m_connection.Abort(); } catch { }
+            try
+            {
+                m_connection.Transport.Input.Complete();
+            }
+            catch
+            {
+            }
+            try
+            {
+                m_connection.Transport.Output.Complete();
+            }
+            catch
+            {
+            }
+            try
+            {
+                m_connection.Abort();
+            }
+            catch
+            {
+            }
             m_sendLock.Dispose();
         }
 

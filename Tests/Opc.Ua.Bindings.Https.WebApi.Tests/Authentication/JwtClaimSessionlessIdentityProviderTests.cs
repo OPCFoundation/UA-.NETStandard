@@ -57,10 +57,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
         /// </summary>
         private static readonly string[] s_expectedScopes =
             ["read.values", "browse.address-space", "write.values"];
+
         private static readonly string[] s_expectedRoles =
             ["operator", "observer"];
+
         private static readonly string[] s_expectedCustomScopes =
             ["a", "b"];
+
         private static readonly string[] s_expectedCustomRoles =
             ["engineering", "qa"];
 
@@ -275,6 +278,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
                 "with an empty password. Upstream subject still available via " +
                 "SecureChannelContext.UpstreamIdentity.");
         }
+
         private static DefaultHttpContext BuildContext(
             string? bearer,
             string? identityName = null,

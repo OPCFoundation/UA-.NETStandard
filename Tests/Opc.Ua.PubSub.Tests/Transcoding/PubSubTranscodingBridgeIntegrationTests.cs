@@ -253,6 +253,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         private sealed class LoopbackReceiveTransport : IPubSubTransport
         {
             private readonly IReadOnlyList<byte[]> m_frames;
+
             private readonly TaskCompletionSource<bool> m_drained =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 

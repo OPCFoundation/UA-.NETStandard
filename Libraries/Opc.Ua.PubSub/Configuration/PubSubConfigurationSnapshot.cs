@@ -379,7 +379,8 @@ namespace Opc.Ua.PubSub.Configuration
                                 "DataSetReader has an empty Name.",
                                 drPath));
                         }
-                        else if (connectionName.Length > 0 && rgName.Length > 0 &&
+                        else if (connectionName.Length > 0 &&
+                            rgName.Length > 0 &&
                             !dataSetReaders.TryAdd(new DataSetReaderKey(connectionName, rgName, drName), reader))
                         {
                             issues.Add(new PubSubConfigurationIssue(
@@ -397,22 +398,27 @@ namespace Opc.Ua.PubSub.Configuration
 
         private static readonly IReadOnlyDictionary<string, PubSubConnectionDataType> EmptyConnections
             = new Dictionary<string, PubSubConnectionDataType>(StringComparer.Ordinal);
+
         private static readonly IReadOnlyDictionary<
             WriterGroupKey,
             WriterGroupDataType> EmptyWriterGroups
             = new Dictionary<WriterGroupKey, WriterGroupDataType>();
+
         private static readonly IReadOnlyDictionary<
             DataSetWriterKey,
             DataSetWriterDataType> EmptyDataSetWriters
             = new Dictionary<DataSetWriterKey, DataSetWriterDataType>();
+
         private static readonly IReadOnlyDictionary<
             ReaderGroupKey,
             ReaderGroupDataType> EmptyReaderGroups
             = new Dictionary<ReaderGroupKey, ReaderGroupDataType>();
+
         private static readonly IReadOnlyDictionary<
             DataSetReaderKey,
             DataSetReaderDataType> EmptyDataSetReaders
             = new Dictionary<DataSetReaderKey, DataSetReaderDataType>();
+
         private static readonly IReadOnlyDictionary<string, PublishedDataSetDataType> EmptyPublishedDataSets
             = new Dictionary<string, PublishedDataSetDataType>(StringComparer.Ordinal);
 

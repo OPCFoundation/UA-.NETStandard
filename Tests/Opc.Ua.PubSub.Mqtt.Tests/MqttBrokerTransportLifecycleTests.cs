@@ -81,7 +81,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 conn,
                 endpoint,
                 direction,
-                options ?? new MqttConnectionOptions
+                options ??
+                new MqttConnectionOptions
                 {
                     Endpoint = "mqtt://broker.example.com:1883"
                 },

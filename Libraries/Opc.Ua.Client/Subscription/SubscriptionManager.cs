@@ -1013,7 +1013,8 @@ namespace Opc.Ua.Client.Subscriptions
             // non-zero AND the caller asked for transfer, issue
             // TransferSubscriptions; on failure fall back to recreate
             // via the partition's own state machine.
-            if (transferSubscriptions && snap.ServerId != 0 &&
+            if (transferSubscriptions &&
+                snap.ServerId != 0 &&
                 partition is Subscription concrete)
             {
                 bool transferred = false;

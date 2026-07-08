@@ -278,6 +278,7 @@ namespace Opc.Ua.Pcap.Replay
 
         private readonly ConcurrentDictionary<string, ReplaySession> m_sessions = new(
             StringComparer.OrdinalIgnoreCase);
+
         private readonly ILoggerFactory m_loggerFactory;
         private readonly IPcapAuditSink? m_auditSink;
         private readonly PcapOptions m_options;
