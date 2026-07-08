@@ -34,6 +34,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -308,6 +309,51 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task DemotionDuringInFlightWriteDoesNotAbortItAsync()
+        {
+            // This synchronizer never tears down/recreates its outbound channel or
+            // drain task on a role transition (only Start()/DisposeAsync() do), so a
+            // write already in flight when OnLeadershipChanged(false) fires is never
+            // cancelled — it runs to completion against the real store exactly as if
+            // demotion had not occurred. Only writes still queued behind it are
+            // skipped (correctly, since the replica no longer owns the writer role).
+            using var kv = new InMemorySharedKeyValueStore();
+            using var innerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var stallingStore = new StallingNodeStateStore(innerStore);
+            await using var election = new MutableLeaderElection();
+            election.Set(true);
+
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(stallingStore, space, election);
+            BaseDataVariableState node = NewVariable("in-flight", 1.0);
+            await space.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            synchronizer.Start();
+
+            // Arm only after the seed above, so the seed write is never the one
+            // that stalls.
+            stallingStore.Arm();
+            node.Value = new Variant(2.0);
+            node.ClearChangeMasks(m_systemContext, false);
+
+            await AwaitWithTimeoutAsync(stallingStore.FirstWriteStarted).ConfigureAwait(false);
+
+            // Demote while the write above is stalled mid-flight inside the store.
+            election.Set(false);
+            stallingStore.ReleaseFirstWrite();
+
+            await AssertEventuallyAsync(
+                async () =>
+                {
+                    (bool found, DataValue value) = await innerStore
+                        .TryReadValueAsync(node.NodeId)
+                        .ConfigureAwait(false);
+                    return found && Equals(value.WrappedValue, new Variant(2.0));
+                },
+                "the write already in flight when demotion occurred must still complete").ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task RemovedNodesAreDetachedFromTrackingAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -515,6 +561,32 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.Fail(message);
         }
 
+        /// <summary>
+        /// Awaits <paramref name="task"/>, observing <paramref name="ct"/>
+        /// without relying on any BCL API newer than net48 (this test project
+        /// multi-targets down to net48).
+        /// </summary>
+        private static async Task WaitWithCancellationAsync(Task task, CancellationToken ct)
+        {
+            if (!ct.CanBeCanceled)
+            {
+                await task.ConfigureAwait(false);
+                return;
+            }
+
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (ct.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetResult(true), cancelled))
+            {
+                Task completed = await Task.WhenAny(task, cancelled.Task).ConfigureAwait(false);
+                if (completed == cancelled.Task)
+                {
+                    ct.ThrowIfCancellationRequested();
+                }
+            }
+
+            await task.ConfigureAwait(false);
+        }
+
         private sealed class MutableLeaderElection : ILeaderElection
         {
             public bool IsLeader => Volatile.Read(ref m_isLeader) != 0;
@@ -542,6 +614,106 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             private int m_isLeader;
+        }
+
+        /// <summary>
+        /// An <see cref="INodeStateStore"/> decorator whose first
+        /// <see cref="WriteValueAsync"/> call after <see cref="Arm"/> stalls
+        /// (deterministically, without relying on timing) until the test
+        /// releases it, so a test can reliably place a demotion in the middle
+        /// of an in-flight store write. Stalling is armed explicitly so the
+        /// seed write made by <c>SeedOrHydrateAsync</c> is never the one that
+        /// stalls.
+        /// </summary>
+        private sealed class StallingNodeStateStore : INodeStateStore
+        {
+            public StallingNodeStateStore(INodeStateStore inner)
+            {
+                m_inner = inner;
+            }
+
+            public Task FirstWriteStarted => m_firstWriteStarted.Task;
+
+            /// <summary>
+            /// Arms the stall: the next <see cref="WriteValueAsync"/> call
+            /// after this point (and only that one) will stall.
+            /// </summary>
+            public void Arm()
+            {
+                Volatile.Write(ref m_armed, 1);
+            }
+
+            public void ReleaseFirstWrite()
+            {
+                m_releaseGate.TrySetResult(true);
+            }
+
+            public ValueTask UpsertNodeAsync(IStoredNode node, CancellationToken ct = default)
+            {
+                return m_inner.UpsertNodeAsync(node, ct);
+            }
+
+            public ValueTask<bool> DeleteNodeAsync(NodeId nodeId, CancellationToken ct = default)
+            {
+                return m_inner.DeleteNodeAsync(nodeId, ct);
+            }
+
+            public ValueTask<IStoredNode?> TryGetNodeAsync(NodeId nodeId, CancellationToken ct = default)
+            {
+                return m_inner.TryGetNodeAsync(nodeId, ct);
+            }
+
+            public IAsyncEnumerable<IStoredNode> EnumerateAsync(CancellationToken ct = default)
+            {
+                return m_inner.EnumerateAsync(ct);
+            }
+
+            public ValueTask WriteValueAsync(NodeId nodeId, in DataValue value, CancellationToken ct = default)
+            {
+                // Copy out of the `in` parameter before crossing an await
+                // boundary (in-parameters cannot be used in async methods).
+                DataValue copy = value;
+                if (Volatile.Read(ref m_armed) != 0 && Interlocked.Exchange(ref m_stalledOnce, 1) == 0)
+                {
+                    return StallThenWriteAsync(nodeId, copy, ct);
+                }
+                return m_inner.WriteValueAsync(nodeId, copy, ct);
+            }
+
+            public ValueTask<(bool Found, DataValue Value)> TryReadValueAsync(NodeId nodeId, CancellationToken ct = default)
+            {
+                return m_inner.TryReadValueAsync(nodeId, ct);
+            }
+
+            public IAsyncEnumerable<(NodeId NodeId, DataValue Value)> EnumerateValuesAsync(CancellationToken ct = default)
+            {
+                return m_inner.EnumerateValuesAsync(ct);
+            }
+
+            public IAsyncEnumerable<NodeStateChange> SubscribeChangesAsync(CancellationToken ct = default)
+            {
+                return m_inner.SubscribeChangesAsync(ct);
+            }
+
+            private async ValueTask StallThenWriteAsync(NodeId nodeId, DataValue value, CancellationToken ct)
+            {
+                m_firstWriteStarted.TrySetResult(true);
+
+                // Block here — deterministically inside an in-flight store
+                // write — until the test releases the gate or the caller
+                // cancels, reproducing the exact race window a graceful
+                // demotion must not lose buffered writes across.
+                await WaitWithCancellationAsync(m_releaseGate.Task, ct).ConfigureAwait(false);
+                await m_inner.WriteValueAsync(nodeId, value, ct).ConfigureAwait(false);
+            }
+
+            private readonly INodeStateStore m_inner;
+            private readonly TaskCompletionSource<bool> m_firstWriteStarted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_releaseGate =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_armed;
+            private int m_stalledOnce;
         }
     }
 }

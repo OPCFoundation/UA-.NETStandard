@@ -381,7 +381,7 @@ static ArrayOf<RedundantPeer> ReadRedundantPeers(IConfiguration configuration)
         if (fields.Length is < 1 or > 3 || string.IsNullOrWhiteSpace(fields[0]))
         {
             throw new FormatException(
-                $"Invalid REDUNDANT_PEERS entry '{entry}'; expected applicationUri|applicationName|discoveryUrl+...");
+                $"Invalid HA_REDUNDANT_PEERS entry '{entry}'; expected applicationUri|applicationName|discoveryUrl+...");
         }
 
         ArrayOf<string> discoveryUrls = fields.Length >= 3
