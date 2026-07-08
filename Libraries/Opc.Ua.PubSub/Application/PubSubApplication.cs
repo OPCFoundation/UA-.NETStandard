@@ -774,6 +774,8 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Sends a PubSub discovery request on all active runtime connections.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
             PubSubDiscoveryRequest request,
             TimeSpan timeout,
@@ -828,6 +830,9 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Sends a PubSub Action request on the selected runtime connection.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubActionResponse> InvokeActionAsync(
             PubSubActionRequest request,
             TimeSpan timeout,
@@ -868,6 +873,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Registers a responder-side Action handler on matching connections.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RegisterActionHandler(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
@@ -915,6 +921,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Replaces the entire runtime configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(
             PubSubConfigurationDataType configuration,
             CancellationToken cancellationToken = default)
@@ -935,6 +942,8 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a connection to the running configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public ValueTask<NodeId> AddConnectionAsync(
             PubSubConnectionDataType configuration,
             CancellationToken cancellationToken = default)
@@ -1000,6 +1009,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a WriterGroup to an existing connection.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddWriterGroupAsync(
             NodeId connectionId,
             WriterGroupDataType configuration,
@@ -1049,6 +1059,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a ReaderGroup to an existing connection.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddReaderGroupAsync(
             NodeId connectionId,
             ReaderGroupDataType configuration,
@@ -1162,6 +1173,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a DataSetWriter to an existing WriterGroup.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddDataSetWriterAsync(
             NodeId writerGroupId,
             DataSetWriterDataType configuration,
@@ -1283,6 +1295,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a DataSetReader to an existing ReaderGroup.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddDataSetReaderAsync(
             NodeId readerGroupId,
             DataSetReaderDataType configuration,
@@ -1404,6 +1417,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a PublishedDataSet to the running configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddPublishedDataSetAsync(
             PublishedDataSetDataType configuration,
             CancellationToken cancellationToken = default)
@@ -1972,8 +1986,7 @@ namespace Opc.Ua.PubSub.Application
                 return;
             }
 
-            PublishedDataSetDataType[] publishedDataSets = [.. configuration.PublishedDataSets];
-            foreach (PublishedDataSetDataType dataSet in publishedDataSets)
+            foreach (PublishedDataSetDataType dataSet in (PublishedDataSetDataType[])[.. configuration.PublishedDataSets])
             {
                 ConfigurationVersionDataType? version = dataSet.DataSetMetaData?.ConfigurationVersion;
                 if (!string.IsNullOrEmpty(dataSet.Name) && version is not null)
@@ -1993,9 +2006,7 @@ namespace Opc.Ua.PubSub.Application
         {
             List<PubSubConnectionDataType> previousConnections =
                 CloneConnections(previousConfiguration);
-            List<PubSubConnectionDataType> currentConnections =
-                CloneConnections(currentConfiguration);
-            foreach (PubSubConnectionDataType currentConnection in currentConnections)
+            foreach (PubSubConnectionDataType currentConnection in CloneConnections(currentConfiguration))
             {
                 string connectionName = currentConnection.Name ?? string.Empty;
                 PubSubConnectionDataType? previousConnection = previousConnections.Find(

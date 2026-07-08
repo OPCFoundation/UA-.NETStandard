@@ -140,7 +140,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
             // 'OPCUA_SOMETHING' instead. Even with 11 fields, the tag check
             // must reject it.
             string path = CreateTempPath("bad-tag.uakeys.txt");
-            string line = "OPCUA_SOMETHING 0x1 0x2 http://policy None - - - - - -";
+            const string line = "OPCUA_SOMETHING 0x1 0x2 http://policy None - - - - - -";
             File.WriteAllText(path, line + "\n", Encoding.UTF8);
 
             var reader = new UaKeyLogTextReader();
@@ -162,7 +162,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
             // 11 fields, correct tag, but the 5th field is not a known
             // MessageSecurityMode value.
             string path = CreateTempPath("bad-mode.uakeys.txt");
-            string line = "OPCUA_CHANNEL 0x1 0x2 http://policy ScrambledEggs - - - - - -";
+            const string line = "OPCUA_CHANNEL 0x1 0x2 http://policy ScrambledEggs - - - - - -";
             File.WriteAllText(path, line + "\n", Encoding.UTF8);
 
             var reader = new UaKeyLogTextReader();
@@ -184,7 +184,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
             // Channel id field is decimal (no leading "0x") — reader insists
             // every integer be a 0x-prefixed hex literal.
             string path = CreateTempPath("decimal.uakeys.txt");
-            string line = "OPCUA_CHANNEL 123 0x2 http://policy None - - - - - -";
+            const string line = "OPCUA_CHANNEL 123 0x2 http://policy None - - - - - -";
             File.WriteAllText(path, line + "\n", Encoding.UTF8);
 
             var reader = new UaKeyLogTextReader();
@@ -207,7 +207,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
             // material must contain null arrays in those slots and a valid
             // policy + channel/token id elsewhere.
             string path = CreateTempPath("dashes.uakeys.txt");
-            string line = "OPCUA_CHANNEL 0x12345678 0x9ABCDEF0 http://example/policy None - - - - - -";
+            const string line = "OPCUA_CHANNEL 0x12345678 0x9ABCDEF0 http://example/policy None - - - - - -";
             File.WriteAllText(path, line + "\n", Encoding.UTF8);
 
             var reader = new UaKeyLogTextReader();

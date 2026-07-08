@@ -116,6 +116,7 @@ namespace Opc.Ua
         /// <param name="delay">The reconnect delay produced by the policy.</param>
         /// <param name="serverRetryAfter">The server-provided retry-after hint.</param>
         /// <returns>The effective delay with the hint honored as a lower bound.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="policy"/> is <c>null</c>.</exception>
         public static TimeSpan ApplyReconnectDelayLowerBound(
             IChannelReconnectPolicy policy,
             TimeSpan delay,

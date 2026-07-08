@@ -77,6 +77,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="frame">Raw inbound bytes.</param>
         /// <param name="context">Network message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static PubSubNetworkMessage? Decode(
             ReadOnlyMemory<byte> frame,
             PubSubNetworkMessageContext context)

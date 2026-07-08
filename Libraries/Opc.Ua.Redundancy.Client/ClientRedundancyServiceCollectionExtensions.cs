@@ -175,6 +175,7 @@ namespace Opc.Ua.Redundancy.Client
         /// Registers a transparent <see cref="ISession"/> facade backed by client replica coordination.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IServiceCollection AddRedundantClientSession(
             this IServiceCollection services,
             Action<RedundantClientSessionOptions> configure

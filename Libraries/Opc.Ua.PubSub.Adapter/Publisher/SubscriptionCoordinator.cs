@@ -129,6 +129,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <exception cref="KeyNotFoundException">
         /// Thrown when no subscription is configured for the dataset.
         /// </exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public IReadStrategy GetReadStrategy(string publishedDataSetName)
         {
             if (publishedDataSetName is null)

@@ -70,14 +70,14 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                     4,
                     2,
                     Array.Empty<PubSubSecurityKey>(),
-                    authorizedCallerIdentities ?? ["user1"]));
+                    authorizedCallerIdentities ?? ["user1"])).ConfigureAwait(false);
             return server;
         }
 
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsGoodAndPopulatesOutputs()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
             var ctx = BuildContext("user1");
             var inputs = new List<Variant>
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsBadInvalidArgumentForFewArgs()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
             var ctx = BuildContext("user1");
             var outputs = new List<Variant>();
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsBadInvalidArgumentForWrongTypes()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
             var ctx = BuildContext("user1");
             var inputs = new List<Variant>
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsBadInvalidArgumentForEmptyGroupId()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
             var ctx = BuildContext("user1");
             var inputs = new List<Variant>
@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public async Task HandleGetSecurityKeysForwardsCallerIdentityToAuthorization()
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync(
-                authorizedCallerIdentities: ["authorized-user"]);
+                authorizedCallerIdentities: ["authorized-user"]).ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
             var ctx = BuildContext("unauthorized-user");
             var inputs = new List<Variant>
@@ -215,7 +215,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public async Task HandleGetSecurityKeys_RejectsAnonymousCallerWithBadUserAccessDenied()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
             var ctx = BuildContext(userId: null);
             var inputs = new List<Variant>

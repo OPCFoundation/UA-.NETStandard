@@ -143,7 +143,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.MonitoredItems.Count,
                     Is.EqualTo((uint)totalItems));
 
-                int expectedPartitions =
+                const int expectedPartitions =
                     (totalItems + (int)perPartitionCap - 1) / (int)perPartitionCap;
                 var partitioned = (IPartitionedSubscription)subscription;
                 Assert.That(partitioned.PartitionCount,

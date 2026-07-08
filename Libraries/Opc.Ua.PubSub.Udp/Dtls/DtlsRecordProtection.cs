@@ -88,6 +88,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Protects one plaintext record and increments the write sequence number.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] Seal(ReadOnlySpan<byte> plaintext)
         {
             ThrowIfDisposed();
@@ -148,6 +149,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Authenticates and unprotects one record, rejecting replayed sequence numbers, throwing a
         /// <see cref="CryptographicException"/> if the record is malformed, forged or replayed.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public byte[] Open(ReadOnlySpan<byte> record)
         {
             if (!TryOpen(record, out byte[]? applicationData))
@@ -165,6 +167,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// malformed, forged or replayed datagrams cannot poison the replay window. RFC 9147 §4.5.2
         /// callers silently drop a record when this returns <see langword="false"/>.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public bool TryOpen(ReadOnlySpan<byte> record, out byte[]? applicationData)
         {
             ThrowIfDisposed();

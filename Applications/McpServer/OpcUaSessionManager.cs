@@ -289,7 +289,7 @@ namespace Opc.Ua.Mcp
                 session.ConnectionStateChanged += (_, e) => SessionConnectionStateChanged(name, e);
                 session.ChannelStateChanged += (_, e) => SessionChannelStateChanged(name, e);
 
-                var sessionInfo = new SessionInfo
+                m_sessions[name] = new SessionInfo
                 {
                     Name = name,
                     Session = session,
@@ -297,8 +297,6 @@ namespace Opc.Ua.Mcp
                     AuthType = authType,
                     ConnectedAt = DateTime.UtcNow
                 };
-
-                m_sessions[name] = sessionInfo;
 
                 m_logger.LogInformation(
                     "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}",

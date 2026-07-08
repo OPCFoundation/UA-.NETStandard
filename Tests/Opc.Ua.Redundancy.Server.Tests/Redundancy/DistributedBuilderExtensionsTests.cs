@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // populated, so the injected cache fails fast rather than silently
             // dropping writes to a store that does not exist yet.
             Assert.That(
-                async () => await cache.TryGetAsync(new NodeId("v", 1), System.TimeSpan.FromMinutes(1)),
+                async () => await cache.TryGetAsync(new NodeId("v", 1), System.TimeSpan.FromMinutes(1)).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 

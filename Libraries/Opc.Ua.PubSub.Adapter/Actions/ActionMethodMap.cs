@@ -105,6 +105,7 @@ namespace Opc.Ua.PubSub.Adapter.Actions
         /// <returns>
         /// This instance, to allow fluent registration of multiple targets.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public ActionMethodMap Add(
             string actionName,
             NodeId objectId,

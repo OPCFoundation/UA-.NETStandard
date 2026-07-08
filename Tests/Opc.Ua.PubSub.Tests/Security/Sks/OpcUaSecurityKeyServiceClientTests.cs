@@ -149,7 +149,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new FakeTimeProvider());
 
             SksKeyResponse response = await client.GetSecurityKeysAsync(
-                new SksKeyRequest("group-1", 0U, 1U));
+                new SksKeyRequest("group-1", 0U, 1U)).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.ObjectId, Is.EqualTo(ObjectIds.PublishSubscribe));
@@ -179,7 +179,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new FakeTimeProvider());
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
-                    new SksKeyRequest(string.Empty, 0U, 1U)))!;
+                    new SksKeyRequest(string.Empty, 0U, 1U)).ConfigureAwait(false))!;
             Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 Interlocked.Increment(ref callCount);
                 lastArgs = e;
             };
-            await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U));
+            await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false);
             Assert.That(callCount, Is.EqualTo(1));
             Assert.That(lastArgs!.IsAvailable, Is.True);
         }
@@ -231,7 +231,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             };
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
-                    new SksKeyRequest("g", 0U, 1U)))!;
+                    new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
             Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(unavailableCount, Is.EqualTo(1));
         }
@@ -245,7 +245,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new FakeTimeProvider());
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
-                    new SksKeyRequest("g", 0U, 1U)))!;
+                    new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
             Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadCommunicationError));
         }
 
@@ -266,12 +266,12 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 _ => new ValueTask<ISession>(sessionMock.Object),
                 NUnitTelemetryContext.Create(),
                 new FakeTimeProvider());
-            await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U));
-            await client.DisposeAsync();
-            await client.DisposeAsync();
+            await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false);
+            await client.DisposeAsync().ConfigureAwait(false);
+            await client.DisposeAsync().ConfigureAwait(false);
             sessionMock.Verify(s => s.DisposeAsync(), Times.AtLeastOnce);
             Assert.That(
-                async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)),
+                async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -361,7 +361,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new FakeTimeProvider());
 
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
-                async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)))!;
+                async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
 
             Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("KeyLifetime"));

@@ -573,7 +573,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 tasks.Add(Task.Run(() => sut.TryFault(StatusCodes.BadCommunicationError)));
                 tasks.Add(Task.Run(() => sut.TryMarkOperational(PubSubStateTransitionReason.FromError)));
             }
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             // Final state must be one of the four reachable states; never Disabled (we didn't disable).
             Assert.That(
                 sut.State,

@@ -88,6 +88,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Number of bytes consumed so far relative to
         /// <see cref="Origin"/>.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public int Position
         {
             get => m_position;
@@ -127,6 +128,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// after an external reader has consumed that slice in place.
         /// </summary>
         /// <param name="byteCount">Number of bytes already consumed.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void Advance(int byteCount)
         {
             if (byteCount < 0 || byteCount > Remaining)
@@ -307,6 +309,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded Variant.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public Variant ReadVariant(IServiceMessageContext context)
         {
             if (context is null)
@@ -331,6 +334,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded DataValue.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public DataValue ReadDataValue(IServiceMessageContext context)
         {
             if (context is null)
@@ -391,6 +395,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="arrayDimensions">Per-field <c>ArrayDimensions</c>; <c>default</c> / empty disables array padding.</param>
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded value as a <see cref="Variant"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public Variant ReadRawScalar(
             BuiltInType builtInType,
             int valueRank,

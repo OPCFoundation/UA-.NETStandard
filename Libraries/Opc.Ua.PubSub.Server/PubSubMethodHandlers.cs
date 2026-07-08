@@ -123,6 +123,7 @@ namespace Opc.Ua.PubSub.Server
         /// </summary>
         /// <param name="securityGroupId">SecurityGroup identifier.</param>
         /// <param name="nodeId">Routable SecurityGroup node id.</param>
+        /// <exception cref="ArgumentException"></exception>
         public void RegisterSecurityGroupNodeId(string securityGroupId, NodeId nodeId)
         {
             if (string.IsNullOrEmpty(securityGroupId))
@@ -1281,9 +1282,8 @@ namespace Opc.Ua.PubSub.Server
 
                 int resultCount = mutator(dataSet, items);
                 dataSet.DataSetSource = new ExtensionObject(items);
-                ArrayOf<StatusCode> replaceResults = m_application.ReplaceConfigurationAsync(clone)
+                _ = m_application.ReplaceConfigurationAsync(clone)
                     .AsTask().GetAwaiter().GetResult();
-                _ = replaceResults;
                 PublishedDataSetDataType? updated = FindPublishedDataSet(dataSetName);
                 outputArguments.Add(Variant.From(new ExtensionObject(
                     updated?.DataSetMetaData?.ConfigurationVersion ?? new ConfigurationVersionDataType())));

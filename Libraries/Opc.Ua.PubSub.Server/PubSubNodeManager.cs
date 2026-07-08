@@ -601,8 +601,7 @@ namespace Opc.Ua.PubSub.Server
             }
 
             var newRoots = new List<NodeState>();
-            string[] securityGroupIds = [.. m_keyService.SecurityGroupIds];
-            foreach (string securityGroupId in securityGroupIds)
+            foreach (string securityGroupId in (string[])[.. m_keyService.SecurityGroupIds])
             {
                 SksSecurityGroup? group = await m_keyService
                     .GetSecurityGroupAsync(securityGroupId, cancellationToken)

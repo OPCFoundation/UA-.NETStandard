@@ -60,6 +60,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// RFC 5869 HKDF-Expand.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="CryptographicException"></exception>
         public static byte[] Expand(
             HashAlgorithmName hashAlgorithmName,
             ReadOnlySpan<byte> pseudoRandomKey,
@@ -130,6 +132,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// RFC 8446 §7.1 HKDF-Expand-Label.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static byte[] ExpandLabel(
             HashAlgorithmName hashAlgorithmName,
             ReadOnlySpan<byte> secret,
@@ -164,6 +167,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Hashes data with the selected SHA-2 algorithm.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public static byte[] HashData(HashAlgorithmName hashAlgorithmName, ReadOnlySpan<byte> data)
         {
 #if NET8_0_OR_GREATER
@@ -187,6 +191,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Gets the output size for a DTLS SHA-2 hash.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public static int GetHashLength(HashAlgorithmName hashAlgorithmName)
         {
             return hashAlgorithmName.Name switch

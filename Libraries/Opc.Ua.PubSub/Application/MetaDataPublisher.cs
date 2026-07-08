@@ -157,6 +157,7 @@ namespace Opc.Ua.PubSub.Application
         /// Idempotent.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ObjectDisposedException"></exception>
         public async ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

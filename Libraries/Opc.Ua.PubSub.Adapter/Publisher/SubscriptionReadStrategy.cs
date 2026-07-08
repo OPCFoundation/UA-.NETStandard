@@ -105,6 +105,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <param name="subscription">
         /// The data-change subscription feeding this cache.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         internal void Attach(IDataChangeSubscription subscription)
         {
             if (subscription is null)

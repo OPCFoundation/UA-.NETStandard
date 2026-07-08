@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 TimeSpan.FromMinutes(1),
                 2,
                 2,
-                Array.Empty<PubSubSecurityKey>()));
+                Array.Empty<PubSubSecurityKey>())).ConfigureAwait(false);
 
             ServiceResult result = handlers.OnAddSecurityGroup(
                 BuildContext(),
@@ -348,7 +348,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 3,
                 1,
                 Array.Empty<PubSubSecurityKey>(),
-                ["user"]));
+                ["user"])).ConfigureAwait(false);
 
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnGetSecurityKeys(

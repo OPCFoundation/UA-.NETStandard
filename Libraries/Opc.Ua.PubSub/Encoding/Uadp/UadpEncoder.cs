@@ -126,6 +126,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Network message context.</param>
         /// <param name="payloadOffset">Boundary between outer prefix and inner payload.</param>
         /// <returns>The complete encoded buffer.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ReadOnlyMemory<byte> EncodeWithSecurityBoundary(
             UadpNetworkMessage networkMessage,
             PubSubNetworkMessageContext context,
@@ -154,6 +155,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="networkMessage">UADP data or action message.</param>
         /// <param name="context">Network message context.</param>
         /// <param name="payloadOffset">Boundary between outer prefix and inner payload.</param>
+        /// <exception cref="ArgumentException"></exception>
         public static ReadOnlyMemory<byte> EncodeWithSecurityBoundary(
             PubSubNetworkMessage networkMessage,
             PubSubNetworkMessageContext context,
@@ -202,6 +204,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// portion starts (i.e. immediately after the PayloadHeader
         /// sizes reservation).
         /// </param>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static byte[] EncodeData(
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
@@ -736,6 +739,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// optional GroupHeader. When <c>null</c> the GroupHeader is
         /// omitted.</param>
         /// <returns>The fully framed envelope plus chunk payload.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public static ReadOnlyMemory<byte> WriteChunkEnvelope(
             ReadOnlyMemory<byte> chunkFrame,
             PublisherId publisherId,
@@ -767,7 +771,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ext1 |= ExtendedFlags1EncodingMaskExtensions
                     .EncodePublisherIdType(pidType);
             }
-            byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
+            const byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
 
             int envelopeSize = 1 + 1 + 1
                 + EstimatePublisherIdSize(publisherId, pidType)
@@ -775,7 +779,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             byte[] result = new byte[envelopeSize + chunkFrame.Length];
             var writer = new UadpBinaryWriter(result, 0, result.Length);
 
-            byte version = 1;
+            const byte version = 1;
             writer.WriteByte(
                 (byte)((byte)uadpFlags | (version & 0x0F)));
             writer.WriteByte(ext1);

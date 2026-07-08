@@ -96,7 +96,7 @@ namespace Opc.Ua.Redundancy
                 cipher = encryptor.TransformFinalBlock(data, 0, data.Length);
             }
 
-            int headerLength = HeaderLength;
+            const int headerLength = HeaderLength;
             byte[] envelope = new byte[headerLength + cipher.Length + TagLength];
             envelope[0] = Version;
             BinaryPrimitives.WriteUInt32LittleEndian(envelope.AsSpan(1, 4), m_keyId);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Redundancy
             }
 
             byte[] envelope = protectedRecord.ToArray();
-            int headerLength = HeaderLength;
+            const int headerLength = HeaderLength;
             if (envelope.Length < headerLength + TagLength || envelope[0] != Version)
             {
                 return false;

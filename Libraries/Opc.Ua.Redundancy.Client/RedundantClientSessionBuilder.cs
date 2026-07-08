@@ -69,6 +69,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Supplies the session factory used per standby mode.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public RedundantClientSessionBuilder UseSession(Func<CancellationToken, ValueTask<ManagedSession>> factory)
         {
             m_options = m_options with
@@ -81,6 +82,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Supplies the leader subscription/publishing configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public RedundantClientSessionBuilder ConfigureLeader(
             Func<ManagedSession, bool, CancellationToken, ValueTask> configure
         )
@@ -95,6 +97,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Sets the shared store, leader election, and record protector seams.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public RedundantClientSessionBuilder UseRedundancy(
             ILeaderElection election,
             ISharedKeyValueStore store,
@@ -110,6 +113,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Builds the redundant client session facade.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public RedundantClientSession Build()
         {
 #pragma warning disable CA2000

@@ -42,7 +42,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Internal
     [TestSpec("7.2.4.4.3.1", Summary = "AES-CTR known-answer test from NIST SP 800-38A F.5.1")]
     public class AesCtrTransformTests
     {
-        // NIST SP 800-38A appendix F.5.1 (CTR-AES128.Encrypt).
+        /// <summary>
+        /// NIST SP 800-38A appendix F.5.1 (CTR-AES128.Encrypt).
+        /// </summary>
         private static readonly byte[] s_key128 = HexToBytes(
             "2b7e151628aed2a6abf7158809cf4f3c");
         private static readonly byte[] s_initialCounter = HexToBytes(

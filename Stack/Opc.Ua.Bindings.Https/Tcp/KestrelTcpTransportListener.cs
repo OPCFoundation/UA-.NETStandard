@@ -405,6 +405,7 @@ namespace Opc.Ua.Bindings
         /// application can take ownership of the connection, and
         /// (if accepted) tears down the channel state.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async Task<bool> TransferReverseConnectChannelAsync(
             uint channelId,
             string serverUri,
@@ -473,8 +474,13 @@ namespace Opc.Ua.Bindings
             return accepted;
         }
 
-        // Synchronous bridge to the async handler (the
-        // TcpChannelRequestEventHandler delegate returns void).
+        /// <summary>
+        /// Synchronous bridge to the async handler (the
+        /// TcpChannelRequestEventHandler delegate returns void).
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="requestId"></param>
+        /// <param name="request"></param>
         private void OnRequestReceived(
             TcpListenerChannel channel,
             uint requestId,

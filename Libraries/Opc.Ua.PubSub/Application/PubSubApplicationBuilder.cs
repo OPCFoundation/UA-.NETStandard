@@ -120,6 +120,7 @@ namespace Opc.Ua.PubSub.Application
         /// Sets the application identifier.
         /// </summary>
         /// <param name="id">Application identifier.</param>
+        /// <exception cref="ArgumentException"></exception>
         public PubSubApplicationBuilder WithApplicationId(string id)
         {
             if (string.IsNullOrEmpty(id))
@@ -134,6 +135,7 @@ namespace Opc.Ua.PubSub.Application
         /// Uses the supplied inline <see cref="PubSubConfigurationDataType"/>.
         /// </summary>
         /// <param name="config">Configuration.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder UseConfiguration(PubSubConfigurationDataType config)
         {
             if (config is null)
@@ -150,6 +152,7 @@ namespace Opc.Ua.PubSub.Application
         /// <see cref="XmlPubSubConfigurationStore"/>.
         /// </summary>
         /// <param name="path">Path to the XML configuration file.</param>
+        /// <exception cref="ArgumentException"></exception>
         public PubSubApplicationBuilder UseConfigurationFile(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -165,6 +168,7 @@ namespace Opc.Ua.PubSub.Application
         /// <see cref="PubSubApplicationOptions"/> via <paramref name="configure"/>.
         /// </summary>
         /// <param name="configure">Options callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder Configure(Action<PubSubApplicationOptions> configure)
         {
             if (configure is null)
@@ -190,6 +194,7 @@ namespace Opc.Ua.PubSub.Application
         /// <c>FakeTimeProvider</c> here.
         /// </summary>
         /// <param name="clock">Clock.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder WithTimeProvider(TimeProvider clock)
         {
             if (clock is null)
@@ -205,6 +210,7 @@ namespace Opc.Ua.PubSub.Application
         /// registered through <see cref="AddDataSetSource(string, IPublishedDataSetSource)"/>.
         /// </summary>
         /// <param name="provider">Runtime source provider.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder WithDataSetSourceProvider(IDataSetSourceProvider provider)
         {
             if (provider is null)
@@ -221,6 +227,7 @@ namespace Opc.Ua.PubSub.Application
         /// registered through <see cref="AddSubscribedDataSetSink(string, ISubscribedDataSetSink)"/>.
         /// </summary>
         /// <param name="provider">Runtime sink provider.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder WithDataSetSinkProvider(IDataSetSinkProvider provider)
         {
             if (provider is null)
@@ -240,6 +247,7 @@ namespace Opc.Ua.PubSub.Application
         /// <see cref="AddDataSetSource(string, IPublishedDataSetSource)"/>.
         /// </summary>
         /// <param name="dataStore">Legacy data store.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder WithDataStore(IUaPubSubDataStore dataStore)
         {
             if (dataStore is null)
@@ -257,6 +265,7 @@ namespace Opc.Ua.PubSub.Application
         /// provided by the per-transport assemblies.
         /// </summary>
         /// <param name="factory">Factory instance.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddTransportFactory(IPubSubTransportFactory factory)
         {
             if (factory is null)
@@ -271,6 +280,7 @@ namespace Opc.Ua.PubSub.Application
         /// Adds an <see cref="INetworkMessageEncoder"/>.
         /// </summary>
         /// <param name="encoder">Encoder instance.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddEncoder(INetworkMessageEncoder encoder)
         {
             if (encoder is null)
@@ -285,6 +295,7 @@ namespace Opc.Ua.PubSub.Application
         /// Adds an <see cref="INetworkMessageDecoder"/>.
         /// </summary>
         /// <param name="decoder">Decoder instance.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddDecoder(INetworkMessageDecoder decoder)
         {
             if (decoder is null)
@@ -299,6 +310,7 @@ namespace Opc.Ua.PubSub.Application
         /// Adds an SKS endpoint the runtime may pull keys from.
         /// </summary>
         /// <param name="endpoint">Endpoint description.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddSecurityKeyServiceClient(EndpointDescription endpoint)
         {
             if (endpoint is null)
@@ -334,6 +346,7 @@ namespace Opc.Ua.PubSub.Application
         /// <see cref="WithSecurityWrapperResolver"/>.
         /// </summary>
         /// <param name="keyProvider">Key provider instance.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddSecurityKeyProvider(
             IPubSubSecurityKeyProvider keyProvider)
         {
@@ -352,6 +365,7 @@ namespace Opc.Ua.PubSub.Application
         /// <see cref="IPubSubSecurityPolicy"/> to apply.
         /// </summary>
         /// <param name="selector">Policy selection callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder WithSecurityPolicySelector(
             Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?> selector)
         {
@@ -369,6 +383,7 @@ namespace Opc.Ua.PubSub.Application
         /// default resolver built from the registered key providers.
         /// </summary>
         /// <param name="resolver">Resolver instance.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder WithSecurityWrapperResolver(
             IPubSubSecurityWrapperResolver resolver)
         {
@@ -386,6 +401,8 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         /// <param name="publishedDataSetName">PublishedDataSet name.</param>
         /// <param name="source">Source implementation.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddDataSetSource(
             string publishedDataSetName,
             IPublishedDataSetSource source)
@@ -409,6 +426,8 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         /// <param name="publishedDataSetName">PublishedDataSet name.</param>
         /// <param name="action">Published action configuration.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddPublishedAction(
             string publishedDataSetName,
             PublishedActionDataType action)
@@ -434,6 +453,7 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         /// <param name="publishedDataSetName">PublishedDataSet name.</param>
         /// <param name="action">Published method-action configuration.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddPublishedAction(
             string publishedDataSetName,
             PublishedActionMethodDataType action)
@@ -456,6 +476,7 @@ namespace Opc.Ua.PubSub.Application
         /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
         /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddActionResponder(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
@@ -486,6 +507,7 @@ namespace Opc.Ua.PubSub.Application
         /// Optional policy validating the requestor-supplied response address (SA-ACT-03).
         /// Defaults to <see cref="PubSubResponseAddressPolicy.Default"/>.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddActionResponder(
             PubSubActionTarget target,
             Func<PubSubActionInvocation, CancellationToken, ValueTask<PubSubActionHandlerResult>> handler,
@@ -507,6 +529,8 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         /// <param name="dataSetReaderName">DataSetReader name.</param>
         /// <param name="sink">Sink implementation.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubApplicationBuilder AddSubscribedDataSetSink(
             string dataSetReaderName,
             ISubscribedDataSetSink sink)

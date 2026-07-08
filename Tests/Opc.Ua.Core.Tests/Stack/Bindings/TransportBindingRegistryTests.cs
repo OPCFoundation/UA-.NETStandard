@@ -350,10 +350,8 @@ namespace Opc.Ua.Bindings.Tests
         [Test]
         public void ITransportChannelBindingsCreateForwardsToCreateChannel()
         {
-            var registry = new DefaultTransportBindingRegistry();
-
             // Cast to the explicit interface implementation.
-            ITransportChannelBindings bindings = registry;
+            ITransportChannelBindings bindings = new DefaultTransportBindingRegistry();
 
             // Unknown scheme → null (same behaviour as CreateChannel).
             Assert.That(bindings.Create("opc.unknown", m_telemetry), Is.Null);

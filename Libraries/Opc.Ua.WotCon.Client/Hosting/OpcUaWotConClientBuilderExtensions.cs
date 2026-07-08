@@ -177,6 +177,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers WoT Connectivity client services on an existing OPC UA client builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddWotConClient(
             this IOpcUaClientBuilder builder,
             Action<WotConClientOptions>? configure = null)
@@ -193,6 +194,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers WoT Connectivity client services on an existing OPC UA client builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddWotConClient(
             this IOpcUaClientBuilder builder,
             IConfiguration configuration)
@@ -213,6 +215,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers WoT Connectivity client services on an existing OPC UA client builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddWotConClient(
             this IOpcUaClientBuilder builder,
             IConfigurationSection section)

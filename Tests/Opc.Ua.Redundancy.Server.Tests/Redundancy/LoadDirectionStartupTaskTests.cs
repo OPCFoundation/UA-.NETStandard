@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 new FakeTimeProvider());
 
             Assert.That(
-                async () => await task.OnServerStartedAsync(null!),
+                async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -156,11 +156,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 store, NullRecordProtector.Instance, options, director, new FakeTimeProvider());
             Mock<IServerInternal> server = CreateServer(hasServerUri: false, out _);
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             // The director was never configured, so it fails safe to the local Server.
             (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(
-                BalancingUrl, LocalEndpoints(LocalServerUri));
+                BalancingUrl, LocalEndpoints(LocalServerUri)).ConfigureAwait(false);
             Assert.That(redirect, Is.False, "an unconfigured director must serve locally");
         }
 
@@ -173,16 +173,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var time = new FakeTimeProvider();
 
             // A healthier, idle peer is available in the shared store.
-            await PublishPeerAsync(store, context, options, time, PeerServerUri, serviceLevel: 255, load: 0);
+            await PublishPeerAsync(store, context, options, time, PeerServerUri, serviceLevel: 255, load: 0).ConfigureAwait(false);
 
             ServerLoadDirector director = CreateDirector(localServiceLevel: 255, localLoad: 200);
             var task = new LoadDirectionStartupTask(store, NullRecordProtector.Instance, options, director, time);
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out _, context);
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             (bool redirect, ArrayOf<EndpointDescription> endpoints) =
-                await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints(LocalServerUri));
+                await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints(LocalServerUri)).ConfigureAwait(false);
 
             Assert.That(redirect, Is.True, "the configured director redirects to the healthier idle peer");
             Assert.That(endpoints.Count, Is.EqualTo(1));
@@ -228,12 +228,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var directionPublisher = new SharedPeerDirectionPublisher(
                 store, context, NullRecordProtector.Instance, options, time, serverUri);
-            await directionPublisher.PublishServiceLevelAsync(serviceLevel);
-            await directionPublisher.PublishLoadWeightAsync(load);
+            await directionPublisher.PublishServiceLevelAsync(serviceLevel).ConfigureAwait(false);
+            await directionPublisher.PublishLoadWeightAsync(load).ConfigureAwait(false);
 
             var endpointPublisher = new SharedPeerEndpointPublisher(
                 store, context, NullRecordProtector.Instance, options, serverUri);
-            await endpointPublisher.PublishAsync(LocalEndpoints(serverUri));
+            await endpointPublisher.PublishAsync(LocalEndpoints(serverUri)).ConfigureAwait(false);
         }
 
         private static ArrayOf<EndpointDescription> LocalEndpoints(string serverUri)

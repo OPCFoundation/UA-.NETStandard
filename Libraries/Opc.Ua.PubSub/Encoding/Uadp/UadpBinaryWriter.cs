@@ -132,6 +132,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// has filled that slice in place.
         /// </summary>
         /// <param name="byteCount">Number of bytes already written.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void Advance(int byteCount)
         {
             if (byteCount < 0)
@@ -298,6 +299,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="position">Reserved slot position.</param>
         /// <param name="value">Value to patch.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void PatchUInt16Le(int position, ushort value)
         {
             if ((uint)position > (uint)(m_length - 2))
@@ -315,6 +317,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="position">Reserved slot position.</param>
         /// <param name="value">Value to patch.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void PatchUInt32Le(int position, uint value)
         {
             if ((uint)position > (uint)(m_length - 4))
@@ -334,6 +337,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="value">Variant to encode.</param>
         /// <param name="context">Stack service message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void WriteVariant(in Variant value, IServiceMessageContext context)
         {
             if (context is null)
@@ -361,6 +366,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="value">DataValue to encode.</param>
         /// <param name="context">Stack service message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void WriteDataValue(in DataValue value, IServiceMessageContext context)
         {
             if (context is null)
@@ -434,6 +441,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// behaviour).
         /// </param>
         /// <param name="context">Stack service message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void WriteRawScalar(
             in Variant value,
             BuiltInType builtInType,

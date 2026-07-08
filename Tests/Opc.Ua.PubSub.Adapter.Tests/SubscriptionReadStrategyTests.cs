@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 new ReadValueId { NodeId = new NodeId(1u), AttributeId = Attributes.Value }
             ];
 
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values.Count, Is.EqualTo(1));
             Assert.That(values[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainInitialValue));
@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(42)));
@@ -93,7 +93,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = 0 }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(11)));
         }
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Description }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(
                 values[0].StatusCode,
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(
                 values[0].StatusCode,
@@ -149,7 +149,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(99)));
         }
@@ -168,7 +168,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(7)));
         }
@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             ];
 
             Assert.That(
-                async () => await strategy.ReadAsync(reads.ToArrayOf()),
+                async () => await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             ];
 
             Assert.That(
-                async () => await strategy.ReadAsync(reads.ToArrayOf(), cts.Token),
+                async () => await strategy.ReadAsync(reads.ToArrayOf(), cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
@@ -211,7 +211,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             using var strategy = new SubscriptionReadStrategy(AdapterTestHelpers.Telemetry());
 
-            ArrayOf<DataValue> values = await strategy.ReadAsync(ArrayOf<ReadValueId>.Empty);
+            ArrayOf<DataValue> values = await strategy.ReadAsync(ArrayOf<ReadValueId>.Empty).ConfigureAwait(false);
 
             Assert.That(values.Count, Is.Zero);
         }

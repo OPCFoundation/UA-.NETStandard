@@ -77,6 +77,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configurePublisher">Publisher adapter options callback.</param>
         /// <param name="configureSubscriber">Subscriber adapter options callback.</param>
         /// <returns>The same <paramref name="services"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddServerAdapterPubSub(
             this IServiceCollection services,
             PubSubConfigurationDataType configuration,
@@ -103,6 +104,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configurePublisher">Publisher adapter options callback.</param>
         /// <param name="configureSubscriber">Subscriber adapter options callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddServerAdapterPubSub(
             this IOpcUaBuilder builder,
             PubSubConfigurationDataType configuration,
@@ -177,6 +179,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddServerAsPublisher(
             this IPubSubBuilder builder,
             string name,
@@ -287,6 +290,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddServerAsSubscriber(
             this IPubSubBuilder builder,
             string name,
@@ -397,6 +401,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddServerAsActionResponder(
             this IPubSubBuilder builder,
             string name,

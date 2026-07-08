@@ -329,7 +329,9 @@ namespace Opc.Ua.Mcp.Tools
             }
         }
 
+#pragma warning disable RCS1174 // Remove redundant async/await
         private static async ValueTask<IReadOnlyList<DecodedServiceCall>> DecodeServiceCallsAsync(
+#pragma warning restore RCS1174 // Remove redundant async/await
             ICaptureSource source,
             long? maxFrames,
             CancellationToken ct)
@@ -342,10 +344,9 @@ namespace Opc.Ua.Mcp.Tools
                 reassembler.LoadKeyMaterial(material);
             }
 
-            IReadOnlyList<DecodedServiceCall> calls = await reassembler
+            return await reassembler
                 .ProcessAllAsync(source.ReadCapturedFramesAsync(maxFrames, ct), ct)
                 .ConfigureAwait(false);
-            return calls;
         }
 
         private static ServiceCallSummary CreateSummary(IReadOnlyList<DecodedServiceCall> calls)

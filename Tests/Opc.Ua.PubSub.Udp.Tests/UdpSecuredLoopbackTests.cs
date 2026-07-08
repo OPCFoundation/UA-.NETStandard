@@ -119,8 +119,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await subscriber.OpenAsync();
-                await publisher.OpenAsync();
+                await subscriber.OpenAsync().ConfigureAwait(false);
+                await publisher.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {

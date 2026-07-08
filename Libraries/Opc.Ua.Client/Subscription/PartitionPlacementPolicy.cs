@@ -147,6 +147,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="partitions">All partitions currently owned by
         /// the logical subscription, in age order. The first entry is
         /// the primary partition.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public PlacementDecision Decide(
             MonitoredItemOptions options,
             IReadOnlyList<IManagedSubscription> partitions)
@@ -208,6 +209,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// zero for it. Called by the composite collection right
         /// after the partition is registered in the partition list.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         public void OnPartitionAdded(IManagedSubscription partition)
         {
             if (partition == null)
@@ -227,6 +229,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// the logical subscription. Drops the partition's counter,
         /// no-grow flag, and any affinity entries pointing at it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         public void OnPartitionRemoved(IManagedSubscription partition)
         {
             if (partition == null)
@@ -263,6 +266,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// the composite collection after the partition's TryAdd
         /// returns true.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public void OnItemAdded(
             MonitoredItemOptions options,
             IManagedSubscription partition)
@@ -299,6 +303,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// given partition. The affinity index intentionally stays —
         /// strict pinning persists for the lifetime of the partition.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         public void OnItemRemoved(IManagedSubscription partition)
         {
             if (partition == null)
@@ -318,6 +323,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// for that partition to its current count and flags the
         /// partition no-grow so future placements bypass it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         public void OnPartitionCapReached(IManagedSubscription partition)
         {
             if (partition == null)
@@ -333,6 +339,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// is incremented on <see cref="OnItemAdded"/> and
         /// decremented on <see cref="OnItemRemoved"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         public uint GetCount(IManagedSubscription partition)
         {
             if (partition == null)
@@ -346,6 +353,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Whether the partition is currently marked no-grow by the
         /// reactive cap fallback.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         public bool IsNoGrow(IManagedSubscription partition)
         {
             if (partition == null)
@@ -360,6 +368,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <c>null</c> if the tag is not yet bound. Exposed for
         /// tests and diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="affinity"/> is <c>null</c>.</exception>
         public IManagedSubscription? TryGetAffinityPartition(string affinity)
         {
             if (affinity == null)

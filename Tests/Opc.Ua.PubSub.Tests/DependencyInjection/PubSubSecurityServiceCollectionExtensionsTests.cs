@@ -187,10 +187,10 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 .GetServices<IHostedService>()
                 .OfType<PubSubSecurityKeyProviderStarter>()
                 .Single();
-            await starter.StartAsync(CancellationToken.None);
+            await starter.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
             var provider = (PullSecurityKeyProvider)sp.GetServices<IPubSubSecurityKeyProvider>().Single();
-            PubSubSecurityKey key = await provider.GetCurrentKeyAsync();
+            PubSubSecurityKey key = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
             Assert.That(key.TokenId, Is.EqualTo(1U));
         }
 

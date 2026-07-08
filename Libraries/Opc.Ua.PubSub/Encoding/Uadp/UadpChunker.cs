@@ -69,6 +69,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// the full message. When the message fits within
         /// <paramref name="maxFrameSize"/> minus the chunk header the
         /// list contains exactly one element.</returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public IReadOnlyList<byte[]> Split(
             ReadOnlyMemory<byte> encodedMessage,
             ushort messageSequenceNumber,

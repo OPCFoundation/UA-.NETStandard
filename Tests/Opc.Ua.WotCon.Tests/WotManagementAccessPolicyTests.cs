@@ -248,12 +248,14 @@ namespace Opc.Ua.WotCon.Tests
                 () => harness.Manager.EnforceManagementAccess(context, "CreateAsset"));
         }
 
-        // ----------------------------------------------------------------
-        // Harness — minimal IServerInternal mock just sufficient to
-        // instantiate WotConnectivityNodeManager (no address-space load
-        // needed because EnforceManagementAccess does not touch
-        // m_registry).
-        // ----------------------------------------------------------------
+        /// <summary>
+        /// ----------------------------------------------------------------
+        /// Harness — minimal IServerInternal mock just sufficient to
+        /// instantiate WotConnectivityNodeManager (no address-space load
+        /// needed because EnforceManagementAccess does not touch
+        /// m_registry).
+        /// ----------------------------------------------------------------
+        /// </summary>
         private sealed class PolicyHarness : IDisposable
         {
             public PolicyHarness(

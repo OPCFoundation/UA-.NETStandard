@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created, Has.Count.EqualTo(1));
             Assert.That(created[0].MonitoredItems, Has.Count.EqualTo(2));
@@ -142,7 +142,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.DataSetWriter,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created, Has.Count.EqualTo(2));
         }
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created[0].MonitoredItems[0].SamplingMs, Is.EqualTo(250));
             Assert.That(created[0].MonitoredItems[1].SamplingMs, Is.EqualTo(500));
@@ -188,13 +188,13 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
             IReadStrategy strategy = coordinator.GetReadStrategy("PDS");
             ReadValueId[] reads =
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(100)));
         }
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
             FakeDataChangeSubscription subscription = created[0];
             (NodeId Node, uint Attribute, double Sampling) item = (
                 created[0].MonitoredItems[0].NodeId,
@@ -229,7 +229,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(777)));
         }
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(
                 () => coordinator.GetReadStrategy("Missing"),
@@ -273,8 +273,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created, Has.Count.EqualTo(1));
         }

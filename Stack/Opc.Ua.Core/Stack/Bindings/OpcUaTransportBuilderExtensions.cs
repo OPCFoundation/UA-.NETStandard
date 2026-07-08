@@ -110,6 +110,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TChannelFactory">The channel factory type.</typeparam>
         /// <param name="builder">The OPC UA builder.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddCustomTransport<
             [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
                 System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]
@@ -150,6 +151,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// order at first resolution time so subsequent
         /// <c>Add*Transport()</c> calls compose cleanly.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddTransportBindingRegistry(this IServiceCollection services)
         {
             if (services is null)

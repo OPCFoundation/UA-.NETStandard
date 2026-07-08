@@ -89,6 +89,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="configure">Optional options callback.</param>
         /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             Action<PubSubApplicationOptions>? configure = null)
@@ -113,6 +114,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="configuration">Configuration root.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -134,6 +136,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="section">Configuration section to bind.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             IConfigurationSection section)
@@ -162,6 +165,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="configure">PubSub composition callback.</param>
         /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             Action<IPubSubBuilder> configure)

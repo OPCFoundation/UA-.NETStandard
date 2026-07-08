@@ -48,7 +48,9 @@ namespace Opc.Ua.Pcap.Tests.Frame
     [TestFixture]
     public sealed class PcapNgFileWriterTests
     {
-        // pcap-ng block-type magic numbers (little-endian on disk).
+        /// <summary>
+        /// pcap-ng block-type magic numbers (little-endian on disk).
+        /// </summary>
         private const uint BlockTypeShb = 0x0A0D0D0A;
         private const uint BlockTypeIdb = 0x00000001;
         private const uint BlockTypeEpb = 0x00000006;
@@ -134,7 +136,7 @@ namespace Opc.Ua.Pcap.Tests.Frame
             // Total = 28 (SHB) + 20 (IDB) + 40 (EPB) = 88 bytes.
             Assert.That(data, Has.Length.EqualTo(88));
 
-            int epbStart = 28 + 20;
+            const int epbStart = 28 + 20;
             Assert.That(ReadUInt32(data, epbStart), Is.EqualTo(BlockTypeEpb),
                 "Per-packet block must be Enhanced Packet Block type 0x00000006.");
             Assert.That(ReadUInt32(data, epbStart + 4), Is.EqualTo(40U),
@@ -203,7 +205,7 @@ namespace Opc.Ua.Pcap.Tests.Frame
             // EPB length = 8 + 20 + 4 + 0 + 4 = 36.
             Assert.That(data, Has.Length.EqualTo(120));
 
-            int firstEpbStart = 48;
+            const int firstEpbStart = 48;
             int secondEpbStart = firstEpbStart + 36;
             Assert.That(ReadUInt32(data, firstEpbStart), Is.EqualTo(BlockTypeEpb));
             Assert.That(ReadUInt32(data, firstEpbStart + 4), Is.EqualTo(36U));

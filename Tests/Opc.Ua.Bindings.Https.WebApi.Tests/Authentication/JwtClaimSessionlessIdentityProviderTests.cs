@@ -55,8 +55,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
         private const string SampleJwt =
             "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhbGljZSJ9.";
 
-        // CA1861: hoisted to static readonly so repeated test invocations do not
-        // re-allocate the same array argument.
+        /// <summary>
+        /// CA1861: hoisted to static readonly so repeated test invocations do not
+        /// re-allocate the same array argument.
+        /// </summary>
         private static readonly string[] s_expectedScopes =
             { "read.values", "browse.address-space", "write.values" };
         private static readonly string[] s_expectedRoles =
@@ -283,13 +285,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
             params Claim[] claims)
         {
             return BuildContext(bearer, identityName, (IEnumerable<Claim>)claims);
-        }
-
-        private static DefaultHttpContext BuildContext(
-            string? bearer,
-            IEnumerable<Claim> claims)
-        {
-            return BuildContext(bearer, identityName: null, claims);
         }
 
         private static DefaultHttpContext BuildContext(

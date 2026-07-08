@@ -226,6 +226,7 @@ namespace Opc.Ua.PubSub.StateMachine
         /// Detaches a previously attached child. Has no effect if the child
         /// is not attached to this instance.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void DetachChild(PubSubStateMachine child)
         {
             if (child is null)

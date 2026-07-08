@@ -180,6 +180,7 @@ namespace Opc.Ua.Pcap.Audit
         /// <summary>
         /// Verifies every line in a tamper-evident audit ledger.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public static AuditChainVerification VerifyChain(string filePath, byte[] hmacKey)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(filePath);

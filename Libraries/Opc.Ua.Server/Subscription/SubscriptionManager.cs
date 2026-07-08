@@ -2316,9 +2316,11 @@ namespace Opc.Ua.Server
             }
         }
 
-        // Above this many session publish queues the per-cycle sweep is
-        // parallelized across cores so one publishing cycle keeps up with
-        // thousands of subscriptions instead of serializing on a single thread.
+        /// <summary>
+        /// Above this many session publish queues the per-cycle sweep is
+        /// parallelized across cores so one publishing cycle keeps up with
+        /// thousands of subscriptions instead of serializing on a single thread.
+        /// </summary>
         private const int kParallelPublishThreshold = 256;
         private static readonly ParallelOptions s_parallelPublishOptions = new()
         {

@@ -123,6 +123,7 @@ namespace Opc.Ua.Client.WebApi
         /// </param>
         /// <param name="options">Configuration options.</param>
         /// <returns>The new client.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="baseAddress"/> is <c>null</c>.</exception>
         public static WebApiClient Create(Uri baseAddress, WebApiClientOptions? options = null)
         {
             if (baseAddress == null)
@@ -197,10 +198,19 @@ namespace Opc.Ua.Client.WebApi
             return InvokeRouteUnsafeAsync(route, request, ct);
         }
 
-        // Trim-unsafe core used by both InvokeAsync<,> and InvokeRouteAsync.
-        // Suppressed: the generic InvokeAsync<,> is trim-safe because TResponse
-        // is statically rooted by the caller. The InvokeRouteAsync entry point
-        // forwards the RequiresUnreferencedCode warning to its own callers.
+        /// <summary>
+        /// Trim-unsafe core used by both InvokeAsync{,} and InvokeRouteAsync.
+        /// Suppressed: the generic InvokeAsync{,} is trim-safe because TResponse
+        /// is statically rooted by the caller. The InvokeRouteAsync entry point
+        /// forwards the RequiresUnreferencedCode warning to its own callers.
+        /// </summary>
+        /// <param name="route"></param>
+        /// <param name="request"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="request"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
             "Trimming",
             "IL2026:RequiresUnreferencedCode",
@@ -265,12 +275,14 @@ namespace Opc.Ua.Client.WebApi
             return (IServiceResponse)decoded;
         }
 
-        // Decoder options applied to every inbound response. Clients
-        // typically don't know all server namespace URIs up front, so
-        // UpdateNamespaceTable=true lets the codec append unknown URIs
-        // to the message context's NamespaceTable on the fly (otherwise
-        // NodeIds whose namespace URI isn't already registered would
-        // decode as NodeId.Null).
+        /// <summary>
+        /// Decoder options applied to every inbound response. Clients
+        /// typically don't know all server namespace URIs up front, so
+        /// UpdateNamespaceTable=true lets the codec append unknown URIs
+        /// to the message context's NamespaceTable on the fly (otherwise
+        /// NodeIds whose namespace URI isn't already registered would
+        /// decode as NodeId.Null).
+        /// </summary>
         private static readonly JsonDecoderOptions s_clientDecoderOptions = new()
         {
             UpdateNamespaceTable = true

@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Configuration
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubRuntimeStateStore(backend);
 
-            PubSubState? state = await store.GetStateAsync("pubsub:connection:Connection1");
+            PubSubState? state = await store.GetStateAsync("pubsub:connection:Connection1").ConfigureAwait(false);
 
             Assert.That(state, Is.Null);
         }
@@ -59,8 +59,8 @@ namespace Opc.Ua.PubSub.Configuration
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubRuntimeStateStore(backend);
 
-            await store.SetStateAsync("pubsub:connection:Connection1", PubSubState.Operational);
-            PubSubState? state = await store.GetStateAsync("pubsub:connection:Connection1");
+            await store.SetStateAsync("pubsub:connection:Connection1", PubSubState.Operational).ConfigureAwait(false);
+            PubSubState? state = await store.GetStateAsync("pubsub:connection:Connection1").ConfigureAwait(false);
 
             Assert.That(state, Is.EqualTo(PubSubState.Operational));
         }
@@ -71,9 +71,9 @@ namespace Opc.Ua.PubSub.Configuration
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubRuntimeStateStore(backend);
 
-            await store.SetStateAsync("pubsub:writergroup:WriterGroup1", PubSubState.Paused);
-            await store.SetStateAsync("pubsub:writergroup:WriterGroup1", PubSubState.Error);
-            PubSubState? state = await store.GetStateAsync("pubsub:writergroup:WriterGroup1");
+            await store.SetStateAsync("pubsub:writergroup:WriterGroup1", PubSubState.Paused).ConfigureAwait(false);
+            await store.SetStateAsync("pubsub:writergroup:WriterGroup1", PubSubState.Error).ConfigureAwait(false);
+            PubSubState? state = await store.GetStateAsync("pubsub:writergroup:WriterGroup1").ConfigureAwait(false);
 
             Assert.That(state, Is.EqualTo(PubSubState.Error));
         }
@@ -85,8 +85,8 @@ namespace Opc.Ua.PubSub.Configuration
             var writer = new SharedStorePubSubRuntimeStateStore(backend);
             var reader = new SharedStorePubSubRuntimeStateStore(backend);
 
-            await writer.SetStateAsync("pubsub:datasetwriter:Writer1", PubSubState.Operational);
-            PubSubState? state = await reader.GetStateAsync("pubsub:datasetwriter:Writer1");
+            await writer.SetStateAsync("pubsub:datasetwriter:Writer1", PubSubState.Operational).ConfigureAwait(false);
+            PubSubState? state = await reader.GetStateAsync("pubsub:datasetwriter:Writer1").ConfigureAwait(false);
 
             Assert.That(state, Is.EqualTo(PubSubState.Operational));
         }
@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Configuration
             var store = new SharedStorePubSubRuntimeStateStore(backend);
 
             Assert.That(
-                async () => await store.SetStateAsync(string.Empty, PubSubState.Operational),
+                async () => await store.SetStateAsync(string.Empty, PubSubState.Operational).ConfigureAwait(false),
                 Throws.ArgumentException);
         }
     }

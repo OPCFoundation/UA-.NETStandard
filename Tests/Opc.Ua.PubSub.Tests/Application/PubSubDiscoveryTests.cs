@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public async Task UdpLoopbackDiscoveryPublisherAnswersSubscriberRequests()
         {
-            string url = "opc.udp://239.0.0.1:49321";
+            const string url = "opc.udp://239.0.0.1:49321";
             var options = Options.Create(new UdpTransportOptions
             {
                 MulticastLoopback = true

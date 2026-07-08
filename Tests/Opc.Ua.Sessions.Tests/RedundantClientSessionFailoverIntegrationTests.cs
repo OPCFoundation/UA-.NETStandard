@@ -98,6 +98,7 @@ namespace Opc.Ua.Sessions.Tests
             ServerFixture<ReferenceServer>? fixture = null;
             RedundantClientSession? replicaA = null;
             RedundantClientSession? replicaB = null;
+            Task<DataValue>? blockedOnB = null;
             try
             {
                 (fixture, Uri url) = await StartServerAsync().ConfigureAwait(false);
@@ -115,7 +116,9 @@ namespace Opc.Ua.Sessions.Tests
                     () => _ = replicaB.SessionName);
                 Assert.That(syncFault!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
-                Task<DataValue> blockedOnB = ReadServerStateAsync(replicaB, ct);
+#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
+                blockedOnB = ReadServerStateAsync(replicaB, ct);
+#pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                 await Task.Delay(500, ct).ConfigureAwait(false);
                 Assert.That(
                     blockedOnB.IsCompleted,
@@ -158,6 +161,10 @@ namespace Opc.Ua.Sessions.Tests
                 if (replicaA != null)
                 {
                     await replicaA.DisposeAsync().ConfigureAwait(false);
+                }
+                if (blockedOnB != null)
+                {
+                    await blockedOnB.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None).ConfigureAwait(false);
                 }
                 if (replicaB != null)
                 {

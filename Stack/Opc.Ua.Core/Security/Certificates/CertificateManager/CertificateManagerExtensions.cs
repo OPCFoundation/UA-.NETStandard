@@ -137,12 +137,11 @@ namespace Opc.Ua
             IReadOnlyList<ICertificateStoreProvider>? storeProviders = null;
             if (options.StoreProviders.Count > 0)
             {
-                var providers = new List<ICertificateStoreProvider>(options.StoreProviders)
+                storeProviders = new List<ICertificateStoreProvider>(options.StoreProviders)
                 {
                     new DirectoryStoreProvider(),
                     new X509StoreProvider()
                 };
-                storeProviders = providers;
             }
 
             var manager = new CertificateManager(

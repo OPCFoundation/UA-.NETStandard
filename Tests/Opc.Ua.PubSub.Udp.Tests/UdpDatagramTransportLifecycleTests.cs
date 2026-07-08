@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             await using var transport = NewSendTransport(port);
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             }
 
             Assert.That(transport.IsConnected, Is.True);
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
             Assert.That(transport.IsConnected, Is.False);
         }
 
@@ -110,8 +110,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
             await using var transport = NewSendTransport(port);
             try
             {
-                await transport.OpenAsync();
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -139,7 +139,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             await using var transport = NewSendTransport(port);
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -147,8 +147,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await transport.CloseAsync();
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
+            await transport.CloseAsync().ConfigureAwait(false);
 
             Assert.That(transport.IsConnected, Is.False);
         }
@@ -170,16 +170,16 @@ namespace Opc.Ua.PubSub.Udp.Tests
             UdpDatagramTransport transport = NewSendTransport(port);
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
                 Assert.Ignore($"UDP socket open failed: {ex.Message}");
                 return;
             }
-            await transport.CloseAsync();
-            await transport.DisposeAsync();
-            await transport.DisposeAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
+            await transport.DisposeAsync().ConfigureAwait(false);
+            await transport.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -197,10 +197,10 @@ namespace Opc.Ua.PubSub.Udp.Tests
             }
 
             UdpDatagramTransport transport = NewSendTransport(port);
-            await transport.DisposeAsync();
+            await transport.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(
-                async () => await transport.OpenAsync(),
+                async () => await transport.OpenAsync().ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -219,10 +219,10 @@ namespace Opc.Ua.PubSub.Udp.Tests
             }
 
             UdpDatagramTransport transport = NewSendTransport(port);
-            await transport.DisposeAsync();
+            await transport.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(
-                async () => await transport.SendAsync(new byte[] { 1 }),
+                async () => await transport.SendAsync(new byte[] { 1 }).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -243,7 +243,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             await using var transport = NewSendTransport(port);
 
             Assert.That(
-                async () => await transport.SendAsync(new byte[] { 1 }),
+                async () => await transport.SendAsync(new byte[] { 1 }).ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -278,7 +278,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 options);
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -287,7 +287,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             }
 
             Assert.That(
-                async () => await transport.SendAsync(new byte[32]),
+                async () => await transport.SendAsync(new byte[32]).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -310,14 +310,14 @@ namespace Opc.Ua.PubSub.Udp.Tests
             transport.StateChanged += (_, args) => events.Add(args.IsConnected);
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
                 Assert.Ignore($"UDP socket open failed: {ex.Message}");
                 return;
             }
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
 
             Assert.That(events, Has.Count.EqualTo(2));
             Assert.That(events[0], Is.True);
@@ -341,7 +341,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             await using var transport = NewSendTransport(port);
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -378,7 +378,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             cts.Cancel();
 
             Assert.That(
-                async () => await transport.OpenAsync(cts.Token),
+                async () => await transport.OpenAsync(cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
 

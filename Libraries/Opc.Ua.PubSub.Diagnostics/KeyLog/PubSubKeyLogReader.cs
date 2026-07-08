@@ -68,6 +68,7 @@ namespace Opc.Ua.PubSub.Pcap.KeyLog
         /// Reads all key material from the bound file path.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public IAsyncEnumerable<PubSubKeyMaterial> ReadAllAsync(CancellationToken cancellationToken = default)
         {
             if (FilePath is null)

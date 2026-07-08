@@ -299,6 +299,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="sessionManager"/> is <c>null</c>.</exception>
         [MemberNotNull(nameof(SessionManager), nameof(SubscriptionManager))]
         public void SetSessionManager(
             ISessionManager sessionManager,

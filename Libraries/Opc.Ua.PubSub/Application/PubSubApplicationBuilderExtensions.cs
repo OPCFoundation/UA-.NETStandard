@@ -47,6 +47,7 @@ namespace Opc.Ua.PubSub.Application
         /// implementations (UADP + JSON) on the builder.
         /// </summary>
         /// <param name="builder">Builder.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static PubSubApplicationBuilder UseAllStandardEncoders(
             this PubSubApplicationBuilder builder)
         {
@@ -68,6 +69,7 @@ namespace Opc.Ua.PubSub.Application
         /// </summary>
         /// <param name="builder">Builder.</param>
         /// <param name="configure">Optional configuration callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static PubSubApplicationBuilder UseInMemorySks(
             this PubSubApplicationBuilder builder,
             Action<InMemoryPubSubKeyServiceServer>? configure = null)

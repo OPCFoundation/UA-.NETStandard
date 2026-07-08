@@ -1218,6 +1218,7 @@ namespace Opc.Ua.Client
         /// to fast-activate a mirrored session on promotion. The standby still performs
         /// the full ActivateSession signature validation.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async ValueTask ReactivateMirroredSessionAsync(
             ConfiguredEndpoint endpoint,
             CancellationToken ct = default)

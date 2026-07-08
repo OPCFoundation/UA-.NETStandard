@@ -92,8 +92,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await subscriber.OpenAsync();
-                await publisher.OpenAsync();
+                await subscriber.OpenAsync().ConfigureAwait(false);
+                await publisher.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             {
                 try
                 {
-                    await publisher.SendAsync(payload);
+                    await publisher.SendAsync(payload).ConfigureAwait(false);
                 }
                 catch (SocketException ex)
                 {
@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 }
                 PubSubTransportFrame? frame = await UdpIntegrationTestHelpers.ReceiveOneAsync(
                     subscriber,
-                    TimeSpan.FromMilliseconds(500));
+                    TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
                 if (frame is not null)
                 {
                     Assert.That(frame.Value.Payload.ToArray(), Is.EqualTo(payload));

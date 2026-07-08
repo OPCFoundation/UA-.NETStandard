@@ -267,6 +267,7 @@ namespace Opc.Ua.Bindings
         /// Set by <see cref="SharedKestrelHostRegistry.AcquireAsync"/> before
         /// the host is started.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="accessor"/> is <c>null</c>.</exception>
         public void Configure(IApplicationBuilder appBuilder, SharedHostAccessor accessor)
         {
             if (accessor == null)
@@ -2392,13 +2393,15 @@ namespace Opc.Ua.Bindings
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
         private bool m_reverseConnectListener;
-        // Tracks outbound reverse-connect TcpServerChannels owned by this
-        // listener. CreateReverseConnection registers each new channel;
-        // OnHttpsReverseHelloComplete + DisposeAsync drain the set so any
-        // ServerCertificateChain loaded during SetEndpointUrl is released
-        // deterministically — these channels live on outbound WS transports
-        // that are not bound to the Kestrel host lifecycle, so listener
-        // teardown must close them explicitly.
+        /// <summary>
+        /// Tracks outbound reverse-connect TcpServerChannels owned by this
+        /// listener. CreateReverseConnection registers each new channel;
+        /// OnHttpsReverseHelloComplete + DisposeAsync drain the set so any
+        /// ServerCertificateChain loaded during SetEndpointUrl is released
+        /// deterministically — these channels live on outbound WS transports
+        /// that are not bound to the Kestrel host lifecycle, so listener
+        /// teardown must close them explicitly.
+        /// </summary>
         private readonly ConcurrentDictionary<TcpServerChannel, byte> m_reverseConnectChannels = new();
         private int m_nextChannelId;
         private readonly ILogger m_logger;

@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Udp
         private bool m_disposed;
         private IPEndPoint? m_sendDestination;
         private bool m_socketIsConnected;
-        private bool m_useConnectedUnicastClient;
+        private readonly bool m_useConnectedUnicastClient;
 
         /// <summary>
         /// Initializes a new <see cref="UdpDatagramTransport"/>.
@@ -444,6 +444,9 @@ namespace Opc.Ua.PubSub.Udp
         /// unicast peer when none is supplied. Used by the DTLS transport to route a handshake reply
         /// to the specific source that sent the corresponding ClientHello.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         internal ValueTask SendToAsync(
             ReadOnlyMemory<byte> payload,
             IPEndPoint? destination,
@@ -1104,6 +1107,7 @@ namespace Opc.Ua.PubSub.Udp
         /// payload exceeds the cap.
         /// </summary>
         /// <param name="payload">Discovery payload to be sent.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void EnforceDiscoveryLimit(ReadOnlyMemory<byte> payload)
         {
             uint cap = m_v2Settings.DiscoveryMaxMessageSize;

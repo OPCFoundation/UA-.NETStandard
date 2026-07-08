@@ -84,9 +84,9 @@ namespace Opc.Ua.PubSub.Tests.Application
                 null);
 
             provider.Register("dynamic", source);
-            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic"));
+            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic")).ConfigureAwait(false);
 
-            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app);
+            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app).ConfigureAwait(false);
             Assert.That(snapshot.MetaDataVersion.MajorVersion, Is.EqualTo(21));
         }
 
@@ -101,9 +101,9 @@ namespace Opc.Ua.PubSub.Tests.Application
                 null);
 
             Assert.That(provider.Remove("dynamic"), Is.True);
-            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic"));
+            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic")).ConfigureAwait(false);
 
-            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app);
+            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app).ConfigureAwait(false);
             Assert.That(snapshot.MetaDataVersion.MajorVersion, Is.Zero);
         }
 
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 .AddDataSetSource("pds", buildTimeSource)
                 .Build();
 
-            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app);
+            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app).ConfigureAwait(false);
             Assert.That(snapshot.MetaDataVersion.MajorVersion, Is.EqualTo(42));
         }
 

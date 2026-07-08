@@ -70,7 +70,10 @@ namespace Opc.Ua
     /// Client side transport channel factory. Manages creation
     /// of transport channels for clients.
     /// </summary>
-    public sealed class ClientChannelManager : IClientChannelManager, IAsyncDisposable, IChannelEntryHost, IChannelCertRotationHost
+    public sealed class ClientChannelManager :
+        IAsyncDisposable,
+        IChannelEntryHost,
+        IChannelCertRotationHost
     {
         /// <summary>
         /// Callback to register channel diagnostics
@@ -909,9 +912,11 @@ namespace Opc.Ua
             }
         }
 
-        // Per-instance state for the managed (sharing/refcount) path.
-        // Legacy single-shot CreateChannelAsync path uses the existing
-        // ClientChannel wrapper and is independent of this state.
+        /// <summary>
+        /// Per-instance state for the managed (sharing/refcount) path.
+        /// Legacy single-shot CreateChannelAsync path uses the existing
+        /// ClientChannel wrapper and is independent of this state.
+        /// </summary>
         private readonly Dictionary<ManagedChannelKey, ChannelEntry> m_entries = [];
         private readonly Lock m_certLock = new();
         private readonly ChannelManagerOptions m_options;

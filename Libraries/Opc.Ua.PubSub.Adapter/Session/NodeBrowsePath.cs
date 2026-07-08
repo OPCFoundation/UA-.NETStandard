@@ -66,6 +66,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// A sentinel <see cref="NodeId"/> understood by
         /// <see cref="IServerSession.ResolveNodeIdAsync"/>.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public static NodeId ToNodeId(string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath))
@@ -114,6 +115,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// <returns>
         /// The parsed relative path.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public static RelativePath ToRelativePath(NodeId nodeId)
         {
             if (!IsBrowsePath(nodeId))

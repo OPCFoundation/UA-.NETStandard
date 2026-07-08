@@ -62,7 +62,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             await using var framing = new FramingGossipTransport(inner);
             byte[] payload = [1, 2, 3, 4, 5];
 
-            await framing.SendAsync(payload);
+            await framing.SendAsync(payload).ConfigureAwait(false);
 
             Assert.That(inner.LastSent, Is.Not.Null);
             // The raw store payload is NOT a valid frame; the decorator must have framed it.
@@ -109,7 +109,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             bool raised = false;
             framing.FrameReceived += _ => raised = true;
 
-            await framing.DisposeAsync();
+            await framing.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(inner.Disposed, Is.True);
             // After dispose the decorator no longer forwards inner frames.

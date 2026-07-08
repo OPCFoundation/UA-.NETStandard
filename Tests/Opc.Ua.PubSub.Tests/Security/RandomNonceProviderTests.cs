@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                     }
                 });
             }
-            await Task.WhenAll(workers);
+            await Task.WhenAll(workers).ConfigureAwait(false);
             // The monotonic counter is serialised, so every call must
             // observe a distinct sequence number with no torn writes.
             Assert.That(bag, Has.Count.EqualTo(parallelism * iterations));

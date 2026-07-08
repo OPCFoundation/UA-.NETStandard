@@ -66,7 +66,7 @@ namespace Opc.Ua.Di.Tests
             }, d => captured = d);
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(client.DeviceSetId));
@@ -90,7 +90,7 @@ namespace Opc.Ua.Di.Tests
             }, d => captured = d);
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateNetworksAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateNetworksAsync()).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(client.NetworkSetId));
@@ -124,7 +124,7 @@ namespace Opc.Ua.Di.Tests
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
             var parent = new NodeId("parent-1", 2);
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateChildrenAsync(parent));
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateChildrenAsync(parent)).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(parent));
@@ -147,7 +147,7 @@ namespace Opc.Ua.Di.Tests
             });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -163,7 +163,7 @@ namespace Opc.Ua.Di.Tests
             });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -185,7 +185,7 @@ namespace Opc.Ua.Di.Tests
                 });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }

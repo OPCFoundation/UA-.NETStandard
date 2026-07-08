@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             {
                 new() { Name = "field0", Value = new Variant(3.14) }
             };
-            await sink.WriteAsync(fields);
+            await sink.WriteAsync(fields).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(nodeId));

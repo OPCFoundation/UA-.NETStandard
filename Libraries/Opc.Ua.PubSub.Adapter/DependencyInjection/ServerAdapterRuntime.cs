@@ -73,6 +73,8 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         /// <param name="session">
         /// The session to dispose on shutdown.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         public void AddSession(IServerSession session)
         {
             if (session is null)
@@ -103,6 +105,9 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         /// <returns>
         /// A lease that releases the session when disposed.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         public ServerSessionLease AcquireSession(
             ServerConnectionOptions connection,
             ITelemetryContext telemetry)
@@ -144,6 +149,8 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         /// <param name="coordinator">
         /// The coordinator to start and dispose.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         public void AddCoordinator(SubscriptionCoordinator coordinator)
         {
             if (coordinator is null)
@@ -170,6 +177,8 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         /// <param name="ct">
         /// A token used to cancel the start.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         public async ValueTask AddCoordinatorAsync(
             SubscriptionCoordinator coordinator,
             CancellationToken ct = default)

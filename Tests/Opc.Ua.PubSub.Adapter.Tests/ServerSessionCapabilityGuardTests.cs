@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             ServerSession session = CreateSessionWithoutManager();
 
             Assert.That(
-                async () => await session.CreateDataChangeSubscriptionAsync(1000),
+                async () => await session.CreateDataChangeSubscriptionAsync(1000).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadNotSupported));
         }
@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             // Model-change monitoring is optional/best-effort: a session without a
             // V2 manager must skip it silently rather than fault.
             Assert.That(
-                async () => await session.StartModelChangeMonitoringAsync(),
+                async () => await session.StartModelChangeMonitoringAsync().ConfigureAwait(false),
                 Throws.Nothing);
         }
     }

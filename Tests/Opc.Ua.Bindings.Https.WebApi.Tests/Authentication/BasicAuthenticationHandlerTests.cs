@@ -145,10 +145,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
         [Test]
         public async Task WrongPasswordReturnsFail()
         {
-            using IHost host = await CreateHostAsync(options =>
-            {
-                options.ValidateCredentials = (_, _) => Task.FromResult<ClaimsPrincipal?>(null);
-            }).ConfigureAwait(false);
+            using IHost host = await CreateHostAsync(
+                options => options.ValidateCredentials =
+                    (_, _) => Task.FromResult<ClaimsPrincipal?>(null)).ConfigureAwait(false);
             using HttpClient client = host.GetTestClient();
 
             using var request = new HttpRequestMessage(HttpMethod.Get, "/");

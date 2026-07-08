@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, MetaDataBuilder(), AdapterTestHelpers.Telemetry());
 
-            await source.SampleAsync(MetaWithFields("A", "B"));
+            await source.SampleAsync(MetaWithFields("A", "B")).ConfigureAwait(false);
 
             Assert.That(strategy.LastRead.Count, Is.EqualTo(2));
             Assert.That(strategy.LastRead[0].NodeId, Is.EqualTo(new NodeId(11u)));
@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, MetaDataBuilder(), AdapterTestHelpers.Telemetry());
 
-            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("Value1"));
+            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("Value1")).ConfigureAwait(false);
 
             DataSetField[] fields = (DataSetField[]?)snapshot.Fields ?? [];
             Assert.That(fields, Has.Length.EqualTo(1));
@@ -197,7 +197,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, MetaDataBuilder(), AdapterTestHelpers.Telemetry());
 
-            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("A", "B"));
+            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("A", "B")).ConfigureAwait(false);
 
             DataSetField[] fields = (DataSetField[]?)snapshot.Fields ?? [];
             Assert.That(fields, Has.Length.EqualTo(2));
@@ -219,8 +219,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, builder.Object, AdapterTestHelpers.Telemetry());
 
-            await source.SampleAsync(MetaWithFields("A"));
-            await source.SampleAsync(MetaWithFields("A"));
+            await source.SampleAsync(MetaWithFields("A")).ConfigureAwait(false);
+            await source.SampleAsync(MetaWithFields("A")).ConfigureAwait(false);
 
             // The source delegates resolution to the builder every cycle; the
             // builder owns caching/retry (see DataSetMetaDataBuilderTests) so a
@@ -243,7 +243,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             cts.Cancel();
 
             Assert.That(
-                async () => await source.SampleAsync(MetaWithFields("A"), cts.Token),
+                async () => await source.SampleAsync(MetaWithFields("A"), cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
 

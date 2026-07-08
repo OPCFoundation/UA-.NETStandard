@@ -142,8 +142,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </returns>
         public static bool TryGetFieldEncoding(byte raw, out PubSubFieldEncoding encoding)
         {
-            int bits = raw & (byte)DataSetFlags1EncodingMask.FieldEncodingMask;
-            switch (bits)
+            switch (raw & (byte)DataSetFlags1EncodingMask.FieldEncodingMask)
             {
                 case 0x00:
                     encoding = PubSubFieldEncoding.Variant;

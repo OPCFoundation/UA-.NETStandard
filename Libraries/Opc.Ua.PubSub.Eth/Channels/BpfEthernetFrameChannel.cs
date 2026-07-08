@@ -63,7 +63,9 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private const uint IocIn = 0x80000000;
         private const uint IocParmMask = 0x1FFF;
 
-        // bpf_hdr field offsets on a 64-bit macOS runtime (struct timeval is 16 octets).
+        /// <summary>
+        /// bpf_hdr field offsets on a 64-bit macOS runtime (struct timeval is 16 octets).
+        /// </summary>
         private const int BpfCaplenOffset = 16;
         private const int BpfHdrlenOffset = 24;
 

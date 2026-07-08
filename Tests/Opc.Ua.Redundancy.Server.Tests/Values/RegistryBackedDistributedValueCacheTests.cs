@@ -84,8 +84,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var cache = new RegistryBackedDistributedValueCache(() => registry.Object, time);
             var nodeId = new NodeId("v", NamespaceIndex);
 
-            await cache.CacheAsync(nodeId, new DataValue(new Variant(2.5), StatusCodes.Good, time.GetUtcNow()));
-            (bool fresh, DataValue value) = await cache.TryGetAsync(nodeId, TimeSpan.FromMinutes(1));
+            await cache.CacheAsync(nodeId, new DataValue(new Variant(2.5), StatusCodes.Good, time.GetUtcNow())).ConfigureAwait(false);
+            (bool fresh, DataValue value) = await cache.TryGetAsync(nodeId, TimeSpan.FromMinutes(1)).ConfigureAwait(false);
 
             Assert.That(fresh, Is.True);
             Assert.That(value.WrappedValue, Is.EqualTo(new Variant(2.5)));
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var cache = new RegistryBackedDistributedValueCache(() => null);
 
             Assert.That(
-                async () => await cache.TryGetAsync(new NodeId("v", NamespaceIndex), TimeSpan.FromMinutes(1)),
+                async () => await cache.TryGetAsync(new NodeId("v", NamespaceIndex), TimeSpan.FromMinutes(1)).ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains("not available"));
         }
 
@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(
                 async () => await cache.CacheAsync(
-                    new NodeId("v", NamespaceIndex), new DataValue(new Variant(1.0))),
+                    new NodeId("v", NamespaceIndex), new DataValue(new Variant(1.0))).ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains("No distributed node-state store"));
         }
     }

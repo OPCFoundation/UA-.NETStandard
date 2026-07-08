@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 new FakeTimeProvider());
 
             Assert.That(
-                async () => await task.OnServerStartedAsync(null!),
+                async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -174,10 +174,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // No ServerUris -> the task cannot address itself and must publish nothing.
             Mock<IServerInternal> server = CreateServer(hasServerUri: false, out IServiceMessageContext context);
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
-            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
             Assert.That(peers.Count, Is.Zero, "a server without a ServerUri must not gossip direction signals");
         }
 
@@ -197,10 +197,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
 
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
-            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(1));
             PeerDirectionRecord record = peers[0];
@@ -226,12 +226,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 time);
 
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             serviceLevel.Raise(50);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord peer = await WaitForPeerAsync(view, p => p.ServiceLevel == 50);
+            PeerDirectionRecord peer = await WaitForPeerAsync(view, p => p.ServiceLevel == 50).ConfigureAwait(false);
             Assert.That(peer.ServiceLevel, Is.EqualTo((byte)50));
         }
 
@@ -251,12 +251,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 time);
 
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             loadWeight.Raise(99);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord peer = await WaitForPeerAsync(view, p => p.LoadWeight == 99);
+            PeerDirectionRecord peer = await WaitForPeerAsync(view, p => p.LoadWeight == 99).ConfigureAwait(false);
             Assert.That(peer.LoadWeight, Is.EqualTo((byte)99));
         }
 
@@ -276,16 +276,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 time);
 
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             task.Dispose();
 
             // After disposal the provider events are detached, so a raise is a no-op.
             serviceLevel.Raise(50);
-            await Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
-            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
             Assert.That(peers.Count, Is.EqualTo(1));
             Assert.That(peers[0].ServiceLevel, Is.EqualTo((byte)200), "a disposed task must not react to further changes");
         }
@@ -308,10 +308,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
 
             // Both the ServiceLevel and load publishes fail against the store; the task must swallow them.
-            Assert.That(async () => await task.OnServerStartedAsync(server.Object), Throws.Nothing);
+            Assert.That(async () => await task.OnServerStartedAsync(server.Object).ConfigureAwait(false), Throws.Nothing);
 
             var view = new SharedPeerDirectionView(inner, context, NullRecordProtector.Instance, options, time);
-            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
             Assert.That(peers.Count, Is.Zero, "a failed publish must not surface a record");
         }
 
@@ -330,13 +330,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 time);
 
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
-            await task.OnServerStartedAsync(server.Object);
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             // Let the coalescing timer tick several times without any load change: each tick must be a no-op.
-            await Task.Delay(150);
+            await Task.Delay(150).ConfigureAwait(false);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
-            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
             Assert.That(peers.Count, Is.EqualTo(1));
             Assert.That(peers[0].LoadWeight, Is.EqualTo((byte)30), "an unchanged load is not republished by the timer");
         }
@@ -347,7 +347,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             for (int attempt = 0; attempt < 400; attempt++)
             {
-                ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync();
+                ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
                 for (int i = 0; i < peers.Count; i++)
                 {
                     PeerDirectionRecord peer = peers[i];
@@ -356,7 +356,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                         return peer;
                     }
                 }
-                await Task.Delay(25);
+                await Task.Delay(25).ConfigureAwait(false);
             }
             Assert.Fail("the expected direction signal was not published within the timeout");
             throw new InvalidOperationException("unreachable");

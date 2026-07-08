@@ -2289,8 +2289,7 @@ namespace Opc.Ua
         {
             if (m_hasBuffer)
             {
-                int bytesRead = SafeReadBufferBytes(bytes, functionName);
-                return bytesRead;
+                return SafeReadBufferBytes(bytes, functionName);
             }
 
             int length = m_reader.Read(bytes);
@@ -2597,12 +2596,12 @@ namespace Opc.Ua
         private BinaryReader m_reader;
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
-        private ReadOnlyMemory<byte> m_buffer;
+        private readonly ReadOnlyMemory<byte> m_buffer;
         private int m_bufferPosition;
         private long m_synchronizedStreamPosition;
         private uint m_nestingLevel;
         private uint m_encodeablesRecovered;
-        private bool m_hasBuffer;
+        private readonly bool m_hasBuffer;
         private bool m_baseStreamExposed;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryDecoder>();
         private ILogger? m_logger;

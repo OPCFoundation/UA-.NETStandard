@@ -98,6 +98,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="value">Variant payload.</param>
         /// <param name="mode">Selected encoding mode.</param>
         /// <param name="context">Stack message context for encoders.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void WriteVariantProperty(
             Utf8JsonWriter destination,
             string propertyName,
@@ -151,6 +152,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="value">DataValue payload.</param>
         /// <param name="mode">Selected encoding mode.</param>
         /// <param name="context">Stack message context for encoders.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void WriteDataValueProperty(
             Utf8JsonWriter destination,
             string propertyName,

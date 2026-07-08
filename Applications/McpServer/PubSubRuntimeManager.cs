@@ -50,7 +50,7 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Manages one in-process OPC UA PubSub publisher or subscriber for MCP tools.
     /// </summary>
-    public sealed partial class PubSubRuntimeManager : IAsyncDisposable
+    public sealed class PubSubRuntimeManager : IAsyncDisposable
     {
         private const string DataSetName = "McpDataSet";
         private const string WriterName = "Writer 1";
@@ -150,6 +150,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Updates the active publisher's next sampled DataSet fields.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubRuntimePublishResult> PublishAsync(
             string fieldValues,
             CancellationToken ct = default)
@@ -226,6 +227,7 @@ namespace Opc.Ua.Mcp
         /// <param name="timeout">How long to collect responses.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The collected discovery result.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
             PubSubDiscoveryRequest request,
             TimeSpan timeout,
@@ -252,6 +254,7 @@ namespace Opc.Ua.Mcp
         /// <param name="timeout">How long to wait for the response.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The correlated Action response.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubActionResponse> InvokeActionAsync(
             PubSubActionRequest request,
             TimeSpan timeout,
@@ -280,6 +283,7 @@ namespace Opc.Ua.Mcp
         /// <param name="details">The JSON-friendly responder details.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The registered responder information.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubActionResponderRegistration> RegisterActionResponderAsync(
             PubSubActionTarget target,
             IPubSubActionHandler handler,

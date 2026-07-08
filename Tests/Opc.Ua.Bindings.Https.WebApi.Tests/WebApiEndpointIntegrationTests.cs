@@ -265,6 +265,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 m_stubServer!.MessageContext,
                 WebApiMediaType.ToEncoderOptions(encoding));
         }
+
         /// <summary>
         /// Stub <see cref="IWebApiServer"/> that records the last
         /// request and returns a typed response of the matching type.

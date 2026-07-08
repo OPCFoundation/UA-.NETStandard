@@ -151,11 +151,20 @@ namespace Opc.Ua.Bindings
             return DecodeBody<T>(payload, context, options);
         }
 
-        // Mirrors JsonRequestMapper.ReadAllBoundedAsync: caps the buffered
-        // body length at MaxMessageSize. A non-positive maxLength disables
-        // the cap. When contentLengthHint >= 0 the read path skips the
-        // ArrayPool rent-and-grow loop and reads directly into an exact-
-        // sized buffer.
+        /// <summary>
+        /// Mirrors JsonRequestMapper.ReadAllBoundedAsync: caps the buffered
+        /// body length at MaxMessageSize. A non-positive maxLength disables
+        /// the cap. When contentLengthHint >= 0 the read path skips the
+        /// ArrayPool rent-and-grow loop and reads directly into an exact-
+        /// sized buffer.
+        /// </summary>
+        /// <param name="body"></param>
+        /// <param name="maxLength"></param>
+        /// <param name="contentLengthHint"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"><paramref name="body"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal static async ValueTask<byte[]> ReadAllBoundedAsync(
             Stream body,
             int maxLength,
@@ -498,6 +507,7 @@ namespace Opc.Ua.Bindings
         /// <see cref="IEncodeable"/> or has no public parameterless
         /// constructor.
         /// </exception>
+        /// <exception cref="ServiceResultException"></exception>
         [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
             "Constructs an instance of bodyType via Activator.CreateInstance which is not " +
             "NativeAOT-safe when the type is not statically rooted. Callers that need AOT " +

@@ -57,6 +57,7 @@ public static class Program
     /// Starts the selected role.
     /// </summary>
     /// <param name="args">Command-line arguments.</param>
+    /// <exception cref="InvalidOperationException"></exception>
     public static async Task<int> Main(string[] args)
     {
         SampleOptions options = SampleOptions.Parse(args, Environment.GetEnvironmentVariable);

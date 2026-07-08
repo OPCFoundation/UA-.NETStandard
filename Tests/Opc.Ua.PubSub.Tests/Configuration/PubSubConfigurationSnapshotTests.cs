@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     {
         private static PubSubConfigurationDataType BuildSimpleConfig()
         {
-            var config = new PubSubConfigurationDataType
+            return new PubSubConfigurationDataType
             {
                 Enabled = true,
                 PublishedDataSets = new ArrayOf<PublishedDataSetDataType>(
@@ -115,7 +115,6 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                         }
                     })
             };
-            return config;
         }
 
         [Test]

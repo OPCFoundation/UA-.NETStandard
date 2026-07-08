@@ -154,6 +154,7 @@ namespace Opc.Ua.PubSub.Groups
         /// </summary>
         /// <param name="networkMessage">Decoded network message.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask DispatchAsync(
             PubSubNetworkMessage networkMessage,
             CancellationToken cancellationToken = default)

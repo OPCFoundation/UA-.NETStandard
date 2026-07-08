@@ -267,8 +267,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             // RawData requires DataSetMetaData; register one for the writer.
             var publisherId = PublisherId.FromByte(8);
-            ushort writerGroupId = 1;
-            ushort dataSetWriterId = 50;
+            const ushort writerGroupId = 1;
+            const ushort dataSetWriterId = 50;
             var classId = new Uuid("11223344-5566-7788-99AA-BBCCDDEEFF00");
             var version = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 };
             var meta = new DataSetMetaDataType

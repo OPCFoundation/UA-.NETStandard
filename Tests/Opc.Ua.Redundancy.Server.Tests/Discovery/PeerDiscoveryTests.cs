@@ -59,7 +59,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
         {
             var discovery = new StaticPeerDiscovery([Peer("urn:a"), Peer("urn:b")]);
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(2));
             Assert.That(discovery.Peers.Count, Is.EqualTo(2));
@@ -72,8 +72,8 @@ namespace Opc.Ua.Redundancy.Server.Tests
             int changes = 0;
             discovery.PeersChanged += _ => Interlocked.Increment(ref changes);
 
-            await discovery.RefreshAsync();
-            await discovery.RefreshAsync();
+            await discovery.RefreshAsync().ConfigureAwait(false);
+            await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(changes, Is.EqualTo(1));
         }
@@ -96,10 +96,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var discovery = new DnsPeerDiscovery(
                 options,
                 (host, ct) => new ValueTask<IPAddress[]>(
-                    new[] { IPAddress.Parse("10.0.0.1"), IPAddress.Parse("10.0.0.2") }),
+                    [IPAddress.Parse("10.0.0.1"), IPAddress.Parse("10.0.0.2")]),
                 ct => new ValueTask<ISet<IPAddress>>(new HashSet<IPAddress>()));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(2));
             Assert.That(peers[0].GossipEndpoint!.Port, Is.EqualTo(4840));
@@ -114,11 +114,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var discovery = new DnsPeerDiscovery(
                 options,
                 (host, ct) => new ValueTask<IPAddress[]>(
-                    new[] { IPAddress.Parse("10.0.0.1"), IPAddress.Parse("10.0.0.9") }),
+                    [IPAddress.Parse("10.0.0.1"), IPAddress.Parse("10.0.0.9")]),
                 ct => new ValueTask<ISet<IPAddress>>(
                     new HashSet<IPAddress> { IPAddress.Parse("10.0.0.9") }));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(1));
             Assert.That(peers[0].DiscoveryUrls[0], Does.Contain("10.0.0.1"));
@@ -131,10 +131,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var discovery = new DnsPeerDiscovery(
                 options,
                 (host, ct) => new ValueTask<IPAddress[]>(
-                    new[] { IPAddress.Parse("10.0.0.1"), IPAddress.Parse("10.0.0.1") }),
+                    [IPAddress.Parse("10.0.0.1"), IPAddress.Parse("10.0.0.1")]),
                 ct => new ValueTask<ISet<IPAddress>>(new HashSet<IPAddress>()));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(1));
         }
@@ -144,7 +144,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
         {
             var discovery = new DnsPeerDiscovery(new DnsPeerDiscoveryOptions());
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.Zero);
         }
@@ -159,10 +159,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
             };
             var discovery = new DnsPeerDiscovery(
                 options,
-                (host, ct) => new ValueTask<IPAddress[]>(new[] { IPAddress.Parse("10.0.0.1") }),
+                (host, ct) => new ValueTask<IPAddress[]>([IPAddress.Parse("10.0.0.1")]),
                 ct => new ValueTask<ISet<IPAddress>>(new HashSet<IPAddress>()));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers[0].GossipEndpoint, Is.Null);
         }
@@ -245,23 +245,23 @@ namespace Opc.Ua.Redundancy.Server.Tests
         {
             var options = new LdsPeerDiscoveryOptions { LocalApplicationUri = "urn:self" };
             var discovery = new LdsPeerDiscovery(options, ct => new ValueTask<ArrayOf<ApplicationDescription>>(
-                (ArrayOf<ApplicationDescription>)new[]
-                {
+                (ArrayOf<ApplicationDescription>)
+                [
                     new ApplicationDescription
                     {
                         ApplicationUri = "urn:peer",
                         ApplicationType = ApplicationType.Server,
-                        DiscoveryUrls = new[] { "opc.tcp://peer:4840" }
+                        DiscoveryUrls = resultPeer
                     },
                     new ApplicationDescription
                     {
                         ApplicationUri = "urn:self",
                         ApplicationType = ApplicationType.Server,
-                        DiscoveryUrls = new[] { "opc.tcp://self:4840" }
+                        DiscoveryUrls = resultSelf
                     }
-                }));
+                ]));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(1));
             Assert.That(peers[0].ServerUri, Is.EqualTo("urn:peer"));
@@ -274,17 +274,17 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var discovery = new LdsPeerDiscovery(
                 new LdsPeerDiscoveryOptions(),
                 ct => new ValueTask<ArrayOf<ApplicationDescription>>(
-                    (ArrayOf<ApplicationDescription>)new[]
-                    {
+                    (ArrayOf<ApplicationDescription>)
+                    [
                         new ApplicationDescription
                         {
                             ApplicationUri = "urn:client",
                             ApplicationType = ApplicationType.Client,
-                            DiscoveryUrls = new[] { "opc.tcp://client:4840" }
+                            DiscoveryUrls = resultClient
                         }
-                    }));
+                    ]));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.Zero);
         }
@@ -303,23 +303,23 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var discovery = new LdsPeerDiscovery(
                 new LdsPeerDiscoveryOptions(),
                 ct => new ValueTask<ArrayOf<ApplicationDescription>>(
-                    (ArrayOf<ApplicationDescription>)new ApplicationDescription[]
-                    {
+                    (ArrayOf<ApplicationDescription>)
+                    [
                         null!,
                         new ApplicationDescription
                         {
                             ApplicationUri = "urn:both",
                             ApplicationType = ApplicationType.ClientAndServer,
-                            DiscoveryUrls = new[] { "opc.tcp://both:4840" }
+                            DiscoveryUrls = resultBoth
                         },
                         new ApplicationDescription
                         {
                             ApplicationUri = string.Empty,
                             ApplicationType = ApplicationType.Server
                         }
-                    }));
+                    ]));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(1));
             Assert.That(peers[0].ServerUri, Is.EqualTo("urn:both"));
@@ -351,11 +351,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
             };
             var discovery = new DnsPeerDiscovery(
                 options,
-                (host, ct) => new ValueTask<IPAddress[]>(new[] { IPAddress.Parse("10.0.0.9") }),
+                (host, ct) => new ValueTask<IPAddress[]>([IPAddress.Parse("10.0.0.9")]),
                 ct => new ValueTask<ISet<IPAddress>>(
                     new HashSet<IPAddress> { IPAddress.Parse("10.0.0.9") }));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(1));
         }
@@ -366,10 +366,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var options = new DnsPeerDiscoveryOptions { HostName = "servers.headless", ApplicationPort = 4841 };
             var discovery = new DnsPeerDiscovery(
                 options,
-                (host, ct) => new ValueTask<IPAddress[]>(new[] { IPAddress.Parse("2001:db8::1") }),
+                (host, ct) => new ValueTask<IPAddress[]>([IPAddress.Parse("2001:db8::1")]),
                 ct => new ValueTask<ISet<IPAddress>>(new HashSet<IPAddress>()));
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers[0].DiscoveryUrls[0], Is.EqualTo("opc.tcp://[2001:db8::1]:4841"));
         }
@@ -381,7 +381,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             // "localhost" resolves to loopback, which the default local-address set excludes.
             var discovery = new DnsPeerDiscovery(new DnsPeerDiscoveryOptions { HostName = "localhost" });
 
-            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.Zero);
         }
@@ -446,5 +446,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             private readonly ApplicationDescription[] m_set;
         }
+
+        private static readonly string[] resultPeer = ["opc.tcp://peer:4840"];
+        private static readonly string[] resultSelf = ["opc.tcp://self:4840"];
+        private static readonly string[] resultClient = ["opc.tcp://client:4840"];
+        private static readonly string[] resultBoth = ["opc.tcp://both:4840"];
     }
 }

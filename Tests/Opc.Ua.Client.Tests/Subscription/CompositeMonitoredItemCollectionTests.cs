@@ -502,10 +502,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return [];
             }
 
-            // Globally-unique counter mirrors production
-            // MonitoredItem.GlobalClientHandleUint so handles do not
-            // collide across InMemoryCollection instances within a
-            // single composite.
+            /// <summary>
+            /// Globally-unique counter mirrors production
+            /// MonitoredItem.GlobalClientHandleUint so handles do not
+            /// collide across InMemoryCollection instances within a
+            /// single composite.
+            /// </summary>
             private static int s_nextHandle;
         }
 

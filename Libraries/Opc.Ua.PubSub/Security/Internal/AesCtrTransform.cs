@@ -77,6 +77,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// Destination buffer; must be at least <c>input.Length</c>
         /// bytes long.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public static void EncryptOrDecrypt(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> nonce,
@@ -121,6 +122,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// Destination buffer; must be at least <c>input.Length</c>
         /// bytes long.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public static void EncryptOrDecryptWithCounter(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> initialCounter16,
@@ -262,6 +264,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// counter by 1 starting from the supplied integer rather than
         /// zero. Not part of the public contract.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal static void EncryptOrDecryptWithStartingBlock(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> nonce,

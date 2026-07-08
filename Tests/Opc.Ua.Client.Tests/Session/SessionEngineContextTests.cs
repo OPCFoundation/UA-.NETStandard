@@ -265,26 +265,26 @@ namespace Opc.Ua.Client.Tests
                 async () => await scope.Context.PublishAsync(
                     new RequestHeader(),
                     new ArrayOf<SubscriptionAcknowledgement>(),
-                    CancellationToken.None),
+                    CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>());
             Assert.That(
                 async () => await scope.Context.TransferSubscriptionsAsync(
                     null,
                     new ArrayOf<uint>(new uint[] { 1 }),
                     sendInitialValues: true,
-                    CancellationToken.None),
+                    CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>());
             Assert.That(
                 async () => await scope.Context.DeleteSubscriptionsAsync(
                     null,
                     new ArrayOf<uint>(new uint[] { 1 }),
-                    CancellationToken.None),
+                    CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>());
             Assert.That(
-                async () => await scope.Context.DeleteOrphanedSubscriptionAsync(1),
+                async () => await scope.Context.DeleteOrphanedSubscriptionAsync(1).ConfigureAwait(false),
                 Throws.Nothing);
 
-            await Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         [Test]

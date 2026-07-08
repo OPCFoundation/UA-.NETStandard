@@ -119,7 +119,7 @@ namespace Opc.Ua.Aot.Tests
             leaderOptions.LeaseName = "opcua-leader";
             await using var election = new KubernetesLeaseLeaderElection(client, leaderOptions);
 
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             await Assert.That(acquired).IsTrue();
             await Assert.That(client.Lease).IsNotNull();
@@ -154,7 +154,7 @@ namespace Opc.Ua.Aot.Tests
             };
             var discovery = new KubernetesPeerDiscovery(client, discoveryOptions);
 
-            ArrayOf<string> peers = await discovery.RefreshAsync();
+            ArrayOf<string> peers = await discovery.RefreshAsync().ConfigureAwait(false);
 
             await Assert.That(peers.Count).IsEqualTo(1);
             await Assert.That(peers[0]).IsEqualTo("opc.tcp://10.0.0.11:4840");
@@ -191,8 +191,8 @@ namespace Opc.Ua.Aot.Tests
                 SecretMaterial = ByteString.From(new byte[] { 7, 8, 9 })
             };
 
-            await sessionStore.PutAsync(entry);
-            SharedSessionEntry? restored = await sessionStore.TryGetAsync(token);
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? restored = await sessionStore.TryGetAsync(token).ConfigureAwait(false);
 
             await Assert.That(restored).IsNotNull();
             await Assert.That(restored!.SessionName).IsEqualTo("aot-session");
@@ -233,8 +233,8 @@ namespace Opc.Ua.Aot.Tests
                 ]
             };
 
-            await subscriptionStore.StoreSubscriptionsAsync([subscription]);
-            RestoreSubscriptionResult result = await subscriptionStore.RestoreSubscriptionsAsync();
+            await subscriptionStore.StoreSubscriptionsAsync([subscription]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await subscriptionStore.RestoreSubscriptionsAsync().ConfigureAwait(false);
             List<IStoredSubscription> subscriptions = [.. result.Subscriptions!];
 
             await Assert.That(result.Success).IsTrue();
@@ -272,15 +272,17 @@ namespace Opc.Ua.Aot.Tests
                 eventQueue.SetQueueSize(4, true);
                 eventQueue.Enqueue(new EventFieldList { ClientHandle = 9, EventFields = [new Variant(true)] });
 
-                await factory.FlushAsync();
+                await factory.FlushAsync().ConfigureAwait(false);
             }
 
             await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
                 kv, context, protector, telemetry);
             IDataChangeMonitoredItemQueue? restoredData = await restoreFactory
-                .RestoreDataChangeQueueAsync(77);
+                .RestoreDataChangeQueueAsync(77)
+                .ConfigureAwait(false);
             IEventMonitoredItemQueue? restoredEvent = await restoreFactory
-                .RestoreEventQueueAsync(78);
+                .RestoreEventQueueAsync(78)
+                .ConfigureAwait(false);
 
             await Assert.That(restoredData).IsNotNull();
             await Assert.That(restoredData!.ItemsInQueue).IsEqualTo(1);

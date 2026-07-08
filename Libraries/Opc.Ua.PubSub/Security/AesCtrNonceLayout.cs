@@ -87,6 +87,7 @@ namespace Opc.Ua.PubSub.Security
         /// Monotonic per-key message sequence number.
         /// </param>
         /// <param name="nonce">Destination span (must be 12 bytes).</param>
+        /// <exception cref="ArgumentException"></exception>
         public static void Build(
             uint messageRandom,
             ulong messageSequenceNumber,
@@ -112,6 +113,7 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="nonce">Source span (must be 12 bytes).</param>
         /// <returns>The parsed components.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public static AesCtrNonceComponents Parse(
             ReadOnlySpan<byte> nonce)
         {

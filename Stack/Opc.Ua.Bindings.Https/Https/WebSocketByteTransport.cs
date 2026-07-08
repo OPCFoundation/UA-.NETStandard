@@ -280,6 +280,8 @@ namespace Opc.Ua.Bindings
         /// Assigns the live <see cref="WebSocket"/> to the transport. Called
         /// by derived implementations from their connect / accept paths.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         protected void AttachSocket(WebSocket socket)
         {
             if (socket == null)
@@ -311,13 +313,15 @@ namespace Opc.Ua.Bindings
             return socket;
         }
 
-        private readonly BufferManager m_bufferManager;
-        private readonly int m_receiveBufferSize;
-        private readonly SemaphoreSlim m_sendLock;
-        // m_logger is used by derived implementations for handshake diagnostics.
+        /// <summary>
+        /// m_logger is used by derived implementations for handshake diagnostics.
+        /// </summary>
         protected readonly ILogger m_logger;
         private WebSocket? m_socket;
         private int m_closed;
+        private readonly BufferManager m_bufferManager;
+        private readonly int m_receiveBufferSize;
+        private readonly SemaphoreSlim m_sendLock;
     }
 
     /// <summary>

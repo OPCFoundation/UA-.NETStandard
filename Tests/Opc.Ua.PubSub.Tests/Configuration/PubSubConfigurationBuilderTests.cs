@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionBuildsConnectionWithAddressAndPublisherId()
         {
-            string transportProfile =
+            const string transportProfile =
                 "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
 
             PubSubConfigurationDataType configuration = PubSubConfigurationBuilder.Create()

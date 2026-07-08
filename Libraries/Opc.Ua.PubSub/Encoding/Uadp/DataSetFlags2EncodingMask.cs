@@ -118,8 +118,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </returns>
         public static bool TryGetMessageType(byte raw, out PubSubDataSetMessageType messageType)
         {
-            int bits = raw & (byte)DataSetFlags2EncodingMask.MessageTypeMask;
-            switch (bits)
+            switch (raw & (byte)DataSetFlags2EncodingMask.MessageTypeMask)
             {
                 case 0:
                     messageType = PubSubDataSetMessageType.KeyFrame;

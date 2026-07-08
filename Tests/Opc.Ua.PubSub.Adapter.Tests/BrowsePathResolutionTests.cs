@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
             await strategy.ReadAsync([
                 new ReadValueId { NodeId = browsePath, AttributeId = Attributes.Value }
-            ]);
+            ]).ConfigureAwait(false);
 
             Assert.That(captured.Count, Is.EqualTo(1));
             Assert.That(captured[0].NodeId, Is.EqualTo(resolvedNodeId));
@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
             await strategy.ReadAsync([
                 new ReadValueId { NodeId = numericNodeId, AttributeId = Attributes.Value }
-            ]);
+            ]).ConfigureAwait(false);
 
             Assert.That(captured.Count, Is.EqualTo(1));
             Assert.That(captured[0].NodeId, Is.EqualTo(numericNodeId));
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 browsePath,
                 Attributes.Value,
                 null,
-                new DataValue(new Variant(123)));
+                new DataValue(new Variant(123))).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(status), Is.True);
             Assert.That(captured.Count, Is.EqualTo(1));
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             {
                 Target = new PubSubActionTarget { ActionName = "Reset" },
                 InputFields = [new DataSetField { Name = "Input", Value = new Variant(1) }]
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             Assert.That(capturedObjectId, Is.EqualTo(resolvedObjectId));

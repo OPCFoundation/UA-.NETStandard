@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Diagnostics
             Enum.GetValues<PubSubDiagnosticsCounterKind>().Length;
 #else
         private static readonly int s_counterCount =
-            ((PubSubDiagnosticsCounterKind[])Enum.GetValues(typeof(PubSubDiagnosticsCounterKind))).Length;
+            Enum.GetValues(typeof(PubSubDiagnosticsCounterKind)).Length;
 #endif
 
         private readonly Lock m_lock = new();

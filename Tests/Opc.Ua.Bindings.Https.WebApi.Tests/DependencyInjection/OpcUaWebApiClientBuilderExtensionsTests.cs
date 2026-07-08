@@ -53,7 +53,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         public void AddWebApiTransportChannelThrowsForNullBuilder()
         {
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddWebApiTransportChannel(),
                 Throws.ArgumentNullException);
         }
 

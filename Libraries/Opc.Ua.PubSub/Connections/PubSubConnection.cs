@@ -574,6 +574,9 @@ namespace Opc.Ua.PubSub.Connections
         /// <param name="request">Discovery request options.</param>
         /// <param name="timeout">Response collection timeout.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
             PubSubDiscoveryRequest request,
             TimeSpan timeout,
@@ -699,6 +702,9 @@ namespace Opc.Ua.PubSub.Connections
         /// <summary>
         /// Sends a requester-side Action request and waits for the correlated response.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubActionResponse> InvokeActionAsync(
             PubSubActionRequest request,
             TimeSpan timeout,
@@ -773,6 +779,7 @@ namespace Opc.Ua.PubSub.Connections
         /// rejects arbitrary requestor topics on topic-based transports (MQTT/JSON)
         /// while still allowing datagram (UDP) round-trips that ignore the address.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RegisterActionHandler(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
@@ -1162,6 +1169,7 @@ namespace Opc.Ua.PubSub.Connections
         /// <param name="message">Decoded NetworkMessage.</param>
         /// <param name="logger">Logger for diagnostic events.</param>
         /// <returns>Whether the message was recognised as metadata.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         internal static bool TryRouteInboundMetaData(
             IDataSetMetaDataRegistry registry,
             PubSubNetworkMessage message,
@@ -2452,10 +2460,9 @@ namespace Opc.Ua.PubSub.Connections
                     message, context, out int payloadOffset);
                 ReadOnlyMemory<byte> prefix = encoded.Slice(0, payloadOffset);
                 ReadOnlyMemory<byte> inner = encoded.Slice(payloadOffset);
-                ReadOnlyMemory<byte> wrapped = await m_securityWrapper!
+                return await m_securityWrapper!
                     .WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken)
                     .ConfigureAwait(false);
-                return wrapped;
             }
             catch (OperationCanceledException)
             {

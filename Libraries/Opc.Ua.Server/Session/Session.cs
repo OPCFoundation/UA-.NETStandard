@@ -222,6 +222,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The operation context of the create request.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask InitializeAsync(
             OperationContext context,
             CancellationToken cancellationToken = default)

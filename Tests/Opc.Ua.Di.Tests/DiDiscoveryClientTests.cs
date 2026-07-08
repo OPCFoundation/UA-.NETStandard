@@ -77,7 +77,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(Opc.Ua.ObjectIds.ObjectsFolder));
@@ -96,7 +96,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -127,7 +127,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].DeviceId, Is.EqualTo(deviceNodeId));
@@ -149,7 +149,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -190,7 +190,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
             // Depth 0, 1, 2, 3 each invoke BrowseAsync once before the

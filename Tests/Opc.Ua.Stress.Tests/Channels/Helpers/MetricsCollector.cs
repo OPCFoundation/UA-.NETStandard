@@ -100,6 +100,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// <typeparam name="TMetric">The requested metric value type.</typeparam>
         /// <param name="name">The instrument name.</param>
         /// <returns>The latest metric value.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public TMetric GetMetric<TMetric>(string name)
         {
             if (name == null)
@@ -138,6 +140,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// </summary>
         /// <param name="eventName">The event name.</param>
         /// <returns>The number of matching records.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="eventName"/> is <c>null</c>.</exception>
         public int CountEvents(string eventName)
         {
             if (eventName == null)
@@ -343,7 +346,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 }
             }
 
-            private MetricsCollector? m_owner;
+            private readonly MetricsCollector? m_owner;
         }
 
         private const string ChannelManagerName = "Opc.Ua.ChannelManager";

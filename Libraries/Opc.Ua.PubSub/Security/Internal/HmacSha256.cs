@@ -51,6 +51,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// <param name="key">HMAC key (any non-empty length).</param>
         /// <param name="data">Bytes to authenticate.</param>
         /// <param name="destination">Destination span receiving the MAC.</param>
+        /// <exception cref="ArgumentException"></exception>
         public static void HashData(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> data,

@@ -62,7 +62,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.InitLockAsync("tag");
+            int status = await client.InitLockAsync("tag").ConfigureAwait(false);
 
             Assert.That(status, Is.Zero);
             Assert.That(captured, Is.Not.Null);
@@ -94,7 +94,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.RenewLockAsync();
+            int status = await client.RenewLockAsync().ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(1));
             Assert.That(captured, Is.Not.Null);
@@ -122,7 +122,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.ExitLockAsync();
+            int status = await client.ExitLockAsync().ConfigureAwait(false);
 
             Assert.That(status, Is.Zero);
             Assert.That(
@@ -149,7 +149,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.BreakLockAsync();
+            int status = await client.BreakLockAsync().ConfigureAwait(false);
 
             Assert.That(status, Is.Zero);
             Assert.That(
@@ -174,7 +174,7 @@ namespace Opc.Ua.Di.Tests
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.InitLockAsync("tag"))!;
+                async () => await client.InitLockAsync("tag").ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUserAccessDenied));
         }
 
@@ -192,7 +192,7 @@ namespace Opc.Ua.Di.Tests
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RenewLockAsync())!;
+                async () => await client.RenewLockAsync().ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Di.Tests
             // helper raised BadTypeMismatch. The proxy's wire-form
             // contract is now canonical for this client.
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ExitLockAsync())!;
+                async () => await client.ExitLockAsync().ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
 

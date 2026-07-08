@@ -63,6 +63,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         ///   * <c>Bad_SecurityChecksFailed</c> when the URI is well
         ///     formed but a policy gate rejects it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ServiceResult Validate(
             string? endpoint,
             AssetEndpointPolicy policy,

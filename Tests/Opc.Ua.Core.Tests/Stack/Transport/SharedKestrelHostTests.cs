@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     listener!,
                     "/test",
                     acc => { factoryInvocations++; return MakeStubHost(); },
-                    kThumbprint);
+                    kThumbprint).ConfigureAwait(false);
                 Assert.That(factoryInvocations, Is.EqualTo(1));
                 Assert.That(SharedKestrelHostRegistry.Instance.Count, Is.GreaterThan(0));
                 Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
@@ -94,13 +94,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 (HttpsTransportListener)null!,
                 "/listenerA",
                 acc => { factoryInvocations++; return MakeStubHost(); },
-                kThumbprint);
+                kThumbprint).ConfigureAwait(false);
             await using SharedHostLease lease2 = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 (HttpsTransportListener)null!,
                 "/listenerB",
                 acc => { factoryInvocations++; return MakeStubHost(); },
-                kThumbprint);
+                kThumbprint).ConfigureAwait(false);
             Assert.That(factoryInvocations, Is.EqualTo(1), "Second Acquire must reuse host, not call factory.");
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(2));
         }
@@ -114,14 +114,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 (HttpsTransportListener)null!,
                 "/test",
                 acc => MakeStubHost(),
-                kThumbprint);
+                kThumbprint).ConfigureAwait(false);
 
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key,
                     (HttpsTransportListener)null!,
                     "/test",
                     acc => MakeStubHost(),
-                    kOtherThumbprint))!;
+                    kOtherThumbprint).ConfigureAwait(false))!;
             Assert.That(ex.Message, Does.Contain(kThumbprint));
             Assert.That(ex.Message, Does.Contain(kOtherThumbprint));
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
@@ -136,7 +136,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 (HttpsTransportListener)null!,
                 "/test",
                 acc => MakeStubHost(),
-                kThumbprint);
+                kThumbprint).ConfigureAwait(false);
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
             await lease.DisposeAsync().ConfigureAwait(false);
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.Zero);
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 (HttpsTransportListener)null!,
                 "/test",
                 acc => MakeStubHost(),
-                kThumbprint);
+                kThumbprint).ConfigureAwait(false);
             await lease.DisposeAsync().ConfigureAwait(false);
             Assert.That(async () => await lease.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
         }
@@ -161,9 +161,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var key = NewKey();
             Assert.ThrowsAsync<ArgumentNullException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
-                    key, (HttpsTransportListener)null!, "/test", null!, kThumbprint));
+                    key, (HttpsTransportListener)null!, "/test", null!, kThumbprint).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
-                    key, (HttpsTransportListener)null!, "/test", acc => MakeStubHost(), string.Empty));
+                    key, (HttpsTransportListener)null!, "/test", acc => MakeStubHost(), string.Empty).ConfigureAwait(false));
         }
 
         [Test]
@@ -186,7 +186,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         "Registry must wire SharedKestrelHost into the accessor before calling factory.");
                     return MakeStubHost();
                 },
-                kThumbprint);
+                kThumbprint).ConfigureAwait(false);
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.Instance, Is.Not.Null);
             Assert.That(captured.Instance!.Key, Is.EqualTo(key));

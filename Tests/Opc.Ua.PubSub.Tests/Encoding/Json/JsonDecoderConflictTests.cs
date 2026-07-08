@@ -57,7 +57,7 @@ namespace OpcUaPubSubJsonTests
             // matched MetaData record does not exist so the decoder
             // returns null with no metadata available.
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            string conflicting = """
+            const string conflicting = """
 {
   "MessageId": "conflict",
   "MessageType": "ua-data",
@@ -87,7 +87,7 @@ namespace OpcUaPubSubJsonTests
             // Envelope DataSetClassId set but DataSetMessage carries
             // a conflicting MetaDataVersion — decoder must reject or
             // accept gracefully without throwing.
-            string text = """
+            const string text = """
 {
   "MessageId": "conflict-2",
   "MessageType": "ua-data",

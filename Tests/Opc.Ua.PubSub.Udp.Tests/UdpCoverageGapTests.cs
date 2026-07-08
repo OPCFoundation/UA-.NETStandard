@@ -276,7 +276,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 UdpIntegrationTestHelpers.LoopbackOptions());
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
             Assert.That(transport.IsConnected, Is.True);
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
             Assert.That(transport.IsConnected, Is.False);
         }
 
@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 UdpIntegrationTestHelpers.LoopbackOptions());
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -326,7 +326,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             Assert.That(transport.IsConnected, Is.True);
             try
             {
-                await transport.SendAsync(new byte[] { 0xFF, 0xEE });
+                await transport.SendAsync(new byte[] { 0xFF, 0xEE }).ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -334,7 +334,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Assert.Ignore($"Broadcast send failed: {ex.Message}");
                 return;
             }
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
         }
     }
 }

@@ -115,6 +115,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <see cref="UadpDiscoveryRequestMessage"/> or
         /// <see cref="UadpDiscoveryResponseMessage"/>.</param>
         /// <param name="context">Network message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static byte[] Encode(
             PubSubNetworkMessage message,
             PubSubNetworkMessageContext context)
@@ -152,6 +154,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Network message context.</param>
         /// <returns>The decoded message, or <c>null</c> on malformed
         /// input.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         internal static PubSubNetworkMessage? TryDecode(
             ref UadpBinaryReader reader,
             ExtendedFlags2EncodingMask ext2,

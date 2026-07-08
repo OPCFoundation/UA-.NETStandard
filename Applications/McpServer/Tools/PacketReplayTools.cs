@@ -56,6 +56,8 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Starts replaying a pcap capture.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         [McpServerTool(Name = "replay_pcap")]
         [Description("Replays a captured pcap. mode='mock-server' opens an OPC UA listener that replays the " +
             "captured server bytes to a connecting client; mode='mock-client' walks the captured request stream " +

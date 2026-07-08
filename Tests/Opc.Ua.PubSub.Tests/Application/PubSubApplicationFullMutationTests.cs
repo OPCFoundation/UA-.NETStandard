@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.ReplaceConfigurationAsync(null!),
+                async () => await app.ReplaceConfigurationAsync(null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             {
                 Connections = new ArrayOf<PubSubConnectionDataType>(new[] { NewConnection("c1") }),
                 PublishedDataSets = []
-            });
+            }).ConfigureAwait(false);
             Assert.That(raised, Is.EqualTo(1));
         }
 
@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 {
                     Connections = [],
                     PublishedDataSets = []
-                });
+                }).ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty);
             Assert.That(StatusCode.IsGood(results[0]), Is.True);
         }
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.AddConnectionAsync(null!),
+                async () => await app.AddConnectionAsync(null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                     TransportProfileUri = UdpProfile,
                     Address = new ExtensionObject(
                         new NetworkAddressUrlDataType { Url = AddrUrl })
-                }),
+                }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                     TransportProfileUri = "urn:not-real",
                     Address = new ExtensionObject(
                         new NetworkAddressUrlDataType { Url = AddrUrl })
-                }),
+                }).ConfigureAwait(false),
                 Throws.TypeOf<PubSubConfigurationException>());
         }
 
@@ -142,7 +142,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             await using IPubSubApplication app = NewApp();
             Assert.That(
                 async () => await app.RemoveConnectionAsync(
-                    new NodeId("pubsub:connection:nope", 0)),
+                    new NodeId("pubsub:connection:nope", 0)).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.RemoveConnectionAsync(NodeId.Null),
+                async () => await app.RemoveConnectionAsync(NodeId.Null).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -161,9 +161,9 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddWriterGroupAsyncNullConfigThrowsArgumentNullException()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             Assert.That(
-                async () => await app.AddWriterGroupAsync(connId, null!),
+                async () => await app.AddWriterGroupAsync(connId, null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -172,13 +172,13 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddWriterGroupAsyncEmptyNameThrowsArgumentException()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             Assert.That(
                 async () => await app.AddWriterGroupAsync(connId, new WriterGroupDataType
                 {
                     Name = string.Empty,
                     PublishingInterval = 1000
-                }),
+                }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(
                 async () => await app.AddWriterGroupAsync(
                     new NodeId("pubsub:connection:nope", 0),
-                    new WriterGroupDataType { Name = "wg", PublishingInterval = 1000 }),
+                    new WriterGroupDataType { Name = "wg", PublishingInterval = 1000 }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -199,14 +199,14 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task RemoveGroupAsyncRemovesWriterGroup()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId wgId = await app.AddWriterGroupAsync(connId, new WriterGroupDataType
             {
                 Name = "wg-1",
                 WriterGroupId = 1,
                 PublishingInterval = 1000
-            });
-            await app.RemoveGroupAsync(wgId);
+            }).ConfigureAwait(false);
+            await app.RemoveGroupAsync(wgId).ConfigureAwait(false);
             Assert.That(app.Connections[0].WriterGroups.Count, Is.Zero);
         }
 
@@ -215,10 +215,10 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task RemoveGroupAsyncRemovesReaderGroup()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId rgId = await app.AddReaderGroupAsync(
-                connId, new ReaderGroupDataType { Name = "rg-1" });
-            await app.RemoveGroupAsync(rgId);
+                connId, new ReaderGroupDataType { Name = "rg-1" }).ConfigureAwait(false);
+            await app.RemoveGroupAsync(rgId).ConfigureAwait(false);
             Assert.That(app.Connections[0].ReaderGroups.Count, Is.Zero);
         }
 
@@ -229,7 +229,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             await using IPubSubApplication app = NewApp();
             Assert.That(
                 async () => await app.RemoveGroupAsync(
-                    new NodeId("pubsub:writer-group:foo:bar", 0)),
+                    new NodeId("pubsub:writer-group:foo:bar", 0)).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -239,7 +239,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.RemoveGroupAsync(NodeId.Null),
+                async () => await app.RemoveGroupAsync(NodeId.Null).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -248,9 +248,9 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddReaderGroupAsyncNullConfigThrowsArgumentNullException()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             Assert.That(
-                async () => await app.AddReaderGroupAsync(connId, null!),
+                async () => await app.AddReaderGroupAsync(connId, null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -259,10 +259,10 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddReaderGroupAsyncEmptyNameThrowsArgumentException()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             Assert.That(
                 async () => await app.AddReaderGroupAsync(
-                    connId, new ReaderGroupDataType { Name = string.Empty }),
+                    connId, new ReaderGroupDataType { Name = string.Empty }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(
                 async () => await app.AddReaderGroupAsync(
                     new NodeId("pubsub:connection:nope", 0),
-                    new ReaderGroupDataType { Name = "rg" }),
+                    new ReaderGroupDataType { Name = "rg" }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -283,15 +283,15 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddDataSetWriterAsyncNullConfigThrowsArgumentNullException()
         {
             await using IPubSubApplication app = NewAppWithPds();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId wgId = await app.AddWriterGroupAsync(connId, new WriterGroupDataType
             {
                 Name = "wg",
                 WriterGroupId = 1,
                 PublishingInterval = 1000
-            });
+            }).ConfigureAwait(false);
             Assert.That(
-                async () => await app.AddDataSetWriterAsync(wgId, null!),
+                async () => await app.AddDataSetWriterAsync(wgId, null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -300,13 +300,13 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddDataSetWriterAsyncEmptyNameThrowsArgumentException()
         {
             await using IPubSubApplication app = NewAppWithPds();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId wgId = await app.AddWriterGroupAsync(connId, new WriterGroupDataType
             {
                 Name = "wg",
                 WriterGroupId = 1,
                 PublishingInterval = 1000
-            });
+            }).ConfigureAwait(false);
             Assert.That(
                 async () => await app.AddDataSetWriterAsync(
                     wgId, new DataSetWriterDataType
@@ -314,7 +314,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                         Name = string.Empty,
                         DataSetWriterId = 1,
                         DataSetName = "pds-1"
-                    }),
+                    }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -331,7 +331,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                         Name = "w",
                         DataSetWriterId = 1,
                         DataSetName = "pds-1"
-                    }),
+                    }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -340,21 +340,21 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task RemoveDataSetWriterAsyncRoundTrip()
         {
             await using IPubSubApplication app = NewAppWithPds();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId wgId = await app.AddWriterGroupAsync(connId, new WriterGroupDataType
             {
                 Name = "wg",
                 WriterGroupId = 1,
                 PublishingInterval = 1000
-            });
+            }).ConfigureAwait(false);
             NodeId writerId = await app.AddDataSetWriterAsync(
                 wgId, new DataSetWriterDataType
                 {
                     Name = "writer-1",
                     DataSetWriterId = 1,
                     DataSetName = "pds-1"
-                });
-            await app.RemoveDataSetWriterAsync(writerId);
+                }).ConfigureAwait(false);
+            await app.RemoveDataSetWriterAsync(writerId).ConfigureAwait(false);
             Assert.That(
                 app.Connections[0].WriterGroups[0].DataSetWriters,
                 Is.Empty);
@@ -367,7 +367,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             await using IPubSubApplication app = NewApp();
             Assert.That(
                 async () => await app.RemoveDataSetWriterAsync(
-                    new NodeId("pubsub:writer:foo:bar:baz", 0)),
+                    new NodeId("pubsub:writer:foo:bar:baz", 0)).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -377,7 +377,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.RemoveDataSetWriterAsync(NodeId.Null),
+                async () => await app.RemoveDataSetWriterAsync(NodeId.Null).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -386,11 +386,11 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddDataSetReaderAsyncNullConfigThrowsArgumentNullException()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId rgId = await app.AddReaderGroupAsync(
-                connId, new ReaderGroupDataType { Name = "rg" });
+                connId, new ReaderGroupDataType { Name = "rg" }).ConfigureAwait(false);
             Assert.That(
-                async () => await app.AddDataSetReaderAsync(rgId, null!),
+                async () => await app.AddDataSetReaderAsync(rgId, null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -399,9 +399,9 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddDataSetReaderAsyncEmptyNameThrowsArgumentException()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId rgId = await app.AddReaderGroupAsync(
-                connId, new ReaderGroupDataType { Name = "rg" });
+                connId, new ReaderGroupDataType { Name = "rg" }).ConfigureAwait(false);
             Assert.That(
                 async () => await app.AddDataSetReaderAsync(rgId, new DataSetReaderDataType
                 {
@@ -409,7 +409,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                     DataSetWriterId = 1,
                     MessageReceiveTimeout = 5000,
                     SubscribedDataSet = new ExtensionObject(new TargetVariablesDataType())
-                }),
+                }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -427,7 +427,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                         DataSetWriterId = 1,
                         MessageReceiveTimeout = 5000,
                         SubscribedDataSet = new ExtensionObject(new TargetVariablesDataType())
-                    }),
+                    }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -436,9 +436,9 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task RemoveDataSetReaderAsyncRoundTrip()
         {
             await using IPubSubApplication app = NewApp();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId rgId = await app.AddReaderGroupAsync(
-                connId, new ReaderGroupDataType { Name = "rg" });
+                connId, new ReaderGroupDataType { Name = "rg" }).ConfigureAwait(false);
             NodeId readerId = await app.AddDataSetReaderAsync(
                 rgId, new DataSetReaderDataType
                 {
@@ -446,8 +446,8 @@ namespace Opc.Ua.PubSub.Tests.Application
                     DataSetWriterId = 1,
                     MessageReceiveTimeout = 5000,
                     SubscribedDataSet = new ExtensionObject(new TargetVariablesDataType())
-                });
-            await app.RemoveDataSetReaderAsync(readerId);
+                }).ConfigureAwait(false);
+            await app.RemoveDataSetReaderAsync(readerId).ConfigureAwait(false);
             Assert.That(
                 app.Connections[0].ReaderGroups[0].DataSetReaders,
                 Is.Empty);
@@ -460,7 +460,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             await using IPubSubApplication app = NewApp();
             Assert.That(
                 async () => await app.RemoveDataSetReaderAsync(
-                    new NodeId("pubsub:reader:foo:bar:baz", 0)),
+                    new NodeId("pubsub:reader:foo:bar:baz", 0)).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -470,7 +470,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.RemoveDataSetReaderAsync(NodeId.Null),
+                async () => await app.RemoveDataSetReaderAsync(NodeId.Null).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -480,7 +480,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.AddPublishedDataSetAsync(null!),
+                async () => await app.AddPublishedDataSetAsync(null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -491,7 +491,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             await using IPubSubApplication app = NewApp();
             Assert.That(
                 async () => await app.AddPublishedDataSetAsync(
-                    new PublishedDataSetDataType { Name = string.Empty }),
+                    new PublishedDataSetDataType { Name = string.Empty }).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -501,7 +501,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             NodeId id = await app.AddPublishedDataSetAsync(
-                new PublishedDataSetDataType { Name = "added-pds" });
+                new PublishedDataSetDataType { Name = "added-pds" }).ConfigureAwait(false);
             Assert.That(id.IsNull, Is.False);
         }
 
@@ -511,8 +511,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             NodeId id = await app.AddPublishedDataSetAsync(
-                new PublishedDataSetDataType { Name = "to-remove-pds" });
-            await app.RemovePublishedDataSetAsync(id);
+                new PublishedDataSetDataType { Name = "to-remove-pds" }).ConfigureAwait(false);
+            await app.RemovePublishedDataSetAsync(id).ConfigureAwait(false);
         }
 
         [Test]
@@ -520,19 +520,19 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task RemovePublishedDataSetAsyncCascadesToWriters()
         {
             await using IPubSubApplication app = NewAppWithPds();
-            NodeId connId = await app.AddConnectionAsync(NewConnection("c"));
+            NodeId connId = await app.AddConnectionAsync(NewConnection("c")).ConfigureAwait(false);
             NodeId wgId = await app.AddWriterGroupAsync(connId, new WriterGroupDataType
             {
                 Name = "wg",
                 WriterGroupId = 1,
                 PublishingInterval = 1000
-            });
+            }).ConfigureAwait(false);
             _ = await app.AddDataSetWriterAsync(wgId, new DataSetWriterDataType
             {
                 Name = "writer-1",
                 DataSetWriterId = 1,
                 DataSetName = "pds-1"
-            });
+            }).ConfigureAwait(false);
 
             // pds-1 was registered at construction-time so it has a synthetic node id
             PubSubConfigurationDataType cfg = app.GetConfiguration();
@@ -542,8 +542,8 @@ namespace Opc.Ua.PubSub.Tests.Application
             // Add a new PDS and then remove it; ensure no cascade affects the
             // pre-existing writer that was bound to pds-1.
             NodeId addedId = await app.AddPublishedDataSetAsync(
-                new PublishedDataSetDataType { Name = "extra-pds" });
-            await app.RemovePublishedDataSetAsync(addedId);
+                new PublishedDataSetDataType { Name = "extra-pds" }).ConfigureAwait(false);
+            await app.RemovePublishedDataSetAsync(addedId).ConfigureAwait(false);
 
             cfg = app.GetConfiguration();
             Assert.That(((DataSetWriterDataType[]?)cfg.Connections[0].WriterGroups[0].DataSetWriters) ?? [],
@@ -557,7 +557,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             await using IPubSubApplication app = NewApp();
             Assert.That(
                 async () => await app.RemovePublishedDataSetAsync(
-                    new NodeId("pubsub:published-data-set:nope", 0)),
+                    new NodeId("pubsub:published-data-set:nope", 0)).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -567,7 +567,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             Assert.That(
-                async () => await app.RemovePublishedDataSetAsync(NodeId.Null),
+                async () => await app.RemovePublishedDataSetAsync(NodeId.Null).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -576,7 +576,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task GetConfigurationMutatingResultDoesNotAffectApplication()
         {
             await using IPubSubApplication app = NewApp();
-            await app.AddConnectionAsync(NewConnection("clone-test"));
+            await app.AddConnectionAsync(NewConnection("clone-test")).ConfigureAwait(false);
             PubSubConfigurationDataType cfg = app.GetConfiguration();
             // Mutate the returned tree.
             cfg.Connections[0].Name = "MUTATED";
@@ -591,7 +591,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             await using IPubSubApplication app = NewApp();
             ConfigurationVersionDataType v0 = app.ConfigurationVersion;
-            await app.AddConnectionAsync(NewConnection("v-test"));
+            await app.AddConnectionAsync(NewConnection("v-test")).ConfigureAwait(false);
             ConfigurationVersionDataType v1 = app.ConfigurationVersion;
             // The clock advance is monotonic; allow strictly-greater OR equal
             // (a 1ms operation may share the second).

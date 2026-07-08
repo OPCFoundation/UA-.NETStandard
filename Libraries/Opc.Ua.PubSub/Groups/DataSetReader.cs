@@ -196,6 +196,7 @@ namespace Opc.Ua.PubSub.Groups
         /// </summary>
         /// <param name="dataSetMessage">Inbound message.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask DispatchAsync(
             PubSubDataSetMessage dataSetMessage,
             CancellationToken cancellationToken = default)

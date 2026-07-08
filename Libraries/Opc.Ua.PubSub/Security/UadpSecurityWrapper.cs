@@ -141,6 +141,7 @@ namespace Opc.Ua.PubSub.Security
         /// The wrapped message bytes:
         /// <c>[outerPrefix || SecurityHeader || ciphertext || signature]</c>.
         /// </returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<ReadOnlyMemory<byte>> WrapAsync(
             ReadOnlyMemory<byte> outerPrefix,
             ReadOnlyMemory<byte> innerPayload,
@@ -441,6 +442,7 @@ namespace Opc.Ua.PubSub.Security
             /// <summary>
             /// Builds a failure result.
             /// </summary>
+            /// <exception cref="ArgumentException"></exception>
             public static UnwrapResult Failure(StatusCode status, string reason)
             {
                 if (string.IsNullOrEmpty(reason))

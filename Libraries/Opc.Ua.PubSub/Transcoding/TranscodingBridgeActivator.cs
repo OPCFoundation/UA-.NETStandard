@@ -61,6 +61,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="descriptor">Bridge descriptor.</param>
         /// <returns>The constructed, unstarted bridge.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscodingBridge Create(TranscodingBridgeDescriptor descriptor)
         {
             if (descriptor is null)

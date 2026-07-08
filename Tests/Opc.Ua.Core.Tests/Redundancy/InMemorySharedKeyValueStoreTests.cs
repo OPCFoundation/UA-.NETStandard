@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            (bool found, ByteString value) = await store.TryGetAsync("missing");
+            (bool found, ByteString value) = await store.TryGetAsync("missing").ConfigureAwait(false);
 
             Assert.That(found, Is.False);
             Assert.That(value.IsNull, Is.True);
@@ -65,8 +65,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            await store.SetAsync("key", s_valueA);
-            (bool found, ByteString value) = await store.TryGetAsync("key");
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
+            (bool found, ByteString value) = await store.TryGetAsync("key").ConfigureAwait(false);
 
             Assert.That(found, Is.True);
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
@@ -77,9 +77,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            await store.SetAsync("key", s_valueA);
-            await store.SetAsync("key", s_valueB);
-            (bool found, ByteString value) = await store.TryGetAsync("key");
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
+            await store.SetAsync("key", s_valueB).ConfigureAwait(false);
+            (bool found, ByteString value) = await store.TryGetAsync("key").ConfigureAwait(false);
 
             Assert.That(found, Is.True);
             Assert.That(value.ToArray(), Is.EqualTo(s_valueB.ToArray()));
@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            Assert.That(async () => await store.TryGetAsync(null!), Throws.ArgumentNullException);
+            Assert.That(async () => await store.TryGetAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            Assert.That(async () => await store.SetAsync(null!, s_valueA), Throws.ArgumentNullException);
+            Assert.That(async () => await store.SetAsync(null!, s_valueA).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -106,10 +106,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            bool swapped = await store.CompareAndSwapAsync("key", default, s_valueA);
+            bool swapped = await store.CompareAndSwapAsync("key", default, s_valueA).ConfigureAwait(false);
 
             Assert.That(swapped, Is.True);
-            (bool found, ByteString value) = await store.TryGetAsync("key");
+            (bool found, ByteString value) = await store.TryGetAsync("key").ConfigureAwait(false);
             Assert.That(found, Is.True);
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
         }
@@ -119,10 +119,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            bool swapped = await store.CompareAndSwapAsync("key", s_valueA, s_valueB);
+            bool swapped = await store.CompareAndSwapAsync("key", s_valueA, s_valueB).ConfigureAwait(false);
 
             Assert.That(swapped, Is.False);
-            (bool found, ByteString _) = await store.TryGetAsync("key");
+            (bool found, ByteString _) = await store.TryGetAsync("key").ConfigureAwait(false);
             Assert.That(found, Is.False);
         }
 
@@ -130,12 +130,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task CompareAndSwapFailsWhenPresentButExpectedNullAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("key", s_valueA);
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
 
-            bool swapped = await store.CompareAndSwapAsync("key", default, s_valueB);
+            bool swapped = await store.CompareAndSwapAsync("key", default, s_valueB).ConfigureAwait(false);
 
             Assert.That(swapped, Is.False);
-            (bool _, ByteString value) = await store.TryGetAsync("key");
+            (bool _, ByteString value) = await store.TryGetAsync("key").ConfigureAwait(false);
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
         }
 
@@ -143,12 +143,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task CompareAndSwapReplacesWhenExpectedMatchesAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("key", s_valueA);
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
 
-            bool swapped = await store.CompareAndSwapAsync("key", s_valueA, s_valueB);
+            bool swapped = await store.CompareAndSwapAsync("key", s_valueA, s_valueB).ConfigureAwait(false);
 
             Assert.That(swapped, Is.True);
-            (bool _, ByteString value) = await store.TryGetAsync("key");
+            (bool _, ByteString value) = await store.TryGetAsync("key").ConfigureAwait(false);
             Assert.That(value.ToArray(), Is.EqualTo(s_valueB.ToArray()));
         }
 
@@ -156,12 +156,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task CompareAndSwapFailsWhenExpectedDiffersAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("key", s_valueA);
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
 
-            bool swapped = await store.CompareAndSwapAsync("key", s_valueB, s_valueA);
+            bool swapped = await store.CompareAndSwapAsync("key", s_valueB, s_valueA).ConfigureAwait(false);
 
             Assert.That(swapped, Is.False);
-            (bool _, ByteString value) = await store.TryGetAsync("key");
+            (bool _, ByteString value) = await store.TryGetAsync("key").ConfigureAwait(false);
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
         }
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var store = new InMemorySharedKeyValueStore();
 
             Assert.That(
-                async () => await store.CompareAndSwapAsync(null!, default, s_valueA),
+                async () => await store.CompareAndSwapAsync(null!, default, s_valueA).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -179,12 +179,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task DeleteRemovesExistingKeyAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("key", s_valueA);
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
 
-            bool removed = await store.DeleteAsync("key");
+            bool removed = await store.DeleteAsync("key").ConfigureAwait(false);
 
             Assert.That(removed, Is.True);
-            (bool found, ByteString _) = await store.TryGetAsync("key");
+            (bool found, ByteString _) = await store.TryGetAsync("key").ConfigureAwait(false);
             Assert.That(found, Is.False);
         }
 
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            bool removed = await store.DeleteAsync("missing");
+            bool removed = await store.DeleteAsync("missing").ConfigureAwait(false);
 
             Assert.That(removed, Is.False);
         }
@@ -203,16 +203,16 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
 
-            Assert.That(async () => await store.DeleteAsync(null!), Throws.ArgumentNullException);
+            Assert.That(async () => await store.DeleteAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
         public async Task ScanReturnsOnlyEntriesMatchingPrefixAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("a/1", s_valueA);
-            await store.SetAsync("a/2", s_valueB);
-            await store.SetAsync("b/1", s_valueA);
+            await store.SetAsync("a/1", s_valueA).ConfigureAwait(false);
+            await store.SetAsync("a/2", s_valueB).ConfigureAwait(false);
+            await store.SetAsync("b/1", s_valueA).ConfigureAwait(false);
 
             var keys = new List<string>();
             await foreach (KeyValuePair<string, ByteString> entry in store.ScanAsync("a/"))
@@ -230,8 +230,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task ScanWithNullPrefixReturnsAllEntriesAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("a", s_valueA);
-            await store.SetAsync("b", s_valueB);
+            await store.SetAsync("a", s_valueA).ConfigureAwait(false);
+            await store.SetAsync("b", s_valueB).ConfigureAwait(false);
 
             var keys = new List<string>();
             await foreach (KeyValuePair<string, ByteString> entry in store.ScanAsync(null!))
@@ -246,7 +246,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task ScanHonorsCancellationAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("a", s_valueA);
+            await store.SetAsync("a", s_valueA).ConfigureAwait(false);
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
@@ -271,17 +271,17 @@ namespace Opc.Ua.Core.Tests.Redundancy
             try
             {
                 ValueTask<bool> firstMove = changes.MoveNextAsync();
-                await store.SetAsync("k1", s_valueA);
+                await store.SetAsync("k1", s_valueA).ConfigureAwait(false);
 
-                Assert.That(await firstMove, Is.True);
+                Assert.That(await firstMove.ConfigureAwait(false), Is.True);
                 Assert.That(changes.Current.Kind, Is.EqualTo(KeyValueChangeKind.Set));
                 Assert.That(changes.Current.Key, Is.EqualTo("k1"));
                 Assert.That(changes.Current.Value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
 
                 ValueTask<bool> secondMove = changes.MoveNextAsync();
-                await store.DeleteAsync("k1");
+                await store.DeleteAsync("k1").ConfigureAwait(false);
 
-                Assert.That(await secondMove, Is.True);
+                Assert.That(await secondMove.ConfigureAwait(false), Is.True);
                 Assert.That(changes.Current.Kind, Is.EqualTo(KeyValueChangeKind.Delete));
                 Assert.That(changes.Current.Key, Is.EqualTo("k1"));
                 Assert.That(changes.Current.Value.IsNull, Is.True);
@@ -289,7 +289,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
             finally
             {
                 cts.Cancel();
-                await changes.DisposeAsync();
+                await changes.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -304,17 +304,17 @@ namespace Opc.Ua.Core.Tests.Redundancy
             try
             {
                 ValueTask<bool> move = changes.MoveNextAsync();
-                await store.SetAsync("other/1", s_valueA);
-                await store.SetAsync("watched/1", s_valueB);
+                await store.SetAsync("other/1", s_valueA).ConfigureAwait(false);
+                await store.SetAsync("watched/1", s_valueB).ConfigureAwait(false);
 
-                Assert.That(await move, Is.True);
+                Assert.That(await move.ConfigureAwait(false), Is.True);
                 Assert.That(changes.Current.Key, Is.EqualTo("watched/1"));
                 Assert.That(changes.Current.Value.ToArray(), Is.EqualTo(s_valueB.ToArray()));
             }
             finally
             {
                 cts.Cancel();
-                await changes.DisposeAsync();
+                await changes.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -331,11 +331,11 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 ValueTask<bool> move = changes.MoveNextAsync();
                 cts.Cancel();
 
-                Assert.That(async () => await move, Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(async () => await move.ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
             }
             finally
             {
-                await changes.DisposeAsync();
+                await changes.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -351,11 +351,11 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 ValueTask<bool> move = changes.MoveNextAsync();
                 store.Dispose();
 
-                Assert.That(await move, Is.False);
+                Assert.That(await move.ConfigureAwait(false), Is.False);
             }
             finally
             {
-                await changes.DisposeAsync();
+                await changes.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -363,11 +363,11 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task DisposeClearsStoredDataAsync()
         {
             var store = new InMemorySharedKeyValueStore();
-            await store.SetAsync("key", s_valueA);
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
 
             store.Dispose();
 
-            (bool found, ByteString _) = await store.TryGetAsync("key");
+            (bool found, ByteString _) = await store.TryGetAsync("key").ConfigureAwait(false);
             Assert.That(found, Is.False);
         }
     }

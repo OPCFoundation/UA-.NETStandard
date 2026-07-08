@@ -213,7 +213,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 TimeoutHint = 100
             };
 
-            ReadOnlyMemory<byte> encoded = await encoder.EncodeAsync(request, context);
+            ReadOnlyMemory<byte> encoded = await encoder.EncodeAsync(request, context).ConfigureAwait(false);
             PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
 
             Assert.That(decoded, Is.InstanceOf<UadpActionRequestMessage>());

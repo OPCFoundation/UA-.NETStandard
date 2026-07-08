@@ -145,6 +145,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers GDS client services on an existing OPC UA client builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddGdsClient(
             this IOpcUaClientBuilder builder,
             Action<GdsClientOptions>? configure = null)
@@ -160,6 +161,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers GDS client services on an existing OPC UA client builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddGdsClient(
             this IOpcUaClientBuilder builder,
             IConfiguration configuration)
@@ -179,6 +181,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers GDS client services on an existing OPC UA client builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddGdsClient(
             this IOpcUaClientBuilder builder,
             IConfigurationSection section)
@@ -198,6 +201,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers key-credential service client factories.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddKeyCredentialServiceClient(this IGdsClientBuilder builder)
         {
             if (builder is null)
@@ -218,6 +222,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers authorization service client factories.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddAuthorizationServiceClient(this IGdsClientBuilder builder)
         {
             if (builder is null)
@@ -238,6 +243,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers local discovery server clients.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddLocalDiscoveryServerClient(this IGdsClientBuilder builder)
         {
             if (builder is null)
@@ -261,6 +267,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers onboarding client factories.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddOnboardingClient(this IGdsClientBuilder builder)
         {
             if (builder is null)
@@ -291,6 +298,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the GDS certificate-management convenience surface.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsClientBuilder AddCertificateManagement(
             this IGdsClientBuilder builder,
             NodeId authorizationServiceNodeId,

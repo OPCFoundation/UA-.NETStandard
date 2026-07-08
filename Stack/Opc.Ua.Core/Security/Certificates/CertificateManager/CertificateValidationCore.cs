@@ -57,20 +57,24 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
 
-        // Trust-list store instances, cached and reused across validations so
-        // that the on-disk trust material (and CRLs) is parsed only once per
-        // change rather than re-read on every validation. Keyed by the
-        // (immutable, write-once) store identifier held in m_state. Disposed
-        // when the core is disposed.
+        /// <summary>
+        /// Trust-list store instances, cached and reused across validations so
+        /// that the on-disk trust material (and CRLs) is parsed only once per
+        /// change rather than re-read on every validation. Keyed by the
+        /// (immutable, write-once) store identifier held in m_state. Disposed
+        /// when the core is disposed.
+        /// </summary>
         private readonly ConcurrentDictionary<CertificateStoreIdentifier, ICertificateStore> m_stores;
 
-        // Immutable trust-list state. It is published once at construction
-        // (the owning CertificateManager re-creates the core rather than
-        // mutating it when the trust list changes) and is read lock-free on
-        // the validation hot path, so concurrent validations no longer
-        // serialize on a shared lock. See the TrustListState record at the
-        // end of the class. The m_semaphore now only serializes the rare
-        // writer paths (Update / UpdateAsync / ResetValidatedCertificates).
+        /// <summary>
+        /// Immutable trust-list state. It is published once at construction
+        /// (the owning CertificateManager re-creates the core rather than
+        /// mutating it when the trust list changes) and is read lock-free on
+        /// the validation hot path, so concurrent validations no longer
+        /// serialize on a shared lock. See the TrustListState record at the
+        /// end of the class. The m_semaphore now only serializes the rare
+        /// writer paths (Update / UpdateAsync / ResetValidatedCertificates).
+        /// </summary>
         private volatile TrustListState m_state;
 
         /// <summary>

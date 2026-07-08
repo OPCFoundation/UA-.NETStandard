@@ -101,7 +101,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             current = session.Object;
             facade.RefreshActiveSessionForTesting();
 
-            Assert.That(await readTask, Is.SameAs(response));
+            Assert.That(await readTask.ConfigureAwait(false), Is.SameAs(response));
             session.VerifyAll();
         }
 
@@ -140,7 +140,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             ISession session = provider.GetRequiredService<ISession>();
 
             Assert.That(session, Is.InstanceOf<RedundantClientSession>());
-            await provider.DisposeAsync();
+            await provider.DisposeAsync().ConfigureAwait(false);
             Assert.That(election.Disposed, Is.True);
         }
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 [EnumeratorCancellation] CancellationToken ct = default
             )
             {
-                await Task.CompletedTask;
+                await Task.CompletedTask.ConfigureAwait(false);
                 yield break;
             }
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 [EnumeratorCancellation] CancellationToken ct = default
             )
             {
-                await Task.CompletedTask;
+                await Task.CompletedTask.ConfigureAwait(false);
                 yield break;
             }
         }

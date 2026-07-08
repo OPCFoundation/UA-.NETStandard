@@ -213,8 +213,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void VariantMatrixEmitsDimensions()
         {
-            int[,] data = new int[2, 3] { { 1, 2, 3 }, { 4, 5, 6 } };
-            MatrixOf<int> matrix = data;
+            MatrixOf<int> matrix = new int[2, 3] { { 1, 2, 3 }, { 4, 5, 6 } };
 
             using JsonDocument doc = EncodeAndParse(
                 JsonEncoderOptions.Verbose,

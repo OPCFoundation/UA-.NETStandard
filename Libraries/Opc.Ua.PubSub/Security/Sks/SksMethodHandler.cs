@@ -93,6 +93,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="inputArguments">Input argument list.</param>
         /// <param name="outputArguments">Output argument list.</param>
         /// <returns>Service result.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public ServiceResult HandleGetSecurityKeys(
             ISystemContext context,
             NodeId objectId,

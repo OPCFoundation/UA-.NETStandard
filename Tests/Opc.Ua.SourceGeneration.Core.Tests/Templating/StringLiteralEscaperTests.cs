@@ -48,7 +48,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [Test]
         public void PlainAscii_PassesThroughUnchanged()
         {
-            string input = "TemperatureSensor_42";
+            const string input = "TemperatureSensor_42";
 
             string escaped = StringLiteralEscaper.AsCSharpStringLiteralContent(
                 input, out bool modified);
@@ -158,7 +158,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Non-ASCII letters are valid in C# regular string literals
             // and should not be escaped by this helper.
-            string input = "TempératureSenseur_Ω";
+            const string input = "TempératureSenseur_Ω";
 
             string escaped = StringLiteralEscaper.AsCSharpStringLiteralContent(
                 input, out bool modified);

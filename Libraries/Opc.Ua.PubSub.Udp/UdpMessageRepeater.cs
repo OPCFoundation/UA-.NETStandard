@@ -108,6 +108,7 @@ namespace Opc.Ua.PubSub.Udp
         /// <paramref name="cancellationToken"/>.
         /// </param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask SendWithRepeatsAsync(
             Func<CancellationToken, ValueTask> sendOnce,
             CancellationToken cancellationToken = default)

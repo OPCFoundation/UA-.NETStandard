@@ -118,6 +118,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// <param name="localPort">0 to auto-pick.</param>
         /// <param name="telemetry">Optional telemetry context.</param>
         /// <returns>The started proxy.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="upstreamUrl"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static Task<TcpChaosProxy> StartAsync(
             Uri upstreamUrl,
             int localPort = 0,
@@ -169,6 +172,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// </summary>
         /// <param name="duration">The duration to block accepts.</param>
         /// <returns>A task that completes when accepting is unblocked.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public Task BlockAcceptAsync(TimeSpan duration)
         {
             if (duration < TimeSpan.Zero)

@@ -853,7 +853,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Type resultType = result.GetType();
             if (resultType == typeof(ValueTask))
             {
-                await (ValueTask)result;
+                await ((ValueTask)result).ConfigureAwait(false);
                 return null;
             }
 

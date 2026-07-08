@@ -69,7 +69,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var handler = new StubHandler(_ => JsonResponse(HttpStatusCode.OK, Serialize(NewLease("pod-a"))));
             using KubernetesHttpApiClient api = NewClient(handler);
 
-            KubernetesLease? lease = await api.GetLeaseAsync("ns", "opcua", CancellationToken.None);
+            KubernetesLease? lease = await api.GetLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(lease, Is.Not.Null);
             Assert.That(lease!.Spec.HolderIdentity, Is.EqualTo("pod-a"));
@@ -85,7 +85,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var handler = new StubHandler(_ => TextResponse(HttpStatusCode.NotFound, string.Empty));
             using KubernetesHttpApiClient api = NewClient(handler);
 
-            KubernetesLease? lease = await api.GetLeaseAsync("ns", "opcua", CancellationToken.None);
+            KubernetesLease? lease = await api.GetLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(lease, Is.Null);
         }
@@ -97,7 +97,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             using KubernetesHttpApiClient api = NewClient(handler);
 
             Assert.That(
-                async () => await api.GetLeaseAsync("ns", "opcua", CancellationToken.None),
+                async () => await api.GetLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<HttpRequestException>()
                     .With.Property(nameof(HttpRequestException.StatusCode)).EqualTo(HttpStatusCode.InternalServerError)
                     .And.Message.EqualTo("boom"));
@@ -109,7 +109,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var handler = new StubHandler(_ => JsonResponse(HttpStatusCode.Created, Serialize(NewLease("pod-a"))));
             using KubernetesHttpApiClient api = NewClient(handler);
 
-            KubernetesLease result = await api.CreateLeaseAsync("ns", NewLease("pod-a"), CancellationToken.None);
+            KubernetesLease result = await api.CreateLeaseAsync("ns", NewLease("pod-a"), CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.Spec.HolderIdentity, Is.EqualTo("pod-a"));
             Assert.That(handler.LastMethod, Is.EqualTo(HttpMethod.Post));
@@ -127,7 +127,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             using KubernetesHttpApiClient api = NewClient(handler);
 
             Assert.That(
-                async () => await api.CreateLeaseAsync("ns", NewLease("pod-a"), CancellationToken.None),
+                async () => await api.CreateLeaseAsync("ns", NewLease("pod-a"), CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<HttpRequestException>()
                     .With.Property(nameof(HttpRequestException.StatusCode)).EqualTo(HttpStatusCode.Conflict)
                     .And.Message.EqualTo("already held"));
@@ -140,7 +140,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             using KubernetesHttpApiClient api = NewClient(handler);
 
             Assert.That(
-                async () => await api.CreateLeaseAsync("ns", NewLease("pod-a"), CancellationToken.None),
+                async () => await api.CreateLeaseAsync("ns", NewLease("pod-a"), CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<HttpRequestException>().With.Message.Contains("empty body"));
         }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var handler = new StubHandler(_ => JsonResponse(HttpStatusCode.OK, Serialize(NewLease("pod-a"))));
             using KubernetesHttpApiClient api = NewClient(handler);
 
-            KubernetesLease result = await api.ReplaceLeaseAsync("ns", "opcua", NewLease("pod-a"), CancellationToken.None);
+            KubernetesLease result = await api.ReplaceLeaseAsync("ns", "opcua", NewLease("pod-a"), CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.Spec.HolderIdentity, Is.EqualTo("pod-a"));
             Assert.That(handler.LastMethod, Is.EqualTo(HttpMethod.Put));
@@ -165,7 +165,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var handler = new StubHandler(_ => TextResponse(HttpStatusCode.OK, string.Empty));
             using KubernetesHttpApiClient api = NewClient(handler);
 
-            await api.DeleteLeaseAsync("ns", "opcua", CancellationToken.None);
+            await api.DeleteLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler.LastMethod, Is.EqualTo(HttpMethod.Delete));
             Assert.That(
@@ -179,7 +179,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var handler = new StubHandler(_ => TextResponse(HttpStatusCode.NotFound, string.Empty));
             using KubernetesHttpApiClient api = NewClient(handler);
 
-            await api.DeleteLeaseAsync("ns", "opcua", CancellationToken.None);
+            await api.DeleteLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(handler.LastMethod, Is.EqualTo(HttpMethod.Delete));
         }
@@ -191,7 +191,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             using KubernetesHttpApiClient api = NewClient(handler);
 
             Assert.That(
-                async () => await api.DeleteLeaseAsync("ns", "opcua", CancellationToken.None),
+                async () => await api.DeleteLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<HttpRequestException>()
                     .With.Property(nameof(HttpRequestException.StatusCode)).EqualTo(HttpStatusCode.InternalServerError));
         }
@@ -202,7 +202,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var handler = new StubHandler(_ => JsonResponse(HttpStatusCode.OK, Serialize(NewSliceList())));
             using KubernetesHttpApiClient api = NewClient(handler);
 
-            KubernetesEndpointSliceList result = await api.ListEndpointSlicesAsync("ns", "svc", CancellationToken.None);
+            KubernetesEndpointSliceList result = await api.ListEndpointSlicesAsync("ns", "svc", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.Items, Has.Count.EqualTo(1));
             Assert.That(handler.LastMethod, Is.EqualTo(HttpMethod.Get));
@@ -399,7 +399,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 LastContentType = request.Content?.Headers.ContentType?.MediaType;
                 if (request.Content != null)
                 {
-                    LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
+                    LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 }
                 return m_responder(request);
             }

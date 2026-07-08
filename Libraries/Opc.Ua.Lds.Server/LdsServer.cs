@@ -95,6 +95,7 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// In-memory database of registered servers and network records.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public RegisteredServerStore Store => RegistrationStore as RegisteredServerStore
             ?? throw new InvalidOperationException("The LDS is using a custom IRegisteredServerStore.");
 

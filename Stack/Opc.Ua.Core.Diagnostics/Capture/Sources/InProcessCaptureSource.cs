@@ -116,13 +116,15 @@ namespace Opc.Ua.Pcap.Capture.Sources
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILoggerFactory m_loggerFactory;
 
-        // CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
-        // by the StopAsync lifecycle, not by a synchronous Dispose. They are
-        // atomically swapped out and AsyncDisposed in StopAsync (see lines
-        // ~268-282); a sync Dispose would have to bridge IAsyncDisposable
-        // with .GetAwaiter().GetResult(), which the repo's no-sync-over-async
-        // rule forbids. The base type intentionally exposes only the async
-        // lifecycle (Start/StopAsync).
+        /// <summary>
+        /// CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
+        /// by the StopAsync lifecycle, not by a synchronous Dispose. They are
+        /// atomically swapped out and AsyncDisposed in StopAsync (see lines
+        /// ~268-282); a sync Dispose would have to bridge IAsyncDisposable
+        /// with .GetAwaiter().GetResult(), which the repo's no-sync-over-async
+        /// rule forbids. The base type intentionally exposes only the async
+        /// lifecycle (Start/StopAsync).
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",

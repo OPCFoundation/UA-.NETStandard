@@ -106,9 +106,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         {
             using Certificate certificate = CreateCertificate();
             CapturingAuditEventServer server = CreateAuditServer();
-            AuditEventExpectation[] expectations = CreateHappyReportExpectations(certificate).ToArray();
-
-            foreach (AuditEventExpectation expectation in expectations)
+            foreach (AuditEventExpectation expectation in CreateHappyReportExpectations(certificate).ToArray())
             {
                 int beforeCount = server.Events.Count;
 

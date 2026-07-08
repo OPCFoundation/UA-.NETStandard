@@ -3345,6 +3345,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException">
         /// The server is too busy to admit the operation.
         /// </exception>
+        /// <exception cref="ServerBusyException"></exception>
         private IDisposable? BeginSessionEstablishmentOrThrow()
         {
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;

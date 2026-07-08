@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
         {
             foreach (RedundantClientSession facade in m_facades)
             {
-                await facade.DisposeAsync();
+                await facade.DisposeAsync().ConfigureAwait(false);
             }
             m_facades.Clear();
 
@@ -386,18 +386,18 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<CallResponse>(call));
 
-            Assert.That(await facade.ReadAsync(null, 0, TimestampsToReturn.Neither, [], ct), Is.SameAs(read));
-            Assert.That(await facade.WriteAsync(null, [], ct), Is.SameAs(write));
+            Assert.That(await facade.ReadAsync(null, 0, TimestampsToReturn.Neither, [], ct).ConfigureAwait(false), Is.SameAs(read));
+            Assert.That(await facade.WriteAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(write));
             Assert.That(
-                await facade.HistoryReadAsync(null, default, TimestampsToReturn.Both, false, [], ct),
+                await facade.HistoryReadAsync(null, default, TimestampsToReturn.Both, false, [], ct).ConfigureAwait(false),
                 Is.SameAs(historyRead));
-            Assert.That(await facade.HistoryUpdateAsync(null, [], ct), Is.SameAs(historyUpdate));
-            Assert.That(await facade.BrowseAsync(null, null, 0, [], ct), Is.SameAs(browse));
-            Assert.That(await facade.BrowseNextAsync(null, false, [], ct), Is.SameAs(browseNext));
-            Assert.That(await facade.TranslateBrowsePathsToNodeIdsAsync(null, [], ct), Is.SameAs(translate));
-            Assert.That(await facade.RegisterNodesAsync(null, [], ct), Is.SameAs(register));
-            Assert.That(await facade.UnregisterNodesAsync(null, [], ct), Is.SameAs(unregister));
-            Assert.That(await facade.CallAsync(null, [], ct), Is.SameAs(call));
+            Assert.That(await facade.HistoryUpdateAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(historyUpdate));
+            Assert.That(await facade.BrowseAsync(null, null, 0, [], ct).ConfigureAwait(false), Is.SameAs(browse));
+            Assert.That(await facade.BrowseNextAsync(null, false, [], ct).ConfigureAwait(false), Is.SameAs(browseNext));
+            Assert.That(await facade.TranslateBrowsePathsToNodeIdsAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(translate));
+            Assert.That(await facade.RegisterNodesAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(register));
+            Assert.That(await facade.UnregisterNodesAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(unregister));
+            Assert.That(await facade.CallAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(call));
         }
 
         [Test]
@@ -450,19 +450,19 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 .Returns(new ValueTask<DeleteMonitoredItemsResponse>(delete));
 
             Assert.That(
-                await facade.CreateMonitoredItemsAsync(null, 1, TimestampsToReturn.Both, [], ct),
+                await facade.CreateMonitoredItemsAsync(null, 1, TimestampsToReturn.Both, [], ct).ConfigureAwait(false),
                 Is.SameAs(create));
             Assert.That(
-                await facade.ModifyMonitoredItemsAsync(null, 1, TimestampsToReturn.Both, [], ct),
+                await facade.ModifyMonitoredItemsAsync(null, 1, TimestampsToReturn.Both, [], ct).ConfigureAwait(false),
                 Is.SameAs(modify));
             Assert.That(
-                await facade.SetMonitoringModeAsync(null, 1, MonitoringMode.Reporting, [], ct),
+                await facade.SetMonitoringModeAsync(null, 1, MonitoringMode.Reporting, [], ct).ConfigureAwait(false),
                 Is.SameAs(setMode));
             Assert.That(
-                await facade.SetTriggeringAsync(null, 1, 2, [], [], ct),
+                await facade.SetTriggeringAsync(null, 1, 2, [], [], ct).ConfigureAwait(false),
                 Is.SameAs(setTriggering));
             Assert.That(
-                await facade.DeleteMonitoredItemsAsync(null, 1, [], ct),
+                await facade.DeleteMonitoredItemsAsync(null, 1, [], ct).ConfigureAwait(false),
                 Is.SameAs(delete));
         }
 
@@ -531,16 +531,16 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 .Returns(new ValueTask<DeleteSubscriptionsResponse>(delete));
 
             Assert.That(
-                await facade.CreateSubscriptionAsync(null, 1000, 10, 3, 1000, true, 0, ct),
+                await facade.CreateSubscriptionAsync(null, 1000, 10, 3, 1000, true, 0, ct).ConfigureAwait(false),
                 Is.SameAs(create));
             Assert.That(
-                await facade.ModifySubscriptionAsync(null, 1, 1000, 10, 3, 1000, 0, ct),
+                await facade.ModifySubscriptionAsync(null, 1, 1000, 10, 3, 1000, 0, ct).ConfigureAwait(false),
                 Is.SameAs(modify));
-            Assert.That(await facade.SetPublishingModeAsync(null, true, [], ct), Is.SameAs(setMode));
-            Assert.That(await facade.PublishAsync(null, [], ct), Is.SameAs(publish));
-            Assert.That(await facade.RepublishAsync(null, 1, 2, ct), Is.SameAs(republish));
-            Assert.That(await facade.TransferSubscriptionsAsync(null, [], true, ct), Is.SameAs(transfer));
-            Assert.That(await facade.DeleteSubscriptionsAsync(null, [], ct), Is.SameAs(delete));
+            Assert.That(await facade.SetPublishingModeAsync(null, true, [], ct).ConfigureAwait(false), Is.SameAs(setMode));
+            Assert.That(await facade.PublishAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(publish));
+            Assert.That(await facade.RepublishAsync(null, 1, 2, ct).ConfigureAwait(false), Is.SameAs(republish));
+            Assert.That(await facade.TransferSubscriptionsAsync(null, [], true, ct).ConfigureAwait(false), Is.SameAs(transfer));
+            Assert.That(await facade.DeleteSubscriptionsAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(delete));
         }
 
         [Test]
@@ -593,12 +593,12 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<QueryNextResponse>(queryNext));
 
-            Assert.That(await facade.AddNodesAsync(null, [], ct), Is.SameAs(addNodes));
-            Assert.That(await facade.AddReferencesAsync(null, [], ct), Is.SameAs(addReferences));
-            Assert.That(await facade.DeleteNodesAsync(null, [], ct), Is.SameAs(deleteNodes));
-            Assert.That(await facade.DeleteReferencesAsync(null, [], ct), Is.SameAs(deleteReferences));
-            Assert.That(await facade.QueryFirstAsync(null, null, [], null, 0, 0, ct), Is.SameAs(queryFirst));
-            Assert.That(await facade.QueryNextAsync(null, false, default, ct), Is.SameAs(queryNext));
+            Assert.That(await facade.AddNodesAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(addNodes));
+            Assert.That(await facade.AddReferencesAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(addReferences));
+            Assert.That(await facade.DeleteNodesAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(deleteNodes));
+            Assert.That(await facade.DeleteReferencesAsync(null, [], ct).ConfigureAwait(false), Is.SameAs(deleteReferences));
+            Assert.That(await facade.QueryFirstAsync(null, null, [], null, 0, 0, ct).ConfigureAwait(false), Is.SameAs(queryFirst));
+            Assert.That(await facade.QueryNextAsync(null, false, default, ct).ConfigureAwait(false), Is.SameAs(queryNext));
         }
 
         [Test]
@@ -646,13 +646,13 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 .Returns(new ValueTask<CancelResponse>(cancel));
 
             Assert.That(
-                await facade.CreateSessionAsync(null, null, null, null, null, default, default, 0, 0, ct),
+                await facade.CreateSessionAsync(null, null, null, null, null, default, default, 0, 0, ct).ConfigureAwait(false),
                 Is.SameAs(createSession));
             Assert.That(
-                await facade.ActivateSessionAsync(null, null, [], [], default, null, ct),
+                await facade.ActivateSessionAsync(null, null, [], [], default, null, ct).ConfigureAwait(false),
                 Is.SameAs(activateSession));
-            Assert.That(await facade.CloseSessionAsync(null, true, ct), Is.SameAs(closeSession));
-            Assert.That(await facade.CancelAsync(null, 1, ct), Is.SameAs(cancel));
+            Assert.That(await facade.CloseSessionAsync(null, true, ct).ConfigureAwait(false), Is.SameAs(closeSession));
+            Assert.That(await facade.CancelAsync(null, 1, ct).ConfigureAwait(false), Is.SameAs(cancel));
         }
 
         [Test]
@@ -718,23 +718,23 @@ namespace Opc.Ua.Client.Redundancy.Tests
             session.Setup(s => s.RepublishAsync(It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.FromResult((true, ServiceResult.Good)));
 
-            await facade.ReconnectAsync(null, null, ct);
-            await facade.ReloadInstanceCertificateAsync(ct);
-            await facade.FetchNamespaceTablesAsync(ct);
-            await facade.FetchTypeTreeAsync((ExpandedNodeId)null!, ct);
-            await facade.FetchTypeTreeAsync((ArrayOf<ExpandedNodeId>)[], ct);
-            await facade.OpenAsync("session", 1000, Mock.Of<IUserIdentity>(), [], true, true, ct);
-            await facade.UpdateSessionAsync(Mock.Of<IUserIdentity>(), [], ct);
-            await facade.ChangePreferredLocalesAsync([], ct);
+            await facade.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+            await facade.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
+            await facade.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
+            await facade.FetchTypeTreeAsync((ExpandedNodeId)null!, ct).ConfigureAwait(false);
+            await facade.FetchTypeTreeAsync((ArrayOf<ExpandedNodeId>)[], ct).ConfigureAwait(false);
+            await facade.OpenAsync("session", 1000, Mock.Of<IUserIdentity>(), [], true, true, ct).ConfigureAwait(false);
+            await facade.UpdateSessionAsync(Mock.Of<IUserIdentity>(), [], ct).ConfigureAwait(false);
+            await facade.ChangePreferredLocalesAsync([], ct).ConfigureAwait(false);
 
-            Assert.That(await facade.CloseAsync(1000, true, ct), Is.EqualTo((StatusCode)StatusCodes.Good));
-            Assert.That(await facade.CloseAsync(ct), Is.EqualTo((StatusCode)StatusCodes.Good));
-            Assert.That(await facade.RemoveSubscriptionAsync(null!, ct), Is.True);
-            Assert.That(await facade.RemoveSubscriptionsAsync(Array.Empty<Subscription>(), ct), Is.True);
-            Assert.That(await facade.ReactivateSubscriptionsAsync(new SubscriptionCollection(), true, ct), Is.True);
-            Assert.That(await facade.TransferSubscriptionsAsync(new SubscriptionCollection(), false, ct), Is.True);
+            Assert.That(await facade.CloseAsync(1000, true, ct).ConfigureAwait(false), Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(await facade.CloseAsync(ct).ConfigureAwait(false), Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(await facade.RemoveSubscriptionAsync(null!, ct).ConfigureAwait(false), Is.True);
+            Assert.That(await facade.RemoveSubscriptionsAsync(Array.Empty<Subscription>(), ct).ConfigureAwait(false), Is.True);
+            Assert.That(await facade.ReactivateSubscriptionsAsync(new SubscriptionCollection(), true, ct).ConfigureAwait(false), Is.True);
+            Assert.That(await facade.TransferSubscriptionsAsync(new SubscriptionCollection(), false, ct).ConfigureAwait(false), Is.True);
 
-            (bool republished, ServiceResult republishResult) = await facade.RepublishAsync(1, 2, ct);
+            (bool republished, ServiceResult republishResult) = await facade.RepublishAsync(1, 2, ct).ConfigureAwait(false);
             Assert.That(republished, Is.True);
             Assert.That(republishResult, Is.SameAs(ServiceResult.Good));
 
@@ -778,7 +778,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var session = new Mock<ISession>();
             RedundantClientSession facade = CreateLeaderFacade(session);
 
-            await facade.WaitForLeadershipAsync(CancellationToken.None);
+            await facade.WaitForLeadershipAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(facade.Current, Is.SameAs(session.Object));
         }
@@ -789,7 +789,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var session = new Mock<ISession>();
             RedundantClientSession facade = CreateLeaderFacade(session);
 
-            await facade.StartAsync(CancellationToken.None);
+            await facade.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(facade.Current, Is.SameAs(session.Object));
         }
@@ -950,12 +950,12 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             current = session.Object;
             election.Promote();
-            await promoted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await promoted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             Assert.That(facade.IsLeader, Is.True);
             Assert.That(facade.Current, Is.SameAs(session.Object));
 
             election.Demote();
-            await demoted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await demoted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             Assert.That(facade.IsLeader, Is.False);
             Assert.That(facade.Current, Is.Null);
         }
@@ -986,7 +986,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             cts.Cancel();
 
             Assert.That(
-                async () => await facade.ReadAsync(null, 0, TimestampsToReturn.Neither, [], cts.Token),
+                async () => await facade.ReadAsync(null, 0, TimestampsToReturn.Neither, [], cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
@@ -1002,10 +1002,10 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             Assert.That(() => _ = facade.SessionName, Throws.InstanceOf<ObjectDisposedException>());
             Assert.That(
-                async () => await facade.ReadAsync(null, 0, TimestampsToReturn.Neither, [], CancellationToken.None),
+                async () => await facade.ReadAsync(null, 0, TimestampsToReturn.Neither, [], CancellationToken.None).ConfigureAwait(false),
                 Throws.InstanceOf<ObjectDisposedException>());
             Assert.That(
-                async () => await facade.StartAsync(CancellationToken.None),
+                async () => await facade.StartAsync(CancellationToken.None).ConfigureAwait(false),
                 Throws.InstanceOf<ObjectDisposedException>());
         }
 

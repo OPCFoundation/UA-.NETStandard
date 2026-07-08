@@ -218,6 +218,7 @@ namespace Opc.Ua
         /// <summary>
         /// Completes writing and returns position in the stream.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public int Close()
         {
             if (m_writer == null)
@@ -240,6 +241,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the position in the stream.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public int Position
         {
             get
@@ -272,6 +274,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes raw bytes to the stream.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
         public void WriteRawBytes(byte[] buffer, int offset, int count)
         {
             if (buffer == null)

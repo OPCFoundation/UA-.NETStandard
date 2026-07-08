@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             using var store = new InMemorySharedKeyValueStore();
             var leaseStore = new SharedStorePubSubLeaseStore(store, time);
 
-            PubSubLease? lease = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            PubSubLease? lease = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
 
             Assert.That(lease, Is.Not.Null);
             Assert.That(lease!.Value.LeaseKey, Is.EqualTo(LeaseKey));
@@ -64,8 +64,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             using var store = new InMemorySharedKeyValueStore();
             var leaseStore = new SharedStorePubSubLeaseStore(store, time);
 
-            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
-            PubSubLease? second = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration);
+            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
+            PubSubLease? second = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration).ConfigureAwait(false);
 
             Assert.That(first, Is.Not.Null);
             Assert.That(second, Is.Null);
@@ -77,10 +77,10 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
             var leaseStore = new SharedStorePubSubLeaseStore(store, time);
-            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
             time.Advance(TimeSpan.FromSeconds(5));
 
-            PubSubLease? renewed = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            PubSubLease? renewed = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
 
             Assert.That(first, Is.Not.Null);
             Assert.That(renewed, Is.Not.Null);
@@ -94,10 +94,10 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
             var leaseStore = new SharedStorePubSubLeaseStore(store, time);
-            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
             time.Advance(LeaseDuration + TimeSpan.FromSeconds(1));
 
-            PubSubLease? takeover = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration);
+            PubSubLease? takeover = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration).ConfigureAwait(false);
 
             Assert.That(first, Is.Not.Null);
             Assert.That(takeover, Is.Not.Null);
@@ -111,11 +111,11 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
             var leaseStore = new SharedStorePubSubLeaseStore(store, time);
-            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
             time.Advance(LeaseDuration + TimeSpan.FromSeconds(1));
-            PubSubLease? takeover = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration);
+            PubSubLease? takeover = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration).ConfigureAwait(false);
 
-            PubSubLease? renewed = await leaseStore.TryRenewAsync(first!.Value, LeaseDuration);
+            PubSubLease? renewed = await leaseStore.TryRenewAsync(first!.Value, LeaseDuration).ConfigureAwait(false);
 
             Assert.That(takeover, Is.Not.Null);
             Assert.That(renewed, Is.Null);
@@ -127,10 +127,10 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
             var leaseStore = new SharedStorePubSubLeaseStore(store, time);
-            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
             time.Advance(TimeSpan.FromSeconds(5));
 
-            PubSubLease? renewed = await leaseStore.TryRenewAsync(first!.Value, LeaseDuration);
+            PubSubLease? renewed = await leaseStore.TryRenewAsync(first!.Value, LeaseDuration).ConfigureAwait(false);
 
             Assert.That(renewed, Is.Not.Null);
             Assert.That(renewed!.Value.OwnerId, Is.EqualTo(OwnerA));
@@ -144,10 +144,10 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
             var leaseStore = new SharedStorePubSubLeaseStore(store, time);
-            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).ConfigureAwait(false);
 
-            await leaseStore.ReleaseAsync(first!.Value);
-            PubSubLease? next = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration);
+            await leaseStore.ReleaseAsync(first!.Value).ConfigureAwait(false);
+            PubSubLease? next = await leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration).ConfigureAwait(false);
 
             Assert.That(next, Is.Not.Null);
             Assert.That(next!.Value.OwnerId, Is.EqualTo(OwnerB));

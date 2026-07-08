@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using var builder = new DataSetMetaDataBuilder(
                 config, session.Object, AdapterTestHelpers.Telemetry());
 
-            DataSetMetaDataType metaData = await builder.ResolveAsync();
+            DataSetMetaDataType metaData = await builder.ResolveAsync().ConfigureAwait(false);
 
             Assert.That(metaData.Fields[0].BuiltInType, Is.EqualTo((byte)BuiltInType.Int32));
             Assert.That(metaData.Fields[0].DataType, Is.EqualTo(DataTypeIds.Int32));
@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using var builder = new DataSetMetaDataBuilder(
                 config, session.Object, AdapterTestHelpers.Telemetry());
 
-            DataSetMetaDataType metaData = await builder.ResolveAsync();
+            DataSetMetaDataType metaData = await builder.ResolveAsync().ConfigureAwait(false);
 
             Assert.That(metaData.Fields[0].Name, Is.EqualTo("Temperature"));
             Assert.That(metaData.Fields[0].BuiltInType, Is.EqualTo((byte)BuiltInType.Double));
@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using var builder = new DataSetMetaDataBuilder(
                 config, session.Object, AdapterTestHelpers.Telemetry());
 
-            DataSetMetaDataType metaData = await builder.ResolveAsync();
+            DataSetMetaDataType metaData = await builder.ResolveAsync().ConfigureAwait(false);
 
             Assert.That(metaData.Fields[0].BuiltInType, Is.EqualTo((byte)BuiltInType.Variant));
             Assert.That(metaData.Fields[0].DataType, Is.EqualTo(DataTypeIds.BaseDataType));
@@ -192,8 +192,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using var builder = new DataSetMetaDataBuilder(
                 config, session.Object, AdapterTestHelpers.Telemetry());
 
-            await builder.ResolveAsync();
-            await builder.ResolveAsync();
+            await builder.ResolveAsync().ConfigureAwait(false);
+            await builder.ResolveAsync().ConfigureAwait(false);
 
             session.Verify(
                 s => s.ReadAsync(It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()),
@@ -215,9 +215,9 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using var builder = new DataSetMetaDataBuilder(
                 config, session.Object, AdapterTestHelpers.Telemetry());
 
-            await builder.ResolveAsync();
+            await builder.ResolveAsync().ConfigureAwait(false);
             DataSetMetaDataType failedMetaData = builder.BuildMetaData();
-            await builder.ResolveAsync();
+            await builder.ResolveAsync().ConfigureAwait(false);
             DataSetMetaDataType recoveredMetaData = builder.BuildMetaData();
 
             Assert.That(failedMetaData.Fields[0].BuiltInType, Is.EqualTo((byte)BuiltInType.Variant));
@@ -246,11 +246,11 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using var builder = new DataSetMetaDataBuilder(
                 config, session.Object, AdapterTestHelpers.Telemetry());
 
-            await builder.ResolveAsync();
+            await builder.ResolveAsync().ConfigureAwait(false);
             int changeCount = 0;
             builder.MetaDataChanged += (_, _) => changeCount++;
-            bool changed = await builder.RefreshAsync();
-            bool unchanged = await builder.RefreshAsync();
+            bool changed = await builder.RefreshAsync().ConfigureAwait(false);
+            bool unchanged = await builder.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(changed, Is.True);
             Assert.That(unchanged, Is.False);

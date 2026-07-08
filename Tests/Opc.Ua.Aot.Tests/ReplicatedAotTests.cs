@@ -57,9 +57,9 @@ namespace Opc.Ua.Aot.Tests
                 CrdtReaderOptions.Default);
 
             var value = new ByteString(new byte[] { 10, 20, 30 });
-            await store.SetAsync("session/aot", value);
+            await store.SetAsync("session/aot", value).ConfigureAwait(false);
 
-            (bool found, ByteString stored) = await store.TryGetAsync("session/aot");
+            (bool found, ByteString stored) = await store.TryGetAsync("session/aot").ConfigureAwait(false);
 
             await Assert.That(found).IsTrue();
             byte[] bytes = stored.ToArray();

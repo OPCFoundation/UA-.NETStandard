@@ -58,6 +58,7 @@ namespace Opc.Ua.Bindings
         /// <param name="buffers">Buffer manager used to allocate receive buffers.</param>
         /// <param name="receiveBufferSize">Maximum size of a single chunk on the receive path.</param>
         /// <param name="telemetry">Telemetry context for diagnostics / activity correlation.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="buffers"/> is <c>null</c>.</exception>
         public static (InProcessTransport, InProcessTransport) CreatePair(
             BufferManager buffers,
             int receiveBufferSize,

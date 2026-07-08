@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ServerConfiguration = new ServerConfiguration()
             };
             var manager = new DiagnosticsNodeManager(server.Object, configuration, NullLogger.Instance);
-            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>());
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             ServerObjectState serverObject = manager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
             server.Setup(s => s.ServerObject).Returns(serverObject);
             server.Setup(s => s.DiagnosticsNodeManager).Returns(manager);

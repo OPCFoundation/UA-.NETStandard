@@ -492,7 +492,8 @@ namespace Opc.Ua.Client.WebApi
                     .SetName("CreateSessionAsync");
             }
 
-            [Test, TestCaseSource(nameof(ServiceMethodTestCases))]
+            [Test]
+            [TestCaseSource(nameof(ServiceMethodTestCases))]
             public async Task ServiceMethodDispatchesViaInvokeAsyncAsync(
                 IServiceRequest request,
                 IServiceResponse expectedResponse)

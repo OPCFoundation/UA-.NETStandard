@@ -55,9 +55,8 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
 
         private static FakeTimeProvider NewClock(DateTime? start = null)
         {
-            var clock = new FakeTimeProvider(
+            return new FakeTimeProvider(
                 new DateTimeOffset(start ?? new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc), TimeSpan.Zero));
-            return clock;
         }
 
         [Test]
@@ -228,7 +227,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.High, clock);
-            int extra = 5;
+            const int extra = 5;
             int total = PubSubDiagnostics.ErrorHistoryCapacity + extra;
             for (int i = 0; i < total; i++)
             {

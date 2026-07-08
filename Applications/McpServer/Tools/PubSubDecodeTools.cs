@@ -318,7 +318,7 @@ namespace Opc.Ua.Mcp.Tools
                 return false;
             }
 
-            int ipOffset = 14;
+            const int ipOffset = 14;
             int headerLength = (data[ipOffset] & 0x0F) * 4;
             if (headerLength < 20 || data.Length < ipOffset + headerLength + 8 || data[ipOffset + 9] != 17)
             {

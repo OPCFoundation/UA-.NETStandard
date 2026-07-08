@@ -77,6 +77,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the singleton <see cref="ComplexTypeSystemFactory"/>
         /// service and keeps the client builder chain flowing.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddComplexTypes(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -92,6 +93,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers client services, reconnect defaults, and complex-type
         /// loading in one call.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddManagedClient(
             this IOpcUaBuilder builder,
             Action<OpcUaClientOptions> configure)
@@ -117,6 +119,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a managed client from the default configuration section and enables complex-type loading.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddManagedClient(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -137,6 +140,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a managed client from configuration and enables complex-type loading.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddManagedClient(
             this IOpcUaBuilder builder,
             IConfigurationSection section)

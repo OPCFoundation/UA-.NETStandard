@@ -100,10 +100,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 UadpTestUtilities.NewContext(registry);
 
             var publisherId = PublisherId.FromByte(1);
-            ushort writerGroupId = 1;
-            ushort writerId = 100;
+            const ushort writerGroupId = 1;
+            const ushort writerId = 100;
             var classId = (Uuid)Guid.Empty;
-            uint majorVer = 1;
+            const uint majorVer = 1;
 
             var meta = new DataSetMetaDataType
             {

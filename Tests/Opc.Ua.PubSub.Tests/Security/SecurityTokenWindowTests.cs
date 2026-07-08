@@ -297,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                     }
                 });
             }
-            await Task.WhenAll(workers);
+            await Task.WhenAll(workers).ConfigureAwait(false);
             Assert.That(accepted, Has.Count.EqualTo(parallelism * perTask));
         }
     }

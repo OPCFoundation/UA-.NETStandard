@@ -57,9 +57,9 @@ namespace Opc.Ua.Client.WebApi
     /// the HTTP path + response type, the body is encoded with
     /// <see cref="WebApiBodyCodec"/>, POSTed via the inner
     /// <see cref="WebApiClient"/>, and the response is decoded via
-    /// the non-generic <c>WebApiBodyCodec.DecodeBodyAsync(Type,
+    /// the non-generic <code>WebApiBodyCodec.DecodeBodyAsync(Type,
     /// Stream, IServiceMessageContext, JsonDecoderOptions?,
-    /// CancellationToken)</c> overload.
+    /// CancellationToken)</code> overload.
     /// </para>
     /// <para>
     /// The channel is stateless on the OPC UA layer: there is no secure

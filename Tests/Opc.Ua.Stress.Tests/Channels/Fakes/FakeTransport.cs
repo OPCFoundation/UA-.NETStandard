@@ -70,6 +70,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// </summary>
         /// <param name="requestNumber">The one-based request number to drop.</param>
         /// <returns>A fault mode for the requested drop point.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static FaultMode DropOnNthRequest(int requestNumber)
         {
             if (requestNumber <= 0)
@@ -117,6 +118,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// <summary>
         /// Gets or sets the delay applied before a successful open attempt.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public TimeSpan OpenDelay
         {
             get

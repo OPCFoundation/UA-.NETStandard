@@ -332,7 +332,9 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
             ReadRequest original = BuildReadRequest();
             byte[] payload = WebApiBodyCodec.EncodeBody(original, context, JsonEncoderOptions.Compact);
 
+#pragma warning disable CA2263 // Prefer generic overload when type is known
             IEncodeable decoded = WebApiBodyCodec.DecodeBody(typeof(ReadRequest), payload, context);
+#pragma warning restore CA2263 // Prefer generic overload when type is known
 
             Assert.That(decoded, Is.InstanceOf<ReadRequest>());
             var typed = (ReadRequest)decoded;

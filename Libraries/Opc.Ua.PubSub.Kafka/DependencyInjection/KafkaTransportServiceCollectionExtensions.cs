@@ -70,6 +70,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional options callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddKafkaTransport(
             this IPubSubBuilder builder,
             Action<KafkaConnectionOptions>? configure = null)
@@ -98,6 +99,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configuration">Root configuration.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddKafkaTransport(
             this IPubSubBuilder builder,
             IConfiguration configuration)
@@ -120,6 +122,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="section">Configuration section.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddKafkaTransport(
             this IPubSubBuilder builder,
             IConfigurationSection section)

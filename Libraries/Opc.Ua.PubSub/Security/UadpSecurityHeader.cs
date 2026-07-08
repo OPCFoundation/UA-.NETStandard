@@ -116,6 +116,7 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="buffer">Destination span.</param>
         /// <param name="written">Bytes written.</param>
+        /// <exception cref="ArgumentException"></exception>
         public void WriteTo(Span<byte> buffer, out int written)
         {
             int size = GetEncodedSize();

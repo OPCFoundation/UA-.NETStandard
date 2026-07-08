@@ -119,6 +119,7 @@ namespace Opc.Ua.PubSub.Transports
         /// <paramref name="url"/> does not contain a scheme / host
         /// separator, or the port component cannot be parsed.
         /// </exception>
+        /// <exception cref="ArgumentException"></exception>
         public static PubSubTransportAddress Parse(string url)
         {
             if (url is null)

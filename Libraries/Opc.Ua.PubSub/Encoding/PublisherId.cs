@@ -198,6 +198,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Creates a String-typed PublisherId.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static PublisherId FromString(string value)
         {
             if (value is null)

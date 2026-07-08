@@ -73,6 +73,8 @@ namespace Opc.Ua.Pcap.KeyLog
         /// <summary>
         /// Loads the session key from the sibling key file.
         /// </summary>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="InvalidDataException"></exception>
         public static byte[] LoadKey(string keylogFilePath)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(keylogFilePath);

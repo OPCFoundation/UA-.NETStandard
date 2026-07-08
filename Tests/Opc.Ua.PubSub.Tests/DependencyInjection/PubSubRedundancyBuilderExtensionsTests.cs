@@ -119,6 +119,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(serviceProvider.GetRequiredService<IPubSubLeaseStore>(), Is.SameAs(store));
         }
 
+#pragma warning disable CA1812  // Class is used as generic argument
         private sealed class StubActivationCoordinator : IPubSubActivationCoordinator
         {
             public event EventHandler<PubSubRoleChangedEventArgs>? RoleChanged
@@ -144,5 +145,6 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 return new ValueTask<PubSubComponentRole>(PubSubComponentRole.Active);
             }
         }
+#pragma warning restore CA1812
     }
 }

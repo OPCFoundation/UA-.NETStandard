@@ -155,6 +155,7 @@ namespace Opc.Ua
         /// caller is responsible for disposing the returned
         /// lease.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="participant"/> is <c>null</c>.</exception>
         public ManagedTransportChannelLease AcquireLease(IReconnectParticipant participant)
         {
             if (participant == null)
@@ -169,6 +170,8 @@ namespace Opc.Ua
         /// Acquire a new lease and atomically bind the participant
         /// returned by <paramref name="participantFactory"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="participantFactory"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public ManagedTransportChannelLease AcquireLease(
             Func<IManagedTransportChannel, IReconnectParticipant> participantFactory)
         {

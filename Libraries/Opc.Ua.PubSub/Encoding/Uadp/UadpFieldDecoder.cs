@@ -59,6 +59,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded fields, or <c>null</c> if the payload was
         /// malformed (truncated, missing required metadata, etc.).</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ArrayOf<DataSetField>? DecodeFields(
             ref UadpBinaryReader reader,
             PubSubFieldEncoding encoding,

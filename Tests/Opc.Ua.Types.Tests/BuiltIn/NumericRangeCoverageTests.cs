@@ -1270,8 +1270,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ImplicitConversionToRangeAndBackRoundTrips()
         {
-            var range = new NumericRange(2, 5);
-            System.Range converted = range;
+            System.Range converted = new NumericRange(2, 5);
             Assert.That(converted.Start.Value, Is.EqualTo(2));
             Assert.That(converted.End.Value, Is.EqualTo(5));
             NumericRange back = converted;
@@ -1282,8 +1281,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ImplicitConversionOfIndexToRangeIsOpenEnded()
         {
-            var range = new NumericRange(3);
-            System.Range converted = range;
+            System.Range converted = new NumericRange(3);
             Assert.That(converted.Start.Value, Is.EqualTo(3));
             Assert.That(converted.End.IsFromEnd, Is.True);
         }
@@ -1300,8 +1298,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ImplicitConversionFromEndRelativeRangeIsNull()
         {
-            System.Range fromEnd = ^3..^1;
-            NumericRange converted = fromEnd;
+            NumericRange converted = ^3..^1;
             Assert.That(converted.IsNull, Is.True);
         }
 

@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var store = new InMemorySharedKeyValueStore();
             await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
 
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(election.IsLeader, Is.True);
@@ -111,9 +111,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             await using SharedStoreLeaseElection a = CreateElection(store, "A", time);
             await using SharedStoreLeaseElection b = CreateElection(store, "B", time);
 
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
 
-            bool acquired = await b.TryAcquireOrRenewAsync();
+            bool acquired = await b.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.False);
             Assert.That(b.IsLeader, Is.False);
@@ -126,10 +126,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var store = new InMemorySharedKeyValueStore();
             await using SharedStoreLeaseElection a = CreateElection(store, "A", time);
 
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             time.Advance(TimeSpan.FromSeconds(10));
 
-            bool renewed = await a.TryAcquireOrRenewAsync();
+            bool renewed = await a.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(renewed, Is.True);
             Assert.That(a.IsLeader, Is.True);
@@ -143,11 +143,11 @@ namespace Opc.Ua.Core.Tests.Redundancy
             await using SharedStoreLeaseElection a = CreateElection(store, "A", time);
             await using SharedStoreLeaseElection b = CreateElection(store, "B", time);
 
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.True);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
 
-            Assert.That(await b.TryAcquireOrRenewAsync(), Is.True);
-            Assert.That(await a.TryAcquireOrRenewAsync(), Is.False);
+            Assert.That(await b.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
             Assert.That(b.IsLeader, Is.True);
             Assert.That(a.IsLeader, Is.False);
         }
@@ -163,10 +163,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
             var transitions = new List<bool>();
             a.LeadershipChanged += value => transitions.Add(value);
 
-            await a.TryAcquireOrRenewAsync();
+            await a.TryAcquireOrRenewAsync().ConfigureAwait(false);
             time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
-            await b.TryAcquireOrRenewAsync();
-            await a.TryAcquireOrRenewAsync();
+            await b.TryAcquireOrRenewAsync().ConfigureAwait(false);
+            await a.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(transitions, Is.EqualTo(s_acquireThenLoss));
         }
@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
 
             await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
 
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.False);
             Assert.That(election.IsLeader, Is.False);
@@ -201,10 +201,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
             // Fewer than four bytes: the lease parser rejects it at the length guard.
-            await store.SetAsync(LeaseKey, new ByteString(new byte[] { 1, 2 }));
+            await store.SetAsync(LeaseKey, new ByteString(new byte[] { 1, 2 })).ConfigureAwait(false);
             await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
 
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(election.IsLeader, Is.True);
@@ -217,10 +217,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var store = new InMemorySharedKeyValueStore();
             // Declares a 16-byte owner but carries no owner/expiry payload, so the
             // parser rejects it on the trailing-length guard.
-            await store.SetAsync(LeaseKey, new ByteString(new byte[] { 0x10, 0x00, 0x00, 0x00 }));
+            await store.SetAsync(LeaseKey, new ByteString(new byte[] { 0x10, 0x00, 0x00, 0x00 })).ConfigureAwait(false);
             await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
 
-            bool acquired = await election.TryAcquireOrRenewAsync();
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(election.IsLeader, Is.True);
@@ -233,11 +233,11 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var store = new InMemorySharedKeyValueStore();
 
             SharedStoreLeaseElection a = CreateElection(store, "A", time);
-            await a.TryAcquireOrRenewAsync();
-            await a.DisposeAsync();
+            await a.TryAcquireOrRenewAsync().ConfigureAwait(false);
+            await a.DisposeAsync().ConfigureAwait(false);
 
             await using SharedStoreLeaseElection b = CreateElection(store, "B", time);
-            bool acquired = await b.TryAcquireOrRenewAsync();
+            bool acquired = await b.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
         }
@@ -249,10 +249,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var store = new InMemorySharedKeyValueStore();
             SharedStoreLeaseElection election = CreateElection(store, "A", time);
 
-            await election.TryAcquireOrRenewAsync();
-            await election.DisposeAsync();
+            await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+            await election.DisposeAsync().ConfigureAwait(false);
 
-            Assert.That(async () => await election.DisposeAsync(), Throws.Nothing);
+            Assert.That(async () => await election.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
         }
 
         [Test]
@@ -278,17 +278,17 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 election.Start();
                 election.Start();
 
-                await WaitWithTimeoutAsync(acquired.Task, "leadership was not acquired by the renew loop");
+                await WaitWithTimeoutAsync(acquired.Task, "leadership was not acquired by the renew loop").ConfigureAwait(false);
 
                 Assert.That(election.IsLeader, Is.True);
             }
             finally
             {
-                await election.DisposeAsync();
+                await election.DisposeAsync().ConfigureAwait(false);
             }
 
             // The owner released its lease on dispose, so the key is gone.
-            (bool found, ByteString _) = await store.TryGetAsync(LeaseKey);
+            (bool found, ByteString _) = await store.TryGetAsync(LeaseKey).ConfigureAwait(false);
             Assert.That(found, Is.False);
         }
 
@@ -309,13 +309,13 @@ namespace Opc.Ua.Core.Tests.Redundancy
             {
                 election.Start();
 
-                await WaitWithTimeoutAsync(logger.ErrorLogged, "renew loop did not log the store failure");
+                await WaitWithTimeoutAsync(logger.ErrorLogged, "renew loop did not log the store failure").ConfigureAwait(false);
 
                 Assert.That(election.IsLeader, Is.False);
             }
             finally
             {
-                await election.DisposeAsync();
+                await election.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -338,13 +338,13 @@ namespace Opc.Ua.Core.Tests.Redundancy
             {
                 election.Start();
 
-                await WaitWithTimeoutAsync(probed.Task, "renew loop never queried the store");
+                await WaitWithTimeoutAsync(probed.Task, "renew loop never queried the store").ConfigureAwait(false);
 
                 Assert.That(election.IsLeader, Is.False);
             }
             finally
             {
-                await election.DisposeAsync();
+                await election.DisposeAsync().ConfigureAwait(false);
             }
         }
 
@@ -367,9 +367,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
 
         private static async Task WaitWithTimeoutAsync(Task task, string message)
         {
-            Task winner = await Task.WhenAny(task, Task.Delay(s_timeout));
+            Task winner = await Task.WhenAny(task, Task.Delay(s_timeout)).ConfigureAwait(false);
             Assert.That(winner, Is.SameAs(task), message);
-            await task;
+            await task.ConfigureAwait(false);
         }
 
         /// <summary>

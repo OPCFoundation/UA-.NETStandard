@@ -199,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestSpec("7.2.4.5.11")]
         public void XmlElement_WithMaxStringLength64_AlwaysEmits64Bytes()
         {
-            string xml = "<a/>";
+            const string xml = "<a/>";
             byte[] buffer = new byte[128];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
@@ -417,10 +417,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 UadpTestUtilities.NewContext(registry);
 
             var publisherId = PublisherId.FromByte(1);
-            ushort writerGroupId = 1;
-            ushort writerId = 100;
+            const ushort writerGroupId = 1;
+            const ushort writerId = 100;
             var classId = (Uuid)Guid.Empty;
-            uint majorVer = 1;
+            const uint majorVer = 1;
 
             var meta = new DataSetMetaDataType
             {
@@ -492,10 +492,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 UadpTestUtilities.NewContext(registry);
 
             var publisherId = PublisherId.FromByte(1);
-            ushort writerGroupId = 1;
-            ushort writerId = 100;
+            const ushort writerGroupId = 1;
+            const ushort writerId = 100;
             var classId = (Uuid)Guid.Empty;
-            uint majorVer = 1;
+            const uint majorVer = 1;
 
             var meta = new DataSetMetaDataType
             {

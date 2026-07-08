@@ -762,11 +762,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
         private static Mock<ISession> CreateMockSessionWithThrowingOptionalReads()
         {
-            Mock<ISession> mock = CreateMockSession(
+            return CreateMockSession(
                 redundancySupport: (int)RedundancySupport.Hot,
                 serviceLevel: ServiceLevels.NoData);
-
-            return mock;
         }
 
         private sealed class FixedTimeProvider : TimeProvider

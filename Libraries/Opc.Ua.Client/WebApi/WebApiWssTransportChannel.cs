@@ -443,19 +443,20 @@ namespace Opc.Ua.Client.WebApi
                 m_sendLock.Release();
             }
 
-            IServiceResponse response = DecodeServiceResponse(
+            return DecodeServiceResponse(
                 responseBytes,
                 quotas.MessageContext);
-            return response;
         }
 
-        // Decoder options applied to every inbound response. Clients
-        // typically don't know all server namespace URIs up front, so
-        // UpdateNamespaceTable=true lets the codec append unknown URIs
-        // to the message context's NamespaceTable on the fly. Without
-        // this, NodeIds whose namespace URI isn't already registered
-        // would decode as NodeId.Null (e.g. CreateSession's SessionId
-        // and AuthenticationToken would be lost).
+        /// <summary>
+        /// Decoder options applied to every inbound response. Clients
+        /// typically don't know all server namespace URIs up front, so
+        /// UpdateNamespaceTable=true lets the codec append unknown URIs
+        /// to the message context's NamespaceTable on the fly. Without
+        /// this, NodeIds whose namespace URI isn't already registered
+        /// would decode as NodeId.Null (e.g. CreateSession's SessionId
+        /// and AuthenticationToken would be lost).
+        /// </summary>
         private static readonly JsonDecoderOptions s_decoderOptions = new()
         {
             UpdateNamespaceTable = true
@@ -608,10 +609,14 @@ namespace Opc.Ua.Client.WebApi
             }
         }
 
-        // WSS-bearer requires TLS so the token cannot be observed by
-        // network intermediaries. The sub-protocol still appears in
-        // the server's access log on the wss path; that's why short
-        // token TTLs (<= 60s) and log redaction are still recommended.
+        /// <summary>
+        /// WSS-bearer requires TLS so the token cannot be observed by
+        /// network intermediaries. The sub-protocol still appears in
+        /// the server's access log on the wss path; that's why short
+        /// token TTLs (&lt;= 60s) and log redaction are still recommended.
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
         private static bool IsSecureScheme(Uri? url)
         {
             if (url == null)

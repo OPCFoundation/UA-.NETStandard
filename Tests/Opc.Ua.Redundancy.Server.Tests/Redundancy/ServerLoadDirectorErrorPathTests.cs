@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             ServerLoadDirector director = Configure(policy.Object, Mock.Of<IPeerEndpointDirectory>());
 
-            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints());
+            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints()).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False, "a failing policy fails safe to the local Server");
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             ServerLoadDirector director = Configure(policy.Object, Mock.Of<IPeerEndpointDirectory>());
 
-            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints());
+            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints()).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False, "a null target means the local Server serves the request");
         }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             ServerLoadDirector director = Configure(policy.Object, directory.Object);
 
-            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints());
+            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints()).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False, "a failing endpoint directory fails safe to the local Server");
         }
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ServerLoadDirector director = Configure(Mock.Of<IServerDirectionPolicy>(), publisher: publisher.Object);
 
             // A null endpoint URL is never the balancing URL, and no local endpoints means nothing to publish.
-            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(null, default);
+            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(null, default).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False);
             publisher.Verify(
@@ -146,8 +146,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var publisher = new Mock<IPeerEndpointPublisher>();
             ServerLoadDirector director = Configure(Mock.Of<IServerDirectionPolicy>(), publisher: publisher.Object);
 
-            await director.TryGetDirectedEndpointsAsync(NormalUrl, LocalEndpoints());
-            await director.TryGetDirectedEndpointsAsync(NormalUrl, LocalEndpoints());
+            await director.TryGetDirectedEndpointsAsync(NormalUrl, LocalEndpoints()).ConfigureAwait(false);
+            await director.TryGetDirectedEndpointsAsync(NormalUrl, LocalEndpoints()).ConfigureAwait(false);
 
             publisher.Verify(
                 p => p.PublishAsync(It.IsAny<ArrayOf<EndpointDescription>>(), It.IsAny<CancellationToken>()),
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .Throws(new InvalidOperationException("publish boom"));
             ServerLoadDirector director = Configure(Mock.Of<IServerDirectionPolicy>(), publisher: publisher.Object);
 
-            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(NormalUrl, LocalEndpoints());
+            (bool redirect, _) = await director.TryGetDirectedEndpointsAsync(NormalUrl, LocalEndpoints()).ConfigureAwait(false);
 
             Assert.That(redirect, Is.False, "a failing endpoint publish must not break local discovery");
         }

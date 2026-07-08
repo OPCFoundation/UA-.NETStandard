@@ -75,6 +75,7 @@ namespace Opc.Ua.PubSub.Pcap
         /// </summary>
         /// <param name="builder">The PubSub builder.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddPcapCapture(this IPubSubBuilder builder)
         {
             if (builder is null)

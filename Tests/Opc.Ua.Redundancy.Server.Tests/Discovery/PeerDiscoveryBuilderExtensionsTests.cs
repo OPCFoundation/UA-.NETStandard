@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var builder = new DiTestServerBuilder();
 
             builder.UseStaticPeerDiscovery([new DiscoveredPeer(
-                "urn:a", new[] { "opc.tcp://a:4840" }, new IPEndPoint(IPAddress.Loopback, 4840))]);
+                "urn:a", discoveryUrlsA, new IPEndPoint(IPAddress.Loopback, 4840))]);
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
 
@@ -126,9 +126,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task StartupTaskAppliesDiscoveredPeersToProviderAndSinkAsync()
         {
             var peer1 = new DiscoveredPeer(
-                "urn:a", new[] { "opc.tcp://a:4840" }, new IPEndPoint(IPAddress.Loopback, 4840));
+                "urn:a", discoveryUrlsA, new IPEndPoint(IPAddress.Loopback, 4840));
             var peer2 = new DiscoveredPeer(
-                "urn:b", new[] { "opc.tcp://b:4840" }, new IPEndPoint(IPAddress.Loopback, 4842));
+                "urn:b", discoveryUrlsB, new IPEndPoint(IPAddress.Loopback, 4842));
             var discovery = new StaticPeerDiscovery([peer1, peer2]);
             var provider = new DiscoveredRedundantServerSetProvider();
             var registry = new GossipPeerRegistry();
@@ -139,8 +139,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options, registry))
             {
-                await task.OnServerStartedAsync(server.Object);
-                await WaitForAsync(() => provider.GetRedundantServerSet().Count == 2, TimeSpan.FromSeconds(5));
+                await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+                await WaitForAsync(() => provider.GetRedundantServerSet().Count == 2, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
 
             Assert.That(provider.GetRedundantServerSet().Count, Is.EqualTo(2));
@@ -162,8 +162,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options))
             {
-                await task.OnServerStartedAsync(server.Object);
-                await Task.Delay(80);
+                await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+                await Task.Delay(80).ConfigureAwait(false);
             }
 
             // The refresh error is caught and logged; the provider stays empty and the task disposes cleanly.
@@ -175,7 +175,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task StartupTaskWithoutSinkUpdatesProviderAsync()
         {
             var discovery = new StaticPeerDiscovery(
-                [new DiscoveredPeer("urn:a", new[] { "opc.tcp://a:4840" })]);
+                [new DiscoveredPeer("urn:a", discoveryUrlsA)]);
             var provider = new DiscoveredRedundantServerSetProvider();
             var options = new PeerDiscoveryOptions { RefreshInterval = TimeSpan.FromMilliseconds(50) };
 
@@ -184,8 +184,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using (var task = new PeerDiscoveryStartupTask(discovery, provider, options, gossipSink: null))
             {
-                await task.OnServerStartedAsync(server.Object);
-                await WaitForAsync(() => provider.GetRedundantServerSet().Count == 1, TimeSpan.FromSeconds(5));
+                await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+                await WaitForAsync(() => provider.GetRedundantServerSet().Count == 1, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
 
             Assert.That(provider.GetRedundantServerSet().Count, Is.EqualTo(1));
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 {
                     return;
                 }
-                await Task.Delay(25);
+                await Task.Delay(25).ConfigureAwait(false);
             }
             Assert.Fail("Condition was not met within the timeout.");
         }
@@ -243,5 +243,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             private int m_attempts;
         }
+
+        private static readonly string[] discoveryUrlsA = ["opc.tcp://a:4840"];
+        private static readonly string[] discoveryUrlsB = ["opc.tcp://b:4840"];
     }
 }

@@ -188,7 +188,9 @@ namespace Opc.Ua.Pcap.Replay
             GC.SuppressFinalize(this);
         }
 
+#pragma warning disable RCS1174 // Remove redundant async/await
         private async ValueTask<IReadOnlyList<DecodedServiceCall>> DecodeServiceCallsAsync(CancellationToken ct)
+#pragma warning restore RCS1174 // Remove redundant async/await
         {
             var reassembler = new ServiceCallReassembler(m_loggerFactory);
             await foreach (ChannelKeyMaterial material in m_source.ReadKeyMaterialAsync(ct)
@@ -198,10 +200,9 @@ namespace Opc.Ua.Pcap.Replay
                 reassembler.LoadKeyMaterial(material);
             }
 
-            IReadOnlyList<DecodedServiceCall> calls = await reassembler
+            return await reassembler
                 .ProcessAllAsync(m_source.ReadCapturedFramesAsync(null, ct), ct)
                 .ConfigureAwait(false);
-            return calls;
         }
 
         private async ValueTask<List<CapturedRequest>> DecodeReplayRequestsAsync(CancellationToken ct)

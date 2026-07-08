@@ -154,6 +154,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <c>AddManagedClient</c>) to set option flags without depending
         /// on how the options are later resolved.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal static IOpcUaClientBuilder AddClient(
             this IOpcUaBuilder builder,
             IConfigurationSection section,
@@ -183,6 +184,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers injectable OPC UA discovery operations.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddDiscovery(this IOpcUaBuilder builder)
         {
             if (builder is null)
@@ -198,6 +200,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers injectable OPC UA discovery operations.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddDiscovery(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -348,6 +351,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers container-default subscription and monitored-item options.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddSubscriptions(
             this IOpcUaClientBuilder builder,
             Action<Opc.Ua.Client.Subscriptions.SubscriptionOptions>? configure = null)
@@ -370,6 +374,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a keyed managed-session pool backed by <see cref="IManagedSessionFactory"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddManagedClientPool(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -384,6 +389,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a one-shot reverse-connect managed-client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddReverseConnectClient(
             this IOpcUaBuilder builder,
             Action<OpcUaClientOptions> configure,
@@ -418,6 +424,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a discovery-then-connect one-shot managed-client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddDiscoveryAndConnect(
             this IOpcUaClientBuilder builder,
             Action<DiscoveryConnectOptions> configure)

@@ -67,6 +67,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </param>
         /// <param name="context">Stack message context.</param>
         /// <returns>Decoded variant.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static Variant DecodeVariant(
             JsonElement element,
             JsonEncodingMode mode,
@@ -104,6 +105,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="context">Stack message context.</param>
         /// <returns>Decoded DataValue (never null; may be
         /// <see cref="DataValue.IsNull"/>).</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static DataValue DecodeDataValue(
             JsonElement element,
             IServiceMessageContext context)

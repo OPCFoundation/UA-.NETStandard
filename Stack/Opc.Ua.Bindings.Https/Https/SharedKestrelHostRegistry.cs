@@ -129,8 +129,10 @@ namespace Opc.Ua.Bindings
         {
         }
 
-        // Async-aware critical section because Acquire awaits AttachAndStartAsync
-        // and Release awaits StopAsync inside the registry-wide barrier.
+        /// <summary>
+        /// Async-aware critical section because Acquire awaits AttachAndStartAsync
+        /// and Release awaits StopAsync inside the registry-wide barrier.
+        /// </summary>
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly Dictionary<SharedHostKey, SharedKestrelHost> m_hosts = new();
 
@@ -165,6 +167,9 @@ namespace Opc.Ua.Bindings
         /// a mismatch throws <see cref="InvalidOperationException"/>.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="hostFactory"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<SharedHostLease> AcquireAsync(
             SharedHostKey key,
             HttpsTransportListener listener,
@@ -368,6 +373,7 @@ namespace Opc.Ua.Bindings
         /// the request pipeline can resolve this instance on first
         /// request.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         internal async ValueTask AttachAndStartAsync(IHost host, CancellationToken ct = default)
         {
             if (m_host != null)

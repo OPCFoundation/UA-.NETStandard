@@ -291,7 +291,7 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             using var sharedBackend = new InMemorySharedKeyValueStore();
             var checkpointStore = new SharedStorePubSubWriterCheckpointStore(sharedBackend);
-            PubSubComponentRole activeRole = PubSubComponentRole.Active;
+            const PubSubComponentRole activeRole = PubSubComponentRole.Active;
             PubSubComponentRole standbyRole = PubSubComponentRole.Standby;
             Mock<IPubSubActivationCoordinator> activeCoordinator = CreateCoordinatorMock(
                 WriterComponentId,
@@ -336,7 +336,7 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
         {
             var clock = new FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-            PubSubComponentRole activeRole = PubSubComponentRole.Active;
+            const PubSubComponentRole activeRole = PubSubComponentRole.Active;
             PubSubComponentRole standbyRole = PubSubComponentRole.Standby;
             Mock<IPubSubActivationCoordinator> activeCoordinator = CreateCoordinatorMock(
                 WriterComponentId,
@@ -488,7 +488,7 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 },
                 dataSet,
                 NUnitTelemetryContext.Create());
-            var group = new WriterGroup(
+            return new WriterGroup(
                 new WriterGroupDataType
                 {
                     Name = "wg",
@@ -513,7 +513,6 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                     return default;
                 }
             };
-            return group;
         }
 
         private static ReaderGroup CreateReaderGroup(

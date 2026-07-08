@@ -114,6 +114,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="message">Source network message.</param>
         /// <param name="context">Encoder context.</param>
         /// <returns>Encoded UTF-8 frame.</returns>
+        /// <exception cref="ArgumentException"></exception>
         private ReadOnlyMemory<byte> EncodeNetwork(
             JsonNetworkMessage message,
             PubSubNetworkMessageContext context)
@@ -360,6 +361,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="message">Source metadata message.</param>
         /// <param name="context">Encoder context.</param>
         /// <returns>Encoded UTF-8 frame.</returns>
+        /// <exception cref="ArgumentException"></exception>
         private ReadOnlyMemory<byte> EncodeMetaData(
             JsonMetaDataMessage message,
             PubSubNetworkMessageContext context)
@@ -644,6 +646,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="message">Source action message.</param>
         /// <param name="context">Encoder context.</param>
         /// <returns>Encoded UTF-8 frame.</returns>
+        /// <exception cref="ArgumentException"></exception>
         private ReadOnlyMemory<byte> EncodeAction(
             JsonActionNetworkMessage message,
             PubSubNetworkMessageContext context)

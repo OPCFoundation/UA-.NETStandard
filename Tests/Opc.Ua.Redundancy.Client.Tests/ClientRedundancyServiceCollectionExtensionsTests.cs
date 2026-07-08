@@ -168,10 +168,10 @@ namespace Opc.Ua.Client.Redundancy.Tests
             IHostedService hosted = provider.GetServices<IHostedService>().Single();
             RedundantClientSession session = provider.GetRequiredService<RedundantClientSession>();
 
-            await hosted.StartAsync(CancellationToken.None);
+            await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(session.Disposed, Is.False);
 
-            await hosted.StopAsync(CancellationToken.None);
+            await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(session.Disposed, Is.True);
         }
     }

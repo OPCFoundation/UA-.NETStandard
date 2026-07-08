@@ -62,6 +62,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TFactory">The transport factory type.</typeparam>
         /// <param name="services">The service collection.</param>
         /// <returns>The service collection for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection TryAddPubSubTransportFactory<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>(
             this IServiceCollection services)
@@ -95,6 +96,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="services">The service collection.</param>
         /// <param name="factory">The transport factory factory.</param>
         /// <returns>The service collection for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddPubSubTransportFactory(
             this IServiceCollection services,
             Func<IServiceProvider, IPubSubTransportFactory> factory)
@@ -119,6 +121,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="provider">The service provider.</param>
         /// <param name="factory">The transport factory to decorate.</param>
         /// <returns>The decorated factory.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubTransportFactory DecoratePubSubTransportFactory(
             this IServiceProvider provider,
             IPubSubTransportFactory factory)

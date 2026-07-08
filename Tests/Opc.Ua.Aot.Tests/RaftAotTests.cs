@@ -49,8 +49,8 @@ namespace Opc.Ua.Aot.Tests
             await using var store = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
 
             var value = new ByteString(new byte[] { 7, 8, 9 });
-            bool created = await store.CompareAndSwapAsync("raft/aot", default, value);
-            (bool found, ByteString stored) = await store.TryGetAsync("raft/aot");
+            bool created = await store.CompareAndSwapAsync("raft/aot", default, value).ConfigureAwait(false);
+            (bool found, ByteString stored) = await store.TryGetAsync("raft/aot").ConfigureAwait(false);
 
             await Assert.That(created).IsTrue();
             await Assert.That(found).IsTrue();
@@ -63,7 +63,7 @@ namespace Opc.Ua.Aot.Tests
             await using DefaultRaftConsensus consensus = DefaultRaftConsensus.CreateSingleNode();
             await using var election = new RaftLeaderElection(consensus);
 
-            await consensus.StartAsync();
+            await consensus.StartAsync().ConfigureAwait(false);
 
             await Assert.That(consensus.IsLeader).IsTrue();
             await Assert.That(election.IsLeader).IsTrue();

@@ -74,7 +74,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var task = new KubernetesReadinessStartupTask(readiness);
 
             Assert.That(
-                async () => await task.OnServerStartedAsync(null!),
+                async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -87,10 +87,10 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 new KubernetesReadinessOptions { Host = "localhost", Port = port });
             var task = new KubernetesReadinessStartupTask(readiness);
 
-            await task.OnServerStartedAsync(Mock.Of<IServerInternal>(), CancellationToken.None);
+            await task.OnServerStartedAsync(Mock.Of<IServerInternal>(), CancellationToken.None).ConfigureAwait(false);
 
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            using HttpResponseMessage response = await client.GetAsync(new Uri($"http://localhost:{port}/readyz"));
+            using HttpResponseMessage response = await client.GetAsync(new Uri($"http://localhost:{port}/readyz")).ConfigureAwait(false);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
 

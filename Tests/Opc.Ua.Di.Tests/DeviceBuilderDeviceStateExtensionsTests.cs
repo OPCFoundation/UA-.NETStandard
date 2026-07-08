@@ -104,7 +104,7 @@ namespace Opc.Ua.Di.Tests
         public async Task WithDeviceHealthSetsNormalValue()
         {
             IDeviceBuilder<DeviceState> builder =
-                await CreateDeviceWithHealthAsync("DeviceHealthNormal");
+                await CreateDeviceWithHealthAsync("DeviceHealthNormal").ConfigureAwait(false);
 
             builder.WithDeviceHealth(DeviceHealthEnumeration.NORMAL);
 
@@ -116,7 +116,7 @@ namespace Opc.Ua.Di.Tests
         public async Task WithDeviceHealthSetsFailureValue()
         {
             IDeviceBuilder<DeviceState> builder =
-                await CreateDeviceWithHealthAsync("DeviceHealthFailure");
+                await CreateDeviceWithHealthAsync("DeviceHealthFailure").ConfigureAwait(false);
 
             builder.WithDeviceHealth(DeviceHealthEnumeration.FAILURE);
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Di.Tests
         public async Task WithDeviceHealthSetsCheckFunctionValue()
         {
             IDeviceBuilder<DeviceState> builder =
-                await CreateDeviceWithHealthAsync("DeviceHealthCheck");
+                await CreateDeviceWithHealthAsync("DeviceHealthCheck").ConfigureAwait(false);
 
             builder.WithDeviceHealth(DeviceHealthEnumeration.CHECK_FUNCTION);
 
@@ -140,7 +140,7 @@ namespace Opc.Ua.Di.Tests
         public async Task WithDeviceHealthReturnsSameBuilderForChaining()
         {
             IDeviceBuilder<DeviceState> builder =
-                await CreateDeviceWithHealthAsync("DeviceHealthChain");
+                await CreateDeviceWithHealthAsync("DeviceHealthChain").ConfigureAwait(false);
 
             IDeviceBuilder<DeviceState> returned =
                 builder.WithDeviceHealth(DeviceHealthEnumeration.MAINTENANCE_REQUIRED);

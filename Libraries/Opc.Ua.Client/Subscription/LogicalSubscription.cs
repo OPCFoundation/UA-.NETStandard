@@ -137,6 +137,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// Called by <see cref="SubscriptionManager.Add"/> when
         /// running in multi-partition mode.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal void AttachForwardingHandler(PartitionForwardingHandler handler)
         {
             m_forwardingHandler = handler ?? throw new ArgumentNullException(nameof(handler));
@@ -406,6 +407,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// subscription. Use <see cref="SnapshotAllPartitions"/> when
         /// you need every partition's state.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public SubscriptionStateSnapshot Snapshot()
         {
             if (Primary is Subscription concrete)
@@ -629,6 +631,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// already-failed item itself is surfaced to the caller via
         /// the standard per-item error path.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         internal void OnPartitionCapReached(IManagedSubscription partition)
         {
             if (partition == null)
@@ -648,6 +651,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// request — satisfying OPC UA Part 4 §5.13.9 ordering. When
         /// no durable intent has been recorded the call is a no-op.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         internal void TryApplyDurableToNewPartition(IManagedSubscription partition)
         {
             if (partition == null)
@@ -716,13 +720,12 @@ namespace Opc.Ua.Client.Subscriptions
         private IManagedSubscription AppendPartition(
             Func<IManagedSubscription> innerFactory)
         {
-            IManagedSubscription added = innerFactory();
             // The actual List<T>.Add is performed by the composite under
             // the same m_partitionLock; this helper exists so future
             // milestones can hook side effects (notification handler
             // attach, durable apply, etc.) on append without changing
             // the composite contract.
-            return added;
+            return innerFactory();
         }
 
         /// <summary>

@@ -56,6 +56,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="metaData">Metadata payload.</param>
         /// <param name="mode">Encoding mode.</param>
         /// <param name="context">Stack message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void WriteMetaData(
             Utf8JsonWriter writer,
             string propertyName,

@@ -46,6 +46,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the historian client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddHistorian(this IOpcUaBuilder builder)
         {
             if (builder is null)
@@ -61,6 +62,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the historian client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddHistorian(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -75,6 +77,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the role-management client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddRoleManagement(this IOpcUaBuilder builder)
         {
             if (builder is null)
@@ -90,6 +93,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the role-management client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddRoleManagement(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -104,6 +108,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the file-transfer client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddFileTransfer(this IOpcUaBuilder builder)
         {
             if (builder is null)
@@ -119,6 +124,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the file-transfer client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddFileTransfer(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -133,6 +139,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the alias-name client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddAliasNames(this IOpcUaBuilder builder)
         {
             if (builder is null)
@@ -148,6 +155,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the alias-name client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddAliasNames(this IOpcUaClientBuilder builder)
         {
             if (builder is null)

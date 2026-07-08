@@ -87,6 +87,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="configuration">Configuration to validate.</param>
         /// <returns>The aggregated <see cref="PubSubConfigurationValidationResult"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubConfigurationValidationResult Validate(
             PubSubConfigurationDataType configuration)
         {

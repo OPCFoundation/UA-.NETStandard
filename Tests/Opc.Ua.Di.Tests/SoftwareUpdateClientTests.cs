@@ -67,7 +67,7 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo("1.2.3"));
         }
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
@@ -101,7 +101,7 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 

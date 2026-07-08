@@ -1865,6 +1865,7 @@ namespace Opc.Ua.Client
         /// computed over it and the current channel.
         /// </param>
         /// <param name="ct">A cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
         private async Task ReactivateExistingSessionAsync(
             IUserIdentity? identity,
             ArrayOf<string> preferredLocales,
@@ -2760,6 +2761,7 @@ namespace Opc.Ua.Client
         /// Recreate the server-side session in place while sharing an
         /// outer reconnect retry budget with the channel manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="budget"/> is <c>null</c>.</exception>
         internal Task RecreateInPlaceAsync(
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
@@ -3290,6 +3292,7 @@ namespace Opc.Ua.Client
         /// Reconnect the session while sharing an outer reconnect retry
         /// budget with the channel manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="budget"/> is <c>null</c>.</exception>
         internal Task ReconnectAsync(
             IRetryBudget budget,
             CancellationToken ct)

@@ -136,6 +136,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <paramref name="sizeHint"/> more bytes.
         /// </summary>
         /// <param name="sizeHint">Required free capacity.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private void EnsureCapacity(int sizeHint)
         {
             if (sizeHint < 0)

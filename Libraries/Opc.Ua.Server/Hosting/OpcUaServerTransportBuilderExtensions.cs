@@ -42,6 +42,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds the raw-socket OPC TCP transport and returns the server builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddOpcTcpTransport(this IOpcUaServerBuilder builder)
         {
             if (builder is null)
@@ -55,6 +56,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds the HTTPS transport and returns the server builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddHttpsTransport(this IOpcUaServerBuilder builder)
         {
             if (builder is null)
@@ -68,6 +70,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds the WSS transport and returns the server builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddWssTransport(this IOpcUaServerBuilder builder)
         {
             if (builder is null)
@@ -81,6 +84,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds the Kestrel-hosted OPC TCP transport and returns the server builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddKestrelOpcTcpTransport(this IOpcUaServerBuilder builder)
         {
             if (builder is null)
@@ -94,6 +98,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds the OPC UA REST transport and returns the server builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddWebApiTransport(this IOpcUaServerBuilder builder)
         {
             if (builder is null)

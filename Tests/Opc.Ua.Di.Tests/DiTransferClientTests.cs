@@ -105,7 +105,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiTransferClient(
                 session.Object, kTransferServicesId, NullTelemetry());
 
-            int id = await client.TransferToDeviceAsync();
+            int id = await client.TransferToDeviceAsync().ConfigureAwait(false);
             Assert.That(id, Is.EqualTo(42));
         }
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiTransferClient(
                 session.Object, kTransferServicesId, NullTelemetry());
 
-            int id = await client.TransferFromDeviceAsync();
+            int id = await client.TransferFromDeviceAsync().ConfigureAwait(false);
             Assert.That(id, Is.EqualTo(7));
         }
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.Di.Tests
                 session.Object, kTransferServicesId, NullTelemetry());
 
             Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.TransferToDeviceAsync());
+                async () => await client.TransferToDeviceAsync().ConfigureAwait(false));
         }
 
         [Test]

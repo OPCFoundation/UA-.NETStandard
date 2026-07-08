@@ -63,7 +63,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 NewOptions(port));
             server.Start();
 
-            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/readyz");
+            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/readyz").ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(body, Is.EqualTo("ok"));
@@ -78,7 +78,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 NewOptions(port));
             server.Start();
 
-            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/readyz");
+            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/readyz").ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
             Assert.That(body, Is.EqualTo("not ready"));
@@ -93,7 +93,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 NewOptions(port));
             server.Start();
 
-            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/livez");
+            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/livez").ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(body, Is.EqualTo("ok"));
@@ -107,11 +107,11 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             server.Start();
             server.Start();
 
-            (HttpStatusCode status, _) = await GetAsync($"http://localhost:{port}/readyz");
+            (HttpStatusCode status, _) = await GetAsync($"http://localhost:{port}/readyz").ConfigureAwait(false);
             Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
 
-            await server.DisposeAsync();
-            await server.DisposeAsync();
+            await server.DisposeAsync().ConfigureAwait(false);
+            await server.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -147,8 +147,8 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         private static async Task<(HttpStatusCode Status, string Body)> GetAsync(string url)
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            using HttpResponseMessage response = await client.GetAsync(new Uri(url));
-            string body = await response.Content.ReadAsStringAsync();
+            using HttpResponseMessage response = await client.GetAsync(new Uri(url)).ConfigureAwait(false);
+            string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             return (response.StatusCode, body);
         }
 

@@ -59,7 +59,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         {
             var client = new NotInClusterKubernetesApiClient();
 
-            KubernetesLease? lease = await client.GetLeaseAsync("ns", "opcua", CancellationToken.None);
+            KubernetesLease? lease = await client.GetLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(lease, Is.Null);
         }
@@ -70,7 +70,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var client = new NotInClusterKubernetesApiClient();
 
             Assert.That(
-                async () => await client.CreateLeaseAsync("ns", new KubernetesLease(), CancellationToken.None),
+                async () => await client.CreateLeaseAsync("ns", new KubernetesLease(), CancellationToken.None).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             var client = new NotInClusterKubernetesApiClient();
 
             Assert.That(
-                async () => await client.ReplaceLeaseAsync("ns", "opcua", new KubernetesLease(), CancellationToken.None),
+                async () => await client.ReplaceLeaseAsync("ns", "opcua", new KubernetesLease(), CancellationToken.None).ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -89,7 +89,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         {
             var client = new NotInClusterKubernetesApiClient();
 
-            await client.DeleteLeaseAsync("ns", "opcua", CancellationToken.None);
+            await client.DeleteLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(client.IsInCluster, Is.False);
         }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         {
             var client = new NotInClusterKubernetesApiClient();
 
-            KubernetesEndpointSliceList list = await client.ListEndpointSlicesAsync("ns", "svc", CancellationToken.None);
+            KubernetesEndpointSliceList list = await client.ListEndpointSlicesAsync("ns", "svc", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(list.Items, Is.Empty);
         }

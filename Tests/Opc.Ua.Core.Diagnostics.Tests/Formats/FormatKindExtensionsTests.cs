@@ -80,7 +80,7 @@ namespace Opc.Ua.Pcap.Tests.Formats
         [Test]
         public void TryParseHandlesNullStringAsUnknown()
         {
-            string? input = null;
+            const string? input = null;
 
             bool ok = input.TryParse(out FormatKind actual);
 

@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             ObservedHostedServer.StartedType = null;
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services => services.AddOpcUa().AddServer<ObservedHostedServer>(
-                    o => ConfigureHostedOptions(o, "CustomHostedServer")));
+                    o => ConfigureHostedOptions(o, "CustomHostedServer"))).ConfigureAwait(false);
 
             Assert.That(
                 await WaitForAsync(
@@ -314,7 +314,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                                 Criteria = "operator"
                             }
                         }
-                    })));
+                    }))).ConfigureAwait(false);
 
             Assert.That(
                 await WaitForAsync(
@@ -351,7 +351,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services => services.AddOpcUa()
                     .AddServer<RoleCaptureServer>(options => ConfigureHostedOptions(options, "InjectedRoleServer"))
-                    .AddRoleManager(roleManager));
+                    .AddRoleManager(roleManager)).ConfigureAwait(false);
 
             Assert.That(
                 await WaitForAsync(
@@ -544,7 +544,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                         o.Identity.Defaults.EnableJwt = false;
                     });
                 },
-                addDefaultLogging: false);
+                addDefaultLogging: false).ConfigureAwait(false);
 
             Assert.That(
                 await WaitForAsync(

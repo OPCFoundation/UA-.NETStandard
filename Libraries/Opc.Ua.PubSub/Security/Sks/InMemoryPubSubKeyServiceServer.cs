@@ -266,8 +266,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     return;
                 }
 
-                string[] securityGroupIds = [.. ids];
-                foreach (string securityGroupId in securityGroupIds)
+                foreach (string securityGroupId in (string[])[.. ids])
                 {
                     SksSecurityGroup? group = await m_keyStore
                         .GetSecurityGroupAsync(securityGroupId, CancellationToken.None)

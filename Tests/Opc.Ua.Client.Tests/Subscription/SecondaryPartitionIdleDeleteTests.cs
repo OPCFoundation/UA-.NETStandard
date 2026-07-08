@@ -216,9 +216,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             return new OptionsMonitor<V2Options>(opts);
         }
 
-        // Re-uses the same minimal in-memory collection helper as
-        // CompositeMonitoredItemCollectionTests; kept local so this
-        // file is independent.
+        /// <summary>
+        /// Re-uses the same minimal in-memory collection helper as
+        /// CompositeMonitoredItemCollectionTests; kept local so this
+        /// file is independent.
+        /// </summary>
         private sealed class InMemoryCollection : IMonitoredItemCollection
         {
             private readonly Dictionary<string, FakeMonitoredItem> m_byName

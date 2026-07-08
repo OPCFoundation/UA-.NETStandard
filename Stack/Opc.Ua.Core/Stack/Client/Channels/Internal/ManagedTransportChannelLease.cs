@@ -121,6 +121,7 @@ namespace Opc.Ua
         /// <see cref="IClientChannelManager.RebindParticipant"/>
         /// compatibility path.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="participant"/> is <c>null</c>.</exception>
         internal void SwapParticipant(IReconnectParticipant participant)
         {
             if (participant == null)

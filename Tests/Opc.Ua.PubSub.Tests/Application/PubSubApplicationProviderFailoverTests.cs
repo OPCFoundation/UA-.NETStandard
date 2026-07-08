@@ -64,8 +64,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedDataSets = []
             });
             var runtimeStateStore = new InMemoryPubSubRuntimeStateStore();
-            var idAllocator = new InMemoryPubSubIdAllocator();
-            _ = idAllocator;
+            _ = new InMemoryPubSubIdAllocator();
 
             await using RuntimeApplication first =
                 await NewApplicationAsync(configurationStore, runtimeStateStore).ConfigureAwait(false);

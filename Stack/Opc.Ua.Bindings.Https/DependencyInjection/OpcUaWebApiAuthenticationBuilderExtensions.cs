@@ -260,11 +260,13 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
-        // Sentinel ensures the policy scheme is registered exactly once,
-        // regardless of which AddWebApi*Auth() methods (or how many) the
-        // caller chains. The policy scheme becomes the default
-        // authenticate / challenge / forbid scheme so UseAuthentication()
-        // populates HttpContext.User on every request.
+        /// <summary>
+        /// Sentinel ensures the policy scheme is registered exactly once,
+        /// regardless of which AddWebApi*Auth() methods (or how many) the
+        /// caller chains. The policy scheme becomes the default
+        /// authenticate / challenge / forbid scheme so UseAuthentication()
+        /// populates HttpContext.User on every request.
+        /// </summary>
         private sealed class WebApiPolicySchemeSentinel
         {
         }
@@ -290,11 +292,15 @@ namespace Microsoft.Extensions.DependencyInjection
                     options => options.ForwardDefaultSelector = SelectWebApiAuthScheme);
         }
 
-        // Picks the auth scheme that should handle the current request
-        // based on the credentials presented. Returning null falls
-        // through to anonymous (no scheme processed) — which is correct
-        // for unauthenticated requests; RequireAuthorization() on the
-        // endpoint is what actually rejects them.
+        /// <summary>
+        /// Picks the auth scheme that should handle the current request
+        /// based on the credentials presented. Returning null falls
+        /// through to anonymous (no scheme processed) — which is correct
+        /// for unauthenticated requests; RequireAuthorization() on the
+        /// endpoint is what actually rejects them.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         private static string? SelectWebApiAuthScheme(HttpContext context)
         {
             string? authHeader = context.Request.Headers.Authorization.Count > 0

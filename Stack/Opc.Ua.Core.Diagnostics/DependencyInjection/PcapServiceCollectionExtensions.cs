@@ -97,6 +97,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// Registers the Pcap capture services with caller-supplied
         /// configuration.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public static IServiceCollection AddPcap(
             this IServiceCollection services,
             Action<PcapOptions> configure)

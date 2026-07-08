@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload),
+                async () => await transport.SendAsync(payload).ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -164,12 +164,12 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 TimeProvider.System,
                 UdpIntegrationTestHelpers.LoopbackOptions());
 
-            await transport.DisposeAsync();
+            await transport.DisposeAsync().ConfigureAwait(false);
 
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload),
+                async () => await transport.SendAsync(payload).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -186,10 +186,10 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 TimeProvider.System,
                 UdpIntegrationTestHelpers.LoopbackOptions());
 
-            await transport.DisposeAsync();
+            await transport.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(
-                async () => await transport.OpenAsync(),
+                async () => await transport.OpenAsync().ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -221,7 +221,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 options);
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             byte[] tooLarge = new byte[options.MaxFrameSize + 1];
 
             Assert.That(
-                async () => await transport.SendAsync(tooLarge),
+                async () => await transport.SendAsync(tooLarge).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -263,7 +263,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 UdpIntegrationTestHelpers.LoopbackOptions());
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -276,7 +276,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, cancellationToken: cts.Token),
+                async () => await transport.SendAsync(payload, cancellationToken: cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
@@ -307,7 +307,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 UdpIntegrationTestHelpers.LoopbackOptions());
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -317,7 +317,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             PubSubTransportFrame? frame = await UdpIntegrationTestHelpers.ReceiveOneAsync(
                 transport,
-                TimeSpan.FromMilliseconds(150));
+                TimeSpan.FromMilliseconds(150)).ConfigureAwait(false);
 
             Assert.That(frame, Is.Null);
             Assert.That(transport.IsConnected, Is.True);
@@ -350,8 +350,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 UdpIntegrationTestHelpers.LoopbackOptions());
             try
             {
-                await transport.OpenAsync();
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -389,7 +389,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 UdpIntegrationTestHelpers.LoopbackOptions());
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             Assert.That(transport.IsConnected, Is.True);
 
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
 
             Assert.That(transport.IsConnected, Is.False);
         }
@@ -417,8 +417,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 TimeProvider.System,
                 UdpIntegrationTestHelpers.LoopbackOptions());
 
-            await transport.CloseAsync();
-            await transport.CloseAsync();
+            await transport.CloseAsync().ConfigureAwait(false);
+            await transport.CloseAsync().ConfigureAwait(false);
 
             Assert.That(transport.IsConnected, Is.False);
         }
@@ -436,9 +436,9 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 TimeProvider.System,
                 UdpIntegrationTestHelpers.LoopbackOptions());
 
-            await transport.DisposeAsync();
+            await transport.DisposeAsync().ConfigureAwait(false);
             // Second dispose must not throw.
-            await transport.DisposeAsync();
+            await transport.DisposeAsync().ConfigureAwait(false);
             Assert.That(transport.IsConnected, Is.False);
         }
 

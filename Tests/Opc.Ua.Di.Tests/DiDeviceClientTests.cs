@@ -115,7 +115,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiDeviceClient(
                 sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
 
-            DeviceIdentification id = await client.ReadIdentificationAsync();
+            DeviceIdentification id = await client.ReadIdentificationAsync().ConfigureAwait(false);
 
             Assert.That(capturedPaths.Count, Is.EqualTo(IdentificationCount));
             Assert.That(id.Manufacturer, Is.EqualTo("v0"));
@@ -153,7 +153,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiDeviceClient(
                 sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
 
-            DeviceIdentification id = await client.ReadIdentificationAsync();
+            DeviceIdentification id = await client.ReadIdentificationAsync().ConfigureAwait(false);
             Assert.That(id.SerialNumber, Is.Null);
             Assert.That(id.Manufacturer, Is.EqualTo("v0"));
             Assert.That(id.Model, Is.EqualTo("v1"));
@@ -180,7 +180,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiDeviceClient(
                 sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
 
-            DeviceIdentification id = await client.ReadIdentificationAsync();
+            DeviceIdentification id = await client.ReadIdentificationAsync().ConfigureAwait(false);
 
             Assert.That(id.Manufacturer, Is.Null);
             Assert.That(id.Model, Is.Null);
@@ -215,7 +215,7 @@ namespace Opc.Ua.Di.Tests
                 async () => await DiDeviceClient.ForDeviceAsync(
                     sessionMock.Object,
                     new NodeId("dev-1", 2),
-                    NullTelemetry()))!;
+                    NullTelemetry()).ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Di.Tests
             DiDeviceClient client = await DiDeviceClient.ForDeviceAsync(
                 sessionMock.Object,
                 new NodeId("dev-1", 2),
-                NullTelemetry());
+                NullTelemetry()).ConfigureAwait(false);
 
             Assert.That(client, Is.Not.Null);
             Assert.That(client.DeviceNodeId, Is.EqualTo(new NodeId("dev-1", 2)));
@@ -243,7 +243,7 @@ namespace Opc.Ua.Di.Tests
         {
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
-                    null!, new NodeId("dev-1", 2), NullTelemetry()))!;
+                    null!, new NodeId("dev-1", 2), NullTelemetry()).ConfigureAwait(false))!;
             Assert.That(ex.ParamName, Is.EqualTo("session"));
         }
 
@@ -253,7 +253,7 @@ namespace Opc.Ua.Di.Tests
             var session = CreateSessionMock().Object;
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
-                    session, NodeId.Null, NullTelemetry()))!;
+                    session, NodeId.Null, NullTelemetry()).ConfigureAwait(false))!;
             Assert.That(ex.ParamName, Is.EqualTo("deviceNodeId"));
         }
 

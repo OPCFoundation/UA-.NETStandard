@@ -124,10 +124,12 @@ namespace Opc.Ua.Bindings.WebApi
         private const string ScopeSeparator = " ";
         private static readonly char[] s_roleSeparators = [',', ';', ' '];
 
-        // Diagnostic context keys used to stash the projected scopes /
-        // roles / subject on the returned UserIdentity. Surfaced via the
-        // static GetScopes/GetRoles/GetSubject helpers so downstream code
-        // doesn't need to know the storage shape.
+        /// <summary>
+        /// Diagnostic context keys used to stash the projected scopes /
+        /// roles / subject on the returned UserIdentity. Surfaced via the
+        /// static GetScopes/GetRoles/GetSubject helpers so downstream code
+        /// doesn't need to know the storage shape.
+        /// </summary>
         internal const string SubjectKey = "JwtSubject";
         internal const string ScopesKey = "JwtScopes";
         internal const string RolesKey = "JwtRoles";

@@ -227,6 +227,7 @@ namespace Opc.Ua.PubSub.Udp
         /// profiles remain available a prominent warning is logged before one is selected. Fails closed
         /// when no candidate remains.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         // TODO: Full in-handshake cipher-suite negotiation (ClientHello offering multiple suites and
         // ServerHello selecting one) is a future enhancement. For now a single profile is selected here
         // at runtime and reused for the whole handshake.

@@ -158,6 +158,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// RFC 8446 §7.1 Derive-Secret.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public byte[] DeriveSecret(ReadOnlySpan<byte> secret, string label, ReadOnlySpan<byte> transcriptHash)
         {
             if (label is null)

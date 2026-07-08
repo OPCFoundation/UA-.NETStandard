@@ -231,6 +231,7 @@ namespace Opc.Ua.PubSub.Security
         /// <see cref="MessageSecurityMode.SignAndEncrypt"/>; otherwise
         /// <see langword="false"/>.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static bool TryResolveConnectionSecurity(
             PubSubConnectionDataType connection,
             out MessageSecurityMode mode,

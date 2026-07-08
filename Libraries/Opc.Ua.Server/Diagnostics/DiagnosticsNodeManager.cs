@@ -376,6 +376,7 @@ namespace Opc.Ua.Server
         /// Applies the OPC 10000-5 subtype model for <c>Server.ServerRedundancy</c>.
         /// </summary>
         /// <param name="serverRedundancy">The ServerRedundancy instance.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="serverRedundancy"/> is <c>null</c>.</exception>
         private static void ApplyServerRedundancyTypeDefinition(ServerRedundancyState serverRedundancy)
         {
             if (serverRedundancy == null)

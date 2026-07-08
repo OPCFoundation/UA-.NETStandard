@@ -64,6 +64,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <see cref="PubSubFieldEncoding.DataValue"/>. Defaults to
         /// <see cref="DataSetFieldContentMask.None"/> for backward
         /// compatibility (all members emitted).</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static void EncodeFields(
             ref UadpBinaryWriter writer,
             ArrayOf<DataSetField> fields,
@@ -268,6 +270,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="field">Source field.</param>
         /// <param name="index">Iterator index used as the wire index.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static ushort DeltaFrameFieldIndex(this DataSetField field, int index)
         {
             if (field.FieldIndex >= 0)

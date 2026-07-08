@@ -75,6 +75,7 @@ namespace Opc.Ua.Bindings
         /// Thrown with <see cref="StatusCodes.BadDecodingError"/> if the body
         /// is malformed or not a recognized OPC UA JSON service request.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="body"/> is <c>null</c>.</exception>
         public static async ValueTask<IServiceRequest> DecodeRequestAsync(
             Stream body,
             IServiceMessageContext context,
@@ -123,6 +124,7 @@ namespace Opc.Ua.Bindings
         /// Thrown with <see cref="StatusCodes.BadRequestTooLarge"/> when the body
         /// exceeds <paramref name="maxLength"/>.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="body"/> is <c>null</c>.</exception>
         internal static async ValueTask<byte[]> ReadAllBoundedAsync(
             Stream body,
             int maxLength,
@@ -179,6 +181,7 @@ namespace Opc.Ua.Bindings
         /// Destination stream the encoded JSON bytes are written to.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="response"/> is <c>null</c>.</exception>
         public static async ValueTask EncodeResponseAsync(
             IServiceResponse response,
             IServiceMessageContext context,
@@ -217,6 +220,7 @@ namespace Opc.Ua.Bindings
         /// <param name="context">
         /// The encoding context (namespace / server tables, quotas).
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="response"/> is <c>null</c>.</exception>
         public static byte[] EncodeResponse(
             IServiceResponse response,
             IServiceMessageContext context)

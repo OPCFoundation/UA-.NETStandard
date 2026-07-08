@@ -64,9 +64,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
     {
         private const string TestIssuer = "https://test-issuer.example";
         private const string TestAudience = "test-audience";
-        // 64-byte (512-bit) HMAC key — well above the minimum 256-bit
-        // requirement that recent Microsoft.IdentityModel releases enforce
-        // for HmacSha256-signed JWTs.
+        /// <summary>
+        /// 64-byte (512-bit) HMAC key — well above the minimum 256-bit
+        /// requirement that recent Microsoft.IdentityModel releases enforce
+        /// for HmacSha256-signed JWTs.
+        /// </summary>
         private static readonly byte[] s_signingKeyBytes = GenerateKey(64);
 
         private static byte[] GenerateKey(int size)

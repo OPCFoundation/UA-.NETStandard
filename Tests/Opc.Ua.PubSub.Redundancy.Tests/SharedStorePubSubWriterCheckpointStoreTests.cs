@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Redundancy
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubWriterCheckpointStore(backend);
 
-            uint? sequence = await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1);
+            uint? sequence = await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1).ConfigureAwait(false);
 
             Assert.That(sequence, Is.Null);
         }
@@ -58,8 +58,8 @@ namespace Opc.Ua.PubSub.Redundancy
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubWriterCheckpointStore(backend);
 
-            await store.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 7, 4200u);
-            uint? sequence = await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 7);
+            await store.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 7, 4200u).ConfigureAwait(false);
+            uint? sequence = await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 7).ConfigureAwait(false);
 
             Assert.That(sequence, Is.EqualTo(4200u));
         }
@@ -70,14 +70,14 @@ namespace Opc.Ua.PubSub.Redundancy
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubWriterCheckpointStore(backend);
 
-            await store.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1, 100u);
-            await store.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 2, 200u);
+            await store.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1, 100u).ConfigureAwait(false);
+            await store.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 2, 200u).ConfigureAwait(false);
 
             Assert.That(
-                await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1),
+                await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1).ConfigureAwait(false),
                 Is.EqualTo(100u));
             Assert.That(
-                await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 2),
+                await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 2).ConfigureAwait(false),
                 Is.EqualTo(200u));
         }
 
@@ -86,10 +86,10 @@ namespace Opc.Ua.PubSub.Redundancy
         {
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubWriterCheckpointStore(backend);
-            string key = PubSubRedundancyStoreKeys.CheckpointPrefix + "pubsub:writergroup:WriterGroup1/1";
-            await backend.SetAsync(key, new ByteString(new byte[] { 0x01 }));
+            const string key = PubSubRedundancyStoreKeys.CheckpointPrefix + "pubsub:writergroup:WriterGroup1/1";
+            await backend.SetAsync(key, new ByteString(new byte[] { 0x01 })).ConfigureAwait(false);
 
-            uint? sequence = await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1);
+            uint? sequence = await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1).ConfigureAwait(false);
 
             Assert.That(sequence, Is.Null);
         }
@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Redundancy
             var store = new SharedStorePubSubWriterCheckpointStore(backend);
 
             Assert.That(
-                async () => await store.SetSequenceNumberAsync(string.Empty, 1, 5u),
+                async () => await store.SetSequenceNumberAsync(string.Empty, 1, 5u).ConfigureAwait(false),
                 Throws.ArgumentException);
         }
 
@@ -112,8 +112,8 @@ namespace Opc.Ua.PubSub.Redundancy
             var active = new SharedStorePubSubWriterCheckpointStore(backend);
             var standby = new SharedStorePubSubWriterCheckpointStore(backend);
 
-            await active.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1, 999u);
-            uint? seen = await standby.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1);
+            await active.SetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1, 999u).ConfigureAwait(false);
+            uint? seen = await standby.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1).ConfigureAwait(false);
 
             Assert.That(seen, Is.EqualTo(999u));
         }

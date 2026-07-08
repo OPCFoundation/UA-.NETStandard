@@ -63,6 +63,7 @@ namespace Opc.Ua.Client
         /// underlying OPC UA subscription is itself created lazily, on the
         /// first call to a <c>SubscribeXxxAsync</c> method.
         /// </remarks>
+        /// <exception cref="InvalidOperationException"></exception>
         public IStreamingSubscription DefaultStreaming
         {
             get
