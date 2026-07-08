@@ -3,6 +3,7 @@
     <TargetFrameworks>$(AppTargetFrameWorks)</TargetFrameworks>
     <AssemblyName>ConsoleReferenceClient</AssemblyName>
     <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
     <PackageId>ConsoleReferenceClient</PackageId>
     <Company>OPC Foundation</Company>
     <Description>.NET Console Reference Client</Description>
