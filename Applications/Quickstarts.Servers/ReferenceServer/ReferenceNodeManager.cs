@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,13 +71,14 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// The conformance units this node manager enables. The Historical
-        /// Access units are advertised only once history archiving has been
-        /// turned on (see <see cref="EnableHistoryArchivingAsync"/>), so the
-        /// server publishes them only when the feature is actually present.
+        /// The conformance units this node manager enables: the reference
+        /// server's always-supported base set, plus the Historical Access units
+        /// once history archiving has been turned on (see
+        /// <see cref="EnableHistoryArchivingAsync"/>), so the server advertises
+        /// the HA facet only when the feature is actually present.
         /// </summary>
         public ArrayOf<QualifiedName> ConformanceUnits =>
-            m_historian != null ? s_historicalAccessConformanceUnits : [];
+            m_historian != null ? s_baseWithHistoricalConformanceUnits : s_baseConformanceUnits;
 
         /// <summary>
         /// The server profile URIs this node manager enables — the Historical
@@ -5526,19 +5528,108 @@ namespace Quickstarts.ReferenceServer
         private InMemoryHistorianProvider? m_historian;
 
         /// <summary>
+        /// Base set of conformance units the reference server always supports
+        /// (core address space, attribute, base info, discovery, method,
+        /// monitoring, security, session, subscription, transport and view
+        /// facets). Feature-specific units — e.g. Historical Access — are added
+        /// on top when the corresponding feature is enabled. Sourced from the
+        /// OPC UA profile registry (UACore 1.05 ProfileSet).
+        /// </summary>
+        private static readonly QualifiedName[] s_baseConformanceUnitNames =
+        [
+            new("Address Space Atomicity"),
+            new("Address Space Base"),
+            new("Address Space Full Array Only"),
+            new("Address Space Method"),
+            new("Attribute Read"),
+            new("Base Info Base Types"),
+            new("Base Info Core Structure 2"),
+            new("Base Info Core Types Folders"),
+            new("Base Info Date DataTypes"),
+            new("Base Info Decimal DataType"),
+            new("Base Info GetMonitoredItems Method"),
+            new("Base Info Method Argument DataType"),
+            new("Base Info Method Capabilities"),
+            new("Base Info ResendData Method"),
+            new("Base Info SemanticChange Bit"),
+            new("Base Info Server Capabilities 2"),
+            new("Base Info Server Capabilities MaxMonitoredItemsQueueSize"),
+            new("Base Info Server Capabilities Subscriptions"),
+            new("Base Info ServerType"),
+            new("Base Info Type Information"),
+            new("Data Access DataItems"),
+            new("Discovery Find Servers Self"),
+            new("Discovery Get Endpoints"),
+            new("Discovery Register"),
+            new("Discovery Register2"),
+            new("Documentation - Core Capacities"),
+            new("Method Call"),
+            new("Monitor Basic"),
+            new("Monitor Items 2"),
+            new("Monitor Queueing"),
+            new("Monitor Triggering"),
+            new("Monitor Value Change V2"),
+            new("Monitored Items Deadband Filter"),
+            new("Protocol Reverse Connect Server"),
+            new("Protocol UA TCP"),
+            new("Push Model for Global Certificate and TrustList Management"),
+            new("Security Default ApplicationInstance Certificate"),
+            new("Security ECC Policy"),
+            new("Security Invalid user token"),
+            new("Security Policy Required"),
+            new("Security User Name Password 2"),
+            new("Security User X509"),
+            new("SecurityPolicy Support"),
+            new("Session Base"),
+            new("Session Cancel"),
+            new("Session General Service Behaviour"),
+            new("Session Multiple"),
+            new("Subscription Basic"),
+            new("Subscription Multiple"),
+            new("Subscription Publish Basic"),
+            new("Subscription PublishRequest Queue Overflow"),
+            new("Subscription Retransmission Queue"),
+            new("Subscription Transfer"),
+            new("Time Sync - Support"),
+            new("UA Binary Encoding"),
+            new("UA Secure Conversation"),
+            new("View Basic 2"),
+            new("View RegisterNodes"),
+            new("View TranslateBrowsePath")
+        ];
+
+        /// <summary>
         /// Historical Access conformance units advertised while history
         /// archiving is enabled.
         /// </summary>
-        private static readonly ArrayOf<QualifiedName> s_historicalAccessConformanceUnits =
-            new QualifiedName[]
-            {
-                new("Aggregate Master Configuration"),
-                new("Attribute Historical Read"),
-                new("Base Info History Read Capabilities"),
-                new("Base Info History ReadData Capabilities"),
-                new("Historical Access Aggregates"),
-                new("Historical Access Read Raw")
-            }.ToArrayOf();
+        private static readonly QualifiedName[] s_historicalAccessConformanceUnitNames =
+        [
+            new("Aggregate Master Configuration"),
+            new("Attribute Historical Read"),
+            new("Base Info History Read Capabilities"),
+            new("Base Info History ReadData Capabilities"),
+            new("Historical Access Aggregates"),
+            new("Historical Access Read Raw")
+        ];
+
+        /// <summary>
+        /// The always-supported base conformance units.
+        /// </summary>
+        private static readonly ArrayOf<QualifiedName> s_baseConformanceUnits =
+            s_baseConformanceUnitNames.ToArrayOf();
+
+        /// <summary>
+        /// The base conformance units plus the Historical Access units, advertised
+        /// while history archiving is enabled.
+        /// </summary>
+        private static readonly ArrayOf<QualifiedName> s_baseWithHistoricalConformanceUnits =
+            new QualifiedName[][]
+                {
+                    s_baseConformanceUnitNames,
+                    s_historicalAccessConformanceUnitNames
+                }
+                .SelectMany(names => names)
+                .ToArrayOf();
 
         /// <summary>
         /// Historical Access server profile URIs advertised while history
