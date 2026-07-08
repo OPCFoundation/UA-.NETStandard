@@ -36,7 +36,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Gds.Server.Hosting;
+using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Gds.Tests.Hosting
 {
@@ -108,6 +113,90 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
+        public void AddInMemoryStoresRegistersBuiltInStores()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
+
+            services.AddOpcUa()
+                .AddGdsServer(opt => opt.ApplicationName = "TestGds")
+                .AddInMemoryStores();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(sp.GetRequiredService<IApplicationsDatabase>(), Is.InstanceOf<LinqApplicationsDatabase>());
+            Assert.That(sp.GetRequiredService<ICertificateRequest>(), Is.SameAs(
+                sp.GetRequiredService<IApplicationsDatabase>()));
+            Assert.That(sp.GetRequiredService<ICertificateGroup>(), Is.InstanceOf<CertificateGroup>());
+            Assert.That(sp.GetRequiredService<IUserDatabase>(), Is.InstanceOf<LinqUserDatabase>());
+        }
+
+        [Test]
+        public void AddInMemoryGdsServerRegistersPreset()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
+
+            services.AddOpcUa().AddInMemoryGdsServer(opt => opt.ApplicationName = "TestGds");
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(sp.GetRequiredService<IApplicationsDatabase>(), Is.InstanceOf<LinqApplicationsDatabase>());
+            Assert.That(sp.GetRequiredService<IUserDatabase>(), Is.InstanceOf<LinqUserDatabase>());
+        }
+
+        [Test]
+        public void GdsBuilderTransportForwardersReturnSameBuilder()
+        {
+            var services = new ServiceCollection();
+            IGdsServerBuilder builder = services.AddOpcUa()
+                .AddGdsServer(opt => opt.ApplicationName = "TestGds");
+
+            Assert.That(builder.AddOpcTcpTransport(), Is.SameAs(builder));
+            Assert.That(builder.AddHttpsTransport(), Is.SameAs(builder));
+            Assert.That(builder.AddWssTransport(), Is.SameAs(builder));
+        }
+
+        [Test]
+        public void GdsBuilderReverseConnectConfiguresOptions()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddGdsServer(opt => opt.ApplicationName = "TestGds")
+                .AddReverseConnect(opt => opt.Clients.Add(new Ua.Server.Hosting.ServerReverseConnectClientOptions
+                {
+                    EndpointUrl = "opc.tcp://localhost:4841"
+                }));
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            GdsServerOptions options = sp.GetRequiredService<IOptions<GdsServerOptions>>().Value;
+            Assert.That(options.ReverseConnect, Is.Not.Null);
+            Assert.That(options.ReverseConnect!.Clients, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void AddGdsServerFastFailsWhenStoresAreMissing()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
+
+            services.AddOpcUa().AddGdsServer(opt => opt.ApplicationName = "TestGds");
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+                () => sp.GetServices<IHostedService>().Single())!;
+
+            Assert.That(exception.Message, Does.Contain(nameof(IApplicationsDatabase)));
+            Assert.That(exception.Message, Does.Contain("AddInMemoryStores"));
+        }
+
+        [Test]
         public void AddGdsServerThrowsOnDuplicateRegistration()
         {
             var services = new ServiceCollection();
@@ -118,6 +207,25 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(
                 () => builder.AddGdsServer(opt => opt.ApplicationName = "Second"),
                 Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public void AddAuthorizationServiceRegistersTokenServices()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddGdsServer(opt => opt.ApplicationName = "TestGds")
+                .AddAuthorizationService(options =>
+                {
+                    options.IssuerUri = "urn:test:gds";
+                    options.AllowedAudiences.Add("urn:test:gds:audience");
+                });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(sp.GetService<AuthorizationServiceManager>(), Is.Not.Null);
+            Assert.That(sp.GetService<IAccessTokenProvider>(), Is.Not.Null);
         }
 
         [Test]

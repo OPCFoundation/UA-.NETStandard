@@ -35,8 +35,24 @@ using Opc.Ua.Schema.Json;
 namespace Opc.Ua.PubSub.Schema.Tests
 {
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public class PubSubSchemaProviderTests
     {
+        [Test]
+        public void AddSchemaOnPubSubBuilderRegistersSchemaProvider()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.AddSchema());
+
+            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            Assert.That(
+                serviceProvider.GetRequiredService<IPubSubSchemaProvider>(),
+                Is.TypeOf<PubSubSchemaProvider>());
+        }
+
         [Test]
         public void CreateDataSetSchemaWithRawDataMapsBuiltInFields()
         {

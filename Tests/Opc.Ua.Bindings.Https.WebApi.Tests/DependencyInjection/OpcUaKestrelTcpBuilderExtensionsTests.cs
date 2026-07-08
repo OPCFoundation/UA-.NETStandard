@@ -105,6 +105,39 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         }
 
         [Test]
+        public void AddKestrelOpcTcpTransportBeforeRawSocketStillWins()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddKestrelOpcTcpTransport()
+                .AddOpcTcpTransport();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            Assert.That(
+                registry.GetListenerFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<KestrelTcpTransportListenerFactory>());
+            Assert.That(registry.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
+        }
+
+        [Test]
+        public void AddOpcTcpTransportStillRegistersRawSocketWhenNoKestrelOverride()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa().AddOpcTcpTransport();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            Assert.That(
+                registry.GetListenerFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<TcpTransportListenerFactory>());
+        }
+
+        [Test]
         public void AddKestrelOpcTcpTransportIsIdempotent()
         {
             var services = new ServiceCollection();

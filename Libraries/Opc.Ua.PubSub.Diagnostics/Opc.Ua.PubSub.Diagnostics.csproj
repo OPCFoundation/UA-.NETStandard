@@ -23,6 +23,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <!--
+      Legacy TFM builds intentionally compile an empty compatibility shell because PubSub diagnostics is
+      net8.0+ only. Suppress empty-shell compiler/assembly warnings for that shell.
+      TODO: remove when legacy TFM validation no longer builds the diagnostics compatibility shell.
+    -->
+    <NoWarn Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">$(NoWarn);CS2008;CA1014;CA1016</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Diagnostics.Tests" />

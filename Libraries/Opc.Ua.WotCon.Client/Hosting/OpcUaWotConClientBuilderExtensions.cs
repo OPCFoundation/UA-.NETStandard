@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
@@ -159,10 +160,84 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
 
+            services.TryAddSingleton<Func<ManagedSession, CancellationToken, Task<WotConnectivityClient>>>(sp =>
+            {
+                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                return async (session, ct) => await WotConnectivityClient
+                    .ForServerAsync(session, telemetry, ct)
+                    .ConfigureAwait(false);
+            });
+
             services.TryAddSingleton<Func<CancellationToken, Task<WotConnectivityClient>>>(
                 sp => new WotConnectivityClientAccessor(sp).ConnectAsync);
 
             services.AddOpcUa();
+        }
+
+        /// <summary>
+        /// Registers WoT Connectivity client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IOpcUaClientBuilder AddWotConClient(
+            this IOpcUaClientBuilder builder,
+            Action<WotConClientOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            new BuilderAdapter(builder.Services).AddWotConClient(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers WoT Connectivity client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IOpcUaClientBuilder AddWotConClient(
+            this IOpcUaClientBuilder builder,
+            IConfiguration configuration)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            new BuilderAdapter(builder.Services).AddWotConClient(configuration);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers WoT Connectivity client services on an existing OPC UA client builder.
+        /// </summary>
+        public static IOpcUaClientBuilder AddWotConClient(
+            this IOpcUaClientBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            new BuilderAdapter(builder.Services).AddWotConClient(section);
+            return builder;
+        }
+
+        private sealed class BuilderAdapter : IOpcUaBuilder
+        {
+            public BuilderAdapter(IServiceCollection services)
+            {
+                Services = services;
+            }
+
+            public IServiceCollection Services { get; }
         }
 
         /// <summary>
@@ -189,6 +264,15 @@ namespace Microsoft.Extensions.DependencyInjection
 
             private async Task<WotConnectivityClient> ConnectCoreAsync(CancellationToken ct)
             {
+                WotConClientOptions options = m_sp.GetRequiredService<IOptions<WotConClientOptions>>().Value;
+                if (!options.LazyConnect)
+                {
+                    throw new InvalidOperationException(
+                        "WotConClientOptions.LazyConnect is false. Resolve " +
+                        "Func<ManagedSession, CancellationToken, Task<WotConnectivityClient>> " +
+                        "and supply an already connected ManagedSession.");
+                }
+
                 Func<CancellationToken, Task<ManagedSession>> sessionFactory =
                     m_sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
                     ?? throw new InvalidOperationException(

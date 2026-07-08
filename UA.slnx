@@ -72,6 +72,7 @@
     <Project Path="Libraries/Opc.Ua.PubSub.Schema/Opc.Ua.PubSub.Schema.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Server/Opc.Ua.PubSub.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Eth/Opc.Ua.PubSub.Eth.csproj" />
+    <Project Path="Libraries/Opc.Ua.PubSub.Kafka/Opc.Ua.PubSub.Kafka.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub.Udp/Opc.Ua.PubSub.Udp.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
@@ -223,6 +224,7 @@
     <Project Path="Tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Eth.Tests/Opc.Ua.PubSub.Eth.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.PubSub.Kafka.Tests/Opc.Ua.PubSub.Kafka.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Mqtt.Tests/Opc.Ua.PubSub.Mqtt.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Schema.Tests/Opc.Ua.PubSub.Schema.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />

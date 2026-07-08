@@ -185,5 +185,18 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool ModelChangeTracking { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// When <c>true</c>, the connected <see cref="ManagedSession"/>
+        /// automatically loads the server's complex data types into the
+        /// session type factory before it is returned to the caller.
+        /// </para>
+        /// <para>
+        /// Default: <c>false</c>. Enable for applications that read or write
+        /// custom structures and enums.
+        /// </para>
+        /// </summary>
+        public bool LoadComplexTypes { get; init; }
     }
 }

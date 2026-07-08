@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.Configuration;
+using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Gds.Server.Hosting
 {
@@ -125,6 +126,12 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// configuration builder. Off by default.
         /// </summary>
         public bool IncludeUnsecurePolicyNone { get; set; }
+
+        /// <summary>
+        /// Server-side reverse-connect configuration. When non-null the
+        /// hosted service forwards it to <c>SetReverseConnect</c>.
+        /// </summary>
+        public ServerReverseConnectOptions? ReverseConnect { get; set; }
 
         /// <summary>
         /// Whether new certificate requests are auto-approved.

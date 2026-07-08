@@ -160,6 +160,7 @@ namespace Opc.Ua.Pcap.Tests.Audit
             if (OperatingSystem.IsWindows())
             {
                 Assert.Ignore("Unix file modes are not available on Windows.");
+                return;
             }
 
             string filePath = CreateTempPath("audit.jsonl");

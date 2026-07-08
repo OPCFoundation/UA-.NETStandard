@@ -281,27 +281,57 @@ jobs:
     condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
-  # On a failed job, collect any --blame-hang-dump-type mini dump(s) written
-  # under the results directory ($(Agent.TempDirectory)) and publish them as a
-  # downloadable pipeline artifact. The blame collector otherwise only attaches
-  # the dump to the trx, which is reachable solely through the auth-gated test
-  # attachments API; publishing it as a build artifact makes the teardown /
-  # shutdown hang dump (e.g. the macOS Opc.Ua.History.Tests 10-minute teardown
-  # hang) downloadable for root-cause analysis. The artifact name embeds the
-  # unique job id so parallel matrix entries never collide.
+  # On job completion, collect any dumps written under the results directory
+  # ($(Agent.TempDirectory)) and publish them as a downloadable pipeline
+  # artifact.  Covers:
+  #   - --blame-hang-dump-type mini / full hang dumps (*.dmp)
+  #   - --blame-crash-dump-type mini / full crash dumps (*.dmp)
+  #   - Linux core dumps (core / core.*)
+  #   - Any other dump variant a test collector might emit (*.mdmp, *.dump)
+  # The blame collector otherwise only attaches the dump to the trx, which is
+  # reachable solely through the auth-gated test attachments API; publishing
+  # them as build artifacts makes teardown/shutdown hangs and testhost crashes
+  # (e.g. the macOS Opc.Ua.History.Tests 10-minute teardown hang) downloadable
+  # for root-cause analysis.  The artifact name embeds the unique job id so
+  # parallel matrix entries never collide.  succeededOrFailed() gates run on
+  # both success and failure because the dotnet test task uses
+  # publishTestResults: false + failTaskOnFailedTests: false, so a crash or
+  # hang may not surface as failed() on this step even when the testhost
+  # dumped.  A probe step sets HAS_DUMPS so the publish task only runs when
+  # there is at least one file to upload - PublishPipelineArtifact@1 emits a
+  # warning on an empty targetPath, which we do NOT want on healthy runs.
   - task: CopyFiles@2
-    displayName: 'Stage hang dumps on failure'
-    condition: failed()
+    displayName: 'Stage diagnostic dumps'
+    condition: succeededOrFailed()
     continueOnError: true
     inputs:
       SourceFolder: '$(Agent.TempDirectory)'
-      Contents: '**/*.dmp'
-      TargetFolder: '$(Build.ArtifactStagingDirectory)/hangdumps'
+      Contents: |
+        **/*.dmp
+        **/*.mdmp
+        **/*.dump
+        **/core
+        **/core.*
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/dumps'
       flattenFolders: true
-  - task: PublishPipelineArtifact@1
-    displayName: 'Publish hang dumps on failure'
-    condition: failed()
-    continueOnError: true
+  - task: PowerShell@2
+    name: dumpProbe
+    displayName: 'Detect diagnostic dumps'
+    condition: succeededOrFailed()
     inputs:
-      targetPath: '$(Build.ArtifactStagingDirectory)/hangdumps'
-      artifact: 'hangdump-$(System.JobId)'
+      targetType: inline
+      pwsh: true
+      script: |
+        $dir = '$(Build.ArtifactStagingDirectory)/dumps'
+        $found = (Test-Path $dir) -and @(Get-ChildItem -Path $dir -File -ErrorAction SilentlyContinue).Count -gt 0
+        Write-Host "Diagnostic dumps present: $found"
+        Write-Host "##vso[task.setvariable variable=HAS_DUMPS;isOutput=true]$($found.ToString().ToLowerInvariant())"
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish diagnostic dumps'
+    # Only publish when the probe found at least one dump; otherwise
+    # PublishPipelineArtifact@1 warns on an empty targetPath and the whole
+    # step lights up yellow on healthy runs.
+    condition: and(succeededOrFailed(), eq(variables['dumpProbe.HAS_DUMPS'], 'true'))
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/dumps'
+      artifact: 'dumps-$(System.JobId)'

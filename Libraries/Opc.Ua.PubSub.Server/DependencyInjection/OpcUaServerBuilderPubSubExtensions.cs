@@ -73,6 +73,71 @@ namespace Microsoft.Extensions.DependencyInjection
         public const string DefaultConfigurationSection = "OpcUa:Server:PubSub";
 
         /// <summary>
+        /// Registers the PubSub runtime and hosted OPC UA server PubSub node manager in the correct order.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configureServer">OPC UA hosted server options callback.</param>
+        /// <param name="configurePubSub">Optional PubSub runtime callback.</param>
+        /// <param name="configurePubSubServer">Optional PubSub server options callback.</param>
+        /// <returns>An <see cref="IPubSubServerBuilder"/> for chaining.</returns>
+        public static IPubSubServerBuilder AddPubSubServer(
+            this IOpcUaBuilder builder,
+            Action<OpcUaServerOptions> configureServer,
+            Action<IPubSubBuilder>? configurePubSub = null,
+            Action<PubSubServerOptions>? configurePubSubServer = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configureServer is null)
+            {
+                throw new ArgumentNullException(nameof(configureServer));
+            }
+
+            builder.AddPubSub(configurePubSub ?? (_ => { }));
+            return builder.AddServer(configureServer).AddPubSub(configurePubSubServer);
+        }
+
+        /// <summary>
+        /// Registers the PubSub runtime and hosted OPC UA server PubSub node manager from configuration.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configuration">Root configuration.</param>
+        /// <param name="configurePubSub">Optional PubSub runtime callback.</param>
+        /// <returns>An <see cref="IPubSubServerBuilder"/> for chaining.</returns>
+        public static IPubSubServerBuilder AddPubSubServer(
+            this IOpcUaBuilder builder,
+            IConfiguration configuration,
+            Action<IPubSubBuilder>? configurePubSub = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            if (configurePubSub is null)
+            {
+                builder.AddPubSub(configuration);
+            }
+            else
+            {
+                builder.AddPubSub(pubsub =>
+                {
+                    pubsub.Configure(options => configuration
+                        .GetSection(OpcUaPubSubBuilderExtensions.DefaultConfigurationSection)
+                        .Bind(options));
+                    configurePubSub(pubsub);
+                });
+            }
+            return builder.AddServer(configuration).AddPubSub(configuration);
+        }
+
+        /// <summary>
         /// Registers a PubSub node manager attached to the regular
         /// OPC UA server, returning an
         /// <see cref="IPubSubServerBuilder"/> for chaining.

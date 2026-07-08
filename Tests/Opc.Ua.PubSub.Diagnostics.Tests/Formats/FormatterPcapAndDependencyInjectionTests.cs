@@ -45,6 +45,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
 {
     [TestFixture]
     [Category("PubSub")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public sealed class FormatterPcapAndDependencyInjectionTests
     {
         [Test]
@@ -216,6 +218,52 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
 
             Assert.That(services, Has.None.Matches<ServiceDescriptor>(
                 d => d.ServiceType == typeof(IHostedService)));
+        }
+
+        [Test]
+        public void AddPcapCaptureOnPubSubBuilderDecoratesLaterUdpTransport()
+        {
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .AddPcapCapture()
+                .AddUdpTransport());
+
+            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubTransportFactory factory =
+                serviceProvider.GetRequiredService<IPubSubTransportFactory>();
+
+            Assert.That(factory, Is.TypeOf<CapturingPubSubTransportFactory>());
+        }
+
+        [Test]
+        public void AddPubSubPcapDecoratesUdpTransportRegisteredBeforeCapture()
+        {
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.AddUdpTransport());
+            services.AddPubSubPcap();
+
+            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubTransportFactory factory =
+                serviceProvider.GetRequiredService<IPubSubTransportFactory>();
+
+            Assert.That(factory, Is.TypeOf<CapturingPubSubTransportFactory>());
+        }
+
+        [Test]
+        public void AddPubSubPcapDecoratesUdpTransportRegisteredAfterCapture()
+        {
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddPubSubPcap();
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.AddUdpTransport());
+
+            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubTransportFactory factory =
+                serviceProvider.GetRequiredService<IPubSubTransportFactory>();
+
+            Assert.That(factory, Is.TypeOf<CapturingPubSubTransportFactory>());
         }
 
         [Test]

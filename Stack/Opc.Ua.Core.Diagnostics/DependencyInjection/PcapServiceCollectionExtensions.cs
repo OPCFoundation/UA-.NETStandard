@@ -35,6 +35,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Audit;
 using Opc.Ua.Pcap.Bindings;
@@ -66,6 +67,30 @@ namespace Opc.Ua.Pcap.DependencyInjection
         {
             ArgumentNullException.ThrowIfNull(services);
             return services.AddPcap(static _ => { });
+        }
+
+        /// <summary>
+        /// Registers the default Pcap capture services on an OPC UA
+        /// builder and installs the Pcap transport channel binding.
+        /// </summary>
+        public static IOpcUaBuilder AddPcap(this IOpcUaBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            builder.Services.AddPcap();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the Pcap capture services on an OPC UA builder with
+        /// caller-supplied configuration.
+        /// </summary>
+        public static IOpcUaBuilder AddPcap(
+            this IOpcUaBuilder builder,
+            Action<PcapOptions> configure)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            builder.Services.AddPcap(configure);
+            return builder;
         }
 
         /// <summary>
@@ -166,6 +191,16 @@ namespace Opc.Ua.Pcap.DependencyInjection
         }
 
         /// <summary>
+        /// Adds trace formatters to dependency injection via an OPC UA builder.
+        /// </summary>
+        public static IOpcUaBuilder AddPcapFormatters(this IOpcUaBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            builder.Services.AddPcapFormatters();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers pcap replay session services.
         /// </summary>
         public static IServiceCollection AddPcapReplay(
@@ -175,6 +210,16 @@ namespace Opc.Ua.Pcap.DependencyInjection
 
             services.AddSingleton<ReplaySessionManager>();
             return services;
+        }
+
+        /// <summary>
+        /// Registers pcap replay session services via an OPC UA builder.
+        /// </summary>
+        public static IOpcUaBuilder AddPcapReplay(this IOpcUaBuilder builder)
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+            builder.Services.AddPcapReplay();
+            return builder;
         }
 
         /// <summary>

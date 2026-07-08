@@ -119,6 +119,12 @@ namespace Opc.Ua.Lds.Server.Hosting
         public IList<string> ServerCapabilities { get; } = [];
 
         /// <summary>
+        /// Server-side reverse-connect configuration. When non-null the hosted
+        /// service forwards it to <c>SetReverseConnect</c>.
+        /// </summary>
+        public ReverseConnectServerConfiguration? ReverseConnect { get; set; }
+
+        /// <summary>
         /// Optional escape hatch invoked after the standard configuration steps
         /// (transport quotas, server policies, security configuration) but
         /// before <c>CreateAsync</c>. Use it to add bespoke security policies,

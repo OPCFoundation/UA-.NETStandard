@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Schema;
 using NUnit.Framework;
@@ -143,9 +144,11 @@ namespace Opc.Ua.PubSub.Schema.Tests
 
         private static EvaluationResults Evaluate(UaSchema schema, JsonNode instance)
         {
-            var jsonSchema = JsonSchema.FromText(schema.ToSchemaString());
+            var jsonSchema = JsonSchema.FromText(
+                schema.ToSchemaString(),
+                new BuildOptions { SchemaRegistry = new SchemaRegistry() });
             return jsonSchema.Evaluate(
-                instance,
+                JsonSerializer.SerializeToElement(instance),
                 new EvaluationOptions { OutputFormat = OutputFormat.List });
         }
     }

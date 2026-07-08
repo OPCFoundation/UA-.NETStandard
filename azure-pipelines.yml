@@ -30,6 +30,24 @@ pr:
   paths:
     include:
     - '*'
+    exclude:
+    - 'Docs/**'
+    - '**/*.md'
+
+# Weekly full-scope run.  Fires every Sunday at 02:00 UTC (late Saturday
+# night in the Americas / early Sunday morning in EU).  `always: true`
+# forces the run even when there are no commits since the previous one so
+# the badge in README.md reflects a recent green build.  All stages that
+# are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard,
+# Coverage, mac matrix) are automatically included because Build.Reason
+# is 'Schedule' for these runs.
+schedules:
+- cron: '0 2 * * 0'
+  displayName: 'Weekly full-scope tests (Sat night UTC)'
+  branches:
+    include:
+    - master
+  always: true
 
 variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
@@ -59,30 +77,15 @@ stages:
       poolImage: ${{ variables.windowsImage }}
       poolName: ${{ variables.poolName }}
       jobnamesuffix: win2025
-      # PR builds discover every *.slnx (except UA Core Library.slnx, which is
-      # a strict subset of UA.slnx) and restrict to a small TFM set so each
+      # PR builds discover every *.slnx and restrict to a small TFM set so each
       # matrix job's bin tree fits on the managed-pool agent's small temp
       # disk; master/scheduled/manual/fork-PR builds also discover every
-      # *.slnx (same exclude) but fan out across all supported TFMs.
+      # *.slnx but fan out across all supported TFMs.
       solutions: ''
       ${{ if eq(variables.FullBuild, 'False') }}:
         tfms: 'net10.0,net48'
       ${{ else }}:
         tfms: 'net472,net48,netstandard2.0,netstandard2.1,net8.0,net9.0,net10.0'
-- stage: buildnohttps
-  dependsOn: []
-  displayName: 'Build NoHttps .NET Core Samples'
-  # succeeded() wraps the gate so a user-issued build cancellation propagates;
-  # without it the bare condition re-evaluates to true on cancel and the stage
-  # keeps running.
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/ci.yml
-    parameters:
-      buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "${{ variables.linuxImage }}" }'
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
 - stage: testfastpr
   dependsOn: []
   displayName: 'Fast PR test'
@@ -99,17 +102,24 @@ stages:
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ mac = "${{ variables.macImage }}" }'
+      agents: '@{ windows = "${{ variables.windowsImage }}" }'
       jobnamesuffix: net100
+      customtestarget: net10.0
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net10.0
+      agents: '@{ mac = "${{ variables.macImage }}" }'
+      jobnamesuffix: net100mac
       customtestarget: net10.0
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # Skip macOS tests on draft GitHub PRs; non-PR builds and non-draft PRs
-      # run them as usual.  Note: System.PullRequest.IsDraft is undocumented for
-      # GitHub-PR triggers but exposed in practice; if it stops being set, the
-      # condition safe-degrades to "always run mac".
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
+      # macOS runs only on Schedule/Manual (nightly + on-demand), not on
+      # PR or master push, to keep the PR gate fast and Windows-focused.
+      condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
@@ -144,8 +154,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -168,8 +176,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -192,8 +198,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -246,8 +250,6 @@ stages:
       hosted: true
       poolName: ${{ variables.poolName }}
       windowsImage: ${{ variables.windowsImage }}
-      # See testfastpr net100 comment: skip macOS tests on draft GitHub PRs.
-      condition: or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsDraft'], 'True'))
 - stage: coverage
   dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'

@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Client.Alarms;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -80,6 +81,31 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddOpcUa();
             builder.Services.TryAddSingleton<AlarmClientFactory>();
             return builder;
+        }
+
+        /// <summary>
+        /// Registers the singleton <see cref="AlarmClientFactory"/> and
+        /// keeps the client builder chain flowing.
+        /// </summary>
+        public static IOpcUaClientBuilder AddAlarms(this IOpcUaClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            new BuilderAdapter(builder.Services).AddAlarms();
+            return builder;
+        }
+
+        private sealed class BuilderAdapter : IOpcUaBuilder
+        {
+            public BuilderAdapter(IServiceCollection services)
+            {
+                Services = services;
+            }
+
+            public IServiceCollection Services { get; }
         }
     }
 }

@@ -42,6 +42,7 @@ using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.StateMachine;
@@ -75,6 +76,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IPubSubScheduler m_scheduler;
         private readonly IDataSetMetaDataRegistry m_metaDataRegistry;
         private readonly IPubSubDiagnostics m_diagnostics;
+        private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly UadpSecurityWrapper? m_securityWrapper;
         private readonly UadpSecurityWrapOptions m_securityWrapOptions;
         private readonly MessageSecurityMode m_requiredSecurityMode;
@@ -174,6 +176,7 @@ namespace Opc.Ua.PubSub.Connections
         /// <param name="scheduler">
         /// Optional scheduler used for periodic discovery announcements.
         /// </param>
+        /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         public PubSubConnection(
             PubSubConnectionDataType configuration,
             IPubSubTransportFactory transportFactory,
@@ -189,7 +192,8 @@ namespace Opc.Ua.PubSub.Connections
             UadpSecurityWrapOptions securityWrapOptions,
             int maxNetworkMessageSize = 0,
             MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None,
-            IPubSubScheduler? scheduler = null)
+            IPubSubScheduler? scheduler = null,
+            IPubSubActivationCoordinator? activationCoordinator = null)
         {
             if (configuration is null)
             {
@@ -229,6 +233,7 @@ namespace Opc.Ua.PubSub.Connections
             m_readerGroupViews = readerGroups.ToArrayOf<ReaderGroup, IReaderGroup>(static group => group);
             m_metaDataRegistry = metaDataRegistry;
             m_diagnostics = diagnostics;
+            m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_scheduler = scheduler ?? new PubSubScheduler(telemetry, timeProvider);
@@ -250,6 +255,9 @@ namespace Opc.Ua.PubSub.Connections
             foreach (WriterGroup wg in m_writerGroups)
             {
                 State.AttachChild(wg.State);
+                wg.ConfigureActivationCoordinator(
+                    BuildWriterGroupComponentId(Name, wg.Name),
+                    m_activationCoordinator);
                 wg.EncodingProfileOverride = ResolveEncoderProfile();
                 wg.PubSubAddressing = new WriterGroup.PublisherIdHolder
                 {
@@ -261,6 +269,9 @@ namespace Opc.Ua.PubSub.Connections
             foreach (ReaderGroup rg in m_readerGroups)
             {
                 State.AttachChild(rg.State);
+                rg.ConfigureActivationCoordinator(
+                    BuildReaderGroupComponentId(Name, rg.Name),
+                    m_activationCoordinator);
             }
         }
 
@@ -454,6 +465,31 @@ namespace Opc.Ua.PubSub.Connections
                 WriterGroup wg = m_writerGroups[i];
                 await wg.EnableAsync(cancellationToken).ConfigureAwait(false);
             }
+            await ApplyActivationRolesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        internal async ValueTask ApplyActivationRolesAsync(CancellationToken cancellationToken = default)
+        {
+            for (int i = 0; i < m_readerGroups.Count; i++)
+            {
+                ReaderGroup rg = m_readerGroups[i];
+                await rg.ApplyActivationRoleAsync(cancellationToken).ConfigureAwait(false);
+            }
+            for (int i = 0; i < m_writerGroups.Count; i++)
+            {
+                WriterGroup wg = m_writerGroups[i];
+                await wg.ApplyActivationRoleAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private static string BuildWriterGroupComponentId(string connectionName, string groupName)
+        {
+            return string.Concat("pubsub:writergroup:", connectionName, ":", groupName);
+        }
+
+        private static string BuildReaderGroupComponentId(string connectionName, string groupName)
+        {
+            return string.Concat("pubsub:readergroup:", connectionName, ":", groupName);
         }
 
         /// <inheritdoc/>

@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests.Alarms
         public void AddAlarmsThrowsForNullBuilder()
         {
             Assert.That(
-                () => OpcUaAlarmsBuilderExtensions.AddAlarms(null!),
+                () => OpcUaAlarmsBuilderExtensions.AddAlarms((IOpcUaBuilder)null!),
                 Throws.ArgumentNullException);
         }
 

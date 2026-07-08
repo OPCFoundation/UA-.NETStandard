@@ -117,6 +117,19 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <inheritdoc/>
+        public IPubSubBuilder WithActivationCoordinator(
+            Opc.Ua.PubSub.Redundancy.IPubSubActivationCoordinator coordinator)
+        {
+            return PubSubBuilder.WithActivationCoordinator(coordinator);
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithLeaseStore(Opc.Ua.PubSub.Redundancy.IPubSubLeaseStore leaseStore)
+        {
+            return PubSubBuilder.WithLeaseStore(leaseStore);
+        }
+
+        /// <inheritdoc/>
         public IPubSubBuilder AddActionResponder(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
