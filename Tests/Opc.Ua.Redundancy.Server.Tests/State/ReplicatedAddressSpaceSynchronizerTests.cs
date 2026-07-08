@@ -167,6 +167,113 @@ namespace Opc.Ua.Redundancy.Server.Tests
         }
 
         [Test]
+        public async Task RemovedNodesAreDetachedFromTrackingAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var sync = new ReplicatedAddressSpaceSynchronizer(
+                space,
+                m_messageContext,
+                ReplicaId.FromUInt64(1),
+                network.CreateTransport(),
+                TimeProvider.System,
+                CrdtReaderOptions.Default);
+            await sync.SeedOrHydrateAsync().ConfigureAwait(false);
+            sync.Start();
+
+            BaseDataVariableState node = NewVariable("tracked", 1.0);
+            await space.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => sync.TrackedNodeCount == 1,
+                "the local node should be tracked while it exists").ConfigureAwait(false);
+
+            await space.RemoveNodeAsync(node.NodeId).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => sync.TrackedNodeCount == 0,
+                "removing a node should detach its StateChanged subscription").ConfigureAwait(false);
+
+            node.Value = new Variant(9.0);
+            node.ClearChangeMasks(m_systemContext, false);
+            await Task.Delay(200).ConfigureAwait(false);
+
+            Assert.That(sync.TrackedNodeCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ReplicatesReferenceAddAndRemoveAsync()
+        {
+            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
+
+            BaseDataVariableState source = NewVariable("source", 1.0);
+            BaseDataVariableState target = NewVariable("target", 2.0);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(source).ConfigureAwait(false);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(target).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => fixture.SpaceB.TryGetNode(source.NodeId, out _) &&
+                    fixture.SpaceB.TryGetNode(target.NodeId, out _),
+                "nodes should replicate before reference changes").ConfigureAwait(false);
+
+            ExpandedNodeId targetId = new(target.NodeId);
+            source.AddReference(ReferenceTypeIds.Organizes, false, targetId);
+            source.ClearChangeMasks(m_systemContext, false);
+            await AssertEventuallyAsync(
+                () => fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? mirrored) &&
+                    mirrored!.ReferenceExists(ReferenceTypeIds.Organizes, false, targetId),
+                "a reference added on A should replicate to B").ConfigureAwait(false);
+
+            source.RemoveReference(ReferenceTypeIds.Organizes, false, targetId);
+            source.ClearChangeMasks(m_systemContext, false);
+            await AssertEventuallyAsync(
+                () => fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? mirrored) &&
+                    !mirrored!.ReferenceExists(ReferenceTypeIds.Organizes, false, targetId),
+                "a reference removed on A should be removed on B").ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ReconcileMaterializedValuesCorrectsStaleReplicaAndRebroadcastsAsync()
+        {
+            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
+
+            BaseDataVariableState source = NewVariable("reconcile", 1.0);
+            await fixture.SpaceA.AddOrUpdateNodeAsync(source).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => fixture.SpaceB.TryGetNode(source.NodeId, out _),
+                "the seed node should replicate before reconciliation").ConfigureAwait(false);
+
+            source.Value = new Variant(42.0);
+            source.ClearChangeMasks(m_systemContext, false);
+            await AssertEventuallyAsync(
+                () => fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? remote) &&
+                    remote is BaseVariableState variable &&
+                    variable.Value.Equals(new Variant(42.0)),
+                "the authoritative value should replicate before making B stale").ConfigureAwait(false);
+
+            Assert.That(fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? staleNode), Is.True);
+            var staleVariable = (BaseVariableState)staleNode!;
+            staleVariable.Value = new Variant(11.0);
+            staleVariable.StatusCode = StatusCodes.Good;
+            staleVariable.Timestamp = DateTimeUtc.Now;
+
+            var rebroadcasted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            void Handler()
+            {
+                fixture.SyncA.InboundApplied -= Handler;
+                rebroadcasted.TrySetResult(true);
+            }
+
+            fixture.SyncA.InboundApplied += Handler;
+            await fixture.SyncA.SeedOrHydrateAsync().ConfigureAwait(false);
+
+            await AssertEventuallyAsync(
+                () => fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? remote) &&
+                    remote is BaseVariableState variable &&
+                    variable.Value.Equals(new Variant(42.0)),
+                "a zero-diff merge should reconcile the stale materialized value on B").ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(rebroadcasted.Task).ConfigureAwait(false);
+        }
+
+        [Test]
         public void ConstructorRejectsNullAddressSpace()
         {
             Assert.That(
@@ -262,10 +369,19 @@ namespace Opc.Ua.Redundancy.Server.Tests
             Assert.Fail(message);
         }
 
+        private static async Task AwaitWithTimeoutAsync(Task task)
+        {
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(task), "replication did not complete within the timeout");
+            await task.ConfigureAwait(false);
+        }
+
         private sealed class TwoReplicaFixture : IAsyncDisposable
         {
             public DictionaryAddressSpace SpaceA { get; private set; } = null!;
             public DictionaryAddressSpace SpaceB { get; private set; } = null!;
+            public ReplicatedAddressSpaceSynchronizer SyncA => m_syncA!;
+            public ReplicatedAddressSpaceSynchronizer SyncB => m_syncB!;
 
             public static async Task<TwoReplicaFixture> CreateAsync(ReplicatedAddressSpaceSynchronizerTests test)
             {

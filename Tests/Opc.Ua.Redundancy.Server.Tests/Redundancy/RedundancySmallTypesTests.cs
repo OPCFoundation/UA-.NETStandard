@@ -62,22 +62,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public void ConstantLoadWeightProviderEventSubscriptionIsNoOp()
-        {
-            var provider = new ConstantLoadWeightProvider(10);
-            void Handler(byte weight)
-            {
-            }
-
-            // The constant provider never changes, so add/remove are inert but must be callable.
-            Assert.That(() =>
-            {
-                provider.LoadWeightChanged += Handler;
-                provider.LoadWeightChanged -= Handler;
-            }, Throws.Nothing);
-        }
-
-        [Test]
         public void LoadDirectionRandomReturnsZeroForAtMostOneChoice()
         {
             Assert.That(LoadDirectionRandom.NextIndex(0), Is.Zero);

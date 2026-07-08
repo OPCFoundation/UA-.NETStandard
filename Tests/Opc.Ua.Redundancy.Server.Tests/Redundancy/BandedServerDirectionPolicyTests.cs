@@ -153,6 +153,53 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(target, Is.Null, "a stale/unreadable peer view must fail safe to the local Server");
         }
 
+        [Test]
+        public async Task HealthSubBandsPreferHigherHealthySubBandAsync()
+        {
+            var withoutSubBands = new BandedServerDirectionPolicy(
+                new FakeView([Peer("B", 210, 0)]),
+                new LoadDirectionOptions { HealthSubBandSize = 0 },
+                _ => 0);
+            var withSubBands = new BandedServerDirectionPolicy(
+                new FakeView([Peer("B", 210, 0)]),
+                new LoadDirectionOptions { HealthSubBandSize = 10 },
+                _ => 0);
+
+            string? withoutSubBandsTarget = await withoutSubBands
+                .SelectTargetServerUriAsync("A", 205, 100)
+                .ConfigureAwait(false);
+            string? withSubBandsTarget = await withSubBands
+                .SelectTargetServerUriAsync("A", 205, 100)
+                .ConfigureAwait(false);
+
+            Assert.That(withoutSubBandsTarget, Is.EqualTo("B"), "without sub-bands the healthier peer wins on load");
+            Assert.That(withSubBandsTarget, Is.Null, "a higher healthy sub-band should keep traffic on the healthier local server");
+        }
+
+        [TestCase(0, 17, 18, Description = "load band size is clamped to one")]
+        [TestCase(1, 17, 18, Description = "load band size one keeps exact ordering")]
+        [TestCase(256, 17, 18, Description = "large load bands collapse nearby loads into one band")]
+        public async Task LoadBandSizeOptionsAreAppliedSafelyAsync(int loadBandSize, byte localLoad, byte peerLoad)
+        {
+            var policy = new BandedServerDirectionPolicy(
+                new FakeView([Peer("B", 255, peerLoad)]),
+                new LoadDirectionOptions { LoadBandSize = loadBandSize },
+                _ => 0);
+
+            string? target = await policy
+                .SelectTargetServerUriAsync("A", 255, localLoad)
+                .ConfigureAwait(false);
+
+            if (loadBandSize > 1)
+            {
+                Assert.That(target, Is.Null, "equal load bands should keep traffic local when tie-breaking picks self");
+            }
+            else
+            {
+                Assert.That(target, Is.EqualTo("B"), "smaller load bands should still prefer the truly least-loaded peer");
+            }
+        }
+
         private static PeerDirectionRecord Peer(string uri, byte level, byte? load = null)
         {
             return new PeerDirectionRecord

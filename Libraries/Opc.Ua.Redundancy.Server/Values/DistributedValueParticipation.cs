@@ -90,6 +90,13 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="cache">The distributed value cache.</param>
         /// <param name="maxAge">The freshness bound for cached reads.</param>
         /// <param name="liveRead">Reads the live value from the source.</param>
+        /// <remarks>
+        /// In an active/passive deployment, construct
+        /// <see cref="DistributedValueCache"/> with its optional
+        /// <c>isWriter</c> predicate (for example <c>() => election.IsLeader</c>)
+        /// so read-through refreshes and write-through updates only persist on
+        /// the leader.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static void EnableDistributedValueParticipation(
             this BaseVariableState variable,

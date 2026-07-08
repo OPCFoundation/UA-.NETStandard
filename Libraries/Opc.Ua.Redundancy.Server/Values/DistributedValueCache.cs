@@ -46,15 +46,30 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="store">The backing node state store.</param>
         /// <param name="timeProvider">Time source (defaults to system).</param>
-        public DistributedValueCache(INodeStateStore store, TimeProvider? timeProvider = null)
+        /// <param name="isWriter">
+        /// Optional predicate that decides whether cache writes are allowed.
+        /// When supplied and it returns <c>false</c>, <see cref="CacheAsync"/>
+        /// becomes a no-op so standby replicas can participate as read-only
+        /// consumers of the shared cache.
+        /// </param>
+        public DistributedValueCache(
+            INodeStateStore store,
+            TimeProvider? timeProvider = null,
+            Func<bool>? isWriter = null)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_time = timeProvider ?? TimeProvider.System;
+            m_isWriter = isWriter;
         }
 
         /// <inheritdoc/>
         public ValueTask CacheAsync(NodeId nodeId, in DataValue value, CancellationToken ct = default)
         {
+            if (m_isWriter != null && !m_isWriter())
+            {
+                return default;
+            }
+
             return m_store.WriteValueAsync(nodeId, value, ct);
         }
 
@@ -82,5 +97,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly INodeStateStore m_store;
         private readonly TimeProvider m_time;
+        private readonly Func<bool>? m_isWriter;
     }
 }

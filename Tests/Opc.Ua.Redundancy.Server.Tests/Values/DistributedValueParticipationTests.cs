@@ -187,5 +187,47 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.WrappedValue.TryGetValue(out int counter), Is.True);
             Assert.That(counter, Is.EqualTo(42), "the last value written by the former leader is served");
         }
+
+        [Test]
+        public async Task ReadOnlyParticipationSkipsCacheWritesAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var cache = new DistributedValueCache(store, isWriter: () => false);
+            var nodeId = new NodeId("readonly", NamespaceIndex);
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("ReadOnly", NamespaceIndex),
+                DisplayName = new LocalizedText("ReadOnly"),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar,
+                Value = new Variant(0.0)
+            };
+
+            int liveCalls = 0;
+            variable.EnableDistributedValueParticipation(cache, TimeSpan.FromMinutes(1), LiveRead);
+
+            AttributeReadResult firstRead = await variable.OnReadValueAsync!(
+                m_systemContext, variable, default, new QualifiedName(), default).ConfigureAwait(false);
+            AttributeReadResult secondRead = await variable.OnReadValueAsync!(
+                m_systemContext, variable, default, new QualifiedName(), default).ConfigureAwait(false);
+            AttributeWriteResult writeResult = await variable.OnWriteValueAsync!(
+                m_systemContext, variable, default, new Variant(8.0), default).ConfigureAwait(false);
+
+            Assert.That(firstRead.Value, Is.EqualTo(new Variant(5.0)));
+            Assert.That(secondRead.Value, Is.EqualTo(new Variant(5.0)));
+            Assert.That(liveCalls, Is.EqualTo(2), "a read-only replica should not cache read-through refreshes");
+            Assert.That(ServiceResult.IsGood(writeResult.Result), Is.True);
+
+            (bool found, _) = await store.TryReadValueAsync(nodeId).ConfigureAwait(false);
+            Assert.That(found, Is.False, "a read-only replica should not persist write-through updates");
+
+            ValueTask<DataValue> LiveRead(CancellationToken ct)
+            {
+                liveCalls++;
+                return new ValueTask<DataValue>(new DataValue(new Variant(5.0), StatusCodes.Good, DateTimeUtc.Now));
+            }
+        }
     }
 }

@@ -34,6 +34,7 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -251,6 +252,144 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task LeadershipPromotionSwitchesReaderToWriterAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            await using var election = new MutableLeaderElection();
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, space, election);
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            synchronizer.Start();
+
+            BaseDataVariableState standbyNode = NewVariable("standby", 1.0);
+            await space.AddOrUpdateNodeAsync(standbyNode).ConfigureAwait(false);
+            await Task.Delay(200).ConfigureAwait(false);
+
+            Assert.That(synchronizer.IsWriter, Is.False);
+            Assert.That(
+                await store.TryGetNodeAsync(standbyNode.NodeId).ConfigureAwait(false),
+                Is.Null,
+                "a standby must not write to the shared store");
+
+            election.Set(true);
+            BaseDataVariableState promotedNode = NewVariable("promoted", 2.0);
+            await space.AddOrUpdateNodeAsync(promotedNode).ConfigureAwait(false);
+
+            await AssertEventuallyAsync(
+                async () => await store.TryGetNodeAsync(promotedNode.NodeId).ConfigureAwait(false) != null,
+                "the promoted replica should switch to writer mode").ConfigureAwait(false);
+            Assert.That(synchronizer.IsWriter, Is.True);
+        }
+
+        [Test]
+        public async Task LeadershipDemotionStopsWriterFromWritingAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            await using var election = new MutableLeaderElection();
+            election.Set(true);
+
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, space, election);
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            synchronizer.Start();
+
+            election.Set(false);
+            BaseDataVariableState demotedNode = NewVariable("demoted", 3.0);
+            await space.AddOrUpdateNodeAsync(demotedNode).ConfigureAwait(false);
+            await Task.Delay(200).ConfigureAwait(false);
+
+            Assert.That(synchronizer.IsWriter, Is.False);
+            Assert.That(
+                await store.TryGetNodeAsync(demotedNode.NodeId).ConfigureAwait(false),
+                Is.Null,
+                "a demoted replica must stop writing to the shared store");
+        }
+
+        [Test]
+        public async Task RemovedNodesAreDetachedFromTrackingAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, writerSpace, () => true);
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            synchronizer.Start();
+
+            BaseDataVariableState node = NewVariable("leak", 1.0);
+            await writerSpace.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                async () => await store.TryGetNodeAsync(node.NodeId).ConfigureAwait(false) != null,
+                "writer should persist the added node").ConfigureAwait(false);
+
+            await writerSpace.RemoveNodeAsync(node.NodeId).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                async () => await store.TryGetNodeAsync(node.NodeId).ConfigureAwait(false) == null,
+                "writer should delete the removed node").ConfigureAwait(false);
+
+            Assert.That(synchronizer.TrackedNodeCount, Is.Zero);
+
+            node.Value = new Variant(9.0);
+            node.ClearChangeMasks(m_systemContext, false);
+            await Task.Delay(200).ConfigureAwait(false);
+
+            Assert.That(
+                await store.TryGetNodeAsync(node.NodeId).ConfigureAwait(false),
+                Is.Null,
+                "changing a removed node must not reinsert it into the store");
+        }
+
+        [Test]
+        public async Task WriterPropagatesReferenceAddAndRemoveToReaderAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var writerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var readerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+
+            var writerSpace = new DictionaryAddressSpace(m_systemContext);
+            var readerSpace = new DictionaryAddressSpace(m_systemContext);
+            BaseDataVariableState source = NewVariable("Source", 1.0);
+            BaseDataVariableState target = NewVariable("Target", 2.0);
+            await writerSpace.AddOrUpdateNodeAsync(source).ConfigureAwait(false);
+            await writerSpace.AddOrUpdateNodeAsync(target).ConfigureAwait(false);
+
+            await using var writer = new AddressSpaceSynchronizer(writerStore, writerSpace, () => true);
+            await using var reader = new AddressSpaceSynchronizer(readerStore, readerSpace, () => false);
+            await writer.SeedOrHydrateAsync().ConfigureAwait(false);
+            writer.Start();
+            await reader.SeedOrHydrateAsync().ConfigureAwait(false);
+            reader.Start();
+
+            ExpandedNodeId targetId = new(target.NodeId);
+            Task<bool> referenceAdded = WaitForInboundAsync(
+                reader,
+                c => c.Kind == NodeStateChangeKind.Upsert && c.NodeId == source.NodeId);
+            source.AddReference(ReferenceTypeIds.Organizes, false, targetId);
+            source.ClearChangeMasks(m_systemContext, false);
+            await AwaitWithTimeoutAsync(referenceAdded).ConfigureAwait(false);
+
+            Assert.That(readerSpace.TryGetNode(source.NodeId, out NodeState? mirroredSource), Is.True);
+            Assert.That(
+                mirroredSource!.ReferenceExists(ReferenceTypeIds.Organizes, false, targetId),
+                Is.True,
+                "a reference added between existing nodes should replicate to the reader");
+
+            Task<bool> referenceRemoved = WaitForInboundAsync(
+                reader,
+                c => c.Kind == NodeStateChangeKind.Upsert && c.NodeId == source.NodeId);
+            source.RemoveReference(ReferenceTypeIds.Organizes, false, targetId);
+            source.ClearChangeMasks(m_systemContext, false);
+            await AwaitWithTimeoutAsync(referenceRemoved).ConfigureAwait(false);
+
+            Assert.That(readerSpace.TryGetNode(source.NodeId, out mirroredSource), Is.True);
+            Assert.That(
+                mirroredSource!.ReferenceExists(ReferenceTypeIds.Organizes, false, targetId),
+                Is.False,
+                "a reference removed on the writer should be removed on the reader");
+        }
+
+        [Test]
         public async Task DeletedMaskChangeIsIgnoredButValueStillReplicatesAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -358,6 +497,51 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
             Assert.That(completed, Is.SameAs(task), "replication did not complete within the timeout");
             await task.ConfigureAwait(false);
+        }
+
+        private static async Task AssertEventuallyAsync(Func<Task<bool>> condition, string message)
+        {
+            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (await condition().ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                await Task.Delay(25).ConfigureAwait(false);
+            }
+
+            Assert.Fail(message);
+        }
+
+        private sealed class MutableLeaderElection : ILeaderElection
+        {
+            public bool IsLeader => Volatile.Read(ref m_isLeader) != 0;
+
+            public event Action<bool>? LeadershipChanged;
+
+            public void Set(bool isLeader)
+            {
+                Volatile.Write(ref m_isLeader, isLeader ? 1 : 0);
+                LeadershipChanged?.Invoke(isLeader);
+            }
+
+            public ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(IsLeader);
+            }
+
+            public void Start()
+            {
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+
+            private int m_isLeader;
         }
     }
 }

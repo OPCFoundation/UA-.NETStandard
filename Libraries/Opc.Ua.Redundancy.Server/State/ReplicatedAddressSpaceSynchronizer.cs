@@ -94,6 +94,21 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         internal event Action? InboundApplied;
 
+        /// <summary>
+        /// Gets the number of node instances currently tracked for
+        /// <see cref="NodeState.StateChanged"/> notifications.
+        /// </summary>
+        internal int TrackedNodeCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_attached.Count;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask SeedOrHydrateAsync(CancellationToken ct = default)
         {
@@ -408,6 +423,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private void OnLocalNodeRemoved(NodeId nodeId)
         {
+            DetachStateChanged(nodeId);
             if (m_applyingInbound.Value)
             {
                 return;
@@ -563,9 +579,28 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                if (m_attached.Add(node))
+                if (m_attached.TryGetValue(node.NodeId, out NodeState? existing))
                 {
-                    node.StateChanged += m_onChanged;
+                    if (ReferenceEquals(existing, node))
+                    {
+                        return;
+                    }
+
+                    existing.StateChanged -= m_onChanged;
+                }
+
+                m_attached[node.NodeId] = node;
+                node.StateChanged += m_onChanged;
+            }
+        }
+
+        private void DetachStateChanged(NodeId nodeId)
+        {
+            lock (m_lock)
+            {
+                if (m_attached.TryRemove(nodeId, out NodeState? node))
+                {
+                    node.StateChanged -= m_onChanged;
                 }
             }
         }
@@ -574,7 +609,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                foreach (NodeState node in m_attached)
+                foreach (NodeState node in m_attached.Values)
                 {
                     node.StateChanged -= m_onChanged;
                 }
@@ -648,7 +683,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly Lock m_lock = new();
         private readonly LWWMap<string, ByteString> m_map = new();
         private readonly Dictionary<string, byte[]> m_lastApplied = [];
-        private readonly HashSet<NodeState> m_attached = [];
+        private readonly NodeIdDictionary<NodeState> m_attached = [];
         private readonly AsyncLocal<bool> m_applyingInbound = new();
         private Task? m_inboundTask;
         private bool m_started;
