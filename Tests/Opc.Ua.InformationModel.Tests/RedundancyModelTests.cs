@@ -321,7 +321,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
-            NodeClass nodeClass = (NodeClass)response.Results[0].WrappedValue.GetInt32();
+            var nodeClass = (NodeClass)response.Results[0].WrappedValue.GetInt32();
             Assert.That(nodeClass, Is.EqualTo(NodeClass.Method));
         }
 

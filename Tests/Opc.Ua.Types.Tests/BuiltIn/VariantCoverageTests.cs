@@ -114,7 +114,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConvertToByteStringReturnsSelfForByteString()
         {
-            ByteString bytes = ByteString.From(1, 2, 3);
+            var bytes = ByteString.From(1, 2, 3);
             Variant result = new Variant(bytes).ConvertToByteString();
             bool matches = result == new Variant(bytes);
             Assert.That(matches, Is.True);
@@ -653,7 +653,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             DateTimeUtc dateTime = Dt(1);
             Uuid uid = Uid(1);
-            ByteString bytes = ByteString.From(1, 2);
+            var bytes = ByteString.From(1, 2);
             XmlElement xml = Xml("1");
             var nodeId = new NodeId(10, 1);
             ExpandedNodeId expanded = ENId("Node");
@@ -705,33 +705,33 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var extension = new ExtensionObject(new Argument());
             var dataValue = new DataValue(1);
 
-            ArrayOf<bool> boolArray = ArrayOf.Wrapped(true, false);
-            ArrayOf<sbyte> sbyteArray = ArrayOf.Wrapped((sbyte)-1, (sbyte)1);
-            ArrayOf<byte> byteArray = ArrayOf.Wrapped((byte)1, (byte)2);
-            ArrayOf<short> shortArray = ArrayOf.Wrapped((short)-2, (short)2);
-            ArrayOf<ushort> ushortArray = ArrayOf.Wrapped((ushort)2, (ushort)3);
-            ArrayOf<int> intArray = ArrayOf.Wrapped(-3, 3);
-            ArrayOf<uint> uintArray = ArrayOf.Wrapped(3u, 4u);
-            ArrayOf<long> longArray = ArrayOf.Wrapped(-4L, 4L);
-            ArrayOf<ulong> ulongArray = ArrayOf.Wrapped(4UL, 5UL);
-            ArrayOf<float> floatArray = ArrayOf.Wrapped(1.0f, 2.0f);
-            ArrayOf<double> doubleArray = ArrayOf.Wrapped(1.0d, 2.0d);
-            ArrayOf<string> stringArray = ArrayOf.Wrapped("a", "b");
-            ArrayOf<EnumValue> enumArray = ArrayOf.Wrapped(new EnumValue(1), new EnumValue(2));
-            ArrayOf<DateTimeUtc> dateTimeArray = ArrayOf.Wrapped(Dt(1), Dt(2));
-            ArrayOf<Uuid> guidArray = ArrayOf.Wrapped(Uid(1), Uid(2));
-            ArrayOf<ByteString> byteStringArray = ArrayOf.Wrapped(ByteString.From(1), ByteString.From(2));
-            ArrayOf<XmlElement> xmlArray = ArrayOf.Wrapped(xml, xml);
-            ArrayOf<NodeId> nodeIdArray = ArrayOf.Wrapped(new NodeId(1), new NodeId(2));
-            ArrayOf<ExpandedNodeId> expandedArray = ArrayOf.Wrapped(ENId("A"), ENId("B"));
-            ArrayOf<StatusCode> statusArray = ArrayOf.Wrapped(new StatusCode(1u), new StatusCode(2u));
-            ArrayOf<QualifiedName> qualifiedArray =
+            var boolArray = ArrayOf.Wrapped(true, false);
+            var sbyteArray = ArrayOf.Wrapped((sbyte)-1, (sbyte)1);
+            var byteArray = ArrayOf.Wrapped((byte)1, (byte)2);
+            var shortArray = ArrayOf.Wrapped((short)-2, (short)2);
+            var ushortArray = ArrayOf.Wrapped((ushort)2, (ushort)3);
+            var intArray = ArrayOf.Wrapped(-3, 3);
+            var uintArray = ArrayOf.Wrapped(3u, 4u);
+            var longArray = ArrayOf.Wrapped(-4L, 4L);
+            var ulongArray = ArrayOf.Wrapped(4UL, 5UL);
+            var floatArray = ArrayOf.Wrapped(1.0f, 2.0f);
+            var doubleArray = ArrayOf.Wrapped(1.0d, 2.0d);
+            var stringArray = ArrayOf.Wrapped("a", "b");
+            var enumArray = ArrayOf.Wrapped(new EnumValue(1), new EnumValue(2));
+            var dateTimeArray = ArrayOf.Wrapped(Dt(1), Dt(2));
+            var guidArray = ArrayOf.Wrapped(Uid(1), Uid(2));
+            var byteStringArray = ArrayOf.Wrapped(ByteString.From(1), ByteString.From(2));
+            var xmlArray = ArrayOf.Wrapped(xml, xml);
+            var nodeIdArray = ArrayOf.Wrapped(new NodeId(1), new NodeId(2));
+            var expandedArray = ArrayOf.Wrapped(ENId("A"), ENId("B"));
+            var statusArray = ArrayOf.Wrapped(new StatusCode(1u), new StatusCode(2u));
+            var qualifiedArray =
                 ArrayOf.Wrapped(new QualifiedName("a", 1), new QualifiedName("b", 1));
-            ArrayOf<LocalizedText> localizedArray =
+            var localizedArray =
                 ArrayOf.Wrapped(new LocalizedText("en", "a"), new LocalizedText("en", "b"));
-            ArrayOf<ExtensionObject> extensionArray = ArrayOf.Wrapped(extension, extension);
-            ArrayOf<DataValue> dataValueArray = ArrayOf.Wrapped(dataValue, dataValue);
-            ArrayOf<Variant> variantArray = ArrayOf.Wrapped(new Variant(1), new Variant(2));
+            var extensionArray = ArrayOf.Wrapped(extension, extension);
+            var dataValueArray = ArrayOf.Wrapped(dataValue, dataValue);
+            var variantArray = ArrayOf.Wrapped(new Variant(1), new Variant(2));
 
             Assert.Multiple(() =>
             {
@@ -861,7 +861,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<Variant> expanded = original.Expand();
             Assert.That(expanded.Count, Is.EqualTo(expectedCount));
-            Variant collapsed = Variant.Collapse(expanded);
+            var collapsed = Variant.Collapse(expanded);
             bool matches = collapsed == original;
             Assert.That(matches, Is.True);
         }
@@ -877,7 +877,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CollapseEmptyReturnsNullVariant()
         {
             ArrayOf<Variant> items = [];
-            Variant result = Variant.Collapse(items);
+            var result = Variant.Collapse(items);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -885,7 +885,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CollapseSingleReturnsElement()
         {
             ArrayOf<Variant> items = [new Variant(42)];
-            Variant result = Variant.Collapse(items);
+            var result = Variant.Collapse(items);
             Assert.That(result.GetInt32(), Is.EqualTo(42));
         }
 
@@ -893,7 +893,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CollapseMixedTypesReturnsVariantArray()
         {
             ArrayOf<Variant> items = [new Variant(1), new Variant("two")];
-            Variant result = Variant.Collapse(items);
+            var result = Variant.Collapse(items);
             Assert.Multiple(() =>
             {
                 Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));

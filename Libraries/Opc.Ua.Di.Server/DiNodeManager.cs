@@ -174,7 +174,7 @@ namespace Opc.Ua.Di.Server
                 return [DiNamespaceUri];
             }
 
-            var combined = new string[additional.Length + 1];
+            string[] combined = new string[additional.Length + 1];
             additional.CopyTo(combined, 0);
             combined[^1] = DiNamespaceUri;
             return combined;
@@ -309,7 +309,7 @@ namespace Opc.Ua.Di.Server
         /// </returns>
         protected virtual NodeState? ResolveDefaultDeviceParent()
         {
-            NodeId deviceSetId = NodeId.Create(
+            var deviceSetId = NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
                 DiNamespaceUri,
                 Server.NamespaceUris);

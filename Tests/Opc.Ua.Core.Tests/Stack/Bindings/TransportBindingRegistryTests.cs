@@ -145,7 +145,7 @@ namespace Opc.Ua.Bindings.Tests
         [Test]
         public void WithDefaultTcpSeedsRawSocketTcpFactories()
         {
-            DefaultTransportBindingRegistry registry =
+            var registry =
                 DefaultTransportBindingRegistry.WithDefaultTcp();
 
             Assert.That(registry.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.True);
@@ -359,7 +359,7 @@ namespace Opc.Ua.Bindings.Tests
         [Test]
         public async Task CreateListenerReturnsInstanceForKnownSchemeAsync()
         {
-            DefaultTransportBindingRegistry registry =
+            var registry =
                 DefaultTransportBindingRegistry.WithDefaultTcp();
 
             await using ITransportListener? listener =
@@ -371,7 +371,7 @@ namespace Opc.Ua.Bindings.Tests
         [Test]
         public void CreateChannelReturnsInstanceForKnownScheme()
         {
-            DefaultTransportBindingRegistry registry =
+            var registry =
                 DefaultTransportBindingRegistry.WithDefaultTcp();
 
             using ITransportChannel? channel =

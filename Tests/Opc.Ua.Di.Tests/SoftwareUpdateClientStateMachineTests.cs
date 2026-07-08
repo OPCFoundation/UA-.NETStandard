@@ -202,7 +202,7 @@ namespace Opc.Ua.Di.Tests
             nsTable.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
 
-            ServiceMessageContext ctx = ServiceMessageContext.Create(NullTelemetry());
+            var ctx = ServiceMessageContext.Create(NullTelemetry());
             ctx.NamespaceUris = nsTable;
             mock.SetupGet(s => s.MessageContext).Returns(ctx);
             return mock;

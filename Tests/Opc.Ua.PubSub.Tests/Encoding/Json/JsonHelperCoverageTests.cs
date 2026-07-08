@@ -150,7 +150,7 @@ namespace OpcUaPubSubJsonTests
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
-            using JsonDocument document = JsonDocument.Parse(buffer.ToArray());
+            using var document = JsonDocument.Parse(buffer.ToArray());
             JsonElement payload = document.RootElement.GetProperty("v");
             Assert.That(payload.ValueKind, Is.EqualTo(JsonValueKind.Object));
             Assert.That(payload.TryGetProperty("Value", out _), Is.True);
@@ -197,7 +197,7 @@ namespace OpcUaPubSubJsonTests
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
-            using JsonDocument document = JsonDocument.Parse(buffer.ToArray());
+            using var document = JsonDocument.Parse(buffer.ToArray());
             JsonElement payload = document.RootElement.GetProperty("Payload");
             Assert.That(payload.TryGetProperty("BoolField", out _), Is.True);
             Assert.That(payload.TryGetProperty("IntField", out _), Is.True);
@@ -237,7 +237,7 @@ namespace OpcUaPubSubJsonTests
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
-            using JsonDocument document = JsonDocument.Parse(buffer.ToArray());
+            using var document = JsonDocument.Parse(buffer.ToArray());
             JsonElement payload = document.RootElement.GetProperty("Payload");
             Assert.That(payload.GetProperty("raw").ValueKind,
                 Is.EqualTo(JsonValueKind.Number));
@@ -285,7 +285,7 @@ namespace OpcUaPubSubJsonTests
                     ServiceMessageContext.CreateEmpty(null!));
                 writer.WriteEndObject();
             }
-            using JsonDocument document = JsonDocument.Parse(buffer.ToArray());
+            using var document = JsonDocument.Parse(buffer.ToArray());
             Assert.That(document.RootElement.GetProperty("M").ValueKind,
                 Is.EqualTo(JsonValueKind.Object));
         }
@@ -358,7 +358,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5.4")]
         public void DecodeFieldsRejectsNullContext()
         {
-            using JsonDocument document = JsonDocument.Parse("{}");
+            using var document = JsonDocument.Parse("{}");
             Assert.That(() => JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
                 JsonEncodingMode.Verbose, null!),
@@ -369,7 +369,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5.4")]
         public void DecodeFieldsReturnsEmptyForNonObjectPayload()
         {
-            using JsonDocument document = JsonDocument.Parse("[1,2,3]");
+            using var document = JsonDocument.Parse("[1,2,3]");
             var fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
@@ -390,7 +390,7 @@ namespace OpcUaPubSubJsonTests
                     }
                 }
                 """;
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
             var fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
@@ -409,7 +409,7 @@ namespace OpcUaPubSubJsonTests
                     "field": { "Type": 6, "Body": 42 }
                 }
                 """;
-            using JsonDocument document = JsonDocument.Parse(nonDataValueObject);
+            using var document = JsonDocument.Parse(nonDataValueObject);
             var fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
@@ -423,7 +423,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5")]
         public void DecodeVariantHandlesNullElement()
         {
-            using JsonDocument document = JsonDocument.Parse("null");
+            using var document = JsonDocument.Parse("null");
             Variant value = JsonVariantDecoder.DecodeVariant(
                 document.RootElement,
                 JsonEncodingMode.Verbose,
@@ -436,7 +436,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5")]
         public void DecodeVariantRejectsNullContext()
         {
-            using JsonDocument document = JsonDocument.Parse("1");
+            using var document = JsonDocument.Parse("1");
             Assert.That(() => JsonVariantDecoder.DecodeVariant(
                 document.RootElement,
                 JsonEncodingMode.Verbose,
@@ -448,7 +448,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5")]
         public void DecodeDataValueRejectsNullContext()
         {
-            using JsonDocument document = JsonDocument.Parse("{}");
+            using var document = JsonDocument.Parse("{}");
             Assert.That(() => JsonVariantDecoder.DecodeDataValue(
                 document.RootElement, null!),
                 Throws.ArgumentNullException);
@@ -458,7 +458,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5")]
         public void DecodeDataValueReturnsNullForNullElement()
         {
-            using JsonDocument document = JsonDocument.Parse("null");
+            using var document = JsonDocument.Parse("null");
             DataValue value = JsonVariantDecoder.DecodeDataValue(
                 document.RootElement,
                 ServiceMessageContext.CreateEmpty(null!));
@@ -469,7 +469,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5")]
         public void DecodeVariantCompactWithoutTypeInfoReturnsNull()
         {
-            using JsonDocument document = JsonDocument.Parse("42");
+            using var document = JsonDocument.Parse("42");
             Variant value = JsonVariantDecoder.DecodeVariant(
                 document.RootElement,
                 JsonEncodingMode.Compact,
@@ -482,7 +482,7 @@ namespace OpcUaPubSubJsonTests
         [TestSpec("7.2.5")]
         public void DecodeVariantRawDataWithoutTypeInfoReturnsNull()
         {
-            using JsonDocument document = JsonDocument.Parse("42");
+            using var document = JsonDocument.Parse("42");
             Variant value = JsonVariantDecoder.DecodeVariant(
                 document.RootElement,
                 JsonEncodingMode.RawData,

@@ -167,7 +167,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
             using ServiceProvider provider = services.BuildServiceProvider();
             ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
-            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
+            var factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
 
             Assert.That(
                 factory.StartupContributors,
@@ -185,7 +185,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
             using ServiceProvider provider = services.BuildServiceProvider();
             ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
-            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeWss)!;
+            var factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeWss)!;
 
             Assert.That(
                 factory.StartupContributors,

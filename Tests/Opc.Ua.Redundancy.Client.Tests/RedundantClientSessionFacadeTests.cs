@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var namespaceUris = new NamespaceTable();
             var serverUris = new StringTable();
             var sessionId = new NodeId(42u);
-            var handle = new object();
+            object handle = new object();
             var lastKeepAlive = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
 
             session.SetupGet(s => s.SessionFactory).Returns(sessionFactory);
@@ -803,7 +803,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             current = first.Object;
             RedundantClientSession facade = CreateLeaderFacade(() => current);
 
-            var handle = new object();
+            object handle = new object();
             facade.DeleteSubscriptionsOnClose = true;
             facade.KeepAliveInterval = 5;
             facade.MinPublishRequestCount = 6;

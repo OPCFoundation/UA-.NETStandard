@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public async Task CyclicReadStrategyReadsResolvedBrowsePathNodeId()
         {
-            NodeId browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
+            var browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
             NodeId resolvedNodeId = new(42u);
             ArrayOf<ReadValueId> captured = ArrayOf<ReadValueId>.Null;
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public async Task ServerTargetVariableWriterWritesResolvedBrowsePathNodeId()
         {
-            NodeId browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
+            var browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
             NodeId resolvedNodeId = new(42u);
             ArrayOf<WriteValue> captured = ArrayOf<WriteValue>.Null;
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
@@ -125,8 +125,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public async Task ServerActionHandlerCallsResolvedBrowsePathObjectAndMethodIds()
         {
-            NodeId objectBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo");
-            NodeId methodBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:Reset");
+            var objectBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo");
+            var methodBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:Reset");
             NodeId resolvedObjectId = new(1001u);
             NodeId resolvedMethodId = new(1002u);
             NodeId capturedObjectId = NodeId.Null;

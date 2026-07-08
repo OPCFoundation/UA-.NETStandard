@@ -353,7 +353,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     ? new StatusCode(NextFault)
                     : StatusCodes.Good;
 
-                IServiceResponse response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
+                var response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
                 var responseHeader = new ResponseHeader
                 {
                     Timestamp = DateTime.UtcNow,

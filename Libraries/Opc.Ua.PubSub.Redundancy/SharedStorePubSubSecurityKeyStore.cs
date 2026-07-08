@@ -305,7 +305,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return default;
             }
 
-            var values = new string[count];
+            string[] values = new string[count];
             for (int ii = 0; ii < values.Length; ii++)
             {
                 values[ii] = reader.ReadString();

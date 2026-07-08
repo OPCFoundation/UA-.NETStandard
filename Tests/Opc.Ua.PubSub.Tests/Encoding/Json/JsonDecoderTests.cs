@@ -143,7 +143,7 @@ namespace OpcUaPubSubJsonTests
                 Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact);
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(message, ctx).ConfigureAwait(false);
-            using (JsonDocument document = JsonDocument.Parse(bytes))
+            using (var document = JsonDocument.Parse(bytes))
             {
                 Assert.That(document.RootElement.GetProperty("PublisherId").GetString(), Is.EqualTo("5"));
             }

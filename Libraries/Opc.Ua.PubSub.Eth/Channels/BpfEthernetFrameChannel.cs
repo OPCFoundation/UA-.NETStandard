@@ -283,14 +283,14 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private void ConfigureDevice(int fd)
         {
-            var enable = new byte[4];
+            byte[] enable = new byte[4];
             BitConverter.GetBytes(1).CopyTo(enable, 0);
 
             // BIOCSHDRCMPLT: do not let the kernel fill in the source MAC.
             Ioctl(fd, Iow('B', 117, 4), enable, "BIOCSHDRCMPLT");
 
             // BIOCSETIF: bind to the interface.
-            var ifreq = new byte[IfReqSize];
+            byte[] ifreq = new byte[IfReqSize];
             byte[] name = System.Text.Encoding.ASCII.GetBytes(m_interfaceName);
             Array.Copy(name, 0, ifreq, 0, Math.Min(name.Length, IfNameSize - 1));
             Ioctl(fd, Iow('B', 108, IfReqSize), ifreq, "BIOCSETIF");
@@ -299,7 +299,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             Ioctl(fd, Iow('B', 112, 4), enable, "BIOCIMMEDIATE");
 
             // BIOCGBLEN: read the kernel buffer length.
-            var blen = new byte[4];
+            byte[] blen = new byte[4];
             Ioctl(fd, Ior('B', 102, 4), blen, "BIOCGBLEN");
             m_bufferLength = Math.Max(BitConverter.ToInt32(blen, 0), m_parameters.MaxFrameSize);
 
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             {
                 return;
             }
-            var buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_bufferLength)];
+            byte[] buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_bufferLength)];
             while (!cancellationToken.IsCancellationRequested)
             {
                 nint read = NativeMethods.read(fd, buffer, buffer.Length);
@@ -347,7 +347,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 }
                 if (caplen <= m_parameters.MaxFrameSize)
                 {
-                    var frame = new byte[caplen];
+                    byte[] frame = new byte[caplen];
                     Buffer.BlockCopy(buffer, dataStart, frame, 0, caplen);
                     if (!channel.Writer.TryWrite(frame))
                     {

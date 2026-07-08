@@ -481,7 +481,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private static Headers CreateHeaders(KafkaMessage message)
         {
-            Headers headers = Headers.Create();
+            var headers = Headers.Create();
             if (!string.IsNullOrEmpty(message.ContentType))
             {
                 headers.Add(ContentTypeHeader, message.ContentType);

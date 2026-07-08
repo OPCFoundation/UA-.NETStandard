@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PubSubNetworkMessage? decoded = UadpDecoder.Decode(payload, ctx);
 
             Assert.That(decoded, Is.InstanceOf<UadpDiscoveryResponseMessage>());
-            UadpDiscoveryResponseMessage response = (UadpDiscoveryResponseMessage)decoded!;
+            var response = (UadpDiscoveryResponseMessage)decoded!;
             Assert.That(
                 response.DiscoveryType,
                 Is.EqualTo(UadpDiscoveryType.DataSetMetaData));

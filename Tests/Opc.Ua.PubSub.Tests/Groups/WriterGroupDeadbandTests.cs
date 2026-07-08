@@ -81,8 +81,8 @@ namespace Opc.Ua.PubSub.Tests.Groups
             source.Value = 12.0;
             await group.PublishOnceAsync().ConfigureAwait(false);
             Assert.That(captured, Has.Count.EqualTo(1));
-            UadpNetworkMessageV2 net = (UadpNetworkMessageV2)captured[0];
-            UadpDataSetMessageV2 ds = (UadpDataSetMessageV2)net.DataSetMessages[0];
+            var net = (UadpNetworkMessageV2)captured[0];
+            var ds = (UadpDataSetMessageV2)net.DataSetMessages[0];
             Assert.That(ds.MessageType, Is.EqualTo(PubSubDataSetMessageType.DeltaFrame));
         }
 

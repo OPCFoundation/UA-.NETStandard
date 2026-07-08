@@ -60,7 +60,7 @@ public static class Program
     /// <exception cref="InvalidOperationException"></exception>
     public static async Task<int> Main(string[] args)
     {
-        SampleOptions options = SampleOptions.Parse(args, Environment.GetEnvironmentVariable);
+        var options = SampleOptions.Parse(args, Environment.GetEnvironmentVariable);
         using CancellationTokenSource shutdown = CreateShutdownTokenSource();
         try
         {

@@ -150,7 +150,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task SampleAsync_WithItemsAndMetaData_MapsFieldNamesFromMetaDataAsync()
         {
             var nodeId = new NodeId(1u);
-            DataValue returnValue = new DataValue(new Variant(99.0));
+            var returnValue = new DataValue(new Variant(99.0));
             var storeMock = new Mock<IUaPubSubDataStore>();
             storeMock
                 .Setup(m => m.TryReadPublishedDataItem(
@@ -286,7 +286,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             // The default DataValue constructor sets SourceTimestamp = DateTimeUtc.MinValue.
             // The production code maps DateTimeUtc.MinValue → default(DateTimeUtc).
-            DataValue returnValue = new DataValue(new Variant(1.0));
+            var returnValue = new DataValue(new Variant(1.0));
             var storeMock = new Mock<IUaPubSubDataStore>();
             storeMock
                 .Setup(m => m.TryReadPublishedDataItem(
@@ -322,8 +322,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public async Task SampleAsync_WithValidSourceTimestamp_PreservesTimestampAsync()
         {
-            DateTime ts = new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-            DataValue returnValue = new DataValue(
+            var ts = new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+            var returnValue = new DataValue(
                 new Variant(7.0),
                 StatusCodes.Good,
                 DateTimeUtc.From(ts));

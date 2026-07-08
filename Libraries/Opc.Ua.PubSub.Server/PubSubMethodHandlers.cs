@@ -1260,7 +1260,7 @@ namespace Opc.Ua.PubSub.Server
             try
             {
                 PubSubConfigurationDataType configuration = m_application.GetConfiguration();
-                PubSubConfigurationDataType clone = (PubSubConfigurationDataType)configuration.Clone();
+                var clone = (PubSubConfigurationDataType)configuration.Clone();
                 if (clone.PublishedDataSets.IsNull)
                 {
                     return new ServiceResult(StatusCodes.BadNodeIdUnknown);
@@ -1473,7 +1473,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 return [];
             }
-            var result = new string[values.Count];
+            string[] result = new string[values.Count];
             for (int i = 0; i < values.Count; i++)
             {
                 result[i] = values[i];

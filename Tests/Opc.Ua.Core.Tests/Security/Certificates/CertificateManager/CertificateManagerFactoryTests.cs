@@ -71,7 +71,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             provider.SetupGet(p => p.StoreTypeName).Returns(CertificateStoreType.Directory);
             provider.Setup(p => p.CreateStore(m_telemetry)).Returns(store.Object);
 
-            TrustListIdentifier trustList = new TrustListIdentifier("CustomTrustList");
+            var trustList = new TrustListIdentifier("CustomTrustList");
             using CertificateManager manager = CertificateManagerFactory.Create(
                 new SecurityConfiguration(),
                 m_telemetry,

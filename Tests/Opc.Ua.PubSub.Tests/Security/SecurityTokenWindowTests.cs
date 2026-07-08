@@ -276,7 +276,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             const int parallelism = 8;
             const int perTask = 500;
             var accepted = new ConcurrentBag<ulong>();
-            Task[] workers = new Task[parallelism];
+            var workers = new Task[parallelism];
             for (int t = 0; t < parallelism; t++)
             {
                 int taskIndex = t;

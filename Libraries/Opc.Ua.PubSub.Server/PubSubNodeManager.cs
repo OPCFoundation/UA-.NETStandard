@@ -1914,7 +1914,7 @@ namespace Opc.Ua.PubSub.Server
                 {
                     length = 0;
                 }
-                var buffer = new byte[Math.Min(length, m_length - m_position)];
+                byte[] buffer = new byte[Math.Min(length, m_length - m_position)];
                 Array.Copy(m_buffer, m_position, buffer, 0, buffer.Length);
                 m_position += buffer.Length;
                 return buffer;
@@ -1934,7 +1934,7 @@ namespace Opc.Ua.PubSub.Server
 
             public byte[] ToArray()
             {
-                var result = new byte[m_length];
+                byte[] result = new byte[m_length];
                 Array.Copy(m_buffer, 0, result, 0, result.Length);
                 return result;
             }

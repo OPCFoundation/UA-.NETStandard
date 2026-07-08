@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.WebApi
                     DisposeHandler = false
                 };
 
-                using (WebApiClient client = WebApiClient.Create(s_baseAddress, options))
+                using (var client = WebApiClient.Create(s_baseAddress, options))
                 {
                     // Dispose the client — handler is borrowed, must NOT be disposed.
                 }

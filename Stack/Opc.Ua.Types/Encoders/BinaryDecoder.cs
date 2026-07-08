@@ -1968,7 +1968,7 @@ namespace Opc.Ua
         /// <param name="length">The number of elements to read.</param>
         private T[] ReadFixedWidthArray<T>(int length) where T : unmanaged
         {
-            T[] values = new T[length];
+            var values = new T[length];
             Span<byte> bytes = MemoryMarshal.AsBytes(values.AsSpan());
             ReadRawBytes(bytes);
 

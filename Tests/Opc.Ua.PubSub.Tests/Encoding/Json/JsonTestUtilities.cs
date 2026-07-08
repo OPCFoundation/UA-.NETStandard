@@ -175,7 +175,7 @@ namespace OpcUaPubSubJsonTests
         /// <returns>Canonical JSON text.</returns>
         public static string Canonicalise(string text)
         {
-            using JsonDocument document = JsonDocument.Parse(text);
+            using var document = JsonDocument.Parse(text);
             using var stream = new System.IO.MemoryStream();
             using (var writer = new Utf8JsonWriter(stream,
                 new JsonWriterOptions { Indented = false }))

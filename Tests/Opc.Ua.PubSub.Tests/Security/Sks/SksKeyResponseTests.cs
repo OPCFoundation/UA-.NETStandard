@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public void Constructor_RecordsAllFields()
         {
-            var packed = new[] { new byte[] { 1, 2, 3 } };
+            byte[][] packed = new[] { new byte[] { 1, 2, 3 } };
             var response = new SksKeyResponse(
                 PubSubSecurityPolicyUri.None,
                 42U,
@@ -172,8 +172,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 TimeSpan.FromMinutes(1));
             ArrayOf<PubSubSecurityKey> first = response.Unpacked;
             ArrayOf<PubSubSecurityKey> second = response.Unpacked;
-            PubSubSecurityKey[]? firstKeys = (PubSubSecurityKey[]?)first;
-            PubSubSecurityKey[]? secondKeys = (PubSubSecurityKey[]?)second;
+            var firstKeys = (PubSubSecurityKey[]?)first;
+            var secondKeys = (PubSubSecurityKey[]?)second;
             Assert.That(secondKeys, Is.EqualTo(firstKeys));
         }
     }

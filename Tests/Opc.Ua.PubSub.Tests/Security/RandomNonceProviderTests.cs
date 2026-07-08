@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             const int iterations = 256;
             const int parallelism = 8;
             var bag = new System.Collections.Concurrent.ConcurrentBag<ulong>();
-            Task[] workers = new Task[parallelism];
+            var workers = new Task[parallelism];
             for (int t = 0; t < parallelism; t++)
             {
                 workers[t] = Task.Run(() =>

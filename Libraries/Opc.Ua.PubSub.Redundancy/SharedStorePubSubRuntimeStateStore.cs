@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException("componentId must be non-empty.", nameof(componentId));
             }
 
-            var buffer = new byte[sizeof(int)];
+            byte[] buffer = new byte[sizeof(int)];
             BinaryPrimitives.WriteInt32LittleEndian(buffer, (int)state);
             await m_store
                 .SetAsync(

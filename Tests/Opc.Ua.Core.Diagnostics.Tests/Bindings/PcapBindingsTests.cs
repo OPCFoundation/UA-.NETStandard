@@ -49,7 +49,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallReturnsNonNullCaptureRegistry()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             IChannelCaptureRegistry registry = PcapBindings.Install(bindings);
 
             Assert.That(registry, Is.Not.Null);
@@ -61,7 +61,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallSetsBindingOnTransportBindingsChannels()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             PcapBindings.Install(bindings);
 
             Assert.That(bindings.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
@@ -75,7 +75,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallWithSuppliedRegistryReplacesPreviousBinding()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             IChannelCaptureRegistry firstRegistry = PcapBindings.Install(bindings);
             var customRegistry = new ChannelCaptureRegistry();
             PcapBindings.Install(bindings, customRegistry);
@@ -90,7 +90,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallWithNullCaptureRegistryThrows()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             Assert.That(
                 () => PcapBindings.Install(bindings, registry: null!),
                 Throws.TypeOf<ArgumentNullException>()

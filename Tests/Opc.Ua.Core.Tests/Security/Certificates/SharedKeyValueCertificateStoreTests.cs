@@ -316,7 +316,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             public ByteString Protect(ByteString plaintext)
             {
                 ReadOnlySpan<byte> source = plaintext.Span;
-                var result = new byte[s_marker.Length + source.Length];
+                byte[] result = new byte[s_marker.Length + source.Length];
                 s_marker.CopyTo(result.AsSpan());
                 source.CopyTo(result.AsSpan(s_marker.Length));
                 return new ByteString(result);

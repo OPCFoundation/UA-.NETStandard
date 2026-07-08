@@ -499,7 +499,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
         private CancellationTokenSource CreateHandshakeTimeoutCts(CancellationToken cancellationToken)
         {
-            CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             TimeSpan timeout = ComputeHandshakeTimeout();
             if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
             {

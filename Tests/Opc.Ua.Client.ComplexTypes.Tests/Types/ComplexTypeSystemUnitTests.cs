@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .LoadTypeAsync(structureNode.NodeId, false, true)
                 .ConfigureAwait(false);
 
-            ExpandedNodeId expectedId = NodeId.ToExpandedNodeId(
+            var expectedId = NodeId.ToExpandedNodeId(
                 structureNode.NodeId,
                 mockResolver.NamespaceUris);
             var expectedName = new XmlQualifiedName("CarType", Namespaces.MockResolverUrl);

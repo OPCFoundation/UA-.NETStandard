@@ -446,7 +446,7 @@ namespace Opc.Ua
         private ByteString EncodeCertificate(Certificate certificate)
         {
             byte[] der = certificate.RawData;
-            var plaintext = new byte[TimestampLength + der.Length];
+            byte[] plaintext = new byte[TimestampLength + der.Length];
             BinaryPrimitives.WriteInt64LittleEndian(plaintext, DateTime.UtcNow.Ticks);
             der.CopyTo(plaintext.AsSpan(TimestampLength));
             return m_protector.Protect(new ByteString(plaintext));

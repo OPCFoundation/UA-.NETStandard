@@ -163,7 +163,7 @@ namespace Opc.Ua.Aot.Tests
             using var protector = new AesCbcHmacRecordProtector(MakeKey(31));
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Warning));
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             var sessionStore = new SharedKeyValueSessionStore(kv, context, protector);
             var token = new NodeId(Guid.NewGuid(), 1);
             var entry = new SharedSessionEntry
@@ -255,7 +255,7 @@ namespace Opc.Ua.Aot.Tests
             using var protector = new AesCbcHmacRecordProtector(MakeKey(47));
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Warning));
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
 
             await using (var factory = new SharedKeyValueMonitoredItemQueueFactory(
                 kv, context, protector, telemetry))

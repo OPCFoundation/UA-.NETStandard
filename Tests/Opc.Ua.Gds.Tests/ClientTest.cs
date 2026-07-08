@@ -957,7 +957,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 else
                 {
-                    using Certificate publicCertificate = Certificate.FromRawData(application.Certificate);
+                    using var publicCertificate = Certificate.FromRawData(application.Certificate);
                     csrCertificate = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                         publicCertificate,
                         application.PrivateKey,
@@ -1307,7 +1307,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                using Certificate publicCertificate = Certificate.FromRawData(application.Certificate);
+                using var publicCertificate = Certificate.FromRawData(application.Certificate);
                 csrCertificate = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     publicCertificate,
                     application.PrivateKey,

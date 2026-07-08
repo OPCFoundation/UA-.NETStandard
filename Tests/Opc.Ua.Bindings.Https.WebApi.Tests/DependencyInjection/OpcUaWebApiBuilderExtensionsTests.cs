@@ -237,7 +237,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
         private static void AssertHttpsFactoryHasWebApiContributor(ITransportBindingRegistry registry)
         {
-            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
+            var factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
 
             Assert.That(
                 factory.StartupContributors,

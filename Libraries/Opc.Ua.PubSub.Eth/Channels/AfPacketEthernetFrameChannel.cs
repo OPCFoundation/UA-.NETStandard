@@ -281,7 +281,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             {
                 return;
             }
-            var buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_parameters.MaxFrameSize)];
+            byte[] buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_parameters.MaxFrameSize)];
             while (!cancellationToken.IsCancellationRequested)
             {
                 nint received = NativeMethods.recvfrom(
@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 {
                     continue;
                 }
-                var frame = new byte[length];
+                byte[] frame = new byte[length];
                 Buffer.BlockCopy(buffer, 0, frame, 0, length);
                 if (!channel.Writer.TryWrite(frame))
                 {
@@ -330,7 +330,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private void AddMembership(int fd, ushort type, byte[]? address)
         {
             // struct packet_mreq { int mr_ifindex; ushort mr_type; ushort mr_alen; byte[8] mr_address; }
-            var mreq = new byte[16];
+            byte[] mreq = new byte[16];
             BitConverter.GetBytes((int)m_interfaceIndex).CopyTo(mreq, 0);
             BitConverter.GetBytes(type).CopyTo(mreq, 4);
             if (address is not null && address.Length == EthernetFrameCodec.MacAddressLength)
@@ -350,7 +350,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private byte[] BuildSockAddr(byte[]? macAddress)
         {
             // struct sockaddr_ll (20 bytes).
-            var address = new byte[20];
+            byte[] address = new byte[20];
             BitConverter.GetBytes((ushort)AfPacket).CopyTo(address, 0);
             BitConverter.GetBytes(m_protocol).CopyTo(address, 2);
             BitConverter.GetBytes((int)m_interfaceIndex).CopyTo(address, 4);
@@ -364,7 +364,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private static byte[] ExtractDestinationMac(byte[]? frame)
         {
-            var mac = new byte[EthernetFrameCodec.MacAddressLength];
+            byte[] mac = new byte[EthernetFrameCodec.MacAddressLength];
             if (frame is not null && frame.Length >= EthernetFrameCodec.MacAddressLength)
             {
                 Array.Copy(frame, 0, mac, 0, EthernetFrameCodec.MacAddressLength);

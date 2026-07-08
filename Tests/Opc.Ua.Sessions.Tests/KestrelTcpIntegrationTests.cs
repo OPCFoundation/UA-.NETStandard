@@ -169,7 +169,7 @@ namespace Opc.Ua.Sessions.Tests
         private static TransportListenerSettings BuildMinimalSettings(ITelemetryContext telemetry = null!)
         {
             telemetry ??= NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             return new TransportListenerSettings
             {
                 Descriptions = [],

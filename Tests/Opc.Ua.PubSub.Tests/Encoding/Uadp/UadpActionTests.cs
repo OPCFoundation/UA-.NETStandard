@@ -149,7 +149,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             DataSetMetaDataType metaData = CreateActionMetaData();
             var registry = new DataSetMetaDataRegistry();
-            PublisherId publisherId = PublisherId.FromUInt16(0x55);
+            var publisherId = PublisherId.FromUInt16(0x55);
             registry.Register(
                 new DataSetMetaDataKey(publisherId, 0, 0x33, Uuid.Empty, 0),
                 metaData);

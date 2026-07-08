@@ -704,7 +704,7 @@ namespace Opc.Ua.PubSub.Udp
                     }
                     byte[] copy = new byte[result.ReceivedBytes];
                     Buffer.BlockCopy(receiveBuffer, 0, copy, 0, result.ReceivedBytes);
-                    IPEndPoint? sourceEndpoint = result.RemoteEndPoint as IPEndPoint;
+                    var sourceEndpoint = result.RemoteEndPoint as IPEndPoint;
                     var frame = new PubSubTransportFrame(
                         new ReadOnlyMemory<byte>(copy),
                         topic: null,

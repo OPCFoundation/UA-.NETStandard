@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 await writer.BuildEventMessagesAsync().ConfigureAwait(false);
 
             Assert.That(messages, Has.Count.EqualTo(1));
-            UadpDataSetMessageV2 dsm = (UadpDataSetMessageV2)messages[0];
+            var dsm = (UadpDataSetMessageV2)messages[0];
             Assert.That(dsm.FieldContentMask & DataSetFieldContentMask.StatusCode,
                 Is.EqualTo(DataSetFieldContentMask.StatusCode));
         }

@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests
                 CreateMessage(10),
                 CreateMessage(11)
             ];
-            SentMessageQueue queue = SentMessageQueue.CreateRestored(
+            var queue = SentMessageQueue.CreateRestored(
                 () => 7,
                 maxMessageCount: 5,
                 retransmissionStore: null,
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests
         public void EnqueueUsesDeltaStoreWhenAvailableAndReportsRemovedSequenceNumbers()
         {
             var deltaStore = new Mock<ISubscriptionRetransmissionDeltaStore>();
-            SentMessageQueue queue = SentMessageQueue.CreateRestored(
+            var queue = SentMessageQueue.CreateRestored(
                 () => 9,
                 maxMessageCount: 2,
                 deltaStore.Object,
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
         public void TryAcknowledgeRemovesMessageAndMirrorsAcknowledgement()
         {
             var store = new Mock<ISubscriptionRetransmissionStore>();
-            SentMessageQueue queue = SentMessageQueue.CreateRestored(
+            var queue = SentMessageQueue.CreateRestored(
                 () => 13,
                 maxMessageCount: 5,
                 store.Object,

@@ -138,7 +138,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 s_logger);
 
             Assert.That(ServiceResult.IsGood(validationResult), Is.True);
-            AuditWriteUpdateEventState auditEvent = (AuditWriteUpdateEventState)server.Events.Single();
+            var auditEvent = (AuditWriteUpdateEventState)server.Events.Single();
             Assert.That(auditEvent.SourceName.Value, Is.EqualTo("Attribute/Write"));
             Assert.That(auditEvent.Status.Value, Is.True);
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 new InvalidOperationException("outer", exception),
                 s_logger);
 
-            AuditOpenSecureChannelEventState auditEvent =
+            var auditEvent =
                 (AuditOpenSecureChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
             Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -176,7 +176,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                     new ServiceResultException(StatusCodes.BadSecureChannelClosed)),
                 s_logger);
 
-            AuditChannelEventState auditEvent = (AuditChannelEventState)server.Events.Single();
+            var auditEvent = (AuditChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
             Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Uncertain));
         }

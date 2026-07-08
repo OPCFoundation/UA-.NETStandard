@@ -456,7 +456,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
         private static Certificate CreateEcdsaCertificate(DtlsNamedCurve curve)
         {
-            using ECDsa ecdsa = ECDsa.Create(ToEccCurve(curve));
+            using var ecdsa = ECDsa.Create(ToEccCurve(curve));
             var request = new CertificateRequest("CN=dtls-handshake", ecdsa, GetHash(curve));
             return Certificate.From(request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10)));
@@ -508,8 +508,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Func<byte[], byte[]>? clientToServerTransform = null,
                 Func<byte[], byte[]>? serverToClientTransform = null)
             {
-                Channel<ReadOnlyMemory<byte>> clientInbound = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
-                Channel<ReadOnlyMemory<byte>> serverInbound = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+                var clientInbound = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+                var serverInbound = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
                 var client = new InMemoryDtlsDatagramChannel(
                     clientInbound,
                     serverInbound,

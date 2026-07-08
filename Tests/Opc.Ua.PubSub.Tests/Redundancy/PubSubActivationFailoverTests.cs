@@ -65,8 +65,8 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
             var clock = new FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             var store = new InMemoryPubSubLeaseStore(clock);
-            TimeSpan ttl = TimeSpan.FromSeconds(9);
-            TimeSpan interval = TimeSpan.FromSeconds(1);
+            var ttl = TimeSpan.FromSeconds(9);
+            var interval = TimeSpan.FromSeconds(1);
             var firstEvents = new List<PubSubRoleChangedEventArgs>();
             var secondEvents = new List<PubSubRoleChangedEventArgs>();
 
@@ -130,8 +130,8 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             using var sharedBackend = new InMemorySharedKeyValueStore();
             var store = new SharedStorePubSubLeaseStore(sharedBackend, clock);
-            TimeSpan ttl = TimeSpan.FromSeconds(9);
-            TimeSpan interval = TimeSpan.FromSeconds(1);
+            var ttl = TimeSpan.FromSeconds(9);
+            var interval = TimeSpan.FromSeconds(1);
 
             await using var first = new LeaseActivationCoordinator(
                 store,
@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
             var clock = new FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             var store = new InMemoryPubSubLeaseStore(clock);
-            TimeSpan ttl = TimeSpan.FromSeconds(30);
+            var ttl = TimeSpan.FromSeconds(30);
 
             PubSubLease? firstLease = await store.TryAcquireAsync(
                 WriterComponentId,
@@ -220,7 +220,7 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
             var clock = new FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             var store = new InMemoryPubSubLeaseStore(clock);
-            TimeSpan ttl = TimeSpan.FromSeconds(10);
+            var ttl = TimeSpan.FromSeconds(10);
 
             PubSubLease? acquired = await store.TryAcquireAsync(
                 WriterComponentId,

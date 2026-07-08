@@ -311,7 +311,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         [Test]
         public void L1Key8ManagedChannelKeyEqualityIsValueBased()
         {
-            var reverseIdentity = new object();
+            object reverseIdentity = new object();
             ManagedChannelKey firstKey = CreateManagedChannelKey(reverseIdentity);
             ManagedChannelKey equivalentKey = CreateManagedChannelKey(reverseIdentity);
             var differentKey = new ManagedChannelKey(

@@ -54,7 +54,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyRangeMatrixSelectsFirstRow(Variant input, Variant expected)
         {
             Variant value = input;
-            NumericRange range = NumericRange.Parse("0,0:1");
+            var range = NumericRange.Parse("0,0:1");
             StatusCode status = range.ApplyRange(ref value);
             Assert.That(status, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.EqualTo(expected));
@@ -74,7 +74,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UpdateRangeMatrixReplacesFirstRow(Variant input, Variant slice, Variant expected)
         {
             Variant value = input;
-            NumericRange range = NumericRange.Parse("0,0:1");
+            var range = NumericRange.Parse("0,0:1");
             StatusCode status = range.UpdateRange(ref value, slice);
             Assert.That(status, Is.EqualTo(StatusCodes.Good));
             Assert.That(value, Is.EqualTo(expected));
@@ -361,24 +361,24 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(stringSrc.ToMatrixOf()),
                 Variant.From(stringExp.ToMatrixOf())).SetName("ApplyRangeMatrixString");
 
-            DateTimeUtc[,] dateSrc = new DateTimeUtc[,] { { Dt(1), Dt(2) }, { Dt(3), Dt(4) } };
-            DateTimeUtc[,] dateExp = new DateTimeUtc[,] { { dateSrc[0, 0], dateSrc[0, 1] } };
+            var dateSrc = new DateTimeUtc[,] { { Dt(1), Dt(2) }, { Dt(3), Dt(4) } };
+            var dateExp = new DateTimeUtc[,] { { dateSrc[0, 0], dateSrc[0, 1] } };
             yield return new TestCaseData(
                 Variant.From(dateSrc.ToMatrixOf()),
                 Variant.From(dateExp.ToMatrixOf())).SetName("ApplyRangeMatrixDateTime");
 
-            Uuid[,] guidSrc = new Uuid[,] { { Uid(1), Uid(2) }, { Uid(3), Uid(4) } };
-            Uuid[,] guidExp = new Uuid[,] { { guidSrc[0, 0], guidSrc[0, 1] } };
+            var guidSrc = new Uuid[,] { { Uid(1), Uid(2) }, { Uid(3), Uid(4) } };
+            var guidExp = new Uuid[,] { { guidSrc[0, 0], guidSrc[0, 1] } };
             yield return new TestCaseData(
                 Variant.From(guidSrc.ToMatrixOf()),
                 Variant.From(guidExp.ToMatrixOf())).SetName("ApplyRangeMatrixGuid");
 
-            ByteString[,] byteStringSrc = new ByteString[,]
+            var byteStringSrc = new ByteString[,]
             {
                 { ByteString.From(1), ByteString.From(2) },
                 { ByteString.From(3), ByteString.From(4) }
             };
-            ByteString[,] byteStringExp = new ByteString[,]
+            var byteStringExp = new ByteString[,]
             {
                 { byteStringSrc[0, 0], byteStringSrc[0, 1] }
             };
@@ -386,32 +386,32 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(byteStringSrc.ToMatrixOf()),
                 Variant.From(byteStringExp.ToMatrixOf())).SetName("ApplyRangeMatrixByteString");
 
-            XmlElement[,] xmlSrc = new XmlElement[,]
+            var xmlSrc = new XmlElement[,]
             {
                 { XmlElement.From("<a>1</a>"), XmlElement.From("<a>2</a>") },
                 { XmlElement.From("<a>3</a>"), XmlElement.From("<a>4</a>") }
             };
-            XmlElement[,] xmlExp = new XmlElement[,] { { xmlSrc[0, 0], xmlSrc[0, 1] } };
+            var xmlExp = new XmlElement[,] { { xmlSrc[0, 0], xmlSrc[0, 1] } };
             yield return new TestCaseData(
                 Variant.From(xmlSrc.ToMatrixOf()),
                 Variant.From(xmlExp.ToMatrixOf())).SetName("ApplyRangeMatrixXmlElement");
 
-            NodeId[,] nodeSrc = new NodeId[,]
+            var nodeSrc = new NodeId[,]
             {
                 { new NodeId(1), new NodeId(2) },
                 { new NodeId(3), new NodeId(4) }
             };
-            NodeId[,] nodeExp = new NodeId[,] { { nodeSrc[0, 0], nodeSrc[0, 1] } };
+            var nodeExp = new NodeId[,] { { nodeSrc[0, 0], nodeSrc[0, 1] } };
             yield return new TestCaseData(
                 Variant.From(nodeSrc.ToMatrixOf()),
                 Variant.From(nodeExp.ToMatrixOf())).SetName("ApplyRangeMatrixNodeId");
 
-            ExpandedNodeId[,] expandedSrc = new ExpandedNodeId[,]
+            var expandedSrc = new ExpandedNodeId[,]
             {
                 { ENId("A"), ENId("B") },
                 { ENId("C"), ENId("D") }
             };
-            ExpandedNodeId[,] expandedExp = new ExpandedNodeId[,]
+            var expandedExp = new ExpandedNodeId[,]
             {
                 { expandedSrc[0, 0], expandedSrc[0, 1] }
             };
@@ -419,22 +419,22 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(expandedSrc.ToMatrixOf()),
                 Variant.From(expandedExp.ToMatrixOf())).SetName("ApplyRangeMatrixExpandedNodeId");
 
-            StatusCode[,] statusSrc = new StatusCode[,]
+            var statusSrc = new StatusCode[,]
             {
                 { new StatusCode(1u), new StatusCode(2u) },
                 { new StatusCode(3u), new StatusCode(4u) }
             };
-            StatusCode[,] statusExp = new StatusCode[,] { { statusSrc[0, 0], statusSrc[0, 1] } };
+            var statusExp = new StatusCode[,] { { statusSrc[0, 0], statusSrc[0, 1] } };
             yield return new TestCaseData(
                 Variant.From(statusSrc.ToMatrixOf()),
                 Variant.From(statusExp.ToMatrixOf())).SetName("ApplyRangeMatrixStatusCode");
 
-            QualifiedName[,] qualifiedSrc = new QualifiedName[,]
+            var qualifiedSrc = new QualifiedName[,]
             {
                 { new QualifiedName("a", 1), new QualifiedName("b", 1) },
                 { new QualifiedName("c", 1), new QualifiedName("d", 1) }
             };
-            QualifiedName[,] qualifiedExp = new QualifiedName[,]
+            var qualifiedExp = new QualifiedName[,]
             {
                 { qualifiedSrc[0, 0], qualifiedSrc[0, 1] }
             };
@@ -442,12 +442,12 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(qualifiedSrc.ToMatrixOf()),
                 Variant.From(qualifiedExp.ToMatrixOf())).SetName("ApplyRangeMatrixQualifiedName");
 
-            LocalizedText[,] localizedSrc = new LocalizedText[,]
+            var localizedSrc = new LocalizedText[,]
             {
                 { new LocalizedText("en", "a"), new LocalizedText("en", "b") },
                 { new LocalizedText("en", "c"), new LocalizedText("en", "d") }
             };
-            LocalizedText[,] localizedExp = new LocalizedText[,]
+            var localizedExp = new LocalizedText[,]
             {
                 { localizedSrc[0, 0], localizedSrc[0, 1] }
             };
@@ -455,12 +455,12 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(localizedSrc.ToMatrixOf()),
                 Variant.From(localizedExp.ToMatrixOf())).SetName("ApplyRangeMatrixLocalizedText");
 
-            ExtensionObject[,] extensionSrc = new ExtensionObject[,]
+            var extensionSrc = new ExtensionObject[,]
             {
                 { new ExtensionObject(new Argument()), new ExtensionObject(new Argument()) },
                 { new ExtensionObject(new Argument()), new ExtensionObject(new Argument()) }
             };
-            ExtensionObject[,] extensionExp = new ExtensionObject[,]
+            var extensionExp = new ExtensionObject[,]
             {
                 { extensionSrc[0, 0], extensionSrc[0, 1] }
             };
@@ -468,12 +468,12 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(extensionSrc.ToMatrixOf()),
                 Variant.From(extensionExp.ToMatrixOf())).SetName("ApplyRangeMatrixExtensionObject");
 
-            DataValue[,] dataValueSrc = new DataValue[,]
+            var dataValueSrc = new DataValue[,]
             {
                 { new DataValue(1), new DataValue(2) },
                 { new DataValue(3), new DataValue(4) }
             };
-            DataValue[,] dataValueExp = new DataValue[,]
+            var dataValueExp = new DataValue[,]
             {
                 { dataValueSrc[0, 0], dataValueSrc[0, 1] }
             };
@@ -481,22 +481,22 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(dataValueSrc.ToMatrixOf()),
                 Variant.From(dataValueExp.ToMatrixOf())).SetName("ApplyRangeMatrixDataValue");
 
-            EnumValue[,] enumSrc = new EnumValue[,]
+            var enumSrc = new EnumValue[,]
             {
                 { new EnumValue(1), new EnumValue(2) },
                 { new EnumValue(3), new EnumValue(4) }
             };
-            EnumValue[,] enumExp = new EnumValue[,] { { enumSrc[0, 0], enumSrc[0, 1] } };
+            var enumExp = new EnumValue[,] { { enumSrc[0, 0], enumSrc[0, 1] } };
             yield return new TestCaseData(
                 Variant.From(enumSrc.ToMatrixOf()),
                 Variant.From(enumExp.ToMatrixOf())).SetName("ApplyRangeMatrixEnumeration");
 
-            Variant[,] variantSrc = new Variant[,]
+            var variantSrc = new Variant[,]
             {
                 { new Variant(10), new Variant("two") },
                 { new Variant(30), new Variant("four") }
             };
-            Variant[,] variantExp = new Variant[,] { { variantSrc[0, 0], variantSrc[0, 1] } };
+            var variantExp = new Variant[,] { { variantSrc[0, 0], variantSrc[0, 1] } };
             yield return new TestCaseData(
                 Variant.From(variantSrc.ToMatrixOf()),
                 Variant.From(variantExp.ToMatrixOf())).SetName("ApplyRangeMatrixVariant");
@@ -801,13 +801,13 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(stringSlice.ToMatrixOf()),
                 Variant.From(stringExp.ToMatrixOf())).SetName("UpdateRangeMatrixString");
 
-            NodeId[,] nodeDst = new NodeId[,]
+            var nodeDst = new NodeId[,]
             {
                 { new NodeId(10), new NodeId(20) },
                 { new NodeId(30), new NodeId(40) }
             };
-            NodeId[,] nodeSlice = new NodeId[,] { { new NodeId(77), new NodeId(88) } };
-            NodeId[,] nodeExp = new NodeId[,]
+            var nodeSlice = new NodeId[,] { { new NodeId(77), new NodeId(88) } };
+            var nodeExp = new NodeId[,]
             {
                 { nodeSlice[0, 0], nodeSlice[0, 1] },
                 { nodeDst[1, 0], nodeDst[1, 1] }
@@ -925,9 +925,9 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(floatSlice.ToMatrixOf()),
                 Variant.From(floatExp.ToMatrixOf())).SetName("UpdateRangeMatrixFloat");
 
-            DateTimeUtc[,] dateDst = new DateTimeUtc[,] { { Dt(1), Dt(2) }, { Dt(3), Dt(4) } };
-            DateTimeUtc[,] dateSlice = new DateTimeUtc[,] { { Dt(7), Dt(8) } };
-            DateTimeUtc[,] dateExp = new DateTimeUtc[,]
+            var dateDst = new DateTimeUtc[,] { { Dt(1), Dt(2) }, { Dt(3), Dt(4) } };
+            var dateSlice = new DateTimeUtc[,] { { Dt(7), Dt(8) } };
+            var dateExp = new DateTimeUtc[,]
             {
                 { dateSlice[0, 0], dateSlice[0, 1] },
                 { dateDst[1, 0], dateDst[1, 1] }
@@ -937,9 +937,9 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(dateSlice.ToMatrixOf()),
                 Variant.From(dateExp.ToMatrixOf())).SetName("UpdateRangeMatrixDateTime");
 
-            Uuid[,] guidDst = new Uuid[,] { { Uid(1), Uid(2) }, { Uid(3), Uid(4) } };
-            Uuid[,] guidSlice = new Uuid[,] { { Uid(7), Uid(8) } };
-            Uuid[,] guidExp = new Uuid[,]
+            var guidDst = new Uuid[,] { { Uid(1), Uid(2) }, { Uid(3), Uid(4) } };
+            var guidSlice = new Uuid[,] { { Uid(7), Uid(8) } };
+            var guidExp = new Uuid[,]
             {
                 { guidSlice[0, 0], guidSlice[0, 1] },
                 { guidDst[1, 0], guidDst[1, 1] }
@@ -949,16 +949,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(guidSlice.ToMatrixOf()),
                 Variant.From(guidExp.ToMatrixOf())).SetName("UpdateRangeMatrixGuid");
 
-            ByteString[,] byteStringDst = new ByteString[,]
+            var byteStringDst = new ByteString[,]
             {
                 { ByteString.From(1), ByteString.From(2) },
                 { ByteString.From(3), ByteString.From(4) }
             };
-            ByteString[,] byteStringSlice = new ByteString[,]
+            var byteStringSlice = new ByteString[,]
             {
                 { ByteString.From(77), ByteString.From(88) }
             };
-            ByteString[,] byteStringExp = new ByteString[,]
+            var byteStringExp = new ByteString[,]
             {
                 { byteStringSlice[0, 0], byteStringSlice[0, 1] },
                 { byteStringDst[1, 0], byteStringDst[1, 1] }
@@ -968,16 +968,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(byteStringSlice.ToMatrixOf()),
                 Variant.From(byteStringExp.ToMatrixOf())).SetName("UpdateRangeMatrixByteString");
 
-            XmlElement[,] xmlDst = new XmlElement[,]
+            var xmlDst = new XmlElement[,]
             {
                 { XmlElement.From("<a>1</a>"), XmlElement.From("<a>2</a>") },
                 { XmlElement.From("<a>3</a>"), XmlElement.From("<a>4</a>") }
             };
-            XmlElement[,] xmlSlice = new XmlElement[,]
+            var xmlSlice = new XmlElement[,]
             {
                 { XmlElement.From("<a>77</a>"), XmlElement.From("<a>88</a>") }
             };
-            XmlElement[,] xmlExp = new XmlElement[,]
+            var xmlExp = new XmlElement[,]
             {
                 { xmlSlice[0, 0], xmlSlice[0, 1] },
                 { xmlDst[1, 0], xmlDst[1, 1] }
@@ -987,13 +987,13 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(xmlSlice.ToMatrixOf()),
                 Variant.From(xmlExp.ToMatrixOf())).SetName("UpdateRangeMatrixXmlElement");
 
-            ExpandedNodeId[,] expandedDst = new ExpandedNodeId[,]
+            var expandedDst = new ExpandedNodeId[,]
             {
                 { ENId("A"), ENId("B") },
                 { ENId("C"), ENId("D") }
             };
-            ExpandedNodeId[,] expandedSlice = new ExpandedNodeId[,] { { ENId("X"), ENId("Y") } };
-            ExpandedNodeId[,] expandedExp = new ExpandedNodeId[,]
+            var expandedSlice = new ExpandedNodeId[,] { { ENId("X"), ENId("Y") } };
+            var expandedExp = new ExpandedNodeId[,]
             {
                 { expandedSlice[0, 0], expandedSlice[0, 1] },
                 { expandedDst[1, 0], expandedDst[1, 1] }
@@ -1003,16 +1003,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(expandedSlice.ToMatrixOf()),
                 Variant.From(expandedExp.ToMatrixOf())).SetName("UpdateRangeMatrixExpandedNodeId");
 
-            StatusCode[,] statusDst = new StatusCode[,]
+            var statusDst = new StatusCode[,]
             {
                 { new StatusCode(1u), new StatusCode(2u) },
                 { new StatusCode(3u), new StatusCode(4u) }
             };
-            StatusCode[,] statusSlice = new StatusCode[,]
+            var statusSlice = new StatusCode[,]
             {
                 { new StatusCode(77u), new StatusCode(88u) }
             };
-            StatusCode[,] statusExp = new StatusCode[,]
+            var statusExp = new StatusCode[,]
             {
                 { statusSlice[0, 0], statusSlice[0, 1] },
                 { statusDst[1, 0], statusDst[1, 1] }
@@ -1022,16 +1022,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(statusSlice.ToMatrixOf()),
                 Variant.From(statusExp.ToMatrixOf())).SetName("UpdateRangeMatrixStatusCode");
 
-            QualifiedName[,] qualifiedDst = new QualifiedName[,]
+            var qualifiedDst = new QualifiedName[,]
             {
                 { new QualifiedName("a", 1), new QualifiedName("b", 1) },
                 { new QualifiedName("c", 1), new QualifiedName("d", 1) }
             };
-            QualifiedName[,] qualifiedSlice = new QualifiedName[,]
+            var qualifiedSlice = new QualifiedName[,]
             {
                 { new QualifiedName("x", 1), new QualifiedName("y", 1) }
             };
-            QualifiedName[,] qualifiedExp = new QualifiedName[,]
+            var qualifiedExp = new QualifiedName[,]
             {
                 { qualifiedSlice[0, 0], qualifiedSlice[0, 1] },
                 { qualifiedDst[1, 0], qualifiedDst[1, 1] }
@@ -1041,16 +1041,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(qualifiedSlice.ToMatrixOf()),
                 Variant.From(qualifiedExp.ToMatrixOf())).SetName("UpdateRangeMatrixQualifiedName");
 
-            LocalizedText[,] localizedDst = new LocalizedText[,]
+            var localizedDst = new LocalizedText[,]
             {
                 { new LocalizedText("en", "a"), new LocalizedText("en", "b") },
                 { new LocalizedText("en", "c"), new LocalizedText("en", "d") }
             };
-            LocalizedText[,] localizedSlice = new LocalizedText[,]
+            var localizedSlice = new LocalizedText[,]
             {
                 { new LocalizedText("en", "X"), new LocalizedText("en", "Y") }
             };
-            LocalizedText[,] localizedExp = new LocalizedText[,]
+            var localizedExp = new LocalizedText[,]
             {
                 { localizedSlice[0, 0], localizedSlice[0, 1] },
                 { localizedDst[1, 0], localizedDst[1, 1] }
@@ -1060,16 +1060,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(localizedSlice.ToMatrixOf()),
                 Variant.From(localizedExp.ToMatrixOf())).SetName("UpdateRangeMatrixLocalizedText");
 
-            ExtensionObject[,] extensionDst = new ExtensionObject[,]
+            var extensionDst = new ExtensionObject[,]
             {
                 { new ExtensionObject(new Argument()), new ExtensionObject(new Argument()) },
                 { new ExtensionObject(new Argument()), new ExtensionObject(new Argument()) }
             };
-            ExtensionObject[,] extensionSlice = new ExtensionObject[,]
+            var extensionSlice = new ExtensionObject[,]
             {
                 { new ExtensionObject(new Argument()), new ExtensionObject(new Argument()) }
             };
-            ExtensionObject[,] extensionExp = new ExtensionObject[,]
+            var extensionExp = new ExtensionObject[,]
             {
                 { extensionSlice[0, 0], extensionSlice[0, 1] },
                 { extensionDst[1, 0], extensionDst[1, 1] }
@@ -1079,16 +1079,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(extensionSlice.ToMatrixOf()),
                 Variant.From(extensionExp.ToMatrixOf())).SetName("UpdateRangeMatrixExtensionObject");
 
-            DataValue[,] dataValueDst = new DataValue[,]
+            var dataValueDst = new DataValue[,]
             {
                 { new DataValue(1), new DataValue(2) },
                 { new DataValue(3), new DataValue(4) }
             };
-            DataValue[,] dataValueSlice = new DataValue[,]
+            var dataValueSlice = new DataValue[,]
             {
                 { new DataValue(77), new DataValue(88) }
             };
-            DataValue[,] dataValueExp = new DataValue[,]
+            var dataValueExp = new DataValue[,]
             {
                 { dataValueSlice[0, 0], dataValueSlice[0, 1] },
                 { dataValueDst[1, 0], dataValueDst[1, 1] }
@@ -1098,16 +1098,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(dataValueSlice.ToMatrixOf()),
                 Variant.From(dataValueExp.ToMatrixOf())).SetName("UpdateRangeMatrixDataValue");
 
-            EnumValue[,] enumDst = new EnumValue[,]
+            var enumDst = new EnumValue[,]
             {
                 { new EnumValue(1), new EnumValue(2) },
                 { new EnumValue(3), new EnumValue(4) }
             };
-            EnumValue[,] enumSlice = new EnumValue[,]
+            var enumSlice = new EnumValue[,]
             {
                 { new EnumValue(77), new EnumValue(88) }
             };
-            EnumValue[,] enumExp = new EnumValue[,]
+            var enumExp = new EnumValue[,]
             {
                 { enumSlice[0, 0], enumSlice[0, 1] },
                 { enumDst[1, 0], enumDst[1, 1] }
@@ -1117,16 +1117,16 @@ namespace Opc.Ua.Types.Tests.Utils
                 Variant.From(enumSlice.ToMatrixOf()),
                 Variant.From(enumExp.ToMatrixOf())).SetName("UpdateRangeMatrixEnumeration");
 
-            Variant[,] variantDst = new Variant[,]
+            var variantDst = new Variant[,]
             {
                 { new Variant(10), new Variant("two") },
                 { new Variant(30), new Variant("four") }
             };
-            Variant[,] variantSlice = new Variant[,]
+            var variantSlice = new Variant[,]
             {
                 { new Variant(77), new Variant("eighty") }
             };
-            Variant[,] variantExp = new Variant[,]
+            var variantExp = new Variant[,]
             {
                 { variantSlice[0, 0], variantSlice[0, 1] },
                 { variantDst[1, 0], variantDst[1, 1] }
@@ -1140,7 +1140,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeScalarStringSlicesSubstring()
         {
-            Variant value = Variant.From("abcdef");
+            var value = Variant.From("abcdef");
             var range = new NumericRange(1, 3);
             StatusCode status = range.ApplyRange(ref value);
             Assert.That(status, Is.EqualTo(StatusCodes.Good));
@@ -1150,7 +1150,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeScalarByteStringSlicesBytes()
         {
-            Variant value = Variant.From(ByteString.From(10, 20, 30, 40, 50));
+            var value = Variant.From(ByteString.From(10, 20, 30, 40, 50));
             var range = new NumericRange(1, 3);
             StatusCode status = range.ApplyRange(ref value);
             Assert.That(status, Is.EqualTo(StatusCodes.Good));
@@ -1161,7 +1161,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeScalarNonSlicableTypeReturnsBadIndexRangeNoData()
         {
-            Variant value = Variant.From(42);
+            var value = Variant.From(42);
             var range = new NumericRange(1, 2);
             StatusCode status = range.ApplyRange(ref value);
             Assert.That(status, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1200,7 +1200,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ApplyRangeByteStringDirectSlicesBytes()
         {
-            ByteString value = ByteString.From(10, 20, 30, 40, 50);
+            var value = ByteString.From(10, 20, 30, 40, 50);
             var range = new NumericRange(1, 3);
             StatusCode status = range.ApplyRange(ref value);
             Assert.That(status, Is.EqualTo(StatusCodes.Good));
@@ -1211,7 +1211,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeByteStringDirectReplacesBytes()
         {
-            ByteString value = ByteString.From(10, 20, 30, 40, 50);
+            var value = ByteString.From(10, 20, 30, 40, 50);
             var range = new NumericRange(1, 3);
             StatusCode status = range.UpdateRange(ref value, ByteString.From(1, 2, 3));
             Assert.That(status, Is.EqualTo(StatusCodes.Good));
@@ -1223,7 +1223,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyRangeMatrixWithoutSubRangesReturnsBadIndexRangeNoData()
         {
             int[,] data = new int[,] { { 1, 2 }, { 3, 4 } };
-            Variant value = Variant.From(data.ToMatrixOf());
+            var value = Variant.From(data.ToMatrixOf());
             var range = new NumericRange(0, 1);
             StatusCode status = range.ApplyRange(ref value);
             Assert.That(status, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1319,7 +1319,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void DimensionsReturnsSubRangeCountForMultiDimensional()
         {
-            NumericRange range = NumericRange.Parse("1:2,3:4,5:6");
+            var range = NumericRange.Parse("1:2,3:4,5:6");
             Assert.That(range.Dimensions, Is.EqualTo(3));
         }
 
@@ -1333,8 +1333,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void EqualsReturnsTrueForRangesWithSameSubRanges()
         {
-            NumericRange left = NumericRange.Parse("1:2,3:4");
-            NumericRange right = NumericRange.Parse("1:2,3:4");
+            var left = NumericRange.Parse("1:2,3:4");
+            var right = NumericRange.Parse("1:2,3:4");
             bool equalsResult = left.Equals(right);
             bool operatorEquals = left == right;
             bool operatorNotEquals = left != right;
@@ -1347,8 +1347,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void EqualsReturnsFalseForRangesWithDifferentSubRanges()
         {
-            NumericRange left = NumericRange.Parse("1:2,3:4");
-            NumericRange right = NumericRange.Parse("1:2,3:5");
+            var left = NumericRange.Parse("1:2,3:4");
+            var right = NumericRange.Parse("1:2,3:5");
             bool equalsResult = left.Equals(right);
             bool operatorNotEquals = left != right;
             Assert.That(equalsResult, Is.False);

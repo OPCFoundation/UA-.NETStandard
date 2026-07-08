@@ -56,7 +56,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task RoundTripsServiceFaultViaJsonAsync()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             var response = new ServiceFault
             {
                 ResponseHeader = new ResponseHeader
@@ -79,7 +79,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task EncodeResponseToStreamWritesSameBytesAsArrayHelper()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             var response = new GetEndpointsResponse
             {
                 ResponseHeader = new ResponseHeader
@@ -103,7 +103,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void DecodeRequestRejectsMalformedBody()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             byte[] junk = Encoding.UTF8.GetBytes("this is not json");
             using var stream = new MemoryStream(junk);
 
@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void DecodeRequestRejectsEmptyBody()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             using var stream = new MemoryStream([]);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task EncodeAndDecodeRoundTripsReadRequest()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             var nodesToRead = new ArrayOf<ReadValueId>(new ReadValueId[]
             {
                 new() {
@@ -175,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task RoundTripsReadResponseWithMultipleDataValues()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             var results = new ArrayOf<DataValue>(new DataValue[]
             {
                 new(new Variant(123), StatusCodes.Good),
@@ -211,11 +211,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void DecodeRequestEnforcesMaxMessageSize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext smallContext = ServiceMessageContext.Create(telemetry);
+            var smallContext = ServiceMessageContext.Create(telemetry);
             smallContext.MaxMessageSize = 32; // far smaller than any real envelope
 
             // Encode a real request using a permissive context so payload exists.
-            ServiceMessageContext fullContext = ServiceMessageContext.Create(telemetry);
+            var fullContext = ServiceMessageContext.Create(telemetry);
             var request = new ReadRequest
             {
                 RequestHeader = new RequestHeader { RequestHandle = 1 }
@@ -281,7 +281,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void EncodeResponseThrowsOnNullArguments()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             var response = new ServiceFault();
 
             Assert.Throws<ArgumentNullException>(
@@ -293,7 +293,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void DecodeRequestThrowsOnNullArguments()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             using var stream = new MemoryStream();
 
             Assert.ThrowsAsync<ArgumentNullException>(
@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public void DecodeRequestPropagatesCancellation()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 

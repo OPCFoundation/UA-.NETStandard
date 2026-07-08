@@ -313,7 +313,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         $"No matching route for {request.GetType().Name}.");
                 }
 
-                IServiceResponse response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
+                var response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
                 var header = new ResponseHeader
                 {
                     Timestamp = DateTime.UtcNow,

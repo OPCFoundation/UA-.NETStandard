@@ -80,8 +80,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             var references = new Dictionary<NodeId, IList<IReference>>();
             var nodeId = new NodeId(123, 2);
-            var handle = new object();
-            var sourceHandle = new object();
+            object handle = new object();
+            object sourceHandle = new object();
             var referenceTypeId = new NodeId(234, 2);
             var targetId = new ExpandedNodeId(new NodeId(345, 2));
             var metadata = new NodeMetadata(handle, nodeId);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var methodToCall = new CallMethodRequest();
             var methodState = new MethodState(null);
             var filterTarget = new Mock<IFilterTarget>().Object;
-            var namespaces = new[] { "urn:test" };
+            string[] namespaces = new[] { "urn:test" };
             var deleteReferenceResult = new ServiceResult(StatusCodes.BadNodeIdUnknown);
             var eventResult = new ServiceResult(StatusCodes.BadEventFilterInvalid);
             var allEventsResult = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);

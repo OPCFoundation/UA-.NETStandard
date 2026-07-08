@@ -204,7 +204,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             var factory = new FakeKafkaClientFactory();
             KafkaBrokerTransport transport = KafkaTestHelper.NewTransport(factory, connection: connection);
             WriterGroupDataType writerGroup = connection.WriterGroups[0];
-            PublisherId publisherId = PublisherId.From(new Variant((uint)42));
+            var publisherId = PublisherId.From(new Variant((uint)42));
 
             Assert.That(transport.BuildDataTopic(publisherId, writerGroup, 3), Is.EqualTo("custom.data"));
             Assert.That(transport.BuildMetaDataTopic(publisherId, 1, 3), Is.EqualTo("custom.metadata"));

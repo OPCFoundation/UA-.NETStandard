@@ -498,7 +498,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 #if NET8_0_OR_GREATER
                 {
                     Span<byte> block = stackalloc byte[SequenceNumberSampleLength];
-                    using (Aes aes = Aes.Create())
+                    using (var aes = Aes.Create())
                     {
                         aes.Key = m_snKey;
                         aes.EncryptEcb(sample, block, PaddingMode.None);

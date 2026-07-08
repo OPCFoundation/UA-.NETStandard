@@ -273,7 +273,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
             bool clientToServer,
             CancellationToken ct)
         {
-            var buffer = new byte[BufferSize];
+            byte[] buffer = new byte[BufferSize];
             NetworkStream sourceStream = source.GetStream();
             NetworkStream destinationStream = destination.GetStream();
             while (!ct.IsCancellationRequested && !connection.IsClosed)

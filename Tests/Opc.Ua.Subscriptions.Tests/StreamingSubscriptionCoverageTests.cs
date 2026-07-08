@@ -713,7 +713,7 @@ namespace Opc.Ua.Subscriptions.Tests
         private static async Task<T> WithinTimeoutAsync<T>(Task<T> task)
         {
             using var cts = new CancellationTokenSource();
-            Task delay = Task.Delay(s_safetyTimeout, cts.Token);
+            var delay = Task.Delay(s_safetyTimeout, cts.Token);
             Task winner = await Task.WhenAny(task, delay).ConfigureAwait(false);
             Assert.That(winner, Is.SameAs(task),
                 "operation did not complete within the safety timeout");
@@ -725,7 +725,7 @@ namespace Opc.Ua.Subscriptions.Tests
             where TException : Exception
         {
             using var cts = new CancellationTokenSource();
-            Task delay = Task.Delay(s_safetyTimeout, cts.Token);
+            var delay = Task.Delay(s_safetyTimeout, cts.Token);
             Task winner = await Task.WhenAny(task, delay).ConfigureAwait(false);
             Assert.That(winner, Is.SameAs(task),
                 "operation did not fault within the safety timeout");

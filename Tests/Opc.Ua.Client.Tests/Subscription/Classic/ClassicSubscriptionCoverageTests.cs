@@ -144,7 +144,7 @@ namespace Opc.Ua.Client.Tests
         public void PropertySettersRoundTripExpectedValues()
         {
             using Subscription subscription = CreateSubscription();
-            var handle = new object();
+            object handle = new object();
 
             subscription.DisplayName = "Custom";
             subscription.PublishingInterval = 2000;

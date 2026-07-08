@@ -228,7 +228,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Math.Max(8, (message.Length + 1) / 2);
             IReadOnlyList<byte[]> chunks = new UadpChunker().Split(
                 message, messageSequenceNumber: 1, maxFrameSize);
-            var frames = new byte[chunks.Count][];
+            byte[][] frames = new byte[chunks.Count][];
             for (int i = 0; i < chunks.Count; i++)
             {
                 frames[i] = UadpEncoder.WriteChunkEnvelope(

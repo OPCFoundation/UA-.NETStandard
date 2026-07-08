@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Redundancy
             uint sequenceNumber,
             CancellationToken cancellationToken = default)
         {
-            var buffer = new byte[sizeof(uint)];
+            byte[] buffer = new byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32LittleEndian(buffer, sequenceNumber);
             await m_store
                 .SetAsync(

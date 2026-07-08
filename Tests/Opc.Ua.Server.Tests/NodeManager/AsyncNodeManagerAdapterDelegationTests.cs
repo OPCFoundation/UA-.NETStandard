@@ -464,7 +464,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private static TestValues CreateTestValues()
         {
-            var handle = new object();
+            object handle = new object();
             return new TestValues
             {
                 ExternalReferences = new Dictionary<NodeId, IList<IReference>>(),
@@ -735,7 +735,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ref It.Ref<ContinuationPoint>.IsAny,
                     values.ReferenceDescriptions))
                 .Callback(new BrowseCallback(
-                    (OperationContext _, ref ContinuationPoint cp, IList<ReferenceDescription> _) =>
+                    (_, ref cp, _) =>
                         cp = values.ReturnedContinuationPoint));
             manager.Setup(m => m.TranslateBrowsePath(
                 values.Context,

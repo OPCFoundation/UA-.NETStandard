@@ -252,7 +252,7 @@ namespace Opc.Ua
 
                 if (!configuration.ApplicationCertificates.IsEmpty)
                 {
-                    List<Certificate> applicationCertificates =
+                    var applicationCertificates =
                         m_state.ApplicationCertificates.ToList();
                     ArrayOf<CertificateIdentifier> appCerts = configuration.ApplicationCertificates;
                     for (int i = 0; i < appCerts.Count; i++)

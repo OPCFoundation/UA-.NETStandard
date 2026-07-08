@@ -240,7 +240,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             ExpressionSyntax expr = SyntaxFactory.ParseExpression(wrapped);
             Assert.That(expr, Is.InstanceOf<LiteralExpressionSyntax>(),
                 $"Roslyn could not parse: {wrapped}");
-            LiteralExpressionSyntax literal = (LiteralExpressionSyntax)expr;
+            var literal = (LiteralExpressionSyntax)expr;
             Assert.That(literal.Kind(), Is.EqualTo(SyntaxKind.StringLiteralExpression));
 
             string parsed = (string)literal.Token.Value;

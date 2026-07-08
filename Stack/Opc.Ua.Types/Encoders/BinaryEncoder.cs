@@ -2437,7 +2437,7 @@ namespace Opc.Ua
             }
 
             ReadOnlySequence<byte> sequence = m_ownedBufferWriter.GetReadOnlySequence();
-            var buffer = new byte[m_bufferPosition];
+            byte[] buffer = new byte[m_bufferPosition];
             sequence.CopyTo(buffer);
             m_ownedBufferWriter.Dispose();
             m_ownedBufferWriter = null;
@@ -2452,7 +2452,7 @@ namespace Opc.Ua
         private byte[] GetOwnedBuffer()
         {
             ReadOnlySequence<byte> sequence = m_ownedBufferWriter!.GetReadOnlySequence();
-            var buffer = new byte[m_bufferPosition];
+            byte[] buffer = new byte[m_bufferPosition];
             sequence.CopyTo(buffer);
             return buffer;
         }

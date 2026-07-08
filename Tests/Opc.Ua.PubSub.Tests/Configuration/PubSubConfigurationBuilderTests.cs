@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddPublishedDataSetWithNullConfigureThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddPublishedDataSet("DataSet", null!),
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithNullConfigureThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Connection", null!),
@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddPublishedDataSetWithEmptyNameThrowsArgumentException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddPublishedDataSet(string.Empty, _ => { }),
@@ -150,7 +150,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddFieldWithEmptyNameThrowsArgumentException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddPublishedDataSet("DataSet", ds => ds
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithEmptyNameThrowsArgumentException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection(string.Empty, _ => { }),
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddWriterGroupWithNullConfigureThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c.AddWriterGroup("Wg", null!)),
@@ -210,7 +210,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddReaderGroupWithNullConfigureThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c.AddReaderGroup("Rg", null!)),
@@ -275,7 +275,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddWriterGroupWithEmptyNameThrowsArgumentException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c.AddWriterGroup(string.Empty, _ => { })),
@@ -285,7 +285,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddDataSetWriterWithNullConfigureThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c
@@ -332,7 +332,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddDataSetWriterWithEmptyNameThrowsArgumentException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c
@@ -372,7 +372,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddReaderGroupWithEmptyNameThrowsArgumentException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c.AddReaderGroup(string.Empty, _ => { })),
@@ -382,7 +382,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddDataSetReaderWithNullConfigureThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c
@@ -453,7 +453,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddDataSetReaderWithEmptyNameThrowsArgumentException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c
@@ -464,7 +464,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void WithDataSetMetaDataWithNullConfigureThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddConnection("Udp", c => c

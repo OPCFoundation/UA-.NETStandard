@@ -692,7 +692,7 @@ namespace Opc.Ua.Server
                     // build issuer chain
                     foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
+                        using var issuerCertificate = Certificate.FromRawData(issuerRawCert);
                         newIssuerCollection.Add(issuerCertificate);
                     }
                 }

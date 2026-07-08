@@ -808,7 +808,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static byte[] Combine(byte[] prefix, byte[] payload)
         {
-            var combined = new byte[prefix.Length + payload.Length];
+            byte[] combined = new byte[prefix.Length + payload.Length];
             Buffer.BlockCopy(prefix, 0, combined, 0, prefix.Length);
             Buffer.BlockCopy(payload, 0, combined, prefix.Length, payload.Length);
             return combined;

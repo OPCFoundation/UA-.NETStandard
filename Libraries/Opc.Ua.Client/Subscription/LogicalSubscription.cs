@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         return [m_partitions[0].Id];
                     }
-                    var ids = new uint[m_partitions.Count];
+                    uint[] ids = new uint[m_partitions.Count];
                     for (int i = 0; i < m_partitions.Count; i++)
                     {
                         ids[i] = m_partitions[i].Id;

@@ -188,7 +188,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             _ = network.CreateNode(2);
             _ = network.CreateNode(3);
 
-            await using DefaultRaftConsensus node = DefaultRaftConsensus.CreateCluster(
+            await using var node = DefaultRaftConsensus.CreateCluster(
                 1,
                 ThreeMemberIds,
                 network.CreateNode(1),

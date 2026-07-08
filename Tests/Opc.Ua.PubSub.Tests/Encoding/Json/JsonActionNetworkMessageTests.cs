@@ -89,7 +89,7 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
 
-            using (JsonDocument document = JsonDocument.Parse(bytes))
+            using (var document = JsonDocument.Parse(bytes))
             {
                 JsonElement root = document.RootElement;
                 Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo(
@@ -148,7 +148,7 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
 
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
                 Is.EqualTo(PubSubJsonActionNetworkMessage.MessageTypeActionResponse));
 

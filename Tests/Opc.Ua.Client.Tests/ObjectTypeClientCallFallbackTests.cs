@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests
         public void SetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(telemetry);
+            var messageContext = ServiceMessageContext.Create(telemetry);
             ushort nsIndex = messageContext.NamespaceUris.GetIndexOrAppend(kMethodNamespaceUri);
 
             m_objectId = new NodeId(100u, nsIndex);

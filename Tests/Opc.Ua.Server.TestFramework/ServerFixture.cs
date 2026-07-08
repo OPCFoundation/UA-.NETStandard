@@ -554,10 +554,10 @@ namespace Opc.Ua.Server.TestFramework
 
         private void DisposeCertificateManagers()
         {
-            IDisposable applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable;
+            var applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable;
             applicationManager?.Dispose();
 
-            IDisposable configManager = Config?.CertificateManager as IDisposable;
+            var configManager = Config?.CertificateManager as IDisposable;
             if (configManager != null &&
                 !ReferenceEquals(configManager, applicationManager))
             {

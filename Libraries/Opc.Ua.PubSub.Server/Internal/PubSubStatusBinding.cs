@@ -213,7 +213,7 @@ namespace Opc.Ua.PubSub.Server.Internal
         private void BindCounter(BaseVariableState counter, PubSubDiagnosticsCounterKind kind)
         {
             counter.Value = Variant.From((uint)m_diagnostics.Read(kind));
-            counter.OnSimpleReadValue = (ISystemContext context, NodeState node, ref Variant value) =>
+            counter.OnSimpleReadValue = (context, node, ref value) =>
             {
                 long current = m_diagnostics.Read(kind);
                 value = Variant.From((uint)Math.Min(current, uint.MaxValue));

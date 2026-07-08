@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestSpec("6.3.1.3")]
         public async Task RoundTripDataValue_SourceTimestampBitAsync()
         {
-            DateTimeUtc ts = DateTimeUtc.From(
+            var ts = DateTimeUtc.From(
                 new DateTimeOffset(2026, 6, 16, 12, 0, 0, TimeSpan.Zero));
             PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
                 DataSetFieldContentMask.SourceTimestamp,
@@ -85,9 +85,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestSpec("6.3.1.3")]
         public async Task RoundTripDataValue_AllBitsAsync()
         {
-            DateTimeUtc src = DateTimeUtc.From(
+            var src = DateTimeUtc.From(
                 new DateTimeOffset(2026, 6, 16, 12, 0, 0, TimeSpan.Zero));
-            DateTimeUtc srv = DateTimeUtc.From(
+            var srv = DateTimeUtc.From(
                 new DateTimeOffset(2026, 6, 16, 12, 0, 1, TimeSpan.Zero));
             PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
                 DataSetFieldContentMask.StatusCode |

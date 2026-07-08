@@ -358,7 +358,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     result.StatusCode);
             }
 
-            NodeId resolved = ExpandedNodeId.ToNodeId(
+            var resolved = ExpandedNodeId.ToNodeId(
                 result.Targets[0].TargetId,
                 session.MessageContext.NamespaceUris);
             m_resolvedPaths[path] = resolved;
@@ -436,7 +436,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             CancellationToken ct)
         {
             var watch = Stopwatch.StartNew();
-            TimeSpan budget = TimeSpan.FromMilliseconds(5000);
+            var budget = TimeSpan.FromMilliseconds(5000);
 
             while (!subscription.Created ||
                 (!item.Created && StatusCode.IsGood(item.Error.StatusCode)))

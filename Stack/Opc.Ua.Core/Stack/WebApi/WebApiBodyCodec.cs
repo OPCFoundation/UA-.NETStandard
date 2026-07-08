@@ -194,7 +194,7 @@ namespace Opc.Ua.Bindings
                 {
                     return [];
                 }
-                var exact = new byte[contentLengthHint];
+                byte[] exact = new byte[contentLengthHint];
                 int total = 0;
                 while (total < exact.Length)
                 {
@@ -219,7 +219,7 @@ namespace Opc.Ua.Bindings
                 }
                 // Truncated body — return the actually-read prefix so callers
                 // surface a decoding error rather than a length mismatch.
-                var truncated = new byte[total];
+                byte[] truncated = new byte[total];
                 Buffer.BlockCopy(exact, 0, truncated, 0, total);
                 return truncated;
             }

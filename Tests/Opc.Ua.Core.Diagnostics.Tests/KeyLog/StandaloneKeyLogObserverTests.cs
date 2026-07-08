@@ -49,7 +49,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
         public async Task FrameCallbacksAreNoOps()
         {
             string keyLogPath = CreateTempPath("keys.uakeys.json");
-            await using StandaloneKeyLogObserver observer =
+            await using var observer =
                 StandaloneKeyLogObserver.Create(keyLogPath);
 
             IFrameCaptureSink sink = observer;
@@ -71,7 +71,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
         public async Task TokenActivationProducesJsonRecord()
         {
             string keyLogPath = CreateTempPath("keys.uakeys.json");
-            await using StandaloneKeyLogObserver observer =
+            await using var observer =
                 StandaloneKeyLogObserver.Create(keyLogPath);
 
             ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
@@ -95,7 +95,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
         public async Task TextExtensionSelectsTextFormat()
         {
             string keyLogPath = CreateTempPath("keys.uakeys.txt");
-            await using StandaloneKeyLogObserver observer =
+            await using var observer =
                 StandaloneKeyLogObserver.Create(keyLogPath);
 
             ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
@@ -124,7 +124,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
 
             Assert.That(Directory.Exists(nested), Is.False);
 
-            await using StandaloneKeyLogObserver observer =
+            await using var observer =
                 StandaloneKeyLogObserver.Create(keyLogPath);
 
             Assert.That(Directory.Exists(nested), Is.True);
@@ -150,7 +150,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
         public async Task TokenActivationsAfterDisposeAreIgnored()
         {
             string keyLogPath = CreateTempPath("keys.uakeys.json");
-            StandaloneKeyLogObserver observer =
+            var observer =
                 StandaloneKeyLogObserver.Create(keyLogPath);
 
             await observer.DisposeAsync().ConfigureAwait(false);
@@ -173,7 +173,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
         public async Task FilePathReportsResolvedPath()
         {
             string keyLogPath = CreateTempPath("keys.uakeys.json");
-            StandaloneKeyLogObserver observer = StandaloneKeyLogObserver.Create(keyLogPath);
+            var observer = StandaloneKeyLogObserver.Create(keyLogPath);
             try
             {
                 Assert.That(observer.FilePath, Is.EqualTo(keyLogPath));
@@ -188,7 +188,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
         public async Task MultipleTokenActivationsAllAppear()
         {
             string keyLogPath = CreateTempPath("keys.uakeys.json");
-            StandaloneKeyLogObserver observer = StandaloneKeyLogObserver.Create(keyLogPath);
+            var observer = StandaloneKeyLogObserver.Create(keyLogPath);
 
             IFrameCaptureSink sink = observer;
             for (uint i = 0; i < 5; i++)

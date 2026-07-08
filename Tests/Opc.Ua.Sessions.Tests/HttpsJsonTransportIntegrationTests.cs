@@ -145,7 +145,7 @@ namespace Opc.Ua.Sessions.Tests
                 TransportProfileUri = Profiles.HttpsJsonTransport
             };
 
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             endpointConfiguration.OperationTimeout = kMaxTimeout;
             TransportChannelSettings settings = CreateClientSettings(jsonEndpoint, endpointConfiguration);
 

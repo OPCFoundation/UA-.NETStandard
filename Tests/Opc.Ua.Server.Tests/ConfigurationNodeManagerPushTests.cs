@@ -304,7 +304,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.Certificate.IsEmpty, Is.False);
-            using Certificate certificate = Certificate.FromRawData(result.Certificate);
+            using var certificate = Certificate.FromRawData(result.Certificate);
             Assert.That(certificate.Subject, Does.Contain("ConfigurationNodeManager Self Signed"));
         }
 
@@ -686,7 +686,7 @@ namespace Opc.Ua.Server.Tests
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
+            using var current = Certificate.FromRawData(currentCertificate);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
@@ -719,7 +719,7 @@ namespace Opc.Ua.Server.Tests
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
+            using var current = Certificate.FromRawData(currentCertificate);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
@@ -752,7 +752,7 @@ namespace Opc.Ua.Server.Tests
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
+            using var current = Certificate.FromRawData(currentCertificate);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
             using Certificate issuer = CertificateBuilder.Create("CN=ConfigurationNodeManager Push CA")
                 .SetCAConstraint(0)

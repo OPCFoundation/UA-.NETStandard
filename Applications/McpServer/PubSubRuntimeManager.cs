@@ -842,7 +842,7 @@ namespace Opc.Ua.Mcp
                 string trimmed = fieldValues.Trim();
                 if (trimmed.StartsWith('{'))
                 {
-                    using JsonDocument document = JsonDocument.Parse(trimmed);
+                    using var document = JsonDocument.Parse(trimmed);
                     var values = new Dictionary<string, string>(StringComparer.Ordinal);
                     foreach (JsonProperty property in document.RootElement.EnumerateObject())
                     {

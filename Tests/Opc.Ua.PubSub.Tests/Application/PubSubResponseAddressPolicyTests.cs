@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public void Matching_HonorsWildcardPatterns()
         {
-            PubSubResponseAddressPolicy policy =
+            var policy =
                 PubSubResponseAddressPolicy.Matching("responses/*", "exact/topic");
             Assert.Multiple(() =>
             {

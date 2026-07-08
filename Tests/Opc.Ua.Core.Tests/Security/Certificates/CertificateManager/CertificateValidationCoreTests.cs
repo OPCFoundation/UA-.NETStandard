@@ -543,7 +543,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidationCore core = NewCore(trustedDir);
             var issuers = new List<CertificateIssuerReference>();
 
-            using Certificate leaf = Certificate.FromRawData(m_leaf.RawData);
+            using var leaf = Certificate.FromRawData(m_leaf.RawData);
             bool trusted = await core.GetIssuersAsync(leaf, issuers, CancellationToken.None).ConfigureAwait(false);
 
             try
@@ -567,7 +567,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidationCore core = NewCore();
             var issuers = new List<CertificateIssuerReference>();
 
-            using Certificate app = Certificate.FromRawData(m_selfSignedApp.RawData);
+            using var app = Certificate.FromRawData(m_selfSignedApp.RawData);
             bool trusted = await core.GetIssuersAsync(app, issuers, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(trusted, Is.False);

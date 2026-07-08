@@ -73,8 +73,8 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(telemetry));
             }
 
-            Channel<byte[]> aToB = Channel.CreateUnbounded<byte[]>();
-            Channel<byte[]> bToA = Channel.CreateUnbounded<byte[]>();
+            var aToB = Channel.CreateUnbounded<byte[]>();
+            var bToA = Channel.CreateUnbounded<byte[]>();
             var a = new InProcessTransport(
                 buffers, receiveBufferSize, telemetry, bToA.Reader, aToB.Writer);
             var b = new InProcessTransport(

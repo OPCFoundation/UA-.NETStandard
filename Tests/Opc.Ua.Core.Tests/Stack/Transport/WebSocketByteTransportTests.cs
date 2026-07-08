@@ -468,12 +468,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 TcpClient serverTcp = await acceptTask.ConfigureAwait(false);
 
                 var keepAlive = TimeSpan.FromSeconds(30);
-                WebSocket server = WebSocket.CreateFromStream(
+                var server = WebSocket.CreateFromStream(
                     serverTcp.GetStream(),
                     isServer: true,
                     subProtocol: Profiles.OpcUaWsSubProtocolUacp,
                     keepAliveInterval: keepAlive);
-                WebSocket client = WebSocket.CreateFromStream(
+                var client = WebSocket.CreateFromStream(
                     clientTcp.GetStream(),
                     isServer: false,
                     subProtocol: Profiles.OpcUaWsSubProtocolUacp,

@@ -473,10 +473,10 @@ namespace Opc.Ua.Server.Tests
         public void LoadDataTypesThrowsWhenRootNodeCannotBeResolvedAsDataType()
         {
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
-            ExpandedNodeId unknownId =
+            var unknownId =
                 NodeId.ToExpandedNodeId(new NodeId(9999, m_ns), m_namespaceUris);
             // an existing node that is not a DataType surfaces the same way
-            ExpandedNodeId nonDataType =
+            var nonDataType =
                 NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris);
 
             ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(

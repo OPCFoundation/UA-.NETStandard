@@ -44,7 +44,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task RaftCsStoreCompareAndSwapUnderAotAsync()
         {
-            await using DefaultRaftConsensus consensus = DefaultRaftConsensus.CreateSingleNode();
+            await using var consensus = DefaultRaftConsensus.CreateSingleNode();
             await using var store = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
 
             var value = new ByteString(new byte[] { 7, 8, 9 });
@@ -59,7 +59,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task RaftLeaderElectionUnderAotAsync()
         {
-            await using DefaultRaftConsensus consensus = DefaultRaftConsensus.CreateSingleNode();
+            await using var consensus = DefaultRaftConsensus.CreateSingleNode();
             await using var election = new RaftLeaderElection(consensus);
 
             await consensus.StartAsync().ConfigureAwait(false);

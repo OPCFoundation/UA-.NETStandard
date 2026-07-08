@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             PubSubConfigurationDataType configuration =
                 await configurationStore.LoadAsync().ConfigureAwait(false);
-            PubSubConfigurationSnapshot snapshot =
+            var snapshot =
                 PubSubConfigurationSnapshot.Create(configuration, timeProvider);
             return new RuntimeApplication(
                 snapshot,

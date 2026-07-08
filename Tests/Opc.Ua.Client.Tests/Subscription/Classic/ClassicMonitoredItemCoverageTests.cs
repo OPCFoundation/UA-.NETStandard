@@ -144,7 +144,7 @@ namespace Opc.Ua.Client.Tests
 
             var startNodeId = new NodeId("Level", 2);
             var encoding = new QualifiedName("DefaultBinary", 1);
-            var handle = new object();
+            object handle = new object();
 
             item.DisplayName = "Tank";
             item.StartNodeId = startNodeId;

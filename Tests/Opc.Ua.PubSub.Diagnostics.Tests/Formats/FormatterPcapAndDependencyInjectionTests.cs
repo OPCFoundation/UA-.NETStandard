@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
 
             byte[] json = await formatter.FormatAsync(ToAsync(frames)).ConfigureAwait(false);
 
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
             Assert.Multiple(() =>
             {
                 Assert.That(formatter.MimeType, Is.EqualTo("application/json"));

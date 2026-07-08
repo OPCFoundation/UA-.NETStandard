@@ -56,13 +56,13 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void EncodeReadRequestProducesEnvelopeLessRoot()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             ReadRequest request = BuildReadRequest();
 
             byte[] payload = WebApiBodyCodec.EncodeBody(request, context, JsonEncoderOptions.Compact);
 
-            using JsonDocument document = JsonDocument.Parse(payload);
+            using var document = JsonDocument.Parse(payload);
             JsonElement root = document.RootElement;
 
             Assert.That(root.ValueKind, Is.EqualTo(JsonValueKind.Object));
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public async Task DecodeBodyAsyncReadsFromStream()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             ReadRequest original = BuildReadRequest();
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public async Task EncodeBodyAsyncWritesToStream()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             ReadRequest original = BuildReadRequest();
 
@@ -135,7 +135,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void EncodeAndDecodeRoundTripsReadResponseWithVariantPayloads()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
             DateTimeUtc sourceTimestamp = DateTimeUtc.Now;
@@ -175,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyThrowsBadDecodingErrorOnMalformedJson()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             byte[] payload = Encoding.UTF8.GetBytes("not a json document");
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyThrowsBadEncodingLimitsExceededWhenPayloadTooLarge()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             context.MaxMessageSize = 16;
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyAcceptsEmptyJsonObject()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             byte[] payload = Encoding.UTF8.GetBytes("{}");
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void EncodeBodyNullValueThrowsArgumentNullException()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
             Assert.Throws<ArgumentNullException>(
@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyNullPayloadThrowsArgumentNullException()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
             Assert.Throws<ArgumentNullException>(
@@ -244,7 +244,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyAsyncNullStreamThrowsArgumentNullException()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void EncodeBodyCompactOmitsDefaultValuesPerSpec()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
             var request = new ReadRequest
@@ -303,7 +303,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
 
         private static void AssertReadRequestRoundTrip(JsonEncoderOptions options)
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             ReadRequest original = BuildReadRequest();
 
@@ -325,7 +325,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyNonGenericReturnsConcreteType()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             ReadRequest original = BuildReadRequest();
             byte[] payload = WebApiBodyCodec.EncodeBody(original, context, JsonEncoderOptions.Compact);
@@ -343,7 +343,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public async Task DecodeBodyAsyncNonGenericRoundTripsResponse()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
             var original = new ReadResponse
@@ -372,7 +372,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyNonGenericRejectsNonEncodeableType()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
             byte[] payload = Encoding.UTF8.GetBytes("{}");
 
@@ -384,7 +384,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         [Test]
         public void DecodeBodyNonGenericRejectsNullBodyType()
         {
-            ServiceMessageContext context = ServiceMessageContext.Create(
+            var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
             Assert.Throws<ArgumentNullException>(

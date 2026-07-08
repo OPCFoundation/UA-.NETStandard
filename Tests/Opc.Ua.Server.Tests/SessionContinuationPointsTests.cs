@@ -182,8 +182,8 @@ namespace Opc.Ua.Server.Tests
         public void SaveHistoryThenRestoreHistoryReturnsValue()
         {
             SessionContinuationPoints holder = NewHolder();
-            Guid id = Guid.NewGuid();
-            var value = new object();
+            var id = Guid.NewGuid();
+            object value = new object();
 
             holder.SaveHistory(id, value);
 
@@ -199,8 +199,8 @@ namespace Opc.Ua.Server.Tests
             SessionContinuationPoints holder = NewHolder(maxHistory: 1, store: store.Object);
 
             var evicted = new TrackingDisposable();
-            Guid id1 = Guid.NewGuid();
-            Guid id2 = Guid.NewGuid();
+            var id1 = Guid.NewGuid();
+            var id2 = Guid.NewGuid();
 
             holder.SaveHistory(id1, evicted);
             holder.SaveHistory(id2, new object());
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests
                 .Callback<ContinuationPointEnvelope>(envelope => captured = envelope);
 
             SessionContinuationPoints holder = NewHolder(store: store.Object);
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
 
             holder.SaveHistory(id, new object());
 
@@ -289,8 +289,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task LoadMirroredAsyncConsumesMirroredBrowseAndHistoryAsync()
         {
-            Guid browseId = Guid.NewGuid();
-            Guid historyId = Guid.NewGuid();
+            var browseId = Guid.NewGuid();
+            var historyId = Guid.NewGuid();
             ArrayOf<ContinuationPointEnvelope> envelopes =
             [
                 new ContinuationPointEnvelope
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server.Tests
             var browseData = new TrackingDisposable();
             var historyValue = new TrackingDisposable();
             ContinuationPoint cp = NewBrowsePoint(data: browseData);
-            Guid historyId = Guid.NewGuid();
+            var historyId = Guid.NewGuid();
             holder.SaveBrowse(cp);
             holder.SaveHistory(historyId, historyValue);
 

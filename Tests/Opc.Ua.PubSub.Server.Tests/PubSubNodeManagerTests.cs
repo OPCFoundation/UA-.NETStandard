@@ -175,10 +175,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 outputs);
             Assert.That(outputs[1].TryGetValue(out NodeId groupNodeId), Is.True);
             BaseObjectState groupNode = harness.Manager.FindPredefinedNode<BaseObjectState>(groupNodeId);
-            MethodState invalidate = (MethodState)groupNode.FindChild(
+            var invalidate = (MethodState)groupNode.FindChild(
                 harness.Context,
                 new QualifiedName("InvalidateKeys", harness.Manager.AddressSpaceNamespaceIndex))!;
-            MethodState rotate = (MethodState)groupNode.FindChild(
+            var rotate = (MethodState)groupNode.FindChild(
                 harness.Context,
                 new QualifiedName("ForceKeyRotation", harness.Manager.AddressSpaceNamespaceIndex))!;
             SksKeyResponse before = await harness.SksServer.GetSecurityKeysAsync(
@@ -255,10 +255,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 addOutputs);
             Assert.That(addOutputs[0].TryGetValue(out NodeId targetNodeId), Is.True);
             BaseObjectState targetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(targetNodeId);
-            MethodState connect = (MethodState)targetNode.FindChild(
+            var connect = (MethodState)targetNode.FindChild(
                 harness.Context,
                 new QualifiedName("ConnectSecurityGroups", harness.Manager.AddressSpaceNamespaceIndex))!;
-            MethodState trigger = (MethodState)targetNode.FindChild(
+            var trigger = (MethodState)targetNode.FindChild(
                 harness.Context,
                 new QualifiedName("TriggerKeyUpdate", harness.Manager.AddressSpaceNamespaceIndex))!;
             MethodState remove = harness.RemovePushTargetMethod;
