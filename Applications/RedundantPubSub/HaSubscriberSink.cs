@@ -49,11 +49,14 @@ internal sealed class HaSubscriberSink : ISubscribedDataSetSink
     public ValueTask WriteAsync(IReadOnlyList<DataSetField> fields, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        m_logger.LogInformation("DataSet fields received: {Fields}.", FormatFields(fields));
+        m_logger.LogInformation(
+            "DataSet with {FieldCount} field(s) received: {FieldNames}.",
+            fields.Count,
+            FormatFieldNames(fields));
         return ValueTask.CompletedTask;
     }
 
-    private static string FormatFields(IReadOnlyList<DataSetField> fields)
+    private static string FormatFieldNames(IReadOnlyList<DataSetField> fields)
     {
         var builder = new StringBuilder();
         for (int ii = 0; ii < fields.Count; ii++)
@@ -67,8 +70,6 @@ internal sealed class HaSubscriberSink : ISubscribedDataSetSink
             builder.Append(string.IsNullOrEmpty(field.Name)
                 ? string.Create(CultureInfo.InvariantCulture, $"f{ii}")
                 : field.Name);
-            builder.Append('=');
-            builder.Append(field.Value.IsNull ? "(null)" : field.Value.ToString());
         }
         return builder.ToString();
     }

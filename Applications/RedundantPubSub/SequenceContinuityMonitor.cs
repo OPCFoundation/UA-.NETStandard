@@ -51,7 +51,7 @@ public sealed class SequenceContinuityMonitor
             {
                 m_lastSequence = sequenceNumber;
                 m_lastOwner = owner;
-                m_logger.LogInformation("SequenceNumber {SequenceNumber} received from {Owner}.", sequenceNumber, owner);
+                m_logger.LogInformation("SequenceNumber {SequenceNumber} received.", sequenceNumber);
                 return;
             }
 
@@ -72,7 +72,7 @@ public sealed class SequenceContinuityMonitor
             }
             else
             {
-                m_logger.LogInformation("SequenceNumber {Last} -> {Current} from {Owner}.", last, sequenceNumber, owner);
+                m_logger.LogInformation("SequenceNumber {Last} -> {Current}.", last, sequenceNumber);
             }
 
             m_lastSequence = sequenceNumber;
