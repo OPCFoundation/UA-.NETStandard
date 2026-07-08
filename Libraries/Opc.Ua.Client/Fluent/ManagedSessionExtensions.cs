@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Client
@@ -118,6 +119,32 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(configure));
             }
             return session.AddSubscription(handler, configure(new Subscriptions.SubscriptionOptions()));
+        }
+
+
+        /// <summary>
+        /// Add a new subscription using an options monitor, typically the container default.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
+        public static ISubscription AddSubscription(
+            this ManagedSession session,
+            ISubscriptionNotificationHandler handler,
+            IOptionsMonitor<Subscriptions.SubscriptionOptions> options)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            return session.GetSubscriptionManager().Add(handler, options);
         }
 
         /// <summary>

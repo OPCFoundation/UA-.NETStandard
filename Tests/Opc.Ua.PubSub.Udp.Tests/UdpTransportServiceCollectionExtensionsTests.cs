@@ -30,11 +30,16 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp.Dtls;
@@ -43,6 +48,8 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Udp.Tests
 {
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestSpec("7.3.2", Summary = "UDP transport DI binding")]
     public sealed class UdpTransportServiceCollectionExtensionsTests
     {
@@ -120,6 +127,27 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        public async Task WithDtlsIConfigurationBindsOptionsAsync()
+        {
+            var services = new ServiceCollection();
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["OpcUa:PubSub:Udp:PreferredProfileName"] = "ECC_nistP384"
+                })
+                .Build();
+
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddUdpTransport().WithDtls(configuration));
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            DtlsTransportOptions options =
+                serviceProvider.GetRequiredService<IOptions<DtlsTransportOptions>>().Value;
+
+            Assert.That(options.PreferredProfileName, Is.EqualTo("ECC_nistP384"));
+        }
+
+        [Test]
         public async Task AddUdpTransport_IConfigurationSection_BindsExplicitSectionAsync()
         {
             var services = new ServiceCollection();
@@ -143,6 +171,150 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Assert.That(options.Ttl, Is.EqualTo(2));
                 Assert.That(options.PreferredNetworkInterface, Is.EqualTo("Ethernet 0"));
             });
+        }
+
+        [Test]
+        public async Task AddUdpPubSubRegistersPublisherSubscriberAndUdpTransportAsync()
+        {
+            var services = new ServiceCollection();
+            bool configured = false;
+
+            services.AddUdpPubSub(udp =>
+            {
+                configured = true;
+                udp.WithDtls(options => options.PreferredProfileName = "ECC_nistP256");
+            });
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubTransportFactory[] factories =
+                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+            DtlsTransportOptions dtlsOptions =
+                serviceProvider.GetRequiredService<IOptions<DtlsTransportOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(configured, Is.True);
+                Assert.That(serviceProvider.GetService<IPubSubApplication>(), Is.Not.Null);
+                Assert.That(factories.OfType<UdpPubSubTransportFactory>().Count(), Is.EqualTo(1));
+                Assert.That(dtlsOptions.PreferredProfileName, Is.EqualTo("ECC_nistP256"));
+            });
+        }
+
+        [Test]
+        public async Task AddUdpPubSubWithSecurityKeyProviderBuildsSecuredApplicationAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+
+            services.AddOpcUa().AddUdpPubSub(udp => udp
+                .UseConfiguration(CreateSecuredConfiguration())
+                .AddSecurityKeyProvider(new PushSecurityKeyProvider(
+                    "group-1",
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System)));
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubApplication app = serviceProvider.GetRequiredService<IPubSubApplication>();
+
+            Assert.That(app.Connections, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AddSecureUdpPubSubBuildsSecuredApplicationAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+
+            services.AddSecureUdpPubSub(
+                "group-1",
+                PubSubSecurityPolicyUri.PubSubAes256Ctr,
+                _ => new NoOpSecurityKeyService());
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            IPubSubApplication app = serviceProvider.GetRequiredService<IPubSubApplication>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(app.Connections, Has.Count.EqualTo(1));
+                Assert.That(
+                    serviceProvider.GetServices<IPubSubSecurityKeyProvider>()
+                        .Single().SecurityGroupId,
+                    Is.EqualTo("group-1"));
+            });
+        }
+
+        [Test]
+        public async Task AddUdpPubSubOnOpcUaBuilderReturnsOpcUaBuilderAsync()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            IOpcUaBuilder returned = builder.AddUdpPubSub();
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            Assert.Multiple(() =>
+            {
+                Assert.That(returned, Is.SameAs(builder));
+                Assert.That(
+                    serviceProvider.GetServices<IPubSubTransportFactory>().OfType<UdpPubSubTransportFactory>(),
+                    Is.Not.Empty);
+            });
+        }
+
+        private static PubSubConfigurationDataType CreateSecuredConfiguration()
+        {
+            return new PubSubConfigurationDataType
+            {
+                Connections =
+                [
+                    new PubSubConnectionDataType
+                    {
+                        Name = "secured-conn",
+                        TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                        PublisherId = new Variant((ushort)7),
+                        Address = new ExtensionObject(
+                            new NetworkAddressUrlDataType
+                            {
+                                Url = "opc.udp://224.0.0.22:4840"
+                            }),
+                        WriterGroups =
+                        [
+                            new WriterGroupDataType
+                            {
+                                Name = "wg",
+                                WriterGroupId = 1,
+                                PublishingInterval = 1000,
+                                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                                SecurityGroupId = "group-1",
+                                SecurityKeyServices =
+                                [
+                                    new EndpointDescription
+                                    {
+                                        EndpointUrl = "opc.tcp://localhost:4840"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublishedDataSets = []
+            };
+        }
+
+        private sealed class NoOpSecurityKeyService : ISecurityKeyService
+        {
+            public event EventHandler<SksAvailabilityChangedEventArgs>? AvailabilityChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask<SksKeyResponse> GetSecurityKeysAsync(
+                SksKeyRequest request,
+                CancellationToken cancellationToken = default)
+            {
+                throw new InvalidOperationException("The one-shot DI test does not start the SKS pull loop.");
+            }
         }
     }
 }

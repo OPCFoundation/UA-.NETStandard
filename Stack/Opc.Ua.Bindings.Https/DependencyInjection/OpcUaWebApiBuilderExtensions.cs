@@ -116,25 +116,29 @@ namespace Microsoft.Extensions.DependencyInjection
             // Minimal-API endpoint mapping needs routing services only;
             // no MVC controllers or AddApplicationPart reflection scan.
             services.AddRouting();
+            services.TryAddSingleton<WebApiHttpsStartupContributor>(sp =>
+                new WebApiHttpsStartupContributor(sp.GetRequiredService<WebApiServer>()));
+            services.AddSingleton<IHttpsListenerStartupContributor>(
+                sp => sp.GetRequiredService<WebApiHttpsStartupContributor>());
 
             // Install the shared-host startup contributor on every HTTPS /
             // WSS listener factory. The transport binding registry runs
-            // the configurators in registration order, so the contributor
-            // is attached AFTER AddHttpsTransport()/AddWssTransport() have
-            // registered the factories. If the user calls AddWebApi
-            // before AddHttps, this becomes a no-op (factories not yet in
-            // the registry) — documented in Docs/WebApi.md.
+            // the configurators in registration order. HTTPS/WSS factories
+            // also attach registered IHttpsListenerStartupContributor
+            // services when they are created, so AddWebApiTransport() and
+            // AddHttpsTransport()/AddWssTransport() are order-independent.
             services.AddTransportBindingRegistry();
             services.AddSingleton<ITransportBindingConfigurator>(sp =>
             {
-                WebApiServer server = sp.GetRequiredService<WebApiServer>();
-                var contributor = new WebApiHttpsStartupContributor(server);
+                WebApiHttpsStartupContributor contributor =
+                    sp.GetRequiredService<WebApiHttpsStartupContributor>();
 
                 return new TransportBindingConfigurator(registry =>
                 {
                     foreach (string scheme in s_httpsUriSchemes)
                     {
-                        if (registry.GetListenerFactory(scheme) is HttpsServiceHost factory)
+                        if (registry.GetListenerFactory(scheme) is HttpsServiceHost factory &&
+                            !factory.StartupContributors.Contains(contributor))
                         {
                             factory.StartupContributors.Add(contributor);
                         }

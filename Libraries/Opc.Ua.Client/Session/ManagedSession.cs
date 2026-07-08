@@ -184,6 +184,7 @@ namespace Opc.Ua.Client
         /// Optional alternate Endpoints for OPC 10000-4 §6.6.4 non-transparent network redundancy. Transparent network
         /// redundancy is handled by the infrastructure endpoint and does not require alternates.
         /// </param>
+        /// <param name="reverseConnectManager">Optional reverse-connect manager.</param>
         /// <param name="connectGate">Optional shared initial connect
         /// admission gate.</param>
         /// <param name="ct">Cancellation token.</param>
@@ -208,6 +209,7 @@ namespace Opc.Ua.Client
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
             NetworkRedundancyOptions? networkRedundancy = null,
+            ReverseConnectManager? reverseConnectManager = null,
             IClientConnectGate? connectGate = null,
             CancellationToken ct = default)
         {
@@ -254,7 +256,8 @@ namespace Opc.Ua.Client
                 channelManager,
                 connectGate)
             {
-                m_engineFactory = engineFactory
+                m_engineFactory = engineFactory,
+                m_reverseConnectManager = reverseConnectManager
             };
 
             managed.StateMachine.Start();
@@ -987,7 +990,32 @@ namespace Opc.Ua.Client
                             .ConfigureAwait(false);
                     }
 
-                    if (m_channelManager != null)
+                    if (m_reverseConnectManager != null)
+                    {
+                        ISessionFactory reverseFactory = SessionFactory;
+                        if (m_channelManager != null)
+                        {
+                            reverseFactory = new ChannelManagerSessionFactory(
+                                m_channelManager,
+                                SessionFactory.Telemetry,
+                                SessionFactory.ReturnDiagnostics,
+                                m_timeProvider,
+                                m_engineFactory);
+                        }
+
+                        session = (Session)await reverseFactory.CreateAsync(
+                            m_configuration,
+                            m_reverseConnectManager,
+                            ConfiguredEndpoint,
+                            updateBeforeConnect,
+                            m_checkDomain,
+                            m_sessionName,
+                            m_sessionTimeout,
+                            m_identityProvider == null ? m_identity : null,
+                            m_preferredLocales,
+                            ct).ConfigureAwait(false);
+                    }
+                    else if (m_channelManager != null)
                     {
                         // Channel-manager-aware path: acquire a shared
                         // managed channel and let the manager drive any
@@ -1897,6 +1925,7 @@ namespace Opc.Ua.Client
         private readonly bool m_enableTokenReuseFailover;
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
+        private ReverseConnectManager? m_reverseConnectManager;
         private readonly IClientConnectGate? m_connectGate;
         private ISubscriptionEngineFactory? m_engineFactory;
         private int m_channelReconnectInProgress;

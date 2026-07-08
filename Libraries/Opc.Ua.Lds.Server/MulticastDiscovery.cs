@@ -46,7 +46,7 @@ namespace Opc.Ua.Lds.Server
     /// peer announcements, surfacing them to the
     /// <see cref="RegisteredServerStore"/>.
     /// </summary>
-    public sealed class MulticastDiscovery : IDisposable
+    public sealed class MulticastDiscovery : IMulticastDiscovery
     {
         /// <summary>
         /// Standard mDNS service type for OPC UA discovery per Part 12.
@@ -73,7 +73,7 @@ namespace Opc.Ua.Lds.Server
         /// </summary>
         public const string ReverseConnectTxtKey = "rc";
 
-        private readonly RegisteredServerStore m_store;
+        private readonly IRegisteredServerStore m_store;
         private readonly ILogger m_logger;
         private readonly bool m_loopbackOnly;
         private MulticastService m_service;
@@ -91,7 +91,7 @@ namespace Opc.Ua.Lds.Server
         /// <param name="logger">Optional logger.</param>
         /// <exception cref="ArgumentNullException"><paramref name="store"/> is null.</exception>
         public MulticastDiscovery(
-            RegisteredServerStore store,
+            IRegisteredServerStore store,
             bool loopbackOnly = false,
             ILogger logger = null)
         {

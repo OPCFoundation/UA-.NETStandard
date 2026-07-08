@@ -35,6 +35,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
@@ -42,6 +43,8 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Mqtt.Tests
 {
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestSpec("7.3.4.4", Summary = "MQTT transport DI binding")]
     public sealed class MqttTransportServiceCollectionExtensionsTests
     {
@@ -145,6 +148,110 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             {
                 Assert.That(options.Endpoint, Is.EqualTo("mqtt://broker.example.com:1883"));
                 Assert.That(options.Topics.Prefix, Is.EqualTo("custom/topic"));
+            });
+        }
+
+        [Test]
+        public async Task AddMqttTransportReturnsMqttBuilderAndWithConnectionOptionsBindsAsync()
+        {
+            var services = new ServiceCollection();
+            IMqttTransportBuilder? mqttBuilder = null;
+
+            services.AddOpcUa().AddPubSub(pubsub =>
+            {
+                mqttBuilder = pubsub.AddMqttTransport();
+                mqttBuilder.WithConnectionOptions(options =>
+                {
+                    options.Endpoint = "mqtts://broker.example.com:8883";
+                    options.Tls = new MqttTlsOptions();
+                    options.Tls.UseTls = true;
+                });
+            });
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            MqttConnectionOptions options =
+                serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(mqttBuilder, Is.Not.Null);
+                Assert.That(mqttBuilder, Is.InstanceOf<IMqttTransportBuilder>());
+                Assert.That(mqttBuilder, Is.InstanceOf<IPubSubBuilder>());
+                Assert.That(options.Endpoint, Is.EqualTo("mqtts://broker.example.com:8883"));
+                Assert.That(options.Tls!.UseTls, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task WithConnectionOptionsIConfigurationBindsDefaultSectionAsync()
+        {
+            var services = new ServiceCollection();
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["OpcUa:PubSub:Mqtt:Endpoint"] = "mqtt://broker.example.com:1883",
+                    ["OpcUa:PubSub:Mqtt:ClientId"] = "configured-client"
+                })
+                .Build();
+
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddMqttTransport().WithConnectionOptions(configuration));
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            MqttConnectionOptions options =
+                serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.Endpoint, Is.EqualTo("mqtt://broker.example.com:1883"));
+                Assert.That(options.ClientId, Is.EqualTo("configured-client"));
+            });
+        }
+
+        [Test]
+        public async Task AddMqttPubSubRegistersPublisherSubscriberAndMqttTransportAsync()
+        {
+            var services = new ServiceCollection();
+            bool configured = false;
+
+            services.AddMqttPubSub(mqtt =>
+            {
+                configured = true;
+                mqtt.WithConnectionOptions(options => options.ClientId = "pubsub-client");
+            });
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            MqttConnectionOptions options =
+                serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
+            MqttPubSubTransportFactory[] factories = serviceProvider
+                .GetServices<IPubSubTransportFactory>()
+                .OfType<MqttPubSubTransportFactory>()
+                .ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(configured, Is.True);
+                Assert.That(serviceProvider.GetService<IPubSubApplication>(), Is.Not.Null);
+                Assert.That(options.ClientId, Is.EqualTo("pubsub-client"));
+                Assert.That(factories, Has.Length.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task AddMqttPubSubOnOpcUaBuilderReturnsOpcUaBuilderAsync()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            IOpcUaBuilder returned = builder.AddMqttPubSub();
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            Assert.Multiple(() =>
+            {
+                Assert.That(returned, Is.SameAs(builder));
+                Assert.That(
+                    serviceProvider.GetServices<IPubSubTransportFactory>().OfType<MqttPubSubTransportFactory>(),
+                    Has.Exactly(2).Items);
             });
         }
     }

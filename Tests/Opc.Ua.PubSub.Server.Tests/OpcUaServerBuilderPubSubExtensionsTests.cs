@@ -51,6 +51,8 @@ namespace Opc.Ua.PubSub.Server.Tests
     /// <see cref="OpcUaServerBuilderPubSubExtensions"/>.
     /// </summary>
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestSpec("9.1", Summary = "DI registration of PubSub server")]
     public class OpcUaServerBuilderPubSubExtensionsTests
     {
@@ -108,6 +110,32 @@ namespace Opc.Ua.PubSub.Server.Tests
             {
                 Assert.That(opts.ExposeSecurityKeyService, Is.True);
                 Assert.That(opts.DefaultSecurityGroupId, Is.EqualTo("g42"));
+            });
+        }
+
+        [Test]
+        public async Task AddPubSubServerOneShotRegistersRuntimeBeforeNodeManagerAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+
+            IPubSubServerBuilder builder = services
+                .AddOpcUa()
+                .AddPubSubServer(
+                    server => { },
+                    pubsub => pubsub.ConfigureConfiguration(configuration =>
+                        configuration.Enabled(false)),
+                    pubsubServer => pubsubServer.DefaultSecurityGroupId = "one-shot-group");
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            PubSubServerOptions options = sp.GetRequiredService<IOptions<PubSubServerOptions>>().Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(builder.Services, Is.SameAs(services));
+                Assert.That(sp.GetService<IPubSubApplication>(), Is.Not.Null);
+                Assert.That(sp.GetService<PubSubNodeManagerFactory>(), Is.Not.Null);
+                Assert.That(options.DefaultSecurityGroupId, Is.EqualTo("one-shot-group"));
             });
         }
 

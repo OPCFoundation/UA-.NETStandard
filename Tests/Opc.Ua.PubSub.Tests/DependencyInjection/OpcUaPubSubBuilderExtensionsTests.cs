@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -43,6 +45,8 @@ using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
+using Opc.Ua.PubSub.Tests.Security;
+using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {
@@ -51,6 +55,8 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
     /// <see cref="OpcUaPubSubBuilderExtensions"/>.
     /// </summary>
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public class OpcUaPubSubBuilderExtensionsTests
     {
         [Test]
@@ -193,6 +199,35 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
+        public async Task AddPubSubFluentAddSecurityKeyProviderBuildConsumesProviderAsync()
+        {
+            var keyProvider = new Mock<IPubSubSecurityKeyProvider>();
+            keyProvider.Setup(static p => p.SecurityGroupId).Returns("group-1");
+            keyProvider
+                .Setup(static p => p.GetCurrentKeyAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PubSubSecurityKey>(TestSecurityKeyFactory.Create(1)));
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddPubSubTransportFactory(_ => new StubTransportFactory());
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .UseConfiguration(CreateSecuredConfiguration())
+                .AddSecurityKeyProvider(keyProvider.Object));
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(app.Connections, Has.Count.EqualTo(1));
+                keyProvider.Verify(
+                    static p => p.GetCurrentKeyAsync(It.IsAny<CancellationToken>()),
+                    Times.Once);
+            });
+        }
+
+        [Test]
         public void AddPubSubFluent_ExposesServicesAndOpcUaBuilder()
         {
             var services = new ServiceCollection();
@@ -231,6 +266,155 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(sp.GetRequiredService<IPubSubIdAllocator>(), Is.SameAs(idAllocator));
             Assert.That(sp.GetRequiredService<IPubSubRuntimeStateStore>(), Is.SameAs(runtimeStateStore));
             Assert.That(sp.GetRequiredService<IPubSubSecurityKeyStore>(), Is.SameAs(securityKeyStore));
+        }
+
+        [Test]
+        public async Task AddPubSubFluentConfigureConfigurationBuildsAndAppliesConfigurationAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddLogging();
+
+            services.AddOpcUa().AddPubSub(pubsub => pubsub.ConfigureConfiguration(configuration =>
+                configuration
+                    .Enabled(false)
+                    .AddConnection("udp-connection", connection =>
+                        connection.WithTransportProfile(Profiles.PubSubUdpUadpTransport))));
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            PubSubConfigurationDataType configuration = serviceProvider
+                .GetRequiredService<IPubSubApplication>()
+                .GetConfiguration();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(configuration.Enabled, Is.False);
+                Assert.That(configuration.Connections, Has.Count.EqualTo(1));
+                Assert.That(configuration.Connections[0].Name, Is.EqualTo("udp-connection"));
+                Assert.That(
+                    configuration.Connections[0].TransportProfileUri,
+                    Is.EqualTo(Profiles.PubSubUdpUadpTransport));
+            });
+        }
+
+        [Test]
+        public void AddPubSubFluentConfigureConfigurationNullBuilderThrows()
+        {
+            IPubSubBuilder? builder = null;
+
+            Assert.That(
+                () => builder!.ConfigureConfiguration(_ => { }),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddPubSubFluentConfigureConfigurationNullConfigureThrows()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            IPubSubBuilder captured = null!;
+            services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
+
+            Assert.That(
+                () => captured.ConfigureConfiguration(null!),
+                Throws.ArgumentNullException);
+        }
+
+        private static PubSubConfigurationDataType CreateSecuredConfiguration()
+        {
+            return new PubSubConfigurationDataType
+            {
+                Connections =
+                [
+                    new PubSubConnectionDataType
+                    {
+                        Name = "secured-conn",
+                        TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                        PublisherId = new Variant((ushort)7),
+                        Address = new ExtensionObject(
+                            new NetworkAddressUrlDataType
+                            {
+                                Url = "opc.udp://224.0.0.22:4840"
+                            }),
+                        WriterGroups =
+                        [
+                            new WriterGroupDataType
+                            {
+                                Name = "wg",
+                                WriterGroupId = 1,
+                                PublishingInterval = 1000,
+                                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                                SecurityGroupId = "group-1",
+                                SecurityKeyServices =
+                                [
+                                    new EndpointDescription
+                                    {
+                                        EndpointUrl = "opc.tcp://localhost:4840"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublishedDataSets = []
+            };
+        }
+
+        private sealed class StubTransportFactory : IPubSubTransportFactory
+        {
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public IPubSubTransport Create(
+                PubSubConnectionDataType connection,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+            {
+                return new StubTransport();
+            }
+        }
+
+        private sealed class StubTransport : IPubSubTransport
+        {
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.SendReceive;
+
+            public bool IsConnected => false;
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                CancellationToken cancellationToken = default)
+            {
+                return TestAsyncEnumerable.Empty<PubSubTransportFrame>();
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

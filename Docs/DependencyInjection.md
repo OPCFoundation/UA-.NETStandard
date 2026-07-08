@@ -112,6 +112,30 @@ services.AddOpcUa()
     .AddNodeManager<MyNodeManagerFactory>();
 ```
 
+Discovery servers expose the same transport and reverse-connect shortcuts as
+the regular server builder:
+
+```csharp
+services.AddOpcUa()
+    .AddInMemoryGdsServer(o => o.EndpointUrls.Add("opc.tcp://localhost:58810/GDS"))
+    .AddOpcTcpTransport()
+    .AddHttpsTransport()
+    .AddReverseConnect(o => o.Clients.Add(new ServerReverseConnectClientOptions
+    {
+        EndpointUrl = "opc.tcp://client.example.com:4841"
+    }));
+
+services.AddOpcUa()
+    .AddLdsServer(o => o.EndpointUrls.Add("opc.tcp://localhost:4840/LDS"))
+    .AddRegistrationStore<MyRegisteredServerStore>()
+    .AddMulticastDiscovery<MyLdsMeFactory>();
+
+services.AddOpcUa()
+    .AddWotConnectivityServer(
+        server => server.EndpointUrls.Add("opc.tcp://localhost:4840/WoT"),
+        wot => wot.AssetNamespaceUri = WotConnectivityServerOptions.DefaultAssetNamespaceUri);
+```
+
 ## Options binding
 
 Every feature `.AddXxx(...)` has three overloads:
@@ -188,6 +212,27 @@ same container. See *Combined hosts* below.
 
 `.AddServer(...)` throws `InvalidOperationException` on a second call:
 at most one regular server may be registered per service collection.
+
+Advanced server services can be supplied through the same fluent builder:
+
+```csharp
+builder.Services
+    .AddOpcUa()
+    .AddServer<MyStandardServer>(o => /* … */) // optional StandardServer subclass
+    .AddSessionManager<MySessionManager>()
+    .AddSubscriptionManager<MySubscriptionManager>()
+    .AddDurableSubscriptions(subscriptionStore, monitoredItemQueueFactory)
+    .AddHistorian(historianProvider)
+    .AddFileSystem(fileSystemProvider)
+    .AddSecretStore(secretStore)
+    .AddCertificateManager(certificateManager)
+    .AddAliasNameStore(aliasNameStore);
+```
+
+If no identity authenticator is configured, the regular hosted server adds
+an anonymous authenticator matching its default anonymous user-token policy.
+If a non-anonymous user-token policy is configured without a corresponding
+authenticator, startup logs a warning.
 
 For advanced configuration (custom security policies, custom security
 stores), set `OpcUaServerOptions.ConfigureBuilder` — it receives the
@@ -355,6 +400,60 @@ hosted service skips that authenticator if neither is in dependency injection. S
 [Role-Based Security](RoleBasedUserManagement.md) for the role-mapping
 layer.
 
+### Fluent shortcuts and one-shot presets
+
+The server hosting surface exposes granular extension points and one-shot presets:
+
+```csharp
+services.AddOpcUa()
+    .AddSecureServer(options =>
+    {
+        options.ApplicationName = "PlantServer";
+        options.ApplicationUri = "urn:localhost:PlantServer";
+        options.ProductUri = "urn:example:PlantServer";
+        options.EndpointUrls.Add("opc.tcp://localhost:4840/PlantServer");
+    })
+    .AddOpcTcpTransport()
+    .AddReverseConnect(options =>
+    {
+        options.Clients.Add(new ServerReverseConnectClientOptions
+        {
+            EndpointUrl = "opc.tcp://client.example.com:4841"
+        });
+    })
+    .ConfigureOperationLimits(options => options.MaxNodesPerRead = 1000)
+    .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
+    {
+        Name = BrowseNames.WellKnownRole_Observer,
+        Identities =
+        {
+            new RoleIdentityMappingOptions
+            {
+                CriteriaType = IdentityCriteriaType.UserName,
+                Criteria = "operator"
+            }
+        }
+    }));
+```
+
+Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to replace the default role manager.
+Custom server types that need session, subscription, or durable-subscription DI hooks must derive from
+`DependencyInjectionStandardServer`; otherwise startup fails fast instead of ignoring those hooks.
+
+Fluent node managers can be registered without a factory class:
+
+```csharp
+services.AddOpcUa()
+    .AddReferenceServer()
+    .AddNodeManager("urn:example:line", nodes =>
+    {
+        nodes.Node("ReferenceServer");
+    });
+```
+
+`AddHistorianFileStore(provider, path)` combines the historian provider registration with a Part 20
+file-system mount for demo and lab servers.
+
 ## Client feature
 
 `builder.AddClient(opt => …)` registers a lazy `ManagedSession` factory
@@ -387,7 +486,63 @@ ManagedSession session = await sessionFactory(ct);
 
 `AddClient` also registers `ITelemetryContext`, `ISessionFactory` (a
 `DefaultSessionFactory` configured with the V2 subscription engine),
-`ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+`ManagedSessionFactory`, `IManagedSessionFactory`, and the top-level
+`OpcUaClientOptions`. The cached delegate is convenient for a single fixed
+endpoint; resolve `IManagedSessionFactory` when endpoints are selected at
+runtime:
+
+```csharp
+var managedSessions = sp.GetRequiredService<IManagedSessionFactory>();
+ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct);
+```
+
+Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>`
+when the host starts and again before a DI-created session connects. Set
+`Configuration` and `Session.Endpoint` in every `AddClient` registration.
+
+### Fluent shortcuts
+
+The returned `IOpcUaClientBuilder` can compose client features without
+returning to the root builder:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options =>
+    {
+        options.Configuration = configuration;
+        options.Session = options.Session with { Endpoint = endpoint };
+    })
+    .AddSubscriptions()
+    .AddManagedClientPool()
+    .AddWotConClient()
+    .AddGdsClient()
+    .AddCertificateManagement();
+```
+
+Reverse-connect one-shot sessions can be built through DI:
+
+```csharp
+services.AddOpcUa()
+    .AddReverseConnectClient(options =>
+    {
+        options.Configuration = configuration;
+        options.Session = options.Session with { Endpoint = endpoint };
+    }, new Uri("urn:server"));
+```
+
+Discovery-and-connect resolves `IOpcUaDiscoveryService`, selects an endpoint by security policy and mode,
+then connects through `IManagedSessionFactory`:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => options.Configuration = configuration)
+    .AddDiscoveryAndConnect(options =>
+    {
+        options.DiscoveryUrl = "opc.tcp://localhost:4840";
+        options.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+        options.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+    });
+```
 
 ### Identity (client)
 
@@ -469,13 +624,35 @@ identities. The `ManagedSession` proactive-refresh scheduler keys off
 services.AddOpcUa().AddClient(/* … */).AddComplexTypes();
 ```
 
-Registers a `ComplexTypeSystemFactory` (transient) that can be resolved
+`AddComplexTypes()` can be chained directly after `AddClient(...)`. It
+registers a `ComplexTypeSystemFactory` (singleton) that can be resolved
 and used to build a `ComplexTypeSystem` for a connected session:
 
 ```csharp
 var factory = sp.GetRequiredService<ComplexTypeSystemFactory>();
 ComplexTypeSystem cts = factory.Create(session);
 await cts.LoadAsync(...);
+```
+
+For a managed client that should load complex types automatically after
+connect, use either `ManagedSessionBuilder.WithLoadComplexTypes()` or set
+`ManagedSessionOptions.LoadComplexTypes = true`. The one-shot
+`AddManagedClient(...)` helper registers client services, reconnect defaults,
+and complex-type loading together:
+
+```csharp
+services.AddOpcUa().AddManagedClient(opt =>
+{
+    opt.Configuration = applicationConfiguration;
+    opt.Session = new ManagedSessionOptions { Endpoint = endpoint };
+});
+```
+
+The direct constructor fallback remains available:
+
+```csharp
+var cts = new ComplexTypeSystem(session, telemetry);
+await cts.LoadAsync(ct: ct);
 ```
 
 ## Alarms and conditions
@@ -664,8 +841,9 @@ services
     .AddCertificateGroup<MyCertificateGroup>()
     .AddCertificateRequest<MyCertificateRequest>()
     .AddUserDatabase<MyUserDatabase>();
+    .AddInMemoryStores()
     // Optionally:
-    // .WithAuthorizationService<MyTokenIssuer>(o => o.IssuerUri = "urn:my-gds")
+    // .AddAuthorizationService<MyTokenIssuer>(o => o.IssuerUri = "urn:my-gds")
     // .AddAccessTokenProvider<MyAccessTokenProvider>()
     // .AddKeyCredentialRequestStore<MyKeyCredentialRequestStore>()
     // .AddConfigurationDataStore<MyConfigurationDataStore>();
@@ -705,8 +883,8 @@ services
 augmenters; `AddGdsApplicationSelfAdminProvider()` registers the built-in
 OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
 `AddDefaultIdentityAuthenticators(...)` helper.
-`WithAuthorizationService(...)` enables the default `CertificateJwtIssuer`;
-`WithAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
+`AddAuthorizationService(...)` enables the default `CertificateJwtIssuer`;
+`AddAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
 for cloud KMS, HSM, or external token-service signing.
 
 `GdsServerHostedService` consumes these forwarded registrations during
@@ -766,6 +944,9 @@ services
 as an `OpcUaServerNodeManagerRegistration` so it attaches to the regular
 server feature. `IWotAssetProviderFactory` and `IWotAssetDiscoveryProvider`
 services registered in dependency injection are picked up automatically.
+If `AddWotConServer` is registered without a preceding `AddServer`, startup
+fails with a clear configuration error instead of silently dropping the node
+manager registration.
 
 ## WoT Connectivity Client
 

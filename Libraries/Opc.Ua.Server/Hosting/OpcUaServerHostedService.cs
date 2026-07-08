@@ -36,9 +36,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.AliasNames;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -60,10 +64,12 @@ namespace Opc.Ua.Server.Hosting
         private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
         private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
         private readonly IServiceProvider m_services;
+        private readonly IOpcUaServerFactory m_serverFactory;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
-        // managed via the async StopAsync override which calls m_application.StopAsync.
+        // managed via the async StopAsync override which disposes m_application
+        // via DisposeAsync.
 #pragma warning disable CA2213
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
@@ -78,6 +84,7 @@ namespace Opc.Ua.Server.Hosting
             IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
             IServiceProvider services,
+            IOpcUaServerFactory serverFactory,
             ILogger<OpcUaServerHostedService> logger,
             TimeProvider? timeProvider = null)
         {
@@ -96,6 +103,7 @@ namespace Opc.Ua.Server.Hosting
             m_keyCredentialPushSubjects = keyCredentialPushSubjects ??
                 throw new ArgumentNullException(nameof(keyCredentialPushSubjects));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
+            m_serverFactory = serverFactory ?? throw new ArgumentNullException(nameof(serverFactory));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
@@ -207,6 +215,8 @@ namespace Opc.Ua.Server.Hosting
                 .CreateAsync(stoppingToken)
                 .ConfigureAwait(false);
 
+            ApplyDependencyInjectedCertificateManager();
+
             bool haveCert = await m_application
                 .CheckApplicationInstanceCertificatesAsync(
                     silent: true, CertificateFactory.DefaultLifeTime, stoppingToken)
@@ -220,18 +230,17 @@ namespace Opc.Ua.Server.Hosting
             ServerComplexTypeOptions? complexTypeOptions =
                 m_services.GetService<ServerComplexTypeOptions>();
 
+            m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
+
             // Complex-type loading is on by default (StandardServer.LoadComplexTypes);
             // build and register stand-in encodeables for runtime-loaded custom
             // DataTypes once the address space is available, and expose the primed
             // factory as the schema resolver. An explicitly registered
             // ServerComplexTypeOptions can tune or opt out (Enabled = false).
-            m_server = new StandardServer(m_telemetry, m_timeProvider)
-            {
-                ComplexTypeOptions = complexTypeOptions,
-                ComplexTypeRegistry = m_services.GetService<DataTypeDefinitionRegistry>(),
-                ComplexTypeResolverHolder =
-                    m_services.GetService<ServerDataTypeDefinitionResolver>()
-            };
+            m_server.ComplexTypeOptions = complexTypeOptions;
+            m_server.ComplexTypeRegistry = m_services.GetService<DataTypeDefinitionRegistry>();
+            m_server.ComplexTypeResolverHolder =
+                m_services.GetService<ServerDataTypeDefinitionResolver>();
             if (complexTypeOptions != null)
             {
                 m_server.LoadComplexTypes = complexTypeOptions.Enabled;
@@ -242,6 +251,10 @@ namespace Opc.Ua.Server.Hosting
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
             m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
+            if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
+            {
+                m_server.TransportBindings = transportBindings;
+            }
 
             // Apply admission-control (rate limiting) configuration: a DI-registered
             // provider wins; otherwise apply the options callback (rate limiting is
@@ -272,6 +285,7 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            RegisterPostStartRegistries();
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
@@ -326,15 +340,63 @@ namespace Opc.Ua.Server.Hosting
             ICertificateValidatorEx? certificateValidator =
                 m_application?.ApplicationConfiguration?.CertificateManager;
 
+            var authenticators = new List<IUserTokenAuthenticator>();
             foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
             {
                 foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
                     m_services,
                     certificateValidator))
                 {
-                    // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
-                    // validates one fixed IssuerUri through its resolver.
-                    m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+                    authenticators.Add(authenticator);
+                }
+            }
+
+            if (authenticators.Count == 0)
+            {
+                authenticators.Add(new AnonymousAuthenticator());
+            }
+
+            WarnForUnmatchedUserTokenPolicies(authenticators);
+
+            foreach (IUserTokenAuthenticator authenticator in authenticators)
+            {
+                // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
+                // validates one fixed IssuerUri through its resolver.
+                m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+            }
+        }
+
+        private void RegisterPostStartRegistries()
+        {
+            if (m_server is null or DependencyInjectionStandardServer)
+            {
+                return;
+            }
+
+            IServerInternal server = m_server.CurrentInstance;
+            if (server is IHistorianRegistryProvider historianRegistryProvider)
+            {
+                foreach (OpcUaServerHistorianRegistration registration in
+                    m_services.GetServices<OpcUaServerHistorianRegistration>())
+                {
+                    historianRegistryProvider.HistorianRegistry.RegisterDefault(registration.Provider);
+                }
+            }
+
+            if (server is IAliasNameStoreRegistryProvider aliasNameStoreRegistryProvider)
+            {
+                foreach (IAliasNameStoreRegistry registry in m_services.GetServices<IAliasNameStoreRegistry>())
+                {
+                    foreach (IAliasNameStore store in registry.Stores)
+                    {
+                        aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(store);
+                    }
+                }
+
+                foreach (OpcUaServerAliasNameStoreRegistration registration in
+                    m_services.GetServices<OpcUaServerAliasNameStoreRegistration>())
+                {
+                    aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(registration.Store);
                 }
             }
         }
@@ -353,6 +415,63 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        private void ApplyDependencyInjectedCertificateManager()
+        {
+            if (m_application?.ApplicationConfiguration == null)
+            {
+                return;
+            }
+
+            if (m_services.GetService<ICertificateManager>() is { } certificateManager)
+            {
+                m_application.ApplicationConfiguration.CertificateManager = certificateManager;
+            }
+        }
+
+        private void WarnForUnmatchedUserTokenPolicies(IReadOnlyList<IUserTokenAuthenticator> authenticators)
+        {
+            IEnumerable<OpcUaUserTokenPolicy> policies = m_options.UserTokenPolicies.Count == 0
+                ? [new OpcUaUserTokenPolicy { TokenType = UserTokenType.Anonymous }]
+                : m_options.UserTokenPolicies;
+
+            foreach (OpcUaUserTokenPolicy policy in policies)
+            {
+                if (policy.TokenType == UserTokenType.Anonymous)
+                {
+                    continue;
+                }
+
+                if (!HasMatchingAuthenticator(policy.TokenType, authenticators))
+                {
+                    m_logger.LogWarning(
+                        "User token policy {TokenType} is configured without a matching identity authenticator.",
+                        policy.TokenType);
+                }
+            }
+        }
+
+        private static bool HasMatchingAuthenticator(
+            UserTokenType tokenType,
+            IReadOnlyList<IUserTokenAuthenticator> authenticators)
+        {
+            foreach (IUserTokenAuthenticator authenticator in authenticators)
+            {
+                if (tokenType == UserTokenType.UserName && authenticator is UserNamePasswordAuthenticator)
+                {
+                    return true;
+                }
+                if (tokenType == UserTokenType.Certificate && authenticator is X509Authenticator)
+                {
+                    return true;
+                }
+                if (tokenType == UserTokenType.IssuedToken && authenticator is JwtAuthenticator)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
             await base.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -367,6 +486,11 @@ namespace Opc.Ua.Server.Hosting
                 catch (Exception ex)
                 {
                     m_logger.LogWarning(ex, "Error while stopping OPC UA server.");
+                }
+                finally
+                {
+                    await m_application.DisposeAsync().ConfigureAwait(false);
+                    m_application = null;
                 }
             }
         }

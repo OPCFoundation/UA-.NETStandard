@@ -70,6 +70,70 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class OpcUaPubSubAdapterBuilderExtensions
     {
         /// <summary>
+        /// Adds the PubSub runtime with a configuration and wires an external server as publisher and subscriber.
+        /// </summary>
+        /// <param name="services">Service collection.</param>
+        /// <param name="configuration">PubSub configuration to apply before adapter bindings are evaluated.</param>
+        /// <param name="configurePublisher">Publisher adapter options callback.</param>
+        /// <param name="configureSubscriber">Subscriber adapter options callback.</param>
+        /// <returns>The same <paramref name="services"/> instance.</returns>
+        public static IServiceCollection AddServerAdapterPubSub(
+            this IServiceCollection services,
+            PubSubConfigurationDataType configuration,
+            Action<ServerPublisherOptions> configurePublisher,
+            Action<ServerSubscriberOptions> configureSubscriber)
+        {
+            if (services is null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            services.AddOpcUa().AddServerAdapterPubSub(
+                configuration,
+                configurePublisher,
+                configureSubscriber);
+            return services;
+        }
+
+        /// <summary>
+        /// Adds the PubSub runtime with a configuration and wires an external server as publisher and subscriber.
+        /// </summary>
+        /// <param name="builder">OPC UA builder.</param>
+        /// <param name="configuration">PubSub configuration to apply before adapter bindings are evaluated.</param>
+        /// <param name="configurePublisher">Publisher adapter options callback.</param>
+        /// <param name="configureSubscriber">Subscriber adapter options callback.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        public static IOpcUaBuilder AddServerAdapterPubSub(
+            this IOpcUaBuilder builder,
+            PubSubConfigurationDataType configuration,
+            Action<ServerPublisherOptions> configurePublisher,
+            Action<ServerSubscriberOptions> configureSubscriber)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            if (configurePublisher is null)
+            {
+                throw new ArgumentNullException(nameof(configurePublisher));
+            }
+            if (configureSubscriber is null)
+            {
+                throw new ArgumentNullException(nameof(configureSubscriber));
+            }
+
+            builder.AddPubSub(pubsub => pubsub
+                .UseConfiguration(configuration)
+                .AddServerAsPublisher(configurePublisher)
+                .AddServerAsSubscriber(configureSubscriber));
+            return builder;
+        }
+
+        /// <summary>
         /// Adds an external-server PubSub publisher. A single managed session is
         /// created for the configured endpoint and reused across the publisher's
         /// PublishedDataSets. In <see cref="ReadMode.Subscription"/> mode

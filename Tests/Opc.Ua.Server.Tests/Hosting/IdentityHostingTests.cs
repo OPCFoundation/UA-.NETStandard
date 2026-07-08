@@ -47,6 +47,8 @@ namespace Opc.Ua.Server.Tests.Hosting
     [TestFixture]
     [Category("Identity")]
     [Category("Hosting")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public class IdentityHostingTests
     {
         [Test]
@@ -107,6 +109,122 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             Assert.That(services.GetServices<IIssuerKeyResolver>().Count(), Is.EqualTo(1));
             Assert.That(CreateAuthenticators(services), Has.Exactly(1).TypeOf<JwtAuthenticator>());
+        }
+
+        [Test]
+        public void DefaultAuthenticatorsHonoredViaActionOptionsIdentity()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(o =>
+            {
+                o.Identity.Defaults.EnableAnonymous = true;
+                o.Identity.Defaults.EnableUserNamePassword = false;
+                o.Identity.Defaults.EnableX509 = false;
+                o.Identity.Defaults.EnableJwt = false;
+            });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IList<IUserTokenAuthenticator> authenticators = CreateAuthenticators(sp);
+            Assert.That(authenticators, Has.Exactly(1).TypeOf<AnonymousAuthenticator>());
+            Assert.That(authenticators, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void JwtIssuerHonoredViaActionOptionsIdentityIssuers()
+        {
+            using var rsa = RSA.Create(2048);
+            RSAParameters parameters = rsa.ExportParameters(false);
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(o =>
+            {
+                o.Identity.Defaults.EnableAnonymous = false;
+                o.Identity.Defaults.EnableUserNamePassword = false;
+                o.Identity.Defaults.EnableX509 = false;
+                o.Identity.Defaults.EnableJwt = true;
+                o.Identity.Defaults.ExpectedAudience = "urn:opcua:test-server";
+                o.Identity.Issuers.Add(new JwtIssuerOptions
+                {
+                    IssuerUri = "https://issuer.example.test",
+                    StaticKeys =
+                    {
+                        new JwtStaticKeyOptions
+                        {
+                            Kid = "kid-rsa",
+                            Algorithm = "RS256",
+                            RsaModulus = Base64UrlEncode(parameters.Modulus),
+                            RsaExponent = Base64UrlEncode(parameters.Exponent)
+                        }
+                    }
+                });
+            });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            Assert.That(CreateAuthenticators(sp), Has.Exactly(1).TypeOf<JwtAuthenticator>());
+        }
+
+        [Test]
+        public void JwksJwtIssuerHonoredViaActionOptionsWithoutHttpClientRegistration()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(o =>
+            {
+                o.Identity.Defaults.EnableAnonymous = false;
+                o.Identity.Defaults.EnableUserNamePassword = false;
+                o.Identity.Defaults.EnableX509 = false;
+                o.Identity.Defaults.EnableJwt = true;
+                o.Identity.Defaults.ExpectedAudience = "urn:opcua:test-server";
+                o.Identity.Issuers.Add(new JwtIssuerOptions
+                {
+                    IssuerUri = "https://issuer.example.test",
+                    JwksUri = "https://issuer.example.test/.well-known/jwks"
+                });
+            });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            Assert.That(CreateAuthenticators(sp), Has.Exactly(1).TypeOf<JwtAuthenticator>());
+        }
+
+        [Test]
+        public void BareConfigurationServerRegistersAnonymousFallback()
+        {
+            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>());
+            using ServiceProvider sp = CreateServices(configuration).BuildServiceProvider();
+
+            IList<IUserTokenAuthenticator> authenticators = CreateAuthenticators(sp);
+
+            Assert.That(authenticators, Has.Exactly(1).TypeOf<AnonymousAuthenticator>());
+            Assert.That(authenticators, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void ExplicitDefaultAuthenticatorsDoNotDoubleRegisterAnonymousFallback()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa()
+                .AddServer(o =>
+                {
+                    o.Identity.Defaults.EnableAnonymous = false;
+                    o.Identity.Defaults.EnableUserNamePassword = false;
+                    o.Identity.Defaults.EnableX509 = false;
+                    o.Identity.Defaults.EnableJwt = false;
+                })
+                .AddDefaultIdentityAuthenticators(o =>
+                {
+                    o.EnableAnonymous = true;
+                    o.EnableUserNamePassword = false;
+                    o.EnableX509 = false;
+                    o.EnableJwt = false;
+                });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IList<IUserTokenAuthenticator> authenticators = CreateAuthenticators(sp);
+
+            Assert.That(authenticators, Has.Exactly(1).TypeOf<AnonymousAuthenticator>());
+            Assert.That(authenticators, Has.Count.EqualTo(1));
         }
 
         private static ServiceCollection CreateServices(IConfiguration configuration)

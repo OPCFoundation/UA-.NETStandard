@@ -73,11 +73,12 @@ namespace Opc.Ua.PubSub.Application
 
         /// <summary>
         /// Endpoints of Security Key Service (SKS) instances the
-        /// PubSub application may pull keys from. Each entry is
-        /// resolved by the
-        /// <see cref="Opc.Ua.PubSub.Security.Sks.OpcUaSecurityKeyServiceClient"/>
-        /// registered by
-        /// <c>AddPubSubSecurityKeyServiceClient(...)</c>.
+        /// PubSub application may pull keys from, recorded for discovery
+        /// and diagnostics. Registering a working pull provider is done
+        /// through the dependency-injection
+        /// <c>AddPubSubSecurityKeyServiceClient(...)</c> overloads or
+        /// <see cref="PubSubApplicationBuilder.AddSecurityKeyProvider"/>;
+        /// this list does not by itself wire a provider.
         /// </summary>
         public IList<EndpointDescription> SecurityKeyServiceEndpoints { get; set; }
             = new List<EndpointDescription>();

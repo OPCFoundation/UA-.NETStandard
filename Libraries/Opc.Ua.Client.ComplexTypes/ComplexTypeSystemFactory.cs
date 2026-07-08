@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <see cref="Create(ISession)"/> per session to obtain a
     /// type-loader scoped to that session.
     /// </remarks>
-    public sealed class ComplexTypeSystemFactory
+    public sealed class ComplexTypeSystemFactory : IComplexTypeSystemFactory
     {
         /// <summary>
         /// Initializes a new instance.

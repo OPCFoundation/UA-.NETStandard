@@ -58,6 +58,7 @@ namespace Opc.Ua.PubSub.Security.Sks
     public sealed class PullSecurityKeyProvider : IPubSubSecurityKeyProvider, IAsyncDisposable
     {
         private readonly ISecurityKeyService m_sks;
+        private readonly bool m_ownsSecurityKeyService;
         private readonly IPubSubSecurityPolicy m_policy;
         private readonly PullSecurityKeyProviderOptions m_options;
         private readonly TimeProvider m_timeProvider;
@@ -81,13 +82,22 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="options">Provider options.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="timeProvider">Time source.</param>
+        /// <param name="ownsSecurityKeyService">
+        /// When <see langword="true"/> the provider owns
+        /// <paramref name="sksClient"/> and disposes it (if it is
+        /// <see cref="IAsyncDisposable"/>) as part of
+        /// <see cref="DisposeAsync"/>. Set to <see langword="false"/>
+        /// (the default) when the client is owned by the caller or the
+        /// dependency-injection container.
+        /// </param>
         public PullSecurityKeyProvider(
             string securityGroupId,
             ISecurityKeyService sksClient,
             IPubSubSecurityPolicy policy,
             PullSecurityKeyProviderOptions options,
             ITelemetryContext telemetry,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            bool ownsSecurityKeyService = false)
         {
             if (string.IsNullOrEmpty(securityGroupId))
             {
@@ -118,6 +128,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
             SecurityGroupId = securityGroupId;
             m_sks = sksClient;
+            m_ownsSecurityKeyService = ownsSecurityKeyService;
             m_policy = policy;
             m_options = options;
             m_timeProvider = timeProvider;
@@ -251,6 +262,10 @@ namespace Opc.Ua.PubSub.Security.Sks
             m_ring.Dispose();
             m_disposeCts.Dispose();
             m_refreshSemaphore.Dispose();
+            if (m_ownsSecurityKeyService && m_sks is IAsyncDisposable disposableSks)
+            {
+                await disposableSks.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         private async Task RunBackgroundLoopAsync(CancellationToken ct)

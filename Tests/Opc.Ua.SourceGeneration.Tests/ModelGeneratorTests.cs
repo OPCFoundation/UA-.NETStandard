@@ -258,6 +258,255 @@ namespace Opc.Ua.SourceGeneration
                 "instance output should reference the generated NodeSet2 type class");
         }
 
+        [Theory]
+        public void GenerateAndCompileModelDesignReferencingNodeSet2TypesReversedInputOrderTest(
+            LanguageVersion languageVersion)
+        {
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
+
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+
+            options.TextOptions["CrossModelTypes.NodeSet2.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Types",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] = "CrossModelTypes",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "CrossModelTypes"
+                };
+            options.TextOptions["CrossModelInstances.ModelDesign.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Instances"
+                };
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                // Ensure resolution is independent of AdditionalFiles order.
+                .AddAdditionalTexts(
+                [
+                    EmbeddedText.From("CrossModelInstances.ModelDesign.xml"),
+                    EmbeddedText.From("CrossModelTypes.NodeSet2.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options)
+                ;
+
+            GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
+
+            string allSources = string.Join(
+                "\n",
+                generatorResult.GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(allSources,
+                Does.Contain("CrossModelTypes.WidgetState"),
+                "cross-model type resolution should not depend on file order");
+        }
+
+        [Theory]
+        public void NodeManagerBoundToNodeSet2TypesIsNotReportedUnmatchedWithModelDesign(
+            LanguageVersion languageVersion)
+        {
+            // Regression for issue #3937 (follow-up comment): a [NodeManager]
+            // bound to the NodeSet2 *types* model must not be reported as
+            // unmatched (MODELGEN010) merely because the project also contains
+            // a ModelDesign *instances* model. Binding resolution runs in two
+            // passes; the NodeSet2 pass matches the binding, so the ModelDesign
+            // pass must not false-positive it. Before the fix the ModelDesign
+            // pass reported the binding it never saw as unmatched, which — with
+            // TreatWarningsAsErrors — blocked the build.
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = "http://test.org/UA/CrossModel/Types")]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty,
+                "a [NodeManager] matched by the NodeSet2 pass must not be " +
+                "reported as unmatched by the ModelDesign pass");
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(
+                generated,
+                Does.Contain("class TypesNodeManager"),
+                "the matched [NodeManager] should generate a node manager partial");
+        }
+
+        [Theory]
+        public void NodeManagerBoundToModelDesignInstancesIsNotReportedUnmatchedWithNodeSet2(
+            LanguageVersion languageVersion)
+        {
+            // Symmetric case: a [NodeManager] bound to the ModelDesign
+            // *instances* model must not be reported unmatched by the NodeSet2
+            // pass. The ModelDesign pass matches it; aggregate reporting keeps
+            // it silent.
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = "http://test.org/UA/CrossModel/Instances")]
+                public partial class InstancesNodeManager
+                {
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty,
+                "a [NodeManager] matched by the ModelDesign pass must not be " +
+                "reported as unmatched by the NodeSet2 pass");
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(
+                generated,
+                Does.Contain("class InstancesNodeManager"),
+                "the matched [NodeManager] should generate a node manager partial");
+        }
+
+        [Theory]
+        public void SelectorlessNodeManagerAcrossTwoModelsReportsSingleAmbiguity(
+            LanguageVersion languageVersion)
+        {
+            // A [NodeManager] with no NamespaceUri/Design selector cannot bind
+            // when the project has multiple models. It must be reported exactly
+            // once (aggregated across both passes, not once per pass) with an
+            // ambiguity message that guides the user to add a NamespaceUri.
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager]
+                public partial class AmbiguousNodeManager
+                {
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, _) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Diagnostic[] unmatched = [.. diagnostics.Where(d => d.Id == "MODELGEN010")];
+            Assert.That(
+                unmatched,
+                Has.Length.EqualTo(1),
+                "a selector-less binding must be reported once, not once per pass");
+            Assert.That(
+                unmatched[0].GetMessage(System.Globalization.CultureInfo.InvariantCulture),
+                Does.Contain("multiple models"),
+                "the diagnostic should explain the ambiguity");
+        }
+
+        /// <summary>
+        /// Run the model generator over the shared cross-model NodeSet2 +
+        /// ModelDesign fixture plus a user-supplied source containing a
+        /// <c>[NodeManager]</c> attribute, and return the generator
+        /// diagnostics and run result. The output is intentionally not
+        /// strictly compiled: a matched <c>[NodeManager]</c> emits Fluent
+        /// node-manager code that references <c>Opc.Ua.Server</c> types not
+        /// present in this model-only test compilation.
+        /// </summary>
+        private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
+            RunMixedModelGenerator(LanguageVersion languageVersion, string bindingSource)
+        {
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>
+                {
+                    ["NodeManagerBinding.cs"] = bindingSource
+                }.WithOpcUaGeneratedStack(), languageVersion);
+
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            options.TextOptions["CrossModelTypes.NodeSet2.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Types",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] = "CrossModelTypes",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "CrossModelTypes"
+                };
+            options.TextOptions["CrossModelInstances.ModelDesign.xml"] =
+                new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorModelUri"] =
+                        "http://test.org/UA/CrossModel/Instances"
+                };
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                .AddAdditionalTexts(
+                [
+                    EmbeddedText.From("CrossModelTypes.NodeSet2.xml"),
+                    EmbeddedText.From("CrossModelInstances.ModelDesign.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out Compilation _,
+                out ImmutableArray<Diagnostic> diagnostics);
+
+            return (diagnostics, driver.GetRunResult());
+        }
+
         private static string ValidateXmlSchema(
             LanguageVersion languageVersion,
             GeneratorRunResult generatorResult)
