@@ -183,6 +183,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 return this;
             }
+
+            public IOpcUaServerBuilder AddNodeManager(
+                string namespaceUri,
+                Action<Opc.Ua.Server.Fluent.INodeManagerBuilder> build)
+            {
+                return this;
+            }
         }
 
         private sealed class TestStandardServer : StandardServer
