@@ -156,31 +156,39 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task HealthSubBandsPreferHigherHealthySubBandAsync()
         {
+            // Local (210) has a strictly higher raw ServiceLevel than peer B (205), but a heavier
+            // load. Without sub-banding both fall into the same coarse Healthy tier, so the tie is
+            // broken by load and B (unloaded) wins. With a sub-band size of 10, local's ServiceLevel
+            // (210) falls one sub-band above B's (205), so local becomes the strictly healthier
+            // member and is kept regardless of its higher load.
             var withoutSubBands = new BandedServerDirectionPolicy(
-                new FakeView([Peer("B", 210, 0)]),
+                new FakeView([Peer("B", 205, 0)]),
                 new LoadDirectionOptions { HealthSubBandSize = 0 },
                 _ => 0);
             var withSubBands = new BandedServerDirectionPolicy(
-                new FakeView([Peer("B", 210, 0)]),
+                new FakeView([Peer("B", 205, 0)]),
                 new LoadDirectionOptions { HealthSubBandSize = 10 },
                 _ => 0);
 
             string? withoutSubBandsTarget = await withoutSubBands
-                .SelectTargetServerUriAsync("A", 205, 100)
+                .SelectTargetServerUriAsync("A", 210, 100)
                 .ConfigureAwait(false);
             string? withSubBandsTarget = await withSubBands
-                .SelectTargetServerUriAsync("A", 205, 100)
+                .SelectTargetServerUriAsync("A", 210, 100)
                 .ConfigureAwait(false);
 
-            Assert.That(withoutSubBandsTarget, Is.EqualTo("B"), "without sub-bands the healthier peer wins on load");
+            Assert.That(withoutSubBandsTarget, Is.EqualTo("B"), "without sub-bands the tie is broken by load, and B is unloaded");
             Assert.That(withSubBandsTarget, Is.Null, "a higher healthy sub-band should keep traffic on the healthier local server");
         }
 
-        [TestCase(0, 17, 18, Description = "load band size is clamped to one")]
-        [TestCase(1, 17, 18, Description = "load band size one keeps exact ordering")]
-        [TestCase(256, 17, 18, Description = "large load bands collapse nearby loads into one band")]
+        [TestCase(0, 18, 17, Description = "load band size is clamped to one")]
+        [TestCase(1, 18, 17, Description = "load band size one keeps exact ordering")]
+        [TestCase(256, 18, 17, Description = "large load bands collapse nearby loads into one band")]
         public async Task LoadBandSizeOptionsAreAppliedSafelyAsync(int loadBandSize, byte localLoad, byte peerLoad)
         {
+            // localLoad (18) is strictly heavier than peerLoad (17): with an exact (or clamped-to-one)
+            // band size the peer is the truly least-loaded member and should be selected; a large band
+            // size collapses both into the same band, so the tie-break keeps traffic local.
             var policy = new BandedServerDirectionPolicy(
                 new FakeView([Peer("B", 255, peerLoad)]),
                 new LoadDirectionOptions { LoadBandSize = loadBandSize },
