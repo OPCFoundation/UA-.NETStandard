@@ -16,8 +16,12 @@
   <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
     <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
   </ItemGroup>
-  <!-- Server-side pcap capture (Opc.Ua.Core.Diagnostics) is net8.0+ only. -->
-  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+  <!-- Server-side pcap capture (Opc.Ua.Core.Diagnostics). The diagnostics
+       package resolves to net10.0 in every solution build configuration
+       (including the netstandard test builds where it collapses to net10.0
+       only), so gate the reference on net10.0 to keep the multi-TFM solution
+       build consistent. -->
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
   </ItemGroup>
   <ItemGroup>

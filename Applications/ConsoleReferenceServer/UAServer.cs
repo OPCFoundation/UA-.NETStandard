@@ -37,7 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
 using Opc.Ua.Pcap.Capture;
 #endif
 using Opc.Ua.Security.Certificates;
@@ -165,7 +165,7 @@ namespace Quickstarts
                 // create the server.
                 Server ??= m_factory(m_telemetry);
 
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
                 // Opt-in diagnostics: when OPCUA_PCAP_FILE / OPCUA_KEYLOGFILE are
                 // set, install server-side pcap capture into the transport
                 // bindings before the listeners open. Mirrors the client env-var
@@ -227,7 +227,7 @@ namespace Quickstarts
                     await server.StopAsync(ct).ConfigureAwait(false);
                 }
 
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
                     // Stop any env-var-driven pcap capture installed at start.
                     if (m_pcapCapture != null)
                     {
@@ -385,7 +385,7 @@ namespace Quickstarts
         private readonly ILogger m_logger;
         private Task m_status = Task.CompletedTask;
         private DateTime m_lastEventTime;
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
         private IAsyncDisposable? m_pcapCapture;
 #endif
     }
