@@ -262,16 +262,21 @@ ready-made golden vector to validate the CTT codec against.
   client (Part 6 §6.7.4). Regression covered by `SecurityCertValidationTests` (007/008/033 now
   strictly require the time-invalid code; 029 surfaces `BadCertificateUseNotAllowed`).
 
-* **Security User X509** (`001`, `002`, `004`, …, 27 occurrences): ActivateSession returns
-  `BadIdentityTokenRejected (0x80210000)`. This is **not** a CTT defect and **not** a trust-store
-  configuration gap — it is a **known-incomplete server feature**: the reference server's X.509
-  **user-token** authentication is pending a migration to the v1.6 `ICertificateProvider`. This is
-  documented in the stack's own tests, which add a valid user certificate to the server trust store
-  and still `Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration")`
-  when activation fails (`Tests/Opc.Ua.Core.Security.Tests/SecurityX509UserTests.cs:82,101` and the
-  same skip in ~8 further X509 user tests). Completing the X.509 user-authentication provider wiring
-  is a separate feature task (tracked by those skipped tests); until then the CTT `Security User
-  X509` unit cannot pass. No CTT-script change is warranted.
+* **Security User X509** (`001`, `002`, `004`, …, 27 occurrences): ActivateSession previously
+  returned `BadIdentityTokenRejected`/`BadIdentityTokenInvalid`. This is **not** a CTT defect. The
+  reference **server** side already validates X.509 user certificates against the `Users` trust list;
+  the gap was on the **client** side of the conformance tests. In v1.6 the X.509 user-token signing
+  path moved to the provider model (`UserIdentity.CreateAsync(CertificateIdentifier,
+  ICertificatePasswordProvider, ICertificateProvider)`), and `X509IdentityTokenHandler.SignAsync`
+  needs a resolvable private-key certificate to sign the server nonce. The conformance-test helper
+  was still building a verify-only token from a transient in-memory certificate, so the client could
+  not produce the user-token signature (`X509IdentityTokenHandler ... must be constructed with a
+  CertificateIdentifier + ICertificateProvider to sign`) and every activation was skipped. **Fixed:**
+  `X509UserIdentityHelper` now persists the transient user certificate to a client-side directory
+  store and builds a signing identity through the provider path, so X.509 user-token activation now
+  succeeds end-to-end against the reference server. All `SecurityX509UserTests` /
+  `SecurityUserX509DepthTests` run (23 pass, 0 skipped) and assert success/rejection rather than
+  skipping. No CTT-script change is warranted.
 
 * **Security User Name Password 2** (`015`, duplicate `PolicyId`): *"The PolicyId: 2, is used for
   multiple UserIdentityTokens."* **Not reproducible** on the current build — fix #3525 (commit
