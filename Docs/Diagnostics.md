@@ -1059,6 +1059,43 @@ await using (manager.ConfigureAwait(false))
 `InstallServer` is a no-op when the registry has no `opc.tcp` listener
 factory, and idempotent when the binding is already installed.
 
+##### Env-var driven server capture (non-DI hosts)
+
+Hosts that build their server through the classic `ApplicationInstance`
+path (no `IServiceProvider` to drive the `AddPcapFromEnvironment()` hosted
+service) can opt in to the **same** environment variables the client uses.
+Call `PcapServerCapture.TryStartFromEnvironmentAsync` with the server's
+transport bindings **before** the server starts and dispose the returned
+handle on shutdown:
+
+```csharp
+using Opc.Ua.Pcap.Capture;   // PcapServerCapture
+
+// Before Application.StartAsync(server) / before the listeners open.
+IAsyncDisposable? capture = await PcapServerCapture.TryStartFromEnvironmentAsync(
+    server.Server!.TransportBindings,
+    telemetry.LoggerFactory).ConfigureAwait(false);
+
+// ... run the server ...
+
+// On shutdown:
+if (capture is not null)
+{
+    await capture.DisposeAsync().ConfigureAwait(false);
+}
+```
+
+A server started **without** the variables changes nothing (the call is a
+complete no-op and returns `null`). A server started **with**
+`OPCUA_PCAP_FILE` set installs the server listener binding and records
+inbound client→server traffic to the file's folder; `OPCUA_KEYLOGFILE` on
+its own installs a stand-alone key-log observer. These are the same
+variables and semantics documented under
+[Environment-variable configuration](#environment-variable-configuration)
+for the client, so a single `OPCUA_PCAP_FILE`/`OPCUA_KEYLOGFILE` pair drives
+both. The Console Reference Server wires this in automatically. (The pcap
+capture package targets net8.0+.)
+
 #### Client capture (outbound channels the app opens)
 
 Install the channel binding into the registry the client actually uses.

@@ -16,6 +16,10 @@
   <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
     <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
   </ItemGroup>
+  <!-- Server-side pcap capture (Opc.Ua.Core.Diagnostics) is net8.0+ only. -->
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
