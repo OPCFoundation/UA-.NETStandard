@@ -33,134 +33,201 @@ using System.Globalization;
 using System.Net;
 using Opc.Ua.PubSub.Redundancy;
 
-namespace RedundantPubSub;
-
-public sealed record SampleOptions(
-    SampleRole Role,
-    PubSubRedundancyMode HaMode,
-    PubSubRedundancyElection Election,
-    string OwnerId,
-    string Endpoint,
-    ushort PublisherId,
-    ushort WriterGroupId,
-    ushort DataSetWriterId,
-    int IntervalMs,
-    ulong RaftId,
-    int RaftMembers,
-    string RaftBind,
-    IReadOnlyList<string> RaftPeers,
-    bool Insecure,
-    string? RecordKeyBase64,
-    TimeSpan LeaseDuration,
-    TimeSpan DemoFirstActiveDuration,
-    TimeSpan DemoSecondActiveDuration)
+namespace RedundantPubSub
 {
-    public static SampleOptions Parse(string[] args, Func<string, string?> getEnvironment)
+    /// <summary>
+    /// Immutable, parsed configuration for the sample, sourced from command-line arguments and
+    /// environment variables.
+    /// </summary>
+    /// <param name="Role">The role to run (publisher, subscriber, or demo).</param>
+    /// <param name="HaMode">The PubSub redundancy mode (Cold, Warm, or Hot).</param>
+    /// <param name="Election">The activation-election strategy (leader-election or lease-store).</param>
+    /// <param name="OwnerId">Stable identifier of this instance within its redundant set.</param>
+    /// <param name="Endpoint">The PubSub UDP transport endpoint (multicast or unicast).</param>
+    /// <param name="PublisherId">The PublisherId advertised in network messages.</param>
+    /// <param name="WriterGroupId">The WriterGroup id used by the writer and reader filter.</param>
+    /// <param name="DataSetWriterId">The DataSetWriter id used by the writer and reader filter.</param>
+    /// <param name="IntervalMs">The publishing interval in milliseconds.</param>
+    /// <param name="RaftId">This instance's Raft member id.</param>
+    /// <param name="RaftMembers">The total number of Raft members in the set.</param>
+    /// <param name="RaftBind">The local Raft transport bind address.</param>
+    /// <param name="RaftPeers">The Raft transport addresses of the peer members.</param>
+    /// <param name="Insecure">When true, permits a well-known demo record-protection key.</param>
+    /// <param name="RecordKeyBase64">Optional shared base64 record-protection key.</param>
+    /// <param name="LeaseDuration">The lease duration used by lease-store election.</param>
+    /// <param name="DemoFirstActiveDuration">How long the first publisher stays active in the demo.</param>
+    /// <param name="DemoSecondActiveDuration">How long the promoted publisher runs in the demo.</param>
+    public sealed record SampleOptions(
+        SampleRole Role,
+        PubSubRedundancyMode HaMode,
+        PubSubRedundancyElection Election,
+        string OwnerId,
+        string Endpoint,
+        ushort PublisherId,
+        ushort WriterGroupId,
+        ushort DataSetWriterId,
+        int IntervalMs,
+        ulong RaftId,
+        int RaftMembers,
+        string RaftBind,
+        IReadOnlyList<string> RaftPeers,
+        bool Insecure,
+        string? RecordKeyBase64,
+        TimeSpan LeaseDuration,
+        TimeSpan DemoFirstActiveDuration,
+        TimeSpan DemoSecondActiveDuration)
     {
-        var cli = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        for (int ii = 0; ii < args.Length; ii++)
+        /// <summary>
+        /// Parses sample options from command-line arguments (which take precedence) and
+        /// environment variables, falling back to sample defaults.
+        /// </summary>
+        /// <param name="args">The process command-line arguments.</param>
+        /// <param name="getEnvironment">Callback used to read environment variables.</param>
+        /// <returns>The parsed <see cref="SampleOptions"/>.</returns>
+        public static SampleOptions Parse(string[] args, Func<string, string?> getEnvironment)
         {
-            string arg = args[ii];
-            if (!arg.StartsWith("--", StringComparison.Ordinal))
+            var cli = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (int ii = 0; ii < args.Length; ii++)
             {
-                continue;
+                string arg = args[ii];
+                if (!arg.StartsWith("--", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string key = arg[2..].Replace('-', '_');
+                cli[key] = ii + 1 < args.Length && !args[ii + 1].StartsWith("--", StringComparison.Ordinal)
+                    ? args[++ii]
+                    : "true";
             }
 
-            string key = arg[2..].Replace('-', '_');
-            cli[key] = ii + 1 < args.Length && !args[ii + 1].StartsWith("--", StringComparison.Ordinal)
-                ? args[++ii]
-                : "true";
+            string Read(string key, string fallback) => cli.TryGetValue(key, out string? value) ? value : getEnvironment(key) ?? fallback;
+
+            return new SampleOptions(
+                ParseRole(Read("ROLE", "demo")),
+                ParseMode(Read("HA_MODE", "hot")),
+                ParseElection(Read("HA_ELECTION", "leader-election")),
+                Read("OWNER_ID", Dns.GetHostName()),
+                Read("PUBSUB_ENDPOINT", SampleConstants.DefaultEndpoint),
+                ParseUShort(Read("PUBLISHER_ID", SampleConstants.DefaultPublisherId.ToString(CultureInfo.InvariantCulture))),
+                ParseUShort(Read("WRITER_GROUP_ID", SampleConstants.DefaultWriterGroupId.ToString(CultureInfo.InvariantCulture))),
+                ParseUShort(Read("DATA_SET_WRITER_ID", SampleConstants.DefaultDataSetWriterId.ToString(CultureInfo.InvariantCulture))),
+                int.Parse(Read("PUBLISH_INTERVAL_MS", "1000"), CultureInfo.InvariantCulture),
+                ulong.Parse(Read("HA_RAFT_ID", "1"), CultureInfo.InvariantCulture),
+                int.Parse(Read("HA_RAFT_MEMBERS", "1"), CultureInfo.InvariantCulture),
+                Read("HA_RAFT_BIND", "tcp://0.0.0.0:6560"),
+                ReadList(Read("HA_RAFT_PEERS", string.Empty)),
+                bool.TryParse(Read("HA_INSECURE", "false"), out bool insecure) && insecure,
+                EmptyToNull(Read("HA_RECORD_KEY", string.Empty)),
+                TimeSpan.FromSeconds(double.Parse(Read("HA_LEASE_SECONDS", "15"), CultureInfo.InvariantCulture)),
+                TimeSpan.FromSeconds(double.Parse(Read("DEMO_FIRST_SECONDS", "6"), CultureInfo.InvariantCulture)),
+                TimeSpan.FromSeconds(double.Parse(Read("DEMO_SECOND_SECONDS", "6"), CultureInfo.InvariantCulture)));
         }
 
-        string Read(string key, string fallback)
+        private static SampleRole ParseRole(string value)
         {
-            return cli.TryGetValue(key, out string? value) ? value : getEnvironment(key) ?? fallback;
+            return value.Trim().ToLowerInvariant() switch
+            {
+                "publisher" => SampleRole.Publisher,
+                "subscriber" => SampleRole.Subscriber,
+                "demo" => SampleRole.Demo,
+                _ => throw new ArgumentException("ROLE must be publisher, subscriber, or demo.", nameof(value))
+            };
         }
 
-        return new SampleOptions(
-            ParseRole(Read("ROLE", "demo")),
-            ParseMode(Read("HA_MODE", "hot")),
-            ParseElection(Read("HA_ELECTION", "leader-election")),
-            Read("OWNER_ID", Dns.GetHostName()),
-            Read("PUBSUB_ENDPOINT", SampleConstants.DefaultEndpoint),
-            ParseUShort(Read("PUBLISHER_ID", SampleConstants.DefaultPublisherId.ToString(CultureInfo.InvariantCulture))),
-            ParseUShort(Read("WRITER_GROUP_ID", SampleConstants.DefaultWriterGroupId.ToString(CultureInfo.InvariantCulture))),
-            ParseUShort(Read("DATA_SET_WRITER_ID", SampleConstants.DefaultDataSetWriterId.ToString(CultureInfo.InvariantCulture))),
-            int.Parse(Read("PUBLISH_INTERVAL_MS", "1000"), CultureInfo.InvariantCulture),
-            ulong.Parse(Read("HA_RAFT_ID", "1"), CultureInfo.InvariantCulture),
-            int.Parse(Read("HA_RAFT_MEMBERS", "1"), CultureInfo.InvariantCulture),
-            Read("HA_RAFT_BIND", "tcp://0.0.0.0:6560"),
-            ReadList(Read("HA_RAFT_PEERS", string.Empty)),
-            bool.TryParse(Read("HA_INSECURE", "false"), out bool insecure) && insecure,
-            EmptyToNull(Read("HA_RECORD_KEY", string.Empty)),
-            TimeSpan.FromSeconds(double.Parse(Read("HA_LEASE_SECONDS", "15"), CultureInfo.InvariantCulture)),
-            TimeSpan.FromSeconds(double.Parse(Read("DEMO_FIRST_SECONDS", "6"), CultureInfo.InvariantCulture)),
-            TimeSpan.FromSeconds(double.Parse(Read("DEMO_SECOND_SECONDS", "6"), CultureInfo.InvariantCulture)));
-    }
-
-    private static SampleRole ParseRole(string value)
-    {
-        return value.Trim().ToLowerInvariant() switch
+        private static PubSubRedundancyMode ParseMode(string value)
         {
-            "publisher" => SampleRole.Publisher,
-            "subscriber" => SampleRole.Subscriber,
-            "demo" => SampleRole.Demo,
-            _ => throw new ArgumentException("ROLE must be publisher, subscriber, or demo.", nameof(value))
-        };
-    }
+            return value.Trim().ToLowerInvariant() switch
+            {
+                "hot" => PubSubRedundancyMode.Hot,
+                "warm" => PubSubRedundancyMode.Warm,
+                "cold" => PubSubRedundancyMode.Cold,
+                _ => throw new ArgumentException("HA_MODE must be hot, warm, or cold.", nameof(value))
+            };
+        }
 
-    private static PubSubRedundancyMode ParseMode(string value)
-    {
-        return value.Trim().ToLowerInvariant() switch
+        private static PubSubRedundancyElection ParseElection(string value)
         {
-            "hot" => PubSubRedundancyMode.Hot,
-            "warm" => PubSubRedundancyMode.Warm,
-            "cold" => PubSubRedundancyMode.Cold,
-            _ => throw new ArgumentException("HA_MODE must be hot, warm, or cold.", nameof(value))
-        };
-    }
+            return value.Trim().ToLowerInvariant() switch
+            {
+                "leader" or "leader-election" or "leaderelection" => PubSubRedundancyElection.LeaderElection,
+                "lease" or "lease-store" or "leasestore" => PubSubRedundancyElection.LeaseStore,
+                _ => throw new ArgumentException("HA_ELECTION must be leader-election or lease-store.", nameof(value))
+            };
+        }
 
-    private static PubSubRedundancyElection ParseElection(string value)
-    {
-        return value.Trim().ToLowerInvariant() switch
+        private static ushort ParseUShort(string value)
         {
-            "leader" or "leader-election" or "leaderelection" => PubSubRedundancyElection.LeaderElection,
-            "lease" or "lease-store" or "leasestore" => PubSubRedundancyElection.LeaseStore,
-            _ => throw new ArgumentException("HA_ELECTION must be leader-election or lease-store.", nameof(value))
-        };
+            return ushort.Parse(value, CultureInfo.InvariantCulture);
+        }
+
+        private static string? EmptyToNull(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
+
+        private static string[] ReadList(string value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? []
+                : value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
     }
 
-    private static ushort ParseUShort(string value)
+    /// <summary>
+    /// The role the sample process runs as.
+    /// </summary>
+    public enum SampleRole
     {
-        return ushort.Parse(value, CultureInfo.InvariantCulture);
+        /// <summary>
+        /// Runs a high-availability publisher instance.
+        /// </summary>
+        Publisher,
+
+        /// <summary>
+        /// Runs a subscriber instance (optionally part of a high-availability reader set).
+        /// </summary>
+        Subscriber,
+
+        /// <summary>
+        /// Runs the single-process demo that hosts two publishers and a subscriber.
+        /// </summary>
+        Demo
     }
 
-    private static string? EmptyToNull(string value)
+    /// <summary>
+    /// Shared constant values used across the sample publisher, subscriber, and demo roles.
+    /// </summary>
+    internal static class SampleConstants
     {
-        return string.IsNullOrWhiteSpace(value) ? null : value;
+        /// <summary>
+        /// The published data-set name.
+        /// </summary>
+        public const string DataSetName = "HaCounter";
+
+        /// <summary>
+        /// The data-set reader name.
+        /// </summary>
+        public const string ReaderName = "Reader 1";
+
+        /// <summary>
+        /// The default PubSub UDP multicast endpoint.
+        /// </summary>
+        public const string DefaultEndpoint = "opc.udp://239.0.0.1:4840";
+
+        /// <summary>
+        /// The default PublisherId.
+        /// </summary>
+        public const ushort DefaultPublisherId = 1;
+
+        /// <summary>
+        /// The default WriterGroup id.
+        /// </summary>
+        public const ushort DefaultWriterGroupId = 100;
+
+        /// <summary>
+        /// The default DataSetWriter id.
+        /// </summary>
+        public const ushort DefaultDataSetWriterId = 1;
     }
-
-    private static string[] ReadList(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? []
-            : value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
-}
-
-public enum SampleRole
-{
-    Publisher,
-    Subscriber,
-    Demo
-}
-
-internal static class SampleConstants
-{
-    public const string DataSetName = "HaCounter";
-    public const string ReaderName = "Reader 1";
-    public const string DefaultEndpoint = "opc.udp://239.0.0.1:4840";
-    public const ushort DefaultPublisherId = 1;
-    public const ushort DefaultWriterGroupId = 100;
-    public const ushort DefaultDataSetWriterId = 1;
 }

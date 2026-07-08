@@ -37,42 +37,58 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
-namespace RedundantPubSub;
-
-internal sealed class HaSubscriberSink : ISubscribedDataSetSink
+namespace RedundantPubSub
 {
-    public HaSubscriberSink(ILogger<HaSubscriberSink> logger)
+    /// <summary>
+    /// Subscribed data-set sink that logs the shape of each received data set. Only the
+    /// activation-coordinator-active subscriber replica dispatches to this sink, so its log
+    /// output identifies the currently active subscriber in a high-availability reader set.
+    /// </summary>
+    internal sealed class HaSubscriberSink : ISubscribedDataSetSink
     {
-        m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
-    public ValueTask WriteAsync(IReadOnlyList<DataSetField> fields, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        m_logger.LogInformation(
-            "DataSet with {FieldCount} field(s) received: {FieldNames}.",
-            fields.Count,
-            FormatFieldNames(fields));
-        return ValueTask.CompletedTask;
-    }
-
-    private static string FormatFieldNames(IReadOnlyList<DataSetField> fields)
-    {
-        var builder = new StringBuilder();
-        for (int ii = 0; ii < fields.Count; ii++)
+        /// <summary>
+        /// Initializes a new <see cref="HaSubscriberSink"/>.
+        /// </summary>
+        /// <param name="logger">Logger used to report received data sets.</param>
+        public HaSubscriberSink(ILogger<HaSubscriberSink> logger)
         {
-            if (ii > 0)
-            {
-                builder.Append(", ");
-            }
-
-            DataSetField field = fields[ii];
-            builder.Append(string.IsNullOrEmpty(field.Name)
-                ? string.Create(CultureInfo.InvariantCulture, $"f{ii}")
-                : field.Name);
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
-        return builder.ToString();
-    }
 
-    private readonly ILogger<HaSubscriberSink> m_logger;
+        /// <summary>
+        /// Logs the field count and names of a received data set.
+        /// </summary>
+        /// <param name="fields">The decoded data-set fields.</param>
+        /// <param name="cancellationToken">Token used to observe cancellation.</param>
+        /// <returns>A completed task.</returns>
+        public ValueTask WriteAsync(IReadOnlyList<DataSetField> fields, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            m_logger.LogInformation(
+                "DataSet with {FieldCount} field(s) received: {FieldNames}.",
+                fields.Count,
+                FormatFieldNames(fields));
+            return ValueTask.CompletedTask;
+        }
+
+        private static string FormatFieldNames(IReadOnlyList<DataSetField> fields)
+        {
+            var builder = new StringBuilder();
+            for (int ii = 0; ii < fields.Count; ii++)
+            {
+                if (ii > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                DataSetField field = fields[ii];
+                builder.Append(string.IsNullOrEmpty(field.Name)
+                    ? string.Create(CultureInfo.InvariantCulture, $"f{ii}")
+                    : field.Name);
+            }
+            return builder.ToString();
+        }
+
+        private readonly ILogger<HaSubscriberSink> m_logger;
+    }
 }

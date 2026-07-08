@@ -33,68 +33,84 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.PubSub.Encoding;
 
-namespace RedundantPubSub;
-
-public sealed class SequenceContinuityMonitor
+namespace RedundantPubSub
 {
-    public SequenceContinuityMonitor(ILogger<SequenceContinuityMonitor> logger)
+    /// <summary>
+    /// Tracks the per-writer SequenceNumber stream and reports whether it continued across a
+    /// publisher failover (Hot/Warm) or was reset (Cold), so the sample can demonstrate data
+    /// continuity versus data loss.
+    /// </summary>
+    public sealed class SequenceContinuityMonitor
     {
-        m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
-    public void OnSequence(uint sequenceNumber, ArrayOf<DataSetField> fields)
-    {
-        string owner = FindOwner(fields);
-        lock (m_lock)
+        /// <summary>
+        /// Initializes a new <see cref="SequenceContinuityMonitor"/>.
+        /// </summary>
+        /// <param name="logger">Logger used to report continuity and data-loss transitions.</param>
+        public SequenceContinuityMonitor(ILogger<SequenceContinuityMonitor> logger)
         {
-            if (m_lastSequence is null)
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <summary>
+        /// Records the next observed SequenceNumber and logs whether it continued, reset
+        /// (data loss), or continued across a failover to a different publisher owner.
+        /// </summary>
+        /// <param name="sequenceNumber">The SequenceNumber of the received data-set message.</param>
+        /// <param name="fields">The received data-set fields (used to read the OwnerId).</param>
+        public void OnSequence(uint sequenceNumber, ArrayOf<DataSetField> fields)
+        {
+            string owner = FindOwner(fields);
+            lock (m_lock)
             {
+                if (m_lastSequence is null)
+                {
+                    m_lastSequence = sequenceNumber;
+                    m_lastOwner = owner;
+                    m_logger.LogInformation("SequenceNumber {SequenceNumber} received.", sequenceNumber);
+                    return;
+                }
+
+                uint last = m_lastSequence.Value;
+                if (sequenceNumber <= last)
+                {
+                    m_logger.LogError(
+                        "DATA LOSS: sequence reset {Last} -> {Current} (subscriber must reset de-duplication).",
+                        last,
+                        sequenceNumber);
+                }
+                else if (!string.Equals(m_lastOwner, owner, StringComparison.Ordinal))
+                {
+                    m_logger.LogInformation(
+                        "HA OK: sequence continued {Last} -> {Current} across failover (gap, no reset).",
+                        last,
+                        sequenceNumber);
+                }
+                else
+                {
+                    m_logger.LogInformation("SequenceNumber {Last} -> {Current}.", last, sequenceNumber);
+                }
+
                 m_lastSequence = sequenceNumber;
                 m_lastOwner = owner;
-                m_logger.LogInformation("SequenceNumber {SequenceNumber} received.", sequenceNumber);
-                return;
             }
-
-            uint last = m_lastSequence.Value;
-            if (sequenceNumber <= last)
-            {
-                m_logger.LogError(
-                    "DATA LOSS: sequence reset {Last} -> {Current} (subscriber must reset de-duplication).",
-                    last,
-                    sequenceNumber);
-            }
-            else if (!string.Equals(m_lastOwner, owner, StringComparison.Ordinal))
-            {
-                m_logger.LogInformation(
-                    "HA OK: sequence continued {Last} -> {Current} across failover (gap, no reset).",
-                    last,
-                    sequenceNumber);
-            }
-            else
-            {
-                m_logger.LogInformation("SequenceNumber {Last} -> {Current}.", last, sequenceNumber);
-            }
-
-            m_lastSequence = sequenceNumber;
-            m_lastOwner = owner;
         }
-    }
 
-    private static string FindOwner(ArrayOf<DataSetField> fields)
-    {
-        for (int ii = 0; ii < fields.Count; ii++)
+        private static string FindOwner(ArrayOf<DataSetField> fields)
         {
-            DataSetField field = fields[ii];
-            if (string.Equals(field.Name, "OwnerId", StringComparison.Ordinal) && !field.Value.IsNull)
+            for (int ii = 0; ii < fields.Count; ii++)
             {
-                return field.Value.ToString() ?? "unknown";
+                DataSetField field = fields[ii];
+                if (string.Equals(field.Name, "OwnerId", StringComparison.Ordinal) && !field.Value.IsNull)
+                {
+                    return field.Value.ToString() ?? "unknown";
+                }
             }
+            return "unknown";
         }
-        return "unknown";
-    }
 
-    private readonly Lock m_lock = new();
-    private readonly ILogger<SequenceContinuityMonitor> m_logger;
-    private uint? m_lastSequence;
-    private string m_lastOwner = "unknown";
+        private readonly Lock m_lock = new();
+        private readonly ILogger<SequenceContinuityMonitor> m_logger;
+        private uint? m_lastSequence;
+        private string m_lastOwner = "unknown";
+    }
 }

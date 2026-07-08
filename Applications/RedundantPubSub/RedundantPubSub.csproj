@@ -10,6 +10,7 @@
     <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
     <RootNamespace>RedundantPubSub</RootNamespace>
     <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>false</IsPackable>
     <PublishAot>true</PublishAot>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
