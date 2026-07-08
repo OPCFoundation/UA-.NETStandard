@@ -94,8 +94,9 @@ decoded.
 
 | ID            | Severity | Meaning                                                            |
 | ------------- | -------- | ------------------------------------------------------------------ |
-| `MODELGEN010` | Info     | Local model skipped because a referenced assembly provides it.     |
+| `MODELGEN010` | Warning  | A `[NodeManager]` attribute could not be bound to a model (unmatched selector, or ambiguous when the project has multiple models). |
 | `MODELGEN012` | Info     | Multiple referenced assemblies provide the same model URI.         |
+| `MODELGEN013` | Info     | Local model skipped because a referenced assembly provides it.     |
 
 ## Implementation
 

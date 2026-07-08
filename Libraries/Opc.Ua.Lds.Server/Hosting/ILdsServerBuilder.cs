@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Opc.Ua.Lds.Server.Hosting
@@ -51,5 +53,31 @@ namespace Opc.Ua.Lds.Server.Hosting
         /// services the hosted LDS may need.
         /// </summary>
         IServiceCollection Services { get; }
+
+        /// <summary>
+        /// Registers the LDS registration store implementation.
+        /// </summary>
+        /// <typeparam name="T">The store implementation type.</typeparam>
+        ILdsServerBuilder AddRegistrationStore<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
+            where T : class, IRegisteredServerStore;
+
+        /// <summary>
+        /// Registers the LDS registration store factory.
+        /// </summary>
+        ILdsServerBuilder AddRegistrationStore(Func<IServiceProvider, IRegisteredServerStore> factory);
+
+        /// <summary>
+        /// Registers the LDS-ME multicast discovery factory.
+        /// </summary>
+        /// <typeparam name="T">The multicast discovery factory type.</typeparam>
+        ILdsServerBuilder AddMulticastDiscovery<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
+            where T : class, ILdsMulticastDiscoveryFactory;
+
+        /// <summary>
+        /// Registers the LDS-ME multicast discovery factory delegate.
+        /// </summary>
+        ILdsServerBuilder AddMulticastDiscovery(Func<IServiceProvider, ILdsMulticastDiscoveryFactory> factory);
     }
 }

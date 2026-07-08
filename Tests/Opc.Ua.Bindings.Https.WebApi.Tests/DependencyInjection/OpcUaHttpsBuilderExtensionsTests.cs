@@ -285,6 +285,23 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         }
 
         [Test]
+        public void AddWssTransportWithOptionsReturnsSameBuilder()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            bool configured = false;
+
+            IOpcUaBuilder returned = builder.AddWssTransport(options =>
+            {
+                configured = true;
+                options.IncludeWebApi = false;
+            });
+
+            Assert.That(returned, Is.SameAs(builder));
+            Assert.That(configured, Is.True);
+        }
+
+        [Test]
         public void AddWssTransportReturnsSameBuilder()
         {
             var services = new ServiceCollection();

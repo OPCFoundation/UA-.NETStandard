@@ -55,12 +55,23 @@ namespace Opc.Ua.Server.Hosting
         /// <param name="factory">
         /// Factory that creates authenticators for a service provider and certificate validator.
         /// </param>
+        /// <param name="isFallback">
+        /// Whether the registration should only apply when no other authenticator registration exists.
+        /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="factory"/> is <c>null</c>.</exception>
         public OpcUaServerIdentityAuthenticatorRegistration(
-            Func<IServiceProvider, ICertificateValidatorEx?, IEnumerable<IUserTokenAuthenticator>> factory)
+            Func<IServiceProvider, ICertificateValidatorEx?, IEnumerable<IUserTokenAuthenticator>> factory,
+            bool isFallback = false)
         {
             m_factory = factory ?? throw new ArgumentNullException(nameof(factory));
+            IsFallback = isFallback;
         }
+
+        /// <summary>
+        /// Whether the registration is the built-in anonymous fallback
+        /// used only when no other authenticator registration exists.
+        /// </summary>
+        public bool IsFallback { get; }
 
         /// <summary>
         /// Creates the configured identity authenticators.

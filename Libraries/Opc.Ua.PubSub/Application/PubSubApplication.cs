@@ -40,6 +40,7 @@ using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.StateMachine;
@@ -74,6 +75,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly INetworkMessageDecoder[] m_decoderArray;
         private readonly IPubSubSecurityPolicy[] m_securityPolicies;
         private readonly IPubSubScheduler m_scheduler;
+        private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly TimeProvider m_timeProvider;
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
             m_publishedDataSetSources;
@@ -134,6 +136,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="maxNetworkMessageSizeResolver">Optional per-connection maximum message size resolver.</param>
         /// <param name="configurationStore">Optional external configuration store.</param>
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
+        /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -150,7 +153,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
             Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
             IPubSubConfigurationStore? configurationStore = null,
-            IPubSubRuntimeStateStore? runtimeStateStore = null)
+            IPubSubRuntimeStateStore? runtimeStateStore = null,
+            IPubSubActivationCoordinator? activationCoordinator = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -169,7 +173,8 @@ namespace Opc.Ua.PubSub.Application
                 configurationStore,
                 runtimeStateStore,
                 dataSetSourceProvider: null,
-                dataSetSinkProvider: null)
+                dataSetSinkProvider: null,
+                activationCoordinator)
         {
         }
 
@@ -206,6 +211,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="maxNetworkMessageSizeResolver">Optional per-connection maximum message size resolver.</param>
         /// <param name="configurationStore">Optional external configuration store.</param>
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
+        /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -224,7 +230,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
             Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
             IPubSubConfigurationStore? configurationStore = null,
-            IPubSubRuntimeStateStore? runtimeStateStore = null)
+            IPubSubRuntimeStateStore? runtimeStateStore = null,
+            IPubSubActivationCoordinator? activationCoordinator = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -243,7 +250,8 @@ namespace Opc.Ua.PubSub.Application
                 configurationStore,
                 runtimeStateStore,
                 dataSetSourceProvider,
-                dataSetSinkProvider)
+                dataSetSinkProvider,
+                activationCoordinator)
         {
         }
 
@@ -265,7 +273,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IDataSetSourceProvider? dataSetSourceProvider = null,
-            IDataSetSinkProvider? dataSetSinkProvider = null)
+            IDataSetSinkProvider? dataSetSinkProvider = null,
+            IPubSubActivationCoordinator? activationCoordinator = null)
         {
             if (snapshot is null)
             {
@@ -312,6 +321,7 @@ namespace Opc.Ua.PubSub.Application
             m_decoderArray = decoders.ToArray();
             m_securityPolicies = securityPolicies.ToArray();
             m_scheduler = scheduler;
+            m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
@@ -531,7 +541,8 @@ namespace Opc.Ua.PubSub.Application
                 securityContext?.WrapOptions ?? UadpSecurityWrapOptions.SignAndEncrypt,
                 maxMessageSize,
                 requiredSecurityMode,
-                m_scheduler);
+                m_scheduler,
+                m_activationCoordinator);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)
@@ -598,6 +609,18 @@ namespace Opc.Ua.PubSub.Application
                 m_started = true;
                 connections = [.. m_connections];
             }
+            try
+            {
+                await m_activationCoordinator.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                lock (m_gate)
+                {
+                    m_started = false;
+                }
+                throw;
+            }
             _ = State.TryEnable();
             foreach (PubSubConnection connection in connections)
             {
@@ -637,6 +660,10 @@ namespace Opc.Ua.PubSub.Application
             if (State.TryMarkOperational())
             {
                 _ = State.TryResumeCascade();
+            }
+            foreach (PubSubConnection connection in connections)
+            {
+                await connection.ApplyActivationRolesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -682,6 +709,14 @@ namespace Opc.Ua.PubSub.Application
                 }
             }
             _ = State.TryDisable();
+            try
+            {
+                await m_activationCoordinator.StopAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "Failed to stop PubSub activation coordinator.");
+            }
         }
 
         /// <inheritdoc/>

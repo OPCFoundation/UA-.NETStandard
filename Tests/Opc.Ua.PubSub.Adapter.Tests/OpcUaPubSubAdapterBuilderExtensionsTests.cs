@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -50,6 +51,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
     /// step creates external sessions for publishers, subscribers and responders.
     /// </summary>
     [TestFixture]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public sealed class OpcUaPubSubAdapterBuilderExtensionsTests
     {
         private static (ServiceCollection Services, Mock<IServerSessionFactory> Factory)
@@ -159,6 +162,43 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             Assert.That(
                 sp.GetServices<IHostedService>().OfType<ServerAdapterHostedService>(),
                 Is.Not.Empty);
+        }
+
+        [Test]
+        public async Task AddServerAdapterPubSubOneShotRegistersRuntimeAndAdaptersAsync()
+        {
+            (ServiceCollection services, _) = NewServices();
+            PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
+                500,
+                new[]
+                {
+                    AdapterTestHelpers.PublishedDataSet(
+                        "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)))
+                });
+            config.Connections = [];
+
+            services.AddServerAdapterPubSub(
+                config,
+                publisher =>
+                {
+                    publisher.Connection.EndpointUrl = "opc.tcp://localhost:4840";
+                    publisher.ReadMode = ReadMode.Subscription;
+                },
+                subscriber =>
+                {
+                    subscriber.Connection.EndpointUrl = "opc.tcp://localhost:4840";
+                });
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sp.GetService<IPubSubApplication>(), Is.Not.Null);
+                Assert.That(sp.GetService<ServerAdapterRuntime>(), Is.Not.Null);
+                Assert.That(
+                    sp.GetServices<IHostedService>().OfType<ServerAdapterHostedService>(),
+                    Is.Not.Empty);
+            });
         }
 
         [Test]

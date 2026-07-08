@@ -191,6 +191,62 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
             Assert.That(returned, Is.SameAs(builder));
         }
+
+        [Test]
+        public void AddWebApiTransportBeforeHttpsAttachesContributor()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddWebApiTransport()
+                .AddHttpsTransport();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            AssertHttpsFactoryHasWebApiContributor(registry);
+        }
+
+        [Test]
+        public void AddWebApiTransportAfterHttpsAttachesContributor()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddHttpsTransport()
+                .AddWebApiTransport();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            AssertHttpsFactoryHasWebApiContributor(registry);
+        }
+
+        [Test]
+        public void AddHttpsTransportOneShotRegistersHttpsWssAndWebApi()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa()
+                .AddHttpsTransport(options => options.IncludeWebApi = true);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            Assert.That(registry.HasListenerFactory(Utils.UriSchemeHttps), Is.True);
+            Assert.That(registry.HasListenerFactory(Utils.UriSchemeWss), Is.True);
+            Assert.That(provider.GetRequiredService<WebApiServer>(), Is.Not.Null);
+            AssertHttpsFactoryHasWebApiContributor(registry);
+        }
+
+        private static void AssertHttpsFactoryHasWebApiContributor(ITransportBindingRegistry registry)
+        {
+            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
+
+            Assert.That(
+                factory.StartupContributors,
+                Has.Some.InstanceOf<WebApiHttpsStartupContributor>());
+        }
     }
 }
 

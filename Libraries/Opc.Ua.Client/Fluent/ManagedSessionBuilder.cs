@@ -69,6 +69,8 @@ namespace Opc.Ua.Client
         private IClientChannelManager? m_channelManager;
         private Action<HttpStandardResilienceOptions>? m_httpsResilience;
         private WebApiClientOptions? m_webApiOptions;
+        private ReverseConnectManager? m_reverseConnectManager;
+        private Uri? m_reverseConnectServerUri;
 
         /// <summary>
         /// Initializes a new builder.
@@ -94,6 +96,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(endpoint));
             }
             m_options = m_options with { Endpoint = endpoint };
+            ApplyReverseConnectEndpoint();
             return this;
         }
 
@@ -274,6 +277,31 @@ namespace Opc.Ua.Client
             }
             m_webApiOptions ??= new WebApiClientOptions();
             configure(m_webApiOptions);
+            return this;
+        }
+
+
+        /// <summary>
+        /// Use reverse connect for the configured endpoint.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="manager"/> or
+        /// <paramref name="serverUri"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder UseReverseConnect(
+            ReverseConnectManager manager,
+            Uri serverUri)
+        {
+            if (manager is null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (serverUri is null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+
+            m_reverseConnectManager = manager;
+            m_reverseConnectServerUri = serverUri;
+            ApplyReverseConnectEndpoint();
             return this;
         }
 
@@ -581,6 +609,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Enables or disables automatic complex-type loading after connect.
+        /// Disabled by default.
+        /// </summary>
+        public ManagedSessionBuilder WithLoadComplexTypes(
+            bool enabled = true)
+        {
+            m_options = m_options with
+            {
+                LoadComplexTypes = enabled
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Use a specific session factory. By default, the builder
         /// creates a new <see cref="DefaultSessionFactory"/> configured with
         /// the V2 subscription engine.
@@ -694,6 +736,7 @@ namespace Opc.Ua.Client
                 opts.IdentityProvider,
                 opts.TimeProvider,
                 channelManager,
+                m_reverseConnectManager,
                 opts.ConnectGate,
                 ct).ConfigureAwait(false);
 
@@ -701,8 +744,27 @@ namespace Opc.Ua.Client
             {
                 await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
             }
+            if (opts.LoadComplexTypes)
+            {
+                var complexTypeSystem = new ComplexTypeSystem(
+                    new ComplexTypes.NodeCacheResolver(session, m_telemetry), m_telemetry);
+                await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+            }
 
             return session;
+        }
+
+
+        private void ApplyReverseConnectEndpoint()
+        {
+            if (m_options.Endpoint != null && m_reverseConnectServerUri != null)
+            {
+                m_options.Endpoint.ReverseConnect = new ReverseConnectEndpoint
+                {
+                    Enabled = true,
+                    ServerUri = m_reverseConnectServerUri.ToString()
+                };
+            }
         }
 
         private static ServiceProviderHttpClientFactory CreateHttpsHttpClientFactory(

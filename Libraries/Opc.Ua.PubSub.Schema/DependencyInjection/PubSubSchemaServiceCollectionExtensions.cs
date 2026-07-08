@@ -56,5 +56,22 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<IPubSubSchemaProvider, PubSubSchemaProvider>();
             return builder;
         }
+
+        /// <summary>
+        /// Registers PubSub DataSet schema generation services.
+        /// </summary>
+        /// <param name="builder">The PubSub builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IPubSubBuilder AddSchema(this IPubSubBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.OpcUaBuilder.AddPubSubSchema();
+            return builder;
+        }
     }
 }

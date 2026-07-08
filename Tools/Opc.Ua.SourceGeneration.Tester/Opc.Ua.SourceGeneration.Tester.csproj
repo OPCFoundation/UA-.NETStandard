@@ -3,6 +3,7 @@
     <TargetFrameworks>$(AppTargetFrameWorks)</TargetFrameworks>
     <AssemblyName>SourceGenerationTester</AssemblyName>
     <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj" />

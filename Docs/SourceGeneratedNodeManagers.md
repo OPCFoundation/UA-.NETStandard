@@ -846,6 +846,17 @@ The generator resolves the cross-model reference automatically — every
 input is supplied to the others as a resolution dependency (both
 `ModelDesign → NodeSet2` and `ModelDesign → ModelDesign`).
 
+> **Binding a `[NodeManager]` in a mixed project.** A `[NodeManager]`
+> may target the namespace of *either* input — the NodeSet2 type model
+> or the ModelDesign instance model — by setting its `NamespaceUri` to
+> that model's URI. Binding is resolved across both the NodeSet2 and the
+> ModelDesign generation passes, so a manager bound to the NodeSet2 types
+> is **not** reported as unmatched (`MODELGEN010`) just because the
+> project also contains a ModelDesign — and vice-versa. The generated
+> node-manager class name and namespace come from the annotated partial
+> class itself, **not** from `ModelSourceGeneratorPrefix`/`Name` (those
+> control the generated `*State`/type class names — see the note below).
+
 > **C# namespace of a NodeSet2 model.** The generated C# namespace for
 > a NodeSet2 input is derived from its `ModelUri` unless you set
 > `ModelSourceGeneratorPrefix` (C# namespace / prefix) and

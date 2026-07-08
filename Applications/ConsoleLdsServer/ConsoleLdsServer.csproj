@@ -3,6 +3,7 @@
     <TargetFrameworks>$(AppTargetFrameWorks)</TargetFrameworks>
     <AssemblyName>ConsoleLdsServer</AssemblyName>
     <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
     <PackageId>ConsoleLdsServer</PackageId>
     <Company>OPC Foundation</Company>
     <Description>.NET Console Local Discovery Server (LDS / LDS-ME)</Description>

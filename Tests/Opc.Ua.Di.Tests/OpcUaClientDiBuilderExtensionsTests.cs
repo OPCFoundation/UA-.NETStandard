@@ -110,6 +110,16 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public void AddOpcUaDiRegistersDiTransferClientFactory()
+        {
+            ServiceProvider provider = BuildClientProvider();
+            Func<NodeId, CancellationToken, ValueTask<DiTransferClient>>? factory = provider.GetService<
+                Func<NodeId, CancellationToken, ValueTask<DiTransferClient>>>();
+
+            Assert.That(factory, Is.Not.Null);
+        }
+
+        [Test]
         public void ResolvingDiDiscoveryServiceWithoutAddClientThrows()
         {
             // Skip AddClient() — the IDiDiscoveryService factory must
@@ -154,12 +164,16 @@ namespace Opc.Ua.Di.Tests
             int softwareUpdateFactoryCount = services.Count(
                 d => d.ServiceType ==
                     typeof(Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>));
+            int transferFactoryCount = services.Count(
+                d => d.ServiceType ==
+                    typeof(Func<NodeId, CancellationToken, ValueTask<DiTransferClient>>));
 
             Assert.That(discoveryCount, Is.EqualTo(1));
             Assert.That(deviceFactoryCount, Is.EqualTo(1));
             Assert.That(lockFactoryCount, Is.EqualTo(1));
             Assert.That(topologyFactoryCount, Is.EqualTo(1));
             Assert.That(softwareUpdateFactoryCount, Is.EqualTo(1));
+            Assert.That(transferFactoryCount, Is.EqualTo(1));
         }
 
         // ---------------------------------------------------------------

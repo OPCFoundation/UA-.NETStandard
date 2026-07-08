@@ -170,6 +170,34 @@ namespace Opc.Ua.SourceGeneration
                 IReadOnlyDictionary<string, ModelDependencyV1>
                     referencedDependencies = BuildReferencedDependencyMap();
 
+                // The design files that are not NodeSet2 inputs form the
+                // ModelDesign pass. Compute them up front so the total model
+                // count (NodeSet2 models + ModelDesign targets) can be shared
+                // with both passes: [NodeManager] bindings are resolved across
+                // both passes, so single-model fallback / ambiguity detection
+                // must see the global model count, not the per-pass count.
+                // Use a set for O(1) membership tests instead of an O(n)
+                // ContainsValue scan per input (Ordinal preserves the previous
+                // dictionary-value equality semantics exactly).
+                var nodesetPaths = new HashSet<string>(
+                    nodesets.Files.Values, StringComparer.Ordinal);
+                List<string> designTargets = [.. m_input
+                    .Where(f => !nodesetPaths.Contains(f.Item1.Path))
+                    .Select(f => f.Item1.Path)];
+
+                var designDependencies = new List<string>(nodesets.DesignFileEntries);
+                designDependencies.AddRange(designTargets);
+
+                // A [NodeManager] may bind to a model produced by either pass
+                // (a NodeSet2 type model or a ModelDesign instance model). The
+                // "used" set is therefore shared across both passes and the
+                // unmatched-binding diagnostics are reported once, after both
+                // passes — reporting per pass would false-positive a binding
+                // that the other pass matched (issue #3937).
+                HashSet<NodeManagerAttributeBinding> usedBindings =
+                    bindings.Count > 0 ? [] : null;
+                int totalModelCount = nodesets.ModelUris.Count() + designTargets.Count;
+
                 nodesets.GenerateCode(
                     sourceFiles.WithFallback(vfs),
                     string.Empty,
@@ -179,24 +207,17 @@ namespace Opc.Ua.SourceGeneration
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
-                    referencedDependencies);
+                    referencedDependencies,
+                    usedBindings,
+                    totalModelCount);
 
-                // Process any remaining design files. Every NodeSet2 input
+                // Process the remaining design files. Every NodeSet2 input
                 // (encoded with the prefix/name computed by the nodeset
                 // pass) and every other ModelDesign input is supplied as a
                 // dependency so cross-model references resolve — both
                 // ModelDesign -> NodeSet2 (e.g. an instance whose
                 // TypeDefinition is a NodeSet2-defined ObjectType) and
-                // ModelDesign -> ModelDesign across directories. A single
-                // GenerateCode call is kept so [NodeManager] attribute
-                // binding matching still sees all targets at once.
-                List<string> designTargets = [.. m_input
-                    .Where(f => !nodesets.Files.ContainsValue(f.Item1.Path))
-                    .Select(f => f.Item1.Path)];
-
-                var designDependencies = new List<string>(nodesets.DesignFileEntries);
-                designDependencies.AddRange(designTargets);
-
+                // ModelDesign -> ModelDesign across directories.
                 new DesignFileCollection
                 {
                     Targets = designTargets,
@@ -211,7 +232,17 @@ namespace Opc.Ua.SourceGeneration
                     [.. m_identifierFiles.Select(i => i.Path)],
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
-                    bindings.Count > 0 ? reportBinding : null);
+                    bindings.Count > 0 ? reportBinding : null,
+                    usedBindings,
+                    totalModelCount);
+
+                // Report any [NodeManager] bindings that neither pass matched,
+                // once, against the shared used-set aggregated across passes.
+                Generators.ReportUnmatchedNodeManagerBindings(
+                    bindings,
+                    usedBindings,
+                    totalModelCount,
+                    reportBinding);
 
                 // Collect all generated cs files and produce them into the compilation
                 foreach (string file in vfs.CreatedFiles

@@ -51,10 +51,9 @@ namespace Opc.Ua.Lds.Server
     public class LdsServer : DiscoveryServerBase
     {
         private readonly ITelemetryContext m_telemetry;
-        private readonly TimeProvider m_timeProvider;
         private ILogger m_log;
         private readonly SemaphoreSlim m_lock;
-        private MulticastDiscovery m_multicast;
+        private IMulticastDiscovery m_multicast;
 
         /// <summary>
         /// Creates a new LDS server.
@@ -64,31 +63,54 @@ namespace Opc.Ua.Lds.Server
         /// registered-server store for prune scheduling and registration timestamps.
         /// Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public LdsServer(ITelemetryContext telemetry = null, TimeProvider timeProvider = null)
+            : this(telemetry, new RegisteredServerStore(timeProvider: timeProvider), ownsStore: true)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new LDS server with a caller-supplied registration store.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context for logging.</param>
+        /// <param name="store">Registration store used for RegisterServer and LDS-ME records.</param>
+        public LdsServer(ITelemetryContext telemetry, IRegisteredServerStore store)
+            : this(telemetry, store, ownsStore: false)
+        {
+        }
+
+        private LdsServer(ITelemetryContext telemetry, IRegisteredServerStore store, bool ownsStore)
             : base(telemetry)
         {
             m_telemetry = telemetry;
-            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_lock = new SemaphoreSlim(1, 1);
-            Store = new RegisteredServerStore(timeProvider: m_timeProvider);
+            RegistrationStore = store ?? throw new ArgumentNullException(nameof(store));
+            OwnsStore = ownsStore;
         }
 
         /// <summary>
         /// In-memory database of registered servers and network records.
         /// Exposed for tests so they can deterministically seed state.
         /// </summary>
-        public RegisteredServerStore Store { get; }
+        public IRegisteredServerStore RegistrationStore { get; }
+
+        /// <summary>
+        /// In-memory database of registered servers and network records.
+        /// </summary>
+        public RegisteredServerStore Store => RegistrationStore as RegisteredServerStore
+            ?? throw new InvalidOperationException("The LDS is using a custom IRegisteredServerStore.");
 
         /// <summary>
         /// Optional multicast discovery layer (LDS-ME). Null when multicast
         /// is disabled.
         /// </summary>
-        public MulticastDiscovery Multicast => m_multicast;
+        public IMulticastDiscovery Multicast => m_multicast;
 
         /// <summary>
         /// Optional hook tests use to plug in a multicast layer prior to
         /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, CancellationToken)"/>.
         /// </summary>
-        public Func<LdsServer, MulticastDiscovery> MulticastFactory { get; set; }
+        public Func<LdsServer, IMulticastDiscovery> MulticastFactory { get; set; }
+
+        private bool OwnsStore { get; }
 
         /// <inheritdoc />
         protected override void OnServerStarting(ApplicationConfiguration configuration)
@@ -208,7 +230,10 @@ namespace Opc.Ua.Lds.Server
             }
             finally
             {
-                Store.Dispose();
+                if (OwnsStore)
+                {
+                    RegistrationStore.Dispose();
+                }
                 await base.OnServerStoppingAsync(cancellationToken).ConfigureAwait(false);
             }
         }
@@ -257,7 +282,7 @@ namespace Opc.Ua.Lds.Server
                     : localeIds.ToList();
 
                 // append registered servers that pass the filter.
-                servers.AddRange(Store.Find(uriFilter, requestedLocales));
+                servers.AddRange(RegistrationStore.Find(uriFilter, requestedLocales));
             }
             finally
             {
@@ -317,7 +342,7 @@ namespace Opc.Ua.Lds.Server
                 throw new ServiceResultException(validation);
             }
 
-            _ = await Store
+            _ = await RegistrationStore
                 .RegisterAsync(server, mdnsConfig: null, requestLifetime.CancellationToken)
                 .ConfigureAwait(false);
 
@@ -362,7 +387,7 @@ namespace Opc.Ua.Lds.Server
             if (mdnsConfigs.Count == 0)
             {
                 // no MdnsDiscoveryConfiguration provided — fall back to a plain registration.
-                _ = await Store
+                _ = await RegistrationStore
                     .RegisterAsync(server, mdnsConfig: null, requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
             }
@@ -370,7 +395,7 @@ namespace Opc.Ua.Lds.Server
             {
                 foreach (MdnsDiscoveryConfiguration mdns in mdnsConfigs)
                 {
-                    _ = await Store
+                    _ = await RegistrationStore
                         .RegisterAsync(server, mdns, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -401,7 +426,7 @@ namespace Opc.Ua.Lds.Server
                 : serverCapabilityFilter.ToList();
 
             (IList<ServerOnNetwork> records, DateTime lastReset) =
-                Store.ListOnNetwork(startingRecordId, maxRecordsToReturn, capFilter);
+                RegistrationStore.ListOnNetwork(startingRecordId, maxRecordsToReturn, capFilter);
 
             return new FindServersOnNetworkResponse
             {
@@ -567,20 +592,24 @@ namespace Opc.Ua.Lds.Server
                 }
 
                 ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme);
-                if (binding != null)
+                if (binding == null)
                 {
-                    List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
-                        this,
-                        hosts,
-                        configuration,
-                        configuration.ServerConfiguration.BaseAddresses,
-                        serverDescription,
-                        configuration.ServerConfiguration.SecurityPolicies,
-                        CertificateManager,
-                        configuration.CertificateManager,
-                        cancellationToken).ConfigureAwait(false);
-                    endpointsList.AddRange(endpointsForHost);
+                    throw new InvalidOperationException(
+                        $"No OPC UA transport listener is registered for endpoint scheme '{scheme}'. " +
+                        $"Register the matching transport binding, for example by calling Add{GetTransportName(scheme)}Transport().");
                 }
+
+                List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
+                    this,
+                    hosts,
+                    configuration,
+                    configuration.ServerConfiguration.BaseAddresses,
+                    serverDescription,
+                    configuration.ServerConfiguration.SecurityPolicies,
+                    CertificateManager,
+                    configuration.CertificateManager,
+                    cancellationToken).ConfigureAwait(false);
+                endpointsList.AddRange(endpointsForHost);
             }
 
             return new ServiceHostInitializationResult(
@@ -599,6 +628,17 @@ namespace Opc.Ua.Lds.Server
         protected override EndpointBase GetEndpointInstance(ServerBase server)
         {
             return new DiscoveryEndpoint(server);
+        }
+
+        private static string GetTransportName(string scheme)
+        {
+            return scheme switch
+            {
+                Utils.UriSchemeOpcTcp => "OpcTcp",
+                Utils.UriSchemeHttps or Utils.UriSchemeOpcHttps => "Https",
+                Utils.UriSchemeWss or Utils.UriSchemeOpcWss => "Wss",
+                _ => scheme
+            };
         }
 
         /// <inheritdoc />

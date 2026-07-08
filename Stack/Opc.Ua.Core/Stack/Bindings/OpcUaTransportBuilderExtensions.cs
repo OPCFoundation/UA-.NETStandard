@@ -88,7 +88,10 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddSingleton<ITransportBindingConfigurator>(
                 new TransportBindingConfigurator(registry =>
                 {
-                    registry.RegisterListenerFactory(new TcpTransportListenerFactory());
+                    if (!registry.HasListenerFactory(Utils.UriSchemeOpcTcp))
+                    {
+                        registry.RegisterListenerFactory(new TcpTransportListenerFactory());
+                    }
                     registry.RegisterChannelFactory(new TcpTransportChannelFactory());
                 }));
             return builder;

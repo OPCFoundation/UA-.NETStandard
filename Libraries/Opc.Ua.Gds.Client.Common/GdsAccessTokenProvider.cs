@@ -41,9 +41,6 @@ namespace Opc.Ua.Gds.Client
     /// </summary>
     public sealed class GdsAccessTokenProvider : IAccessTokenProvider
     {
-        private readonly AuthorizationServiceClient m_client;
-        private readonly string m_policyId;
-
         /// <summary>
         /// Creates a GDS access-token provider.
         /// </summary>
@@ -53,6 +50,23 @@ namespace Opc.Ua.Gds.Client
             string policyId = "jwt")
         {
             m_client = client ?? throw new ArgumentNullException(nameof(client));
+            if (string.IsNullOrEmpty(authorityUri))
+            {
+                throw new ArgumentException("Authority URI must be supplied.", nameof(authorityUri));
+            }
+            AuthorityUri = authorityUri;
+            m_policyId = policyId ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Creates a GDS access-token provider with a lazy AuthorizationService client factory.
+        /// </summary>
+        public GdsAccessTokenProvider(
+            Func<CancellationToken, ValueTask<AuthorizationServiceClient>> clientFactory,
+            string authorityUri,
+            string policyId = "jwt")
+        {
+            m_clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
             if (string.IsNullOrEmpty(authorityUri))
             {
                 throw new ArgumentException("Authority URI must be supplied.", nameof(authorityUri));
@@ -89,14 +103,16 @@ namespace Opc.Ua.Gds.Client
                 ? ByteString.Empty
                 : ByteString.From(Encoding.UTF8.GetBytes(string.Join(" ", scopes)));
 
-            (_, Guid requestId) = await m_client
+            AuthorizationServiceClient client = await GetClientAsync(ct).ConfigureAwait(false);
+
+            (_, Guid requestId) = await client
                 .StartRequestTokenAsync(audience, m_policyId, requestorData, ct)
                 .ConfigureAwait(false);
 
             (string accessToken,
                 DateTime accessTokenExpiryTime,
                 _,
-                _) = await m_client
+                _) = await client
                 .FinishRequestTokenAsync(
                     requestId,
                     Array.Empty<string>().ToArrayOf(),
@@ -112,5 +128,41 @@ namespace Opc.Ua.Gds.Client
                 audience,
                 scopes);
         }
+
+        private Task<AuthorizationServiceClient> GetClientAsync(CancellationToken ct)
+        {
+            if (m_client != null)
+            {
+                return Task.FromResult(m_client);
+            }
+
+            lock (m_gate)
+            {
+                m_clientTask ??= CreateClientAsync(ct);
+                return m_clientTask;
+            }
+        }
+
+        private async Task<AuthorizationServiceClient> CreateClientAsync(CancellationToken ct)
+        {
+            try
+            {
+                return await m_clientFactory!(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                lock (m_gate)
+                {
+                    m_clientTask = null;
+                }
+                throw;
+            }
+        }
+
+        private readonly AuthorizationServiceClient? m_client;
+        private readonly Func<CancellationToken, ValueTask<AuthorizationServiceClient>>? m_clientFactory;
+        private readonly string m_policyId;
+        private readonly Lock m_gate = new();
+        private Task<AuthorizationServiceClient>? m_clientTask;
     }
 }

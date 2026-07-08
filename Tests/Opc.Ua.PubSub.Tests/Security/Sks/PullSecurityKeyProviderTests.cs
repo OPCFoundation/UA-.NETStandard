@@ -345,5 +345,62 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             await provider.TryGetKeyAsync(uint.MaxValue);
             Assert.That(rotationCount, Is.GreaterThan(0));
         }
+
+        [Test]
+        public async Task DisposeAsyncDisposesOwnedSecurityKeyServiceAsync()
+        {
+            var sks = new DisposableTrackingSks();
+            var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                DefaultOptions(),
+                NUnitTelemetryContext.Create(),
+                new FakeTimeProvider(DateTimeOffset.UtcNow),
+                ownsSecurityKeyService: true);
+
+            await provider.DisposeAsync();
+
+            Assert.That(sks.Disposed, Is.True);
+        }
+
+        [Test]
+        public async Task DisposeAsyncDoesNotDisposeExternalSecurityKeyServiceAsync()
+        {
+            var sks = new DisposableTrackingSks();
+            var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                DefaultOptions(),
+                NUnitTelemetryContext.Create(),
+                new FakeTimeProvider(DateTimeOffset.UtcNow));
+
+            await provider.DisposeAsync();
+
+            Assert.That(sks.Disposed, Is.False);
+        }
+
+        private sealed class DisposableTrackingSks : ISecurityKeyService, IAsyncDisposable
+        {
+            public bool Disposed { get; private set; }
+
+#pragma warning disable CS0067 // Required by ISecurityKeyService; this test double never raises it.
+            public event EventHandler<SksAvailabilityChangedEventArgs>? AvailabilityChanged;
+#pragma warning restore CS0067
+
+            public ValueTask<SksKeyResponse> GetSecurityKeysAsync(
+                SksKeyRequest request,
+                CancellationToken cancellationToken = default)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                Disposed = true;
+                return default;
+            }
+        }
     }
 }

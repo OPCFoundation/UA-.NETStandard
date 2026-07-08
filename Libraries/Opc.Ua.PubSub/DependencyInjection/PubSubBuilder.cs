@@ -37,6 +37,8 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
+using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
@@ -156,6 +158,30 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             Services.AddSingleton(store);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithActivationCoordinator(IPubSubActivationCoordinator coordinator)
+        {
+            if (coordinator is null)
+            {
+                throw new ArgumentNullException(nameof(coordinator));
+            }
+
+            Services.AddSingleton(coordinator);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IPubSubBuilder WithLeaseStore(IPubSubLeaseStore leaseStore)
+        {
+            if (leaseStore is null)
+            {
+                throw new ArgumentNullException(nameof(leaseStore));
+            }
+
+            Services.AddSingleton(leaseStore);
             return this;
         }
 
@@ -377,7 +403,6 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<TimeProvider>() ?? TimeProvider.System;
 
                 var pb = new PubSubApplicationBuilder(telemetry)
-                    .UseAllStandardEncoders()
                     .WithTimeProvider(clock)
                     .WithDiagnosticsLevel(options.DiagnosticsLevel);
                 IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();
@@ -398,6 +423,22 @@ namespace Microsoft.Extensions.DependencyInjection
                     in sp.GetServices<IPubSubTransportFactory>())
                 {
                     pb.AddTransportFactory(factory);
+                }
+                foreach (INetworkMessageEncoder encoder
+                    in sp.GetServices<INetworkMessageEncoder>())
+                {
+                    pb.AddEncoder(encoder);
+                }
+                foreach (INetworkMessageDecoder decoder
+                    in sp.GetServices<INetworkMessageDecoder>())
+                {
+                    pb.AddDecoder(decoder);
+                }
+                IPubSubSecurityWrapperResolver? securityWrapperResolver =
+                    sp.GetService<IPubSubSecurityWrapperResolver>();
+                if (securityWrapperResolver is not null)
+                {
+                    pb.WithSecurityWrapperResolver(securityWrapperResolver);
                 }
                 if (applyOptionsConfiguration)
                 {
