@@ -35,7 +35,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Redundancy;
-using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Tests.Redundancy

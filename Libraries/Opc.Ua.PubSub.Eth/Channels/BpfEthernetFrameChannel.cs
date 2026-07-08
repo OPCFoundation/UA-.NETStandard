@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private readonly ILogger m_logger;
         private readonly PhysicalAddress m_interfaceAddress;
         private readonly string m_interfaceName;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
 
         private int m_device = -1;
         private int m_bufferLength;

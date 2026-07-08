@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json

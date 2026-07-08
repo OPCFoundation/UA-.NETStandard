@@ -272,7 +272,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
 
         private void OnOptionsChanged(AdapterBindingKind kind, string? optionsName)
         {
-            string name = optionsName ?? Microsoft.Extensions.Options.Options.DefaultName;
+            string name = optionsName ?? Options.DefaultName;
             lock (m_gate)
             {
                 if (!m_bindings.Contains(new AdapterBinding(kind, name)))
@@ -952,7 +952,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         private readonly ITelemetryContext m_telemetry;
         private readonly AdapterMetrics m_metrics;
         private readonly ILogger m_logger;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly SemaphoreSlim m_reloadLock = new(1, 1);
         private readonly HashSet<AdapterBinding> m_bindings = [];
         private readonly List<IDisposable> m_optionSubscriptions = [];

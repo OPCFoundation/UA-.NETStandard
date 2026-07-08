@@ -29,7 +29,6 @@
 
 using System;
 using System.Net;
-using System.Net.Security;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -457,7 +456,7 @@ namespace Opc.Ua.Bindings
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             X509Certificate2? cert,
-            System.Security.Cryptography.X509Certificates.X509Chain? chain)
+            X509Chain? chain)
         {
             if (cert == null)
             {

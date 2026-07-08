@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// types. Accepted scalar types: <see cref="byte"/>,
         /// <see cref="ushort"/>, <see cref="uint"/>, <see cref="ulong"/>,
         /// <see cref="string"/>, <see cref="Uuid"/>,
-        /// <see cref="System.Guid"/>.
+        /// <see cref="Guid"/>.
         /// </summary>
         /// <param name="value">Variant holding the PublisherId value.</param>
         /// <returns>The constructed PublisherId.</returns>

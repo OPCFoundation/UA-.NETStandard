@@ -185,7 +185,7 @@ public static class Program
         HostApplicationBuilder builder = Host.CreateApplicationBuilder();
         ConfigureLogging(builder);
         builder.Services.AddSingleton(store);
-        builder.Services.AddSingleton<ILeaderElection>(election.ForOwner(ownerId));
+        builder.Services.AddSingleton(election.ForOwner(ownerId));
         AddPubSubRedundancy(builder.Services, options with { OwnerId = ownerId });
         AddPublisher(builder.Services, options with { OwnerId = ownerId }, ownerId);
         IHost host = builder.Build();
@@ -400,7 +400,7 @@ public static class Program
             o.TimestampFormat = "HH:mm:ss ";
         });
         builder.Logging.SetMinimumLevel(LogLevel.Information);
-        builder.Services.AddSingleton<ITelemetryContext>(_ => DefaultTelemetry.Create(logging =>
+        builder.Services.AddSingleton(_ => DefaultTelemetry.Create(logging =>
             logging.SetMinimumLevel(LogLevel.Information)));
     }
 

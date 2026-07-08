@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Mqtt
         private readonly TimeProvider m_timeProvider;
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly ILogger m_logger;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private readonly string m_transportProfileUri;
         private readonly Dictionary<string, MqttQualityOfService> m_topicQos;
 

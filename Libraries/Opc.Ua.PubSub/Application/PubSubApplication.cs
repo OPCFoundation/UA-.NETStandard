@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly List<PubSubConnection> m_connections;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger<PubSubApplication> m_logger;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly SemaphoreSlim m_mutationGate = new(1, 1);
 
         private readonly IPubSubTransportFactory[] m_factories;
@@ -2541,7 +2541,7 @@ namespace Opc.Ua.PubSub.Diagnostics
     {
         private readonly IPubSubDiagnostics m_root;
         private readonly Func<IEnumerable<IPubSubDiagnostics>>? m_componentResolver;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private PubSubDiagnosticsLevel m_level;
 
         /// <summary>

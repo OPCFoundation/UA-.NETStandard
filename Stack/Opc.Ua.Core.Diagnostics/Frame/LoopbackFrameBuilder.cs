@@ -29,7 +29,6 @@
 
 using System;
 using System.Buffers.Binary;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Frame
 {

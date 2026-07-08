@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Globalization;
 using System.Text.Json;
 using System.Threading;
@@ -42,7 +41,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// serialises <see cref="JsonNetworkMessage"/> and
     /// <see cref="JsonMetaDataMessage"/> instances to the JSON
     /// NetworkMessage wire format using
-    /// <see cref="System.Text.Json.Utf8JsonWriter"/>.
+    /// <see cref="Utf8JsonWriter"/>.
     /// </summary>
     /// <remarks>
     /// Implements
@@ -593,7 +592,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return;
             }
             using JsonBufferWriter buffer = new(1024);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+            using (Ua.JsonEncoder encoder = new(buffer, context))
             {
                 encoder.WriteEncodeable(propertyName, encodeable, ExpandedNodeId.Null);
             }
@@ -620,7 +619,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             foreach (EndpointDescription endpoint in endpoints)
             {
                 using JsonBufferWriter buffer = new(512);
-                using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+                using (Ua.JsonEncoder encoder = new(buffer, context))
                 {
                     encoder.WriteEncodeable("Endpoint", endpoint);
                 }
@@ -671,7 +670,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     context.MessageContext);
             }
 
-            Opc.Ua.JsonActionNetworkMessage network = message.NetworkMessage
+            Ua.JsonActionNetworkMessage network = message.NetworkMessage
                 ?? CreateActionNetworkMessage(message);
             network.MessageType = DetermineActionMessageType(network.Messages);
             if (string.IsNullOrEmpty(network.MessageId))
@@ -697,10 +696,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 context.MessageContext);
         }
 
-        private static Opc.Ua.JsonActionNetworkMessage CreateActionNetworkMessage(
+        private static Ua.JsonActionNetworkMessage CreateActionNetworkMessage(
             JsonActionNetworkMessage message)
         {
-            return new Opc.Ua.JsonActionNetworkMessage
+            return new Ua.JsonActionNetworkMessage
             {
                 MessageId = message.MessageId,
                 MessageType = DetermineActionMessageType(message.Messages),
@@ -729,11 +728,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 {
                     continue;
                 }
-                if (value is Opc.Ua.JsonActionResponseMessage)
+                if (value is JsonActionResponseMessage)
                 {
                     hasResponse = true;
                 }
-                else if (value is Opc.Ua.JsonActionRequestMessage)
+                else if (value is JsonActionRequestMessage)
                 {
                     hasRequest = true;
                 }
@@ -754,7 +753,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             IServiceMessageContext context)
         {
             using JsonBufferWriter buffer = new(1024);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+            using (Ua.JsonEncoder encoder = new(buffer, context))
             {
                 encoder.WriteEncodeable(propertyName, encodeable, ExpandedNodeId.Null);
             }

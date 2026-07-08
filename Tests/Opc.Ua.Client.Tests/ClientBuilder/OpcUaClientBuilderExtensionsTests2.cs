@@ -40,7 +40,6 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 using Opc.Ua.Identity;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {

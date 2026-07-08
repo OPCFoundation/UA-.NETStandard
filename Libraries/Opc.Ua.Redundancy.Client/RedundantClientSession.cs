@@ -136,7 +136,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <inheritdoc/>
         public bool TryGetSubscriptionManager(
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
-            out Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager)
+            out Ua.Client.Subscriptions.ISubscriptionManager? manager)
         {
             ISession? session = GetCurrentSession();
             if (session != null)
@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Redundancy.Client
 
         private readonly ClientReplicaCoordinator m_coordinator;
         private readonly Func<ISession?> m_currentSessionAccessor;
-        private readonly System.Threading.Lock m_syncRoot = new();
+        private readonly Lock m_syncRoot = new();
         private TaskCompletionSource<ISession> m_activeSession;
         private ISession? m_currentSession;
         private ISession? m_attachedSession;

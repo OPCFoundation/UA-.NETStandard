@@ -42,7 +42,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
@@ -242,7 +241,7 @@ namespace Opc.Ua.Sessions.Tests
             public int SelectCount { get; private set; }
 
             public ValueTask<ServerRedundancyInfo> FetchRedundancyInfoAsync(
-                Client.ISession session,
+                ISession session,
                 CancellationToken ct = default)
             {
                 return new ValueTask<ServerRedundancyInfo>(new ServerRedundancyInfo

@@ -34,7 +34,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
-using Opc.Ua.PubSub.DataSets;
 
 namespace Opc.Ua.PubSub.Adapter.Tests
 {

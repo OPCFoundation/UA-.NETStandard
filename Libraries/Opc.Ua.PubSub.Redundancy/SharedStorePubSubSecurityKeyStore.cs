@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Redundancy;
-using Opc.Ua.PubSub.Security;
 using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.PubSub.Security.Sks
@@ -141,7 +140,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private ByteString SerializeSecurityGroup(SksSecurityGroup group)
         {
             using var stream = new MemoryStream();
-            using (var writer = new BinaryWriter(stream, global::System.Text.Encoding.UTF8, true))
+            using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, true))
             {
                 writer.Write(SerializationVersion);
                 writer.Write(group.SecurityGroupId);
@@ -161,7 +160,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             byte[] buffer = plaintext.IsNull ? Array.Empty<byte>() : plaintext.ToArray();
             using var stream = new MemoryStream(buffer, false);
-            using var reader = new BinaryReader(stream, global::System.Text.Encoding.UTF8, false);
+            using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, false);
             int version = reader.ReadInt32();
             if (version != SerializationVersion)
             {

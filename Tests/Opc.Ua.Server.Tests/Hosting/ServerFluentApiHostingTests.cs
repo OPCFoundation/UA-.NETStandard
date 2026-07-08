@@ -48,8 +48,6 @@ using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Opc.Ua.Identity;
-using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.Historian;
@@ -607,7 +605,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Throws.ArgumentNullException);
             Assert.That(() => ((IOpcUaServerBuilder)null!).AddAliasNameStoreRegistry(aliasRegistry.Object),
                 Throws.ArgumentNullException);
-            Assert.That(() => Microsoft.Extensions.DependencyInjection.OpcUaServerBuilderExtensions
+            Assert.That(() => OpcUaServerBuilderExtensions
                     .AddServer<CustomServer>(null!, _ => { }),
                 Throws.ArgumentNullException);
             Assert.That(() => new ServiceCollection().AddOpcUa().AddServer<CustomServer>(null!),

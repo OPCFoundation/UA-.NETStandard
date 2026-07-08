@@ -188,7 +188,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp => new ServiceProviderTelemetryContext(sp));
             services.TryAddSingleton<IRegisteredServerStore>(sp =>
                 new RegisteredServerStore(
-                    sp.GetService<Microsoft.Extensions.Logging.ILogger<RegisteredServerStore>>(),
+                    sp.GetService<Logging.ILogger<RegisteredServerStore>>(),
                     sp.GetService<TimeProvider>()));
             services.AddHostedService<LdsServerHostedService>();
             IOpcUaBuilder opcUa = services.AddOpcUa();

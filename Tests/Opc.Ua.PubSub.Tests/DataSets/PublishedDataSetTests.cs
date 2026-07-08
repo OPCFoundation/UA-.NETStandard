@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.DataSets;
-using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Tests.DataSets

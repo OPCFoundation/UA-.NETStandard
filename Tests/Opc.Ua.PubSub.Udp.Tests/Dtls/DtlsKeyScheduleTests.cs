@@ -100,7 +100,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             byte[] verifyData = schedule.ComputeFinished(finishedKey, transcriptHash);
             byte[] verifyDataAgain = schedule.ComputeFinished(finishedKey, transcriptHash);
 
-            Assert.That(Opc.Ua.CryptoUtils.FixedTimeEquals(verifyData, verifyDataAgain), Is.True);
+            Assert.That(CryptoUtils.FixedTimeEquals(verifyData, verifyDataAgain), Is.True);
         }
 
         private static byte[] BuildTranscriptHash(HashAlgorithmName hashAlgorithmName, params byte[] bytes)

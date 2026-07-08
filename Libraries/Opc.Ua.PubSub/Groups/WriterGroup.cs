@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Groups
         private readonly ILogger<WriterGroup> m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<ushort, WriterRuntimeState> m_writerState;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
         private IPubSubWriterCheckpointStore m_checkpointStore = NullPubSubWriterCheckpointStore.Instance;
         private string m_componentId = string.Empty;

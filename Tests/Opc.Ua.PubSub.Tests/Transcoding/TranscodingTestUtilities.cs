@@ -50,7 +50,6 @@ using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpDecoderV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder;
 using UadpEncoderV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder;
-using UadpNetworkMessageContentMask = Opc.Ua.UadpNetworkMessageContentMask;
 using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
 namespace Opc.Ua.PubSub.Tests.Transcoding
@@ -173,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 .Returns(new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddSingleton(TimeProvider.System);
             services.AddSingleton<INetworkMessageEncoder>(new UadpEncoderV2());
             services.AddSingleton<INetworkMessageEncoder>(new JsonEncoderV2());

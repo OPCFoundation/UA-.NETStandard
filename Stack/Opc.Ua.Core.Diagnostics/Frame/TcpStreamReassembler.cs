@@ -32,7 +32,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Frame
 {

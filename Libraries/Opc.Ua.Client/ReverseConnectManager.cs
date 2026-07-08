@@ -206,8 +206,8 @@ namespace Opc.Ua.Client
         /// When <c>null</c>, the host falls back to a private
         /// <see cref="DefaultTransportBindingRegistry"/> seeded with the
         /// raw-socket TCP listener. Set this BEFORE calling
-        /// <see cref="AddEndpoint(System.Uri)"/> /
-        /// <see cref="AddEndpoint(System.Uri, ApplicationConfiguration)"/>
+        /// <see cref="AddEndpoint(Uri)"/> /
+        /// <see cref="AddEndpoint(Uri, ApplicationConfiguration)"/>
         /// so the listener picks the right binding for the URI scheme.
         /// </summary>
         public ITransportBindingRegistry? TransportBindings { get; set; }

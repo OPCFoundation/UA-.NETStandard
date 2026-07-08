@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly IMqttTrustedIssuerResolver? m_trustedIssuerResolver;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private X509Certificate2Collection? m_trustChain;
         private bool m_disposed;
 

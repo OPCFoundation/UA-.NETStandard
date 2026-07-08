@@ -35,7 +35,6 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Kafka;
 using Opc.Ua.PubSub.Kafka.Internal;
-using Opc.Ua.PubSub.Transports;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

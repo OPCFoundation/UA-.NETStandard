@@ -29,7 +29,6 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.PubSub.Transports;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -84,7 +83,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
             }
 
-            services.Add(ServiceDescriptor.Singleton<IPubSubTransportFactory>(
+            services.Add(ServiceDescriptor.Singleton(
                 new PubSubTransportFactoryRegistration<TFactory>().Resolve));
             return services;
         }
@@ -110,7 +109,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(factory));
             }
 
-            services.Add(ServiceDescriptor.Singleton<IPubSubTransportFactory>(
+            services.Add(ServiceDescriptor.Singleton(
                 new PubSubTransportFactoryRegistration(factory).Resolve));
             return services;
         }

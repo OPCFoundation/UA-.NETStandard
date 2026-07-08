@@ -150,7 +150,7 @@ namespace Opc.Ua.PubSub.Redundancy
 
         private readonly ILeaderElection m_election;
         private readonly ILogger m_logger;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly HashSet<string> m_componentIds = new(StringComparer.Ordinal);
         private bool m_started;
     }

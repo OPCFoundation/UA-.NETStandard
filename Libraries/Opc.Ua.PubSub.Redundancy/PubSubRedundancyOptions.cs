@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Redundancy
     {
         /// <summary>
         /// Whole-instance active/standby driven by a shared
-        /// <see cref="Opc.Ua.Redundancy.ILeaderElection"/> (Raft or Kubernetes lease).
+        /// <see cref="Ua.Redundancy.ILeaderElection"/> (Raft or Kubernetes lease).
         /// </summary>
         LeaderElection,
 

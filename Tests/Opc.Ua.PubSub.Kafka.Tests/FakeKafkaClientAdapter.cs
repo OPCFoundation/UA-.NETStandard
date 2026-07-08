@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         private readonly FakeKafkaBus m_bus;
         private readonly TimeProvider m_timeProvider;
         private readonly ConcurrentQueue<KafkaMessage> m_produced = new();
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private readonly List<string> m_subscriptions = new();
         private readonly List<string> m_unsubscriptions = new();
         private bool m_isConnected;
@@ -244,7 +244,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
     /// </summary>
     internal sealed class FakeKafkaBus
     {
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private readonly Dictionary<string, List<FakeKafkaClientAdapter>> m_subscribers = new(StringComparer.Ordinal);
 
         public static FakeKafkaBus Shared { get; } = new FakeKafkaBus();

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -185,8 +184,8 @@ namespace Opc.Ua.PubSub.Groups
         {
             return networkMessage switch
             {
-                Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadp => uadp.DataSetClassId,
-                Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage json => json.DataSetClassId,
+                Encoding.Uadp.UadpNetworkMessage uadp => uadp.DataSetClassId,
+                Encoding.Json.JsonNetworkMessage json => json.DataSetClassId,
                 _ => Uuid.Empty
             };
         }

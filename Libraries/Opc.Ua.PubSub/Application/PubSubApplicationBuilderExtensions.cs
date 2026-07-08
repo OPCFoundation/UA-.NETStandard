@@ -41,9 +41,9 @@ namespace Opc.Ua.PubSub.Application
     {
         /// <summary>
         /// Registers all standard
-        /// <see cref="Opc.Ua.PubSub.Encoding.INetworkMessageEncoder"/>
+        /// <see cref="Encoding.INetworkMessageEncoder"/>
         /// and
-        /// <see cref="Opc.Ua.PubSub.Encoding.INetworkMessageDecoder"/>
+        /// <see cref="Encoding.INetworkMessageDecoder"/>
         /// implementations (UADP + JSON) on the builder.
         /// </summary>
         /// <param name="builder">Builder.</param>
@@ -56,10 +56,10 @@ namespace Opc.Ua.PubSub.Application
                 throw new ArgumentNullException(nameof(builder));
             }
             return builder
-                .AddEncoder(new Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder())
-                .AddEncoder(new Opc.Ua.PubSub.Encoding.Json.JsonEncoder())
-                .AddDecoder(new Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder())
-                .AddDecoder(new Opc.Ua.PubSub.Encoding.Json.JsonDecoder());
+                .AddEncoder(new Encoding.Uadp.UadpEncoder())
+                .AddEncoder(new Encoding.Json.JsonEncoder())
+                .AddDecoder(new Encoding.Uadp.UadpDecoder())
+                .AddDecoder(new Encoding.Json.JsonDecoder());
         }
 
         /// <summary>

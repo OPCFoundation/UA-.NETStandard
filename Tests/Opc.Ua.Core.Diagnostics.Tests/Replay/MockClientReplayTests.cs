@@ -32,7 +32,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;

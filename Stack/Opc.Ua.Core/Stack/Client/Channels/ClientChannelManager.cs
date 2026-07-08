@@ -30,9 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -430,7 +428,7 @@ namespace Opc.Ua
         /// <param name="configuration">The application configuration.</param>
         /// <param name="telemetry">Telemetry context for logger creation.</param>
         /// <param name="channelFactory">Optional channel binding registry;
-        /// defaults to a <see cref="Opc.Ua.Bindings.DefaultTransportBindingRegistry"/>
+        /// defaults to a <see cref="DefaultTransportBindingRegistry"/>
         /// pre-seeded with the raw-socket TCP factories when none is supplied.</param>
         /// <param name="reconnectPolicy">Optional channel-level retry
         /// policy. Defaults to
@@ -1248,7 +1246,7 @@ namespace Opc.Ua
         /// <remarks>
         /// DI consumers do not hit this path - they receive a
         /// dependency-resolved <see cref="ITransportBindingRegistry"/>
-        /// from their own <see cref="System.IServiceProvider"/>.
+        /// from their own <see cref="IServiceProvider"/>.
         /// </remarks>
         private static DefaultTransportBindingRegistry GetDefaultBindingsLazy()
         {
@@ -1265,7 +1263,7 @@ namespace Opc.Ua
 
         private static readonly Lazy<DefaultTransportBindingRegistry> s_defaultBindings = new(
             CreateDefaultBindingsRegistry,
-            System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
+            LazyThreadSafetyMode.ExecutionAndPublication);
 
         private readonly ApplicationConfiguration m_configuration;
         private readonly ClientChannelManagerDiagnostics m_diagnostics = new();

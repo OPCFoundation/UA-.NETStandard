@@ -260,7 +260,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             var bindings = provider.GetRequiredService<ITransportBindingRegistry>();
 
             ITransportChannelFactory? binding = bindings.GetChannelFactory(
-                Opc.Ua.Utils.UriSchemeOpcTcp);
+                Utils.UriSchemeOpcTcp);
 
             Assert.That(binding, Is.Not.Null);
             Assert.That(binding, Is.InstanceOf<PcapTransportChannelBinding>());

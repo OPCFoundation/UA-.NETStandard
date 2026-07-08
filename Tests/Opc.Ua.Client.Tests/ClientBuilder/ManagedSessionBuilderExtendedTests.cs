@@ -30,15 +30,9 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Http.Resilience;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Opc.Ua.Client.WebApi;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 

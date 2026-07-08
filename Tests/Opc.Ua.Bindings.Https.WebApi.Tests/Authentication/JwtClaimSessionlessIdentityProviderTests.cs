@@ -28,13 +28,11 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi;
-using Opc.Ua.Bindings.WebApi.Authentication;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {

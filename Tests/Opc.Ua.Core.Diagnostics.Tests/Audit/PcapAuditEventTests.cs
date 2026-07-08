@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Audit;
 
 namespace Opc.Ua.Pcap.Tests.Audit

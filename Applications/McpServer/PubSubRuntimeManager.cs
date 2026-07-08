@@ -34,7 +34,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Application;
@@ -42,7 +41,6 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
-using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
 
 namespace Opc.Ua.Mcp

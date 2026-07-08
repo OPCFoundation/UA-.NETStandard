@@ -56,7 +56,7 @@ namespace Opc.Ua.Bindings
     /// </remarks>
     public sealed class WebApiServer : IWebApiServer
     {
-        private readonly System.Threading.Lock m_lock = new();
+        private readonly Lock m_lock = new();
         private ITransportListenerCallback? m_callback;
         private IServiceMessageContext m_messageContext;
         private string m_listenerId;

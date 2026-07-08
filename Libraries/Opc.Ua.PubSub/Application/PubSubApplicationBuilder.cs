@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
@@ -58,7 +57,7 @@ namespace Opc.Ua.PubSub.Application
     /// </summary>
     /// <remarks>
     /// Provides the same composition surface as
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaPubSubBuilderExtensions.AddPubSub(Opc.Ua.IOpcUaBuilder, Action{PubSubApplicationOptions}?)"/>
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaPubSubBuilderExtensions.AddPubSub(IOpcUaBuilder, Action{PubSubApplicationOptions}?)"/>
     /// but without the
     /// <see cref="Microsoft.Extensions.DependencyInjection.IServiceCollection"/>
     /// dependency. Implements the application bootstrap surface
@@ -628,7 +627,7 @@ namespace Opc.Ua.PubSub.Application
             {
                 throw;
             }
-            catch (Opc.Ua.PubSub.Configuration.PubSubConfigurationException)
+            catch (PubSubConfigurationException)
             {
                 // Surface fail-closed security/configuration errors verbatim.
                 throw;

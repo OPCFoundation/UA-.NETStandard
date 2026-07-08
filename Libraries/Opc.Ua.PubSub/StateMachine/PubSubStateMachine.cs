@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.StateMachine
     /// </para>
     /// <para>
     /// Threading: the machine serialises *all* state mutations through an
-    /// internal <see cref="System.Threading.Lock"/>; child registration,
+    /// internal <see cref="Lock"/>; child registration,
     /// parent propagation, and event raising are atomic with respect to one
     /// another from the caller's perspective. The lock is never exposed —
     /// callers cannot deadlock with it.

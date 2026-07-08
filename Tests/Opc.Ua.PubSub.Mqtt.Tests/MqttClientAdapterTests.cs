@@ -33,7 +33,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using MQTTnet;
 using MQTTnet.Server;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Mqtt.Internal;
@@ -423,7 +422,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     options,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
-                var events = new System.Collections.Generic.List<MqttConnectionStateChangedEventArgs>();
+                var events = new List<MqttConnectionStateChangedEventArgs>();
                 var connected = new TaskCompletionSource<MqttConnectionStateChangedEventArgs>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 var disconnected = new TaskCompletionSource<MqttConnectionStateChangedEventArgs>(

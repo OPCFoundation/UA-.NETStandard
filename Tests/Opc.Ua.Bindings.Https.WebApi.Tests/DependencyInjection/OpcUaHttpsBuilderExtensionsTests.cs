@@ -30,7 +30,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 {

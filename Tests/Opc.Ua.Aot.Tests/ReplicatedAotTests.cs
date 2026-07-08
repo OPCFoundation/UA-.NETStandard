@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
 using Opc.Ua.Redundancy.Server;

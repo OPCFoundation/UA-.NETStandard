@@ -29,7 +29,6 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.PubSub.Configuration

@@ -31,15 +31,12 @@ using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi;
-using Opc.Ua.Bindings.WebApi.Authentication;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {

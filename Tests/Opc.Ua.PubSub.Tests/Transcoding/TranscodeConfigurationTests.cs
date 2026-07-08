@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -166,7 +165,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             services.AddOpcUa().AddPubSub(pubsub => pubsub.AddTranscoding(configuration));
             using ServiceProvider provider = services.BuildServiceProvider();
@@ -197,7 +196,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         {
             IConfiguration configuration = new ConfigurationBuilder().Build();
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IPubSubBuilder? captured = null;
             services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);

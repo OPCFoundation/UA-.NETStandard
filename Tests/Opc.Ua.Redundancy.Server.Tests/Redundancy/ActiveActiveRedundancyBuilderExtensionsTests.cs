@@ -35,7 +35,6 @@ using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Tests.Redundancy

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using Opc.Ua.PubSub.Security.Policies;
 
 namespace Opc.Ua.PubSub.Security.Sks

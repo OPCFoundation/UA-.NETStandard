@@ -38,7 +38,6 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
-using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
@@ -515,7 +514,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 return default;
             }
 
-            public System.Collections.Generic.IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+            public IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
                 CancellationToken cancellationToken = default)
             {
                 return TestAsyncEnumerable.Empty<PubSubTransportFrame>();

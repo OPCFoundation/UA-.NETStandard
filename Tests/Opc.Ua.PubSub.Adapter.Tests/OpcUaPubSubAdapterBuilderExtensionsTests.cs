@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -37,7 +36,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
@@ -59,7 +57,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             NewServices()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
             var factory = new Mock<IServerSessionFactory>();

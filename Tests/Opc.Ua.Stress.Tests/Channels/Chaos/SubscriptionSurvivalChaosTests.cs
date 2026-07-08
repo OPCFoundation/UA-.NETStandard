@@ -35,7 +35,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
@@ -526,7 +525,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             public string DisplayName => FormattableString.Invariant($"S{SessionIndex}/Sub{SubscriptionIndex}");
         }
 
-        private sealed class NotificationCounter : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+        private sealed class NotificationCounter : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             public long Count => Volatile.Read(ref m_count);
 
@@ -546,15 +545,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 int goodNotifications = 0;
-                ReadOnlySpan<Opc.Ua.Client.Subscriptions.DataValueChange> span = notification.Span;
+                ReadOnlySpan<Client.Subscriptions.DataValueChange> span = notification.Span;
                 for (int index = 0; index < span.Length; index++)
                 {
-                    Opc.Ua.Client.Subscriptions.DataValueChange change = span[index];
+                    Client.Subscriptions.DataValueChange change = span[index];
                     if (!change.Value.IsNull && StatusCode.IsGood(change.Value.StatusCode))
                     {
                         goodNotifications++;
@@ -574,8 +573,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 return default;
@@ -585,15 +584,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+                Client.Subscriptions.PublishState publishStateMask)
             {
                 return default;
             }
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;

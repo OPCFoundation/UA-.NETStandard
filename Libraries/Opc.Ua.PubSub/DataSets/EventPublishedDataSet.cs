@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.DataSets
     /// Sealed wrapper exposing a configured
     /// <see cref="PublishedEventsDataType"/> together with the
     /// <see cref="IEventSampler"/> that produces the actual event
-    /// rows. Consumed by <see cref="Opc.Ua.PubSub.Groups.EventDataSetWriter"/>.
+    /// rows. Consumed by <see cref="Groups.EventDataSetWriter"/>.
     /// </summary>
     /// <remarks>
     /// Implements the publisher-side PublishedEventsDataSet model
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.DataSets
 
         /// <summary>
         /// Samples pending events and converts each one to a list of
-        /// <see cref="Opc.Ua.PubSub.Encoding.DataSetField"/> ordered to
+        /// <see cref="Encoding.DataSetField"/> ordered to
         /// match <see cref="MetaData"/>. Returns an empty list when no
         /// event has fired since the previous call.
         /// </summary>

@@ -511,11 +511,11 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         private sealed class OptionsMonitorStub<T> : IOptionsMonitor<T>
             where T : class, new()
         {
-            public T CurrentValue => Get(Microsoft.Extensions.Options.Options.DefaultName);
+            public T CurrentValue => Get(Options.DefaultName);
 
             public T Get(string? name)
             {
-                string key = name ?? Microsoft.Extensions.Options.Options.DefaultName;
+                string key = name ?? Options.DefaultName;
                 return m_values.TryGetValue(key, out T? value) ? value : new T();
             }
 

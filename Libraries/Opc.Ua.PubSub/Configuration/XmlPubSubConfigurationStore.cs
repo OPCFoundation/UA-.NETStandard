@@ -549,8 +549,8 @@ namespace Opc.Ua.PubSub.Configuration
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
-        private readonly System.Threading.Lock m_versionGate = new();
-        private readonly System.Threading.Lock m_watchGate = new();
+        private readonly Lock m_versionGate = new();
+        private readonly Lock m_watchGate = new();
         private ConfigurationVersionDataType? m_configurationVersion;
         private FileSystemWatcher? m_watcher;
         private ITimer? m_debounceTimer;

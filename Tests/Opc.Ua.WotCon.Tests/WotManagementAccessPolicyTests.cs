@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using Moq;
 using NUnit.Framework;
@@ -201,7 +200,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 opts.ManagementAccess = new WotManagementAccessPolicy
                 {
-                    RequiredRoleId = global::Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin
+                    RequiredRoleId = Ua.ObjectIds.WellKnownRole_ConfigureAdmin
                 };
             });
 
@@ -232,7 +231,7 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     AllowAnonymous = true,
                     // anonymous can't have a role, so widen role to a built-in.
-                    RequiredRoleId = global::Opc.Ua.ObjectIds.WellKnownRole_Anonymous
+                    RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                 };
             });
 

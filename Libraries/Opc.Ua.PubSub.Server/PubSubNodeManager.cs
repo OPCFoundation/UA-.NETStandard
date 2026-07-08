@@ -37,7 +37,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
-using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
@@ -105,7 +104,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly PubSubMethodHandlers m_methodHandlers;
         private readonly PubSubActionMethodRegistration[] m_actionMethodRegistrations;
         private readonly PushSecurityKeyProvider[] m_pushKeyProviders;
-        private readonly System.Threading.Lock m_addressSpaceGate = new();
+        private readonly Lock m_addressSpaceGate = new();
         private readonly List<NodeState> m_dynamicRoots = [];
         private readonly List<NodeState> m_securityGroupRoots = [];
         private readonly List<NodeState> m_keyPushTargetRoots = [];
@@ -392,7 +391,7 @@ namespace Opc.Ua.PubSub.Server
 
         private void OnConfigurationChanged(
             object? sender,
-            Configuration.PubSubConfigurationChangedEventArgs e)
+            PubSubConfigurationChangedEventArgs e)
         {
             _ = sender;
             _ = e;

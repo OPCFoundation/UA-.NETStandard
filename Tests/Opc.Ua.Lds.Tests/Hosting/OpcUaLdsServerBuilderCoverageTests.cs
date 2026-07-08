@@ -246,7 +246,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
 
         private sealed class TestLdsMulticastDiscoveryFactory : ILdsMulticastDiscoveryFactory
         {
-            public IMulticastDiscovery Create(Opc.Ua.Lds.Server.LdsServer server)
+            public IMulticastDiscovery Create(LdsServer server)
             {
                 throw new NotSupportedException();
             }

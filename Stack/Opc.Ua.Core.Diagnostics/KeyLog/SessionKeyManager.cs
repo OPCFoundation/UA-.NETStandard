@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.KeyLog
 {

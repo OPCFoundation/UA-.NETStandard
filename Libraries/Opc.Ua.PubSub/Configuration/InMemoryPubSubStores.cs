@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.PubSub.StateMachine;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -40,7 +39,7 @@ namespace Opc.Ua.PubSub.Configuration
     /// </summary>
     public sealed class InMemoryPubSubConfigurationStore : IPubSubConfigurationStore
     {
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private PubSubConfigurationDataType m_configuration;
         private ConfigurationVersionDataType? m_configurationVersion;
 
@@ -177,7 +176,7 @@ namespace Opc.Ua.PubSub.Configuration
     /// </summary>
     public sealed class InMemoryPubSubIdAllocator : IPubSubIdAllocator
     {
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private uint m_nextReservedId;
         private uint m_nextFileHandle;
 
@@ -211,7 +210,7 @@ namespace Opc.Ua.PubSub.Configuration
     /// </summary>
     public sealed class InMemoryPubSubRuntimeStateStore : IPubSubRuntimeStateStore
     {
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<string, PubSubState> m_states = new(StringComparer.Ordinal);
 
         /// <inheritdoc/>

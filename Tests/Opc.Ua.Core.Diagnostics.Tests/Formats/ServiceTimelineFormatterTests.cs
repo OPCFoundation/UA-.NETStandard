@@ -32,7 +32,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Frame;

@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private readonly SemaphoreSlim m_clientGate = new(1, 1);
         private readonly List<string> m_subscribedTopics = new();
 
@@ -385,7 +385,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 return m_producer;
             }
-            ProducerBuilder<byte[], byte[]> builder = global::Dekaf.Kafka.CreateProducer<byte[], byte[]>();
+            ProducerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateProducer<byte[], byte[]>();
             ApplyProducerConfig(builder, m_options!);
             m_producer = await builder.BuildAsync(ct).ConfigureAwait(false);
             return m_producer;
@@ -397,7 +397,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 return m_consumer;
             }
-            ConsumerBuilder<byte[], byte[]> builder = global::Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
+            ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
             ApplyConsumerConfig(builder, m_options!);
             m_consumer = await builder.BuildAsync(ct).ConfigureAwait(false);
             return m_consumer;

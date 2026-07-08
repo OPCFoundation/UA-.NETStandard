@@ -39,7 +39,6 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Lds.Server;
 using Opc.Ua.Lds.Server.Hosting;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Lds.Tests.Hosting
 {
@@ -308,7 +307,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
             };
         }
 
-        private sealed class TestLdsServer : Opc.Ua.Lds.Server.LdsServer
+        private sealed class TestLdsServer : LdsServer
         {
             public async Task InitializeAndDiscardAsync(
                 ApplicationConfiguration configuration,
@@ -347,7 +346,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
 
         private sealed class TestMulticastDiscoveryFactory : ILdsMulticastDiscoveryFactory
         {
-            public IMulticastDiscovery Create(Opc.Ua.Lds.Server.LdsServer server)
+            public IMulticastDiscovery Create(LdsServer server)
             {
                 return new TestMulticastDiscovery();
             }

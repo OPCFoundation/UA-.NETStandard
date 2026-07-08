@@ -36,7 +36,6 @@ using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
-using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Groups
@@ -162,10 +161,10 @@ namespace Opc.Ua.PubSub.Tests.Groups
             }
         }
 
-        private sealed class NoOpScheduler : Opc.Ua.PubSub.Scheduling.IPubSubScheduler
+        private sealed class NoOpScheduler : PubSub.Scheduling.IPubSubScheduler
         {
             public ValueTask<IAsyncDisposable> ScheduleAsync(
-                Opc.Ua.PubSub.Scheduling.PubSubSchedule schedule,
+                PubSub.Scheduling.PubSubSchedule schedule,
                 Func<System.Threading.CancellationToken, ValueTask> action,
                 System.Threading.CancellationToken cancellationToken = default)
             {

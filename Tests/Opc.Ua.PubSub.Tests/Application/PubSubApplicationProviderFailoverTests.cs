@@ -35,10 +35,8 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
-using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
-using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 using RuntimeApplication = Opc.Ua.PubSub.Application.PubSubApplication;
@@ -140,8 +138,8 @@ namespace Opc.Ua.PubSub.Tests.Application
             return new RuntimeApplication(
                 snapshot,
                 [new StubTransportFactory()],
-                [new Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder(), new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()],
-                [new Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder(), new Opc.Ua.PubSub.Encoding.Json.JsonDecoder()],
+                [new PubSub.Encoding.Uadp.UadpEncoder(), new PubSub.Encoding.Json.JsonEncoder()],
+                [new PubSub.Encoding.Uadp.UadpDecoder(), new PubSub.Encoding.Json.JsonDecoder()],
                 [],
                 new PubSubScheduler(telemetry, timeProvider),
                 new DataSetMetaDataRegistry(),

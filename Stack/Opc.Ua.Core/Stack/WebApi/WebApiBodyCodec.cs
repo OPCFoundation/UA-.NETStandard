@@ -228,7 +228,7 @@ namespace Opc.Ua.Bindings
             // MemoryStream, capping at MaxMessageSize as soon as the cap is
             // exceeded.
             using var buffer = new MemoryStream();
-            byte[] rented = System.Buffers.ArrayPool<byte>.Shared.Rent(81920);
+            byte[] rented = ArrayPool<byte>.Shared.Rent(81920);
             try
             {
                 int read;
@@ -256,7 +256,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                System.Buffers.ArrayPool<byte>.Shared.Return(rented);
+                ArrayPool<byte>.Shared.Return(rented);
             }
             return buffer.ToArray();
         }

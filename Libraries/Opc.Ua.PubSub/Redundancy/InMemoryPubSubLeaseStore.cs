@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Redundancy
     public sealed class InMemoryPubSubLeaseStore : IPubSubLeaseStore
     {
         private readonly TimeProvider m_timeProvider;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<string, PubSubLease> m_leases = new(StringComparer.Ordinal);
         private long m_fencingToken;
 

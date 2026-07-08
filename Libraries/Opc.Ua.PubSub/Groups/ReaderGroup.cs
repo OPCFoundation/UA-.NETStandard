@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -59,7 +58,7 @@ namespace Opc.Ua.PubSub.Groups
         private readonly IPubSubScheduler? m_scheduler;
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly ITelemetryContext m_telemetry;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
         private string m_componentId = string.Empty;
         private bool m_roleChangedSubscribed;

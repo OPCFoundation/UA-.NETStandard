@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub.DataSets
     {
         private readonly Dictionary<string, Variant> m_values =
             new(StringComparer.Ordinal);
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
 
         /// <summary>
         /// Initializes a new <see cref="MirroredVariablesSink"/>.

@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private readonly PhysicalAddress m_interfaceAddress;
         private readonly uint m_interfaceIndex;
         private readonly ushort m_protocol;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
 
         private int m_socket = -1;
         private Channel<byte[]>? m_channel;

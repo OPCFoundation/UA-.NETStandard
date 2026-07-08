@@ -32,7 +32,6 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
-using Opc.Ua.PubSub.MetaData;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 

@@ -32,7 +32,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using MQTTnet;
 using MQTTnet.Server;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Mqtt.Internal;

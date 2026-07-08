@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -774,7 +773,7 @@ namespace Opc.Ua.Server.Tests
             var request = new Pkcs10CertificationRequest(signingRequest.CertificateRequest.ToArray());
             Assert.That(request.Verify(), Is.True);
             using Certificate signedCertificate = CertificateBuilder.Create(request.Subject)
-                .AddExtension(new global::Opc.Ua.Security.Certificates.X509SubjectAltNameExtension(
+                .AddExtension(new X509SubjectAltNameExtension(
                     m_fixture.Config.ApplicationUri,
                     domainNames))
                 .SetNotBefore(DateTime.Today.AddDays(-1))

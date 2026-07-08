@@ -29,9 +29,7 @@
 
 #if NET8_0_OR_GREATER
 
-using System;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests

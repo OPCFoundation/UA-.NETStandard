@@ -32,7 +32,6 @@ using System.Buffers.Binary;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Redundancy;
-using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.PubSub.Configuration

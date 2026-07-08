@@ -30,7 +30,6 @@
 
 using System;
 using Microsoft.Extensions.Time.Testing;
-using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;

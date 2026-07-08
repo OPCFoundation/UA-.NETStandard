@@ -30,7 +30,6 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
 
 namespace Opc.Ua.PubSub.Tests.Encoding.Uadp

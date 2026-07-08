@@ -33,7 +33,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {

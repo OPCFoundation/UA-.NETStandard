@@ -200,7 +200,7 @@ namespace Opc.Ua.Redundancy.Client
                 );
             }
 
-            services.TryAddSingleton<RedundantClientSession>(sp =>
+            services.TryAddSingleton(sp =>
             {
                 var replicaOptions = new ClientReplicaOptions
                 {

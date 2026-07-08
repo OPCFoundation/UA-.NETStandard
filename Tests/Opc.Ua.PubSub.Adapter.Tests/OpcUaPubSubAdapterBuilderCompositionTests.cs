@@ -33,12 +33,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Adapter;
-using Opc.Ua.PubSub.Adapter.Actions;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
-using Opc.Ua.PubSub.Adapter.Subscriber;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.Tests;
@@ -243,7 +240,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             NewServices()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
             var factory = new Mock<IServerSessionFactory>();

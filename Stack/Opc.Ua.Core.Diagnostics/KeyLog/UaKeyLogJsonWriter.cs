@@ -35,7 +35,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 
 namespace Opc.Ua.Pcap.KeyLog

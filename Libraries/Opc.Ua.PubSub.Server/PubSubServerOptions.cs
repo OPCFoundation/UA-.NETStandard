@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-
 namespace Opc.Ua.PubSub.Server
 {
     /// <summary>
@@ -52,7 +50,7 @@ namespace Opc.Ua.PubSub.Server
         /// binding the <c>GetSecurityKeys</c>,
         /// <c>GetSecurityGroup</c>, <c>AddSecurityGroup</c> and
         /// <c>RemoveSecurityGroup</c> methods to the registered
-        /// <see cref="Opc.Ua.PubSub.Security.Sks.IPubSubKeyServiceServer"/>.
+        /// <see cref="Security.Sks.IPubSubKeyServiceServer"/>.
         /// </summary>
         public bool ExposeSecurityKeyService { get; set; }
 
@@ -100,7 +98,7 @@ namespace Opc.Ua.PubSub.Server
         /// <summary>
         /// Controls how much of the standard
         /// <c>PubSubDiagnosticsType</c> sub-tree is bound to the
-        /// runtime <see cref="Opc.Ua.PubSub.Diagnostics.IPubSubDiagnostics"/>.
+        /// runtime <see cref="Diagnostics.IPubSubDiagnostics"/>.
         /// </summary>
         public PubSubDiagnosticsExposure DiagnosticsExposure { get; set; }
             = PubSubDiagnosticsExposure.Counters;

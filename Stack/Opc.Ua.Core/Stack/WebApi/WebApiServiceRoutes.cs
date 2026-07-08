@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Bindings
 {

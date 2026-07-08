@@ -29,7 +29,6 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.PubSub.StateMachine;
 
 namespace Opc.Ua.PubSub.Configuration
 {

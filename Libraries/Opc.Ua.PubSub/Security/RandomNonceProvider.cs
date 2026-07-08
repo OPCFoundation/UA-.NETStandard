@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Security
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3.2">
     /// Part 14 §7.2.4.4.3.2 (Table 156) PubSub nonce composition</see>.
     /// Thread-safe — concurrent <see cref="GetNext"/> calls serialise
-    /// through an internal <see cref="System.Threading.Lock"/>.
+    /// through an internal <see cref="Lock"/>.
     /// </remarks>
     public sealed class RandomNonceProvider : INonceProvider, IDisposable
     {

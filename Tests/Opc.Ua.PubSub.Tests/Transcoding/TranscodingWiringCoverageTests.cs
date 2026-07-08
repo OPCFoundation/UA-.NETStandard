@@ -148,12 +148,12 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
 
             var message = new UadpNetworkMessageV2
             {
-                ContentMask = Opc.Ua.UadpNetworkMessageContentMask.PublisherId |
-                    Opc.Ua.UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
-                    new Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
                     {
                         DataSetWriterId = 1,
                         FieldEncoding = PubSubFieldEncoding.Variant,
@@ -309,7 +309,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         public void AddTranscodingBridge_RegistersHostedService()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .AddTranscodingBridge(b => b.From("a").To("b", TranscodeEncoding.Json)));
@@ -324,7 +324,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         public void AddTranscodingBridge_NullArguments_Throw()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IPubSubBuilder? captured = null;
             services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
@@ -370,10 +370,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             app.SetupGet(a => a.Diagnostics).Returns(new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddSingleton(TimeProvider.System);
             services.AddSingleton<INetworkMessageEncoder>(new UadpEncoderV2());
-            services.AddSingleton<INetworkMessageEncoder>(new Opc.Ua.PubSub.Encoding.Json.JsonEncoder());
+            services.AddSingleton<INetworkMessageEncoder>(new PubSub.Encoding.Json.JsonEncoder());
             services.AddSingleton(app.Object);
             return services.BuildServiceProvider();
         }

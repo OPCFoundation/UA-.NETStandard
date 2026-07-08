@@ -58,7 +58,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             var registry = new ChannelCaptureRegistry();
             var inner = new RecordingFactory();
             var factory = new CapturingByteTransportFactory(inner, registry);
-            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
             var buffers = new BufferManager("test", 8192, telemetry);
 
             IUaSCByteTransport transport = factory.Create(buffers, 8192, telemetry);

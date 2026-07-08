@@ -487,7 +487,7 @@ namespace Opc.Ua.Sessions.Tests
 
             ISubscription subscription = session.AddSubscription(
                 notifications,
-                new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                new Client.Subscriptions.SubscriptionOptions
                 {
                     PublishingInterval = TimeSpan.FromMilliseconds(250),
                     KeepAliveCount = 10,
@@ -514,7 +514,7 @@ namespace Opc.Ua.Sessions.Tests
                 bool added = subscription.MonitoredItems.TryAdd(
                     "CurrentTime",
                     OptionsFactory.Create(
-                        new Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions
+                        new Client.Subscriptions.MonitoredItems.MonitoredItemOptions
                         {
                             StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
                             AttributeId = Attributes.Value,
@@ -597,7 +597,7 @@ namespace Opc.Ua.Sessions.Tests
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
                 => ValueTask.CompletedTask;

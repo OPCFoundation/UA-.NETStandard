@@ -35,7 +35,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Mqtt.Internal;
-using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 

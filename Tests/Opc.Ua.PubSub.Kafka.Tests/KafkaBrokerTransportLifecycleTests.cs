@@ -35,7 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Kafka.Tests
 {

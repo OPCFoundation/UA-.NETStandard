@@ -28,14 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json
 {
     /// <summary>
     /// Serialises a <see cref="DataSetMetaDataType"/> into a JSON
-    /// property using the Stack <see cref="Opc.Ua.JsonEncoder"/> so the
+    /// property using the Stack <see cref="Ua.JsonEncoder"/> so the
     /// structural type definition, configuration version, namespaces
     /// and structure definitions follow the canonical Part 6 mapping.
     /// </summary>
@@ -82,9 +81,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             JsonEncoderOptions options = JsonVariantEncoder.ToEncoderOptions(mode);
             using JsonBufferWriter buffer = new(1024);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context, options))
+            using (Ua.JsonEncoder encoder = new(buffer, context, options))
             {
-                encoder.WriteEncodeable<DataSetMetaDataType>("MetaData", metaData);
+                encoder.WriteEncodeable("MetaData", metaData);
             }
             using var document = JsonDocument.Parse(buffer.WrittenMemory);
             JsonElement root = document.RootElement;

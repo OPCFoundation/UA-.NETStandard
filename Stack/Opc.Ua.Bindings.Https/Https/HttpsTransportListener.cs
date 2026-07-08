@@ -448,7 +448,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// The transport callback wired in by
-        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
         /// Exposed to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations so they can forward requests through the same
         /// dispatcher used by the binary / JSON paths.
@@ -458,7 +458,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The encoding context (namespace / server tables, quotas,
         /// telemetry) populated by
-        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
         /// Available to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations after the listener is opened.
         /// </summary>
@@ -467,7 +467,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The endpoint descriptions advertised by this listener,
         /// populated by
-        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
         /// Available to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations so they can pick a default endpoint
         /// (typically the first <see cref="MessageSecurityMode.None"/>

@@ -310,8 +310,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ServerTransportEndpointPropertiesReturnConstructorValues()
         {
             using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
-            var local = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 4840);
-            var remote = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345);
+            var local = new IPEndPoint(IPAddress.Loopback, 4840);
+            var remote = new IPEndPoint(IPAddress.Loopback, 12345);
 
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,

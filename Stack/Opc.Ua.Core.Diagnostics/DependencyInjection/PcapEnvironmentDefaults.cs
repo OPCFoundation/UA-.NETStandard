@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.DependencyInjection
 {

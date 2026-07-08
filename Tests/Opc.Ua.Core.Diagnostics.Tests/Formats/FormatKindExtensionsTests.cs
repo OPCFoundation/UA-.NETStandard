@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Models;
 

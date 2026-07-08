@@ -323,7 +323,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         }
 
         private readonly IServerSessionFactory? m_sessionFactory;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly List<IServerSession> m_sessions = [];
         private readonly List<SubscriptionCoordinator> m_coordinators = [];
         private readonly Dictionary<ServerConnectionOptions, PooledSession> m_pooledSessions = [];

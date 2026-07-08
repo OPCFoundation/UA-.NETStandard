@@ -40,7 +40,7 @@ namespace Opc.Ua.Bindings
     /// </summary>
     /// <remarks>
     /// The registry is intentionally instance-based: each
-    /// <see cref="System.IServiceProvider"/> gets its own singleton so
+    /// <see cref="IServiceProvider"/> gets its own singleton so
     /// parallel test fixtures / multi-host applications cannot race on
     /// shared global state (the historical pain-point with the removed
     /// <c>TransportBindings</c> static API).
@@ -83,7 +83,7 @@ namespace Opc.Ua.Bindings
         /// reflection probe is read-only and never triggers an assembly
         /// load, so consumers that did not reference
         /// <c>Opc.Ua.Bindings.Https</c> pay nothing for the discovery
-        /// pass. This is the fallback the <see cref="Opc.Ua.ClientChannelManager"/>
+        /// pass. This is the fallback the <see cref="ClientChannelManager"/>
         /// uses when no <see cref="ITransportChannelBindings"/> was
         /// supplied — it mirrors the pre-Phase 11 reflection-based
         /// auto-load that selected the right binding by URI scheme at
@@ -93,7 +93,7 @@ namespace Opc.Ua.Bindings
         /// Production code should prefer the explicit DI extensions
         /// (<c>AddOpcTcpTransport()</c> / <c>AddHttpsTransport()</c> /
         /// <c>AddWssTransport()</c> on <see cref="IOpcUaBuilder"/>) which
-        /// give each <see cref="System.IServiceProvider"/> its own
+        /// give each <see cref="IServiceProvider"/> its own
         /// scoped registry and avoid implicit reflection at all.
         /// </remarks>
         [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
@@ -340,7 +340,7 @@ namespace Opc.Ua.Bindings
         /// registry instance satisfy both the broad
         /// <see cref="ITransportBindingRegistry"/> surface and the
         /// narrower channel-only contract that
-        /// <see cref="Opc.Ua.ClientChannelManager"/> takes.
+        /// <see cref="ClientChannelManager"/> takes.
         /// </summary>
         ITransportChannel? ITransportChannelBindings.Create(
             string uriScheme,

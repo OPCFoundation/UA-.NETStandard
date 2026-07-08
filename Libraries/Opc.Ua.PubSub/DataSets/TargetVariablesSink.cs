@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.DataSets
         private readonly ITargetVariableWriter m_writer;
         private readonly ArrayOf<FieldTargetDataType> m_targets;
         private readonly DataValue[] m_lastGood;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
 
         /// <summary>
         /// Initializes a new <see cref="TargetVariablesSink"/>.

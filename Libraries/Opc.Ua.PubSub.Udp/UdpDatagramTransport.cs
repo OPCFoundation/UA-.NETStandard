@@ -85,7 +85,7 @@ namespace Opc.Ua.PubSub.Udp
         private readonly ILogger m_logger;
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly UdpMessageRepeater m_repeater;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private readonly DatagramV2Settings m_v2Settings;
 
         private Socket? m_socket;

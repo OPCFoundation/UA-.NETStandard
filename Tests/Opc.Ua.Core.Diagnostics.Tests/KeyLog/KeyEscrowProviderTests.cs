@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.Frame;

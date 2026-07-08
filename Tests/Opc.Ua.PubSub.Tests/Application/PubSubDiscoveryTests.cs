@@ -308,7 +308,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             return new PubSubNetworkMessageContext(
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
-                new Opc.Ua.PubSub.MetaData.DataSetMetaDataRegistry(),
+                new PubSub.MetaData.DataSetMetaDataRegistry(),
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 TimeProvider.System);
         }
@@ -351,7 +351,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             private readonly ReadOnlyMemory<byte> m_response;
             private readonly Queue<PubSubTransportFrame> m_frames = new();
             private readonly SemaphoreSlim m_signal = new(0, int.MaxValue);
-            private readonly System.Threading.Lock m_gate = new();
+            private readonly Lock m_gate = new();
 
             public AutoResponseTransport(ReadOnlyMemory<byte> response)
             {

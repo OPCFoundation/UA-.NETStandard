@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Redundancy
         private readonly TimeSpan m_leaseDuration;
         private readonly TimeSpan m_renewInterval;
         private readonly TimeSpan m_retryInterval;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<string, ComponentLoop> m_loops = new(StringComparer.Ordinal);
         private CancellationTokenSource? m_cts;
         private bool m_started;

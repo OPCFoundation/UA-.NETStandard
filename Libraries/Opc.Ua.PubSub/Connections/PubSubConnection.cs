@@ -91,8 +91,8 @@ namespace Opc.Ua.PubSub.Connections
         private int m_actionRequestId;
         private bool m_allowUnsecuredActions;
         private readonly ILogger<PubSubConnection> m_logger;
-        private readonly System.Threading.Lock m_gate = new();
-        private readonly System.Threading.Lock m_receivedSinksGate = new();
+        private readonly Lock m_gate = new();
+        private readonly Lock m_receivedSinksGate = new();
         private volatile IReceivedNetworkMessageSink[] m_receivedSinks = [];
         private IPubSubTransport? m_transport;
         private CancellationTokenSource? m_receiveCts;
@@ -249,8 +249,8 @@ namespace Opc.Ua.PubSub.Connections
             Name = configuration.Name ?? string.Empty;
             TransportProfileUri = configuration.TransportProfileUri ?? string.Empty;
             PublisherId = configuration.PublisherId.IsNull
-                ? PubSub.Encoding.PublisherId.Null
-                : PubSub.Encoding.PublisherId.From(configuration.PublisherId);
+                ? PublisherId.Null
+                : PublisherId.From(configuration.PublisherId);
             m_logger = telemetry.CreateLogger<PubSubConnection>();
             State = new PubSubStateMachine(
                 string.IsNullOrEmpty(Name) ? "connection" : Name,
@@ -1191,7 +1191,7 @@ namespace Opc.Ua.PubSub.Connections
 
             switch (message)
             {
-                case Opc.Ua.PubSub.Encoding.Json.JsonMetaDataMessage json:
+                case JsonMetaDataMessage json:
                     meta = json.MetaDataPayload ?? json.MetaData;
                     writerId = json.DataSetWriterId;
                     classId = json.DataSetClassId;
@@ -2308,7 +2308,7 @@ namespace Opc.Ua.PubSub.Connections
 
             ReadOnlyMemory<byte> payload;
             if (m_securityWrapper is not null &&
-                networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadp)
+                networkMessage is UadpNetworkMessage uadp)
             {
                 payload = await EncodeAndWrapUadpAsync(uadp, context, cancellationToken)
                     .ConfigureAwait(false);
@@ -2342,7 +2342,7 @@ namespace Opc.Ua.PubSub.Connections
 
             if (m_maxNetworkMessageSize > 0 &&
                 payload.Length > m_maxNetworkMessageSize &&
-                networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadpForChunk)
+                networkMessage is UadpNetworkMessage uadpForChunk)
             {
                 await SendChunkedAsync(
                     transport, payload, uadpForChunk.PublisherId, uadpForChunk.WriterGroupId,
@@ -2450,7 +2450,7 @@ namespace Opc.Ua.PubSub.Connections
         }
 
         private async ValueTask<ReadOnlyMemory<byte>> EncodeAndWrapUadpAsync(
-            Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage message,
+            UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
             CancellationToken cancellationToken)
         {
@@ -2697,7 +2697,7 @@ namespace Opc.Ua.PubSub.Connections
             private readonly PubSubDiscoveryRequest m_request;
             private readonly List<UadpDiscoveryResponseMessage> m_responses = [];
             private readonly SemaphoreSlim m_signal = new(0, int.MaxValue);
-            private readonly System.Threading.Lock m_gate = new();
+            private readonly Lock m_gate = new();
             private int m_disposed;
 
             public PubSubDiscoveryCollector(PubSubDiscoveryRequest request)
@@ -2914,7 +2914,7 @@ namespace Opc.Ua.PubSub.Connections
         private sealed class PendingActionRequest : IDisposable
         {
             private readonly SemaphoreSlim m_signal = new(0, 1);
-            private readonly System.Threading.Lock m_gate = new();
+            private readonly Lock m_gate = new();
             private PubSubActionResponse? m_response;
             private int m_disposed;
 

@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// Implements the SKS server-side surface defined in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3.1">
     /// Part 14 §8.3.1 PubSubKeyServiceType</see>. State is guarded
-    /// by an internal <see cref="System.Threading.Lock"/>; the lock
+    /// by an internal <see cref="Lock"/>; the lock
     /// is never exposed.
     /// </remarks>
     public sealed class InMemoryPubSubKeyServiceServer : IPubSubKeyServiceServer

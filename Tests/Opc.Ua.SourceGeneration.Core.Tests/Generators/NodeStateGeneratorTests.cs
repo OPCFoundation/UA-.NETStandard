@@ -433,9 +433,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string path = Path.Combine(
                 Directory.GetCurrentDirectory(), "Resources", nodeSetResource);
 
-            var nodesets = new global::Opc.Ua.SourceGeneration.NodesetFileCollection(
+            var nodesets = new NodesetFileCollection(
                 ImmutableArray.Create(
-                    (path, new global::Opc.Ua.SourceGeneration.NodesetFileOptions())),
+                    (path, new NodesetFileOptions())),
                 fileSystem,
                 telemetry);
 

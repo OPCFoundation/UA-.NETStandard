@@ -30,7 +30,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Bindings;
 using Opc.Ua.Pcap.Models;
 

@@ -37,7 +37,6 @@ using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
-using Opc.Ua.PubSub.Transports;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
@@ -222,13 +221,13 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
 
         private static async Task<ReadOnlyMemory<byte>> EncodeJsonAsync()
         {
-            var message = new global::Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            var message = new Encoding.Json.JsonNetworkMessage
             {
                 MessageId = "diagnostics-json",
                 PublisherId = PublisherId.FromUInt16(701),
                 DataSetMessages =
                 [
-                    new global::Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+                    new Encoding.Json.JsonDataSetMessage
                     {
                         DataSetWriterId = 101,
                         SequenceNumber = 10,
@@ -245,8 +244,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                     }
                 ]
             };
-            var encoder = new global::Opc.Ua.PubSub.Encoding.Json.JsonEncoder(
-                global::Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose);
+            var encoder = new Encoding.Json.JsonEncoder(
+                Encoding.Json.JsonEncodingMode.Verbose);
             return await encoder.EncodeAsync(message, NewContext()).ConfigureAwait(false);
         }
 

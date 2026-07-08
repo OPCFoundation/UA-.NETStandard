@@ -35,7 +35,6 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Mqtt;
 using Opc.Ua.PubSub.Mqtt.Internal;
-using Opc.Ua.PubSub.Transports;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

@@ -38,7 +38,6 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security;
-using Opc.Ua.PubSub.Security.Policies;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
@@ -202,7 +201,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         public async Task AddUdpPubSubWithSecurityKeyProviderBuildsSecuredApplicationAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
 
             services.AddOpcUa().AddUdpPubSub(udp => udp
                 .UseConfiguration(CreateSecuredConfiguration())
@@ -221,7 +220,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         public async Task AddSecureUdpPubSubBuildsSecuredApplicationAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
 
             services.AddSecureUdpPubSub(
                 "group-1",

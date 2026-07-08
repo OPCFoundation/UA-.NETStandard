@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
@@ -256,7 +255,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     {
         /// <summary>
         /// Converts a metadata <c>BuiltInType</c> byte to
-        /// <see cref="Opc.Ua.BuiltInType"/>.
+        /// <see cref="BuiltInType"/>.
         /// </summary>
         /// <param name="value">Metadata byte value.</param>
         public static BuiltInType ToBuiltInType(this byte value)

@@ -243,7 +243,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
-            Opc.Ua.Security.Certificates.Certificate oldCertificate,
+            Security.Certificates.Certificate oldCertificate,
             CancellationToken ct = default)
         {
             if (oldCertificate == null)
@@ -303,7 +303,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            Opc.Ua.Security.Certificates.Certificate clientCertificate,
+            Security.Certificates.Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {

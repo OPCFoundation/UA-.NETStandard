@@ -30,7 +30,6 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Application
 {

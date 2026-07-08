@@ -101,7 +101,7 @@ namespace Opc.Ua.Aot.Tests
                                 WebApiAuthSchemes.Basic,
                                 options => options.ValidateCredentials = (u, p) =>
                                         u == ExpectedBasicUser && p == ExpectedBasicPassword
-                                            ? Task.FromResult<ClaimsPrincipal>(
+                                            ? Task.FromResult(
                                                 BuildPrincipal(u))
                                             : Task.FromResult<ClaimsPrincipal>(null));
                     });

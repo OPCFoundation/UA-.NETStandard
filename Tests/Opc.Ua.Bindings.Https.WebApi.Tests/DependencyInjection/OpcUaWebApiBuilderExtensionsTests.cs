@@ -29,12 +29,10 @@
 
 #if NET8_0_OR_GREATER
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection

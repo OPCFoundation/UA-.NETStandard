@@ -31,7 +31,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection

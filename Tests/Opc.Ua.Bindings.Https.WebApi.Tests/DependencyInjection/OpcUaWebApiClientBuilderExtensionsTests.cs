@@ -27,11 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection

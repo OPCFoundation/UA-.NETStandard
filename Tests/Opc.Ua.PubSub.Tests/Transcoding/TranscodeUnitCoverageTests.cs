@@ -218,7 +218,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             PubSubNetworkMessage projected = NetworkMessageProfileProjector.Instance.Project(
                 uadp, TranscodeEncoding.Json, TranscodeTargetOptions.Default, context);
 
-            var json = (Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage)projected;
+            var json = (PubSub.Encoding.Json.JsonNetworkMessage)projected;
             Assert.That(json.DataSetClassId, Is.EqualTo(classId));
         }
 

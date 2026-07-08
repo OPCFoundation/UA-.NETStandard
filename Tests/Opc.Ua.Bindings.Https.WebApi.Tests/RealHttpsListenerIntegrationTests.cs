@@ -36,7 +36,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -445,21 +444,21 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         {
             public Func<Certificate, ServiceResult, bool>? AcceptError { get; set; }
 
-            public Task<Opc.Ua.CertificateValidationResult> ValidateAsync(
+            public Task<CertificateValidationResult> ValidateAsync(
                 CertificateCollection chain,
                 TrustListIdentifier? trustList = null,
-                Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+                Security.Certificates.CertificateValidationOptions? options = null,
                 CancellationToken ct = default)
             {
-                return Task.FromResult(Opc.Ua.CertificateValidationResult.Success);
+                return Task.FromResult(CertificateValidationResult.Success);
             }
 
-            public Task<Opc.Ua.CertificateValidationResult> ValidateAsync(
+            public Task<CertificateValidationResult> ValidateAsync(
                 Certificate certificate,
                 TrustListIdentifier? trustList = null,
                 CancellationToken ct = default)
             {
-                return Task.FromResult(Opc.Ua.CertificateValidationResult.Success);
+                return Task.FromResult(CertificateValidationResult.Success);
             }
         }
 

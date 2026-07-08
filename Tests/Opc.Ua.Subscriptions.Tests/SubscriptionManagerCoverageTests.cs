@@ -72,12 +72,12 @@ namespace Opc.Ua.Subscriptions.Tests
                 context, NullLoggerFactory.Instance, diagnostics);
         }
 
-        private static Opc.Ua.OptionsMonitor<SubscriptionOptions> SinglePartitionOptions()
+        private static OptionsMonitor<SubscriptionOptions> SinglePartitionOptions()
         {
             // DisableUnboundedItemMode selects the inert single-partition
             // wrapper path in Add (no placement policy, factory or idle
             // timer), keeping the manager fully deterministic.
-            return new Opc.Ua.OptionsMonitor<SubscriptionOptions>(
+            return new OptionsMonitor<SubscriptionOptions>(
                 new SubscriptionOptions { DisableUnboundedItemMode = true });
         }
 

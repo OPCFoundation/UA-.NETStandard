@@ -38,11 +38,11 @@ namespace Opc.Ua.PubSub.DataSets
     /// previously published value to warrant a new delta-frame entry.
     /// </summary>
     /// <param name="DeadbandType">Deadband mode
-    /// (<see cref="Opc.Ua.DeadbandType"/>).</param>
+    /// (<see cref="Ua.DeadbandType"/>).</param>
     /// <param name="DeadbandValue">Deadband magnitude. For
-    /// <see cref="Opc.Ua.DeadbandType.Absolute"/> this is an absolute
+    /// <see cref="DeadbandType.Absolute"/> this is an absolute
     /// difference. For
-    /// <see cref="Opc.Ua.DeadbandType.Percent"/> this is a percentage
+    /// <see cref="DeadbandType.Percent"/> this is a percentage
     /// (0..100) of the engineering-unit range when one is supplied
     /// via <paramref name="EuRange"/>, otherwise it is interpreted as
     /// a percentage of the previous value's magnitude.</param>

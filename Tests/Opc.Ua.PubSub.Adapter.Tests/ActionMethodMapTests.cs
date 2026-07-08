@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Actions;
 using Opc.Ua.PubSub.Application;

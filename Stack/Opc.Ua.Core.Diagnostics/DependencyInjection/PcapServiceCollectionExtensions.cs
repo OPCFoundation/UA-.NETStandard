@@ -35,7 +35,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Audit;
 using Opc.Ua.Pcap.Bindings;
@@ -58,7 +57,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// Pcap transport channel binding into the host's
         /// <see cref="ITransportBindingRegistry"/>. After this call
         /// every OPC UA client channel created through
-        /// <see cref="Opc.Ua.ClientChannelManager"/> uses a capture-aware
+        /// <see cref="ClientChannelManager"/> uses a capture-aware
         /// socket; the actual recording is gated by the
         /// <see cref="IChannelCaptureRegistry"/> and turned on or off by
         /// a <see cref="CaptureSessionManager"/>.

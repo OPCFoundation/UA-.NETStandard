@@ -34,7 +34,6 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Connections
 {

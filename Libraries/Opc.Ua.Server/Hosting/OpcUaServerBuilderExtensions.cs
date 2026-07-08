@@ -226,7 +226,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.Services.AddOptions<RoleConfigurationOptions>().Bind(rolesSection);
                 builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
-                builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
+                builder.Services.TryAddSingleton(CreateConfiguredRoleManager);
             }
 
             IConfigurationSection identitySection = section.GetSection("Identity");
@@ -268,7 +268,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddOptions<RoleConfigurationOptions>().Configure(configure);
             builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
-            builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
+            builder.Services.TryAddSingleton(CreateConfiguredRoleManager);
             return builder;
         }
 
@@ -295,7 +295,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddOptions<RoleConfigurationOptions>().Bind(section);
             builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
-            builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
+            builder.Services.TryAddSingleton(CreateConfiguredRoleManager);
             return builder;
         }
 

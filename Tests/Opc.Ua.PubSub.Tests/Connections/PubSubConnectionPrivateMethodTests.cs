@@ -301,7 +301,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             var transport = new SpyTransport();
             SetPrivateField(connection, "m_transport", transport);
 
-            var message = new Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage
+            var message = new UadpNetworkMessage
             {
                 PublisherId = PublisherId.FromUInt16(11),
                 WriterGroupId = 7
@@ -608,7 +608,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 await InvokePrivateAsync(
                     connection,
                     "EncodeAndWrapUadpAsync",
-                    new Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage(),
+                    new UadpNetworkMessage(),
                     context,
                     CancellationToken.None).ConfigureAwait(false));
 
@@ -645,7 +645,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 }),
                 allowUnsecured: true);
 
-            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            var request = new UadpActionRequestMessage
             {
                 DataSetWriterId = 5,
                 ActionTargetId = 3,
@@ -694,7 +694,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 allowUnsecured: true,
                 responseAddressPolicy: PubSubResponseAddressPolicy.Matching("responses/*"));
 
-            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            var request = new UadpActionRequestMessage
             {
                 DataSetWriterId = 5,
                 ActionTargetId = 3,
@@ -742,7 +742,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                         new PubSubActionHandlerResult { StatusCode = StatusCodes.Good })),
                 allowUnsecured: true);
 
-            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            var request = new UadpActionRequestMessage
             {
                 DataSetWriterId = 5,
                 ActionTargetId = 3,

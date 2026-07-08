@@ -105,7 +105,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// An optional monitored-item queue factory. When <c>null</c> (the default) the
-        /// built-in <see cref="Opc.Ua.Server.MonitoredItemQueueFactory"/> is used unless a
+        /// built-in <see cref="Server.MonitoredItemQueueFactory"/> is used unless a
         /// subclass overrides <see cref="CreateMonitoredItemQueueFactory"/>. Set this before
         /// the server starts (the hosting layer wires it from dependency injection) to plug in
         /// a custom factory, e.g. a shared-store mirror for high availability.
@@ -4336,7 +4336,7 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration)
         {
             return MonitoredItemQueueFactory
-                ?? new Opc.Ua.Server.MonitoredItemQueueFactory(MessageContext.Telemetry);
+                ?? new MonitoredItemQueueFactory(MessageContext.Telemetry);
         }
 
         /// <summary>

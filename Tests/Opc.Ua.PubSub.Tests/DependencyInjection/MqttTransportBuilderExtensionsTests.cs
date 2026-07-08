@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Configuration;
@@ -51,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         private static (IPubSubBuilder Builder, ServiceCollection Services) CreatePubSubBuilder()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IPubSubBuilder captured = null!;
             services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
             return (captured, services);

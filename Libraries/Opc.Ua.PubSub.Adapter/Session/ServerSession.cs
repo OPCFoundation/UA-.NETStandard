@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_connectLock = new(1, 1);
-        private readonly System.Threading.Lock m_disposeGate = new();
+        private readonly Lock m_disposeGate = new();
         private readonly ConcurrentDictionary<string, NodeId> m_resolvedPaths = new(StringComparer.Ordinal);
         private ISession? m_session;
         private ISubscription? m_modelChangeSubscription;
@@ -336,12 +336,12 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
 
-            var request = new Opc.Ua.BrowsePath
+            var request = new BrowsePath
             {
                 StartingNode = ObjectIds.ObjectsFolder,
                 RelativePath = NodeBrowsePath.ToRelativePath(nodeId)
             };
-            ArrayOf<Opc.Ua.BrowsePath> requests = [request];
+            ArrayOf<BrowsePath> requests = [request];
 
             TranslateBrowsePathsToNodeIdsResponse response = await session
                 .TranslateBrowsePathsToNodeIdsAsync(null, requests, ct)
@@ -709,7 +709,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
             {

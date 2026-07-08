@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         {
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddSingleton<IPubSubTransportFactory>(new LoopbackTransportFactory());
             services.AddSingleton(new DiActionHandler());
             services.AddOpcUa().AddPubSub(pubsub => pubsub

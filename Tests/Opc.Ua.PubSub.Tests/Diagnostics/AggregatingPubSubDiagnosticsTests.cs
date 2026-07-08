@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Diagnostics;
 
 namespace Opc.Ua.PubSub.Tests.Diagnostics

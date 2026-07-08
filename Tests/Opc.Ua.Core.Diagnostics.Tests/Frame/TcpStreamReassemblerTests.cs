@@ -31,7 +31,6 @@ using System;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Frame;
 
 namespace Opc.Ua.Pcap.Tests.Frame

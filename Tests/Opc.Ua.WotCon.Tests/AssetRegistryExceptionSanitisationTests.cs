@@ -38,7 +38,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Assets;
-using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Tests
 {

@@ -41,7 +41,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Tests;
 

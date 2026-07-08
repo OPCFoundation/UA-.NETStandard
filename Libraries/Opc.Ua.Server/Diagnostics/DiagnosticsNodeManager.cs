@@ -576,7 +576,7 @@ namespace Opc.Ua.Server
         /// Programmatically re-adds the Optional RoleType children for the
         /// six modifiable well-known roles (Observer, Operator, Engineer,
         /// Supervisor, ConfigureAdmin, SecurityAdmin)
-        /// so <see cref="Opc.Ua.Server.RoleStateBinding"/> finds them and
+        /// so <see cref="RoleStateBinding"/> finds them and
         /// can wire OnCallAsync delegates and OnWriteValue handlers.
         /// </summary>
         /// <remarks>

@@ -31,7 +31,6 @@ using System;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Replay;
 
 namespace Opc.Ua.Pcap.Tests.Replay

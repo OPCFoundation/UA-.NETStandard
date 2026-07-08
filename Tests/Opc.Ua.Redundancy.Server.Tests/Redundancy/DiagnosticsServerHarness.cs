@@ -39,7 +39,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Opc.Ua.Server;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Redundancy

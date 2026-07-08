@@ -33,7 +33,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.KeyLog;
 

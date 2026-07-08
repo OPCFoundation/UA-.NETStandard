@@ -30,12 +30,12 @@
 namespace Opc.Ua.PubSub.Redundancy
 {
     /// <summary>
-    /// Stable <see cref="Opc.Ua.Redundancy.ISharedKeyValueStore"/> key prefixes used by the
+    /// Stable <see cref="Ua.Redundancy.ISharedKeyValueStore"/> key prefixes used by the
     /// distributed PubSub redundancy bridges so every store agrees on its keyspace.
     /// </summary>
     /// <remarks>
     /// The <c>lease/</c> prefix routes to the strong (linearizable) keyspace of a
-    /// <see cref="Opc.Ua.Redundancy.HybridSharedKeyValueStore"/> because leases require
+    /// <see cref="Ua.Redundancy.HybridSharedKeyValueStore"/> because leases require
     /// compare-and-swap; the remaining prefixes tolerate eventual consistency.
     /// </remarks>
     internal static class PubSubRedundancyStoreKeys

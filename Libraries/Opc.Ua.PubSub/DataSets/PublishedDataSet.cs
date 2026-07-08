@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.DataSets
     public sealed class PublishedDataSet : IPublishedDataSet
     {
         private readonly IPublishedDataSetSource m_source;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private DataSetMetaDataType m_metaData;
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.DataSets
             if (!ReferenceEquals(previous, rebuilt))
             {
                 var key = new DataSetMetaDataKey(
-                    PubSub.Encoding.PublisherId.Null,
+                    Encoding.PublisherId.Null,
                     0,
                     0,
                     DataSetClassId,

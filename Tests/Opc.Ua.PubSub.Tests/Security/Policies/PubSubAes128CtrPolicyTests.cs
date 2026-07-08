@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;

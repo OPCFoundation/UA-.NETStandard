@@ -41,8 +41,6 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Encoding.Json;
-using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;

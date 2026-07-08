@@ -33,7 +33,6 @@ using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Adapter;
@@ -42,8 +41,6 @@ using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Adapter.Diagnostics;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
-using Opc.Ua.PubSub.Adapter.Subscriber;
-using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.DataSets;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -158,7 +155,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ServerPublisherOptions> configure)
         {
             return AddServerAsPublisher(
-                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+                builder, Options.Options.DefaultName, configure);
         }
 
         /// <summary>
@@ -269,7 +266,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ServerSubscriberOptions> configure)
         {
             return AddServerAsSubscriber(
-                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+                builder, Options.Options.DefaultName, configure);
         }
 
         /// <summary>
@@ -380,7 +377,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ServerActionResponderOptions> configure)
         {
             return AddServerAsActionResponder(
-                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+                builder, Options.Options.DefaultName, configure);
         }
 
         /// <summary>

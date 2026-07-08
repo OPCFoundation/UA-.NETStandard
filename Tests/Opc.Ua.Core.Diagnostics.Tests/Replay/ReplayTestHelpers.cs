@@ -31,7 +31,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;

@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         public void DependencyInjectionRegistersSecurityWrapperResolver()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddOpcUa().AddPubSub();
 
             using ServiceProvider sp = services.BuildServiceProvider();

@@ -38,7 +38,6 @@ using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Eth.Channels;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Eth.Tests
 {
@@ -152,7 +151,7 @@ namespace Opc.Ua.PubSub.Eth.Tests
 
             Assert.That(
                 channelFactory,
-                Is.InstanceOf<Channels.PcapEthernetFrameChannelFactory>());
+                Is.InstanceOf<PcapEthernetFrameChannelFactory>());
         }
 #endif
     }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
 using Opc.Ua.Redundancy;
 
 // CA2007: AOT tests run without a SynchronizationContext.

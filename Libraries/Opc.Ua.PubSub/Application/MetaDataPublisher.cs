@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<MetaDataPublisher> m_logger;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
 
         private long m_messageIdSeed;
         private int m_disposed;

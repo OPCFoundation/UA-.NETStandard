@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestSpec("6.3.1.3")]
         public async Task RoundTripDataValue_StatusCodeBitAsync()
         {
-            Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
+            PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
                 DataSetFieldContentMask.StatusCode,
                 new DataSetField
                 {
@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     StatusCode = StatusCodes.UncertainInitialValue
                 }).ConfigureAwait(false);
 
-            DataSetField field = ((Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
+            DataSetField field = ((PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
             Assert.That(field.Value, Is.EqualTo(new Variant(42)));
             Assert.That((uint)field.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
         }
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             DateTimeUtc ts = DateTimeUtc.From(
                 new DateTimeOffset(2026, 6, 16, 12, 0, 0, TimeSpan.Zero));
-            Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
+            PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
                 DataSetFieldContentMask.SourceTimestamp,
                 new DataSetField
                 {
@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     SourceTimestamp = ts
                 }).ConfigureAwait(false);
 
-            DataSetField field = ((Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
+            DataSetField field = ((PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
             Assert.That(field.SourceTimestamp, Is.EqualTo(ts));
         }
 
@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 new DateTimeOffset(2026, 6, 16, 12, 0, 0, TimeSpan.Zero));
             DateTimeUtc srv = DateTimeUtc.From(
                 new DateTimeOffset(2026, 6, 16, 12, 0, 1, TimeSpan.Zero));
-            Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
+            PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
                 DataSetFieldContentMask.StatusCode |
                     DataSetFieldContentMask.SourceTimestamp |
                     DataSetFieldContentMask.SourcePicoSeconds |
@@ -105,19 +105,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     ServerPicoSeconds = 34
                 }).ConfigureAwait(false);
 
-            DataSetField field = ((Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
+            DataSetField field = ((PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
             Assert.That(field.SourceTimestamp, Is.EqualTo(src));
             Assert.That(field.ServerTimestamp, Is.EqualTo(srv));
             Assert.That(field.SourcePicoSeconds, Is.EqualTo(12));
             Assert.That(field.ServerPicoSeconds, Is.EqualTo(34));
         }
 
-        private static async Task<Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage> RoundTripAsync(
+        private static async Task<PubSub.Encoding.Uadp.UadpNetworkMessage> RoundTripAsync(
             DataSetFieldContentMask mask,
             DataSetField field)
         {
             PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
-            var msg = new Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage
+            var msg = new PubSub.Encoding.Uadp.UadpNetworkMessage
             {
                 ContentMask =
                     UadpNetworkMessageContentMask.PublisherId |
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 PublisherId = PublisherId.From(1u),
                 DataSetMessages =
                 [
-                    new Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
                     {
                         DataSetWriterId = 7,
                         FieldEncoding = PubSubFieldEncoding.DataValue,
@@ -136,11 +136,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 ]
             };
             ReadOnlyMemory<byte> bytes =
-                await new Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder().EncodeAsync(msg, context).ConfigureAwait(false);
-            PubSubNetworkMessage? decoded = await new Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder()
+                await new PubSub.Encoding.Uadp.UadpEncoder().EncodeAsync(msg, context).ConfigureAwait(false);
+            PubSubNetworkMessage? decoded = await new PubSub.Encoding.Uadp.UadpDecoder()
                 .TryDecodeAsync(bytes, context).ConfigureAwait(false);
             Assert.That(decoded, Is.Not.Null);
-            return (Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage)decoded!;
+            return (PubSub.Encoding.Uadp.UadpNetworkMessage)decoded!;
         }
     }
 }

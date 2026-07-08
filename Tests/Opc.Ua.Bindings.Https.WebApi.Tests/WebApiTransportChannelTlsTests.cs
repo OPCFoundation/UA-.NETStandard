@@ -39,13 +39,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 using Opc.Ua.Security.Certificates;
 
@@ -58,7 +56,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     /// <see cref="TransportChannelSettings.CertificateValidator"/>
     /// (TrustedPeers store / application-URI rule / rejected list)
     /// into the
-    /// <see cref="System.Net.Http.HttpClientHandler.ServerCertificateCustomValidationCallback"/>
+    /// <see cref="HttpClientHandler.ServerCertificateCustomValidationCallback"/>
     /// so the server certificate is validated against the OPC UA trust
     /// state, not just the default .NET TLS chain.
     /// </summary>
@@ -265,7 +263,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     critical: false));
             req.CertificateExtensions.Add(
                 new X509EnhancedKeyUsageExtension(
-                    [new System.Security.Cryptography.Oid("1.3.6.1.5.5.7.3.1")],
+                    [new Oid("1.3.6.1.5.5.7.3.1")],
                     critical: false));
             var san = new SubjectAlternativeNameBuilder();
             san.AddIpAddress(IPAddress.Loopback);
@@ -290,7 +288,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public Task<CertificateValidationResult> ValidateAsync(
                 CertificateCollection chain,
                 TrustListIdentifier? trustList = null,
-                Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+                Security.Certificates.CertificateValidationOptions? options = null,
                 CancellationToken ct = default)
             {
                 return Task.FromResult(s_rejection);
@@ -312,7 +310,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public Task<CertificateValidationResult> ValidateAsync(
                 CertificateCollection chain,
                 TrustListIdentifier? trustList = null,
-                Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+                Security.Certificates.CertificateValidationOptions? options = null,
                 CancellationToken ct = default)
             {
                 return Task.FromResult(CertificateValidationResult.Success);

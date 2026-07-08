@@ -28,7 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 using System;
-using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua;
 using Opc.Ua.Server.Hosting;
 

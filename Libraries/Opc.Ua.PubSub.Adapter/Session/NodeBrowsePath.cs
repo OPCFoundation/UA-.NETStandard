@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
         /// <summary>
         /// Converts a browse-path sentinel <see cref="NodeId"/> into the
-        /// <see cref="Opc.Ua.RelativePath"/> that a TranslateBrowsePathsToNodeIds
+        /// <see cref="RelativePath"/> that a TranslateBrowsePathsToNodeIds
         /// request requires.
         /// </summary>
         /// <param name="nodeId">

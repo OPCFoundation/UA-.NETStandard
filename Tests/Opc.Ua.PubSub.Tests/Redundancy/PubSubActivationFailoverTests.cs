@@ -40,7 +40,6 @@ using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
-using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Tests;
 

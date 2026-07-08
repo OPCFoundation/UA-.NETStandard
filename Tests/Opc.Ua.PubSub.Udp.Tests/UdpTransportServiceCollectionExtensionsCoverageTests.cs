@@ -38,7 +38,6 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security;
-using Opc.Ua.PubSub.Security.Policies;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp.Dtls;
@@ -272,7 +271,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         public async Task AddSecureUdpPubSubOnOpcUaBuilderRegistersApplicationAndProviderAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
 
             services.AddOpcUa().AddSecureUdpPubSub(
                 "group-2",
@@ -298,7 +297,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         public async Task AddSecureUdpPubSubOnOpcUaBuilderWithTransportConfigureIsInvokedAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             bool transportConfigured = false;
 
             services.AddOpcUa().AddSecureUdpPubSub(

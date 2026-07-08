@@ -70,14 +70,14 @@ namespace Opc.Ua.Client.TestFramework
         public ActivityListener ActivityListener { get; private set; }
 
         /// <summary>
-        /// Optional <see cref="Opc.Ua.Bindings.ITransportBindingRegistry"/>
+        /// Optional <see cref="Bindings.ITransportBindingRegistry"/>
         /// assigned to <see cref="ReverseConnectManager"/> immediately
         /// after construction so the listeners
         /// <see cref="StartReverseConnectHostAsync()"/> creates pick up
         /// the right factory for the URI scheme (e.g. Kestrel-TCP
         /// instead of the raw-socket TCP listener).
         /// </summary>
-        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
 
         /// <summary>
         /// Subscription engine factory to inject into every session

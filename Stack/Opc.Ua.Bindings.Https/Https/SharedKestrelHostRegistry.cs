@@ -31,12 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -515,7 +511,7 @@ namespace Opc.Ua.Bindings
         }
 
         private IHost? m_host;
-        private readonly System.Threading.Lock m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly Dictionary<string, HttpsTransportListener> m_listeners =
             new(StringComparer.OrdinalIgnoreCase);
         private IReadOnlyList<string> m_routeOrder = Array.Empty<string>();

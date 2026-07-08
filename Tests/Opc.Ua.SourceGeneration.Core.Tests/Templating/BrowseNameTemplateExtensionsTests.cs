@@ -28,14 +28,12 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.SourceGeneration.Templating;
 
 namespace Opc.Ua.SourceGeneration.Templating.Tests
 {

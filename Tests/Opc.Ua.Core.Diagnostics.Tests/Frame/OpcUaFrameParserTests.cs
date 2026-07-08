@@ -29,7 +29,6 @@
 
 using System;
 using System.Buffers.Binary;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;

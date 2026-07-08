@@ -34,7 +34,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.KeyLog
 {

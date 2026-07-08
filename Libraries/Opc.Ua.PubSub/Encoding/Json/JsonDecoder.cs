@@ -460,7 +460,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     "{\"", propertyName, "\":",
                     element.GetRawText(),
                     "}");
-                using Opc.Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
+                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
                 return decoder.ReadEncodeable<T>(propertyName);
             }
             catch (ServiceResultException)
@@ -570,8 +570,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            Opc.Ua.JsonActionNetworkMessage? network =
-                DecodeEncodeable<Opc.Ua.JsonActionNetworkMessage>(
+            Ua.JsonActionNetworkMessage? network =
+                DecodeEncodeable<Ua.JsonActionNetworkMessage>(
                     "ActionNetworkMessage",
                     root,
                     context);
@@ -639,8 +639,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            Opc.Ua.JsonActionMetaDataMessage? metaData =
-                DecodeEncodeable<Opc.Ua.JsonActionMetaDataMessage>(
+            JsonActionMetaDataMessage? metaData =
+                DecodeEncodeable<JsonActionMetaDataMessage>(
                     "ActionMetaData",
                     root,
                     context);
@@ -660,8 +660,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            Opc.Ua.JsonActionResponderMessage? responder =
-                DecodeEncodeable<Opc.Ua.JsonActionResponderMessage>(
+            JsonActionResponderMessage? responder =
+                DecodeEncodeable<JsonActionResponderMessage>(
                     "ActionResponder",
                     root,
                     context);
@@ -823,7 +823,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     "{\"MetaData\":",
                     element.GetRawText(),
                     "}");
-                using Opc.Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
+                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
                 return decoder.ReadEncodeable<DataSetMetaDataType>("MetaData");
             }
             catch (ServiceResultException)
