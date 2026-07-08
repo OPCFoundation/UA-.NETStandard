@@ -597,7 +597,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.Dispose();
 
-            Assert.DoesNotThrow(() => subscription.Dispose());
+            Assert.DoesNotThrow(subscription.Dispose);
         }
     }
 }

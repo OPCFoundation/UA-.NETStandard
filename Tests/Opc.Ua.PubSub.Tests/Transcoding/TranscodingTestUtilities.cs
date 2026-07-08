@@ -187,7 +187,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => new NullTransport();
+                TimeProvider timeProvider)
+            {
+                return new NullTransport();
+            }
         }
 
         private sealed class NullTransport : IPubSubTransport
@@ -204,14 +207,23 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 remove { }
             }
 
-            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
-            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
                 string? topic = null,
-                CancellationToken cancellationToken = default) => default;
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
 #pragma warning disable CS1998 // async method lacks awaits — empty async sequence by design
             public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
@@ -222,7 +234,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             }
 #pragma warning restore CS1998
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

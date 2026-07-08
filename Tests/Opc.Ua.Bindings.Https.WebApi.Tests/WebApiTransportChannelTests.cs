@@ -278,8 +278,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public void Encode(IEncoder encoder)
             {
             }
-            public bool IsEqual(IEncodeable? encodeable) => false;
-            public object Clone() => new UnknownRequest();
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return false;
+            }
+
+            public object Clone()
+            {
+                return new UnknownRequest();
+            }
         }
 
         private sealed class StubServer : IWebApiServer

@@ -113,12 +113,9 @@ namespace Opc.Ua.Di.Tests
                 .ConfigureAwait(false);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () =>
-                {
-                    await m_fixture.Manager
+                async () => await m_fixture.Manager
                         .CreateDeviceAsync(new QualifiedName("DeviceDup", ns))
-                        .ConfigureAwait(false);
-                })!;
+                        .ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
@@ -160,11 +157,7 @@ namespace Opc.Ua.Di.Tests
                     m_fixture.Manager.DiNamespaceIndex))
                 .ConfigureAwait(false);
 
-            builder.WithIdentification(id =>
-            {
-                id.Manufacturer = new LocalizedText("Only Manufacturer Set");
-                // Other fields stay default - should not be written.
-            });
+            builder.WithIdentification(id => id.Manufacturer = new LocalizedText("Only Manufacturer Set"));
 
             Assert.That(builder.Device.Manufacturer, Is.Not.Null);
             Assert.That(builder.Device.Manufacturer!.Value.Text,

@@ -208,7 +208,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         {
             var provider = new RandomNonceProvider(PublisherId.FromUInt16(1));
             provider.Dispose();
-            Assert.DoesNotThrow(() => provider.Dispose());
+            Assert.DoesNotThrow(provider.Dispose);
         }
     }
 }

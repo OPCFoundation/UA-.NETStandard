@@ -353,7 +353,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public override void Flush()
             {
             }
-            public override int Read(byte[] buffer, int offset, int count) => 0;
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                return 0;
+            }
 
             public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             {
@@ -369,9 +372,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 #endif
 
-            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-            public override void SetLength(long value) => throw new NotSupportedException();
-            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

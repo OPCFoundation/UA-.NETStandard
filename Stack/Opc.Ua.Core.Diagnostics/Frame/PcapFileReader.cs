@@ -98,12 +98,18 @@ namespace Opc.Ua.Pcap.Frame
         /// <summary>
         /// Equality comparison.
         /// </summary>
-        public static bool operator ==(PcapRecord left, PcapRecord right) => left.Equals(right);
+        public static bool operator ==(PcapRecord left, PcapRecord right)
+        {
+            return left.Equals(right);
+        }
 
         /// <summary>
         /// Inequality comparison.
         /// </summary>
-        public static bool operator !=(PcapRecord left, PcapRecord right) => !left.Equals(right);
+        public static bool operator !=(PcapRecord left, PcapRecord right)
+        {
+            return !left.Equals(right);
+        }
     }
 
     /// <summary>

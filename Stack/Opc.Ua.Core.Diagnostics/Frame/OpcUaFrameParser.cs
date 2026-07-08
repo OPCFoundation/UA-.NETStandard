@@ -316,11 +316,17 @@ namespace Opc.Ua.Pcap.Frame
         /// <summary>
         /// Equality comparison.
         /// </summary>
-        public static bool operator ==(OpcUaChunk left, OpcUaChunk right) => left.Equals(right);
+        public static bool operator ==(OpcUaChunk left, OpcUaChunk right)
+        {
+            return left.Equals(right);
+        }
 
         /// <summary>
         /// Inequality comparison.
         /// </summary>
-        public static bool operator !=(OpcUaChunk left, OpcUaChunk right) => !left.Equals(right);
+        public static bool operator !=(OpcUaChunk left, OpcUaChunk right)
+        {
+            return !left.Equals(right);
+        }
     }
 }

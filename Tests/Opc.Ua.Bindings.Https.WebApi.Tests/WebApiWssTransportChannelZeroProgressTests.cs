@@ -139,12 +139,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 RequestHeader = new RequestHeader { RequestHandle = 1 },
                 NodesToRead = new ArrayOf<ReadValueId>()
             };
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-            {
-                await channel
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await channel
                     .SendRequestAsync(request, CancellationToken.None)
-                    .ConfigureAwait(false);
-            })!;
+                    .ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded),
                 "Zero-progress continuation frame must surface as " +
                 "BadEncodingLimitsExceeded.");

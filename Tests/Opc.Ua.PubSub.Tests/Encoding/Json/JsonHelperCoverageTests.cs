@@ -351,7 +351,7 @@ namespace OpcUaPubSubJsonTests
         {
             var writer = new JsonBufferWriter(32);
             writer.Dispose();
-            Assert.That(() => writer.Dispose(), Throws.Nothing);
+            Assert.That(writer.Dispose, Throws.Nothing);
         }
 
         [Test]

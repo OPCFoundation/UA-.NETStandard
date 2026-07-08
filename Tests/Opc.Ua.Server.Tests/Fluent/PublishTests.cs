@@ -433,10 +433,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             var factoryStarted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             bool reported = false;
-            notifier.OnReportEvent = (_, _, _) =>
-            {
-                reported = true;
-            };
+            notifier.OnReportEvent = (_, _, _) => reported = true;
 
             manager.EventSources.Register(
                 notifier,

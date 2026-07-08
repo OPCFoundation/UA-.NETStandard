@@ -100,10 +100,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts =>
-                    {
-                        opts.Listen(IPAddress.Loopback, 0);
-                    });
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0));
                     webHost.ConfigureServices(s => { });
                     webHost.Configure(app =>
                     {
@@ -330,10 +327,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         {
             // Replace the responder with one that closes the socket
             // before sending a response.
-            m_responder = req =>
-            {
-                throw new CloseConnectionSentinel();
-            };
+            m_responder = req => throw new CloseConnectionSentinel();
 
             using WebApiWssTransportChannel channel = await OpenChannelAsync()
                 .ConfigureAwait(false);

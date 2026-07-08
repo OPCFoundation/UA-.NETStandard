@@ -69,14 +69,20 @@ namespace Opc.Ua.Bindings
                 string.Equals(Host, other.Host, StringComparison.OrdinalIgnoreCase);
         }
 
-        public override bool Equals(object? obj) => obj is SharedHostKey other && Equals(other);
+        public override bool Equals(object? obj)
+        {
+            return obj is SharedHostKey other && Equals(other);
+        }
 
         public override int GetHashCode()
         {
             return HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(Host), Port);
         }
 
-        public override string ToString() => $"{Host}:{Port}";
+        public override string ToString()
+        {
+            return $"{Host}:{Port}";
+        }
     }
 
     /// <summary>

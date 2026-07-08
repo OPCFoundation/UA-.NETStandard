@@ -332,11 +332,17 @@ namespace Opc.Ua.Pcap.Frame
         /// <summary>
         /// Equality comparison.
         /// </summary>
-        public static bool operator ==(TcpFlowSegment left, TcpFlowSegment right) => left.Equals(right);
+        public static bool operator ==(TcpFlowSegment left, TcpFlowSegment right)
+        {
+            return left.Equals(right);
+        }
 
         /// <summary>
         /// Inequality comparison.
         /// </summary>
-        public static bool operator !=(TcpFlowSegment left, TcpFlowSegment right) => !left.Equals(right);
+        public static bool operator !=(TcpFlowSegment left, TcpFlowSegment right)
+        {
+            return !left.Equals(right);
+        }
     }
 }

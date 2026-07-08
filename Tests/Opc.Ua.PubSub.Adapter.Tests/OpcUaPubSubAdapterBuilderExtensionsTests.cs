@@ -181,10 +181,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     publisher.Connection.EndpointUrl = "opc.tcp://localhost:4840";
                     publisher.ReadMode = ReadMode.Subscription;
                 },
-                subscriber =>
-                {
-                    subscriber.Connection.EndpointUrl = "opc.tcp://localhost:4840";
-                });
+                subscriber => subscriber.Connection.EndpointUrl = "opc.tcp://localhost:4840");
 
             await using ServiceProvider sp = services.BuildServiceProvider();
 

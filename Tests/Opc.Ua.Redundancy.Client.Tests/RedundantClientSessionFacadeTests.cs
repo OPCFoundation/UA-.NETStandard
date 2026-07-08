@@ -998,7 +998,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             facade.Dispose();
             Assert.That(facade.Disposed, Is.True);
-            Assert.That(() => facade.Dispose(), Throws.Nothing);
+            Assert.That(facade.Dispose, Throws.Nothing);
 
             Assert.That(() => _ = facade.SessionName, Throws.InstanceOf<ObjectDisposedException>());
             Assert.That(

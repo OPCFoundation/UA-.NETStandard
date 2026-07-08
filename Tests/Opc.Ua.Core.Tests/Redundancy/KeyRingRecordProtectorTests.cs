@@ -133,8 +133,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
             // Null protector does not, exercising both dispose branches. A
             // second dispose must remain safe because member dispose is
             // idempotent.
-            Assert.That(() => ring.Dispose(), Throws.Nothing);
-            Assert.That(() => ring.Dispose(), Throws.Nothing);
+            Assert.That(ring.Dispose, Throws.Nothing);
+            Assert.That(ring.Dispose, Throws.Nothing);
         }
 
         private static byte[] CreateKey(byte seed)

@@ -287,9 +287,14 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             public IDisposable BeginScope<TState>(TState state) where TState : notnull
-                => NullScope.Instance;
+            {
+                return NullScope.Instance;
+            }
 
-            public bool IsEnabled(LogLevel logLevel) => true;
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
 
             public void Log<TState>(
                 LogLevel logLevel,

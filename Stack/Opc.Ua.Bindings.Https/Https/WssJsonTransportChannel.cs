@@ -71,7 +71,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public void Dispose() => Dispose(true);
+        public void Dispose()
+        {
+            Dispose(true);
+        }
 
         private void Dispose(bool disposing)
         {
@@ -144,7 +147,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public ValueTask CloseAsync(CancellationToken ct = default) => default;
+        public ValueTask CloseAsync(CancellationToken ct = default)
+        {
+            return default;
+        }
 
         /// <inheritdoc/>
         public ValueTask ReconnectAsync(

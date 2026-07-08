@@ -63,12 +63,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             var context = ServiceMessageContext.CreateEmpty(new TelemetryStub());
             context.MaxMessageSize = 512;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-            {
-                _ = await WebApiBodyCodec
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => _ = await WebApiBodyCodec
                     .DecodeBodyAsync<ReadRequest>(stream, context, ct: CancellationToken.None)
-                    .ConfigureAwait(false);
-            })!;
+                    .ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTooLarge),
                 "WebApiBodyCodec.DecodeBodyAsync must short-circuit via the bounded " +

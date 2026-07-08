@@ -99,17 +99,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts =>
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(new HttpsConnectionAdapterOptions
                     {
-                        opts.Listen(IPAddress.Loopback, 0, listen =>
-                        {
-                            listen.UseHttps(new HttpsConnectionAdapterOptions
-                            {
-                                ServerCertificate = m_serverCert,
-                                ClientCertificateMode = ClientCertificateMode.NoCertificate
-                            });
-                        });
-                    });
+                        ServerCertificate = m_serverCert,
+                        ClientCertificateMode = ClientCertificateMode.NoCertificate
+                    })));
                     webHost.ConfigureServices(s => { });
                     webHost.Configure(app =>
                     {

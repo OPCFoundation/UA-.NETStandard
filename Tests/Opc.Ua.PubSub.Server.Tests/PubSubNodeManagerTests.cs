@@ -76,10 +76,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [Test]
         public async Task CreateAddressSpaceAsync_WhenSksExposed_BindsSecurityKeyMethods()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeSecurityKeyService = true;
-            }, includeSks: true);
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
 
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
@@ -96,10 +93,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [Test]
         public async Task CreateAddressSpaceAsync_WhenConfigMethodsDisabled_SkipsAddRemove()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeConfigurationMethods = false;
-            });
+            using var harness = new Harness(opt => opt.ExposeConfigurationMethods = false);
 
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
@@ -155,10 +149,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [TestSpec("8.4.3", Summary = "SecurityGroupType ForceKeyRotation is callable")]
         public async Task AddSecurityGroupMaterializesRoutableNodeAndKeyMethods()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeSecurityKeyService = true;
-            }, includeSks: true);
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             var outputs = new List<Variant>();
@@ -229,10 +220,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public async Task KeyPushTargetCanBeAddedConnectedTriggeredAndRemoved()
         {
             var pushProvider = new PushSecurityKeyProvider("push-endpoint", NUnitTelemetryContext.Create());
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeSecurityKeyService = true;
-            }, includeSks: true, pushProvider: pushProvider);
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true, pushProvider: pushProvider);
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             await harness.SksServer.AddSecurityGroupAsync(new SksSecurityGroup(
@@ -304,10 +292,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [Test]
         public async Task CreateAddressSpaceAsync_WithDiagnosticsExposureNone_SkipsBinding()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.DiagnosticsExposure = PubSubDiagnosticsExposure.None;
-            });
+            using var harness = new Harness(opt => opt.DiagnosticsExposure = PubSubDiagnosticsExposure.None);
 
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);

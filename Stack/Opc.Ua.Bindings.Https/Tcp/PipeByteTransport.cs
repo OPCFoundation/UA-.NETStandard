@@ -276,7 +276,10 @@ namespace Opc.Ua.Bindings
             m_sendLock.Dispose();
         }
 
-        public void Dispose() => Close();
+        public void Dispose()
+        {
+            Close();
+        }
 
         private void ThrowIfClosed()
         {

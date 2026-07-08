@@ -104,12 +104,25 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
-            public ValueTask ConnectAsync(Uri url, CancellationToken ct) => default;
-            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct) => default;
-            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct) => default;
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return default;
+            }
+
+            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            {
+                return default;
+            }
+
+            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+            {
+                return default;
+            }
 
             public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
-                => new(new ArraySegment<byte>([]));
+            {
+                return new(new ArraySegment<byte>([]));
+            }
 
             public void Close()
             {

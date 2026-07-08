@@ -125,9 +125,15 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
 
-            public void EnqueueReceive(byte[] chunk) => m_inbound.Enqueue(chunk);
+            public void EnqueueReceive(byte[] chunk)
+            {
+                m_inbound.Enqueue(chunk);
+            }
 
-            public ValueTask ConnectAsync(Uri url, CancellationToken ct) => default;
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return default;
+            }
 
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
             {
@@ -179,16 +185,22 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public List<(uint ChannelId, ChannelToken Current, ChannelToken? Previous)> Tokens { get; } = [];
 
             public void OnFrameSent(uint channelId, ReadOnlySpan<byte> chunk)
-                => SentChunks.Add((channelId, chunk.ToArray()));
+            {
+                SentChunks.Add((channelId, chunk.ToArray()));
+            }
 
             public void OnFrameReceived(uint channelId, ReadOnlySpan<byte> chunk)
-                => ReceivedChunks.Add((channelId, chunk.ToArray()));
+            {
+                ReceivedChunks.Add((channelId, chunk.ToArray()));
+            }
 
             public void OnTokenActivated(
                 uint channelId,
                 ChannelToken currentToken,
                 ChannelToken? previousToken)
-                => Tokens.Add((channelId, currentToken, previousToken));
+            {
+                Tokens.Add((channelId, currentToken, previousToken));
+            }
         }
     }
 }

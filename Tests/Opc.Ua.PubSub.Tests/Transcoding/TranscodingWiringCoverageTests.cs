@@ -465,7 +465,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => m_transport;
+                TimeProvider timeProvider)
+            {
+                return m_transport;
+            }
         }
 
         private sealed class CapturingSendTransport : IPubSubTransport
@@ -484,9 +487,15 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 remove { }
             }
 
-            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
-            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
@@ -506,7 +515,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             }
 #pragma warning restore CS1998
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
 
         private sealed class CapturingHeaderTransport
@@ -528,9 +540,15 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 remove { }
             }
 
-            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
-            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
@@ -560,7 +578,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             }
 #pragma warning restore CS1998
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

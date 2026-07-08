@@ -1078,7 +1078,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => m_transport;
+                TimeProvider timeProvider)
+            {
+                return m_transport;
+            }
         }
 
         private sealed class ThrowingCreateTransportFactory : IPubSubTransportFactory
@@ -1088,8 +1091,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) =>
+                TimeProvider timeProvider)
+            {
                 throw new InvalidOperationException("transport creation failed");
+            }
         }
 
         private abstract class HarnessTransport : IPubSubTransport
@@ -1146,11 +1151,20 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 remove { }
             }
 
-            public void PushFrame(byte[] frame) => m_inbound.Writer.TryWrite(frame);
+            public void PushFrame(byte[] frame)
+            {
+                m_inbound.Writer.TryWrite(frame);
+            }
 
-            public Task WaitUntilSentAsync(int count) => m_sentLatch.WaitForAsync(count);
+            public Task WaitUntilSentAsync(int count)
+            {
+                return m_sentLatch.WaitForAsync(count);
+            }
 
-            public Task WaitUntilProcessedAsync(int count) => m_processedLatch.WaitForAsync(count);
+            public Task WaitUntilProcessedAsync(int count)
+            {
+                return m_processedLatch.WaitForAsync(count);
+            }
 
             public virtual ValueTask OpenAsync(CancellationToken cancellationToken = default)
             {
@@ -1217,15 +1231,23 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public string BuildMetaDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 ushort writerGroupId,
-                ushort dataSetWriterId) => $"meta/{writerGroupId}/{dataSetWriterId}";
+                ushort dataSetWriterId)
+            {
+                return $"meta/{writerGroupId}/{dataSetWriterId}";
+            }
 
             public string BuildDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 WriterGroupDataType writerGroup,
-                ushort? dataSetWriterId) => "data";
+                ushort? dataSetWriterId)
+            {
+                return "data";
+            }
 
             public string BuildDiscoveryTopic(PubSubEncodingPublisherId publisherId, string messageTypeSegment)
-                => $"disc/{messageTypeSegment}";
+            {
+                return $"disc/{messageTypeSegment}";
+            }
         }
 
         private sealed class LastWillHarnessTransport
@@ -1247,15 +1269,23 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public string BuildMetaDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 ushort writerGroupId,
-                ushort dataSetWriterId) => $"meta/{writerGroupId}/{dataSetWriterId}";
+                ushort dataSetWriterId)
+            {
+                return $"meta/{writerGroupId}/{dataSetWriterId}";
+            }
 
             public string BuildDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 WriterGroupDataType writerGroup,
-                ushort? dataSetWriterId) => "data";
+                ushort? dataSetWriterId)
+            {
+                return "data";
+            }
 
             public string BuildDiscoveryTopic(PubSubEncodingPublisherId publisherId, string messageTypeSegment)
-                => $"disc/{messageTypeSegment}";
+            {
+                return $"disc/{messageTypeSegment}";
+            }
 
             public void ConfigureLastWill(string topic, ReadOnlyMemory<byte> payload, bool retain)
             {
@@ -1296,7 +1326,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
             }
 
             public override ValueTask OpenAsync(CancellationToken cancellationToken = default)
-                => throw new InvalidOperationException("transport open failed");
+            {
+                throw new InvalidOperationException("transport open failed");
+            }
         }
 
         private sealed class CloseThrowingHarnessTransport : HarnessTransport
@@ -1307,7 +1339,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
             }
 
             public override ValueTask CloseAsync(CancellationToken cancellationToken = default)
-                => throw new InvalidOperationException("transport close failed");
+            {
+                throw new InvalidOperationException("transport close failed");
+            }
         }
 
         private sealed class CapturingEncoder : INetworkMessageEncoder
@@ -1336,7 +1370,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 }
             }
 
-            public Task WaitUntilCountAsync(int count) => m_latch.WaitForAsync(count);
+            public Task WaitUntilCountAsync(int count)
+            {
+                return m_latch.WaitForAsync(count);
+            }
 
             public ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
                 PubSubNetworkMessage networkMessage,
@@ -1448,9 +1485,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 m_now = base.GetUtcNow();
             }
 
-            public override long GetTimestamp() => m_timestamp;
+            public override long GetTimestamp()
+            {
+                return m_timestamp;
+            }
 
-            public override DateTimeOffset GetUtcNow() => m_now;
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_now;
+            }
         }
     }
 }

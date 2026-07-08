@@ -184,10 +184,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         {
             var services = new ServiceCollection();
             IUdpTransportBuilder? captured = null;
-            services.AddOpcUa().AddPubSub(pubsub =>
-            {
-                captured = pubsub.AddUdpTransport();
-            });
+            services.AddOpcUa().AddPubSub(pubsub => captured = pubsub.AddUdpTransport());
             using ServiceProvider sp = services.BuildServiceProvider();
             IConfigurationSection? section = null;
 
@@ -201,10 +198,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         {
             var services = new ServiceCollection();
             IUdpTransportBuilder? captured = null;
-            services.AddOpcUa().AddPubSub(pubsub =>
-            {
-                captured = pubsub.AddUdpTransport();
-            });
+            services.AddOpcUa().AddPubSub(pubsub => captured = pubsub.AddUdpTransport());
             using ServiceProvider sp = services.BuildServiceProvider();
             IConfiguration? configuration = null;
 

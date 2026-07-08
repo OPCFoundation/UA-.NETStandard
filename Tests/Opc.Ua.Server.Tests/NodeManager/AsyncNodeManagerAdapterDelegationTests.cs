@@ -734,10 +734,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.Context,
                     ref It.Ref<ContinuationPoint>.IsAny,
                     values.ReferenceDescriptions))
-                .Callback(new BrowseCallback((OperationContext _, ref ContinuationPoint cp, IList<ReferenceDescription> _) =>
-                {
-                    cp = values.ReturnedContinuationPoint;
-                }));
+                .Callback(new BrowseCallback(
+                    (OperationContext _, ref ContinuationPoint cp, IList<ReferenceDescription> _) =>
+                        cp = values.ReturnedContinuationPoint));
             manager.Setup(m => m.TranslateBrowsePath(
                 values.Context,
                 values.SourceHandle,

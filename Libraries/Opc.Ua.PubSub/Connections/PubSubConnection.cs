@@ -2409,7 +2409,9 @@ namespace Opc.Ua.PubSub.Connections
             ReadOnlyMemory<byte> frame,
             string? topic,
             CancellationToken cancellationToken)
-            => SendTranscodedFrameAsync(frame, topic, [], cancellationToken);
+        {
+            return SendTranscodedFrameAsync(frame, topic, [], cancellationToken);
+        }
 
         internal async ValueTask SendTranscodedFrameAsync(
             ReadOnlyMemory<byte> frame,

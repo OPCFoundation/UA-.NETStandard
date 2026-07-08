@@ -345,7 +345,9 @@ namespace Opc.Ua.Bindings
         ITransportChannel? ITransportChannelBindings.Create(
             string uriScheme,
             ITelemetryContext telemetry)
-            => CreateChannel(uriScheme, telemetry);
+        {
+            return CreateChannel(uriScheme, telemetry);
+        }
 
         private readonly System.Threading.Lock m_lock = new();
         private readonly Dictionary<string, ITransportListenerFactory> m_listeners;

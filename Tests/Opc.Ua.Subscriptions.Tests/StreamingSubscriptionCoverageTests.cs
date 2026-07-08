@@ -543,7 +543,7 @@ namespace Opc.Ua.Subscriptions.Tests
             var manager = new StubSubscriptionManager
             {
                 OnAddEntered = () => addEntered.Release(),
-                AddGate = () => { _ = releaseAdd.Wait(s_safetyTimeout); },
+                AddGate = () => _ = releaseAdd.Wait(s_safetyTimeout),
                 OnItemAdded = () => itemsAdded.Release()
             };
             await using var subscription = new StreamingSubscription(manager);

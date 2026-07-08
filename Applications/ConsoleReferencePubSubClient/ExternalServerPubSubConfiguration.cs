@@ -183,9 +183,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
 
         private static void AddWriterGroup(PubSubConnectionBuilder connection)
         {
-            connection.AddWriterGroup("WriterGroup 1", group =>
-            {
-                group
+            connection.AddWriterGroup("WriterGroup 1", group => group
                     .WithWriterGroupId(WriterGroupId)
                     .WithPublishingInterval(PublishingIntervalMs)
                     .WithMessageSettings(WriterGroupMessageSettings())
@@ -195,8 +193,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                         .WithDataSetName(DataSetName)
                         .WithKeyFrameCount(1)
                         .WithFieldContentMask(DataSetFieldContentMask.RawData)
-                        .WithMessageSettings(WriterMessageSettings()));
-            });
+                        .WithMessageSettings(WriterMessageSettings())));
         }
 
         private static void AddReaderGroup(PubSubConnectionBuilder connection)

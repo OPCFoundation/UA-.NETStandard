@@ -601,9 +601,7 @@ namespace Opc.Ua.Mcp
                         ds.AddField(field.Name, field.BuiltInType, field.DataTypeId);
                     }
                 })
-                .AddConnection("MCP Publisher Connection", connection =>
-                {
-                    connection
+                .AddConnection("MCP Publisher Connection", connection => connection
                         .WithPublisherId(new Variant(publisherId))
                         .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
                         .WithAddress(endpoint)
@@ -617,8 +615,7 @@ namespace Opc.Ua.Mcp
                                 .WithDataSetName(DataSetName)
                                 .WithKeyFrameCount(1)
                                 .WithFieldContentMask(DataSetFieldContentMask.RawData)
-                                .WithMessageSettings(CreateWriterMessageSettings())));
-                })
+                                .WithMessageSettings(CreateWriterMessageSettings()))))
                 .Build();
         }
 
@@ -629,17 +626,13 @@ namespace Opc.Ua.Mcp
             List<RuntimeFieldDefinition> fields)
         {
             return PubSubConfigurationBuilder.Create()
-                .AddConnection("MCP Subscriber Connection", connection =>
-                {
-                    connection
+                .AddConnection("MCP Subscriber Connection", connection => connection
                         .WithPublisherId(new Variant(publisherId))
                         .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
                         .WithAddress(endpoint)
                         .AddReaderGroup("ReaderGroup 1", group => group
                             .WithMaxNetworkMessageSize(1500)
-                            .AddDataSetReader(ReaderName, reader =>
-                            {
-                                reader
+                            .AddDataSetReader(ReaderName, reader => reader
                                     .WithFilter(new Variant(publisherId), writerGroupId, DataSetWriterId)
                                     .WithFieldContentMask(DataSetFieldContentMask.RawData)
                                     .WithMessageReceiveTimeout(5000)
@@ -652,9 +645,7 @@ namespace Opc.Ua.Mcp
                                         {
                                             metaData.AddField(field.Name, field.BuiltInType, field.DataTypeId);
                                         }
-                                    });
-                            }));
-                })
+                                    }))))
                 .Build();
         }
 

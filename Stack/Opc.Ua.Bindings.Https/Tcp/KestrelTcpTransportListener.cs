@@ -62,7 +62,9 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
-            => new KestrelTcpTransportListener(telemetry);
+        {
+            return new KestrelTcpTransportListener(telemetry);
+        }
     }
 
     /// <summary>
@@ -171,7 +173,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public ValueTask CloseAsync(CancellationToken ct = default) => StopAsync(ct);
+        public ValueTask CloseAsync(CancellationToken ct = default)
+        {
+            return StopAsync(ct);
+        }
 
         /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct = default)
@@ -212,8 +217,10 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
-            => throw new NotImplementedException(
-                "Reverse connect is not implemented for KestrelTcpTransportListener; use the raw-socket TcpTransportListener.");
+        {
+            throw new NotImplementedException(
+                        "Reverse connect is not implemented for KestrelTcpTransportListener; use the raw-socket TcpTransportListener.");
+        }
 
         /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
@@ -310,17 +317,27 @@ namespace Opc.Ua.Bindings
 #pragma warning disable CS0618 // Obsolete: keep for interface compat
         /// <inheritdoc/>
         public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
-            => TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+        {
+            return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+        }
 #pragma warning restore CS0618
 
         /// <inheritdoc/>
         public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
-            => TransferReverseConnectChannelAsync(channelId, serverUri, endpointUrl);
+        {
+            return TransferReverseConnectChannelAsync(channelId, serverUri, endpointUrl);
+        }
 
         /// <inheritdoc/>
-        public void ChannelClosed(uint channelId) => UnregisterChannel(channelId);
+        public void ChannelClosed(uint channelId)
+        {
+            UnregisterChannel(channelId);
+        }
 
-        internal uint NextChannelId() => (uint)Interlocked.Increment(ref m_nextChannelId);
+        internal uint NextChannelId()
+        {
+            return (uint)Interlocked.Increment(ref m_nextChannelId);
+        }
 
         /// <summary>
         /// True when <see cref="OpenAsync"/> was called with
@@ -480,7 +497,9 @@ namespace Opc.Ua.Bindings
             TcpListenerChannel channel,
             uint requestId,
             IServiceRequest request)
-            => _ = DispatchRequestAsync(channel, requestId, request);
+        {
+            _ = DispatchRequestAsync(channel, requestId, request);
+        }
 
         private async Task DispatchRequestAsync(
             TcpListenerChannel channel,

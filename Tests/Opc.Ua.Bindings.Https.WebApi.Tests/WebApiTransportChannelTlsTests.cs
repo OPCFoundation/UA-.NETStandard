@@ -85,29 +85,20 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts =>
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(new HttpsConnectionAdapterOptions
                     {
-                        opts.Listen(IPAddress.Loopback, 0, listen =>
-                        {
-                            listen.UseHttps(new HttpsConnectionAdapterOptions
-                            {
-                                ServerCertificate = m_serverCert,
-                                ClientCertificateMode = ClientCertificateMode.NoCertificate
-                            });
-                        });
-                    });
+                        ServerCertificate = m_serverCert,
+                        ClientCertificateMode = ClientCertificateMode.NoCertificate
+                    })));
                     webHost.ConfigureServices(_ => { });
-                    webHost.Configure(app =>
-                    {
-                        app.Run(ctx =>
+                    webHost.Configure(app => app.Run(ctx =>
                         {
                             // The TLS regression tests assert at the
                             // channel-open stage; we never need to
                             // dispatch a real OPC UA request here.
                             ctx.Response.StatusCode = 204;
                             return Task.CompletedTask;
-                        });
-                    });
+                        }));
                 });
 
             m_host = hostBuilder.Build();
@@ -152,14 +143,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             // CertificateValidator rejects the cert; HttpClient surfaces
             // this as an HttpRequestException wrapping
             // AuthenticationException("remote certificate was rejected").
-            Exception? ex = Assert.CatchAsync(async () =>
-            {
-                await channel
+            Exception? ex = Assert.CatchAsync(async () => await channel
                     .SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader() },
                         CancellationToken.None)
-                    .ConfigureAwait(false);
-            });
+                    .ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null,
                 "WebApiTransportChannel must reject server certificate when the configured " +
                 "OPC UA CertificateValidator returns invalid.");

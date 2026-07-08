@@ -253,9 +253,14 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
 
             public System.IDisposable BeginScope<TState>(TState state) where TState : notnull
-                => null;
+            {
+                return null;
+            }
 
-            public bool IsEnabled(LogLevel logLevel) => true;
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
 
             public void Log<TState>(
                 LogLevel logLevel,

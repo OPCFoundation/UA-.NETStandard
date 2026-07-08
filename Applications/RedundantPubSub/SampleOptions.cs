@@ -72,10 +72,7 @@ public sealed record SampleOptions(
                 : "true";
         }
 
-        string Read(string key, string fallback)
-        {
-            return cli.TryGetValue(key, out string? value) ? value : getEnvironment(key) ?? fallback;
-        }
+        string Read(string key, string fallback) => cli.TryGetValue(key, out string? value) ? value : getEnvironment(key) ?? fallback;
 
         return new SampleOptions(
             ParseRole(Read("ROLE", "demo")),

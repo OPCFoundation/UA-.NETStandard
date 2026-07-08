@@ -471,7 +471,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
         {
             PubSubStateMachine sut = SetupInState(PubSubState.Operational);
             sut.MarkRemoved();
-            Assert.That(() => sut.MarkRemoved(), Throws.Nothing);
+            Assert.That(sut.MarkRemoved, Throws.Nothing);
         }
 
         [Test]

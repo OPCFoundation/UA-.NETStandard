@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void ConstantLoadWeightProviderEventSubscriptionIsNoOp()
         {
             var provider = new ConstantLoadWeightProvider(10);
-            void Handler(byte weight)
+            static void Handler(byte weight)
             {
             }
 

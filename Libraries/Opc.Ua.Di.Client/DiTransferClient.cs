@@ -94,14 +94,8 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ITelemetryContext Telemetry { get; }
 
-        private TransferServicesTypeClient Proxy
-        {
-            get
-            {
-                return m_proxy ??= new TransferServicesTypeClient(
+        private TransferServicesTypeClient Proxy => m_proxy ??= new TransferServicesTypeClient(
                     Session, TransferServicesNodeId, Telemetry);
-            }
-        }
 
         /// <summary>
         /// Invokes <c>TransferToDevice</c>. Returns the transfer ID

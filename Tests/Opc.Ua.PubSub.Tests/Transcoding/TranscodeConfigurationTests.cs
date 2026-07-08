@@ -349,7 +349,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
 
             public T CurrentValue => m_current;
 
-            public T Get(string? name) => m_current;
+            public T Get(string? name)
+            {
+                return m_current;
+            }
 
             public IDisposable OnChange(Action<T, string?> listener)
             {
@@ -377,7 +380,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                     m_listener = listener;
                 }
 
-                public void Dispose() => m_list.Remove(m_listener);
+                public void Dispose()
+                {
+                    m_list.Remove(m_listener);
+                }
             }
         }
     }

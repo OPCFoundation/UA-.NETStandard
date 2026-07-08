@@ -68,7 +68,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         public static IOpcUaBuilder AddWebApiTransport(this IOpcUaBuilder builder)
-            => AddWebApiTransport(builder, configure: null);
+        {
+            return AddWebApiTransport(builder, configure: null);
+        }
 
         /// <summary>
         /// Registers the OPC UA REST binding with caller-supplied options.

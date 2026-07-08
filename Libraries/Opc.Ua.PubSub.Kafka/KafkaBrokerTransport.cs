@@ -331,7 +331,9 @@ namespace Opc.Ua.PubSub.Kafka
             ReadOnlyMemory<byte> payload,
             string? topic = null,
             CancellationToken cancellationToken = default)
-            => ProduceInternalAsync(payload, topic, null, cancellationToken);
+        {
+            return ProduceInternalAsync(payload, topic, null, cancellationToken);
+        }
 
         /// <inheritdoc/>
         public ValueTask SendAsync(
@@ -339,7 +341,9 @@ namespace Opc.Ua.PubSub.Kafka
             string? topic,
             ArrayOf<PubSubMessageProperty> properties,
             CancellationToken cancellationToken = default)
-            => ProduceInternalAsync(payload, topic, ToHeaders(properties), cancellationToken);
+        {
+            return ProduceInternalAsync(payload, topic, ToHeaders(properties), cancellationToken);
+        }
 
         private static Dictionary<string, string>? ToHeaders(
             ArrayOf<PubSubMessageProperty> properties)

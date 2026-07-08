@@ -348,7 +348,9 @@ namespace Opc.Ua.PubSub.Mqtt
             ReadOnlyMemory<byte> payload,
             string? topic = null,
             CancellationToken cancellationToken = default)
-            => PublishInternalAsync(payload, topic, null, cancellationToken);
+        {
+            return PublishInternalAsync(payload, topic, null, cancellationToken);
+        }
 
         /// <inheritdoc/>
         public ValueTask SendAsync(
@@ -356,8 +358,10 @@ namespace Opc.Ua.PubSub.Mqtt
             string? topic,
             ArrayOf<PubSubMessageProperty> properties,
             CancellationToken cancellationToken = default)
-            => PublishInternalAsync(
-                payload, topic, ToUserProperties(properties), cancellationToken);
+        {
+            return PublishInternalAsync(
+                        payload, topic, ToUserProperties(properties), cancellationToken);
+        }
 
         private static List<KeyValuePair<string, string>>? ToUserProperties(
             ArrayOf<PubSubMessageProperty> properties)

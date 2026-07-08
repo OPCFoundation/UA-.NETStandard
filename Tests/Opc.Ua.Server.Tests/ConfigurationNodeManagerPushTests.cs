@@ -981,9 +981,9 @@ namespace Opc.Ua.Server.Tests
             // Second call must hit the early-return branch (timer already running).
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
             Thread.Sleep(150);
-            Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
+            Assert.DoesNotThrow(m_configManager.StopAlarmMonitoring);
             // Stopping again must be a no-op.
-            Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
+            Assert.DoesNotThrow(m_configManager.StopAlarmMonitoring);
         }
 
         [Test]

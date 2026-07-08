@@ -249,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var channel = BuildChannel(listenerMock);
 
             // Channel is in Closed state before Attach; IdleCleanup should be a no-op.
-            Assert.That(() => channel.IdleCleanup(), Throws.Nothing);
+            Assert.That(channel.IdleCleanup, Throws.Nothing);
         }
 
         // ── TryCloseForCertificateRotation is internal — tested via the

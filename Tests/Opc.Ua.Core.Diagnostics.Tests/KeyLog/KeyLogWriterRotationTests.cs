@@ -66,10 +66,13 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
                 SecurityPolicies.Basic256Sha256,
                 MessageSecurityMode.SignAndEncrypt);
 
-            await UseWriterAsync(writerType, path, 1024 * 1024, 16, async writer =>
-            {
-                await writer.AppendAsync(material, CancellationToken.None).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+            await UseWriterAsync(
+                writerType,
+                path,
+                1024 * 1024,
+                16,
+                async writer => await writer.AppendAsync(material, CancellationToken.None)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
 
             Assert.That(File.Exists(GetRotatedPath(path, 1)), Is.False);
         }
@@ -126,10 +129,13 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
                 string path = CreatePath(writerType);
                 using ChannelKeyMaterial material = CreateLargeMaterial();
 
-                await UseWriterAsync(writerType, path, 1024, 16, async writer =>
-                {
-                    await writer.AppendAsync(material, CancellationToken.None).ConfigureAwait(false);
-                }).ConfigureAwait(false);
+                await UseWriterAsync(
+                    writerType,
+                    path,
+                    1024,
+                    16,
+                    async writer => await writer.AppendAsync(material, CancellationToken.None)
+                        .ConfigureAwait(false)).ConfigureAwait(false);
 
                 Assert.That(
                     File.GetUnixFileMode(GetRotatedPath(path, 1)),

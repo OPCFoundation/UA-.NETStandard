@@ -863,9 +863,20 @@ namespace Opc.Ua.Bindings
                 m_webHost = webHost;
             }
             public IServiceProvider Services => m_webHost.Services;
-            public Task StartAsync(CancellationToken ct = default) => m_webHost.StartAsync(ct);
-            public Task StopAsync(CancellationToken ct = default) => m_webHost.StopAsync(ct);
-            public void Dispose() => m_webHost.Dispose();
+            public Task StartAsync(CancellationToken ct = default)
+            {
+                return m_webHost.StartAsync(ct);
+            }
+
+            public Task StopAsync(CancellationToken ct = default)
+            {
+                return m_webHost.StopAsync(ct);
+            }
+
+            public void Dispose()
+            {
+                m_webHost.Dispose();
+            }
         }
 #endif
 
@@ -1269,7 +1280,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Backward-compatible alias for <see cref="SendBinaryAsync"/>.
         /// </summary>
-        public Task SendAsync(HttpContext context) => SendBinaryAsync(context);
+        public Task SendAsync(HttpContext context)
+        {
+            return SendBinaryAsync(context);
+        }
 
         /// <summary>
         /// Handles HTTPS POST requests carrying an OPC UA JSON message
@@ -2143,7 +2157,9 @@ namespace Opc.Ua.Bindings
 
             [Obsolete("Use TransferListenerChannelAsync instead.")]
             public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
-                => TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+            {
+                return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+            }
 
             public async Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
             {

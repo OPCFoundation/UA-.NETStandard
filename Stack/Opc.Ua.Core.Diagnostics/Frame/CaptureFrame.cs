@@ -154,11 +154,17 @@ namespace Opc.Ua.Pcap.Frame
         /// <summary>
         /// Equality comparison.
         /// </summary>
-        public static bool operator ==(CaptureFrame left, CaptureFrame right) => left.Equals(right);
+        public static bool operator ==(CaptureFrame left, CaptureFrame right)
+        {
+            return left.Equals(right);
+        }
 
         /// <summary>
         /// Inequality comparison.
         /// </summary>
-        public static bool operator !=(CaptureFrame left, CaptureFrame right) => !left.Equals(right);
+        public static bool operator !=(CaptureFrame left, CaptureFrame right)
+        {
+            return !left.Equals(right);
+        }
     }
 }

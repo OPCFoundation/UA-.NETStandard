@@ -155,10 +155,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             IOpcUaClientBuilder clientBuilder = builder.AddClient(
                 section,
-                options =>
-                {
-                    options.Session = options.Session with { LoadComplexTypes = true };
-                });
+                options => options.Session = options.Session with { LoadComplexTypes = true });
             return clientBuilder.AddComplexTypes();
         }
 

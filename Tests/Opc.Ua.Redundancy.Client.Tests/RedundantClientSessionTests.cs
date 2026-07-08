@@ -151,10 +151,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             services.AddSingleton(m_telemetry);
             services.AddSingleton<ISharedKeyValueStore>(new FakeNetworkedStore());
             services.AddSingleton<ILeaderElection>(new StaticLeaderElection(false));
-            services.AddRedundantClientSession(options =>
-            {
-                options.CreateSessionAsync = _ => default;
-            });
+            services.AddRedundantClientSession(options => options.CreateSessionAsync = _ => default);
 
             using ServiceProvider provider = services.BuildServiceProvider();
 

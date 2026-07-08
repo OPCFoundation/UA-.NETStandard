@@ -113,7 +113,9 @@ namespace Opc.Ua.Pcap.Bindings
 
         /// <inheritdoc/>
         public ValueTask ConnectAsync(Uri url, CancellationToken ct)
-            => m_inner.ConnectAsync(url, ct);
+        {
+            return m_inner.ConnectAsync(url, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
@@ -161,10 +163,16 @@ namespace Opc.Ua.Pcap.Bindings
         }
 
         /// <inheritdoc/>
-        public void Close() => m_inner.Close();
+        public void Close()
+        {
+            m_inner.Close();
+        }
 
         /// <inheritdoc/>
-        public void Dispose() => (m_inner as IDisposable)?.Dispose();
+        public void Dispose()
+        {
+            (m_inner as IDisposable)?.Dispose();
+        }
 
         private void TapInbound(IFrameCaptureSink observer, ArraySegment<byte> chunk)
         {

@@ -273,7 +273,10 @@ namespace Opc.Ua.Bindings
         /// Releases the underlying WebSocket and synchronization primitives.
         /// Equivalent to <see cref="Close"/>.
         /// </summary>
-        public void Dispose() => Close();
+        public void Dispose()
+        {
+            Close();
+        }
 
         /// <summary>
         /// Assigns the live <see cref="WebSocket"/> to the transport. Called

@@ -326,12 +326,10 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             var services = new ServiceCollection();
             services.AddPcapFromEnvironment(options =>
-            {
                 // The user's BaseFolder is intentionally set to a path
                 // that does not contain pcapPath; the env-var override
                 // must win so the auto-start succeeds.
-                options.BaseFolder = CreateTempPath("user-base");
-            });
+                options.BaseFolder = CreateTempPath("user-base"));
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             var options = provider.GetRequiredService<PcapOptions>();

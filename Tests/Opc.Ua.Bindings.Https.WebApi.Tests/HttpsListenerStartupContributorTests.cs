@@ -73,14 +73,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             await using var listener = new HttpsTransportListener(
                 Utils.UriSchemeHttps,
                 new TestTelemetryContext());
-            var contributor = new RecordingContributor(appBuilder =>
-            {
-                appBuilder.Use(async (context, next) =>
+            var contributor = new RecordingContributor(appBuilder => appBuilder.Use(async (context, next) =>
                 {
                     context.Response.Headers["X-Contributor-Ran"] = "yes";
                     await next().ConfigureAwait(false);
-                });
-            });
+                }));
             listener.StartupContributors = [contributor];
 
             HttpContext context = await InvokeStartupPipelineAsync(listener).ConfigureAwait(false);

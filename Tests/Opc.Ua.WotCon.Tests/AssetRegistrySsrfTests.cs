@@ -200,9 +200,13 @@ namespace Opc.Ua.WotCon.Tests
         // ----------------------------------------------------------------
 
         private static AssetRegistry MakeRegistry(IWotAssetDiscoveryProvider discovery)
-            => MakeRegistry(new WotConnectivityServerOptions { Discovery = discovery });
+        {
+            return MakeRegistry(new WotConnectivityServerOptions { Discovery = discovery });
+        }
 
         private static AssetRegistry MakeRegistry(WotConnectivityServerOptions options)
-            => new(manager: null!, options, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+        {
+            return new(manager: null!, options, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+        }
     }
 }

@@ -140,10 +140,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     It.IsAny<OperationContext>(),
                     It.IsAny<ArrayOf<CallMethodRequest>>(),
                     It.IsAny<CancellationToken>()))
-                .Callback<OperationContext, ArrayOf<CallMethodRequest>, CancellationToken>((context, _, _) =>
-                {
-                    capturedContext = context;
-                })
+                .Callback<OperationContext, ArrayOf<CallMethodRequest>, CancellationToken>((context, _, _) => capturedContext = context)
                 .Returns(new ValueTask<(ArrayOf<CallMethodResult>, ArrayOf<DiagnosticInfo>)>((
                     [
                         new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [] }
@@ -279,10 +276,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     It.IsAny<OperationContext>(),
                     It.IsAny<ArrayOf<CallMethodRequest>>(),
                     It.IsAny<CancellationToken>()))
-                .Callback<OperationContext, ArrayOf<CallMethodRequest>, CancellationToken>((context, _, _) =>
-                {
-                    capturedContext = context;
-                })
+                .Callback<OperationContext, ArrayOf<CallMethodRequest>, CancellationToken>((context, _, _) => capturedContext = context)
                 .Returns(new ValueTask<(ArrayOf<CallMethodResult>, ArrayOf<DiagnosticInfo>)>((
                     [
                         new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [] }

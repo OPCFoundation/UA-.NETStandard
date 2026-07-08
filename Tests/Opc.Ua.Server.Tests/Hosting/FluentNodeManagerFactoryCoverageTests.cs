@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             bool buildCalled = false;
             var factory = new FluentNodeManagerFactory(
                 TestNamespaceUri,
-                _ => { buildCalled = true; });
+                _ => buildCalled = true);
 
             IAsyncNodeManager manager = await factory.CreateAsync(
                 mockServer.Object,

@@ -222,7 +222,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var strategy = new SubscriptionReadStrategy(AdapterTestHelpers.Telemetry());
             strategy.Dispose();
 
-            Assert.That(() => strategy.Dispose(), Throws.Nothing);
+            Assert.That(strategy.Dispose, Throws.Nothing);
         }
     }
 }

@@ -382,9 +382,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             try
             {
                 client.Close();
-                Assert.That(() => client.Close(), Throws.Nothing,
+                Assert.That(client.Close, Throws.Nothing,
                     "Second Close() must be a no-op.");
-                Assert.That(() => client.Close(), Throws.Nothing,
+                Assert.That(client.Close, Throws.Nothing,
                     "Third Close() must also be a no-op.");
             }
             finally

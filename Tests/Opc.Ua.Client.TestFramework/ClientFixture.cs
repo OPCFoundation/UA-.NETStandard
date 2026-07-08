@@ -239,7 +239,9 @@ namespace Opc.Ua.Client.TestFramework
         /// default <c>opc.tcp://</c> scheme.
         /// </summary>
         public Task StartReverseConnectHostAsync()
-            => StartReverseConnectHostAsync(Utils.UriSchemeOpcTcp);
+        {
+            return StartReverseConnectHostAsync(Utils.UriSchemeOpcTcp);
+        }
 
         /// <summary>
         /// Start a host for reverse connections on random port using

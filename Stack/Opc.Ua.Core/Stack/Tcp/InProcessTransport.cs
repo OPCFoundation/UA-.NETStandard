@@ -190,7 +190,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public void Dispose() => Close();
+        public void Dispose()
+        {
+            Close();
+        }
 
         private void ThrowIfClosed()
         {

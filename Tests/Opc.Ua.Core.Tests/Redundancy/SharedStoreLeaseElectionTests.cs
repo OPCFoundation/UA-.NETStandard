@@ -161,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
             await using SharedStoreLeaseElection b = CreateElection(store, "B", time);
 
             var transitions = new List<bool>();
-            a.LeadershipChanged += value => transitions.Add(value);
+            a.LeadershipChanged += transitions.Add;
 
             await a.TryAcquireOrRenewAsync().ConfigureAwait(false);
             time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));

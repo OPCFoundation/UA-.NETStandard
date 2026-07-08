@@ -130,11 +130,17 @@ namespace Opc.Ua.Pcap.Dissection
         /// <summary>
         /// Equality comparison.
         /// </summary>
-        public static bool operator ==(OfflineDecodedChunk left, OfflineDecodedChunk right) => left.Equals(right);
+        public static bool operator ==(OfflineDecodedChunk left, OfflineDecodedChunk right)
+        {
+            return left.Equals(right);
+        }
 
         /// <summary>
         /// Inequality comparison.
         /// </summary>
-        public static bool operator !=(OfflineDecodedChunk left, OfflineDecodedChunk right) => !left.Equals(right);
+        public static bool operator !=(OfflineDecodedChunk left, OfflineDecodedChunk right)
+        {
+            return !left.Equals(right);
+        }
     }
 }

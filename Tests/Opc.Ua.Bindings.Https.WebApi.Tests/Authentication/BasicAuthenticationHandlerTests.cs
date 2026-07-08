@@ -123,10 +123,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
         [Test]
         public async Task ValidCredentialsProduceAuthenticatedPrincipal()
         {
-            using IHost host = await CreateHostAsync(options =>
-            {
-                options.ValidateCredentials = AcceptAliceAsync;
-            }).ConfigureAwait(false);
+            using IHost host = await CreateHostAsync(options => options.ValidateCredentials = AcceptAliceAsync).ConfigureAwait(false);
             using HttpClient client = host.GetTestClient();
 
             using var request = new HttpRequestMessage(HttpMethod.Get, "/");
@@ -210,11 +207,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
                         app.UseAuthentication();
                         app.UseAuthorization();
                         app.Use(ChallengeFailedAuthenticationAsync);
-                        app.UseEndpoints(endpoints =>
-                        {
-                            endpoints.MapGet("/", (HttpContext context) =>
-                                Results.Text(context.User.Identity?.Name ?? string.Empty));
-                        });
+                        app.UseEndpoints(endpoints => endpoints.MapGet("/", (HttpContext context) =>
+                                Results.Text(context.User.Identity?.Name ?? string.Empty)));
                     });
                 });
 

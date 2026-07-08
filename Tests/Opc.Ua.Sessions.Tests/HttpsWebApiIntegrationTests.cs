@@ -585,21 +585,27 @@ namespace Opc.Ua.Sessions.Tests
                 ReadOnlyMemory<EventNotification> notification,
                 PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
-                => ValueTask.CompletedTask;
+            {
+                return ValueTask.CompletedTask;
+            }
 
             public ValueTask OnKeepAliveNotificationAsync(
                 ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
                 PublishState publishStateMask)
-                => ValueTask.CompletedTask;
+            {
+                return ValueTask.CompletedTask;
+            }
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
                 Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
-                => ValueTask.CompletedTask;
+            {
+                return ValueTask.CompletedTask;
+            }
         }
 
         private WebApiClient CreateClient(WebApiEncoding encoding)
