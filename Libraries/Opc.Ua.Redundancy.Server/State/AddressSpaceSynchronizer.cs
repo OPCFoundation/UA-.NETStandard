@@ -398,13 +398,25 @@ namespace Opc.Ua.Redundancy.Server
             m_addressSpace.NodeRemoved -= m_onNodeRemoved;
             DetachAll();
             m_outbound?.Writer.TryComplete();
-            m_writerCts?.Cancel();
 
-            // Await the drain first: it is what assigns m_snapshotTask, so once
-            // it has finished no further snapshot publish can be scheduled.
+            // Let the drain deliver every already-buffered outbound operation to
+            // the store before tearing down. Do NOT cancel the writer's token
+            // here: on a live leadership demotion (as opposed to disposal) this
+            // token is the only cancellation source for DrainOutboundAsync, so
+            // cancelling it while a write is in flight (or items remain queued)
+            // would abort the loop via OperationCanceledException and silently
+            // discard the remaining buffered writes - a data-loss race on every
+            // demotion. ReadAllAsync completes on its own once the channel is
+            // completed and drained; the object's lifetime token (m_cts, linked
+            // into m_writerCts) still cancels this promptly during DisposeAsync,
+            // so shutdown responsiveness is unaffected.
             await AwaitQuietlyAsync(m_outboundTask).ConfigureAwait(false);
+
+            // The snapshot task is what m_snapshotTask reflects; it is assigned
+            // from the outbound loop above, so it is safe to await only now.
             await AwaitQuietlyAsync(m_snapshotTask).ConfigureAwait(false);
 
+            m_writerCts?.Cancel();
             m_writerCts?.Dispose();
             m_writerCts = null;
             m_outbound = null;
