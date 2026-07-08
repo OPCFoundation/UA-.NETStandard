@@ -210,7 +210,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(StatusCode.IsGood(entries[0].StatusCode));
             Assert.That(StatusCode.IsGood(entries[1].StatusCode));
             Assert.That(entries[2].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInternalError));
+                Is.EqualTo(StatusCodes.BadInternalError));
             Assert.That(call, Is.EqualTo(2));
         }
 
@@ -266,7 +266,7 @@ namespace Opc.Ua.Di.Tests
                                 new Variant[]
                                 {
                                     new Variant(transferId),
-                                    new Variant((int)0)
+                                    new Variant(0)
                                 }.ToArrayOf()
                         }
                     }.ToArrayOf()

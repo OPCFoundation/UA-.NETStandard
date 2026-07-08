@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddIdentityProvider(
                     null!,
-                    (Action<CompositeClientIdentityProviderBuilder>)(_ => { })),
+                    _ => { }),
                 Throws.ArgumentNullException);
         }
 
@@ -262,7 +262,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddAccessTokenProvider(
                     null!,
-                    (Func<IServiceProvider, IAccessTokenProvider>)(_ => null!)),
+                    _ => null!),
                 Throws.ArgumentNullException);
         }
 

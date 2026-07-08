@@ -34,8 +34,8 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Capture;
 
 namespace Opc.Ua.Pcap.Frame
 {

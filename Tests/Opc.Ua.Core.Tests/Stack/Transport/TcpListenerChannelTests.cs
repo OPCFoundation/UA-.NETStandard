@@ -172,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var channel = BuildChannel(listenerMock);
 
             Assert.That(
-                () => channel.Attach(channelId: 1, transport: (IUaSCByteTransport)null!),
+                () => channel.Attach(channelId: 1, transport: null!),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("transport"));
         }

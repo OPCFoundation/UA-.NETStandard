@@ -93,7 +93,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -204,7 +204,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -217,7 +217,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -230,7 +230,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -244,7 +244,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -271,7 +271,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnGetConfiguration(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddPublishedEvents(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -309,7 +309,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddPublishedDataItems(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -322,7 +322,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddPublishedEvents(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -336,7 +336,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -349,7 +349,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -362,7 +362,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -376,7 +376,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -390,7 +390,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -403,7 +403,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -416,7 +416,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -430,7 +430,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -443,7 +443,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -495,7 +495,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -508,7 +508,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -523,7 +523,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -538,7 +538,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -554,7 +554,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -570,7 +570,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -605,7 +605,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -618,7 +618,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -634,7 +634,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -649,7 +649,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -664,7 +664,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -679,7 +679,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -717,7 +717,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -730,7 +730,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -743,7 +743,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -757,7 +757,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -799,7 +799,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -812,7 +812,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -828,7 +828,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -842,7 +842,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -858,7 +858,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -878,7 +878,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -917,7 +917,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -930,7 +930,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -943,7 +943,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -957,7 +957,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -1000,7 +1000,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -1013,7 +1013,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1029,7 +1029,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1043,7 +1043,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1075,7 +1075,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -1115,7 +1115,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1141,7 +1141,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1155,7 +1155,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         private static PubSubMethodHandlers NewHandlers(

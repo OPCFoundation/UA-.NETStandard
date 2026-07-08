@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             Assert.That(root.RecentErrors, Has.Count.EqualTo(1));
             Assert.That(
                 root.RecentErrors[0].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(root.RecentErrors[0].Message, Is.EqualTo("boom"));
         }
 

@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                         new DataSetField
                         {
                             Value = new Variant(99u),
-                            StatusCode = (StatusCode)StatusCodes.Good,
+                            StatusCode = StatusCodes.Good,
                             SourceTimestamp = src
                         }
                     ]

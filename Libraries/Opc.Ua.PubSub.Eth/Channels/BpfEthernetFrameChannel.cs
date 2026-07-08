@@ -225,7 +225,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 // Hold the lock across the syscall so CloseAsync cannot close
                 // the descriptor (and let the OS reuse it) mid-send, which
                 // would write on an unrelated fd (fd-reuse race, ETH-SEC-03).
-                nint written = NativeMethods.write(m_device, buffer, (nint)buffer.Length);
+                nint written = NativeMethods.write(m_device, buffer, buffer.Length);
                 if (written < 0)
                 {
                     throw new InvalidOperationException(
@@ -321,7 +321,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             var buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_bufferLength)];
             while (!cancellationToken.IsCancellationRequested)
             {
-                nint read = NativeMethods.read(fd, buffer, (nint)buffer.Length);
+                nint read = NativeMethods.read(fd, buffer, buffer.Length);
                 if (read <= 0)
                 {
                     break;

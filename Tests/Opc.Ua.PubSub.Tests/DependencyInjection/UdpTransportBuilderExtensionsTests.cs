@@ -34,9 +34,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {

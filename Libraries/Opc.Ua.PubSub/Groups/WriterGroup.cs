@@ -34,8 +34,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Redundancy;
+using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.StateMachine;
 using JsonDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
 using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
@@ -595,7 +595,7 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
-            return ((uint)json.NetworkMessageContentMask &
+            return (json.NetworkMessageContentMask &
                 (uint)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
         }
 

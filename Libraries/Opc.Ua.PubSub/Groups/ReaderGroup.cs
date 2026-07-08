@@ -34,8 +34,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Redundancy;
+using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.StateMachine;
 
 namespace Opc.Ua.PubSub.Groups

@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     nodesToRead.Count);
                 return CreateFaultedResults(
                     nodesToRead.Count,
-                    (StatusCode)StatusCodes.BadCommunicationError);
+                    StatusCodes.BadCommunicationError);
             }
         }
 

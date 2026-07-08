@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             Assert.That(fields, Has.Length.EqualTo(1));
             Assert.That(fields[0].Name, Is.EqualTo("Value1"));
             Assert.That(fields[0].Value, Is.EqualTo(new Variant(99)));
-            Assert.That(fields[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(fields[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
             DataSetField[] fields = (DataSetField[]?)snapshot.Fields ?? [];
             Assert.That(fields, Has.Length.EqualTo(2));
-            Assert.That(fields[1].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(fields[1].StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
 
         [Test]
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 builder.Object,
                 AdapterTestHelpers.Telemetry());
             int changeCount = 0;
-            ((IMetaDataChangeNotifier)source).MetaDataChanged += (_, _) => changeCount++;
+            source.MetaDataChanged += (_, _) => changeCount++;
 
             builder.Raise(b => b.MetaDataChanged += null, EventArgs.Empty);
 

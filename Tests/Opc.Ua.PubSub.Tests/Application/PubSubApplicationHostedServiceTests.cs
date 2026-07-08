@@ -32,8 +32,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Application
 {

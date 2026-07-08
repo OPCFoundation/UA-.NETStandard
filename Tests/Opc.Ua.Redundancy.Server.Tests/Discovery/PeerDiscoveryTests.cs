@@ -245,7 +245,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
         {
             var options = new LdsPeerDiscoveryOptions { LocalApplicationUri = "urn:self" };
             var discovery = new LdsPeerDiscovery(options, ct => new ValueTask<ArrayOf<ApplicationDescription>>(
-                (ArrayOf<ApplicationDescription>)
+
                 [
                     new ApplicationDescription
                     {
@@ -274,7 +274,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var discovery = new LdsPeerDiscovery(
                 new LdsPeerDiscoveryOptions(),
                 ct => new ValueTask<ArrayOf<ApplicationDescription>>(
-                    (ArrayOf<ApplicationDescription>)
+
                     [
                         new ApplicationDescription
                         {
@@ -303,7 +303,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var discovery = new LdsPeerDiscovery(
                 new LdsPeerDiscoveryOptions(),
                 ct => new ValueTask<ArrayOf<ApplicationDescription>>(
-                    (ArrayOf<ApplicationDescription>)
+
                     [
                         null!,
                         new ApplicationDescription

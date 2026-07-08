@@ -30,8 +30,8 @@
 using System;
 using System.Globalization;
 using System.Net;
-using Opc.Ua.PubSub.Udp.Dtls;
 using System.Net.Sockets;
+using Opc.Ua.PubSub.Udp.Dtls;
 
 namespace Opc.Ua.PubSub.Udp
 {

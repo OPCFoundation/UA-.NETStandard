@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             Assert.That(
                 async () => await session.CreateDataChangeSubscriptionAsync(1000).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
-                    .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                    .With.Property("StatusCode").EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]

@@ -347,9 +347,9 @@ namespace Opc.Ua.Gds.Tests
                     0u, 0u, string.Empty, string.Empty, 0u, string.Empty, default).AsTask());
             AssertThrowsEndpointNull(() => client.GetApplicationAsync(NodeId.Null).AsTask());
             AssertThrowsEndpointNull(
-                () => client.RegisterApplicationAsync((ApplicationRecordDataType)null!).AsTask());
+                () => client.RegisterApplicationAsync(null!).AsTask());
             AssertThrowsEndpointNull(
-                () => client.UpdateApplicationAsync((ApplicationRecordDataType)null!).AsTask());
+                () => client.UpdateApplicationAsync(null!).AsTask());
             AssertThrowsEndpointNull(() => client.UnregisterApplicationAsync(NodeId.Null).AsTask());
         }
 

@@ -131,7 +131,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             // Task implements IAsyncResult but is not a ReverseConnectAsyncResult.
             ArgumentException ex = Assert.Throws<ArgumentException>(
-                () => channel.EndReverseConnect((IAsyncResult)Task.CompletedTask))!;
+                () => channel.EndReverseConnect(Task.CompletedTask))!;
             Assert.That(ex.ParamName, Is.EqualTo("result"));
         }
 

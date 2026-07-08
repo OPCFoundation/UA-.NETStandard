@@ -30,8 +30,8 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.DependencyInjection;
 
 namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {

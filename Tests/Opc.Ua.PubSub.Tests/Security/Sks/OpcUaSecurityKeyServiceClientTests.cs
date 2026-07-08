@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
                     new SksKeyRequest(string.Empty, 0U, 1U)).ConfigureAwait(false))!;
-            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
                     new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
-            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(unavailableCount, Is.EqualTo(1));
         }
 
@@ -246,7 +246,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
                     new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
-            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadCommunicationError));
         }
 
         [Test]
@@ -362,7 +362,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
 
-            Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("KeyLifetime"));
         }
 

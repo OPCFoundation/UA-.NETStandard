@@ -238,7 +238,7 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
                 NUnitTelemetryContext.Create());
 
             Assert.Throws<ArgumentNullException>(
-                () => WebApiBodyCodec.DecodeBody<ReadRequest>((byte[])null!, context));
+                () => WebApiBodyCodec.DecodeBody<ReadRequest>(null!, context));
         }
 
         [Test]

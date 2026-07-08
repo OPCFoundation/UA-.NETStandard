@@ -170,7 +170,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 1,
-                    TimeoutHint = (uint)kMaxTimeout
+                    TimeoutHint = kMaxTimeout
                 },
                 EndpointUrl = jsonEndpoint.EndpointUrl
             };
@@ -181,7 +181,7 @@ namespace Opc.Ua.Sessions.Tests
 
             Assert.That(response, Is.InstanceOf<GetEndpointsResponse>());
             var getResp = (GetEndpointsResponse)response;
-            Assert.That(getResp.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(getResp.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             Assert.That(getResp.Endpoints.Count, Is.GreaterThan(0));
 
             await channel.CloseAsync().ConfigureAwait(false);

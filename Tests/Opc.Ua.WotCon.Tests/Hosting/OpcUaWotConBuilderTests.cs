@@ -34,14 +34,14 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Server.Hosting;
-using Opc.Ua.WotCon.Client.Hosting;
 using Opc.Ua.WotCon.Client;
+using Opc.Ua.WotCon.Client.Hosting;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace Opc.Ua.WotCon.Tests.Hosting
 {

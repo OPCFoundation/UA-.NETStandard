@@ -334,7 +334,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             Assert.That(StatusCode.IsGood(accessLevel.StatusCode), Is.True);
             byte level = accessLevel.WrappedValue.GetByte();
-            Assert.That(level & (byte)AccessLevels.CurrentRead, Is.Not.Zero,
+            Assert.That(level & AccessLevels.CurrentRead, Is.Not.Zero,
                 "RedundancySupport must be readable.");
         }
 

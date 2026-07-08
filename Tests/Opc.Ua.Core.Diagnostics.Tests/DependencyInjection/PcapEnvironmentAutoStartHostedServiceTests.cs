@@ -35,13 +35,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {

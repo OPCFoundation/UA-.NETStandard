@@ -59,15 +59,15 @@ namespace Opc.Ua.PubSub.Server.Internal
     /// </remarks>
     internal sealed class PubSubStatusBinding : IDisposable
     {
-        private static readonly NodeId s_statusStateNodeId = new((uint)17406);
+        private static readonly NodeId s_statusStateNodeId = new(17406);
 
         private static readonly KeyValuePair<PubSubDiagnosticsCounterKind, NodeId>[] s_counterNodeIds =
         [
-            new(PubSubDiagnosticsCounterKind.StateOperationalByMethod, new NodeId((uint)17431)),
-            new(PubSubDiagnosticsCounterKind.StateOperationalByParent, new NodeId((uint)17436)),
-            new(PubSubDiagnosticsCounterKind.StateOperationalFromError, new NodeId((uint)17441)),
-            new(PubSubDiagnosticsCounterKind.StatePausedByParent, new NodeId((uint)17446)),
-            new(PubSubDiagnosticsCounterKind.StateDisabledByMethod, new NodeId((uint)17451))
+            new(PubSubDiagnosticsCounterKind.StateOperationalByMethod, new NodeId(17431)),
+            new(PubSubDiagnosticsCounterKind.StateOperationalByParent, new NodeId(17436)),
+            new(PubSubDiagnosticsCounterKind.StateOperationalFromError, new NodeId(17441)),
+            new(PubSubDiagnosticsCounterKind.StatePausedByParent, new NodeId(17446)),
+            new(PubSubDiagnosticsCounterKind.StateDisabledByMethod, new NodeId(17451))
         ];
 
         /// <summary>

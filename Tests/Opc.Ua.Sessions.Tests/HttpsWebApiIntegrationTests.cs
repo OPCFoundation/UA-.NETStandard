@@ -231,7 +231,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 1,
-                    TimeoutHint = (uint)kMaxTimeout
+                    TimeoutHint = kMaxTimeout
                 },
                 EndpointUrl = m_baseAddress.ToString()
             };
@@ -259,7 +259,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 1,
-                    TimeoutHint = (uint)kMaxTimeout
+                    TimeoutHint = kMaxTimeout
                 },
                 EndpointUrl = m_baseAddress.ToString()
             };
@@ -291,7 +291,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 1,
-                    TimeoutHint = (uint)kMaxTimeout
+                    TimeoutHint = kMaxTimeout
                 },
                 MaxAge = 0,
                 TimestampsToReturn = TimestampsToReturn.Both,
@@ -336,7 +336,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 1,
-                    TimeoutHint = (uint)kMaxTimeout
+                    TimeoutHint = kMaxTimeout
                 },
                 ClientDescription = new ApplicationDescription
                 {
@@ -377,7 +377,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 2,
-                    TimeoutHint = (uint)kMaxTimeout,
+                    TimeoutHint = kMaxTimeout,
                     AuthenticationToken = response.AuthenticationToken
                 },
                 DeleteSubscriptions = true

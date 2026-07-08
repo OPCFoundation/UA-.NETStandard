@@ -40,12 +40,12 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Server;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
-using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Sessions.Tests
 {

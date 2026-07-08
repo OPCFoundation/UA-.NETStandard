@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public void ConstructorWithNullRetiredArrayUsesActiveOnly()
         {
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
-            using var ring = new KeyRingRecordProtector(active, (IRecordProtector[])null!);
+            using var ring = new KeyRingRecordProtector(active, null!);
 
             ByteString envelope = ring.Protect(s_plaintext);
             bool ok = ring.TryUnprotect(envelope, out ByteString recovered);

@@ -464,7 +464,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry);
 
             Assert.That(
-                () => builder.WithServerRedundancy((IServerRedundancyHandler)null!),
+                () => builder.WithServerRedundancy(null!),
                 Throws.ArgumentNullException);
         }
 

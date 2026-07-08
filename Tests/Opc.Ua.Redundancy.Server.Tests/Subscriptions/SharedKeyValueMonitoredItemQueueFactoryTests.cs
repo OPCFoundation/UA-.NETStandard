@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(restored.Dequeue(out _, out ServiceResult restoredError), Is.True);
-            Assert.That(restoredError.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(restoredError.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
 
         [Test]

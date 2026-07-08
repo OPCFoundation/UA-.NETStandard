@@ -1683,10 +1683,10 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            PubSubConfigurationFileHandle? file;
+
             lock (m_addressSpaceGate)
             {
-                _ = m_fileHandles.Remove(handle, out file);
+                _ = m_fileHandles.Remove(handle, out _);
             }
             return ServiceResult.Good;
         }

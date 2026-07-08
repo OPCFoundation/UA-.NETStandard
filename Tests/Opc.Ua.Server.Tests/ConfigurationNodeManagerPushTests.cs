@@ -228,8 +228,8 @@ namespace Opc.Ua.Server.Tests
                         string.Empty,
                         [],
                         [],
-                        (ushort)0,
-                        (ushort)0,
+                        0,
+                        0,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -251,8 +251,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         [],
                         [],
-                        (ushort)0,
-                        (ushort)0,
+                        0,
+                        0,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -274,8 +274,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         [],
                         [],
-                        (ushort)0,
-                        (ushort)0,
+                        0,
+                        0,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -991,7 +991,7 @@ namespace Opc.Ua.Server.Tests
         public async Task GetNamespaceMetadataStateWithNullUriReturnsNullAsync()
         {
             NamespaceMetadataState result = await m_configManager
-                .GetNamespaceMetadataStateAsync((string)null)
+                .GetNamespaceMetadataStateAsync(null)
                 .ConfigureAwait(false);
 
             Assert.That(result, Is.Null);

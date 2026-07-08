@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.Multiple(() =>
             {
                 Assert.That(result.IsSuccess, Is.False);
-                Assert.That(result.Status, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.Multiple(() =>
             {
                 Assert.That(result.IsSuccess, Is.False);
-                Assert.That(result.Status, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 
@@ -199,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             {
                 Assert.That(first.IsSuccess, Is.True, first.Reason);
                 Assert.That(replay.IsSuccess, Is.False);
-                Assert.That(replay.Status, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                Assert.That(replay.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.Multiple(() =>
             {
                 Assert.That(result.IsSuccess, Is.False);
-                Assert.That(result.Status, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadDecodingError));
             });
         }
 

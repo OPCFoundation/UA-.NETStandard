@@ -696,9 +696,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             session.Setup(s => s.CloseAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .Returns(Task.FromResult((StatusCode)StatusCodes.Good));
+                .Returns(Task.FromResult(StatusCodes.Good));
             session.Setup(s => s.CloseAsync(It.IsAny<CancellationToken>()))
-                .Returns(Task.FromResult((StatusCode)StatusCodes.Good));
+                .Returns(Task.FromResult(StatusCodes.Good));
             session.Setup(s => s.RemoveSubscriptionAsync(It.IsAny<Subscription>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.FromResult(true));
             session.Setup(s => s.RemoveSubscriptionsAsync(
@@ -722,13 +722,13 @@ namespace Opc.Ua.Client.Redundancy.Tests
             await facade.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
             await facade.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
             await facade.FetchTypeTreeAsync((ExpandedNodeId)null!, ct).ConfigureAwait(false);
-            await facade.FetchTypeTreeAsync((ArrayOf<ExpandedNodeId>)[], ct).ConfigureAwait(false);
+            await facade.FetchTypeTreeAsync([], ct).ConfigureAwait(false);
             await facade.OpenAsync("session", 1000, Mock.Of<IUserIdentity>(), [], true, true, ct).ConfigureAwait(false);
             await facade.UpdateSessionAsync(Mock.Of<IUserIdentity>(), [], ct).ConfigureAwait(false);
             await facade.ChangePreferredLocalesAsync([], ct).ConfigureAwait(false);
 
-            Assert.That(await facade.CloseAsync(1000, true, ct).ConfigureAwait(false), Is.EqualTo((StatusCode)StatusCodes.Good));
-            Assert.That(await facade.CloseAsync(ct).ConfigureAwait(false), Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(await facade.CloseAsync(1000, true, ct).ConfigureAwait(false), Is.EqualTo(StatusCodes.Good));
+            Assert.That(await facade.CloseAsync(ct).ConfigureAwait(false), Is.EqualTo(StatusCodes.Good));
             Assert.That(await facade.RemoveSubscriptionAsync(null!, ct).ConfigureAwait(false), Is.True);
             Assert.That(await facade.RemoveSubscriptionsAsync(Array.Empty<Subscription>(), ct).ConfigureAwait(false), Is.True);
             Assert.That(await facade.ReactivateSubscriptionsAsync(new SubscriptionCollection(), true, ct).ConfigureAwait(false), Is.True);

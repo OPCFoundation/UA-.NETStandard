@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new List<Variant> { Variant.From("group-1") },
                 outputs);
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(outputs, Is.Empty);
         }
@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 inputs,
                 new List<Variant>());
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 inputs,
                 new List<Variant>());
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 inputs,
                 new List<Variant>());
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadNotFound));
         }
 
@@ -208,7 +208,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 inputs,
                 new List<Variant>());
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -230,7 +230,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 inputs,
                 new List<Variant>());
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 

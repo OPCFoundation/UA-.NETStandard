@@ -33,10 +33,10 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Server;
-using Opc.Ua.Redundancy.Server;
-using Opc.Ua.Redundancy.Kubernetes;
 using Opc.Ua.Redundancy;
+using Opc.Ua.Redundancy.Kubernetes;
+using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Server;
 
 // CA2007: AOT tests run without a SynchronizationContext.
 #pragma warning disable CA2007

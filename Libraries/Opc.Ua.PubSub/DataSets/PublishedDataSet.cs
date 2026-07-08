@@ -30,8 +30,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.DataSets
 {

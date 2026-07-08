@@ -79,13 +79,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             DateTimeOffset deadline = timeProvider.GetUtcNow() + timeout;
             SnapshotSignature? previous = null;
             int stableSamples = 0;
-            IReadOnlyList<ManagedChannelDiagnostic> lastSnapshot = [];
 
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
                 IReadOnlyList<ManagedChannelDiagnostic> snapshot = manager.GetChannelDiagnostics();
-                lastSnapshot = snapshot;
+                IReadOnlyList<ManagedChannelDiagnostic> lastSnapshot = snapshot;
 
                 if (!HasTransientState(snapshot))
                 {

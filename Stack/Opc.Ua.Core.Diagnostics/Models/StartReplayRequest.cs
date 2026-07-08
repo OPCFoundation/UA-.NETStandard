@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Pcap.Replay;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Replay;
 
 namespace Opc.Ua.Pcap.Models
 {

@@ -93,15 +93,15 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public void Factory_RejectsNullArguments()
         {
             var factory = new MqttClientAdapterFactory();
-            Assert.Throws<ArgumentNullException>(() => ((IMqttClientFactory)factory).CreateAdapter(
+            Assert.Throws<ArgumentNullException>(() => factory.CreateAdapter(
                 null!,
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System));
-            Assert.Throws<ArgumentNullException>(() => ((IMqttClientFactory)factory).CreateAdapter(
+            Assert.Throws<ArgumentNullException>(() => factory.CreateAdapter(
                 new MqttConnectionOptions(),
                 null!,
                 TimeProvider.System));
-            Assert.Throws<ArgumentNullException>(() => ((IMqttClientFactory)factory).CreateAdapter(
+            Assert.Throws<ArgumentNullException>(() => factory.CreateAdapter(
                 new MqttConnectionOptions(),
                 NUnitTelemetryContext.Create(),
                 null!));
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     Endpoint = $"mqtt://127.0.0.1:{port}",
                     ClientId = "AdapterTest"
                 };
-                await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter adapter = factory.CreateAdapter(
                     options,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -178,7 +178,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     Endpoint = $"mqtt://127.0.0.1:{port}",
                     ClientId = "SubUnsubTest"
                 };
-                await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter adapter = factory.CreateAdapter(
                     options,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     Endpoint = $"mqtt://127.0.0.1:{port}",
                     ClientId = "PubMetaTest"
                 };
-                await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter adapter = factory.CreateAdapter(
                     options,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -294,7 +294,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     Endpoint = $"mqtt://127.0.0.1:{port}",
                     ClientId = "DisposeTest"
                 };
-                IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+                IMqttClientAdapter adapter = factory.CreateAdapter(
                     options,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -337,7 +337,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 {
                     Endpoint = $"mqtt://127.0.0.1:{port}"
                 };
-                await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter adapter = factory.CreateAdapter(
                     options,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -360,7 +360,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task ConnectAsync_NullOptions_Throws()
         {
             var factory = new MqttClientAdapterFactory();
-            await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+            await using IMqttClientAdapter adapter = factory.CreateAdapter(
                 new MqttConnectionOptions { Endpoint = "mqtt://127.0.0.1:1883" },
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
@@ -372,7 +372,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task SubscribeAsync_NullTopics_Throws()
         {
             var factory = new MqttClientAdapterFactory();
-            await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+            await using IMqttClientAdapter adapter = factory.CreateAdapter(
                 new MqttConnectionOptions { Endpoint = "mqtt://127.0.0.1:1883" },
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
@@ -384,7 +384,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task UnsubscribeAsync_NullTopics_Throws()
         {
             var factory = new MqttClientAdapterFactory();
-            await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+            await using IMqttClientAdapter adapter = factory.CreateAdapter(
                 new MqttConnectionOptions { Endpoint = "mqtt://127.0.0.1:1883" },
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
@@ -419,7 +419,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     Endpoint = $"mqtt://127.0.0.1:{port}",
                     ClientId = "StateEvents"
                 };
-                await using IMqttClientAdapter adapter = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter adapter = factory.CreateAdapter(
                     options,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -490,11 +490,11 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     ClientId = "Publisher"
                 };
 
-                await using IMqttClientAdapter subscriber = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter subscriber = factory.CreateAdapter(
                     subscriberOptions,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
-                await using IMqttClientAdapter publisher = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter publisher = factory.CreateAdapter(
                     publisherOptions,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -572,11 +572,11 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     ClientId = "PropPublisher"
                 };
 
-                await using IMqttClientAdapter subscriber = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter subscriber = factory.CreateAdapter(
                     subscriberOptions,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
-                await using IMqttClientAdapter publisher = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter publisher = factory.CreateAdapter(
                     publisherOptions,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
@@ -654,11 +654,11 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     ClientId = "EmptyPayloadPub"
                 };
 
-                await using IMqttClientAdapter subscriber = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter subscriber = factory.CreateAdapter(
                     subscriberOptions,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);
-                await using IMqttClientAdapter publisher = ((IMqttClientFactory)factory).CreateAdapter(
+                await using IMqttClientAdapter publisher = factory.CreateAdapter(
                     publisherOptions,
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System);

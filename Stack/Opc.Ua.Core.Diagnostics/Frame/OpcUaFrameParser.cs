@@ -33,8 +33,8 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Capture;
 
 namespace Opc.Ua.Pcap.Frame
 {

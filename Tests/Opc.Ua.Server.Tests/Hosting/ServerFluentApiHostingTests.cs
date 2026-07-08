@@ -577,7 +577,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Throws.ArgumentNullException);
             Assert.That(() => builder.AddHistorian(null!),
                 Throws.ArgumentNullException);
-            Assert.That(() => builder.AddFileSystem((IFileSystemProvider)null!),
+            Assert.That(() => builder.AddFileSystem(null!),
                 Throws.ArgumentNullException);
             Assert.That(() => builder.AddSecretStore(null!),
                 Throws.ArgumentNullException);

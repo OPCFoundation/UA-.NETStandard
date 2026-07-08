@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 Assert.That(replay.IsSuccess, Is.False);
                 Assert.That(
                     replay.Status,
-                    Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                    Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 

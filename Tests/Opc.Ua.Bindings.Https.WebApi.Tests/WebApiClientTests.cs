@@ -502,12 +502,12 @@ namespace Opc.Ua.Client.WebApi
 
                 IServiceResponse? actual = request switch
                 {
-                    ReadRequest r => await client.ReadAsync((ReadRequest)r).ConfigureAwait(false),
-                    WriteRequest r => await client.WriteAsync((WriteRequest)r).ConfigureAwait(false),
-                    BrowseRequest r => await client.BrowseAsync((BrowseRequest)r).ConfigureAwait(false),
-                    CallRequest r => await client.CallAsync((CallRequest)r).ConfigureAwait(false),
-                    GetEndpointsRequest r => await client.GetEndpointsAsync((GetEndpointsRequest)r).ConfigureAwait(false),
-                    CreateSessionRequest r => await client.CreateSessionAsync((CreateSessionRequest)r).ConfigureAwait(false),
+                    ReadRequest r => await client.ReadAsync(r).ConfigureAwait(false),
+                    WriteRequest r => await client.WriteAsync(r).ConfigureAwait(false),
+                    BrowseRequest r => await client.BrowseAsync(r).ConfigureAwait(false),
+                    CallRequest r => await client.CallAsync(r).ConfigureAwait(false),
+                    GetEndpointsRequest r => await client.GetEndpointsAsync(r).ConfigureAwait(false),
+                    CreateSessionRequest r => await client.CreateSessionAsync(r).ConfigureAwait(false),
                     _ => null
                 };
 

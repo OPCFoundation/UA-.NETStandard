@@ -90,7 +90,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(client.NetworkSetId.IsNull, Is.False);
             Assert.That(client.DeviceTopologyId.IsNull, Is.False);
             // All three should be in the DI namespace.
-            ushort diNs = (ushort)session.NamespaceUris
+            ushort diNs = session.NamespaceUris
                 .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
             Assert.That(client.DeviceSetId.NamespaceIndex, Is.EqualTo(diNs));
             Assert.That(client.NetworkSetId.NamespaceIndex, Is.EqualTo(diNs));

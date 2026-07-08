@@ -170,14 +170,14 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                         DataSetWriterId = 1,
                         SequenceNumber = 2,
                         MessageType = PubSubDataSetMessageType.KeyFrame,
-                        Status = (StatusCode)StatusCodes.Good,
+                        Status = StatusCodes.Good,
                         Fields =
                         [
                             new PubSubDissectedField
                             {
                                 Name = "Field",
                                 Value = new Variant("value"),
-                                StatusCode = (StatusCode)StatusCodes.Good,
+                                StatusCode = StatusCodes.Good,
                                 Encoding = PubSubFieldEncoding.Variant
                             }
                         ]

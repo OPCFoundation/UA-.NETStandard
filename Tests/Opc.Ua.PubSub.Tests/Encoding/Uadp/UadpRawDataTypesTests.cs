@@ -255,7 +255,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                             new DataSetField
                             {
                                 Value = (Variant)42,
-                                StatusCode = (StatusCode)StatusCodes.Good,
+                                StatusCode = StatusCodes.Good,
                                 SourceTimestamp = (DateTimeUtc)new DateTime(
                                     2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks
                             }

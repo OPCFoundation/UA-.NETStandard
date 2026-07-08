@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 new DataSetField
                 {
                     Value = new Variant(42),
-                    StatusCode = (StatusCode)StatusCodes.UncertainInitialValue
+                    StatusCode = StatusCodes.UncertainInitialValue
                 }).ConfigureAwait(false);
 
             DataSetField field = ((Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 new DataSetField
                 {
                     Value = new Variant(7.0),
-                    StatusCode = (StatusCode)StatusCodes.Good,
+                    StatusCode = StatusCodes.Good,
                     SourceTimestamp = src,
                     SourcePicoSeconds = 12,
                     ServerTimestamp = srv,

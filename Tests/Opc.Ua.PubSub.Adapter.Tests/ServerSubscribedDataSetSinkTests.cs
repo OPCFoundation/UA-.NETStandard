@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Callback((ArrayOf<WriteValue> writes, CancellationToken ct) =>
                     captured = writes.Count > 0 ? writes[0] : null)
                 .Returns(new ValueTask<ArrayOf<StatusCode>>(
-                    new[] { (StatusCode)StatusCodes.Good }.ToArrayOf()));
+                    new[] { StatusCodes.Good }.ToArrayOf()));
 
             ISubscribedDataSetSink sink = ServerSubscribedDataSetSink.Create(
                 TargetVariables(nodeId), session.Object, AdapterTestHelpers.Telemetry());

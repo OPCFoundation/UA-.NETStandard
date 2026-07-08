@@ -147,7 +147,7 @@ namespace Opc.Ua.Di.Tests
                     }
                 }
             });
-            SetupReadReturns(sessionMock, new DataValue(new Variant((int)42)
+            SetupReadReturns(sessionMock, new DataValue(new Variant(42)
             , StatusCodes.Good));
 
             var client = new SoftwareUpdateClient(

@@ -30,8 +30,8 @@
 using System;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Tests;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Udp.Tests

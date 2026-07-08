@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             AuditOpenSecureChannelEventState auditEvent =
                 (AuditOpenSecureChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
         [Test]
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
             AuditChannelEventState auditEvent = (AuditChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Uncertain));
         }
 
         [Test]

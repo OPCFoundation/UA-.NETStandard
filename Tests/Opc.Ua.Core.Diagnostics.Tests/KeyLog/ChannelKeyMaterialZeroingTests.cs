@@ -29,8 +29,8 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.KeyLog;
 
 namespace Opc.Ua.Pcap.Tests.KeyLog
 {

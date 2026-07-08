@@ -91,13 +91,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             int factoryInvocations = 0;
             await using SharedHostLease lease1 = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
-                (HttpsTransportListener)null!,
+                null!,
                 "/listenerA",
                 acc => { factoryInvocations++; return MakeStubHost(); },
                 kThumbprint).ConfigureAwait(false);
             await using SharedHostLease lease2 = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
-                (HttpsTransportListener)null!,
+                null!,
                 "/listenerB",
                 acc => { factoryInvocations++; return MakeStubHost(); },
                 kThumbprint).ConfigureAwait(false);
@@ -111,14 +111,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var key = NewKey();
             await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
-                (HttpsTransportListener)null!,
+                null!,
                 "/test",
                 acc => MakeStubHost(),
                 kThumbprint).ConfigureAwait(false);
 
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key,
-                    (HttpsTransportListener)null!,
+                    null!,
                     "/test",
                     acc => MakeStubHost(),
                     kOtherThumbprint).ConfigureAwait(false))!;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var key = NewKey();
             SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
-                (HttpsTransportListener)null!,
+                null!,
                 "/test",
                 acc => MakeStubHost(),
                 kThumbprint).ConfigureAwait(false);
@@ -148,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var key = NewKey();
             SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
-                (HttpsTransportListener)null!,
+                null!,
                 "/test",
                 acc => MakeStubHost(),
                 kThumbprint).ConfigureAwait(false);
@@ -161,9 +161,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var key = NewKey();
             Assert.ThrowsAsync<ArgumentNullException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
-                    key, (HttpsTransportListener)null!, "/test", null!, kThumbprint).ConfigureAwait(false));
+                    key, null!, "/test", null!, kThumbprint).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
-                    key, (HttpsTransportListener)null!, "/test", acc => MakeStubHost(), string.Empty).ConfigureAwait(false));
+                    key, null!, "/test", acc => MakeStubHost(), string.Empty).ConfigureAwait(false));
         }
 
         [Test]
@@ -177,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             SharedHostAccessor? captured = null;
             await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
-                (HttpsTransportListener)null!,
+                null!,
                 "/test",
                 acc =>
                 {

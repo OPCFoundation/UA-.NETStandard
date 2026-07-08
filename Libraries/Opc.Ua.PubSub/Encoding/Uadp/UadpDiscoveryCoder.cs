@@ -343,7 +343,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             writer.WriteUInt16Le(message.DataSetWriterId);
             UadpDiscoveryWire.WriteEncodeable(ref writer, message.DataSetMetaData, context);
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            writer.WriteUInt32Le(message.StatusCode.Code);
         }
 
         private static void WriteWriterConfiguration(
@@ -360,7 +360,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             writer.WriteUInt32Le((uint)message.DataSetWriterIds.Count);
             foreach (ushort _ in message.DataSetWriterIds)
             {
-                writer.WriteUInt32Le((uint)message.StatusCode.Code);
+                writer.WriteUInt32Le(message.StatusCode.Code);
             }
         }
 
@@ -374,7 +374,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 UadpDiscoveryWire.WriteEncodeable(ref writer, endpoint, context);
             }
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            writer.WriteUInt32Le(message.StatusCode.Code);
         }
 
         private static UadpDiscoveryResponseMessage ReadMetaData(
@@ -599,7 +599,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             IServiceMessageContext context)
         {
             UadpDiscoveryWire.WriteEncodeable(ref writer, message.Connection, context);
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            writer.WriteUInt32Le(message.StatusCode.Code);
         }
 
         private static UadpDiscoveryResponseMessage ReadConnection(

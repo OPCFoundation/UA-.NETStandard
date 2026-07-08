@@ -92,8 +92,8 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         [TestSpec("6.2.11.1")]
         public void PassesFilter_Int32Type_UsesNumericDeadband()
         {
-            DataSetField prev = new DataSetField { Name = "f", Value = new Variant((int)100) };
-            DataSetField curr = new DataSetField { Name = "f", Value = new Variant((int)105) };
+            DataSetField prev = new DataSetField { Name = "f", Value = new Variant(100) };
+            DataSetField curr = new DataSetField { Name = "f", Value = new Variant(105) };
 
             // Deadband = 10 → |105 - 100| = 5 ≤ 10 → suppress
             bool result = DeadbandFilter.PassesFilter(
@@ -106,8 +106,8 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         [TestSpec("6.2.11.1")]
         public void PassesFilter_UInt32Type_UsesNumericDeadband()
         {
-            DataSetField prev = new DataSetField { Name = "f", Value = new Variant((uint)100u) };
-            DataSetField curr = new DataSetField { Name = "f", Value = new Variant((uint)120u) };
+            DataSetField prev = new DataSetField { Name = "f", Value = new Variant(100u) };
+            DataSetField curr = new DataSetField { Name = "f", Value = new Variant(120u) };
 
             // |120 - 100| = 20 > 10 → pass
             bool result = DeadbandFilter.PassesFilter(
@@ -120,8 +120,8 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         [TestSpec("6.2.11.1")]
         public void PassesFilter_Int64Type_UsesNumericDeadband()
         {
-            DataSetField prev = new DataSetField { Name = "f", Value = new Variant((long)1000L) };
-            DataSetField curr = new DataSetField { Name = "f", Value = new Variant((long)1005L) };
+            DataSetField prev = new DataSetField { Name = "f", Value = new Variant(1000L) };
+            DataSetField curr = new DataSetField { Name = "f", Value = new Variant(1005L) };
 
             bool result = DeadbandFilter.PassesFilter(
                 prev, curr, new DeadbandDescriptor(DeadbandType.Absolute, 10.0, null));
@@ -133,8 +133,8 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         [TestSpec("6.2.11.1")]
         public void PassesFilter_UInt64Type_UsesNumericDeadband()
         {
-            DataSetField prev = new DataSetField { Name = "f", Value = new Variant((ulong)500UL) };
-            DataSetField curr = new DataSetField { Name = "f", Value = new Variant((ulong)520UL) };
+            DataSetField prev = new DataSetField { Name = "f", Value = new Variant(500UL) };
+            DataSetField curr = new DataSetField { Name = "f", Value = new Variant(520UL) };
 
             bool result = DeadbandFilter.PassesFilter(
                 prev, curr, new DeadbandDescriptor(DeadbandType.Absolute, 10.0, null));
@@ -368,7 +368,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             {
                 Name = "f",
                 Value = new Variant(5.0),
-                StatusCode = (StatusCode)StatusCodes.BadNotFound
+                StatusCode = StatusCodes.BadNotFound
             };
 
             bool result = DeadbandFilter.PassesFilter(
@@ -381,7 +381,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         [TestSpec("6.2.11.1")]
         public void PassesFilter_UncertainStatus_WhenSameStatus_UsesDeadbandCheck()
         {
-            StatusCode uncertain = (StatusCode)StatusCodes.UncertainInitialValue;
+            StatusCode uncertain = StatusCodes.UncertainInitialValue;
 
             DataSetField prev = new DataSetField
             {

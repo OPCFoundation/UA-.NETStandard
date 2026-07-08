@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             await builder.ResolveAsync().ConfigureAwait(false);
 
             var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ((IMetaDataChangeNotifier)source).MetaDataChanged += (_, _) => changed.TrySetResult(true);
+            source.MetaDataChanged += (_, _) => changed.TrySetResult(true);
 
             session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
 

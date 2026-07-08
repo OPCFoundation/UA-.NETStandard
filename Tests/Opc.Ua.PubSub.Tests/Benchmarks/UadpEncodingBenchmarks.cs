@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
                 fields[i] = (i % 5) switch
                 {
                     0 => new DataSetField { Value = new Variant((uint)i) },
-                    1 => new DataSetField { Value = new Variant((double)i / 3.0) },
+                    1 => new DataSetField { Value = new Variant(i / 3.0) },
                     2 => new DataSetField { Value = new Variant(i % 2 == 0) },
                     3 => new DataSetField { Value = new Variant((short)i) },
                     _ => new DataSetField { Value = new Variant((long)i) }

@@ -183,10 +183,10 @@ namespace Opc.Ua.Lds.Tests.Hosting
                 });
 
             Assert.That(
-                () => builder.AddRegistrationStore((Func<IServiceProvider, IRegisteredServerStore>)null),
+                () => builder.AddRegistrationStore(null),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddMulticastDiscovery((Func<IServiceProvider, ILdsMulticastDiscoveryFactory>)null),
+                () => builder.AddMulticastDiscovery(null),
                 Throws.ArgumentNullException);
         }
 

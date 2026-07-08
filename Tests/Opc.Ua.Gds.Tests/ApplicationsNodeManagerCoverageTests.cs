@@ -83,7 +83,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_UpdateApplication),
                 [new(new ExtensionObject(record))]).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -101,7 +101,7 @@ namespace Opc.Ua.Gds.Tests
                     ToNodeId(MethodIds.Directory_UpdateApplication),
                     [new(new ExtensionObject(record))]).ConfigureAwait(false);
 
-                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             }
             finally
             {
@@ -116,7 +116,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_GetCertificateGroups),
                 [new(UnknownApplicationId())]).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -126,7 +126,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_GetCertificateGroups),
                 [new(m_registeredAppId)]).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.OutputArguments.Count, Is.EqualTo(1));
 
             var certificateGroupIds = (ArrayOf<NodeId>)result.OutputArguments[0];
@@ -140,7 +140,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_GetTrustList),
                 [new(UnknownApplicationId()), new(NodeId.Null)]).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -150,7 +150,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_GetTrustList),
                 [new(m_registeredAppId), new(NodeId.Null)]).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -161,7 +161,7 @@ namespace Opc.Ua.Gds.Tests
                 [new(UnknownApplicationId()), new(NodeId.Null), new(NodeId.Null)])
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -172,7 +172,7 @@ namespace Opc.Ua.Gds.Tests
                 [new(m_registeredAppId), new(NodeId.Null), new(NodeId.Null)])
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -182,7 +182,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_GetCertificates),
                 [new(UnknownApplicationId()), new(NodeId.Null)]).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -193,7 +193,7 @@ namespace Opc.Ua.Gds.Tests
                 [new(m_registeredAppId), new(UnknownCertificateGroupId())])
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_StartNewKeyPairRequest),
                 NewKeyPairArguments(UnknownApplicationId())).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -213,7 +213,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_StartNewKeyPairRequest),
                 NewKeyPairArguments(m_registeredAppId)).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -223,7 +223,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_StartSigningRequest),
                 SigningRequestArguments(UnknownApplicationId())).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -233,7 +233,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_StartSigningRequest),
                 SigningRequestArguments(m_registeredAppId)).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -243,7 +243,7 @@ namespace Opc.Ua.Gds.Tests
                 ToNodeId(MethodIds.Directory_FinishRequest),
                 [new(UnknownApplicationId()), new(NodeId.Null)]).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -254,7 +254,7 @@ namespace Opc.Ua.Gds.Tests
                 [new(m_registeredAppId), new(UnknownApplicationId())])
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         private static Variant[] NewKeyPairArguments(NodeId applicationId)

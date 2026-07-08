@@ -37,7 +37,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
@@ -47,6 +46,7 @@ using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests.Security;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {

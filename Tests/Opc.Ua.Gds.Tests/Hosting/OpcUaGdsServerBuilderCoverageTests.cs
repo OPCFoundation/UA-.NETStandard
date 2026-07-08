@@ -189,7 +189,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.That(
                 () => builder.AddApplicationsDatabase(
-                    (Func<IServiceProvider, IApplicationsDatabase>)null),
+                    null),
                 Throws.ArgumentNullException);
         }
 
@@ -220,7 +220,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Throws.ArgumentNullException);
             Assert.That(
                 () => builder.AddIdentityAugmenter(
-                    (Func<IServiceProvider, IIdentityAugmenter>)null),
+                    null),
                 Throws.ArgumentNullException);
         }
 
@@ -315,7 +315,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.That(
                 () => OpcUaGdsServerBuilderExtensions.AddDefaultIdentityAuthenticators(
-                    null, (Action<GdsDefaultIdentityAuthenticatorOptions>)(_ => { })),
+                    null, _ => { }),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => builder.AddDefaultIdentityAuthenticators(
@@ -391,7 +391,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 () => OpcUaGdsServerBuilderExtensions.ConfigureRoles(null, configuration),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.ConfigureRoles((IConfiguration)null),
+                () => builder.ConfigureRoles(null),
                 Throws.ArgumentNullException);
         }
 

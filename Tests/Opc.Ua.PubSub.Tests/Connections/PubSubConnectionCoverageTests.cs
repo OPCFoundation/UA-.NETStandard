@@ -504,7 +504,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -548,7 +548,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -603,7 +603,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 ActionTargetId = sentRequest.ActionTargetId,
                 RequestId = sentRequest.RequestId,
                 CorrelationData = sentRequest.CorrelationData,
-                Status = (StatusCode)StatusCodes.BadTimeout,
+                Status = StatusCodes.BadTimeout,
                 ActionState = ActionState.Executing
             });
 
@@ -638,7 +638,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -702,7 +702,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -738,7 +738,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerInvoked = true;
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -824,7 +824,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                         MessageType = "ua-action-response",
                         RequestId = requestId,
                         ActionState = ActionState.Done,
-                        Status = (StatusCode)StatusCodes.GoodClamped
+                        Status = StatusCodes.GoodClamped
                     })
                 ]
             };
@@ -905,7 +905,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static PubSubActionHandlerResult GoodHandlerResult()
         {
-            return new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good };
+            return new PubSubActionHandlerResult { StatusCode = StatusCodes.Good };
         }
 
         private static ValueTask<PubSubActionHandlerResult> GoodHandler(

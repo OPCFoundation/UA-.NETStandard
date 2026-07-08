@@ -34,8 +34,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
-using Opc.Ua.Bindings.WebApi.Authentication;
 using Opc.Ua.Bindings.WebApi;
+using Opc.Ua.Bindings.WebApi.Authentication;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {

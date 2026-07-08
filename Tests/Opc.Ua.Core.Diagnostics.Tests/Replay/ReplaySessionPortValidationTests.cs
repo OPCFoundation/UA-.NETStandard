@@ -30,8 +30,8 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Pcap.Replay;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Replay;
 
 namespace Opc.Ua.Pcap.Tests.Replay
 {

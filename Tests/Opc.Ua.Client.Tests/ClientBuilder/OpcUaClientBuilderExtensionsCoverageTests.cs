@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddReverseConnectClient(
-                    (IOpcUaBuilder)null!,
+                    null!,
                     _ => { },
                     new Uri("urn:test")),
                 Throws.ArgumentNullException);

@@ -57,7 +57,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         {
             var inner = new Mock<IKubernetesPeerDiscovery>();
             inner.Setup(d => d.RefreshAsync(It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ArrayOf<string>>((ArrayOf<string>)["urn:a", "urn:b"]));
+                .Returns(new ValueTask<ArrayOf<string>>(["urn:a", "urn:b"]));
 
             var adapter = new KubernetesPeerDiscoveryAdapter(inner.Object);
 

@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
                 .Callback<ArrayOf<WriteValue>, CancellationToken>((nodes, _) => captured = nodes)
                 .Returns(new ValueTask<ArrayOf<StatusCode>>([
-                    (StatusCode)StatusCodes.Good
+                    StatusCodes.Good
                 ]));
             var writer = new ServerTargetVariableWriter(session.Object, AdapterTestHelpers.Telemetry());
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     capturedMethodId = methodId;
                 })
                 .Returns(new ValueTask<RemoteCallResult>(
-                    new RemoteCallResult((StatusCode)StatusCodes.Good, [])));
+                    new RemoteCallResult(StatusCodes.Good, [])));
             var map = new ActionMethodMap().Add(
                 "Reset",
                 objectBrowsePath,

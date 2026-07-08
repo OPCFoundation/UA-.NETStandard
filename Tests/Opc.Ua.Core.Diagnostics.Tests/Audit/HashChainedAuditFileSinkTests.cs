@@ -36,8 +36,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Pcap.Audit;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Audit;
 
 namespace Opc.Ua.Pcap.Tests.Audit
 {

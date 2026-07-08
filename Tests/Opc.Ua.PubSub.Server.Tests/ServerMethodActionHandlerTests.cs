@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(result.OutputFields, Has.Count.EqualTo(2));
                 Assert.That(result.OutputFields[0].Name, Is.EqualTo("OutputArgument0"));
                 Assert.That(result.OutputFields[0].Value.TryGetValue(out int answer), Is.True);
@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(registeredTarget.DataSetWriterId, Is.EqualTo(22));
                 Assert.That(registeredTarget.ActionTargetId, Is.EqualTo(4));
                 Assert.That(registeredTarget.ActionName, Is.EqualTo("CallDemo"));
-                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(result.OutputFields, Has.Count.EqualTo(1));
                 Assert.That(result.OutputFields[0].Value.TryGetValue(out string? value), Is.True);
                 Assert.That(value, Is.EqualTo("method-output"));

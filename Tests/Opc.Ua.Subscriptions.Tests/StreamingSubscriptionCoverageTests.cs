@@ -98,7 +98,7 @@ namespace Opc.Ua.Subscriptions.Tests
             var subscription = new StreamingSubscription(manager);
 
             ArgumentNullException? ex = Assert.Throws<ArgumentNullException>(
-                () => _ = subscription.SubscribeDataChangesAsync((IReadOnlyList<NodeId>)null!));
+                () => _ = subscription.SubscribeDataChangesAsync(null!));
             Assert.That(ex!.ParamName, Is.EqualTo("nodeIds"));
         }
 

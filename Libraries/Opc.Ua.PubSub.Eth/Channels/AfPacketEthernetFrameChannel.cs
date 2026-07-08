@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 // the descriptor (and let the OS reuse it) mid-send, which
                 // would send on an unrelated fd (fd-reuse race, ETH-SEC-03).
                 nint sent = NativeMethods.sendto(
-                    m_socket, buffer, (nint)buffer.Length, 0, destination, destination.Length);
+                    m_socket, buffer, buffer.Length, 0, destination, destination.Length);
                 if (sent < 0)
                 {
                     throw new InvalidOperationException(
@@ -285,7 +285,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             while (!cancellationToken.IsCancellationRequested)
             {
                 nint received = NativeMethods.recvfrom(
-                    fd, buffer, (nint)buffer.Length, 0, IntPtr.Zero, IntPtr.Zero);
+                    fd, buffer, buffer.Length, 0, IntPtr.Zero, IntPtr.Zero);
                 if (received <= 0)
                 {
                     // Socket closed or interrupted: terminate the loop.
@@ -357,7 +357,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             byte[] mac = macAddress is { Length: EthernetFrameCodec.MacAddressLength }
                 ? macAddress
                 : ExtractDestinationMac(macAddress);
-            address[11] = (byte)EthernetFrameCodec.MacAddressLength;
+            address[11] = EthernetFrameCodec.MacAddressLength;
             Array.Copy(mac, 0, address, 12, EthernetFrameCodec.MacAddressLength);
             return address;
         }

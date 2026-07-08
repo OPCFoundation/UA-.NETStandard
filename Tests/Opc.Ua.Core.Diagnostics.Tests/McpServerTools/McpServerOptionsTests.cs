@@ -36,8 +36,8 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.DependencyInjection;
 
 namespace Opc.Ua.Pcap.Tests.McpServerTools
 {

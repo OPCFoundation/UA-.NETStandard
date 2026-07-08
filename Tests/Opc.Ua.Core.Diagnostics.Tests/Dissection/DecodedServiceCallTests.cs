@@ -30,8 +30,8 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Pcap.Dissection;
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Dissection;
 
 namespace Opc.Ua.Pcap.Tests.Dissection
 {

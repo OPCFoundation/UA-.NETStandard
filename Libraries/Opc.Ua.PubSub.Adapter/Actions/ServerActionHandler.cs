@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Adapter.Actions
                     invocation.Target.ActionName);
                 return new PubSubActionHandlerResult
                 {
-                    StatusCode = (StatusCode)StatusCodes.BadNodeIdUnknown
+                    StatusCode = StatusCodes.BadNodeIdUnknown
                 };
             }
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Adapter.Actions
                     invocation.Target.ActionTargetId);
                 return new PubSubActionHandlerResult
                 {
-                    StatusCode = (StatusCode)StatusCodes.BadUnexpectedError
+                    StatusCode = StatusCodes.BadUnexpectedError
                 };
             }
         }

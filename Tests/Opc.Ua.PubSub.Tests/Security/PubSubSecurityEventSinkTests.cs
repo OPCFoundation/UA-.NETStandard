@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.Multiple(() =>
             {
                 Assert.That(((byte[][]?)response.Keys) ?? [], Has.Length.EqualTo(1));
-                Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(events, Has.Count.EqualTo(2));
                 Assert.That(events[0].Kind, Is.EqualTo(PubSubSecurityEventKind.SksKeysIssued));
                 Assert.That(events[0].Outcome, Is.EqualTo(PubSubSecurityEventOutcome.Success));

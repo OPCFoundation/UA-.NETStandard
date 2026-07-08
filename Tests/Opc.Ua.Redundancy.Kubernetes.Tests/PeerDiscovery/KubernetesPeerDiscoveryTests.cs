@@ -180,7 +180,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         public void PublicConstructorRejectsNullOptions()
         {
             Assert.That(
-                () => new KubernetesPeerDiscovery((KubernetesPeerDiscoveryOptions)null!),
+                () => new KubernetesPeerDiscovery(null!),
                 Throws.ArgumentNullException);
         }
 

@@ -36,12 +36,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
+using Opc.Ua.Client;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.Dissection;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Pcap.Replay
 {

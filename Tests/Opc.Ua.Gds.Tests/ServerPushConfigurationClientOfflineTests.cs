@@ -357,14 +357,14 @@ namespace Opc.Ua.Gds.Tests
             using var client = CreateClient();
             AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null).AsTask());
             AssertThrowsEndpointNull(() => client.ReadTrustListAsync().AsTask());
-            AssertThrowsEndpointNull(() => client.UpdateTrustListAsync((TrustListDataType)null!).AsTask());
+            AssertThrowsEndpointNull(() => client.UpdateTrustListAsync(null!).AsTask());
             AssertThrowsEndpointNull(
-                () => client.UpdateTrustListAsync((TrustListDataType)null!, 0L).AsTask());
+                () => client.UpdateTrustListAsync(null!, 0L).AsTask());
             AssertThrowsEndpointNull(
-                () => client.UpdateTrustListAsync(NodeId.Null, (TrustListDataType)null!, 0L).AsTask());
-            AssertThrowsEndpointNull(() => client.AddCertificateAsync((Certificate)null!, false).AsTask());
+                () => client.UpdateTrustListAsync(NodeId.Null, null!, 0L).AsTask());
+            AssertThrowsEndpointNull(() => client.AddCertificateAsync(null!, false).AsTask());
             AssertThrowsEndpointNull(
-                () => client.AddCertificateAsync(NodeId.Null, (Certificate)null!, false).AsTask());
+                () => client.AddCertificateAsync(NodeId.Null, null!, false).AsTask());
             AssertThrowsEndpointNull(() => client.RemoveCertificateAsync(string.Empty, false).AsTask());
             AssertThrowsEndpointNull(
                 () => client.RemoveCertificateAsync(NodeId.Null, string.Empty, false).AsTask());

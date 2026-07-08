@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values.Count, Is.EqualTo(1));
-            Assert.That(values[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainInitialValue));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
         }
 
         [Test]
@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             ];
             ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
-            Assert.That(values[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(42)));
         }
 
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
             Assert.That(
                 values[0].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.UncertainInitialValue));
+                Is.EqualTo(StatusCodes.UncertainInitialValue));
         }
 
         [Test]
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
             Assert.That(
                 values[0].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.UncertainInitialValue));
+                Is.EqualTo(StatusCodes.UncertainInitialValue));
         }
 
         [Test]

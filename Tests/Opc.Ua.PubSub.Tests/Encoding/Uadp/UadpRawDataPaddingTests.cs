@@ -29,12 +29,12 @@
  * ======================================================================*/
 
 using System;
-using SysText = System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
+using SysText = System.Text;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             byte[] buffer = [0];
             var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
-            uint[] dimensions = [(uint)int.MaxValue];
+            uint[] dimensions = [int.MaxValue];
             var arrayDimensions = new ArrayOf<uint>(dimensions);
 
             Assert.That(
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             byte[] buffer = [0];
             var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
-            uint[] dimensions = [(uint)int.MaxValue];
+            uint[] dimensions = [int.MaxValue];
             var arrayDimensions = new ArrayOf<uint>(dimensions);
 
             Assert.That(

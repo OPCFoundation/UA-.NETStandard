@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
                 .Callback<ArrayOf<WriteValue>, CancellationToken>((w, _) => captured = w)
                 .Returns(new ValueTask<ArrayOf<StatusCode>>(
-                    new[] { (StatusCode)StatusCodes.Good }.ToArrayOf()));
+                    new[] { StatusCodes.Good }.ToArrayOf()));
             var writer = new ServerTargetVariableWriter(
                 session.Object, AdapterTestHelpers.Telemetry());
 
@@ -146,7 +146,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Setup(s => s.WriteAsync(
                     It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ArrayOf<StatusCode>>(
-                    new[] { (StatusCode)StatusCodes.Good }.ToArrayOf()));
+                    new[] { StatusCodes.Good }.ToArrayOf()));
             var writer = new ServerTargetVariableWriter(
                 session.Object, AdapterTestHelpers.Telemetry());
 

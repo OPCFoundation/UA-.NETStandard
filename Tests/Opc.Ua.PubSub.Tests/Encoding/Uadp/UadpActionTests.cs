@@ -31,8 +31,8 @@ using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Encoding.Uadp;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 {

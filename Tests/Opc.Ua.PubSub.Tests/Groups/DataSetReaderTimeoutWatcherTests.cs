@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
             Assert.Multiple(() =>
             {
                 Assert.That(reader.State.State, Is.EqualTo(PubSubState.Error));
-                Assert.That(reader.State.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
+                Assert.That(reader.State.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
                 Assert.That(
                     diagnostics.Read(PubSubDiagnosticsCounterKind.MessageReceiveTimeouts),
                     Is.EqualTo(1L));

@@ -264,7 +264,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Codec
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
 
             Assert.That(
-                () => WebApiBodyCodec.EncodeBody(request, (IBufferWriter<byte>)null!, m_context),
+                () => WebApiBodyCodec.EncodeBody(request, null!, m_context),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("destination"));
         }
 
@@ -329,7 +329,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Codec
         public void DecodeBodyFromByteArrayThrowsForNullPayload()
         {
             Assert.That(
-                () => WebApiBodyCodec.DecodeBody<ReadRequest>((byte[])null!, m_context),
+                () => WebApiBodyCodec.DecodeBody<ReadRequest>(null!, m_context),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("payload"));
         }
 
@@ -422,7 +422,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Codec
         public void NonGenericDecodeBodyThrowsForNullPayload()
         {
             Assert.That(
-                () => WebApiBodyCodec.DecodeBody(typeof(ReadRequest), (byte[])null!, m_context),
+                () => WebApiBodyCodec.DecodeBody(typeof(ReadRequest), null!, m_context),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("payload"));
         }
 

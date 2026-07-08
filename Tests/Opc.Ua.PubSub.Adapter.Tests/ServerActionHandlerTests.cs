@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Callback<NodeId, NodeId, ArrayOf<Variant>, CancellationToken>(
                     (_, _, args, _) => capturedArgs = args)
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     new[] { new Variant(3.5f) }.ToArrayOf())));
 
             string[] outputNames = ["Sum"];
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<NodeId>(), It.IsAny<NodeId>(),
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     new[] { new Variant(10), new Variant(20) }.ToArrayOf())));
 
             var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
@@ -199,7 +199,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     objectId, methodId,
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.Good, ArrayOf<Variant>.Empty)));
+                    StatusCodes.Good, ArrayOf<Variant>.Empty)));
 
             var map = new ActionMethodMap().Add("Reset", objectId, methodId);
             var handler = new ServerActionHandler(
@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<NodeId>(), It.IsAny<NodeId>(),
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.BadArgumentsMissing, ArrayOf<Variant>.Empty)));
+                    StatusCodes.BadArgumentsMissing, ArrayOf<Variant>.Empty)));
 
             var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(

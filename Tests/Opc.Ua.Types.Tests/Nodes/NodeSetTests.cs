@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void AddNullNodeThrowsArgumentNullException()
         {
             var set = new NodeSet();
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => set.Add((Node)null!));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => set.Add(null!));
             Assert.That(ex.ParamName, Is.EqualTo("node"));
         }
 

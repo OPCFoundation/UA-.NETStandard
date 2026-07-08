@@ -2710,7 +2710,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.InstanceNodeIdOverride,
                 NodeStateTemplates.InstanceNodeIdOverride,
                 singletonChildren.Count > 0
-                    ? (IReadOnlyList<object>)[singletonChildren]
+                    ? [singletonChildren]
                     : [],
                 WriteTemplate_InstanceNodeIdOverride);
         }

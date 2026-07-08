@@ -858,7 +858,7 @@ namespace Opc.Ua.Server
 
             // update server capabilities.
             ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
-            serverObject.ServiceLevel!.Value = (byte)255;
+            serverObject.ServiceLevel!.Value = 255;
             serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
             serverCapabilities.ServerProfileArray!.Value =

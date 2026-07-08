@@ -41,15 +41,14 @@ using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua.Pcap.Capture;
-using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Frame;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Pcap;
 using Opc.Ua.PubSub.Pcap.KeyLog;
 using Opc.Ua.PubSub.Transports;
-
 using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools

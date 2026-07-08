@@ -29,9 +29,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Models;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Formats
 {

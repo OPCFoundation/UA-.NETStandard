@@ -38,8 +38,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings.WebApi.Endpoints;
 using Opc.Ua.Bindings.WebApi;
+using Opc.Ua.Bindings.WebApi.Endpoints;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
 {

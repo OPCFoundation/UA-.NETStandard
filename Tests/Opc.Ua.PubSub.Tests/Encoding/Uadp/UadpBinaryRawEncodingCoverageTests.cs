@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
     public sealed class UadpBinaryRawEncodingCoverageTests
     {
         private static readonly ServiceMessageContext s_context =
-            (ServiceMessageContext)ServiceMessageContext.CreateEmpty(null!);
+            ServiceMessageContext.CreateEmpty(null!);
         private static readonly bool[] s_boolValues = [true, false];
         private static readonly sbyte[] s_sbyteValues = [-1, 2];
         private static readonly byte[] s_byteValues = [1, 2];
@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         private static readonly string[] s_expectedStrings = ["a", "b"];
         private static readonly Variant[] s_variantValues = [new Variant(1), new Variant("two")];
         private static readonly int[] s_overflowValues = [1, 2];
-        private static readonly uint[] s_overflowDimensions = [(uint)int.MaxValue, 2u];
+        private static readonly uint[] s_overflowDimensions = [int.MaxValue, 2u];
 
         private static IEnumerable<TestCaseData> ScalarCases()
         {
