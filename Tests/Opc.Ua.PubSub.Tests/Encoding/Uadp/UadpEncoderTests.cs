@@ -397,7 +397,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     DataSetWriterId = 1,
                     FieldEncoding = PubSubFieldEncoding.Variant,
                     MessageType = PubSubDataSetMessageType.DeltaFrame,
-                    Fields = [ new DataSetField { FieldIndex = 7, Value = new Variant(42) } ]
+                    Fields = [new DataSetField { FieldIndex = 7, Value = new Variant(42) }]
                 }).ConfigureAwait(false);
 
             Assert.That(decoded.MessageType, Is.EqualTo(PubSubDataSetMessageType.DeltaFrame));
@@ -538,7 +538,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 DataSetWriterId = 1,
                 FieldEncoding = PubSubFieldEncoding.Variant,
                 ConfiguredSize = 128,
-                Fields = [ new DataSetField { Value = new Variant(1) } ]
+                Fields = [new DataSetField { Value = new Variant(1) }]
             };
 
             // Padding only changes encoded length; sanity check via raw encode.
@@ -546,7 +546,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             {
                 ContentMask = UadpNetworkMessageContentMask.PublisherId,
                 PublisherId = PublisherId.FromByte(0),
-                DataSetMessages = [ dataSetMessage ]
+                DataSetMessages = [dataSetMessage]
             };
             var encoder = new UadpEncoder();
             PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
@@ -578,7 +578,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             {
                 ContentMask = UadpNetworkMessageContentMask.PublisherId,
                 PublisherId = PublisherId.FromByte(1),
-                DataSetMessages = [ ds ]
+                DataSetMessages = [ds]
             };
             UadpNetworkMessage decoded = await RoundTripAsync(msg).ConfigureAwait(false);
             return (UadpDataSetMessage)decoded.DataSetMessages[0];

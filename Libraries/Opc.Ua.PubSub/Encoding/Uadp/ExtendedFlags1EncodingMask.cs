@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// UInt16=1, UInt32=2, UInt64=3, String=4. Value 5 is reserved.
     /// </remarks>
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 158 uses both single-bit flags AND a
-                               // bitmask helper (PublisherIdTypeMask = 0x07); [Flags] reflects the spec semantics.
+    // bitmask helper (PublisherIdTypeMask = 0x07); [Flags] reflects the spec semantics.
     [Flags]
     public enum ExtendedFlags1EncodingMask : byte
     {

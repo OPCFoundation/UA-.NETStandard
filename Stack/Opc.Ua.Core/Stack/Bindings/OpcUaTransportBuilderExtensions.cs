@@ -114,10 +114,10 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IOpcUaBuilder AddCustomTransport<
             [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
                 System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]
-            TListenerFactory,
+        TListenerFactory,
             [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
                 System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]
-            TChannelFactory>(
+        TChannelFactory>(
             this IOpcUaBuilder builder)
             where TListenerFactory : class, ITransportListenerFactory
             where TChannelFactory : class, ITransportChannelFactory

@@ -449,10 +449,18 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             public void Dispose()
             {
-                try { m_inputPipe.Writer.Complete(); } catch { }
-                try { m_inputPipe.Reader.Complete(); } catch { }
-                try { m_outputPipe.Writer.Complete(); } catch { }
-                try { m_outputPipe.Reader.Complete(); } catch { }
+                try
+                { m_inputPipe.Writer.Complete(); }
+                catch { }
+                try
+                { m_inputPipe.Reader.Complete(); }
+                catch { }
+                try
+                { m_outputPipe.Writer.Complete(); }
+                catch { }
+                try
+                { m_outputPipe.Reader.Complete(); }
+                catch { }
             }
         }
 

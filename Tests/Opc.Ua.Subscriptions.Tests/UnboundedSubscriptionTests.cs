@@ -178,9 +178,11 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
+                try
+                { await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
                 catch { /* best effort */ }
-                try { await session.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await session.DisposeAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
             }
         }
@@ -259,9 +261,11 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
+                try
+                { await session.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
                 catch { /* best effort */ }
-                try { await session.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await session.DisposeAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
             }
         }
@@ -329,9 +333,11 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await originSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
+                try
+                { await originSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
                 catch { /* best effort */ }
-                try { await originSession.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await originSession.DisposeAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
             }
 
@@ -374,9 +380,11 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
-                try { await targetSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
+                try
+                { await targetSession.CloseAsync(ct: CancellationToken.None).ConfigureAwait(false); }
                 catch { /* best effort */ }
-                try { await targetSession.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await targetSession.DisposeAsync().ConfigureAwait(false); }
                 catch { /* best effort */ }
             }
         }

@@ -1132,9 +1132,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             return ex switch
             {
                 NotSupportedException => StatusCodes.BadNotSupported,
-                ArgumentException     => StatusCodes.BadInvalidArgument,
-                IOException           => StatusCodes.BadResourceUnavailable,
-                _                     => StatusCodes.BadInternalError
+                ArgumentException => StatusCodes.BadInvalidArgument,
+                IOException => StatusCodes.BadResourceUnavailable,
+                _ => StatusCodes.BadInternalError
             };
         }
 

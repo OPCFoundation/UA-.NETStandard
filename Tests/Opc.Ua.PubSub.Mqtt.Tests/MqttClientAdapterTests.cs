@@ -111,7 +111,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task Factory_CreateAdapter_ProducesUsableAdapter()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -155,7 +156,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task SubscribeUnsubscribeRoundTrip_Succeeds()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -217,7 +219,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task PublishMessageWithContentTypeAndResponseTopic_Succeeds()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -269,7 +272,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task DisposeAsync_IsIdempotent_OnConnectedAdapter()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -312,7 +316,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task PublishWithoutTopic_Throws()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -391,7 +396,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task ConnectAndDisconnect_RaiseConnectionStateChangedEventsAsync()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -455,7 +461,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task IncomingMessage_WithPayloadContentTypeAndResponseTopic_RaisesEventAsync()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -536,7 +543,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task Publish_WithUserProperties_DeliversMessageAsync()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");
@@ -617,7 +625,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task IncomingMessage_EmptyPayload_RaisesEmptyBufferAsync()
         {
             int port;
-            try { port = ReserveEphemeralTcpPort(); }
+            try
+            { port = ReserveEphemeralTcpPort(); }
             catch (SocketException ex)
             {
                 Assert.Ignore($"Loopback TCP socket bind failed: {ex.Message}");

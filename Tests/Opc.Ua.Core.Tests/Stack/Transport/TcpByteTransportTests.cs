@@ -280,7 +280,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             public void Dispose()
             {
-                try { m_listener?.Stop(); } catch { }
+                try
+                { m_listener?.Stop(); }
+                catch { }
             }
         }
     }

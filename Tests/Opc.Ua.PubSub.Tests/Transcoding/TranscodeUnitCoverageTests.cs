@@ -212,7 +212,8 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             var classId = new Uuid(Guid.NewGuid());
             UadpNetworkMessageV2 uadp = NewUadpMessage(
                 PublisherId.FromByte(1), 10, 100, Field("v", new Variant(1)))
-                with { DataSetClassId = classId };
+                with
+            { DataSetClassId = classId };
 
             PubSubNetworkMessage projected = NetworkMessageProfileProjector.Instance.Project(
                 uadp, TranscodeEncoding.Json, TranscodeTargetOptions.Default, context);
