@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Groups
             m_dataSetReaders = readers.ToArrayOf<DataSetReader, IDataSetReader>(static reader => reader);
             Name = configuration.Name ?? string.Empty;
             ConfigureActivationCoordinator(
-                componentId ?? string.Concat("pubsub:readergroup:", Name),
+                componentId ?? $"pubsub:readergroup:{Name}",
                 activationCoordinator);
             m_telemetry = telemetry;
             m_scheduler = scheduler;
@@ -225,7 +225,6 @@ namespace Opc.Ua.PubSub.Groups
                 await m_timeoutWatcher.StartAsync(cancellationToken).ConfigureAwait(false);
             }
         }
-
 
         internal void ConfigureActivationCoordinator(
             string componentId,

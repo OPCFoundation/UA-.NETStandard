@@ -207,7 +207,7 @@ namespace Opc.Ua.Redundancy.Client
                     NodeId = options.NodeId,
                     Mode = options.Mode,
                     CreateSessionAsync = options.CreateSessionAsync,
-                    ConfigureLeaderAsync = options.ConfigureLeaderAsync,
+                    ConfigureLeaderAsync = options.ConfigureLeaderAsync
                 };
 
                 var coordinator = new ClientReplicaCoordinator(

@@ -444,11 +444,11 @@ namespace Opc.Ua.PubSub.Kafka
             ushort writerGroupId,
             ushort dataSetWriterId)
         {
-            if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer)
-                && writer is not null
-                && TryReadBrokerWriterSettings(
-                    writer.TransportSettings, out _, out string? metadataQueue)
-                && !string.IsNullOrEmpty(metadataQueue))
+            if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer) &&
+                writer is not null &&
+                TryReadBrokerWriterSettings(
+                    writer.TransportSettings, out _, out string? metadataQueue) &&
+                !string.IsNullOrEmpty(metadataQueue))
             {
                 return metadataQueue;
             }
@@ -470,16 +470,16 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 throw new ArgumentNullException(nameof(writerGroup));
             }
-            if (dataSetWriterId.HasValue
-                && TryFindWriter(writerGroup.WriterGroupId, dataSetWriterId.Value, out DataSetWriterDataType? writer)
-                && writer is not null
-                && TryReadBrokerWriterSettings(writer.TransportSettings, out string? queue, out _)
-                && !string.IsNullOrEmpty(queue))
+            if (dataSetWriterId.HasValue &&
+                TryFindWriter(writerGroup.WriterGroupId, dataSetWriterId.Value, out DataSetWriterDataType? writer) &&
+                writer is not null &&
+                TryReadBrokerWriterSettings(writer.TransportSettings, out string? queue, out _) &&
+                !string.IsNullOrEmpty(queue))
             {
                 return queue;
             }
-            if (TryReadBrokerGroupSettings(writerGroup.TransportSettings, out string? groupQueue)
-                && !string.IsNullOrEmpty(groupQueue))
+            if (TryReadBrokerGroupSettings(writerGroup.TransportSettings, out string? groupQueue) &&
+                !string.IsNullOrEmpty(groupQueue))
             {
                 return groupQueue;
             }
@@ -716,10 +716,10 @@ namespace Opc.Ua.PubSub.Kafka
             var builder = new StringBuilder(segment.Length);
             foreach (char c in segment)
             {
-                bool allowed = (c >= 'a' && c <= 'z')
-                    || (c >= 'A' && c <= 'Z')
-                    || (c >= '0' && c <= '9')
-                    || c is '_' or '-';
+                bool allowed = (c >= 'a' && c <= 'z') ||
+                    (c >= 'A' && c <= 'Z') ||
+                    (c >= '0' && c <= '9') ||
+                    c is '_' or '-';
                 builder.Append(allowed ? c : '_');
             }
             return builder.ToString();
@@ -739,7 +739,7 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 return System.Text.Encoding.UTF8.GetBytes(connection.Name);
             }
-            return Array.Empty<byte>();
+            return [];
         }
 
         private static void ValidateTopic(string topic)

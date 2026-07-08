@@ -411,4 +411,3 @@ namespace Opc.Ua.Client.Subscriptions
         }
     }
 }
-

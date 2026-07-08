@@ -140,7 +140,6 @@ namespace Microsoft.Extensions.DependencyInjection
             return CreateUdpTransportBuilder(builder);
         }
 
-
         /// <summary>
         /// Registers DTLS 1.3 support for <c>opc.dtls://</c> unicast PubSub endpoints.
         /// </summary>

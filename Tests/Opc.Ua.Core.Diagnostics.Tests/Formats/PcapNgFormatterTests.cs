@@ -36,7 +36,6 @@ using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.Models;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Formats
@@ -74,7 +73,7 @@ namespace Opc.Ua.Pcap.Tests.Formats
             ];
             await using var source = new InMemoryCaptureSource(
                 frames,
-                supportedFormats: new[] { FormatKind.PcapNg });
+                supportedFormats: [FormatKind.PcapNg]);
             var formatter = new PcapNgFormatter();
 
             FormatResult result = await formatter.FormatAsync(source, maxFrames: null, CancellationToken.None)
@@ -107,7 +106,7 @@ namespace Opc.Ua.Pcap.Tests.Formats
             ];
             await using var source = new InMemoryCaptureSource(
                 frames,
-                supportedFormats: new[] { FormatKind.PcapNg });
+                supportedFormats: [FormatKind.PcapNg]);
             var formatter = new PcapNgFormatter();
 
             FormatResult result = await formatter.FormatAsync(source, maxFrames: 2, CancellationToken.None)
@@ -123,7 +122,7 @@ namespace Opc.Ua.Pcap.Tests.Formats
             // No pcap file path and PcapNg not in SupportedFormats — must throw.
             using var source = new InMemoryCaptureSource(
                 pcapFilePath: null,
-                supportedFormats: new[] { FormatKind.Json });
+                supportedFormats: [FormatKind.Json]);
 
             Assert.That(
                 async () => await formatter.FormatAsync(source, maxFrames: null, CancellationToken.None)

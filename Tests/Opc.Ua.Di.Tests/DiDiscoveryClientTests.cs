@@ -118,7 +118,7 @@ namespace Opc.Ua.Di.Tests
             // a non-device. Subsequent browses (recursion into the
             // non-device) return empty.
             SetupBrowseSequential(sessionMock,
-                first: new[] { deviceRef, nonDeviceRef },
+                first: [deviceRef, nonDeviceRef],
                 rest: Array.Empty<ReferenceDescription>());
 
             // Stub the DeviceClass property lookup so it returns
@@ -144,7 +144,7 @@ namespace Opc.Ua.Di.Tests
                 new ExpandedNodeId("FolderType", 2));
 
             SetupBrowseSequential(sessionMock,
-                first: new[] { nonDeviceRef },
+                first: [nonDeviceRef],
                 rest: Array.Empty<ReferenceDescription>());
 
             List<DeviceEntry> result = await ToListAsync(

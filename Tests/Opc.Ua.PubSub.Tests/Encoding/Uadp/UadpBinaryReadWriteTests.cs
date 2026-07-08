@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             writer.WriteString("hello");
             writer.WriteString(null);
             writer.WriteGuid(new Guid("12345678-90AB-CDEF-1234-567890ABCDEF"));
-            writer.WriteBytes(new byte[] { 1, 2, 3, 4 });
+            writer.WriteBytes([1, 2, 3, 4]);
 
             var reader = new UadpBinaryReader(buffer, 0, writer.Position);
 

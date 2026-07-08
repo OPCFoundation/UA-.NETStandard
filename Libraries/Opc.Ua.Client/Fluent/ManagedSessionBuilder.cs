@@ -280,7 +280,6 @@ namespace Opc.Ua.Client
             return this;
         }
 
-
         /// <summary>
         /// Use reverse connect for the configured endpoint.
         /// </summary>
@@ -805,7 +804,6 @@ namespace Opc.Ua.Client
 
             return session;
         }
-
 
         private void ApplyReverseConnectEndpoint()
         {

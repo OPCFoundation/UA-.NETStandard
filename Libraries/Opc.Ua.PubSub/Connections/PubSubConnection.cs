@@ -335,8 +335,8 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubTransport transport,
             CancellationToken cancellationToken)
         {
-            if (transport is not IPubSubLastWillConfigurator willConfigurator
-                || transport is not IPubSubTopicProvider topicProvider)
+            if (transport is not IPubSubLastWillConfigurator willConfigurator ||
+                transport is not IPubSubTopicProvider topicProvider)
             {
                 return;
             }
@@ -374,8 +374,8 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask StartPeriodicDiscoveryAnnouncementsAsync(CancellationToken cancellationToken)
         {
             IPubSubTransport? transport = CurrentTransport;
-            if (transport is not IPubSubDiscoveryAnnouncementTransport announcementTransport
-                || announcementTransport.DiscoveryAnnounceRate == 0)
+            if (transport is not IPubSubDiscoveryAnnouncementTransport announcementTransport ||
+                announcementTransport.DiscoveryAnnounceRate == 0)
             {
                 return;
             }
@@ -489,12 +489,12 @@ namespace Opc.Ua.PubSub.Connections
 
         private static string BuildWriterGroupComponentId(string connectionName, string groupName)
         {
-            return string.Concat("pubsub:writergroup:", connectionName, ":", groupName);
+            return $"pubsub:writergroup:{connectionName}:{groupName}";
         }
 
         private static string BuildReaderGroupComponentId(string connectionName, string groupName)
         {
-            return string.Concat("pubsub:readergroup:", connectionName, ":", groupName);
+            return $"pubsub:readergroup:{connectionName}:{groupName}";
         }
 
         /// <inheritdoc/>
@@ -605,7 +605,7 @@ namespace Opc.Ua.PubSub.Connections
 
             var collector = new PubSubDiscoveryCollector(request);
             RegisterDiscoveryCollector(collector);
-            using CancellationTokenSource probeCts =
+            using var probeCts =
                 CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             Task? probeTask = null;
             try
@@ -656,9 +656,9 @@ namespace Opc.Ua.PubSub.Connections
             TimeSpan timeout,
             CancellationToken cancellationToken)
         {
-            TimeSpan initialDelay = TimeSpan.FromMilliseconds(NextJitterMilliseconds(100, 501));
+            var initialDelay = TimeSpan.FromMilliseconds(NextJitterMilliseconds(100, 501));
             await Task.Delay(initialDelay, cancellationToken).ConfigureAwait(false);
-            TimeSpan backoff = TimeSpan.FromMilliseconds(500);
+            var backoff = TimeSpan.FromMilliseconds(500);
             long start = m_timeProvider.GetTimestamp();
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -687,7 +687,7 @@ namespace Opc.Ua.PubSub.Connections
             byte[] buffer = new byte[4];
             uint limit = uint.MaxValue - (uint.MaxValue % range);
             uint value;
-            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            using (var rng = RandomNumberGenerator.Create())
             {
                 do
                 {
@@ -967,8 +967,8 @@ namespace Opc.Ua.PubSub.Connections
                                 out securityEnabled,
                                 out bool reassembledChunk,
                                 out _,
-                                out _)
-                                || reassembledChunk)
+                                out _) ||
+                                reassembledChunk)
                             {
                                 // Fail-soft: a reassembled payload that is not a
                                 // well-formed, non-chunk UADP message is dropped
@@ -976,8 +976,8 @@ namespace Opc.Ua.PubSub.Connections
                                 m_diagnostics.Increment(
                                     PubSubDiagnosticsCounterKind.ChunksDiscarded);
                                 m_logger.LogWarning(
-                                    "Reassembled UADP payload is not a valid "
-                                    + "non-chunk NetworkMessage; dropping frame.");
+                                    "Reassembled UADP payload is not a valid " +
+                                    "non-chunk NetworkMessage; dropping frame.");
                                 continue;
                             }
                         }
@@ -993,11 +993,11 @@ namespace Opc.Ua.PubSub.Connections
                             {
                                 RecordSecurityFailure(
                                     StatusCodes.BadSecurityModeRejected,
-                                    "Inbound frame is not secured to the reader's "
-                                    + "configured SecurityMode.");
+                                    "Inbound frame is not secured to the reader's " +
+                                    "configured SecurityMode.");
                                 m_logger.LogWarning(
-                                    "Dropping unsecured inbound frame on connection "
-                                    + "'{Connection}' requiring {Mode}.",
+                                    "Dropping unsecured inbound frame on connection " +
+                                    "'{Connection}' requiring {Mode}.",
                                     Name,
                                     m_requiredSecurityMode);
                                 continue;
@@ -1040,16 +1040,16 @@ namespace Opc.Ua.PubSub.Connections
                         // messages on a connection configured for security.
                         RecordSecurityFailure(
                             StatusCodes.BadSecurityModeRejected,
-                            "Inbound non-UADP frame cannot satisfy the reader's "
-                            + "configured SecurityMode.");
+                            "Inbound non-UADP frame cannot satisfy the reader's " +
+                            "configured SecurityMode.");
                         // Logged at Debug: this is a per-frame hot path and a
                         // flood of non-UADP frames (hostile or misconfigured)
                         // must not amplify into high-volume warning logs. The
                         // security-failure counter incremented above is the
                         // rate-safe operational signal.
                         m_logger.LogDebug(
-                            "Dropping non-UADP inbound frame on connection "
-                            + "'{Connection}' requiring {Mode}.",
+                            "Dropping non-UADP inbound frame on connection " +
+                            "'{Connection}' requiring {Mode}.",
                             Name,
                             m_requiredSecurityMode);
                         continue;
@@ -1098,8 +1098,8 @@ namespace Opc.Ua.PubSub.Connections
                         RouteInboundActionResponse(actionResponse);
                         continue;
                     }
-                    if (message is PubSubJsonActionNetworkMessage jsonAction
-                        && await TryRouteJsonActionAsync(jsonAction, cancellationToken).ConfigureAwait(false))
+                    if (message is PubSubJsonActionNetworkMessage jsonAction &&
+                        await TryRouteJsonActionAsync(jsonAction, cancellationToken).ConfigureAwait(false))
                     {
                         continue;
                     }
@@ -1197,8 +1197,8 @@ namespace Opc.Ua.PubSub.Connections
                     classId = json.DataSetClassId;
                     break;
                 case UadpDiscoveryResponseMessage uadp
-                    when uadp.DiscoveryType == UadpDiscoveryType.DataSetMetaData
-                        && uadp.DataSetMetaData is not null:
+                    when uadp.DiscoveryType == UadpDiscoveryType.DataSetMetaData &&
+                        uadp.DataSetMetaData is not null:
                     meta = uadp.DataSetMetaData;
                     writerId = uadp.DataSetWriterId;
                     classId = uadp.DataSetClassId;
@@ -1220,9 +1220,9 @@ namespace Opc.Ua.PubSub.Connections
                 meta.ConfigurationVersion?.MajorVersion ?? 0);
 
             MetaDataMatchResult existing = registry.TryGet(in key, out DataSetMetaDataType? current);
-            if (existing == MetaDataMatchResult.MajorVersionMismatch
-                && current?.ConfigurationVersion is { } currentVersion
-                && currentVersion.MajorVersion > key.MajorVersion)
+            if (existing == MetaDataMatchResult.MajorVersionMismatch &&
+                current?.ConfigurationVersion is { } currentVersion &&
+                currentVersion.MajorVersion > key.MajorVersion)
             {
                 logger?.LogWarning(
                     "Discarding stale inbound metadata for writer {WriterId}: incoming major {Incoming} < registered major {Existing}.",
@@ -1339,8 +1339,8 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
-                    if (writer.PublishedDataSet is PublishedDataSet publishedDataSet
-                        && TryGetPublishedAction(
+                    if (writer.PublishedDataSet is PublishedDataSet publishedDataSet &&
+                        TryGetPublishedAction(
                             publishedDataSet.Configuration,
                             out PublishedActionDataType? action))
                     {
@@ -1395,7 +1395,7 @@ namespace Opc.Ua.PubSub.Connections
 
         private static ByteString CreateCorrelationData(ushort requestId)
         {
-            var bytes = new byte[18];
+            byte[] bytes = new byte[18];
             byte[] guidBytes = Guid.NewGuid().ToByteArray();
             Buffer.BlockCopy(guidBytes, 0, bytes, 0, guidBytes.Length);
             bytes[16] = (byte)(requestId & 0xff);
@@ -1507,9 +1507,9 @@ namespace Opc.Ua.PubSub.Connections
             {
                 RecordSecurityFailure(
                     StatusCodes.BadSecurityModeRejected,
-                    "Refusing to serve a PubSub Action request on a connection that "
-                    + "does not require message security. Configure Sign/SignAndEncrypt "
-                    + "or explicitly allow unsecured Action responders.");
+                    "Refusing to serve a PubSub Action request on a connection that " +
+                    "does not require message security. Configure Sign/SignAndEncrypt " +
+                    "or explicitly allow unsecured Action responders.");
                 return;
             }
             ActionResponder? responder = ResolveActionHandler(
@@ -1577,9 +1577,9 @@ namespace Opc.Ua.PubSub.Connections
             {
                 RecordSecurityFailure(
                     StatusCodes.BadSecurityModeRejected,
-                    "Refusing to serve a JSON PubSub Action request: JSON Action frames "
-                    + "carry no UADP message security. Explicitly allow unsecured Action "
-                    + "responders (and secure the transport) to enable this.");
+                    "Refusing to serve a JSON PubSub Action request: JSON Action frames " +
+                    "carry no UADP message security. Explicitly allow unsecured Action " +
+                    "responders (and secure the transport) to enable this.");
                 return;
             }
             ActionResponder? responder = ResolveActionHandler(
@@ -1713,14 +1713,14 @@ namespace Opc.Ua.PubSub.Connections
             }
             RecordSecurityFailure(
                 StatusCodes.BadSecurityModeRejected,
-                "Refusing to publish a PubSub Action response to the "
-                + "requestor-supplied address '" + (responseAddress ?? string.Empty)
-                + "' for writer " + dataSetWriterId.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                + ", target " + actionTargetId.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                + ": it does not match the configured response-address policy ("
-                + responder.ResponseAddressPolicy.Description
-                + "). An attacker can otherwise turn the responder into a publishing "
-                + "proxy by choosing an arbitrary topic.");
+                "Refusing to publish a PubSub Action response to the " +
+                "requestor-supplied address '" + (responseAddress ?? string.Empty) +
+                "' for writer " + dataSetWriterId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                ", target " + actionTargetId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                ": it does not match the configured response-address policy (" +
+                responder.ResponseAddressPolicy.Description +
+                "). An attacker can otherwise turn the responder into a publishing " +
+                "proxy by choosing an arbitrary topic.");
             return false;
         }
 
@@ -1798,8 +1798,8 @@ namespace Opc.Ua.PubSub.Connections
             INetworkMessageEncoder? encoder = ResolveEncoder();
             if (ShouldUseDiscoveryAnnouncementDestination(
                     response,
-                    out IPubSubDiscoveryAnnouncementTransport? announcementTransport)
-                && encoder is not null)
+                    out IPubSubDiscoveryAnnouncementTransport? announcementTransport) &&
+                encoder is not null)
             {
                 ReadOnlyMemory<byte> payload = await EncodeNetworkMessageAsync(
                     networkMessage,
@@ -1818,8 +1818,8 @@ namespace Opc.Ua.PubSub.Connections
             long now = m_timeProvider.GetTimestamp();
             lock (m_gate)
             {
-                if (m_discoveryProbeDedup.TryGetValue(key, out long last)
-                    && m_timeProvider.GetElapsedTime(last, now) < TimeSpan.FromMilliseconds(500))
+                if (m_discoveryProbeDedup.TryGetValue(key, out long last) &&
+                    m_timeProvider.GetElapsedTime(last, now) < TimeSpan.FromMilliseconds(500))
                 {
                     return true;
                 }
@@ -1834,8 +1834,8 @@ namespace Opc.Ua.PubSub.Connections
             long now = m_timeProvider.GetTimestamp();
             lock (m_gate)
             {
-                if (m_discoveryResponseThrottle.TryGetValue(key, out long last)
-                    && m_timeProvider.GetElapsedTime(last, now) < TimeSpan.FromMilliseconds(500))
+                if (m_discoveryResponseThrottle.TryGetValue(key, out long last) &&
+                    m_timeProvider.GetElapsedTime(last, now) < TimeSpan.FromMilliseconds(500))
                 {
                     return true;
                 }
@@ -2184,7 +2184,7 @@ namespace Opc.Ua.PubSub.Connections
 
         private UadpDiscoveryResponseMessage CreateStatusDiscoveryMessage(PubSubState state, bool isCyclic)
         {
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
             return new UadpDiscoveryResponseMessage
             {
                 PublisherId = PublisherId,
@@ -2203,8 +2203,8 @@ namespace Opc.Ua.PubSub.Connections
 
         private ArrayOf<EndpointDescription> BuildPublisherEndpoints()
         {
-            if (Configuration.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress)
-                && !string.IsNullOrEmpty(networkAddress.Url))
+            if (Configuration.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress) &&
+                !string.IsNullOrEmpty(networkAddress.Url))
             {
                 return
                 [
@@ -2307,14 +2307,14 @@ namespace Opc.Ua.PubSub.Connections
                 m_timeProvider);
 
             ReadOnlyMemory<byte> payload;
-            if (m_securityWrapper is not null
-                && networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadp)
+            if (m_securityWrapper is not null &&
+                networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadp)
             {
                 payload = await EncodeAndWrapUadpAsync(uadp, context, cancellationToken)
                     .ConfigureAwait(false);
             }
-            else if (RequiresInboundSecurity || m_securityWrapper is not null
-                && m_requiredSecurityMode is MessageSecurityMode.Sign
+            else if (RequiresInboundSecurity || m_securityWrapper is not null &&
+                m_requiredSecurityMode is MessageSecurityMode.Sign
                     or MessageSecurityMode.SignAndEncrypt)
             {
                 // Fail-closed: never emit plaintext for a secured group.
@@ -2323,11 +2323,11 @@ namespace Opc.Ua.PubSub.Connections
                 m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
                 m_diagnostics.RecordError(
                     StatusCodes.BadSecurityModeRejected,
-                    "Refusing to publish an unsecured NetworkMessage on a connection "
-                    + "configured for message security.");
+                    "Refusing to publish an unsecured NetworkMessage on a connection " +
+                    "configured for message security.");
                 m_logger.LogError(
-                    "Dropping outbound message on connection '{Connection}': "
-                    + "configured SecurityMode {Mode} cannot be applied to this message.",
+                    "Dropping outbound message on connection '{Connection}': " +
+                    "configured SecurityMode {Mode} cannot be applied to this message.",
                     Name,
                     m_requiredSecurityMode);
                 return;
@@ -2340,9 +2340,9 @@ namespace Opc.Ua.PubSub.Connections
                     cancellationToken).ConfigureAwait(false);
             }
 
-            if (m_maxNetworkMessageSize > 0
-                && payload.Length > m_maxNetworkMessageSize
-                && networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadpForChunk)
+            if (m_maxNetworkMessageSize > 0 &&
+                payload.Length > m_maxNetworkMessageSize &&
+                networkMessage is Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadpForChunk)
             {
                 await SendChunkedAsync(
                     transport, payload, uadpForChunk.PublisherId, uadpForChunk.WriterGroupId,
@@ -2425,12 +2425,12 @@ namespace Opc.Ua.PubSub.Connections
                     Name);
                 return;
             }
-            if (m_maxNetworkMessageSize > 0
-                && frame.Length > m_maxNetworkMessageSize
-                && UadpDecoder.TryReadOuterPrefix(frame,
+            if (m_maxNetworkMessageSize > 0 &&
+                frame.Length > m_maxNetworkMessageSize &&
+                UadpDecoder.TryReadOuterPrefix(frame,
                     out _, out _, out bool chunkMessage,
-                    out PublisherId publisherId, out ushort writerGroupId)
-                && !chunkMessage)
+                    out PublisherId publisherId, out ushort writerGroupId) &&
+                !chunkMessage)
             {
                 await SendChunkedAsync(
                     transport, frame, publisherId,
@@ -2590,11 +2590,11 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     RecordSecurityFailure(
                         StatusCodes.BadSecurityModeRejected,
-                        "Inbound frame security level is lower than the reader's "
-                        + "configured SecurityMode.");
+                        "Inbound frame security level is lower than the reader's " +
+                        "configured SecurityMode.");
                     m_logger.LogWarning(
-                        "Dropping inbound frame on connection '{Connection}': "
-                        + "security level below required {Mode}.",
+                        "Dropping inbound frame on connection '{Connection}': " +
+                        "security level below required {Mode}.",
                         Name,
                         requiredMode);
                     return null;
@@ -2602,7 +2602,7 @@ namespace Opc.Ua.PubSub.Connections
 
                 ReadOnlyMemory<byte> cleartext = result.InnerPayload.Value;
                 int totalLength = prefix.Length + cleartext.Length;
-                var combined = new byte[totalLength];
+                byte[] combined = new byte[totalLength];
                 prefix.Span.CopyTo(combined);
                 cleartext.Span.CopyTo(combined.AsSpan(prefix.Length));
                 return combined;
@@ -2660,8 +2660,8 @@ namespace Opc.Ua.PubSub.Connections
                 kind = PubSubDiagnosticsCounterKind.SecurityTokenErrors;
             }
             m_diagnostics.Increment(kind);
-            if (message.Contains("Replay", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("nonce", StringComparison.OrdinalIgnoreCase))
+            if (message.Contains("Replay", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("nonce", StringComparison.OrdinalIgnoreCase))
             {
                 m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ReplayErrors);
             }
@@ -2731,7 +2731,7 @@ namespace Opc.Ua.PubSub.Connections
                 TimeSpan timeout,
                 CancellationToken cancellationToken)
             {
-                Stopwatch stopwatch = Stopwatch.StartNew();
+                var stopwatch = Stopwatch.StartNew();
                 while (stopwatch.Elapsed < timeout)
                 {
                     TimeSpan remaining = timeout - stopwatch.Elapsed;
@@ -2840,8 +2840,8 @@ namespace Opc.Ua.PubSub.Connections
 
             public bool Equals(ActionCorrelationKey other)
             {
-                return m_requestId == other.m_requestId
-                    && string.Equals(m_correlationData, other.m_correlationData, StringComparison.Ordinal);
+                return m_requestId == other.m_requestId &&
+                    string.Equals(m_correlationData, other.m_correlationData, StringComparison.Ordinal);
             }
 
             public override bool Equals(object? obj)
@@ -2889,9 +2889,9 @@ namespace Opc.Ua.PubSub.Connections
 
             public bool Equals(ActionHandlerKey other)
             {
-                return m_dataSetWriterId == other.m_dataSetWriterId
-                    && m_actionTargetId == other.m_actionTargetId
-                    && string.Equals(m_actionName, other.m_actionName, StringComparison.Ordinal);
+                return m_dataSetWriterId == other.m_dataSetWriterId &&
+                    m_actionTargetId == other.m_actionTargetId &&
+                    string.Equals(m_actionName, other.m_actionName, StringComparison.Ordinal);
             }
 
             public override bool Equals(object? obj)

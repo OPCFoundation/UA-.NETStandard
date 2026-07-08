@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 return;
             }
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             handler.Invoke(this, new PubSubKeyRotatedEventArgs(newTokenId, previousTokenId, now));
         }
 

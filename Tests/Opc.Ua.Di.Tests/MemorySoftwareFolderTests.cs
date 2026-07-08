@@ -34,8 +34,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
-#nullable enable
-
 namespace Opc.Ua.Di.Tests
 {
     /// <summary>

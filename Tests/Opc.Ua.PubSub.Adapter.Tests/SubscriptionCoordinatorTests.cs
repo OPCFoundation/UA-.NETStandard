@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds2 = AdapterTestHelpers.PublishedDataSet(
                 "PDS2", AdapterTestHelpers.Variable.Value(new NodeId(22u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds1, pds2 });
+                500, [pds1, pds2]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds2 = AdapterTestHelpers.PublishedDataSet(
                 "PDS2", AdapterTestHelpers.Variable.Value(new NodeId(22u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds1, pds2 });
+                500, [pds1, pds2]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 AdapterTestHelpers.Variable.Value(new NodeId(11u), 250),
                 AdapterTestHelpers.Variable.Value(new NodeId(22u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -178,7 +178,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(nodeId));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(nodeId));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -240,7 +240,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -263,7 +263,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);

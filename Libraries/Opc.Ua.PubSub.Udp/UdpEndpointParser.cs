@@ -232,9 +232,9 @@ namespace Opc.Ua.PubSub.Udp
             {
                 throw new FormatException("PubSub UDP URL is missing the port component.");
             }
-            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int port)
-                || port < 1
-                || port > 65535)
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int port) ||
+                port < 1 ||
+                port > 65535)
             {
                 throw new FormatException(
                     $"PubSub UDP URL has an invalid port component '{text}' (must be 1-65535).");

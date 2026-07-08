@@ -97,11 +97,11 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// </returns>
         public static bool IsBrowsePath(NodeId nodeId)
         {
-            return !nodeId.IsNull
-                && nodeId.IdType == IdType.String
-                && nodeId.NamespaceIndex == 0
-                && nodeId.IdentifierAsString is { Length: > 0 } text
-                && IsBrowsePathText(text);
+            return !nodeId.IsNull &&
+                nodeId.IdType == IdType.String &&
+                nodeId.NamespaceIndex == 0 &&
+                nodeId.IdentifierAsString is { Length: > 0 } text &&
+                IsBrowsePathText(text);
         }
 
         /// <summary>

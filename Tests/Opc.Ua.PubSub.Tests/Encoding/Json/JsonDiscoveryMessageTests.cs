@@ -193,7 +193,7 @@ namespace OpcUaPubSubJsonTests
                 MessageId = "disc-wcfg",
                 PublisherId = PublisherId.FromUInt16(0x300),
                 DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
-                DataSetWriterIds = new ushort[] { 1, 2, 3 },
+                DataSetWriterIds = [1, 2, 3],
                 WriterConfiguration = writerGroup
             };
             var encoder = new JsonEncoder();

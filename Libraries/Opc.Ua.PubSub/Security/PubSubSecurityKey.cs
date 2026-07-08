@@ -134,7 +134,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 throw new ArgumentNullException(nameof(clock));
             }
-            DateTimeUtc now = DateTimeUtc.From(clock.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(clock.GetUtcNow().UtcDateTime);
             return (now - IssuedAt) >= Lifetime;
         }
 

@@ -448,8 +448,8 @@ namespace Opc.Ua.PubSub.Application
                                 out IPublishedDataSet? publishedDataSet))
                             {
                                 m_logger.LogWarning(
-                                    "DataSetWriter '{Writer}' references unknown "
-                                    + "PublishedDataSet '{Pds}'; skipping.",
+                                    "DataSetWriter '{Writer}' references unknown " +
+                                    "PublishedDataSet '{Pds}'; skipping.",
                                     writerConfig.Name,
                                     publishedDataSetName);
                                 continue;
@@ -525,10 +525,10 @@ namespace Opc.Ua.PubSub.Application
                     new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
                         "PSC1401",
-                        $"Connection '{connectionConfig.Name}' is configured for "
-                        + $"SecurityMode {requiredSecurityMode} but no security wrapper "
-                        + "could be resolved (missing key provider, policy or resolver). "
-                        + "Refusing to start in the clear.",
+                        $"Connection '{connectionConfig.Name}' is configured for " +
+                        $"SecurityMode {requiredSecurityMode} but no security wrapper " +
+                        "could be resolved (missing key provider, policy or resolver). " +
+                        "Refusing to start in the clear.",
                         $"Connections[{connectionConfig.Name}]",
                         "8.3")
                 ]);
@@ -854,8 +854,8 @@ namespace Opc.Ua.PubSub.Application
             }
             for (int i = 0; i < connections.Length; i++)
             {
-                if (string.IsNullOrEmpty(request.Target.ConnectionName)
-                    || string.Equals(
+                if (string.IsNullOrEmpty(request.Target.ConnectionName) ||
+                    string.Equals(
                         connections[i].Name,
                         request.Target.ConnectionName,
                         StringComparison.Ordinal))
@@ -897,8 +897,8 @@ namespace Opc.Ua.PubSub.Application
             }
             for (int i = 0; i < connections.Length; i++)
             {
-                if (string.IsNullOrEmpty(target.ConnectionName)
-                    || string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
+                if (string.IsNullOrEmpty(target.ConnectionName) ||
+                    string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
                 {
                     connections[i].RegisterActionHandler(
                         target, handler, allowUnsecured, responseAddressPolicy);
@@ -1532,16 +1532,16 @@ namespace Opc.Ua.PubSub.Application
 
         private IPublishedDataSetSource ResolvePublishedDataSetSource(string publishedDataSetName)
         {
-            if (m_publishedDataSetSources is not null
-                && m_publishedDataSetSources.TryGetValue(
+            if (m_publishedDataSetSources is not null &&
+                m_publishedDataSetSources.TryGetValue(
                     publishedDataSetName,
                     out IPublishedDataSetSource? configured))
             {
                 return configured;
             }
 
-            if (m_publishedDataSetSourceProvider is not null
-                && m_publishedDataSetSourceProvider.TryGetSource(
+            if (m_publishedDataSetSourceProvider is not null &&
+                m_publishedDataSetSourceProvider.TryGetSource(
                     publishedDataSetName,
                     out IPublishedDataSetSource providerSource))
             {
@@ -1553,16 +1553,16 @@ namespace Opc.Ua.PubSub.Application
 
         private ISubscribedDataSetSink ResolveSubscribedDataSetSink(string dataSetReaderName)
         {
-            if (m_subscribedDataSetSinks is not null
-                && m_subscribedDataSetSinks.TryGetValue(
+            if (m_subscribedDataSetSinks is not null &&
+                m_subscribedDataSetSinks.TryGetValue(
                     dataSetReaderName,
                     out ISubscribedDataSetSink? configured))
             {
                 return configured;
             }
 
-            if (m_subscribedDataSetSinkProvider is not null
-                && m_subscribedDataSetSinkProvider.TryGetSink(
+            if (m_subscribedDataSetSinkProvider is not null &&
+                m_subscribedDataSetSinkProvider.TryGetSink(
                     dataSetReaderName,
                     out ISubscribedDataSetSink providerSink))
             {
@@ -2025,8 +2025,8 @@ namespace Opc.Ua.PubSub.Application
                             writerGroup.Name,
                             currentWriterGroup.Name,
                             StringComparison.Ordinal));
-                    if (previousWriterGroup is not null
-                        && Utils.IsEqual(previousWriterGroup, currentWriterGroup))
+                    if (previousWriterGroup is not null &&
+                        Utils.IsEqual(previousWriterGroup, currentWriterGroup))
                     {
                         continue;
                     }
@@ -2436,7 +2436,7 @@ namespace Opc.Ua.PubSub.Application
         private RebuiltState BuildRebuiltState(
             PubSubConfigurationDataType configuration)
         {
-            PubSubConfigurationSnapshot snapshot =
+            var snapshot =
                 PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
             var validator = new PubSubConfigurationValidator(
                 m_factories.Select(factory => factory.TransportProfileUri));

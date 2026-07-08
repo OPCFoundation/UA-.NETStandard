@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="transportProfileUri">Transport profile URI.</param>
         /// <returns>The encoding family.</returns>
-        public static TranscodeEncoding FromTransportProfileUri(string transportProfileUri)
+        public static TranscodeEncoding FromTransportProfileUri(this string transportProfileUri)
         {
             return transportProfileUri?.IndexOf("Json", StringComparison.OrdinalIgnoreCase) >= 0
                 ? TranscodeEncoding.Json
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// <param name="message">Decoded NetworkMessage.</param>
         /// <returns>The encoding family.</returns>
         /// <exception cref="ArgumentNullException"></exception>
-        public static TranscodeEncoding EncodingOf(Encoding.PubSubNetworkMessage message)
+        public static TranscodeEncoding EncodingOf(this Encoding.PubSubNetworkMessage message)
         {
             if (message is null)
             {

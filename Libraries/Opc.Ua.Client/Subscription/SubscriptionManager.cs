@@ -1025,9 +1025,9 @@ namespace Opc.Ua.Client.Subscriptions
                             new uint[] { snap.ServerId }.ToArrayOf(),
                             sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
                             ct).ConfigureAwait(false);
-                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult)
-                        && response.Results.Count > 0
-                        && StatusCode.IsGood(response.Results[0].StatusCode))
+                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
+                        response.Results.Count > 0 &&
+                        StatusCode.IsGood(response.Results[0].StatusCode))
                     {
                         transferred = await concrete.TryCompleteTransferAsync(
                             response.Results[0].AvailableSequenceNumbers.IsNull

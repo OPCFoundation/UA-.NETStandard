@@ -166,7 +166,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return [];
             }
-            DateTimeUtc issuedAt = DateTimeUtc.From(DateTime.UtcNow);
+            var issuedAt = DateTimeUtc.From(DateTime.UtcNow);
             var unpacked = new PubSubSecurityKey[Keys.Count];
             for (int i = 0; i < Keys.Count; i++)
             {

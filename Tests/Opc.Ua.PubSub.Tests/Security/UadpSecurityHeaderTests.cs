@@ -49,8 +49,8 @@ namespace Opc.Ua.PubSub.Tests.Security
                 nonce[i] = (byte)(i + 1);
             }
             var header = new UadpSecurityHeader(
-                (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned
-                    | UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted),
+                (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned |
+                    UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted),
                 0xDEADBEEFU,
                 nonce);
             byte[] buffer = new byte[header.GetEncodedSize()];
@@ -71,9 +71,9 @@ namespace Opc.Ua.PubSub.Tests.Security
         public void RoundTrip_WithSecurityFooter()
         {
             byte[] nonce = new byte[12];
-            const byte flags = (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned
-                | UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted
-                | UadpSecurityFlagsEncodingMask.SecurityFooterEnabled);
+            const byte flags = (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned |
+                UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted |
+                UadpSecurityFlagsEncodingMask.SecurityFooterEnabled);
             var header = new UadpSecurityHeader(flags, 1U, nonce, securityFooterSize: 16);
             byte[] buffer = new byte[header.GetEncodedSize()];
             header.WriteTo(buffer, out int written);

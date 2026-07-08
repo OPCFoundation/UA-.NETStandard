@@ -158,14 +158,14 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
-            if (WriterGroupId != 0
-                && networkMessage.WriterGroupId.HasValue
-                && networkMessage.WriterGroupId.Value != WriterGroupId)
+            if (WriterGroupId != 0 &&
+                networkMessage.WriterGroupId.HasValue &&
+                networkMessage.WriterGroupId.Value != WriterGroupId)
             {
                 return false;
             }
-            if (!ExpectedPublisherId.IsNull
-                && !ExpectedPublisherId.Equals(networkMessage.PublisherId))
+            if (!ExpectedPublisherId.IsNull &&
+                !ExpectedPublisherId.Equals(networkMessage.PublisherId))
             {
                 return false;
             }
@@ -241,10 +241,6 @@ namespace Opc.Ua.PubSub.Groups
             long elapsedTicks = TimeProvider.GetTimestamp() - Interlocked.Read(ref m_lastReceivedTicks);
             TimeSpan elapsed = TimeProvider.GetElapsedTime(0, elapsedTicks);
             return elapsed > MessageReceiveTimeout;
-        }
-
-        private static class StateExtensionsHelper
-        {
         }
     }
 }

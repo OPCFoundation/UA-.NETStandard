@@ -207,5 +207,3 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         }
     }
 }
-
-

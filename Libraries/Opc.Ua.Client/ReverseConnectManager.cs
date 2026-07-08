@@ -361,7 +361,7 @@ namespace Opc.Ua.Client
             List<ReverseConnectInfo> snapshot;
             lock (m_lock)
             {
-                snapshot = new List<ReverseConnectInfo>(m_endpointUrls.Values);
+                snapshot = [.. m_endpointUrls.Values];
             }
 
             foreach (ReverseConnectInfo value in snapshot)
@@ -390,7 +390,7 @@ namespace Opc.Ua.Client
             List<ReverseConnectInfo> snapshot;
             lock (m_lock)
             {
-                snapshot = new List<ReverseConnectInfo>(m_endpointUrls.Values);
+                snapshot = [.. m_endpointUrls.Values];
             }
 
             foreach (ReverseConnectInfo value in snapshot)

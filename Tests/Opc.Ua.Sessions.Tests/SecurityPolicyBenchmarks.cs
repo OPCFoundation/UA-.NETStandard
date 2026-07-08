@@ -168,7 +168,6 @@ namespace Opc.Ua.Sessions.Tests
                     yield return policyUri;
                 }
             }
-
         }
 
         /// <summary>
@@ -1077,5 +1076,4 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(endpoints.IsNull, Is.False);
         }
     }
-
 }

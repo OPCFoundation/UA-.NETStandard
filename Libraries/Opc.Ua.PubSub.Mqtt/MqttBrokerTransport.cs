@@ -407,8 +407,8 @@ namespace Opc.Ua.PubSub.Mqtt
 
             bool isMetaData = IsMetaDataTopic(topic);
             bool isDiscovery = IsDiscoveryTopic(topic);
-            bool retain = isMetaData && m_options.Topics.RetainMetaDataMessages
-                || isDiscovery && m_options.Topics.RetainDiscoveryMessages;
+            bool retain = isMetaData && m_options.Topics.RetainMetaDataMessages ||
+                isDiscovery && m_options.Topics.RetainDiscoveryMessages;
             string? contentType = MapContentType(m_transportProfileUri);
             var message = new MqttMessage(
                 topic,
@@ -540,11 +540,11 @@ namespace Opc.Ua.PubSub.Mqtt
             ushort dataSetWriterId)
         {
             MqttEncoding encoding = ResolveEncoding(m_transportProfileUri);
-            if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer)
-                && writer is not null
-                && TryReadBrokerWriterSettings(
-                    writer.TransportSettings, out _, out string? metadataQueue, out _)
-                && !string.IsNullOrEmpty(metadataQueue))
+            if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer) &&
+                writer is not null &&
+                TryReadBrokerWriterSettings(
+                    writer.TransportSettings, out _, out string? metadataQueue, out _) &&
+                !string.IsNullOrEmpty(metadataQueue))
             {
                 return metadataQueue;
             }
@@ -566,16 +566,16 @@ namespace Opc.Ua.PubSub.Mqtt
             {
                 throw new ArgumentNullException(nameof(writerGroup));
             }
-            if (dataSetWriterId.HasValue
-                && TryFindWriter(writerGroup.WriterGroupId, dataSetWriterId.Value, out DataSetWriterDataType? writer)
-                && writer is not null
-                && TryReadBrokerWriterSettings(writer.TransportSettings, out string? queue, out _, out _)
-                && !string.IsNullOrEmpty(queue))
+            if (dataSetWriterId.HasValue &&
+                TryFindWriter(writerGroup.WriterGroupId, dataSetWriterId.Value, out DataSetWriterDataType? writer) &&
+                writer is not null &&
+                TryReadBrokerWriterSettings(writer.TransportSettings, out string? queue, out _, out _) &&
+                !string.IsNullOrEmpty(queue))
             {
                 return queue;
             }
-            if (TryReadBrokerGroupSettings(writerGroup.TransportSettings, out string? groupQueue, out _)
-                && !string.IsNullOrEmpty(groupQueue))
+            if (TryReadBrokerGroupSettings(writerGroup.TransportSettings, out string? groupQueue, out _) &&
+                !string.IsNullOrEmpty(groupQueue))
             {
                 return groupQueue;
             }
@@ -677,10 +677,10 @@ namespace Opc.Ua.PubSub.Mqtt
 
         private static bool IsDiscoveryTopic(string topic)
         {
-            return topic.Contains(ApplicationTopicSegment, StringComparison.Ordinal)
-                || topic.Contains(EndpointsTopicSegment, StringComparison.Ordinal)
-                || topic.Contains(StatusTopicSegment, StringComparison.Ordinal)
-                || topic.Contains(ConnectionTopicSegment, StringComparison.Ordinal);
+            return topic.Contains(ApplicationTopicSegment, StringComparison.Ordinal) ||
+                topic.Contains(EndpointsTopicSegment, StringComparison.Ordinal) ||
+                topic.Contains(StatusTopicSegment, StringComparison.Ordinal) ||
+                topic.Contains(ConnectionTopicSegment, StringComparison.Ordinal);
         }
 
         private static Dictionary<string, MqttQualityOfService> BuildTopicQosMap(
@@ -837,8 +837,8 @@ namespace Opc.Ua.PubSub.Mqtt
             }
             if (!allowWildcards)
             {
-                if (topic.Contains('#', StringComparison.Ordinal)
-                    || topic.Contains('+', StringComparison.Ordinal))
+                if (topic.Contains('#', StringComparison.Ordinal) ||
+                    topic.Contains('+', StringComparison.Ordinal))
                 {
                     throw new ArgumentException(
                         "Publish topic must not contain wildcards ('#' or '+').",

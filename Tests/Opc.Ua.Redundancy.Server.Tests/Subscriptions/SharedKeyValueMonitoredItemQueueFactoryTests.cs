@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
             await factory.FlushAsync().ConfigureAwait(false);
 
-            await factory.CleanupAsync(new uint[] { 1 }).ConfigureAwait(false);
+            await factory.CleanupAsync([1]).ConfigureAwait(false);
 
             Assert.That(await factory.RestoreDataChangeQueueAsync(1).ConfigureAwait(false), Is.Not.Null);
             Assert.That(await factory.RestoreDataChangeQueueAsync(2).ConfigureAwait(false), Is.Null);

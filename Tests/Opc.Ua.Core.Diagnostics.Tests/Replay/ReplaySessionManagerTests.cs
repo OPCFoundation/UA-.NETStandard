@@ -33,7 +33,6 @@ using NUnit.Framework;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Models;
 using Opc.Ua.Pcap.Replay;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Replay
@@ -114,7 +113,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
         {
             FakeCaptureFolder capture = await ReplayTestHelpers.CreateFakeCaptureFolderAsync(
                 TempDirectory,
-                new[] { ReplayTestHelpers.CreateFrame(DateTimeOffset.UtcNow, fromClient: false, 0xAA) },
+                [ReplayTestHelpers.CreateFrame(DateTimeOffset.UtcNow, fromClient: false, 0xAA)],
                 CancellationToken.None).ConfigureAwait(false);
             return new StartReplayRequest
             {

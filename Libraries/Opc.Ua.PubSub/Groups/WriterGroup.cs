@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Groups
             WriterGroupId = configuration.WriterGroupId;
             Name = configuration.Name ?? string.Empty;
             ConfigureActivationCoordinator(
-                componentId ?? string.Concat("pubsub:writergroup:", Name),
+                componentId ?? $"pubsub:writergroup:{Name}",
                 activationCoordinator);
             m_logger = telemetry.CreateLogger<WriterGroup>();
             State = new PubSubStateMachine(
@@ -291,7 +291,6 @@ namespace Opc.Ua.PubSub.Groups
                 m_logger.LogError(ex, "WriterGroup {Group} publish failed.", Name);
             }
         }
-
 
         internal void ConfigureActivationCoordinator(
             string componentId,
@@ -479,13 +478,13 @@ namespace Opc.Ua.PubSub.Groups
             }
 
             uint sequenceNumber = ++runtime.SequenceNumber;
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
 
             PubSubDataSetMessageType messageType;
             ArrayOf<DataSetField> fields;
-            if (writer.KeyFrameCount <= 1
-                || runtime.LastSnapshot is null
-                || runtime.CyclesSinceKeyFrame >= writer.KeyFrameCount)
+            if (writer.KeyFrameCount <= 1 ||
+                runtime.LastSnapshot is null ||
+                runtime.CyclesSinceKeyFrame >= writer.KeyFrameCount)
             {
                 messageType = PubSubDataSetMessageType.KeyFrame;
                 fields = snapshot.Fields;
@@ -559,14 +558,14 @@ namespace Opc.Ua.PubSub.Groups
                     WriterGroupId = WriterGroupId,
                     DataSetMessages = dataSetMessages,
                     PublisherId = PubSubAddressing.PublisherId,
-                    SingleMessageMode = IsJsonSingleMessageMode() && dataSetMessages.Count == 1,
+                    SingleMessageMode = IsJsonSingleMessageMode() && dataSetMessages.Count == 1
                 };
             }
             return new UadpNetworkMessageV2
             {
                 WriterGroupId = WriterGroupId,
                 DataSetMessages = dataSetMessages,
-                PublisherId = PubSubAddressing.PublisherId,
+                PublisherId = PubSubAddressing.PublisherId
             };
         }
 
@@ -596,8 +595,8 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
-            return ((uint)json.NetworkMessageContentMask
-                & (uint)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
+            return ((uint)json.NetworkMessageContentMask &
+                (uint)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
         }
 
         private string GetEncodingProfile()
@@ -628,7 +627,7 @@ namespace Opc.Ua.PubSub.Groups
             // dataset data being conveyed.
             WriterRuntimeState runtime = m_writerState[writer.DataSetWriterId];
             uint sequenceNumber = ++runtime.SequenceNumber;
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
             ConfigurationVersionDataType metaDataVersion = runtime.LastSnapshot is not null
                 ? runtime.LastSnapshot.MetaDataVersion
                 : new ConfigurationVersionDataType();
@@ -694,10 +693,10 @@ namespace Opc.Ua.PubSub.Groups
                 return null;
             }
             ExtensionObject src = concrete.Configuration.DataSetSource;
-            if (src.IsNull
-                || !src.TryGetValue(out PublishedDataItemsDataType? items)
-                || items is null
-                || items.PublishedData.IsNull)
+            if (src.IsNull ||
+                !src.TryGetValue(out PublishedDataItemsDataType? items) ||
+                items is null ||
+                items.PublishedData.IsNull)
             {
                 return null;
             }

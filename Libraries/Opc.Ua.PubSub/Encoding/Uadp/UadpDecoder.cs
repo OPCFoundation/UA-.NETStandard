@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
 
             PublisherIdType publisherIdType = PublisherIdType.Byte;
-            PublisherId publisherId = PublisherId.FromByte(0);
+            var publisherId = PublisherId.FromByte(0);
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
                 if (!ExtendedFlags1EncodingMaskExtensions.TryGetPublisherIdType(
@@ -516,8 +516,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             // Discovery frames are not in scope for security wrapping
             // — keep them detectable so the caller can route them elsewhere.
             if ((ext2 & ExtendedFlags2EncodingMask
-                .NetworkMessageWithDiscoveryRequest) != 0
-                || (ext2 & ExtendedFlags2EncodingMask
+                .NetworkMessageWithDiscoveryRequest) != 0 ||
+                (ext2 & ExtendedFlags2EncodingMask
                     .NetworkMessageWithDiscoveryResponse) != 0)
             {
                 prefixLength = reader.Position;
@@ -539,18 +539,18 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     }
                     writerGroupId = wgid;
                 }
-                if ((groupFlags & GroupFlagsEncodingMask.GroupVersionEnabled) != 0
-                    && !reader.TryReadUInt32Le(out _))
+                if ((groupFlags & GroupFlagsEncodingMask.GroupVersionEnabled) != 0 &&
+                    !reader.TryReadUInt32Le(out _))
                 {
                     return false;
                 }
-                if ((groupFlags & GroupFlagsEncodingMask.NetworkMessageNumberEnabled) != 0
-                    && !reader.TryReadUInt16Le(out _))
+                if ((groupFlags & GroupFlagsEncodingMask.NetworkMessageNumberEnabled) != 0 &&
+                    !reader.TryReadUInt16Le(out _))
                 {
                     return false;
                 }
-                if ((groupFlags & GroupFlagsEncodingMask.SequenceNumberEnabled) != 0
-                    && !reader.TryReadUInt16Le(out _))
+                if ((groupFlags & GroupFlagsEncodingMask.SequenceNumberEnabled) != 0 &&
+                    !reader.TryReadUInt16Le(out _))
                 {
                     return false;
                 }
@@ -583,13 +583,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
             }
 
-            if ((ext1 & ExtendedFlags1EncodingMask.TimestampEnabled) != 0
-                && !reader.TryReadInt64Le(out _))
+            if ((ext1 & ExtendedFlags1EncodingMask.TimestampEnabled) != 0 &&
+                !reader.TryReadInt64Le(out _))
             {
                 return false;
             }
-            if ((ext1 & ExtendedFlags1EncodingMask.PicoSecondsEnabled) != 0
-                && !reader.TryReadUInt16Le(out _))
+            if ((ext1 & ExtendedFlags1EncodingMask.PicoSecondsEnabled) != 0 &&
+                !reader.TryReadUInt16Le(out _))
             {
                 return false;
             }
@@ -598,8 +598,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 // PromotedFields is prefixed by a UInt16 byte-size we
                 // can skip over without decoding individual Variants.
-                if (!reader.TryReadUInt16Le(out ushort promotedSize)
-                    || promotedSize > reader.Remaining)
+                if (!reader.TryReadUInt16Le(out ushort promotedSize) ||
+                    promotedSize > reader.Remaining)
                 {
                     return false;
                 }
@@ -626,7 +626,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             prefixLength = reader.Position;
             return true;
         }
-
 
         private static bool TryReadPublisherId(
             ref UadpBinaryReader reader,

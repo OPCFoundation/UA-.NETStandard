@@ -470,8 +470,8 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                     continue;
                 }
                 desired.Add(dataSetName);
-                if (state.Items.TryGetValue(dataSetName, out PublisherItemState? existing)
-                    && Utils.IsEqual(existing.Configuration, dataSet))
+                if (state.Items.TryGetValue(dataSetName, out PublisherItemState? existing) &&
+                    Utils.IsEqual(existing.Configuration, dataSet))
                 {
                     continue;
                 }
@@ -519,11 +519,11 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                 return;
             }
 
-            bool recreate = state.Session is null
-                || !state.Connection.Equals(options.Connection)
-                || state.ReadMode != options.ReadMode
-                || state.Affinity != options.Affinity
-                || !SetEquals(state.ReferencedDataSets, referenced);
+            bool recreate = state.Session is null ||
+                !state.Connection.Equals(options.Connection) ||
+                state.ReadMode != options.ReadMode ||
+                state.Affinity != options.Affinity ||
+                !SetEquals(state.ReferencedDataSets, referenced);
             if (!recreate)
             {
                 return;
@@ -582,17 +582,17 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             foreach (DataSetReaderDataType reader in EnumerateDataSetReaders(configuration))
             {
                 string readerName = reader.Name ?? string.Empty;
-                if (readerName.Length == 0
-                    || reader.SubscribedDataSet.IsNull
-                    || !reader.SubscribedDataSet.TryGetValue(out TargetVariablesDataType? targetVariables)
-                    || targetVariables is null)
+                if (readerName.Length == 0 ||
+                    reader.SubscribedDataSet.IsNull ||
+                    !reader.SubscribedDataSet.TryGetValue(out TargetVariablesDataType? targetVariables) ||
+                    targetVariables is null)
                 {
                     continue;
                 }
 
                 desired.Add(readerName);
-                if (state.Items.TryGetValue(readerName, out SubscriberItemState? existing)
-                    && Utils.IsEqual(existing.Configuration, targetVariables))
+                if (state.Items.TryGetValue(readerName, out SubscriberItemState? existing) &&
+                    Utils.IsEqual(existing.Configuration, targetVariables))
                 {
                     continue;
                 }
@@ -628,9 +628,9 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
                 m_actions.Add(optionsName, state);
             }
 
-            bool recreate = state.Session is null
-                || !state.Connection.Equals(options.Connection)
-                || !ReferenceEquals(state.MethodMap, options.MethodMap);
+            bool recreate = state.Session is null ||
+                !state.Connection.Equals(options.Connection) ||
+                !ReferenceEquals(state.MethodMap, options.MethodMap);
             if (recreate)
             {
                 await state.DisposeAsync().ConfigureAwait(false);
@@ -677,8 +677,8 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
 
             List<PublishedDataSetDataType> dataSets = EnumeratePublishedDataSets(configuration);
             HashSet<string> referenced = CollectWriterDataSetNames(configuration);
-            if (dataSets.Count == 0
-                || (options.ReadMode == ReadMode.Subscription && referenced.Count == 0))
+            if (dataSets.Count == 0 ||
+                (options.ReadMode == ReadMode.Subscription && referenced.Count == 0))
             {
                 return;
             }
@@ -767,10 +767,10 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             foreach (DataSetReaderDataType reader in readers)
             {
                 string readerName = reader.Name ?? string.Empty;
-                if (readerName.Length == 0
-                    || reader.SubscribedDataSet.IsNull
-                    || !reader.SubscribedDataSet.TryGetValue(out TargetVariablesDataType? targetVariables)
-                    || targetVariables is null)
+                if (readerName.Length == 0 ||
+                    reader.SubscribedDataSet.IsNull ||
+                    !reader.SubscribedDataSet.TryGetValue(out TargetVariablesDataType? targetVariables) ||
+                    targetVariables is null)
                 {
                     continue;
                 }

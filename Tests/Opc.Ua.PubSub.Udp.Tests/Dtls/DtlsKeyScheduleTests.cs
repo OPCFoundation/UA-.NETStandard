@@ -83,8 +83,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             var transcriptA = new DtlsTranscriptHash(HashAlgorithmName.SHA256);
             var transcriptB = new DtlsTranscriptHash(HashAlgorithmName.SHA256);
 
-            transcriptA.Append(new byte[] { 0x01, 0x00, 0x00, 0x00 });
-            transcriptB.Append(new byte[] { 0x02, 0x00, 0x00, 0x00 });
+            transcriptA.Append([0x01, 0x00, 0x00, 0x00]);
+            transcriptB.Append([0x02, 0x00, 0x00, 0x00]);
 
             Assert.That(transcriptA.GetHash(), Is.Not.EqualTo(transcriptB.GetHash()));
         }

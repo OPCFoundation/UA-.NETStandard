@@ -249,6 +249,5 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 () => new SksMethodHandler(new InMemoryPubSubKeyServiceServer(), null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
-
     }
 }

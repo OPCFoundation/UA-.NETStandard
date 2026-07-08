@@ -155,7 +155,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             int[] statuses = await client.RegisterTicketsAsync(
             [
-                new byte[] { 1, 2 },
+                [1, 2],
                 [3, 4]
             ]).ConfigureAwait(false);
 
@@ -212,7 +212,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.RegisterTicketsAsync(
                 [
-                    new byte[] { 1 }
+                    [1]
                 ]).ConfigureAwait(false));
         }
 

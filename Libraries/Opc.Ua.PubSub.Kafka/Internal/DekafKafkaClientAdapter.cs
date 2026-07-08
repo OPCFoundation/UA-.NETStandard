@@ -630,15 +630,15 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private static void ValidateCredentialTransport(KafkaConnectionOptions options)
         {
-            if (options.SaslMechanism == KafkaSaslMechanism.None
-                || string.IsNullOrEmpty(options.UserName))
+            if (options.SaslMechanism == KafkaSaslMechanism.None ||
+                string.IsNullOrEmpty(options.UserName))
             {
                 return;
             }
             bool useTls = options.SecurityProtocol
                     is KafkaSecurityProtocol.Ssl
-                    or KafkaSecurityProtocol.SaslSsl
-                || (options.Tls?.UseTls ?? false);
+                    or KafkaSecurityProtocol.SaslSsl ||
+                (options.Tls?.UseTls ?? false);
             if (!useTls && !options.AllowCredentialsOverPlaintext)
             {
                 throw new InvalidOperationException(
@@ -661,8 +661,8 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         {
             return options.SecurityProtocol
                     is KafkaSecurityProtocol.Ssl
-                    or KafkaSecurityProtocol.SaslSsl
-                || (options.Tls?.UseTls ?? false);
+                    or KafkaSecurityProtocol.SaslSsl ||
+                (options.Tls?.UseTls ?? false);
         }
 
         private static string RequireUserName(KafkaConnectionOptions options)

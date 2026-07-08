@@ -142,9 +142,9 @@ namespace Opc.Ua.PubSub.Security
                 if (m_messageCount >= m_maxMessagesPerKey)
                 {
                     throw new InvalidOperationException(
-                        "PubSub nonce counter exhausted for key "
-                        + keyId.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                        + "; a key rollover is required before sending further messages.");
+                        "PubSub nonce counter exhausted for key " +
+                        keyId.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                        "; a key rollover is required before sending further messages.");
                 }
 
                 ulong sequenceNumber = m_messageCount;

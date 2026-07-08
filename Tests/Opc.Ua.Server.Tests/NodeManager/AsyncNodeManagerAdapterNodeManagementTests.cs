@@ -208,9 +208,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Composite test interface combining <see cref="INodeManager"/> with the
         /// new NodeManagement facet so a single Moq object satisfies both ends.
         /// </summary>
-        public interface INodeManagerWithNodeManagement : INodeManager, INodeManagementAsyncNodeManager
-        {
-        }
+        public interface INodeManagerWithNodeManagement : INodeManager, INodeManagementAsyncNodeManager;
 
         private static OperationContext NewOpContext(RequestType type)
         {

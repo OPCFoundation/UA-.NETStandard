@@ -343,7 +343,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return m_options.ReconnectDelay;
             }
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             DateTimeUtc refreshAt = current.IssuedAt + (current.Lifetime - m_options.RefreshLeadTime);
             TimeSpan remaining = refreshAt - now;
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;

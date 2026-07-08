@@ -236,8 +236,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
             return new PubSubSecurityKey(
                 tokenId,
                 ByteString.Create(CreateSigning(tokenId)),
-                ByteString.Create(new byte[] { 5, 6, 7, 8 }),
-                ByteString.Create(new byte[] { 9, 10, 11, 12 }),
+                ByteString.Create([5, 6, 7, 8]),
+                ByteString.Create([9, 10, 11, 12]),
                 DateTimeUtc.From(DateTime.UtcNow),
                 TimeSpan.FromMinutes(10));
         }

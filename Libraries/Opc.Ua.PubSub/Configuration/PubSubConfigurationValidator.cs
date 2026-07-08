@@ -435,8 +435,8 @@ namespace Opc.Ua.PubSub.Configuration
             string writerPath,
             List<PubSubConfigurationIssue> issues)
         {
-            if (((DataSetFieldContentMask)writer.DataSetFieldContentMask
-                & DataSetFieldContentMask.RawData) == 0)
+            if (((DataSetFieldContentMask)writer.DataSetFieldContentMask &
+                DataSetFieldContentMask.RawData) == 0)
             {
                 return;
             }
@@ -659,8 +659,8 @@ namespace Opc.Ua.PubSub.Configuration
                         issues.Add(new PubSubConfigurationIssue(
                             PubSubConfigurationIssueSeverity.Warning,
                             IssueCodes.SecurityModeInvalid,
-                            "SecurityMode is unset (Invalid) and is treated as None; "
-                                + "configure an explicit SecurityMode to silence this warning.",
+                            "SecurityMode is unset (Invalid) and is treated as None; " +
+                                "configure an explicit SecurityMode to silence this warning.",
                             path,
                             SpecClauses.PubSubSecurity));
                     }
@@ -728,16 +728,16 @@ namespace Opc.Ua.PubSub.Configuration
         {
             if (string.Equals(profile, Profiles.PubSubUdpUadpTransport, StringComparison.Ordinal))
             {
-                return new[] { (PubSubUdpScheme, "UDP unicast / multicast") };
+                return [(PubSubUdpScheme, "UDP unicast / multicast")];
             }
             if (string.Equals(profile, Profiles.PubSubMqttUadpTransport, StringComparison.Ordinal) ||
                 string.Equals(profile, Profiles.PubSubMqttJsonTransport, StringComparison.Ordinal))
             {
-                return new[]
-                {
+                return
+                [
                     (PubSubMqttScheme, "MQTT"),
                     (PubSubMqttsScheme, "MQTT over TLS")
-                };
+                ];
             }
             return Array.Empty<(string, string)>();
         }

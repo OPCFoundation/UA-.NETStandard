@@ -57,13 +57,12 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PubSubConfigurationDataType configuration = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS1", AdapterTestHelpers.Variable.Value(new NodeId(11u))),
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS2", AdapterTestHelpers.Variable.Value(new NodeId(12u)))
-                });
+                ]);
             MakeConnectionsBuildable(configuration);
             (ServiceCollection services, Mock<IServerSessionFactory> factory) = NewServices();
             services.AddOpcUa().AddPubSub(pubsub => pubsub
@@ -93,13 +92,12 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PubSubConfigurationDataType configuration = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "Referenced", AdapterTestHelpers.Variable.Value(new NodeId(21u))),
                     AdapterTestHelpers.PublishedDataSet(
                         "Unreferenced", AdapterTestHelpers.Variable.Value(new NodeId(22u)))
-                });
+                ]);
             MakeConnectionsBuildable(configuration);
             IConfiguration options = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>

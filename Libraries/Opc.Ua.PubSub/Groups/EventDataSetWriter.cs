@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Groups
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 uint seq = ++m_sequenceNumber;
-                DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
                 if (json)
                 {
                     messages.Add(new JsonDataSetMessageV2

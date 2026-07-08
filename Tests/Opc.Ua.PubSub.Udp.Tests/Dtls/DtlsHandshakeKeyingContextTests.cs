@@ -51,8 +51,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 DtlsNamedCurve.NistP256, DtlsNamedCurve.NistP256, isMandatory: false);
             byte[] shared = new byte[32];
             RandomNumberGenerator.Fill(shared);
-            byte[] handshakeHash = SHA256.HashData(new byte[] { 1, 2 });
-            byte[] applicationHash = SHA256.HashData(new byte[] { 1, 2, 3 });
+            byte[] handshakeHash = SHA256.HashData([1, 2]);
+            byte[] applicationHash = SHA256.HashData([1, 2, 3]);
             using var client = new DtlsHandshakeKeyingContext(profile, shared, handshakeHash, applicationHash);
             using var server = new DtlsHandshakeKeyingContext(profile, shared, handshakeHash, applicationHash);
 
@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             using DtlsRecordProtection writer = client.CreateClientApplicationWriteProtection();
             using DtlsRecordProtection reader = server.CreateClientApplicationWriteProtection();
 
-            Assert.That(reader.Open(writer.Seal(new byte[] { 0x55 })), Is.EqualTo(new byte[] { 0x55 }));
+            Assert.That(reader.Open(writer.Seal([0x55])), Is.EqualTo(new byte[] { 0x55 }));
         }
 
         [Test]
@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 DtlsNamedCurve.NistP256, DtlsNamedCurve.NistP256, isMandatory: false);
             byte[] shared = new byte[32];
             RandomNumberGenerator.Fill(shared);
-            byte[] hash = SHA256.HashData(new byte[] { 7 });
+            byte[] hash = SHA256.HashData([7]);
             using var context = new DtlsHandshakeKeyingContext(profile, shared, hash, hash);
             byte[] before = (byte[])context.Secrets.ClientApplicationTrafficSecret.Clone();
 

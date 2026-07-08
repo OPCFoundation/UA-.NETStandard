@@ -205,11 +205,11 @@ namespace Opc.Ua.Di.Tests
         public void ForDeviceAsyncThrowsBadNodeIdUnknownWhenReadStatusBad()
         {
             var sessionMock = CreateSessionMock();
-            SetupReadReturns(sessionMock, new DataValue[]
-            {
+            SetupReadReturns(sessionMock,
+            [
                 new DataValue(Variant.Null
                 , StatusCodes.BadNodeIdUnknown)
-            });
+            ]);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
@@ -223,11 +223,11 @@ namespace Opc.Ua.Di.Tests
         public async Task ForDeviceAsyncReturnsClientWhenReadSucceeds()
         {
             var sessionMock = CreateSessionMock();
-            SetupReadReturns(sessionMock, new DataValue[]
-            {
+            SetupReadReturns(sessionMock,
+            [
                 new DataValue(new Variant((int)NodeClass.Object)
                 , StatusCodes.Good)
-            });
+            ]);
 
             DiDeviceClient client = await DiDeviceClient.ForDeviceAsync(
                 sessionMock.Object,

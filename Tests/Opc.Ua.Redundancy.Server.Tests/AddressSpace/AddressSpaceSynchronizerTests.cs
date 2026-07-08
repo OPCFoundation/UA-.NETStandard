@@ -299,7 +299,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             writer.Start();
 
-            Assert.That(() => writer.Start(), Throws.Nothing);
+            Assert.That(writer.Start, Throws.Nothing);
         }
 
         [Test]
@@ -316,12 +316,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             // The second disposal must be a no-op; the await-using scope exit
             // disposes a third time, also without effect.
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await writer.DisposeAsync().ConfigureAwait(false),
-                Throws.Nothing);
+                Throws.Nothing).ConfigureAwait(false);
         }
 
-        private BaseDataVariableState NewVariable(string id, double value)
+        private static BaseDataVariableState NewVariable(string id, double value)
         {
             return new BaseDataVariableState(null)
             {

@@ -356,12 +356,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 BindingFlags.NonPublic | BindingFlags.Static)!;
             var urls = (IEnumerable<string>)method.Invoke(null, [endpoint])!;
             var result = new List<string>();
-            foreach (string url in urls)
-            {
-                result.Add(url);
-            }
-
-            return result.ToArray();
+            result.AddRange(urls);
+            return [.. result];
         }
 
         private static ConfiguredEndpoint CreateEndpoint(string serverUri, string endpointUrl)

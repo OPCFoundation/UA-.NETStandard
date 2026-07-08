@@ -247,7 +247,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             return key;
         }
 
-        private SharedSessionEntry NewEntry(string token)
+        private static SharedSessionEntry NewEntry(string token)
         {
             return new SharedSessionEntry
             {

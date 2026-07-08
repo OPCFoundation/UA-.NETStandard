@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             Assert.That(acquired, Is.True);
             Assert.That(election.IsLeader, Is.True);
-            Assert.That(transitions, Is.EqualTo(new[] { true }));
+            Assert.That(transitions, Is.EqualTo([true]));
         }
 
         [Test]
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             await consensus1.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(election2.IsLeader, Is.True, "the surviving replica is elected leader");
-            Assert.That(node2Transitions, Is.EqualTo(new[] { true }));
+            Assert.That(node2Transitions, Is.EqualTo([true]));
         }
 
         [Test]

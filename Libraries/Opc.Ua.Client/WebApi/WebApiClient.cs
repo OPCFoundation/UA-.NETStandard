@@ -156,8 +156,9 @@ namespace Opc.Ua.Client.WebApi
 
         /// <inheritdoc/>
         public Uri BaseAddress
-            => m_httpClient.BaseAddress ?? throw new InvalidOperationException(
-                "WebApiClient requires HttpClient.BaseAddress to be set.");
+            => m_httpClient.BaseAddress ??
+                throw new InvalidOperationException(
+                    "WebApiClient requires HttpClient.BaseAddress to be set.");
 
         /// <inheritdoc/>
         public WebApiEncoding Encoding => m_options.Encoding;

@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "a/1", "a/2" }));
+            Assert.That(keys, Is.EquivalentTo(["a/1", "a/2"]));
         }
 
         [Test]
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "x", "y" }));
+            Assert.That(keys, Is.EquivalentTo(["x", "y"]));
         }
 
         [Test]

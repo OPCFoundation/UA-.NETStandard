@@ -31,7 +31,6 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests

@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Capture
@@ -163,7 +162,8 @@ namespace Opc.Ua.Pcap.Capture
         /// </summary>
         /// <param name="message">The diagnostic message; may be <c>null</c>.</param>
         /// <param name="hresult">The HRESULT to associate with the exception.</param>
-        public PcapDiagnosticsException(string? message, int hresult) : base(message, hresult)
+        public PcapDiagnosticsException(string? message, int hresult)
+            : base(message, hresult)
         {
         }
     }

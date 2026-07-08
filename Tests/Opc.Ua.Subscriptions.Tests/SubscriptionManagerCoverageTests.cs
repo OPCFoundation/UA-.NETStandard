@@ -402,11 +402,11 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             var context = new StubSubscriptionManagerContext();
             var handler = new NoopNotificationHandler();
-            var subscriptions = new Queue<IManagedSubscription>(new IManagedSubscription[]
-            {
+            var subscriptions = new Queue<IManagedSubscription>(
+            [
                 new StubManagedSubscription { Id = 1u },
                 new StubManagedSubscription { Id = 2u }
-            });
+            ]);
             SubscriptionManager manager = CreateManager(context);
             await using (manager.ConfigureAwait(false))
             {
@@ -426,11 +426,11 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             var context = new StubSubscriptionManagerContext();
             var handler = new NoopNotificationHandler();
-            var subscriptions = new Queue<IManagedSubscription>(new IManagedSubscription[]
-            {
+            var subscriptions = new Queue<IManagedSubscription>(
+            [
                 new StubManagedSubscription { Id = 1u, MissingMessageCount = 3 },
                 new StubManagedSubscription { Id = 2u, MissingMessageCount = 4 }
-            });
+            ]);
             SubscriptionManager manager = CreateManager(context);
             await using (manager.ConfigureAwait(false))
             {
@@ -448,11 +448,11 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             var context = new StubSubscriptionManagerContext();
             var handler = new NoopNotificationHandler();
-            var subscriptions = new Queue<IManagedSubscription>(new IManagedSubscription[]
-            {
+            var subscriptions = new Queue<IManagedSubscription>(
+            [
                 new StubManagedSubscription { Id = 1u, RepublishMessageCount = 2 },
                 new StubManagedSubscription { Id = 2u, RepublishMessageCount = 5 }
-            });
+            ]);
             SubscriptionManager manager = CreateManager(context);
             await using (manager.ConfigureAwait(false))
             {

@@ -36,8 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Di.Client;
 
-#nullable enable
-
 namespace Opc.Ua.Di.Tests
 {
     /// <summary>

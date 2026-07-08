@@ -77,13 +77,13 @@ namespace Opc.Ua.PubSub.DataSets
                 throw new ArgumentNullException(nameof(sampler));
             }
             ExtensionObject src = configuration.DataSetSource;
-            if (src.IsNull
-                || !src.TryGetValue(out PublishedEventsDataType? events)
-                || events is null)
+            if (src.IsNull ||
+                !src.TryGetValue(out PublishedEventsDataType? events) ||
+                events is null)
             {
                 throw new ArgumentException(
-                    "PublishedDataSet.DataSetSource must resolve to a "
-                    + "PublishedEventsDataType (Part 14 §6.2.4).",
+                    "PublishedDataSet.DataSetSource must resolve to a " +
+                    "PublishedEventsDataType (Part 14 §6.2.4).",
                     nameof(configuration));
             }
             m_configuration = configuration;
@@ -165,8 +165,8 @@ namespace Opc.Ua.PubSub.DataSets
                 var converted = new Encoding.DataSetField[columns];
                 for (int i = 0; i < columns; i++)
                 {
-                    string fieldName = !MetaData.Fields.IsNull
-                        && i < MetaData.Fields.Count
+                    string fieldName = !MetaData.Fields.IsNull &&
+                        i < MetaData.Fields.Count
                         ? MetaData.Fields[i]?.Name ?? string.Empty
                         : string.Empty;
                     converted[i] = new Encoding.DataSetField

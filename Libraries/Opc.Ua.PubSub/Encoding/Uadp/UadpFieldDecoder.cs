@@ -76,13 +76,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return [];
             }
-            if (messageType == PubSubDataSetMessageType.Event
-                && encoding != PubSubFieldEncoding.Variant)
+            if (messageType == PubSubDataSetMessageType.Event &&
+                encoding != PubSubFieldEncoding.Variant)
             {
                 return null;
             }
-            if (messageType == PubSubDataSetMessageType.DeltaFrame
-                && encoding == PubSubFieldEncoding.RawData)
+            if (messageType == PubSubDataSetMessageType.DeltaFrame &&
+                encoding == PubSubFieldEncoding.RawData)
             {
                 return null;
             }

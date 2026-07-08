@@ -253,8 +253,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             try
             {
-                byte[] seg1 = { 1, 2, 3 };
-                byte[] seg2 = { 4, 5, 6 };
+                byte[] seg1 = [1, 2, 3];
+                byte[] seg2 = [4, 5, 6];
                 var col = new BufferCollection
                 {
                     new ArraySegment<byte>(seg1),

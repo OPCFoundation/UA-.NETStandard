@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <inheritdoc/>
         public ValueTask<ArrayOf<uint>> ReserveIdsAsync(ushort count, CancellationToken cancellationToken = default)
         {
-            var ids = new uint[count];
+            uint[] ids = new uint[count];
             lock (m_gate)
             {
                 for (int i = 0; i < ids.Length; i++)

@@ -135,5 +135,3 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
     }
 }
-
-

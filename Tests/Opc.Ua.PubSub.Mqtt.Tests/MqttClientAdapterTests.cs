@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     .ConfigureAwait(false);
 
                 await adapter.UnsubscribeAsync(
-                    new[] { topic },
+                    [topic],
                     CancellationToken.None).ConfigureAwait(false);
 
                 // empty-collection short-circuit
@@ -592,11 +592,11 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     Retain: false,
                     ContentType: "application/json",
                     ResponseTopic: null,
-                    UserProperties: new[]
-                    {
+                    UserProperties:
+                    [
                         new KeyValuePair<string, string>("Temperature", "21.5"),
                         new KeyValuePair<string, string>("Unit", "C")
-                    });
+                    ]);
                 await publisher.PublishAsync(outbound, CancellationToken.None).ConfigureAwait(false);
 
                 MqttIncomingMessageEventArgs inbound =

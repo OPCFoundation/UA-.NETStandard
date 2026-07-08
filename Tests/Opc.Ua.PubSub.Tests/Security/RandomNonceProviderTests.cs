@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Security
     public class RandomNonceProviderTests
     {
         private const uint KeyId = 1U;
-        private static readonly byte[] s_keyNonce = new byte[] { 0xA1, 0xB2, 0xC3, 0xD4 };
+        private static readonly byte[] s_keyNonce = [0xA1, 0xB2, 0xC3, 0xD4];
 
         [Test]
         public void GetNext_ProducesUniqueMessageRandomBytes()

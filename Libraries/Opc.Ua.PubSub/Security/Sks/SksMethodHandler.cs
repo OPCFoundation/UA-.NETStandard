@@ -173,7 +173,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     new LocalizedText(ex.Message));
             }
 
-            ByteString[] keys = new ByteString[response.Keys.Count];
+            var keys = new ByteString[response.Keys.Count];
             for (int i = 0; i < response.Keys.Count; i++)
             {
                 byte[] entry = response.Keys[i] ?? Array.Empty<byte>();

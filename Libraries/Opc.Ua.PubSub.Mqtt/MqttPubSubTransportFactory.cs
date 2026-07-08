@@ -113,8 +113,8 @@ namespace Opc.Ua.PubSub.Mqtt
             if (!string.Equals(
                     transportProfileUri,
                     Profiles.PubSubMqttJsonTransport,
-                    StringComparison.Ordinal)
-                && !string.Equals(
+                    StringComparison.Ordinal) &&
+                !string.Equals(
                     transportProfileUri,
                     Profiles.PubSubMqttUadpTransport,
                     StringComparison.Ordinal))
@@ -164,8 +164,8 @@ namespace Opc.Ua.PubSub.Mqtt
                 throw new NotSupportedException(
                     "PubSubConnection.Address is required for MQTT transport.");
             }
-            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress)
-                || networkAddress is null)
+            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress) ||
+                networkAddress is null)
             {
                 throw new NotSupportedException(
                     "MQTT transport requires a NetworkAddressUrlDataType address payload.");

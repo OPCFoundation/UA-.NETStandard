@@ -334,7 +334,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     connection,
                     "SendChunkedAsync",
                     transport,
-                    new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3, 4 }),
+                    new ReadOnlyMemory<byte>([1, 2, 3, 4]),
                     PublisherId.FromUInt16(1),
                     (ushort?)2,
                     CancellationToken.None).ConfigureAwait(false));
@@ -498,7 +498,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             ReadOnlyMemory<byte>? result = InvokePrivate<ReadOnlyMemory<byte>?>(
                 connection,
                 "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(new byte[] { 0xAA, 0xBB, 0xCC }),
+                new ReadOnlyMemory<byte>([0xAA, 0xBB, 0xCC]),
                 1,
                 PublisherId.FromUInt16(1),
                 (ushort)2);

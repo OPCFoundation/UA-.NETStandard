@@ -93,7 +93,6 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
         [Test]
         public void GetRejectedListReturnsGoodForAdmin()
         {
@@ -141,8 +140,6 @@ namespace Opc.Ua.Server.Tests
         // and is out of scope to fix here (production code change required,
         // outside ConfigurationNodeManager.cs). The empty-store success path
         // and the non-admin failure path are still covered below.
-
-
 
         [Test]
         public void GetCertificatesForDefaultApplicationGroupReturnsGood()
@@ -201,8 +198,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
-
-
 
         // NOTE: A success-path test that reaches the certificate creation
         // itself (builder.CreateForRSA()/CreateForECDsa()) is intentionally
@@ -313,8 +308,6 @@ namespace Opc.Ua.Server.Tests
             using Certificate certificate = Certificate.FromRawData(result.Certificate);
             Assert.That(certificate.Subject, Does.Contain("ConfigurationNodeManager Self Signed"));
         }
-
-
 
         [Test]
         public async Task CreateSigningRequestWithoutRegeneratePrivateKeyReturnsGoodAsync()
@@ -465,8 +458,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
-
-
 
         [Test]
         public void UpdateCertificateWithEmptyCertificateThrowsArgumentNullException()
@@ -910,8 +901,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
-
-
         [Test]
         public async Task DrainPendingApplyChangesAsyncWithNoPendingTaskCompletesImmediatelyAsync()
         {
@@ -920,8 +909,6 @@ namespace Opc.Ua.Server.Tests
             await m_configManager.DrainPendingApplyChangesAsync()
                 .ConfigureAwait(false);
         }
-
-
 
         [Test]
         public void ValidatePushCertificateAndIssuerChainWithNullCertificateThrowsArgumentNullException()
@@ -988,8 +975,6 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false));
         }
 
-
-
         [Test]
         public void StartAlarmMonitoringTwiceThenStopDoesNotThrow()
         {
@@ -1001,8 +986,6 @@ namespace Opc.Ua.Server.Tests
             // Stopping again must be a no-op.
             Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
         }
-
-
 
         [Test]
         public async Task GetNamespaceMetadataStateWithNullUriReturnsNullAsync()
@@ -1060,8 +1043,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(second, Is.SameAs(created));
         }
 
-
-
         [Test]
         public void BindKeyCredentialPushWithNullSubjectThrowsArgumentNullException()
         {
@@ -1087,8 +1068,6 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             Assert.That(node, Is.TypeOf<KeyCredentialConfigurationFolderState>());
         }
-
-
 
         [Test]
         public void ConstructorWithLoggerOverloadCreatesUserAndHttpsCertificateGroups()
@@ -1147,7 +1126,6 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
         private ByteString GetCurrentRsaCertificate(ISystemContext context)
         {
             ArrayOf<NodeId> certificateTypeIds = default;
@@ -1202,6 +1180,5 @@ namespace Opc.Ua.Server.Tests
                 ServerUris = new StringTable()
             };
         }
-
     }
 }

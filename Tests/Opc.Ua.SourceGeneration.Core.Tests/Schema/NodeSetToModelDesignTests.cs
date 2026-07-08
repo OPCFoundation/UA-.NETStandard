@@ -161,7 +161,7 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(settings.NamespaceUris.GetString(1), Is.EqualTo(CrossModelNamespaceUri));
             Assert.That(settings.NamespaceTables, Has.Count.EqualTo(1));
             Assert.That(settings.NamespaceTables.ContainsKey(CrossModelNamespaceUri), Is.True);
-            Assert.That(settings.NamespaceTables[CrossModelNamespaceUri], Is.EqualTo(new[] { CrossModelNamespaceUri }));
+            Assert.That(settings.NamespaceTables[CrossModelNamespaceUri], Is.EqualTo([CrossModelNamespaceUri]));
         }
 
         [Test]

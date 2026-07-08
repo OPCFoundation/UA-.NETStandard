@@ -1708,8 +1708,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     builder.Append(record.Name);
                     if (record.Payload.Count > 0)
                     {
-                        builder.Append(' ');
-                        builder.Append(string.Join(
+                        builder.Append(' ')
+                            .Append(string.Join(
                             ", ",
                             record.Payload.Select(p => $"{p.Key}={p.Value}")));
                     }

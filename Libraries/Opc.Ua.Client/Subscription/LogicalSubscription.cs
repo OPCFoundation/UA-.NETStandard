@@ -512,8 +512,8 @@ namespace Opc.Ua.Client.Subscriptions
                 if (partition.MonitoredItems
                     .TryGetMonitoredItemByClientHandle(
                         item.ClientHandle,
-                        out IMonitoredItem? candidate)
-                    && ReferenceEquals(candidate, item))
+                        out IMonitoredItem? candidate) &&
+                    ReferenceEquals(candidate, item))
                 {
                     return partition;
                 }

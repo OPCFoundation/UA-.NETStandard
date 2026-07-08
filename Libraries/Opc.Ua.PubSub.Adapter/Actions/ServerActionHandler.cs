@@ -193,11 +193,11 @@ namespace Opc.Ua.PubSub.Adapter.Actions
             var fields = new DataSetField[outputArguments.Count];
             for (int i = 0; i < outputArguments.Count; i++)
             {
-                string name = hasNames
-                    && i < outputFieldNames.Count
-                    && !string.IsNullOrEmpty(outputFieldNames[i])
+                string name = hasNames &&
+                    i < outputFieldNames.Count &&
+                    !string.IsNullOrEmpty(outputFieldNames[i])
                     ? outputFieldNames[i]
-                    : string.Concat("Output", i.ToString(CultureInfo.InvariantCulture));
+                    : $"Output{i.ToString(CultureInfo.InvariantCulture)}";
                 fields[i] = new DataSetField
                 {
                     Name = name,

@@ -1766,7 +1766,6 @@ namespace Opc.Ua.SourceGeneration
             context.Out.WriteLine("}");
         }
 
-
         private bool WriteTemplate_RolePermissions(IWriteContext context)
         {
             if (context.Target is not HashSet<RolePermission> rolePermissions ||
@@ -2711,7 +2710,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.InstanceNodeIdOverride,
                 NodeStateTemplates.InstanceNodeIdOverride,
                 singletonChildren.Count > 0
-                    ? (IReadOnlyList<object>)new object[] { singletonChildren }
+                    ? (IReadOnlyList<object>)[singletonChildren]
                     : [],
                 WriteTemplate_InstanceNodeIdOverride);
         }

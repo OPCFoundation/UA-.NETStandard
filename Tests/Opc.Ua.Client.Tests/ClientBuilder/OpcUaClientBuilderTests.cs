@@ -93,7 +93,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 Is.InstanceOf<DefaultSubscriptionEngineFactory>());
         }
 
-
         [Test]
         public void AddSubscriptionsAndPoolRegisterServices()
         {

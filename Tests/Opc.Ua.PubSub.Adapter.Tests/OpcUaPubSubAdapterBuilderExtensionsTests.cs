@@ -170,11 +170,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             (ServiceCollection services, _) = NewServices();
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)))
-                });
+                ]);
             config.Connections = [];
 
             services.AddServerAdapterPubSub(
@@ -207,11 +206,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             (ServiceCollection services, _) = NewServices();
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)))
-                });
+                ]);
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .UseConfiguration(config)

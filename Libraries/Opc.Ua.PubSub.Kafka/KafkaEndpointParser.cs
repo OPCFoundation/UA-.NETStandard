@@ -139,9 +139,10 @@ namespace Opc.Ua.PubSub.Kafka
                 {
                     builder.Append(',');
                 }
-                builder.Append(host);
-                builder.Append(':');
-                builder.Append(port.ToString(CultureInfo.InvariantCulture));
+                builder
+                    .Append(host)
+                    .Append(':')
+                    .Append(port.ToString(CultureInfo.InvariantCulture));
             }
             return new KafkaEndpoint(builder.ToString(), useTls);
         }
@@ -175,7 +176,7 @@ namespace Opc.Ua.PubSub.Kafka
                 {
                     ipv6Port = DefaultPort;
                 }
-                return (string.Concat("[", ipv6Host, "]"), ipv6Port);
+                return ($"[{ipv6Host}]", ipv6Port);
             }
 
             int colon = entry.LastIndexOf(':');
@@ -208,9 +209,9 @@ namespace Opc.Ua.PubSub.Kafka
                     text,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
-                    out int port)
-                || port <= 0
-                || port > 65535)
+                    out int port) ||
+                port <= 0 ||
+                port > 65535)
             {
                 throw new FormatException(
                     "Kafka endpoint has an invalid port component (must be 1..65535).");

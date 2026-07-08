@@ -3326,8 +3326,8 @@ namespace Opc.Ua.Client
             // legacy in-Session path for back-compat.
             IClientChannelManager? mgr = m_channelManager;
             IManagedTransportChannel? managed = m_managedChannel;
-            if (connection == null && channel == null
-                && mgr != null && managed != null)
+            if (connection == null && channel == null &&
+                mgr != null && managed != null)
             {
                 await ReconnectManagedChannelAsync(
                         mgr,
@@ -5109,7 +5109,6 @@ namespace Opc.Ua.Client
             }
             return chain;
         }
-
 
         /// <summary>
         /// Loads the client instance certificate together with its issuer chain

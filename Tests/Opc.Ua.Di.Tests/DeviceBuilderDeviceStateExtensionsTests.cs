@@ -32,7 +32,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.Builders;
 
-#nullable enable
 #pragma warning disable CA2000
 
 namespace Opc.Ua.Di.Tests

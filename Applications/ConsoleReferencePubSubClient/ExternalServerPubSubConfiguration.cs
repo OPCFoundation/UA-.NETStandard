@@ -97,10 +97,10 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             }
 
             bool includePublisher = modes.HasFlag(BridgeMode.Publisher);
-            bool includeSubscriber = modes.HasFlag(BridgeMode.Subscriber)
-                || modes.HasFlag(BridgeMode.Responder);
+            bool includeSubscriber = modes.HasFlag(BridgeMode.Subscriber) ||
+                modes.HasFlag(BridgeMode.Responder);
 
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
             if (includePublisher)
             {
                 AddExternalServerDataSet(builder);
@@ -321,12 +321,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             {
                 DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber)
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber)
             };
         }
 
@@ -335,8 +335,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             return new UadpDataSetWriterMessageDataType
             {
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
 
@@ -345,15 +345,15 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             return new UadpDataSetReaderMessageDataType
             {
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber),
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
     }

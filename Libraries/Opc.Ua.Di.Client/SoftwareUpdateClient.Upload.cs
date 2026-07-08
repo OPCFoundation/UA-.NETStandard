@@ -215,8 +215,8 @@ namespace Opc.Ua.Di.Client
             ushort diNs = Session.NamespaceUris.GetIndexOrAppend(
                 Opc.Ua.Di.Namespaces.OpcUaDi);
 
-            var paths = ArrayOf.Wrapped(new[]
-            {
+            var paths = ArrayOf.Wrapped(
+            [
                 BuildBrowsePath(
                     new RelativePathElement
                     {
@@ -276,7 +276,7 @@ namespace Opc.Ua.Di.Client
                         IncludeSubtypes = true,
                         TargetName = new QualifiedName("CloseAndCommit")
                     })
-            });
+            ]);
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
@@ -298,12 +298,12 @@ namespace Opc.Ua.Di.Client
         private async ValueTask<(NodeId OpenId, NodeId WriteId, NodeId CloseId)>
             ResolveFileMethodsAsync(NodeId fileNodeId, CancellationToken ct)
         {
-            var paths = ArrayOf.Wrapped(new[]
-            {
+            var paths = ArrayOf.Wrapped(
+            [
                 MakeBrowsePathFromFile(fileNodeId, "Open"),
                 MakeBrowsePathFromFile(fileNodeId, "Write"),
                 MakeBrowsePathFromFile(fileNodeId, "Close")
-            });
+            ]);
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
@@ -325,15 +325,15 @@ namespace Opc.Ua.Di.Client
         {
             CallResponse response = await Session.CallAsync(
                 null,
-                ArrayOf.Wrapped(new[]
-                {
+                ArrayOf.Wrapped(
+                [
                     new CallMethodRequest
                     {
                         ObjectId = fileTransferId,
                         MethodId = methodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { generateOptions })
+                        InputArguments = ArrayOf.Wrapped([generateOptions])
                     }
-                }),
+                ]),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "GenerateFileForWrite");
@@ -362,15 +362,15 @@ namespace Opc.Ua.Di.Client
         {
             CallResponse response = await Session.CallAsync(
                 null,
-                ArrayOf.Wrapped(new[]
-                {
+                ArrayOf.Wrapped(
+                [
                     new CallMethodRequest
                     {
                         ObjectId = fileNodeId,
                         MethodId = openMethodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(mode) })
+                        InputArguments = ArrayOf.Wrapped([new Variant(mode)])
                     }
-                }),
+                ]),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "FileState.Open");
@@ -390,19 +390,19 @@ namespace Opc.Ua.Di.Client
         {
             CallResponse response = await Session.CallAsync(
                 null,
-                ArrayOf.Wrapped(new[]
-                {
+                ArrayOf.Wrapped(
+                [
                     new CallMethodRequest
                     {
                         ObjectId = fileNodeId,
                         MethodId = writeMethodId,
-                        InputArguments = ArrayOf.Wrapped(new[]
-                        {
+                        InputArguments = ArrayOf.Wrapped(
+                        [
                             new Variant(fileHandle),
                             new Variant(ByteString.From(data))
-                        })
+                        ])
                     }
-                }),
+                ]),
                 ct).ConfigureAwait(false);
 
             _ = ExpectSingleCallResult(response, "FileState.Write");
@@ -414,15 +414,15 @@ namespace Opc.Ua.Di.Client
         {
             CallResponse response = await Session.CallAsync(
                 null,
-                ArrayOf.Wrapped(new[]
-                {
+                ArrayOf.Wrapped(
+                [
                     new CallMethodRequest
                     {
                         ObjectId = fileNodeId,
                         MethodId = closeMethodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(fileHandle) })
+                        InputArguments = ArrayOf.Wrapped([new Variant(fileHandle)])
                     }
-                }),
+                ]),
                 ct).ConfigureAwait(false);
 
             _ = ExpectSingleCallResult(response, "FileState.Close");
@@ -434,15 +434,15 @@ namespace Opc.Ua.Di.Client
         {
             CallResponse response = await Session.CallAsync(
                 null,
-                ArrayOf.Wrapped(new[]
-                {
+                ArrayOf.Wrapped(
+                [
                     new CallMethodRequest
                     {
                         ObjectId = fileTransferId,
                         MethodId = methodId,
-                        InputArguments = ArrayOf.Wrapped(new[] { new Variant(commitHandle) })
+                        InputArguments = ArrayOf.Wrapped([new Variant(commitHandle)])
                     }
-                }),
+                ]),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "CloseAndCommit");
@@ -474,8 +474,8 @@ namespace Opc.Ua.Di.Client
                 StartingNode = fileNodeId,
                 RelativePath = new RelativePath
                 {
-                    Elements = ArrayOf.Wrapped(new[]
-                    {
+                    Elements = ArrayOf.Wrapped(
+                    [
                         new RelativePathElement
                         {
                             ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
@@ -483,7 +483,7 @@ namespace Opc.Ua.Di.Client
                             IncludeSubtypes = true,
                             TargetName = new QualifiedName(browseName)
                         }
-                    })
+                    ])
                 }
             };
         }

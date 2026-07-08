@@ -232,11 +232,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             public ArrayOf<DiscoveredPeer> Peers => default;
 
-            public int Attempts => System.Threading.Volatile.Read(ref m_attempts);
+            public int Attempts => Volatile.Read(ref m_attempts);
 
             public ValueTask<ArrayOf<DiscoveredPeer>> RefreshAsync(CancellationToken ct = default)
             {
-                System.Threading.Interlocked.Increment(ref m_attempts);
+                Interlocked.Increment(ref m_attempts);
                 PeersChanged?.Invoke(default);
                 throw new InvalidOperationException("discovery failure");
             }

@@ -9578,7 +9578,6 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             bool result = dataType.IsTemplateParameterRequired(ValueRank.Array);
 
-
             // Assert
             Assert.That(result, Is.True);
         }

@@ -156,8 +156,6 @@ namespace Opc.Ua.Di.Tests
             Assert.That(lookup.Device, Is.SameAs(builder.Device));
         }
 
-        private sealed class MarkerService
-        {
-        }
+        private sealed class MarkerService;
     }
 }

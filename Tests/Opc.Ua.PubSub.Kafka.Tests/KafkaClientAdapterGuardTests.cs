@@ -307,7 +307,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 BindingFlags.NonPublic | BindingFlags.Static)!;
             try
             {
-                method.Invoke(null, new[] { builder, options });
+                method.Invoke(null, [builder, options]);
             }
             catch (TargetInvocationException ex) when (ex.InnerException is not null)
             {

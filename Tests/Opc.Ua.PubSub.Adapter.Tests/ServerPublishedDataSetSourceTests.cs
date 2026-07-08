@@ -247,7 +247,6 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
-
         [Test]
         public void SourceForwardsMetaDataChangedFromBuilder()
         {

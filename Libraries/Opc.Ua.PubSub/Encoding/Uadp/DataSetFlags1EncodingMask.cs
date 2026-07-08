@@ -44,9 +44,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// (Table 162). The decoder rejects DataSetMessages whose
     /// <see cref="MessageIsValid"/> bit is zero.
     /// </remarks>
-#pragma warning disable CA1069 // Enums values should not be duplicated — None and FieldEncoding00 both encode "no
     // bits set"; spec encodes Variant as the zero pattern so the duplication is intentional.
-#pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 162 uses both single-bit flags AND a
     // bitmask helper (FieldEncodingMask = 0x06); [Flags] reflects the spec semantics.
     [Flags]
     public enum DataSetFlags1EncodingMask : byte
@@ -55,13 +53,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// No DataSetFlags1 bits set. A DataSetMessage with a zero
         /// flags byte is invalid (it lacks <see cref="MessageIsValid"/>).
         /// </summary>
-        None = 0,
+        None = 0x00,
 
         /// <summary>
         /// Bits 1-2 = <c>00</c> — fields encoded as UA
         /// <see cref="Variant"/> values.
         /// </summary>
-        FieldEncoding00 = 0x00,
+        FieldEncoding00 = None,
 
         /// <summary>
         /// Bit 0 — MessageIsValid. Decoders MUST drop DataSetMessages
@@ -85,7 +83,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <summary>
         /// Mask isolating the field-encoding bits.
         /// </summary>
-        FieldEncodingMask = 0x06,
+        FieldEncodingMask = FieldEncoding01 | FieldEncoding10,
 
         /// <summary>
         /// Bit 3 — SequenceNumber enabled (UA <c>UInt16</c>).
@@ -117,8 +115,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         DataSetFlags2Enabled = 0x80
     }
-#pragma warning restore CA2217
-#pragma warning restore CA1069
 
     /// <summary>
     /// Helpers for translating the DataSetFlags1 field-encoding bits to
@@ -140,7 +136,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// field encoding; <see langword="false"/> for the reserved
         /// value.
         /// </returns>
-        public static bool TryGetFieldEncoding(byte raw, out PubSubFieldEncoding encoding)
+        public static bool TryGetFieldEncoding(this byte raw, out PubSubFieldEncoding encoding)
         {
             switch (raw & (byte)DataSetFlags1EncodingMask.FieldEncodingMask)
             {
@@ -166,7 +162,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="encoding">Field encoding to translate.</param>
         /// <returns>The encoded bit pattern.</returns>
-        public static byte EncodeFieldEncoding(PubSubFieldEncoding encoding)
+        public static byte EncodeFieldEncoding(this PubSubFieldEncoding encoding)
         {
             return encoding switch
             {

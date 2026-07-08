@@ -210,7 +210,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             sync.Start();
 
-            Assert.That(() => sync.Start(), Throws.Nothing);
+            Assert.That(sync.Start, Throws.Nothing);
         }
 
         [Test]

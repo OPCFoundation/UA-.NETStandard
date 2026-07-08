@@ -162,23 +162,23 @@ namespace Opc.Ua.PubSub.Security
                 out IPubSubSecurityKeyProvider? keyProvider))
             {
                 m_logger.LogWarning(
-                    "No key provider registered for SecurityGroupId '{SecurityGroupId}' "
-                    + "required by secured connection '{Connection}'.",
+                    "No key provider registered for SecurityGroupId '{SecurityGroupId}' " +
+                    "required by secured connection '{Connection}'.",
                     securityGroupId,
                     connection.Name);
                 return null;
             }
 
             IPubSubSecurityPolicy? policy = m_policySelector(connection, securityGroupId);
-            if (policy is null
-                || string.Equals(
+            if (policy is null ||
+                string.Equals(
                     policy.PolicyUri,
                     PubSubSecurityPolicyUri.None,
                     StringComparison.Ordinal))
             {
                 m_logger.LogWarning(
-                    "No usable security policy for SecurityGroupId '{SecurityGroupId}' "
-                    + "required by secured connection '{Connection}'.",
+                    "No usable security policy for SecurityGroupId '{SecurityGroupId}' " +
+                    "required by secured connection '{Connection}'.",
                     securityGroupId,
                     connection.Name);
                 return null;

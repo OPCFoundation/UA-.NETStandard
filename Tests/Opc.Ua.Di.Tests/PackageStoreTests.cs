@@ -88,7 +88,7 @@ namespace Opc.Ua.Di.Tests
                 seen.Add(p.Id);
             }
 
-            Assert.That(seen, Is.EquivalentTo(new[] { "fw-1", "fw-2", "fw-3" }));
+            Assert.That(seen, Is.EquivalentTo(["fw-1", "fw-2", "fw-3"]));
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Opc.Ua.Di.Tests
                     seen.Add(p.Id);
                 }
 
-                Assert.That(seen, Is.EquivalentTo(new[] { "a", "b" }));
+                Assert.That(seen, Is.EquivalentTo(["a", "b"]));
             }
             finally
             {

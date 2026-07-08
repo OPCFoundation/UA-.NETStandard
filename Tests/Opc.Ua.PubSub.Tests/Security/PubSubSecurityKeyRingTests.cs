@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Tests.Security
     [TestFixture]
     public class PubSubSecurityKeyRingTests
     {
-        private static readonly uint[] s_expectedKnownTokens = new uint[] { 1U, 2U, 3U };
+        private static readonly uint[] s_expectedKnownTokens = [1U, 2U, 3U];
 
         [Test]
         public void Constructor_RejectsEmptySecurityGroupId()

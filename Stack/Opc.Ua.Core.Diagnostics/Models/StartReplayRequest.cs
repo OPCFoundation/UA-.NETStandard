@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using Opc.Ua.Pcap.Replay;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Models

@@ -112,10 +112,10 @@ namespace Opc.Ua.PubSub.Server
                 if (isAnonymous)
                 {
                     logger.LogWarning(
-                        "PubSub Action target '{ActionName}' (writer {WriterId}, target {TargetId}) "
-                        + "binds server Method {MethodId} on object {ObjectId} and will be invoked as "
-                        + "Anonymous over PubSub. Configure a service identity if the Method requires "
-                        + "user authentication or role-restricted RolePermissions.",
+                        "PubSub Action target '{ActionName}' (writer {WriterId}, target {TargetId}) " +
+                        "binds server Method {MethodId} on object {ObjectId} and will be invoked as " +
+                        "Anonymous over PubSub. Configure a service identity if the Method requires " +
+                        "user authentication or role-restricted RolePermissions.",
                         target.ActionName,
                         registration.DataSetWriterId,
                         actionTarget.ActionTargetId,

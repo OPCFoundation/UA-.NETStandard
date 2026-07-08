@@ -448,10 +448,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetMessages =
@@ -523,10 +523,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetMessages =

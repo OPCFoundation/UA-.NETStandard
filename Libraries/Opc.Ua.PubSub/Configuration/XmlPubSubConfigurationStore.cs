@@ -391,10 +391,10 @@ namespace Opc.Ua.PubSub.Configuration
                     Timeout.InfiniteTimeSpan);
                 var watcher = new FileSystemWatcher(directory!, fileName)
                 {
-                    NotifyFilter = NotifyFilters.LastWrite
-                        | NotifyFilters.Size
-                        | NotifyFilters.FileName
-                        | NotifyFilters.CreationTime
+                    NotifyFilter = NotifyFilters.LastWrite |
+                        NotifyFilters.Size |
+                        NotifyFilters.FileName |
+                        NotifyFilters.CreationTime
                 };
                 watcher.Changed += OnFileSystemChange;
                 watcher.Created += OnFileSystemChange;
@@ -461,8 +461,8 @@ namespace Opc.Ua.PubSub.Configuration
                     return;
                 }
                 // Ignore the file event our own SaveAsync produced.
-                if (m_lastWrittenPayload is not null
-                    && payload.AsSpan().SequenceEqual(m_lastWrittenPayload))
+                if (m_lastWrittenPayload is not null &&
+                    payload.AsSpan().SequenceEqual(m_lastWrittenPayload))
                 {
                     return;
                 }

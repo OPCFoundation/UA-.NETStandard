@@ -38,8 +38,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-#pragma warning disable CA2000
-#pragma warning disable CA2007
+#pragma warning disable CA2000, CA2007
 
 namespace Opc.Ua.Client.Tests
 {

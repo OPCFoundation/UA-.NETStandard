@@ -200,7 +200,6 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 Times.Once);
         }
 
-
         [Test]
         public async Task ResolveRetriesAfterFailureAndUsesRecoveredServerType()
         {

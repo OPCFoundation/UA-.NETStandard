@@ -273,12 +273,12 @@ namespace Opc.Ua.Mcp.Tools
             {
                 string? dataType = null;
                 JsonElement value = property.Value;
-                if (property.Value.ValueKind == JsonValueKind.Object
-                    && property.Value.TryGetProperty("value", out JsonElement wrappedValue))
+                if (property.Value.ValueKind == JsonValueKind.Object &&
+                    property.Value.TryGetProperty("value", out JsonElement wrappedValue))
                 {
                     value = wrappedValue;
-                    if (property.Value.TryGetProperty("dataType", out JsonElement dataTypeElement)
-                        && dataTypeElement.ValueKind == JsonValueKind.String)
+                    if (property.Value.TryGetProperty("dataType", out JsonElement dataTypeElement) &&
+                        dataTypeElement.ValueKind == JsonValueKind.String)
                     {
                         dataType = dataTypeElement.GetString();
                     }

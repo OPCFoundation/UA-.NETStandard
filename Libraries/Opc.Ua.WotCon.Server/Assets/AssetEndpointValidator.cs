@@ -207,9 +207,9 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         private static bool IsLocalHostName(string host)
         {
-            return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(host, "ip6-localhost", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(host, "ip6-loopback", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(host, "ip6-localhost", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(host, "ip6-loopback", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

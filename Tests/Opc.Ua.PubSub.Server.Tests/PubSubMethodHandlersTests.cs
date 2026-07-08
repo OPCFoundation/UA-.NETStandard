@@ -379,7 +379,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
         }
 
-
         [Test]
         [TestSpec("9.1.3.3", Part = 14, Summary = "SetSecurityKeys push target")]
         public async Task OnSetSecurityKeysPushesKeysToProvider()

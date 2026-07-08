@@ -52,16 +52,16 @@ namespace Opc.Ua.PubSub.Tests.Security
     [TestSpec("A.2.2.5", Summary = "UADP security mode selector (SignOnly / EncryptOnly / SignAndEncrypt)")]
     public class UadpSecurityWrapperSignOnlyTests
     {
-        private static readonly byte[] s_outerPrefix = new byte[]
-        {
+        private static readonly byte[] s_outerPrefix =
+        [
             0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01
-        };
-        private static readonly byte[] s_innerPayload = new byte[]
-        {
+        ];
+        private static readonly byte[] s_innerPayload =
+        [
             0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE,
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
             0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88
-        };
+        ];
 
         private static (UadpSecurityWrapper Sender, UadpSecurityWrapper Receiver)
             CreatePair(PubSubAes128CtrPolicy policy, uint tokenId = 1U)

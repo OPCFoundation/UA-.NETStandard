@@ -262,9 +262,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Composite interface for factory branch coverage.
         /// </summary>
-        public interface IAsyncAndSyncNodeManager : IAsyncNodeManager, INodeManager
-        {
-        }
+        public interface IAsyncAndSyncNodeManager : IAsyncNodeManager, INodeManager;
 
         private static void SetupAsyncMethods(
             Mock<IAsyncNodeManager> manager,

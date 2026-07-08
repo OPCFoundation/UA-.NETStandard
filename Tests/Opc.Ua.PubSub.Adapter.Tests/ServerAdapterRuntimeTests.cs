@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             session
@@ -237,7 +237,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         public async Task RuntimeAcquireSessionCreatesDistinctSessionsForDifferentEndpointsAsync()
         {
             var sessions = new Queue<IServerSession>(
-                new[] { new Mock<IServerSession>().Object, new Mock<IServerSession>().Object });
+                [new Mock<IServerSession>().Object, new Mock<IServerSession>().Object]);
             var factory = new Mock<IServerSessionFactory>();
             factory
                 .Setup(f => f.Create(

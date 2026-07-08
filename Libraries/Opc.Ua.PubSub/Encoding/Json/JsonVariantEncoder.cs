@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ReadOnlySpan<byte> encoded,
             bool remapVariantKeys)
         {
-            using JsonDocument document = JsonDocument.Parse(encoded.ToArray());
+            using var document = JsonDocument.Parse(encoded.ToArray());
             JsonElement root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
@@ -225,14 +225,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return;
             }
             destination.WritePropertyName(propertyName);
-            if (valueElement.ValueKind == JsonValueKind.Null
-                || valueElement.ValueKind == JsonValueKind.Undefined)
+            if (valueElement.ValueKind == JsonValueKind.Null ||
+                valueElement.ValueKind == JsonValueKind.Undefined)
             {
                 destination.WriteNullValue();
                 return;
             }
-            if (remapVariantKeys
-                && valueElement.ValueKind == JsonValueKind.Object)
+            if (remapVariantKeys &&
+                valueElement.ValueKind == JsonValueKind.Object)
             {
                 WriteRemappedVariant(destination, valueElement);
                 return;

@@ -80,12 +80,12 @@ namespace Opc.Ua.PubSub.Configuration
                     {
                         if (!StringComparer.Ordinal.Equals(
                             oldMetaData.Fields[i].Name,
-                            newMetaData.Fields[i].Name)
-                            || !Utils.IsEqual(
+                            newMetaData.Fields[i].Name) ||
+                            !Utils.IsEqual(
                                 oldMetaData.Fields[i].DataType,
-                                newMetaData.Fields[i].DataType)
-                            || oldMetaData.Fields[i].ValueRank != newMetaData.Fields[i].ValueRank
-                            || !Utils.IsEqual(
+                                newMetaData.Fields[i].DataType) ||
+                            oldMetaData.Fields[i].ValueRank != newMetaData.Fields[i].ValueRank ||
+                            !Utils.IsEqual(
                             oldMetaData.Fields[i].Properties,
                             newMetaData.Fields[i].Properties))
                         {

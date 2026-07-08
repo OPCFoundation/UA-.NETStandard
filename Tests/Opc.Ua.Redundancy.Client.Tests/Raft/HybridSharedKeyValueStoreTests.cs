@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "node/1", "nonce/a" }));
+            Assert.That(keys, Is.EquivalentTo(["node/1", "nonce/a"]));
         }
 
         [Test]
@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "nonce/a", "nonce/b" }));
+            Assert.That(keys, Is.EquivalentTo(["nonce/a", "nonce/b"]));
         }
 
         [Test]
@@ -220,7 +220,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 keys.Add(entry.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "node/1", "node/2" }),
+            Assert.That(keys, Is.EquivalentTo(["node/1", "node/2"]),
                 "a bulk-only prefix must not enumerate the strong store");
         }
 

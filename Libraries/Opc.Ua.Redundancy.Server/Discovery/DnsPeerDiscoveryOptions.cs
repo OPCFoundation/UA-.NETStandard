@@ -84,7 +84,7 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(address));
             }
             string host = address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
-                ? string.Concat("[", address.ToString(), "]")
+                ? $"[{address}]"
                 : address.ToString();
             return string.Concat(ApplicationScheme, "://", host, ":", ApplicationPort.ToString(
                 System.Globalization.CultureInfo.InvariantCulture));

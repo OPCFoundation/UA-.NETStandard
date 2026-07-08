@@ -141,7 +141,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ids.Add(node.NodeId);
             }
 
-            Assert.That(ids, Is.EquivalentTo(new[] { new NodeId(1u), new NodeId(2u), new NodeId(3u) }));
+            Assert.That(ids, Is.EquivalentTo([new NodeId(1u), new NodeId(2u), new NodeId(3u)]));
         }
 
         [Test]
@@ -157,7 +157,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ids.Add(((Node)node).NodeId);
             }
 
-            Assert.That(ids, Is.EquivalentTo(new[] { new NodeId(1u), new NodeId(2u) }));
+            Assert.That(ids, Is.EquivalentTo([new NodeId(1u), new NodeId(2u)]));
         }
 
         [Test]
@@ -250,7 +250,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             NodeId exported = set.Export(new NodeId("Boiler", 1), source);
 
             Assert.That(exported, Is.EqualTo(new NodeId("Boiler", 1)));
-            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa, kCustomUri }));
+            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa, kCustomUri]));
         }
 
         [Test]
@@ -288,7 +288,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(exported.NamespaceIndex, Is.EqualTo(1));
             Assert.That(exported.InnerNodeId, Is.EqualTo(new NodeId("Boiler", 1)));
             Assert.That(exported.ServerIndex, Is.Zero);
-            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa, kCustomUri }));
+            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa, kCustomUri]));
         }
 
         [Test]
@@ -303,7 +303,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(exported.NamespaceIndex, Is.EqualTo(1));
             Assert.That(exported.ServerIndex, Is.Zero);
-            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa, kCustomUri }));
+            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa, kCustomUri]));
         }
 
         [Test]
@@ -320,7 +320,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(exported.ServerIndex, Is.Zero);
             Assert.That(exported.NamespaceUri, Is.EqualTo(kCustomUri));
-            Assert.That(set.ServerUris.ToArray(), Is.EqualTo(new[] { kServerUri }));
+            Assert.That(set.ServerUris.ToArray(), Is.EqualTo([kServerUri]));
         }
 
         [Test]
@@ -359,7 +359,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(added.IsInverse, Is.False);
             Assert.That(added.TargetId.NamespaceIndex, Is.EqualTo(1));
             Assert.That(added.TargetId.InnerNodeId, Is.EqualTo(new NodeId("Target", 1)));
-            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa, kCustomUri }));
+            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa, kCustomUri]));
         }
 
         [Test]
@@ -380,7 +380,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(exported.References.Count, Is.EqualTo(1));
             Assert.That(exported.References[0].TargetId.InnerNodeId, Is.EqualTo(new NodeId("T", 1)));
             Assert.That(set.Contains(new NodeId(3u, 1)), Is.True);
-            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa, kCustomUri }));
+            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa, kCustomUri]));
         }
 
         [Test]
@@ -398,7 +398,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(exported.Value.GetNodeId(), Is.EqualTo(new NodeId("Sensor", 1)));
             Assert.That(exported.DataType, Is.EqualTo(new NodeId(11u, 1)));
-            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa, kCustomUri }));
+            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa, kCustomUri]));
         }
 
         [Test]
@@ -879,7 +879,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             set.NamespaceUris = new[] { Namespaces.OpcUa, kCustomUri, kOtherUri }.ToArrayOf();
             Assert.That(set.NamespaceUris.ToArray(),
-                Is.EqualTo(new[] { Namespaces.OpcUa, kCustomUri, kOtherUri }));
+                Is.EqualTo([Namespaces.OpcUa, kCustomUri, kOtherUri]));
         }
 
         [Test]
@@ -887,7 +887,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var set = new NodeSet();
             set.NamespaceUris = ArrayOf.Null<string>();
-            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo(new[] { Namespaces.OpcUa }));
+            Assert.That(set.NamespaceUris.ToArray(), Is.EqualTo([Namespaces.OpcUa]));
         }
 
         [Test]

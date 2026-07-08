@@ -340,8 +340,8 @@ namespace Opc.Ua.PubSub.Application
             string? topic = null;
             if (string.Equals(family, "Json", StringComparison.Ordinal))
             {
-                if (!TryResolveEncoder(profile, family, out INetworkMessageEncoder? encoder)
-                    || encoder is null)
+                if (!TryResolveEncoder(profile, family, out INetworkMessageEncoder? encoder) ||
+                    encoder is null)
                 {
                     m_logger.LogDebug(
                         "No JSON encoder registered for {Profile}; metadata publish skipped.",
@@ -445,9 +445,9 @@ namespace Opc.Ua.PubSub.Application
                 return null;
             }
             bool hasFields = !meta.Fields.IsNull && meta.Fields.Count > 0;
-            bool hasVersion = meta.ConfigurationVersion is not null
-                && (meta.ConfigurationVersion.MajorVersion != 0
-                    || meta.ConfigurationVersion.MinorVersion != 0);
+            bool hasVersion = meta.ConfigurationVersion is not null &&
+                (meta.ConfigurationVersion.MajorVersion != 0 ||
+                    meta.ConfigurationVersion.MinorVersion != 0);
             return hasFields || hasVersion ? meta : null;
         }
 

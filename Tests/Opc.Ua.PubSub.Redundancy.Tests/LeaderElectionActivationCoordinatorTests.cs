@@ -84,13 +84,13 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
 
             Assert.That(
                 changes,
-                Is.EqualTo(new[]
-                {
+                Is.EqualTo(
+                [
                     ("pubsub:writergroup:WriterGroup1", PubSubComponentRole.Standby),
                     ("pubsub:readergroup:ReaderGroup1", PubSubComponentRole.Standby),
                     ("pubsub:writergroup:WriterGroup1", PubSubComponentRole.Active),
                     ("pubsub:readergroup:ReaderGroup1", PubSubComponentRole.Active)
-                }));
+                ]));
         }
 
         [Test]
@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             election.SetLeader(false);
 
             Assert.That(election.StartCount, Is.EqualTo(1));
-            Assert.That(changes, Is.EqualTo(new[] { PubSubComponentRole.Active }));
+            Assert.That(changes, Is.EqualTo([PubSubComponentRole.Active]));
         }
 
         [Test]
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
                 .ConfigureAwait(false);
 
             Assert.That(role, Is.EqualTo(PubSubComponentRole.Active));
-            Assert.That(changes, Is.EqualTo(new[] { PubSubComponentRole.Active }));
+            Assert.That(changes, Is.EqualTo([PubSubComponentRole.Active]));
         }
 
         private sealed class ControllableLeaderElection : ILeaderElection

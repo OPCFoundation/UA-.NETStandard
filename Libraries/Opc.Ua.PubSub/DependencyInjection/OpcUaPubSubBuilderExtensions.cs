@@ -287,7 +287,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 PubSubConfigurationDataType config =
                     store.LoadAsync(CancellationToken.None)
                         .AsTask().GetAwaiter().GetResult();
-                PubSubConfigurationSnapshot snapshot =
+                var snapshot =
                     PubSubConfigurationSnapshot.Create(config, clock);
                 return new PubSubApplication(
                     snapshot,

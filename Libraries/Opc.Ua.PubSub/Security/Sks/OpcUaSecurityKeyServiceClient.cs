@@ -364,8 +364,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                     $"GetSecurityKeys TimeToNextKey is malformed ({timeToNextKeyMs} ms); expected a non-negative Duration.");
             }
 
-            TimeSpan keyLifetime = TimeSpan.FromMilliseconds(keyLifetimeMs);
-            TimeSpan timeToNextKey = TimeSpan.FromMilliseconds(timeToNextKeyMs);
+            var keyLifetime = TimeSpan.FromMilliseconds(keyLifetimeMs);
+            var timeToNextKey = TimeSpan.FromMilliseconds(timeToNextKeyMs);
             return new SksKeyResponse(
                 securityPolicyUri,
                 firstTokenId,

@@ -678,8 +678,8 @@ namespace Opc.Ua.PubSub.Udp
                     {
                         break;
                     }
-                    catch (SocketException ex) when (ex.SocketErrorCode == SocketError.OperationAborted
-                        || ex.SocketErrorCode == SocketError.Interrupted)
+                    catch (SocketException ex) when (ex.SocketErrorCode == SocketError.OperationAborted ||
+                        ex.SocketErrorCode == SocketError.Interrupted)
                     {
                         break;
                     }
@@ -709,8 +709,8 @@ namespace Opc.Ua.PubSub.Udp
                         topic: null,
                         receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
                         sourceEndpoint: sourceEndpoint);
-                    if (m_endpoint.AddressType == UdpAddressType.Unicast
-                        && sourceEndpoint is not null)
+                    if (m_endpoint.AddressType == UdpAddressType.Unicast &&
+                        sourceEndpoint is not null)
                     {
                         lock (m_sync)
                         {
@@ -1135,8 +1135,8 @@ namespace Opc.Ua.PubSub.Udp
                 };
             }
             if (!connection.TransportSettings.TryGetValue(
-                    out DatagramConnectionTransport2DataType? v2)
-                || v2 is null)
+                    out DatagramConnectionTransport2DataType? v2) ||
+                v2 is null)
             {
                 return new DatagramV2Settings
                 {

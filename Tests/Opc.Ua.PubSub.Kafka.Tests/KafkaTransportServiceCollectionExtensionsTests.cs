@@ -80,11 +80,11 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             Assert.That(factories, Has.Length.EqualTo(2));
             Assert.That(
                 factories.Select(static f => f.TransportProfileUri),
-                Is.EquivalentTo(new[]
-                {
+                Is.EquivalentTo(
+                [
                     KafkaProfiles.PubSubKafkaJsonTransport,
                     KafkaProfiles.PubSubKafkaUadpTransport
-                }));
+                ]));
             Assert.That(serviceProvider.GetRequiredService<IKafkaClientFactory>(), Is.Not.Null);
         }
 

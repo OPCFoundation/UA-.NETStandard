@@ -139,7 +139,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
             DataSetReader r = MakeReader(3);
             var group = MakeGroup([r]);
 
-            Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.EquivalentTo(new[] { r }));
+            Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.EquivalentTo([r]));
         }
 
         [Test]

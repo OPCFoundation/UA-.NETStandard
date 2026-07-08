@@ -110,9 +110,9 @@ namespace Opc.Ua.Redundancy
             bool canTake = !found;
             if (found)
             {
-                canTake = !TryParseLease(current, out string owner, out long expiryTicks)
-                    || nowTicks >= expiryTicks
-                    || string.Equals(owner, m_nodeId, StringComparison.Ordinal);
+                canTake = !TryParseLease(current, out string owner, out long expiryTicks) ||
+                    nowTicks >= expiryTicks ||
+                    string.Equals(owner, m_nodeId, StringComparison.Ordinal);
             }
 
             if (!canTake)

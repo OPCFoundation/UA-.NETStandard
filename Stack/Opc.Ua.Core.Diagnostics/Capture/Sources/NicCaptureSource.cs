@@ -41,7 +41,6 @@ using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 using SharpPcap;
 using SharpPcap.LibPcap;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Capture.Sources

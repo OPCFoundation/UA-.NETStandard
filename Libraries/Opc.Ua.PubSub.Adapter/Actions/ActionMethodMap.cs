@@ -186,8 +186,8 @@ namespace Opc.Ua.PubSub.Adapter.Actions
                 {
                     return true;
                 }
-                if (!string.IsNullOrEmpty(target.ActionName)
-                    && m_byActionName.TryGetValue(target.ActionName, out binding))
+                if (!string.IsNullOrEmpty(target.ActionName) &&
+                    m_byActionName.TryGetValue(target.ActionName, out binding))
                 {
                     return true;
                 }

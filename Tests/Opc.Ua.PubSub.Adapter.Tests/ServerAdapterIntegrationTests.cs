@@ -195,7 +195,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "SubPDS", AdapterTestHelpers.Variable.Value(nodeId));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                200, new[] { pds });
+                200, [pds]);
 
             await using var coordinator = new SubscriptionCoordinator(
                 config, m_session, SubscriptionAffinity.WriterGroup, m_telemetry);

@@ -222,7 +222,7 @@ namespace Opc.Ua.PubSub.Mqtt
             string canonical = string.Concat(
                 canonicalScheme,
                 "://",
-                host.Contains(':', StringComparison.Ordinal) ? string.Concat("[", host, "]") : host,
+                host.Contains(':', StringComparison.Ordinal) ? $"[{host}]" : host,
                 ":",
                 port.ToString(CultureInfo.InvariantCulture),
                 isWebSocket ? path : string.Empty);
@@ -250,9 +250,9 @@ namespace Opc.Ua.PubSub.Mqtt
                     text,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
-                    out int port)
-                || port <= 0
-                || port > 65535)
+                    out int port) ||
+                port <= 0 ||
+                port > 65535)
             {
                 throw new FormatException(
                     "MQTT endpoint has an invalid port component (must be 1..65535).");

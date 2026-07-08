@@ -492,7 +492,7 @@ static async Task<List<IPEndPoint>> ReadGossipPeersAsync(
 static async Task<List<IPEndPoint>> DiscoverDnsGossipPeersAsync(IConfiguration configuration, int gossipPort)
 {
     const int maxAttempts = 10;
-    TimeSpan retryDelay = TimeSpan.FromSeconds(1);
+    var retryDelay = TimeSpan.FromSeconds(1);
     string serviceName = configuration["HA_SERVICE_NAME"] ?? "server";
     HashSet<IPAddress> localAddresses = await GetLocalAddressesAsync(configuration).ConfigureAwait(false);
     var gossipPeers = new List<IPEndPoint>();
@@ -521,7 +521,7 @@ static async Task<List<IPEndPoint>> DiscoverDnsGossipPeersAsync(IConfiguration c
                     serviceName,
                     gossipPeers.Count,
                     gossipPort);
-                return new List<IPEndPoint>(gossipPeers);
+                return [.. gossipPeers];
             }
         }
         catch (Exception ex) when (ex is SocketException or ArgumentException)

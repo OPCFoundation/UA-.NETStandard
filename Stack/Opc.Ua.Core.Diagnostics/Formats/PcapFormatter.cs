@@ -34,7 +34,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Models;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Formats

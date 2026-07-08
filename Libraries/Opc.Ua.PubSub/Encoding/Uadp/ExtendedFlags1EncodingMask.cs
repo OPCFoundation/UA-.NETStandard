@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// PublisherId type; <see langword="false"/> for reserved
         /// values.
         /// </returns>
-        public static bool TryGetPublisherIdType(byte raw, out PublisherIdType type)
+        public static bool TryGetPublisherIdType(this byte raw, out PublisherIdType type)
         {
             switch (raw & (byte)ExtendedFlags1EncodingMask.PublisherIdTypeMask)
             {
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="type">PublisherId type to encode.</param>
         /// <returns>The 3-bit encoding (0..4).</returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public static byte EncodePublisherIdType(PublisherIdType type)
+        public static byte EncodePublisherIdType(this PublisherIdType type)
         {
             return type switch
             {

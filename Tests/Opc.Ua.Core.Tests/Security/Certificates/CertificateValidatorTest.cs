@@ -2357,8 +2357,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 bool sawIssuerUseError = false;
                 certValidator.AcceptError = (cert, error) =>
                 {
-                    if (error.StatusCode.Code
-                        == StatusCodes.BadCertificateIssuerUseNotAllowed.Code)
+                    if (error.StatusCode.Code ==
+                        StatusCodes.BadCertificateIssuerUseNotAllowed.Code)
                     {
                         sawIssuerUseError = true;
                     }

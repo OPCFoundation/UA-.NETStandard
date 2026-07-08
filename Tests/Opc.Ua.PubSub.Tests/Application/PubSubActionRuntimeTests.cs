@@ -186,9 +186,9 @@ namespace Opc.Ua.PubSub.Tests.Application
 
         private static bool IsUdpEnvironmentFailure(Exception ex)
         {
-            return ex is System.Net.Sockets.SocketException
-                || ex is NotSupportedException
-                || ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException);
+            return ex is System.Net.Sockets.SocketException ||
+                ex is NotSupportedException ||
+                ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException);
         }
     }
 }

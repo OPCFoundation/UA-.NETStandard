@@ -124,7 +124,7 @@ namespace Opc.Ua.Mcp.Tools
                     entry.DataSetWriterId,
                     entry.StatusCode.ToString(),
                     entry.DataSetMetaData?.Name,
-                    entry.DataSetMetaData is null ? 0 : entry.DataSetMetaData.Fields.Count);
+                    (entry.DataSetMetaData?.Fields.Count) ?? 0);
             }
 
             var writerConfigs = new PubSubDiscoveredWriterConfig[result.WriterConfigurations.Count];

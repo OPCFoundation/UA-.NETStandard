@@ -387,7 +387,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     int toGenerate = Math.Min(additional, allowed);
                     if (toGenerate > 0)
                     {
-                        DateTimeUtc nowGen = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+                        var nowGen = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
                         for (int i = 0; i < toGenerate; i++)
                         {
                             PubSubSecurityKey newKey = SksKeyGenerator.Generate(
@@ -480,7 +480,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 state.Keys.RemoveRange(state.CurrentIndex, state.Keys.Count - state.CurrentIndex);
                 PrunePastKeysLocked(state);
-                DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
                 PubSubSecurityKey current = SksKeyGenerator.Generate(
                     state.Policy,
                     nextTokenId,
@@ -538,7 +538,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             int maxFutureKeyCount,
             TimeSpan lifetime)
         {
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             var keys = new List<PubSubSecurityKey>(maxFutureKeyCount + 1);
             for (int i = 0; i <= maxFutureKeyCount; i++)
             {
@@ -580,7 +580,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return;
             }
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             for (int i = 0; i < toAdd; i++)
             {
                 PubSubSecurityKey newKey = SksKeyGenerator.Generate(
@@ -600,12 +600,11 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return TimeSpan.Zero;
             }
             PubSubSecurityKey current = state.Keys[state.CurrentIndex];
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             TimeSpan elapsed = now - current.IssuedAt;
             TimeSpan remaining = state.Group.KeyLifetime - elapsed;
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         }
-
 
         private void RotateExpiredCurrentLocked(SecurityGroupState state)
         {

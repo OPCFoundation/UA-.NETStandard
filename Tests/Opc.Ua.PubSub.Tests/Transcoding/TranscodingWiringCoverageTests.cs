@@ -148,8 +148,8 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
 
             var message = new UadpNetworkMessageV2
             {
-                ContentMask = Opc.Ua.UadpNetworkMessageContentMask.PublisherId
-                    | Opc.Ua.UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = Opc.Ua.UadpNetworkMessageContentMask.PublisherId |
+                    Opc.Ua.UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -315,8 +315,8 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 .AddTranscodingBridge(b => b.From("a").To("b", TranscodeEncoding.Json)));
 
             bool registered = System.Linq.Enumerable.Any(services, d =>
-                d.ServiceType == typeof(IHostedService)
-                && (d.ImplementationFactory is not null || d.ImplementationType is not null));
+                d.ServiceType == typeof(IHostedService) &&
+                (d.ImplementationFactory is not null || d.ImplementationType is not null));
             Assert.That(registered, Is.True);
         }
 
@@ -365,7 +365,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             PubSubConnection target)
         {
             var app = new Mock<IPubSubApplication>();
-            app.SetupGet(a => a.Connections).Returns(new IPubSubConnection[] { source, target });
+            app.SetupGet(a => a.Connections).Returns([source, target]);
             app.SetupGet(a => a.MetaDataRegistry).Returns(new DataSetMetaDataRegistry());
             app.SetupGet(a => a.Diagnostics).Returns(new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 

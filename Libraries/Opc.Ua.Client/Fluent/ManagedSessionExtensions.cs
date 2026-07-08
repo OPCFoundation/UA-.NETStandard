@@ -121,7 +121,6 @@ namespace Opc.Ua.Client
             return session.AddSubscription(handler, configure(new Subscriptions.SubscriptionOptions()));
         }
 
-
         /// <summary>
         /// Add a new subscription using an options monitor, typically the container default.
         /// </summary>
@@ -404,7 +403,7 @@ namespace Opc.Ua.Client
         }
 
         internal static List<SubscriptionStateSnapshot> ValidateAndSortGroup(
-            string groupId,
+            this string groupId,
             List<SubscriptionStateSnapshot> bucket)
         {
             bucket.Sort(static (a, b) => a.PartitionIndex.CompareTo(b.PartitionIndex));

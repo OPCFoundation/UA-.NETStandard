@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         public IOpcUaServerBuilder AddNodeManager(
             string namespaceUri,
-            Action<Opc.Ua.Server.Fluent.INodeManagerBuilder> build)
+            Action<Fluent.INodeManagerBuilder> build)
         {
             return this;
         }

@@ -396,7 +396,8 @@ namespace RedundantClient
             }
 
             bool insecure = bool.TryParse(
-                Environment.GetEnvironmentVariable("CLIENT_INSECURE"), out bool value) && value;
+                Environment.GetEnvironmentVariable("CLIENT_INSECURE"), out bool value) &&
+                value;
             if (insecure)
             {
                 Console.Error.WriteLine(
@@ -500,11 +501,9 @@ namespace RedundantClient
                 return items;
             }
 
-            foreach (string item in value.Split(
-                [',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                items.Add(item);
-            }
+            items.AddRange(value.Split(
+                [',', ';'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
             return items;
         }

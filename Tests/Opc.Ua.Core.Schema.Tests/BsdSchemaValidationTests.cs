@@ -144,20 +144,20 @@ namespace Opc.Ua.Schema.Tests
             {
                 File.WriteAllText(
                     evilPath,
-                    "<opc:TypeDictionary xmlns:opc=\"http://opcfoundation.org/BinarySchema/\" "
-                    + "TargetNamespace=\"urn:test:evil\">"
-                    + "<opc:StructuredType Name=\"Evil\">"
-                    + "<opc:Field Name=\"Y\" TypeName=\"opc:Int32\" /></opc:StructuredType>"
-                    + "</opc:TypeDictionary>");
+                    "<opc:TypeDictionary xmlns:opc=\"http://opcfoundation.org/BinarySchema/\" " +
+                    "TargetNamespace=\"urn:test:evil\">" +
+                    "<opc:StructuredType Name=\"Evil\">" +
+                    "<opc:Field Name=\"Y\" TypeName=\"opc:Int32\" /></opc:StructuredType>" +
+                    "</opc:TypeDictionary>");
 
                 string mainSchema =
-                    "<opc:TypeDictionary xmlns:opc=\"http://opcfoundation.org/BinarySchema/\" "
-                    + "TargetNamespace=\"urn:test:main\">"
-                    + "<opc:Import Namespace=\"urn:test:evil\" Location=\""
-                    + System.Security.SecurityElement.Escape(evilPath) + "\" />"
-                    + "<opc:StructuredType Name=\"Main\">"
-                    + "<opc:Field Name=\"X\" TypeName=\"opc:Int32\" /></opc:StructuredType>"
-                    + "</opc:TypeDictionary>";
+                    "<opc:TypeDictionary xmlns:opc=\"http://opcfoundation.org/BinarySchema/\" " +
+                    "TargetNamespace=\"urn:test:main\">" +
+                    "<opc:Import Namespace=\"urn:test:evil\" Location=\"" +
+                    System.Security.SecurityElement.Escape(evilPath) + "\" />" +
+                    "<opc:StructuredType Name=\"Main\">" +
+                    "<opc:Field Name=\"X\" TypeName=\"opc:Int32\" /></opc:StructuredType>" +
+                    "</opc:TypeDictionary>";
 
                 var validator = new BinarySchemaValidator(new Dictionary<string, byte[]>());
                 using var stream = new MemoryStream(Encoding.UTF8.GetBytes(mainSchema));

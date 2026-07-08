@@ -592,13 +592,11 @@ namespace Opc.Ua.Lds.Server
                     continue;
                 }
 
-                ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme);
-                if (binding == null)
-                {
+                ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme) ??
                     throw new InvalidOperationException(
                         $"No OPC UA transport listener is registered for endpoint scheme '{scheme}'. " +
-                        $"Register the matching transport binding, for example by calling Add{GetTransportName(scheme)}Transport().");
-                }
+                        "Register the matching transport binding, for example by calling " +
+                        $"Add{GetTransportName(scheme)}Transport().");
 
                 List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
                     this,

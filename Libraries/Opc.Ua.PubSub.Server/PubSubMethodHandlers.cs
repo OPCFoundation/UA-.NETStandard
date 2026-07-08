@@ -276,8 +276,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveConnection expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
-                || connectionId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId) ||
+                connectionId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -562,8 +562,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemovePublishedDataSet expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId dataSetId)
-                || dataSetId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId dataSetId) ||
+                dataSetId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -621,8 +621,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddDataSetFolder expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out string folderName)
-                || string.IsNullOrEmpty(folderName))
+            if (!inputArguments[0].TryGetValue(out string folderName) ||
+                string.IsNullOrEmpty(folderName))
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -681,8 +681,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddWriterGroup expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
-                || connectionId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId) ||
+                connectionId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -752,8 +752,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddReaderGroup expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
-                || connectionId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId) ||
+                connectionId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -824,8 +824,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveGroup expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId groupId)
-                || groupId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId groupId) ||
+                groupId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -880,8 +880,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddDataSetWriter expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId writerGroupId)
-                || writerGroupId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId writerGroupId) ||
+                writerGroupId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -952,8 +952,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveDataSetWriter expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId writerId)
-                || writerId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId writerId) ||
+                writerId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -1008,8 +1008,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddDataSetReader expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId readerGroupId)
-                || readerGroupId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId readerGroupId) ||
+                readerGroupId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -1080,8 +1080,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveDataSetReader expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId readerId)
-                || readerId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId readerId) ||
+                readerId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,

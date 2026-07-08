@@ -38,7 +38,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.Frame;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Replay

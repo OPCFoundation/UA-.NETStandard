@@ -239,7 +239,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         rented = ArrayPool<byte>.Shared.Rent(rented.Length * 2);
                     }
                 }
-                var result = new byte[written];
+                byte[] result = new byte[written];
                 Buffer.BlockCopy(rented, 0, result, 0, written);
                 payloadOffset = localOffset;
                 return result;
@@ -299,7 +299,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             payloadOffset = writer.Position;
 
-            var sizes = new ushort[payloadCount];
+            ushort[] sizes = new ushort[payloadCount];
             for (int i = 0; i < payloadCount; i++)
             {
                 int beforeMessage = writer.Position;
@@ -340,8 +340,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             GroupFlagsEncodingMask groupFlags = 0;
             PublisherIdType publisherIdType = message.PublisherId.Type;
 
-            if ((message.ContentMask & UadpNetworkMessageContentMask.PublisherId) != 0
-                && !message.PublisherId.IsNull)
+            if ((message.ContentMask & UadpNetworkMessageContentMask.PublisherId) != 0 &&
+                !message.PublisherId.IsNull)
             {
                 uadpFlags |= UadpFlagsEncodingMask.PublisherIdEnabled;
                 if (publisherIdType != PublisherIdType.Byte)
@@ -759,8 +759,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
 
             PublisherIdType pidType = publisherId.Type;
-            var uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled
-                | UadpFlagsEncodingMask.ExtendedFlags1Enabled;
+            var uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled |
+                UadpFlagsEncodingMask.ExtendedFlags1Enabled;
             if (writerGroupId.HasValue)
             {
                 uadpFlags |= UadpFlagsEncodingMask.GroupHeaderEnabled;
@@ -773,9 +773,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
             const byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
 
-            int envelopeSize = 1 + 1 + 1
-                + EstimatePublisherIdSize(publisherId, pidType)
-                + (writerGroupId.HasValue ? 3 : 0);
+            int envelopeSize = 1 + 1 + 1 +
+                EstimatePublisherIdSize(publisherId, pidType) +
+                (writerGroupId.HasValue ? 3 : 0);
             byte[] result = new byte[envelopeSize + chunkFrame.Length];
             var writer = new UadpBinaryWriter(result, 0, result.Length);
 

@@ -210,7 +210,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             registry.Register(received.Add);
             registry.AddPeer(e2);
 
-            Assert.That(received, Is.EquivalentTo(new[] { e1, e2 }));
+            Assert.That(received, Is.EquivalentTo([e1, e2]));
         }
 
         [Test]
@@ -332,11 +332,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
             var received = new List<IPEndPoint>();
             registry.Register(received.Add);
 
-            registry.AddPeers(new[]
-            {
+            registry.AddPeers(
+            [
                 new IPEndPoint(IPAddress.Loopback, 4840),
                 new IPEndPoint(IPAddress.Loopback, 4841)
-            });
+            ]);
 
             Assert.That(received, Has.Count.EqualTo(2));
         }

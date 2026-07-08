@@ -49,12 +49,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
     {
         [Test]
         [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled)]
-        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled
-            | UadpHeaderFlags.GroupHeaderEnabled)]
-        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled
-            | UadpHeaderFlags.GroupHeaderEnabled
-            | UadpHeaderFlags.PayloadHeaderEnabled
-            | UadpHeaderFlags.ExtendedFlags1Enabled)]
+        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled |
+            UadpHeaderFlags.GroupHeaderEnabled)]
+        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled |
+            UadpHeaderFlags.GroupHeaderEnabled |
+            UadpHeaderFlags.PayloadHeaderEnabled |
+            UadpHeaderFlags.ExtendedFlags1Enabled)]
         public void UadpFlags_CombineSplit_RoundTrips(
             byte version, UadpHeaderFlags flags)
         {
@@ -154,10 +154,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void GroupFlags_AllBitsHonoured()
         {
             const UadpGroupFlags combined =
-                UadpGroupFlags.WriterGroupIdEnabled
-                | UadpGroupFlags.GroupVersionEnabled
-                | UadpGroupFlags.NetworkMessageNumberEnabled
-                | UadpGroupFlags.SequenceNumberEnabled;
+                UadpGroupFlags.WriterGroupIdEnabled |
+                UadpGroupFlags.GroupVersionEnabled |
+                UadpGroupFlags.NetworkMessageNumberEnabled |
+                UadpGroupFlags.SequenceNumberEnabled;
             Assert.That((byte)combined, Is.EqualTo(0x0F));
         }
 

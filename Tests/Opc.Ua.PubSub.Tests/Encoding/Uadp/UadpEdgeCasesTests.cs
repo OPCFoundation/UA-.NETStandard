@@ -61,10 +61,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             {
                 var msg = new UadpNetworkMessage
                 {
-                    ContentMask = UadpNetworkMessageContentMask.PublisherId
-                        | UadpNetworkMessageContentMask.GroupHeader
-                        | UadpNetworkMessageContentMask.WriterGroupId
-                        | UadpNetworkMessageContentMask.SequenceNumber,
+                    ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                        UadpNetworkMessageContentMask.GroupHeader |
+                        UadpNetworkMessageContentMask.WriterGroupId |
+                        UadpNetworkMessageContentMask.SequenceNumber,
                     PublisherId = PublisherId.FromByte(1),
                     WriterGroupId = 100,
                     SequenceNumber = order[i],
@@ -100,8 +100,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -130,8 +130,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(2),
                 DataSetMessages =
                 [
@@ -190,10 +190,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var encoder = new UadpEncoder();
             var matchingMsg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 WriterGroupId = 7,
                 DataSetMessages =
@@ -352,8 +352,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [

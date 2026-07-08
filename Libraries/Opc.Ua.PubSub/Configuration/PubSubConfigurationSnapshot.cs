@@ -188,7 +188,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
 
             TimeProvider clock = timeProvider ?? TimeProvider.System;
-            DateTimeUtc createdAt = DateTimeUtc.From(clock.GetUtcNow());
+            var createdAt = DateTimeUtc.From(clock.GetUtcNow());
 
             var issues = new List<PubSubConfigurationIssue>();
             var connections = new Dictionary<string, PubSubConnectionDataType>(StringComparer.Ordinal);

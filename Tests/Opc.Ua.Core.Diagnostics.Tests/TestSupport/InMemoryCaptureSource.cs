@@ -64,14 +64,14 @@ namespace Opc.Ua.Pcap.Tests
         {
             m_frames = [.. frames ?? Array.Empty<CaptureFrame>()];
             m_materials = [.. materials ?? Array.Empty<ChannelKeyMaterial>()];
-            m_supportedFormats = [.. supportedFormats ?? new[]
-            {
+            m_supportedFormats = [.. supportedFormats ??
+            [
                 FormatKind.PcapNg,
                 FormatKind.Json,
                 FormatKind.Csv,
                 FormatKind.Text,
                 FormatKind.ServiceTimeline
-            }];
+            ]];
             m_pcapFilePath = pcapFilePath;
             m_keyLogFilePath = keyLogFilePath;
         }

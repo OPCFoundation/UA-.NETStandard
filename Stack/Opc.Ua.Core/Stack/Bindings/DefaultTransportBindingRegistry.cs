@@ -170,8 +170,8 @@ namespace Opc.Ua.Bindings
             foreach (System.Reflection.Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 string? name = assembly.GetName().Name;
-                if (!string.IsNullOrEmpty(name)
-                    && name.EndsWith("Bindings.Https", StringComparison.Ordinal))
+                if (!string.IsNullOrEmpty(name) &&
+                    name.EndsWith("Bindings.Https", StringComparison.Ordinal))
                 {
                     return assembly;
                 }

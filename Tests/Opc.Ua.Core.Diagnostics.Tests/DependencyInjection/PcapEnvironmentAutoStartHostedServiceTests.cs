@@ -41,7 +41,6 @@ using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.DependencyInjection
@@ -57,7 +56,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapEnvironmentAutoStartHostedServiceTests : TempDirectoryFixture
     {
-
         [Test]
         public async Task EmptySnapshotDoesNothing()
         {

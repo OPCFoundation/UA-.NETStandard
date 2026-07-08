@@ -289,7 +289,6 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(((byte[][]?)subset.Keys) ?? [], Has.Length.EqualTo(2));
         }
 
-
         [Test]
         [TestSpec("8.3.2", Part = 14, Summary = "RolePermissions grant GetSecurityKeys Call access")]
         public async Task RolePermissionsGrantAuthenticatedCallerAccess()

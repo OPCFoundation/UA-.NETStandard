@@ -145,8 +145,8 @@ namespace Opc.Ua
         /// <returns><c>true</c> when <paramref name="status"/> is a server-busy signal.</returns>
         public static bool IsServerBusyStatus(StatusCode status)
         {
-            return status == StatusCodes.BadTcpServerTooBusy
-                || status == StatusCodes.BadServerTooBusy;
+            return status == StatusCodes.BadTcpServerTooBusy ||
+                status == StatusCodes.BadServerTooBusy;
         }
 
         private static TimeSpan ClampToPolicyMax(IChannelReconnectPolicy policy, TimeSpan hint)

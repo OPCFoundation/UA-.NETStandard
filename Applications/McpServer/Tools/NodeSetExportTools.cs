@@ -458,15 +458,15 @@ namespace Opc.Ua.Mcp.Tools
                 : Path.GetFullPath(Path.Combine(root, requestedPath));
 
             string relative = Path.GetRelativePath(root, candidate);
-            bool escapes = relative == ".."
-                || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-                || relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal)
-                || Path.IsPathRooted(relative);
+            bool escapes = relative == ".." ||
+                relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) ||
+                Path.IsPathRooted(relative);
             if (escapes)
             {
                 throw new ArgumentException(
                     $"{parameterName} '{requestedPath}' resolves outside the export root '{root}'. " +
-                    $"Configure McpServerOptions.NodeSetExportRoot or set the " +
+                    "Configure McpServerOptions.NodeSetExportRoot or set the " +
                     $"{ExportRootEnvironmentVariable} environment variable to allow a different " +
                     "base directory before starting the MCP server.",
                     parameterName);

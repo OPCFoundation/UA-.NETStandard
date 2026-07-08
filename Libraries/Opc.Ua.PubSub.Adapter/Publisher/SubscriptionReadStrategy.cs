@@ -82,8 +82,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             for (int i = 0; i < count; i++)
             {
                 ReadValueId nodeToRead = nodesToRead[i];
-                if (nodeToRead?.NodeId is { IsNull: false } nodeId
-                    && m_cache.TryGetValue(
+                if (nodeToRead?.NodeId is { IsNull: false } nodeId &&
+                    m_cache.TryGetValue(
                         new NodeAttributeKey(nodeId, NormalizeAttribute(nodeToRead.AttributeId)),
                         out DataValue value))
                 {
@@ -236,8 +236,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             if (Interlocked.Exchange(ref m_cacheFullLogged, 1) == 0)
             {
                 m_logger.LogWarning(
-                    "External subscription latest-value cache reached its bound of "
-                    + "{MaxEntries} entries; new node/attribute keys are dropped.",
+                    "External subscription latest-value cache reached its bound of " +
+                    "{MaxEntries} entries; new node/attribute keys are dropped.",
                     m_maxCacheEntries);
             }
         }
@@ -268,8 +268,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
             public bool Equals(NodeAttributeKey other)
             {
-                return m_attributeId == other.m_attributeId
-                    && m_nodeId.Equals(other.m_nodeId);
+                return m_attributeId == other.m_attributeId &&
+                    m_nodeId.Equals(other.m_nodeId);
             }
 
             public override bool Equals(object? obj)

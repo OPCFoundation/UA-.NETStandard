@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         private const string UadpProfile = Profiles.PubSubUdpUadpTransport;
         private const string JsonProfile = Profiles.PubSubMqttJsonTransport;
 
-        private static readonly string[] s_nonMatchingProfiles = { "urn:does-not-match" };
+        private static readonly string[] s_nonMatchingProfiles = ["urn:does-not-match"];
 
         [Test]
         public async Task RequestDiscoveryAsyncWithNullRequestThrowsAsync()
@@ -382,12 +382,12 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Assert.Multiple(() =>
             {
                 Assert.That(transport.SentPayloads, Has.Count.EqualTo(3));
-                Assert.That(types, Is.EquivalentTo(new[]
-                {
+                Assert.That(types, Is.EquivalentTo(
+                [
                     UadpDiscoveryType.ApplicationInformation,
                     UadpDiscoveryType.PublisherEndpoints,
                     UadpDiscoveryType.PubSubConnection
-                }));
+                ]));
             });
         }
 
@@ -999,7 +999,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             PubSubNetworkMessage message)
         {
             decoder.Enqueue(message);
-            transport.PushFrame(new byte[] { 1 });
+            transport.PushFrame([1]);
         }
 
         private static async Task AwaitBoundedAsync(Task task, string what)
@@ -1348,7 +1348,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     m_messages.Add(networkMessage);
                 }
                 m_latch.Increment();
-                return new ValueTask<ReadOnlyMemory<byte>>(new ReadOnlyMemory<byte>(new byte[] { 1 }));
+                return new ValueTask<ReadOnlyMemory<byte>>(new ReadOnlyMemory<byte>([1]));
             }
         }
 

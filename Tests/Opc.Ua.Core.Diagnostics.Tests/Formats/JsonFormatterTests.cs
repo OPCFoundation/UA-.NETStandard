@@ -37,7 +37,6 @@ using NUnit.Framework;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.Models;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Formats

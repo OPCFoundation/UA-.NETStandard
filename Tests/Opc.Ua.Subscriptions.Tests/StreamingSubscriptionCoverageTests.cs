@@ -686,7 +686,7 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             await manager.Handler!.OnDataChangeNotificationAsync(
                 manager.Subscription!, 1u, s_publishTime,
-                new ReadOnlyMemory<DataValueChange>(new[] { change }),
+                new ReadOnlyMemory<DataValueChange>([change]),
                 PublishState.None, s_emptyStringTable).ConfigureAwait(false);
         }
 
@@ -695,7 +695,7 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             await manager.Handler!.OnEventDataNotificationAsync(
                 manager.Subscription!, 1u, s_publishTime,
-                new ReadOnlyMemory<EventNotification>(new[] { notification }),
+                new ReadOnlyMemory<EventNotification>([notification]),
                 PublishState.None, s_emptyStringTable).ConfigureAwait(false);
         }
 

@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Assert.That(typeSystem.GetDefinedTypes(), Has.Member(expectedName));
                 Assert.That(
                     typeSystem.GetDefinedDataTypeIds(),
-                    Is.EqualTo(new[] { expectedId }));
+                    Is.EqualTo([expectedId]));
                 Assert.That(definitions, Has.Count.EqualTo(1));
                 Assert.That(definitions[structureNode.NodeId], Is.EqualTo(structureDefinition));
             });

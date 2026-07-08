@@ -159,9 +159,9 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
             return new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId,
                 PublisherId = PublisherId.FromUInt16(PublisherIdValue),
                 WriterGroupId = WriterGroupIdValue,
                 DataSetMessages =
@@ -193,9 +193,9 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
             return new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId,
                 PublisherId = PublisherId.FromUInt16(PublisherIdValue),
                 WriterGroupId = WriterGroupIdValue,
                 DataSetMessages =
@@ -221,9 +221,9 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
             return new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId,
                 PublisherId = PublisherId.FromUInt16(PublisherIdValue),
                 WriterGroupId = WriterGroupIdValue,
                 DataSetMessages =
@@ -248,9 +248,9 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
             return new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId,
                 PublisherId = PublisherId.FromUInt16(PublisherIdValue),
                 WriterGroupId = WriterGroupIdValue,
                 DataSetMessages =

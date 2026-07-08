@@ -91,7 +91,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             return peer.GossipEndpoint == null
                 ? peer.ServerUri
-                : string.Concat(peer.ServerUri, "|", peer.GossipEndpoint.ToString());
+                : $"{peer.ServerUri}|{peer.GossipEndpoint}";
         }
 
         private DiscoveredPeer[] m_peers = [];

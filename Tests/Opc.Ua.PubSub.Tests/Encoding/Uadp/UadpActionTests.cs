@@ -137,7 +137,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(value, Is.EqualTo("done"));
         }
 
-
         [TestCase(false, PubSubFieldEncoding.Variant)]
         [TestCase(false, PubSubFieldEncoding.RawData)]
         [TestCase(true, PubSubFieldEncoding.Variant)]
@@ -249,7 +248,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(encoded.Span[1] & (byte)ExtendedFlags1EncodingMask.SecurityEnabled, Is.Not.Zero);
             Assert.That(encoded.Span[payloadOffset], Is.EqualTo((byte)(0x01 | 0x10)));
         }
-
 
         private static UadpActionRequestMessage CreateActionRequest(
             PublisherId publisherId,

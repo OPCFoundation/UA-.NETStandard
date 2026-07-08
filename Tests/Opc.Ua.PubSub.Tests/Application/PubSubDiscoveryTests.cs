@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(factory.Transport.SentRequests[0].DiscoveryType,
                 Is.EqualTo(UadpDiscoveryType.DataSetWriterConfiguration));
             Assert.That(factory.Transport.SentRequests[0].DataSetWriterIds,
-                Is.EqualTo(new[] { DataSetWriterIdValue }));
+                Is.EqualTo([DataSetWriterIdValue]));
             Assert.That(result.WriterConfigurations, Has.Count.EqualTo(1));
             Assert.That(result.WriterConfigurations[0].WriterConfiguration, Is.Not.Null);
             Assert.That(result.WriterConfigurations[0].WriterConfiguration!.Name,
@@ -161,9 +161,9 @@ namespace Opc.Ua.PubSub.Tests.Application
                 return;
             }
 
-            if (metaData.DataSetMetaDataEntries.Count == 0
-                || writerConfiguration.WriterConfigurations.Count == 0
-                || endpoints.PublisherEndpoints.Count == 0)
+            if (metaData.DataSetMetaDataEntries.Count == 0 ||
+                writerConfiguration.WriterConfigurations.Count == 0 ||
+                endpoints.PublisherEndpoints.Count == 0)
             {
                 Assert.Ignore("UDP multicast loopback did not deliver discovery responses.");
             }
@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Is.EqualTo(DataSetWriterIdValue));
             Assert.That(metaData.DataSetMetaDataEntries[0].DataSetMetaData, Is.Not.Null);
             Assert.That(writerConfiguration.WriterConfigurations[0].DataSetWriterIds,
-                Is.EqualTo(new[] { DataSetWriterIdValue }));
+                Is.EqualTo([DataSetWriterIdValue]));
             Assert.That(endpoints.PublisherEndpoints[0].EndpointUrl, Is.EqualTo(url));
         }
 
@@ -315,9 +315,9 @@ namespace Opc.Ua.PubSub.Tests.Application
 
         private static bool IsUdpEnvironmentFailure(Exception ex)
         {
-            return ex is System.Net.Sockets.SocketException
-                || ex is NotSupportedException
-                || ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException);
+            return ex is System.Net.Sockets.SocketException ||
+                ex is NotSupportedException ||
+                ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException);
         }
 
         private sealed class AutoResponseTransportFactory : IPubSubTransportFactory

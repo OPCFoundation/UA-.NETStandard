@@ -78,8 +78,8 @@ namespace Opc.Ua.PubSub.Security
         public const int PublisherIdLength = 8;
 
         /// <summary>
-        /// Writes the 12-byte nonce <c>[messageRandom (4 BE) ||
-        /// messageSequenceNumber (8 LE)]</c> into
+        /// Writes the 12-byte nonce <code>[messageRandom (4 BE) ||
+        /// messageSequenceNumber (8 LE)]</code> into
         /// <paramref name="nonce"/>.
         /// </summary>
         /// <param name="messageRandom">Per-message random value.</param>

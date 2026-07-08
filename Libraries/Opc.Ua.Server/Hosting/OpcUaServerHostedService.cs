@@ -343,12 +343,9 @@ namespace Opc.Ua.Server.Hosting
             var authenticators = new List<IUserTokenAuthenticator>();
             foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
             {
-                foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
+                authenticators.AddRange(registration.CreateAuthenticators(
                     m_services,
-                    certificateValidator))
-                {
-                    authenticators.Add(authenticator);
-                }
+                    certificateValidator));
             }
 
             if (authenticators.Count == 0)

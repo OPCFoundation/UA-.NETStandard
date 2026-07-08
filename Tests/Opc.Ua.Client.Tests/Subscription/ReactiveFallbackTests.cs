@@ -32,8 +32,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 
-#pragma warning disable CA2007
-#pragma warning disable CA2000
+#pragma warning disable CA2007, CA2000
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {

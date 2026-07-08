@@ -80,14 +80,14 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             var sink = new RecordingFrameCaptureSink();
             using var transport = new CapturingByteTransport(inner, registry);
 
-            inner.EnqueueReceive(new byte[] { 10, 20, 30 });
+            inner.EnqueueReceive([10, 20, 30]);
             ArraySegment<byte> received = await transport.ReceiveChunkAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(received, Has.Count.EqualTo(3));
             Assert.That(sink.ReceivedChunks, Is.Empty);
 
             registry.SetObserver(sink);
-            inner.EnqueueReceive(new byte[] { 40, 50 });
+            inner.EnqueueReceive([40, 50]);
             received = await transport.ReceiveChunkAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(received, Has.Count.EqualTo(2));

@@ -47,11 +47,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     public class PubSubConfigurationValidatorTests
     {
         private static readonly string[] s_allProfiles =
-        {
+        [
             Profiles.PubSubUdpUadpTransport,
             Profiles.PubSubMqttUadpTransport,
             Profiles.PubSubMqttJsonTransport
-        };
+        ];
 
         private static PubSubConfigurationValidator NewValidator()
         {
@@ -697,10 +697,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
                 Has.None.Matches<PubSubConfigurationIssue>(
                     static i =>
-                        i.Code == "PSC0050"
-                        || i.Code == "PSC0051"
-                        || i.Code == "PSC0052"
-                        || i.Code == "PSC0053"));
+                        i.Code == "PSC0050" ||
+                        i.Code == "PSC0051" ||
+                        i.Code == "PSC0052" ||
+                        i.Code == "PSC0053"));
         }
 
         [Test]

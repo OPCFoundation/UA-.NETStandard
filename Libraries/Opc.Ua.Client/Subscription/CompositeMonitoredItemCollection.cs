@@ -398,8 +398,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // the global name index consistent — the partition's
                 // MonitoredItemManager.TryAdd is a quick local op
                 // that cannot recurse back into this composite.
-                if (!chosen.MonitoredItems.TryAdd(name, options, out IMonitoredItem? added)
-                    || added == null)
+                if (!chosen.MonitoredItems.TryAdd(name, options, out IMonitoredItem? added) ||
+                    added == null)
                 {
                     monitoredItem = null;
                     return false;
@@ -625,8 +625,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             foreach ((string itemName, IOptionsMonitor<MonitoredItemOptions> itemOptions) in state)
             {
                 keep.Add(itemName);
-                if (TryGetMonitoredItemByName(itemName, out IMonitoredItem? existing)
-                    && existing != null)
+                if (TryGetMonitoredItemByName(itemName, out IMonitoredItem? existing) &&
+                    existing != null)
                 {
                     result.Add(existing);
                     continue;

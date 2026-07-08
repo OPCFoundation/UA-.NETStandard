@@ -155,8 +155,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Assert.Ignore($"Dns.GetHostName failed: {ex.Message}");
                 return;
             }
-            if (string.IsNullOrEmpty(hostName)
-                || string.Equals(hostName, "localhost", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(hostName) ||
+                string.Equals(hostName, "localhost", StringComparison.OrdinalIgnoreCase))
             {
                 Assert.Ignore("Host name unavailable or aliases 'localhost' shortcut.");
                 return;

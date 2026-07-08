@@ -113,8 +113,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await conn.DisableAsync().ConfigureAwait(false);
 
             Assert.That(decoder.CallCount, Is.Zero,
-                "A non-UADP (JSON) frame must be dropped by the inbound security "
-                + "gate on a secured reader before decode.");
+                "A non-UADP (JSON) frame must be dropped by the inbound security " +
+                "gate on a secured reader before decode.");
         }
 
         [Test]
@@ -191,8 +191,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await conn.DisableAsync().ConfigureAwait(false);
 
             Assert.That(decoder.CallCount, Is.Zero,
-                "Forged plaintext delivered as UADP chunks must be dropped by the "
-                + "security gate after reassembly (SA-REGR-01).");
+                "Forged plaintext delivered as UADP chunks must be dropped by the " +
+                "security gate after reassembly (SA-REGR-01).");
         }
 
         [Test]
@@ -218,14 +218,14 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await conn.DisableAsync().ConfigureAwait(false);
 
             Assert.That(decoder.CallCount, Is.GreaterThanOrEqualTo(1),
-                "A correctly secured message split into chunks must reassemble, "
-                + "unwrap and decode (SA-REGR-01 legit secured+chunked path).");
+                "A correctly secured message split into chunks must reassemble, " +
+                "unwrap and decode (SA-REGR-01 legit secured+chunked path).");
         }
 
         private static byte[][] ChunkFrames(byte[] message)
         {
-            int maxFrameSize = UadpChunker.ChunkHeaderSize
-                + Math.Max(8, (message.Length + 1) / 2);
+            int maxFrameSize = UadpChunker.ChunkHeaderSize +
+                Math.Max(8, (message.Length + 1) / 2);
             IReadOnlyList<byte[]> chunks = new UadpChunker().Split(
                 message, messageSequenceNumber: 1, maxFrameSize);
             var frames = new byte[chunks.Count][];
@@ -278,8 +278,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
         {
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -301,8 +301,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
         {
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [

@@ -202,7 +202,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             Assert.That(registry.Resolve(new NodeId(1u)), Is.Null);
             Assert.That(registry.Stores, Is.Empty);
-            Assert.That(() => registry.ClearDefault(), Throws.Nothing, "clearing an empty default is a no-op");
+            Assert.That(registry.ClearDefault, Throws.Nothing, "clearing an empty default is a no-op");
         }
 
         [Test]

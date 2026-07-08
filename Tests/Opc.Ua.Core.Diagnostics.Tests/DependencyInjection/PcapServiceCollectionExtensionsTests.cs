@@ -40,7 +40,6 @@ using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Models;
 using Opc.Ua.Pcap.Replay;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.DependencyInjection

@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         [Test]
         public void EncryptDecrypt_PassThrough()
         {
-            byte[] plaintext = new byte[] { 1, 2, 3, 4, 5 };
+            byte[] plaintext = [1, 2, 3, 4, 5];
             byte[] ciphertext = new byte[5];
             byte[] roundTrip = new byte[5];
             Policy.Encrypt(plaintext, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, ciphertext);
@@ -71,14 +71,14 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         [Test]
         public void Verify_AcceptsEmptySignature()
         {
-            byte[] data = new byte[] { 1, 2, 3 };
+            byte[] data = [1, 2, 3];
             Assert.That(Policy.Verify(data, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty), Is.True);
         }
 
         [Test]
         public void Verify_RejectsNonEmptySignature()
         {
-            byte[] data = new byte[] { 1, 2, 3 };
+            byte[] data = [1, 2, 3];
             byte[] signature = new byte[1];
             Assert.That(Policy.Verify(data, signature, ReadOnlySpan<byte>.Empty), Is.False);
         }
@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         [Test]
         public void Sign_RejectsNonEmptyBuffer()
         {
-            byte[] data = new byte[] { 1 };
+            byte[] data = [1];
             byte[] signature = new byte[1];
             Assert.That(
                 () => Policy.Sign(data, ReadOnlySpan<byte>.Empty, signature),

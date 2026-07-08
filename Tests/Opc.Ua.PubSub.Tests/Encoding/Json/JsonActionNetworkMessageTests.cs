@@ -120,7 +120,6 @@ namespace OpcUaPubSubJsonTests
             Assert.That(roundTripRequest.ActionTargetId, Is.EqualTo(22));
             Assert.That(roundTripRequest.ActionState, Is.EqualTo(ActionState.Executing));
             AssertPayload(roundTripRequest.Payload, "Speed");
-
         }
 
         [Test]

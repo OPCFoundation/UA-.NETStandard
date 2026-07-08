@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Tests.Security
     [TestSpec("7.2.4.4.3.1", Summary = "PubSub replay-window")]
     public class SecurityTokenWindowTests
     {
-        private static readonly uint[] s_expectedTokenIds = new uint[] { 1U, 7U };
+        private static readonly uint[] s_expectedTokenIds = [1U, 7U];
 
         private static byte[] MakeNonce(byte seed)
         {

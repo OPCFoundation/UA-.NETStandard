@@ -842,9 +842,9 @@ namespace Opc.Ua
                     // starts unconstrained until its own callers tighten it.
                     m_effectiveBudget = null;
                     m_operationRef--;
-                    teardown = m_refcount == 0
-                        && m_operationRef == 0
-                        && m_state != ChannelState.Closed;
+                    teardown = m_refcount == 0 &&
+                        m_operationRef == 0 &&
+                        m_state != ChannelState.Closed;
                     if (teardown && m_state == ChannelState.Faulted)
                     {
                         teardownReason = ChannelCloseReason.Faulted;

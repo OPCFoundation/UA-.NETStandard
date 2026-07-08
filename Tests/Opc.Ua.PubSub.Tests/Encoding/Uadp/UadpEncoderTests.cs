@@ -81,12 +81,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.GroupVersion
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.GroupVersion |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber,
                 PublisherId = PublisherId.FromUInt16(1234),
                 WriterGroupId = 5,
                 GroupVersion = 0x12345678,
@@ -117,8 +117,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -159,10 +159,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.DataSetClassId
-                    | UadpNetworkMessageContentMask.Timestamp
-                    | UadpNetworkMessageContentMask.PicoSeconds,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.DataSetClassId |
+                    UadpNetworkMessageContentMask.Timestamp |
+                    UadpNetworkMessageContentMask.PicoSeconds,
                 PublisherId = PublisherId.FromByte(2),
                 DataSetClassId = classId,
                 Timestamp = ts,
@@ -191,8 +191,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PromotedFields,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PromotedFields,
                 PublisherId = PublisherId.FromByte(3),
                 PromotedFields =
                 [
@@ -300,11 +300,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.DataSetClassId,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.DataSetClassId,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetClassId = classId,
@@ -356,12 +356,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                         DataSetWriterId = 1,
                         FieldEncoding = PubSubFieldEncoding.Variant,
                         ContentMask =
-                            UadpDataSetMessageContentMask.SequenceNumber
-                            | UadpDataSetMessageContentMask.Timestamp
-                            | UadpDataSetMessageContentMask.PicoSeconds
-                            | UadpDataSetMessageContentMask.Status
-                            | UadpDataSetMessageContentMask.MajorVersion
-                            | UadpDataSetMessageContentMask.MinorVersion,
+                            UadpDataSetMessageContentMask.SequenceNumber |
+                            UadpDataSetMessageContentMask.Timestamp |
+                            UadpDataSetMessageContentMask.PicoSeconds |
+                            UadpDataSetMessageContentMask.Status |
+                            UadpDataSetMessageContentMask.MajorVersion |
+                            UadpDataSetMessageContentMask.MinorVersion,
                         SequenceNumber = 0xDEAD,
                         Timestamp = ts,
                         PicoSeconds = 0xBEEF,

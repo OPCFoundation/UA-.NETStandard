@@ -429,8 +429,9 @@ namespace Opc.Ua.Mcp.Tools
             string normalized = format.Trim().ToLowerInvariant();
             if (normalized == "json")
             {
-                return session.Source.GetKeyLogFilePath() ?? throw new PcapDiagnosticsException(
-                    $"Capture session '{session.Id}' does not have a JSON keylog file.");
+                return session.Source.GetKeyLogFilePath() ??
+                    throw new PcapDiagnosticsException(
+                        $"Capture session '{session.Id}' does not have a JSON keylog file.");
             }
 
             if (normalized == "text")

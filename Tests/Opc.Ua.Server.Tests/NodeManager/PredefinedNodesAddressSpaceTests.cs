@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 (_, _) => new ValueTask<bool>(false));
 
             await addressSpace.AddOrUpdateRangeAsync(
-                    new[] { CreateObject("One"), CreateObject("Two") },
+                    [CreateObject("One"), CreateObject("Two")],
                     CancellationToken.None)
                 .ConfigureAwait(false);
 

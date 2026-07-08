@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -347,4 +345,3 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         }
     }
 }
-

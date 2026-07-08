@@ -237,8 +237,9 @@ namespace Opc.Ua.Mcp
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                app = m_application ?? throw new InvalidOperationException(
-                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+                app = m_application ??
+                    throw new InvalidOperationException(
+                        "No PubSub runtime is active. Start a publisher or subscriber first.");
             }
             finally
             {
@@ -264,8 +265,9 @@ namespace Opc.Ua.Mcp
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                app = m_application ?? throw new InvalidOperationException(
-                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+                app = m_application ??
+                    throw new InvalidOperationException(
+                        "No PubSub runtime is active. Start a publisher or subscriber first.");
             }
             finally
             {
@@ -306,8 +308,9 @@ namespace Opc.Ua.Mcp
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                IPubSubApplication app = m_application ?? throw new InvalidOperationException(
-                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+                IPubSubApplication app = m_application ??
+                    throw new InvalidOperationException(
+                        "No PubSub runtime is active. Start a publisher or subscriber first.");
                 // The MCP runtime is a local diagnostic surface that binds Action
                 // responders onto connections that are typically unsecured, so it
                 // opts in explicitly (SA-ACT-01). This makes serving Action requests
@@ -500,8 +503,8 @@ namespace Opc.Ua.Mcp
             {
                 foreach (PublishedDataSetDataType publishedDataSet in configuration.PublishedDataSets)
                 {
-                    if (publishedDataSet is not null
-                        && TryGetPublishedAction(publishedDataSet, out PublishedActionDataType? action))
+                    if (publishedDataSet is not null &&
+                        TryGetPublishedAction(publishedDataSet, out PublishedActionDataType? action))
                     {
                         actionDataSets[publishedDataSet.Name ?? string.Empty] = action!;
                     }
@@ -530,9 +533,9 @@ namespace Opc.Ua.Mcp
                     foreach (DataSetWriterDataType writer in writerGroup.DataSetWriters)
                     {
                         string dataSetName = writer?.DataSetName ?? string.Empty;
-                        if (writer is null
-                            || !actionDataSets.TryGetValue(dataSetName, out PublishedActionDataType? action)
-                            || action.ActionTargets.IsNull)
+                        if (writer is null ||
+                            !actionDataSets.TryGetValue(dataSetName, out PublishedActionDataType? action) ||
+                            action.ActionTargets.IsNull)
                         {
                             continue;
                         }
@@ -663,12 +666,12 @@ namespace Opc.Ua.Mcp
             {
                 DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber)
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber)
             };
         }
 
@@ -677,8 +680,8 @@ namespace Opc.Ua.Mcp
             return new UadpDataSetWriterMessageDataType
             {
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
 
@@ -687,15 +690,15 @@ namespace Opc.Ua.Mcp
             return new UadpDataSetReaderMessageDataType
             {
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber),
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
 
@@ -1208,10 +1211,10 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public bool MatchesTarget(PubSubActionTargetInfo target)
         {
-            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal)
-                && DataSetWriterId == target.DataSetWriterId
-                && ActionTargetId == target.ActionTargetId
-                && string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
+            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal) &&
+                DataSetWriterId == target.DataSetWriterId &&
+                ActionTargetId == target.ActionTargetId &&
+                string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -1219,10 +1222,10 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public bool MatchesTarget(PubSubActionResponderRegistration target)
         {
-            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal)
-                && DataSetWriterId == target.DataSetWriterId
-                && ActionTargetId == target.ActionTargetId
-                && string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
+            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal) &&
+                DataSetWriterId == target.DataSetWriterId &&
+                ActionTargetId == target.ActionTargetId &&
+                string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
         }
 
         /// <summary>

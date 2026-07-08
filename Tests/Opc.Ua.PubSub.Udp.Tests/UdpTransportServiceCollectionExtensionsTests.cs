@@ -96,8 +96,6 @@ namespace Opc.Ua.PubSub.Udp.Tests
             });
         }
 
-
-
         [Test]
         [TestSpec("7.3.2.4")]
         public async Task AddUdpTransportReturnsUdpBuilderAndWithDtlsRegistersOptionsRegistryAndFactoryAsync()

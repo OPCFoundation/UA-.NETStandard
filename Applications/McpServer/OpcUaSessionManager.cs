@@ -674,6 +674,5 @@ namespace Opc.Ua.Mcp
         {
             return true;
         }
-
     }
 }

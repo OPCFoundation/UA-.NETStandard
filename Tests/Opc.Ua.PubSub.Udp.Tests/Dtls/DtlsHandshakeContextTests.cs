@@ -381,10 +381,10 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         private static byte[] DowngradeServerCipherSuite(byte[] datagram)
         {
             const int serverHelloCipherSuiteOffset = DtlsHandshakeCodec.HandshakeHeaderLength + 2 + 32 + 1 + 32;
-            if (datagram.Length > serverHelloCipherSuiteOffset + 1
-                && datagram[0] == (byte)DtlsHandshakeType.ServerHello
-                && datagram[serverHelloCipherSuiteOffset] == 0x13
-                && datagram[serverHelloCipherSuiteOffset + 1] == 0x02)
+            if (datagram.Length > serverHelloCipherSuiteOffset + 1 &&
+                datagram[0] == (byte)DtlsHandshakeType.ServerHello &&
+                datagram[serverHelloCipherSuiteOffset] == 0x13 &&
+                datagram[serverHelloCipherSuiteOffset + 1] == 0x02)
             {
                 datagram[serverHelloCipherSuiteOffset + 1] = 0x01;
             }
@@ -394,8 +394,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
         private static byte[] TamperFirstFinished(byte[] datagram)
         {
-            if (datagram.Length > DtlsHandshakeCodec.HandshakeHeaderLength
-                && datagram[0] == (byte)DtlsHandshakeType.Finished)
+            if (datagram.Length > DtlsHandshakeCodec.HandshakeHeaderLength &&
+                datagram[0] == (byte)DtlsHandshakeType.Finished)
             {
                 datagram[^1] ^= 0xff;
             }

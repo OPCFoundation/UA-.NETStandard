@@ -89,23 +89,23 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Number of bytes written so far relative to
         /// <see cref="Origin"/>.
         /// </summary>
-        public int Position => m_position;
+        public readonly int Position => m_position;
 
         /// <summary>
         /// Origin offset of the writable region inside the backing
         /// buffer.
         /// </summary>
-        public int Origin => m_origin;
+        public readonly int Origin => m_origin;
 
         /// <summary>
         /// Total writable capacity of this writer instance.
         /// </summary>
-        public int Capacity => m_length;
+        public readonly int Capacity => m_length;
 
         /// <summary>
         /// Bytes remaining in the writable region.
         /// </summary>
-        public int Remaining => m_length - m_position;
+        public readonly int Remaining => m_length - m_position;
 
         /// <summary>
         /// Writable slice exposing the bytes that have already been
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// A <see cref="ReadOnlySpan{T}"/> over the bytes already
         /// written.
         /// </returns>
-        public ReadOnlySpan<byte> WrittenSpan()
+        public readonly ReadOnlySpan<byte> WrittenSpan()
         {
             return new(m_buffer, m_origin, m_position);
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Underlying backing buffer; exposed for direct integration
         /// with <see cref="BinaryEncoder"/>.
         /// </summary>
-        public byte[] Buffer => m_buffer;
+        public readonly byte[] Buffer => m_buffer;
 
         /// <summary>
         /// Advances the cursor by <paramref name="byteCount"/> bytes
@@ -300,7 +300,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="position">Reserved slot position.</param>
         /// <param name="value">Value to patch.</param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public void PatchUInt16Le(int position, ushort value)
+        public readonly void PatchUInt16Le(int position, ushort value)
         {
             if ((uint)position > (uint)(m_length - 2))
             {
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="position">Reserved slot position.</param>
         /// <param name="value">Value to patch.</param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public void PatchUInt32Le(int position, uint value)
+        public readonly void PatchUInt32Le(int position, uint value)
         {
             if ((uint)position > (uint)(m_length - 4))
             {
@@ -1118,7 +1118,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
-        private void EnsureCapacity(int byteCount)
+        private readonly void EnsureCapacity(int byteCount)
         {
             if (m_position + byteCount > m_length)
             {

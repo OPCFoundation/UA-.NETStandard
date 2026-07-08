@@ -395,9 +395,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             public bool Equals(ReassemblyKey other)
             {
-                return WriterGroupId == other.WriterGroupId
-                    && SequenceNumber == other.SequenceNumber
-                    && PublisherId.Equals(other.PublisherId);
+                return WriterGroupId == other.WriterGroupId &&
+                    SequenceNumber == other.SequenceNumber &&
+                    PublisherId.Equals(other.PublisherId);
             }
 
             public override bool Equals(object? obj)

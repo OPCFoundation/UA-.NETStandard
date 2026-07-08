@@ -340,8 +340,8 @@ namespace Opc.Ua.PubSub.Security
                     nonceSpan))
                 {
                     m_logger.LogWarning(
-                        "UadpSecurityWrapper rejected replay or nonce reuse "
-                        + "tokenId={TokenId} sequenceNumber={SequenceNumber}",
+                        "UadpSecurityWrapper rejected replay or nonce reuse " +
+                        "tokenId={TokenId} sequenceNumber={SequenceNumber}",
                         header.SecurityTokenId,
                         sequenceNumber);
                     EmitSecurityEvent(new PubSubSecurityEvent(

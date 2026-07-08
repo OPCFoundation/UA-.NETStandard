@@ -84,14 +84,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return;
             }
-            if (messageType == PubSubDataSetMessageType.Event
-                && encoding != PubSubFieldEncoding.Variant)
+            if (messageType == PubSubDataSetMessageType.Event &&
+                encoding != PubSubFieldEncoding.Variant)
             {
                 throw new InvalidOperationException(
                     "Event DataSetMessages shall use Variant field encoding with DataSetFlags1 field-encoding bits false.");
             }
-            if (messageType == PubSubDataSetMessageType.DeltaFrame
-                && encoding == PubSubFieldEncoding.RawData)
+            if (messageType == PubSubDataSetMessageType.DeltaFrame &&
+                encoding == PubSubFieldEncoding.RawData)
             {
                 throw new InvalidOperationException(
                     "RawData field encoding shall only be applied to Data Key Frame DataSetMessages.");

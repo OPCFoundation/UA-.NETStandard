@@ -53,8 +53,8 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
                 StandaloneKeyLogObserver.Create(keyLogPath);
 
             IFrameCaptureSink sink = observer;
-            sink.OnFrameSent(channelId: 1, chunk: new byte[] { 1, 2, 3 });
-            sink.OnFrameReceived(channelId: 1, chunk: new byte[] { 4, 5, 6 });
+            sink.OnFrameSent(channelId: 1, chunk: [1, 2, 3]);
+            sink.OnFrameReceived(channelId: 1, chunk: [4, 5, 6]);
 
             // Force a flush via dispose; the file may exist (header / open
             // handle) but must not contain any frame bytes that we wrote.

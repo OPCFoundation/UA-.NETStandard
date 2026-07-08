@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         {
             byte[] key = new byte[16];
             byte[] nonce = new byte[12];
-            byte[] plaintext = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 };
+            byte[] plaintext = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
             byte[] ciphertext = new byte[plaintext.Length];
             byte[] roundTrip = new byte[plaintext.Length];
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void SignVerify_RoundTripsSignature()
         {
             byte[] signingKey = new byte[32];
-            byte[] data = new byte[] { 0x10, 0x20, 0x30, 0x40 };
+            byte[] data = [0x10, 0x20, 0x30, 0x40];
             byte[] signature = new byte[Policy.SignatureLength];
             for (int i = 0; i < signingKey.Length; i++)
             {
@@ -103,7 +103,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
             {
                 keyB[i] = (byte)(i + 1);
             }
-            byte[] data = new byte[] { 1, 2, 3 };
+            byte[] data = [1, 2, 3];
             byte[] signature = new byte[Policy.SignatureLength];
             Policy.Sign(data, keyA, signature);
             Assert.That(Policy.Verify(data, signature, keyB), Is.False);
@@ -113,8 +113,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void Verify_FailsWithTamperedData()
         {
             byte[] key = new byte[32];
-            byte[] data = new byte[] { 1, 2, 3 };
-            byte[] tampered = new byte[] { 1, 2, 4 };
+            byte[] data = [1, 2, 3];
+            byte[] tampered = [1, 2, 4];
             byte[] signature = new byte[Policy.SignatureLength];
             Policy.Sign(data, key, signature);
             Assert.That(Policy.Verify(tampered, signature, key), Is.False);
@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void Verify_FailsWithWrongSignatureLength()
         {
             byte[] key = new byte[32];
-            byte[] data = new byte[] { 1, 2, 3 };
+            byte[] data = [1, 2, 3];
             byte[] shortSignature = new byte[16];
             Assert.That(Policy.Verify(data, shortSignature, key), Is.False);
         }
@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         [Test]
         public void Verify_FailsWithWrongKeyLength()
         {
-            byte[] data = new byte[] { 1, 2, 3 };
+            byte[] data = [1, 2, 3];
             byte[] signature = new byte[Policy.SignatureLength];
             Assert.That(Policy.Verify(data, signature, new byte[8]), Is.False);
         }

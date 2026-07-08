@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             {
                 keyBytes[i] = (byte)i;
             }
-            ByteString[] keys = new[] { new ByteString(keyBytes) };
+            ByteString[] keys = [new ByteString(keyBytes)];
             ArrayOf<Variant> outputs = new Variant[]
             {
                 Variant.From(Policy.PolicyUri),
@@ -338,7 +338,6 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
             Assert.That(client, Is.Not.Null);
         }
-
 
         [Test]
         [TestSpec("8.3.2", Part = 14, Summary = "Malformed SKS durations are rejected")]

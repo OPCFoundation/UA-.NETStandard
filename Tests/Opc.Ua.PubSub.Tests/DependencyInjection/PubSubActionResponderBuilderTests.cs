@@ -128,8 +128,8 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(
                 async () => await InvokeAsync(app).ConfigureAwait(false),
                 Throws.TypeOf<TimeoutException>(),
-                "An unsecured Action responder without opt-in must not answer, so the "
-                + "request must time out (SA-ACT-01).");
+                "An unsecured Action responder without opt-in must not answer, so the " +
+                "request must time out (SA-ACT-01).");
         }
 
         private static PubSubConfigurationDataType CreateConfiguration()

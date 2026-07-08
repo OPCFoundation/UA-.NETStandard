@@ -172,8 +172,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             ThrowIfDisposed();
             applicationData = null;
-            if (record.Length < HeaderLength + 1 + m_tagLength
-                || record.Length < HeaderLength + SequenceNumberSampleLength)
+            if (record.Length < HeaderLength + 1 + m_tagLength ||
+                record.Length < HeaderLength + SequenceNumberSampleLength)
             {
                 return false;
             }

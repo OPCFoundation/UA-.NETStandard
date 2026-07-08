@@ -27,25 +27,22 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-#if NET8_0_OR_GREATER
 using Microsoft.Extensions.Time.Testing;
-#endif
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using V2Options = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
-#pragma warning disable CA2007
-#pragma warning disable CA2000
+#pragma warning disable CA2007, CA2000
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
-#if NET8_0_OR_GREATER
     /// <summary>
     /// Tests for the secondary-partition idle-delete path on
     /// <see cref="CompositeMonitoredItemCollection"/>. Uses
@@ -328,5 +325,5 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
     }
-#endif
 }
+#endif

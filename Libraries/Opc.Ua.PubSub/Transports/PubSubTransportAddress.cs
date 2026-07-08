@@ -193,19 +193,19 @@ namespace Opc.Ua.PubSub.Transports
         public override string ToString()
         {
             string host = Host.Contains(':', StringComparison.Ordinal) && !Host.StartsWith('[')
-                ? string.Concat("[", Host, "]")
+                ? $"[{Host}]"
                 : Host;
             string portText = Port > 0
-                ? string.Concat(":", Port.ToString(CultureInfo.InvariantCulture))
+                ? $":{Port.ToString(CultureInfo.InvariantCulture)}"
                 : string.Empty;
-            return string.Concat(Scheme, "://", host, portText, Path ?? string.Empty);
+            return $"{Scheme}://{host}{portText}{Path ?? string.Empty}";
         }
 
         private static int ParsePort(string text)
         {
-            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int port)
-                || port < 0
-                || port > 65535)
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int port) ||
+                port < 0 ||
+                port > 65535)
             {
                 throw new FormatException("PubSub address has an invalid port component.");
             }

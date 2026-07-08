@@ -196,7 +196,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 await subscriber.OpenAsync(CancellationToken.None).ConfigureAwait(false);
                 await publisher.OpenAsync(CancellationToken.None).ConfigureAwait(false);
 
-                byte[] payload = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
+                byte[] payload = [0xCA, 0xFE, 0xBA, 0xBE];
                 using var receiveCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
                 Task<PubSubTransportFrame?> receiveTask = ReceiveOneAsync(subscriber, receiveCts.Token);
@@ -246,7 +246,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 dataSetWriterId: 2);
             PubSubConnectionDataType pubConn = NewConnection(url, publisher: true);
 
-            byte[] meta = new byte[] { 0x01, 0x02, 0x03 };
+            byte[] meta = [0x01, 0x02, 0x03];
 
             try
             {

@@ -976,8 +976,8 @@ namespace Opc.Ua.Client
                 // the bare "https" scheme. Skip the refresh for the
                 // OpenAPI profiles to preserve the caller-supplied URL.
                 string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
-                bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile)
-                    && !Profiles.IsWssOpenApi(profile);
+                bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile) &&
+                    !Profiles.IsWssOpenApi(profile);
 
                 IDisposable? connectLease = null;
                 Session session;

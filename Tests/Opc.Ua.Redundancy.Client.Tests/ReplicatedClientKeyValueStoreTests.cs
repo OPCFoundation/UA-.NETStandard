@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 keys.Add(pair.Key);
             }
 
-            Assert.That(keys, Is.EquivalentTo(new[] { "session/a", "session/b" }));
+            Assert.That(keys, Is.EquivalentTo(["session/a", "session/b"]));
         }
 
         [Test]

@@ -267,9 +267,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// authenticate / challenge / forbid scheme so UseAuthentication()
         /// populates HttpContext.User on every request.
         /// </summary>
-        private sealed class WebApiPolicySchemeSentinel
-        {
-        }
+        private sealed class WebApiPolicySchemeSentinel;
 
         private static void EnsureWebApiPolicyScheme(IServiceCollection services)
         {

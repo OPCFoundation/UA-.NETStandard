@@ -194,8 +194,9 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             IPubSubCaptureSource? source = await GetLastSourceAsync(ct).ConfigureAwait(false);
-            return source ?? throw new PcapDiagnosticsException(
-                "No stopped PubSub capture is available. Start and stop a capture first.");
+            return source ??
+                throw new PcapDiagnosticsException(
+                    "No stopped PubSub capture is available. Start and stop a capture first.");
         }
 
         private static async ValueTask<IPubSubCaptureSource> GetStoppedSourceAsync(
@@ -481,5 +482,3 @@ namespace Opc.Ua.Mcp.Tools
         public long FramesWritten { get; init; }
     }
 }
-
-

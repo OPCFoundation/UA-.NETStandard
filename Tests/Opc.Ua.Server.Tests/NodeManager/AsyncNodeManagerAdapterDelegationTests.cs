@@ -450,16 +450,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Composite test interface for async branch coverage.
         /// </summary>
-        public interface INodeManagerWithAsync : INodeManager3, IAsyncNodeManager
-        {
-        }
+        public interface INodeManagerWithAsync : INodeManager3, IAsyncNodeManager;
 
         /// <summary>
         /// Composite test interface for dispose coverage.
         /// </summary>
-        public interface INodeManagerWithDisposable : INodeManager, IDisposable
-        {
-        }
+        public interface INodeManagerWithDisposable : INodeManager, IDisposable;
 
         private delegate void BrowseCallback(
             OperationContext context,

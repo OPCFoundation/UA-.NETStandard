@@ -39,7 +39,6 @@ using NUnit.Framework;
 using Opc.Ua.Pcap.Audit;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Models;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Audit

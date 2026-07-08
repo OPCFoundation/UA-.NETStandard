@@ -35,7 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 using Opc.Ua.Server.FileSystem;
 
-#nullable enable
 #pragma warning disable CA1305
 
 namespace Opc.Ua.Di.Tests

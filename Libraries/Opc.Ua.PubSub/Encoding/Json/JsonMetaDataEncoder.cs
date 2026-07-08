@@ -86,17 +86,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 encoder.WriteEncodeable<DataSetMetaDataType>("MetaData", metaData);
             }
-            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            using var document = JsonDocument.Parse(buffer.WrittenMemory);
             JsonElement root = document.RootElement;
             writer.WritePropertyName(propertyName);
-            if (root.ValueKind != JsonValueKind.Object
-                || !root.TryGetProperty("MetaData", out JsonElement valueElement))
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("MetaData", out JsonElement valueElement))
             {
                 writer.WriteNullValue();
                 return;
             }
-            if (valueElement.ValueKind == JsonValueKind.Null
-                || valueElement.ValueKind == JsonValueKind.Undefined)
+            if (valueElement.ValueKind == JsonValueKind.Null ||
+                valueElement.ValueKind == JsonValueKind.Undefined)
             {
                 writer.WriteNullValue();
                 return;

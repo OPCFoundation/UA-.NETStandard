@@ -115,7 +115,6 @@ namespace Microsoft.Extensions.DependencyInjection
             return clientBuilder.AddComplexTypes();
         }
 
-
         /// <summary>
         /// Registers a managed client from the default configuration section and enables complex-type loading.
         /// </summary>
@@ -162,7 +161,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 });
             return clientBuilder.AddComplexTypes();
         }
-
 
         private sealed class BuilderAdapter : IOpcUaBuilder
         {

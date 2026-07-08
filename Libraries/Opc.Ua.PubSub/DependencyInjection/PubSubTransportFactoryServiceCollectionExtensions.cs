@@ -94,7 +94,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="IPubSubTransportFactoryDecorator"/> services when resolved.
         /// </summary>
         /// <param name="services">The service collection.</param>
-        /// <param name="factory">The transport factory factory.</param>
+        /// <param name="factory">Factiry of a transport factory</param>
         /// <returns>The service collection for chaining.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddPubSubTransportFactory(

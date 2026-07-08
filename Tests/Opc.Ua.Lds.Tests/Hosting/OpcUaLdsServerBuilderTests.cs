@@ -101,7 +101,6 @@ namespace Opc.Ua.Lds.Tests.Hosting
                     foundLdsHost = true;
                     break;
                 }
-
             }
             Assert.That(foundLdsHost,
                 "AddLdsServer should register an LdsServerHostedService as IHostedService.");

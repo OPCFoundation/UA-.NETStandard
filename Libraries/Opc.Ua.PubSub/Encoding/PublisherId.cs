@@ -110,10 +110,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// <see langword="true"/> when this instance is the
         /// <see cref="Null"/> sentinel.
         /// </summary>
-        public bool IsNull => Type == PublisherIdType.UInt16
-            && m_numeric == 0
-            && m_string == null
-            && m_guid == Guid.Empty;
+        public bool IsNull => Type == PublisherIdType.UInt16 &&
+            m_numeric == 0 &&
+            m_string == null &&
+            m_guid == Guid.Empty;
 
         /// <summary>
         /// Constructs a <see cref="PublisherId"/> from a

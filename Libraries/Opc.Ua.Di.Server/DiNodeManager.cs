@@ -171,7 +171,7 @@ namespace Opc.Ua.Di.Server
         {
             if (additional == null || additional.Length == 0)
             {
-                return new[] { DiNamespaceUri };
+                return [DiNamespaceUri];
             }
 
             var combined = new string[additional.Length + 1];

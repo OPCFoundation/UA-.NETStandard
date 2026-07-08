@@ -46,12 +46,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// the wire payload (Part 14 §7.2.5.4 Table 165).
         /// </summary>
         public JsonDataSetMessageContentMask ContentMask { get; init; }
-            = JsonDataSetMessageContentMask.DataSetWriterId
-            | JsonDataSetMessageContentMask.SequenceNumber
-            | JsonDataSetMessageContentMask.Timestamp
-            | JsonDataSetMessageContentMask.Status
-            | JsonDataSetMessageContentMask.MessageType
-            | JsonDataSetMessageContentMask.MetaDataVersion;
+            = JsonDataSetMessageContentMask.DataSetWriterId |
+            JsonDataSetMessageContentMask.SequenceNumber |
+            JsonDataSetMessageContentMask.Timestamp |
+            JsonDataSetMessageContentMask.Status |
+            JsonDataSetMessageContentMask.MessageType |
+            JsonDataSetMessageContentMask.MetaDataVersion;
 
         /// <summary>
         /// Name of the DataSetWriter that created the DataSetMessage.

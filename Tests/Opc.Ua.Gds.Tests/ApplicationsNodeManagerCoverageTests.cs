@@ -81,7 +81,7 @@ namespace Opc.Ua.Gds.Tests
 
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_UpdateApplication),
-                new Variant[] { new(new ExtensionObject(record)) }).ConfigureAwait(false);
+                [new(new ExtensionObject(record))]).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
         }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Gds.Tests
 
                 CallMethodResult result = await CallDirectoryMethodAsync(
                     ToNodeId(MethodIds.Directory_UpdateApplication),
-                    new Variant[] { new(new ExtensionObject(record)) }).ConfigureAwait(false);
+                    [new(new ExtensionObject(record))]).ConfigureAwait(false);
 
                 Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
             }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetCertificateGroups),
-                new Variant[] { new(UnknownApplicationId()) }).ConfigureAwait(false);
+                [new(UnknownApplicationId())]).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
         }
@@ -124,7 +124,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetCertificateGroups),
-                new Variant[] { new(m_registeredAppId) }).ConfigureAwait(false);
+                [new(m_registeredAppId)]).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(result.OutputArguments.Count, Is.EqualTo(1));
@@ -138,7 +138,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetTrustList),
-                new Variant[] { new(UnknownApplicationId()), new(NodeId.Null) }).ConfigureAwait(false);
+                [new(UnknownApplicationId()), new(NodeId.Null)]).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
         }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetTrustList),
-                new Variant[] { new(m_registeredAppId), new(NodeId.Null) }).ConfigureAwait(false);
+                [new(m_registeredAppId), new(NodeId.Null)]).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetCertificateStatus),
-                new Variant[] { new(UnknownApplicationId()), new(NodeId.Null), new(NodeId.Null) })
+                [new(UnknownApplicationId()), new(NodeId.Null), new(NodeId.Null)])
                 .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
@@ -169,7 +169,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetCertificateStatus),
-                new Variant[] { new(m_registeredAppId), new(NodeId.Null), new(NodeId.Null) })
+                [new(m_registeredAppId), new(NodeId.Null), new(NodeId.Null)])
                 .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
@@ -180,7 +180,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetCertificates),
-                new Variant[] { new(UnknownApplicationId()), new(NodeId.Null) }).ConfigureAwait(false);
+                [new(UnknownApplicationId()), new(NodeId.Null)]).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
         }
@@ -190,7 +190,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_GetCertificates),
-                new Variant[] { new(m_registeredAppId), new(UnknownCertificateGroupId()) })
+                [new(m_registeredAppId), new(UnknownCertificateGroupId())])
                 .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
@@ -241,7 +241,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_FinishRequest),
-                new Variant[] { new(UnknownApplicationId()), new(NodeId.Null) }).ConfigureAwait(false);
+                [new(UnknownApplicationId()), new(NodeId.Null)]).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
         }
@@ -251,7 +251,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_FinishRequest),
-                new Variant[] { new(m_registeredAppId), new(UnknownApplicationId()) })
+                [new(m_registeredAppId), new(UnknownApplicationId())])
                 .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
@@ -259,8 +259,8 @@ namespace Opc.Ua.Gds.Tests
 
         private static Variant[] NewKeyPairArguments(NodeId applicationId)
         {
-            return new Variant[]
-            {
+            return
+            [
                 new(applicationId),
                 new(NodeId.Null),
                 new(NodeId.Null),
@@ -268,7 +268,7 @@ namespace Opc.Ua.Gds.Tests
                 new(Array.Empty<string>()),
                 new("PFX"),
                 new(string.Empty)
-            };
+            ];
         }
 
         private static Variant[] SigningRequestArguments(NodeId applicationId)
@@ -279,13 +279,13 @@ namespace Opc.Ua.Gds.Tests
             // application check. The bytes are never parsed because the
             // application and certificate group checks return first.
             var certificateRequest = (ByteString)new byte[] { 0x30, 0x03, 0x02, 0x01, 0x00 };
-            return new Variant[]
-            {
+            return
+            [
                 new(applicationId),
                 new(NodeId.Null),
                 new(NodeId.Null),
                 new(certificateRequest)
-            };
+            ];
         }
 
         private static NodeId UnknownCertificateGroupId()
@@ -327,7 +327,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_RegisterApplication),
-                new Variant[] { new(new ExtensionObject(appRecord)) },
+                [new(new ExtensionObject(appRecord))],
                 ct).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True,
@@ -341,7 +341,7 @@ namespace Opc.Ua.Gds.Tests
         {
             CallMethodResult result = await CallDirectoryMethodAsync(
                 ToNodeId(MethodIds.Directory_UnregisterApplication),
-                new Variant[] { new(applicationId) },
+                [new(applicationId)],
                 ct).ConfigureAwait(false);
 
             if (!StatusCode.IsGood(result.StatusCode))

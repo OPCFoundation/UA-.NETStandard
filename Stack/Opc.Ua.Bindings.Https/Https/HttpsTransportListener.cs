@@ -1626,8 +1626,7 @@ namespace Opc.Ua.Bindings
                 {
                     return;
                 }
-                var serverChannel = channel as TcpServerChannel;
-                if (serverChannel == null)
+                if (channel is not TcpServerChannel serverChannel)
                 {
                     return;
                 }

@@ -122,11 +122,11 @@ namespace Opc.Ua.PubSub.Redundancy
                 .TryGetAsync(storeKey, cancellationToken)
                 .ConfigureAwait(false);
             DateTimeOffset now = m_timeProvider.GetUtcNow();
-            if (!found
-                || !TryDecodeLease(currentBytes, out LeaseRecord current)
-                || current.FencingToken != lease.FencingToken
-                || !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal)
-                || current.ExpiresAt <= now)
+            if (!found ||
+                !TryDecodeLease(currentBytes, out LeaseRecord current) ||
+                current.FencingToken != lease.FencingToken ||
+                !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal) ||
+                current.ExpiresAt <= now)
             {
                 return null;
             }
@@ -151,10 +151,10 @@ namespace Opc.Ua.PubSub.Redundancy
             (bool found, ByteString currentBytes) = await m_store
                 .TryGetAsync(storeKey, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found
-                || !TryDecodeLease(currentBytes, out LeaseRecord current)
-                || current.FencingToken != lease.FencingToken
-                || !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal))
+            if (!found ||
+                !TryDecodeLease(currentBytes, out LeaseRecord current) ||
+                current.FencingToken != lease.FencingToken ||
+                !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal))
             {
                 return;
             }
@@ -189,8 +189,8 @@ namespace Opc.Ua.PubSub.Redundancy
             }
 
             ReadOnlySpan<byte> span = raw.Span;
-            if (span.Length < 24
-                || BinaryPrimitives.ReadInt32LittleEndian(span[..4]) != s_encodingVersion)
+            if (span.Length < 24 ||
+                BinaryPrimitives.ReadInt32LittleEndian(span[..4]) != s_encodingVersion)
             {
                 return false;
             }

@@ -270,7 +270,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         {
             for (int i = 0; i < 256; i++)
             {
-                string path = string.Concat("/dev/bpf", i.ToString(CultureInfo.InvariantCulture));
+                string path = $"/dev/bpf{i.ToString(CultureInfo.InvariantCulture)}";
                 int fd = NativeMethods.open(path, ORdwr);
                 if (fd >= 0)
                 {
@@ -384,26 +384,26 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private static class NativeMethods
         {
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true, CharSet = CharSet.Ansi,
-                    BestFitMapping = false, ThrowOnUnmappableChar = true)]
-                internal static extern int open(string path, int flags);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true, CharSet = CharSet.Ansi,
+                BestFitMapping = false, ThrowOnUnmappableChar = true)]
+            internal static extern int open(string path, int flags);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
             [DllImport("libc", SetLastError = true)]
-                internal static extern int close(int fd);
+            internal static extern int close(int fd);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true)]
-                internal static extern int ioctl(int fd, ulong request, byte[] argp);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true)]
+            internal static extern int ioctl(int fd, ulong request, byte[] argp);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true)]
-                internal static extern nint read(int fd, byte[] buf, nint count);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true)]
+            internal static extern nint read(int fd, byte[] buf, nint count);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true)]
-                internal static extern nint write(int fd, byte[] buf, nint count);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true)]
+            internal static extern nint write(int fd, byte[] buf, nint count);
         }
     }
 }

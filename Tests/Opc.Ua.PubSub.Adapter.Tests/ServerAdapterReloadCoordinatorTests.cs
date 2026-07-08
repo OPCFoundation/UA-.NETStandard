@@ -52,8 +52,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PublishedDataSetDataType first = CreateDataSet("PDS1", 1u);
             PublishedDataSetDataType second = CreateDataSet("PDS2", 2u);
-            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, new[] { first });
-            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, new[] { first, second });
+            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, [first]);
+            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, [first, second]);
             TestContext context = CreateContext(configA);
             context.Coordinator.RegisterPublisherBinding("publisher1");
             context.Coordinator.ApplyInitialConfiguration(configA, CreateBuilder());
@@ -74,8 +74,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PublishedDataSetDataType first = CreateDataSet("PDS1", 1u);
             PublishedDataSetDataType second = CreateDataSet("PDS2", 2u);
-            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, new[] { first, second });
-            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, new[] { first });
+            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, [first, second]);
+            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, [first]);
             TestContext context = CreateContext(configA);
             context.Coordinator.RegisterPublisherBinding("publisher1");
             context.Coordinator.ApplyInitialConfiguration(configA, CreateBuilder());
@@ -94,8 +94,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PublishedDataSetDataType first = CreateDataSet("PDS1", 1u);
             PublishedDataSetDataType second = CreateDataSet("PDS2", 2u);
-            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, new[] { first });
-            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, new[] { first, second });
+            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, [first]);
+            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, [first, second]);
             TestContext context = CreateContext(configA);
             context.Coordinator.RegisterPublisherBinding("publisher1");
             context.Coordinator.ApplyInitialConfiguration(configA, CreateBuilder());
@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         public async Task ReloadNowLoadsCurrentConfigurationAndAppliesSubscriberAsync()
         {
             PubSubConfigurationDataType initial = AdapterTestHelpers.Configuration(
-                500, new[] { CreateDataSet("PDS1", 1u) });
+                500, [CreateDataSet("PDS1", 1u)]);
             PubSubConfigurationDataType reloaded = CreatePublisherSubscriberConfiguration();
             TestContext context = CreateContext(initial);
             context.Coordinator.RegisterSubscriberBinding("subscriber1");
@@ -157,8 +157,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PublishedDataSetDataType first = CreateDataSet("PDS1", 1u);
             PublishedDataSetDataType second = CreateDataSet("PDS2", 2u);
-            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, new[] { first });
-            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, new[] { first, second });
+            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, [first]);
+            PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(500, [first, second]);
             TestContext context = CreateContext(configA);
             context.PublisherOptions.Set(
                 "publisher1",
@@ -269,20 +269,20 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         public async Task BurstConfigurationChangesAreDebouncedAsync()
         {
             PublishedDataSetDataType first = CreateDataSet("PDS1", 1u);
-            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, new[] { first });
+            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, [first]);
             TestContext context = CreateContext(configA);
             context.Coordinator.RegisterPublisherBinding("publisher1");
             context.Coordinator.ApplyInitialConfiguration(configA, CreateBuilder());
             await context.Coordinator.StartAsync(context.Application.Object).ConfigureAwait(false);
 
             await context.Store.SaveAsync(
-                AdapterTestHelpers.Configuration(500, new[] { first, CreateDataSet("PDS2", 2u) }))
+                AdapterTestHelpers.Configuration(500, [first, CreateDataSet("PDS2", 2u)]))
                 .ConfigureAwait(false);
             await context.Store.SaveAsync(
-                AdapterTestHelpers.Configuration(500, new[] { first, CreateDataSet("PDS3", 3u) }))
+                AdapterTestHelpers.Configuration(500, [first, CreateDataSet("PDS3", 3u)]))
                 .ConfigureAwait(false);
             await context.Store.SaveAsync(
-                AdapterTestHelpers.Configuration(500, new[] { first, CreateDataSet("PDS4", 4u) }))
+                AdapterTestHelpers.Configuration(500, [first, CreateDataSet("PDS4", 4u)]))
                 .ConfigureAwait(false);
             await WaitForReplaceAsync(context).ConfigureAwait(false);
             await Task.Delay(350).ConfigureAwait(false);
@@ -296,9 +296,9 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         public async Task DisposeAsyncWaitsForInFlightReloadAsync()
         {
             PublishedDataSetDataType first = CreateDataSet("PDS1", 1u);
-            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, new[] { first });
+            PubSubConfigurationDataType configA = AdapterTestHelpers.Configuration(500, [first]);
             PubSubConfigurationDataType configB = AdapterTestHelpers.Configuration(
-                500, new[] { first, CreateDataSet("PDS2", 2u) });
+                500, [first, CreateDataSet("PDS2", 2u)]);
             TestContext context = CreateContext(configA);
             context.Coordinator.RegisterPublisherBinding("publisher1");
             context.Coordinator.ApplyInitialConfiguration(configA, CreateBuilder());
@@ -409,7 +409,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         private static PubSubConfigurationDataType CreatePublisherSubscriberConfiguration()
         {
             PubSubConfigurationDataType configuration = AdapterTestHelpers.Configuration(
-                500, new[] { CreateDataSet("PDS1", 1u) });
+                500, [CreateDataSet("PDS1", 1u)]);
             var reader = new DataSetReaderDataType
             {
                 Name = "Reader1",

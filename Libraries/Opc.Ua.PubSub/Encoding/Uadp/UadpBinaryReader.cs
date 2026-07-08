@@ -91,7 +91,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public int Position
         {
-            get => m_position;
+            readonly get => m_position;
             set
             {
                 if ((uint)value > (uint)m_length)
@@ -105,23 +105,29 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <summary>
         /// Total readable capacity.
         /// </summary>
-        public int Capacity => m_length;
+#pragma warning disable RCS1085 // Use auto-implemented property
+        public readonly int Capacity => m_length;
+#pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
         /// Bytes remaining to read.
         /// </summary>
-        public int Remaining => m_length - m_position;
+        public readonly int Remaining => m_length - m_position;
 
         /// <summary>
         /// Origin of the readable region inside the backing buffer.
         /// </summary>
-        public int Origin => m_origin;
+#pragma warning disable RCS1085 // Use auto-implemented property
+        public readonly int Origin => m_origin;
+#pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
         /// Underlying backing buffer; exposed for direct integration
         /// with <see cref="BinaryDecoder"/>.
         /// </summary>
-        public byte[] Buffer => m_buffer;
+#pragma warning disable RCS1085 // Use auto-implemented property
+        public readonly byte[] Buffer => m_buffer;
+#pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
         /// Advances the cursor by <paramref name="byteCount"/> bytes
@@ -478,7 +484,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     return true;
                 case BuiltInType.XmlElement:
                     string xmlText = ReadPaddedUtf8(maxStringLength);
-                    XmlElement xml = XmlElement.From(
+                    var xml = XmlElement.From(
                         string.IsNullOrEmpty(xmlText) ? null : xmlText);
                     value = new Variant(xml);
                     return true;
@@ -528,7 +534,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return new ByteString(bytes);
         }
 
-        private int TrimTrailingNuls(int length)
+        private readonly int TrimTrailingNuls(int length)
         {
             int trimmed = length;
             int start = m_origin + m_position;
@@ -605,7 +611,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedBooleanArray(int expectedCount)
         {
             EnsureRemaining(expectedCount);
-            var arr = new bool[expectedCount];
+            bool[] arr = new bool[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = m_buffer[m_origin + m_position++] != 0;
@@ -616,7 +622,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedSByteArray(int expectedCount)
         {
             EnsureRemaining(expectedCount);
-            var arr = new sbyte[expectedCount];
+            sbyte[] arr = new sbyte[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = (sbyte)m_buffer[m_origin + m_position++];
@@ -627,7 +633,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedByteArray(int expectedCount)
         {
             EnsureRemaining(expectedCount);
-            var arr = new byte[expectedCount];
+            byte[] arr = new byte[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = m_buffer[m_origin + m_position++];
@@ -638,7 +644,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedInt16Array(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 2));
-            var arr = new short[expectedCount];
+            short[] arr = new short[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = BinaryPrimitives.ReadInt16LittleEndian(
@@ -651,7 +657,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedUInt16Array(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 2));
-            var arr = new ushort[expectedCount];
+            ushort[] arr = new ushort[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = BinaryPrimitives.ReadUInt16LittleEndian(
@@ -664,7 +670,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedInt32Array(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 4));
-            var arr = new int[expectedCount];
+            int[] arr = new int[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = BinaryPrimitives.ReadInt32LittleEndian(
@@ -677,7 +683,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedUInt32Array(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 4));
-            var arr = new uint[expectedCount];
+            uint[] arr = new uint[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = BinaryPrimitives.ReadUInt32LittleEndian(
@@ -690,7 +696,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedInt64Array(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 8));
-            var arr = new long[expectedCount];
+            long[] arr = new long[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = BinaryPrimitives.ReadInt64LittleEndian(
@@ -703,7 +709,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedUInt64Array(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 8));
-            var arr = new ulong[expectedCount];
+            ulong[] arr = new ulong[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = BinaryPrimitives.ReadUInt64LittleEndian(
@@ -716,7 +722,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedFloatArray(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 4));
-            var arr = new float[expectedCount];
+            float[] arr = new float[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = ReadFloatLittleEndian(m_buffer, m_origin + m_position);
@@ -728,7 +734,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedDoubleArray(int expectedCount)
         {
             EnsureRemaining(checked(expectedCount * 8));
-            var arr = new double[expectedCount];
+            double[] arr = new double[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = ReadDoubleLittleEndian(m_buffer, m_origin + m_position);
@@ -740,7 +746,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private Variant ReadPaddedStringArray(int expectedCount, uint maxStringLength)
         {
             EnsureRemaining(expectedCount);
-            var arr = new string[expectedCount];
+            string[] arr = new string[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
                 arr[i] = ReadPaddedUtf8(maxStringLength);
@@ -759,7 +765,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return new Variant(new ArrayOf<ByteString>(arr));
         }
 
-        private void EnsureRemaining(int byteCount)
+        private readonly void EnsureRemaining(int byteCount)
         {
             if (Remaining < byteCount)
             {
@@ -853,7 +859,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return Variant.Null;
             }
-            var coerced = new string[raw.Count];
+            string[] coerced = new string[raw.Count];
             for (int i = 0; i < raw.Count; i++)
             {
                 coerced[i] = raw[i] ?? string.Empty;

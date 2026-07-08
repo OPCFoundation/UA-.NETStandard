@@ -140,9 +140,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
                 for (int i = 0; i < publishedData.Count; i++)
                 {
-                    string fieldName = metaData is not null
-                        && !metaData.Fields.IsNull
-                        && i < metaData.Fields.Count
+                    string fieldName = metaData is not null &&
+                        !metaData.Fields.IsNull &&
+                        i < metaData.Fields.Count
                         ? metaData.Fields[i]?.Name ?? string.Empty
                         : string.Empty;
 
@@ -198,8 +198,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 NodeId = publishedVariable?.PublishedVariable ?? NodeId.Null,
                 AttributeId = publishedVariable?.AttributeId ?? Attributes.Value
             };
-            if (publishedVariable is not null
-                && !string.IsNullOrEmpty(publishedVariable.IndexRange))
+            if (publishedVariable is not null &&
+                !string.IsNullOrEmpty(publishedVariable.IndexRange))
             {
                 readValueId.IndexRange = publishedVariable.IndexRange;
             }
@@ -210,10 +210,10 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             PublishedDataSetDataType configuration)
         {
             ExtensionObject source = configuration.DataSetSource;
-            if (!source.IsNull
-                && source.TryGetValue(out PublishedDataItemsDataType? items)
-                && items is not null
-                && !items.PublishedData.IsNull)
+            if (!source.IsNull &&
+                source.TryGetValue(out PublishedDataItemsDataType? items) &&
+                items is not null &&
+                !items.PublishedData.IsNull)
             {
                 return items.PublishedData;
             }

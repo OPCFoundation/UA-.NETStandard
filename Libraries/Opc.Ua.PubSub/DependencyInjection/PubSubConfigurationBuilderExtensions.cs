@@ -57,7 +57,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            PubSubConfigurationBuilder configurationBuilder = PubSubConfigurationBuilder.Create();
+            var configurationBuilder = PubSubConfigurationBuilder.Create();
             configure(configurationBuilder);
             return builder.UseConfiguration(configurationBuilder.Build());
         }

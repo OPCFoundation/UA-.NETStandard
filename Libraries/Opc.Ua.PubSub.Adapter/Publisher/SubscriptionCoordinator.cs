@@ -143,8 +143,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 return strategy;
             }
             throw new KeyNotFoundException(
-                $"No external subscription read strategy is configured for "
-                + $"PublishedDataSet '{publishedDataSetName}'.");
+                "No external subscription read strategy is configured for " +
+                $"PublishedDataSet '{publishedDataSetName}'.");
         }
 
         /// <inheritdoc/>
@@ -267,8 +267,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             if (!m_dataSetsByName.ContainsKey(dataSetName!))
             {
                 m_logger.LogWarning(
-                    "DataSetWriter references unknown PublishedDataSet '{Pds}'; "
-                    + "it will produce no monitored items.",
+                    "DataSetWriter references unknown PublishedDataSet '{Pds}'; " +
+                    "it will produce no monitored items.",
                     dataSetName);
                 return;
             }
@@ -295,8 +295,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
             foreach (string dataSetName in group.DataSetNames)
             {
-                if (!m_dataSetsByName.TryGetValue(dataSetName, out PublishedDataSetDataType? dataSet)
-                    || dataSet is null)
+                if (!m_dataSetsByName.TryGetValue(dataSetName, out PublishedDataSetDataType? dataSet) ||
+                    dataSet is null)
                 {
                     continue;
                 }
@@ -314,8 +314,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     {
                         m_logger.LogWarning(
                             ex,
-                            "Could not resolve published variable {NodeId} for {Group}; "
-                            + "it will not be monitored.",
+                            "Could not resolve published variable {NodeId} for {Group}; " +
+                            "it will not be monitored.",
                             variable.PublishedVariable,
                             group.Label);
                         continue;
@@ -403,10 +403,10 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         {
             var variables = new List<PublishedVariableDataType>();
             ExtensionObject source = dataSet.DataSetSource;
-            if (source.IsNull
-                || !source.TryGetValue(out PublishedDataItemsDataType? items)
-                || items is null
-                || items.PublishedData.IsNull)
+            if (source.IsNull ||
+                !source.TryGetValue(out PublishedDataItemsDataType? items) ||
+                items is null ||
+                items.PublishedData.IsNull)
             {
                 return variables;
             }

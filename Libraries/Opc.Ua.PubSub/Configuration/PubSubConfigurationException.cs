@@ -89,8 +89,14 @@ namespace Opc.Ua.PubSub.Configuration
             for (int i = 0; i < errors.Length && i < MaxErrorsInMessage; i++)
             {
                 PubSubConfigurationIssue issue = errors[i];
-                builder.Append(' ').Append('[').Append(issue.Code).Append("] ");
-                builder.Append(issue.Path).Append(": ").Append(issue.Message);
+                builder
+                    .Append(' ')
+                    .Append('[')
+                    .Append(issue.Code)
+                    .Append("] ")
+                    .Append(issue.Path)
+                    .Append(": ")
+                    .Append(issue.Message);
                 if (i < errors.Length - 1 && i < MaxErrorsInMessage - 1)
                 {
                     builder.Append(';');

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -42,11 +40,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
     /// Smoke tests for <c>HttpsTransportChannelBindings</c>: an internal
     /// decorator in <c>Opc.Ua.Client</c> that wraps
     /// <see cref="ITransportChannelBindings"/> to route
-    /// <c>https://</c> / <c>opc.https://</c> channels through an
+    /// <c>https://</c> / <c>opc.https://</c>
+    /// <para>
+    /// channels through an
     /// injected <see cref="IOpcUaHttpClientFactory"/>.
-    ///
-    /// Since the class is <c>internal sealed</c>, tests exercise it
-    /// indirectly through the DI pipeline: when
+    /// </para>
+    /// <para>
+    /// Since the class is
+    /// </para>
+    /// <c>internal sealed</c>, tests exercise it indirectly through the DI pipeline: when
     /// <see cref="OpcUaClientBuilderExtensions.AddClient(IOpcUaBuilder, System.Action{OpcUaClientOptions})"/>
     /// is called and an <see cref="IOpcUaHttpClientFactory"/> is present,
     /// <c>HttpsTransportChannelBindings</c> is created inside the

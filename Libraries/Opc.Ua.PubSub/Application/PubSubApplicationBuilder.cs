@@ -589,7 +589,7 @@ namespace Opc.Ua.PubSub.Application
             PubSubConfigurationDataType configuration = LoadConfiguration();
             try
             {
-                PubSubConfigurationSnapshot snapshot =
+                var snapshot =
                     PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
                 Dictionary<string, IPublishedDataSetSource> sources = ResolveSources(configuration);
                 var diagnostics = new PubSubDiagnostics(m_options.DiagnosticsLevel, m_timeProvider);
@@ -657,8 +657,8 @@ namespace Opc.Ua.PubSub.Application
             if (m_configuration is not null && m_configurationFilePath is not null)
             {
                 throw new PubSubApplicationBuildException(
-                    "Both an inline configuration and a configuration file path "
-                    + "were supplied. Choose one.");
+                    "Both an inline configuration and a configuration file path " +
+                    "were supplied. Choose one.");
             }
             if (m_configuration is not null)
             {
@@ -695,8 +695,8 @@ namespace Opc.Ua.PubSub.Application
                 {
                     continue;
                 }
-                if (TryCreatePublishedActionSource(pds, out IPublishedDataSetSource? actionSource)
-                    && actionSource is not null)
+                if (TryCreatePublishedActionSource(pds, out IPublishedDataSetSource? actionSource) &&
+                    actionSource is not null)
                 {
                     sources[name] = actionSource;
                     continue;
@@ -721,15 +721,15 @@ namespace Opc.Ua.PubSub.Application
                 return false;
             }
 
-            if (dataSetSource.TryGetValue(out PublishedActionMethodDataType? methodAction)
-                && methodAction is not null)
+            if (dataSetSource.TryGetValue(out PublishedActionMethodDataType? methodAction) &&
+                methodAction is not null)
             {
                 source = new PublishedActionSource(methodAction);
                 return true;
             }
 
-            if (dataSetSource.TryGetValue(out PublishedActionDataType? action)
-                && action is not null)
+            if (dataSetSource.TryGetValue(out PublishedActionDataType? action) &&
+                action is not null)
             {
                 source = new PublishedActionSource(action);
                 return true;

@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             await node.StartAsync().ConfigureAwait(false);
 
             Assert.That(node.IsLeader, Is.True);
-            Assert.That(transitions, Is.EqualTo(new[] { true }));
+            Assert.That(transitions, Is.EqualTo([true]));
         }
 
         [Test]
@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             await node.StartAsync().ConfigureAwait(false);
 
             Assert.That(node.IsLeader, Is.True);
-            Assert.That(transitions, Is.EqualTo(new[] { true }), "a second start must not re-raise leadership");
+            Assert.That(transitions, Is.EqualTo([true]), "a second start must not re-raise leadership");
         }
 
         [Test]
@@ -201,7 +201,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             await node1.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(node2.IsLeader, Is.True, "the next-lowest live id takes over when the leader leaves");
-            Assert.That(node2Transitions, Is.EqualTo(new[] { true }));
+            Assert.That(node2Transitions, Is.EqualTo([true]));
         }
 
         [Test]

@@ -32,7 +32,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 
-
 namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 {
     /// <summary>
@@ -91,11 +90,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             DateTimeUtc srv = DateTimeUtc.From(
                 new DateTimeOffset(2026, 6, 16, 12, 0, 1, TimeSpan.Zero));
             Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage decoded = await RoundTripAsync(
-                DataSetFieldContentMask.StatusCode
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.StatusCode |
+                    DataSetFieldContentMask.SourceTimestamp |
+                    DataSetFieldContentMask.SourcePicoSeconds |
+                    DataSetFieldContentMask.ServerTimestamp |
+                    DataSetFieldContentMask.ServerPicoSeconds,
                 new DataSetField
                 {
                     Value = new Variant(7.0),
@@ -121,8 +120,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.From(1u),
                 DataSetMessages =
                 [
@@ -145,5 +144,3 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
     }
 }
-
-

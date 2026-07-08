@@ -51,12 +51,12 @@ namespace Opc.Ua.PubSub.Tests.Security
         private const uint TokenId = 1U;
         private const string CallerId = "client/cn=test";
 
-        private static readonly byte[] s_outerPrefix = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01 };
-        private static readonly byte[] s_innerPayload = new byte[]
-        {
+        private static readonly byte[] s_outerPrefix = [0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01];
+        private static readonly byte[] s_innerPayload =
+        [
             0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE,
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
-        };
+        ];
 
         [Test]
         public async Task UadpSinkReceivesSignatureFailureWithoutKeyBytes()

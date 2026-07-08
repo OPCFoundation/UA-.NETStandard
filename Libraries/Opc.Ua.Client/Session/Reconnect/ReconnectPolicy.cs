@@ -214,13 +214,13 @@ namespace Opc.Ua.Client
         /// <returns><c>true</c> if the client should back off more aggressively.</returns>
         public static bool IsServerBusySignal(StatusCode status)
         {
-            return status == StatusCodes.BadServerTooBusy
-                || status == StatusCodes.BadTcpServerTooBusy
-                || status == StatusCodes.BadTooManySessions
-                || status == StatusCodes.BadTooManyOperations
-                || status == StatusCodes.BadTooManyPublishRequests
-                || status == StatusCodes.BadRequestTimeout
-                || status == StatusCodes.BadTimeout;
+            return status == StatusCodes.BadServerTooBusy ||
+                status == StatusCodes.BadTcpServerTooBusy ||
+                status == StatusCodes.BadTooManySessions ||
+                status == StatusCodes.BadTooManyOperations ||
+                status == StatusCodes.BadTooManyPublishRequests ||
+                status == StatusCodes.BadRequestTimeout ||
+                status == StatusCodes.BadTimeout;
         }
 
         /// <summary>

@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable CA2000
-
-#pragma warning disable CA2007
+#pragma warning disable CA2000, CA2007
 
 #nullable enable
 

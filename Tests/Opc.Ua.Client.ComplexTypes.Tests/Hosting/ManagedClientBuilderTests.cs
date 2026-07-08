@@ -94,7 +94,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
             Assert.That(sp.GetService<IComplexTypeSystemFactory>(), Is.Not.Null);
         }
 
-
         [Test]
         public void AddManagedClientConfigurationOverloadEnablesComplexTypes()
         {

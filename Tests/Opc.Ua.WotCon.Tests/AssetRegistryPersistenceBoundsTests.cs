@@ -133,7 +133,7 @@ namespace Opc.Ua.WotCon.Tests
             List<(string Name, ThingDescription _)> results =
                 await EnumerateAsync(registry).ConfigureAwait(false);
 
-            Assert.That(results.Select(r => r.Name), Is.EquivalentTo(new[] { goodName }));
+            Assert.That(results.Select(r => r.Name), Is.EquivalentTo([goodName]));
 
             LogEntry? warning = entries.FirstOrDefault(e =>
                 e.Level == LogLevel.Warning &&
@@ -209,7 +209,7 @@ namespace Opc.Ua.WotCon.Tests
                 await EnumerateAsync(registry).ConfigureAwait(false);
 
             // The well-formed TD survives; the deep one is skipped.
-            Assert.That(results.Select(r => r.Name), Is.EquivalentTo(new[] { okName }));
+            Assert.That(results.Select(r => r.Name), Is.EquivalentTo([okName]));
 
             LogEntry? warning = entries.FirstOrDefault(e =>
                 e.Level == LogLevel.Warning &&
@@ -238,7 +238,7 @@ namespace Opc.Ua.WotCon.Tests
             List<(string Name, ThingDescription _)> results =
                 await EnumerateAsync(registry).ConfigureAwait(false);
 
-            Assert.That(results.Select(r => r.Name), Is.EquivalentTo(new[] { okName }));
+            Assert.That(results.Select(r => r.Name), Is.EquivalentTo([okName]));
             Assert.That(entries.Any(e =>
                 e.Level == LogLevel.Warning &&
                 e.Message.Contains(badName, StringComparison.Ordinal)), Is.True);

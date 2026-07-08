@@ -194,4 +194,3 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
     }
 }
-

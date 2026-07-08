@@ -124,9 +124,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return field.Name;
             }
-            if (metaData is not null
-                && metaData.Fields.Count > index
-                && metaData.Fields[index].Name is { Length: > 0 } resolvedName)
+            if (metaData is not null &&
+                metaData.Fields.Count > index &&
+                metaData.Fields[index].Name is { Length: > 0 } resolvedName)
             {
                 return resolvedName;
             }

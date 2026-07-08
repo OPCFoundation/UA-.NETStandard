@@ -103,20 +103,20 @@ namespace Opc.Ua.PubSub.DataSets
             {
                 return true;
             }
-            if (!previous.SourceTimestamp.Equals(current.SourceTimestamp)
-                && deadband.DeadbandType != DeadbandType.None
-                && deadband.DeadbandValue > 0 && TryGetDouble(previous.Value, out double prev)
-                    && TryGetDouble(current.Value, out double now))
+            if (!previous.SourceTimestamp.Equals(current.SourceTimestamp) &&
+                deadband.DeadbandType != DeadbandType.None &&
+                deadband.DeadbandValue > 0 && TryGetDouble(previous.Value, out double prev) &&
+                    TryGetDouble(current.Value, out double now))
             {
                 return PassesNumeric(prev, now, deadband);
             }
-            if (deadband.DeadbandType == DeadbandType.None
-                || deadband.DeadbandValue <= 0)
+            if (deadband.DeadbandType == DeadbandType.None ||
+                deadband.DeadbandValue <= 0)
             {
                 return !previous.Value.Equals(current.Value);
             }
-            if (TryGetDouble(previous.Value, out double oldVal)
-                && TryGetDouble(current.Value, out double newVal))
+            if (TryGetDouble(previous.Value, out double oldVal) &&
+                TryGetDouble(current.Value, out double newVal))
             {
                 return PassesNumeric(oldVal, newVal, deadband);
             }

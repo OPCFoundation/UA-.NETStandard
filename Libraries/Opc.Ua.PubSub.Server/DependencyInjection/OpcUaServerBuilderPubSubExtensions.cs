@@ -244,8 +244,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
             }
             throw new InvalidOperationException(
-                "AddPubSub(IOpcUaServerBuilder) requires the PubSub runtime to be registered first. "
-                + "Call IOpcUaBuilder.AddPubSub(...) on the same IServiceCollection before AddServer().AddPubSub().");
+                "AddPubSub(IOpcUaServerBuilder) requires the PubSub runtime to be registered first. " +
+                "Call IOpcUaBuilder.AddPubSub(...) on the same IServiceCollection before AddServer().AddPubSub().");
         }
 
         private static void EnsureFirstRegistration(IServiceCollection services)

@@ -347,7 +347,6 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
-
         /// <summary>
         /// Registers container-default subscription and monitored-item options.
         /// </summary>
@@ -839,7 +838,7 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         internal static async Task<ManagedSession> ConnectManagedSessionAsync(
-            IServiceProvider sp,
+            this IServiceProvider sp,
             ManagedSessionOptions sessionOptions,
             Action<ManagedSessionBuilder> configure,
             CancellationToken ct)

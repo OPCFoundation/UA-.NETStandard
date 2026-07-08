@@ -132,8 +132,8 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
         {
             return new UadpNetworkMessageV2
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 WriterGroupId = 10,
                 DataSetMessages =
