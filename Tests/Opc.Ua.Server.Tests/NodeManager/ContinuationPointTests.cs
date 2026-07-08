@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,73 +27,123 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-#pragma warning disable CA2007
-
+using System;
 using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Deterministic unit tests for <see cref="ContinuationPoint"/> covering the
+    /// result-mask driven flag properties and the disposal behavior.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
-    [Parallelizable]
+    [Category("ContinuationPoint")]
+    [Parallelizable(ParallelScope.All)]
     public class ContinuationPointTests
     {
         [Test]
-        public void ResultMaskPropertiesReflectRequestedFields()
+        public void RequiredFlagsAreFalseWhenResultMaskIsNone()
         {
-            var continuationPoint = new ContinuationPoint
-            {
-                ResultMask = BrowseResultMask.ReferenceTypeId |
-                    BrowseResultMask.IsForward |
-                    BrowseResultMask.NodeClass |
-                    BrowseResultMask.BrowseName |
-                    BrowseResultMask.DisplayName |
-                    BrowseResultMask.TypeDefinition
-            };
+            using var cp = new ContinuationPoint { ResultMask = BrowseResultMask.None };
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(continuationPoint.ReferenceTypeIdRequired, Is.True);
-                Assert.That(continuationPoint.IsForwardRequired, Is.True);
-                Assert.That(continuationPoint.NodeClassRequired, Is.True);
-                Assert.That(continuationPoint.BrowseNameRequired, Is.True);
-                Assert.That(continuationPoint.DisplayNameRequired, Is.True);
-                Assert.That(continuationPoint.TypeDefinitionRequired, Is.True);
-                Assert.That(continuationPoint.TargetAttributesRequired, Is.True);
-            });
+            Assert.That(cp.ReferenceTypeIdRequired, Is.False);
+            Assert.That(cp.IsForwardRequired, Is.False);
+            Assert.That(cp.NodeClassRequired, Is.False);
+            Assert.That(cp.BrowseNameRequired, Is.False);
+            Assert.That(cp.DisplayNameRequired, Is.False);
+            Assert.That(cp.TypeDefinitionRequired, Is.False);
         }
 
         [Test]
-        public void TargetAttributesRequiredUsesNodeClassMaskWhenResultMaskIsEmpty()
+        public void RequiredFlagsAreTrueWhenResultMaskIsAll()
         {
-            var continuationPoint = new ContinuationPoint
+            using var cp = new ContinuationPoint { ResultMask = BrowseResultMask.All };
+
+            Assert.That(cp.ReferenceTypeIdRequired, Is.True);
+            Assert.That(cp.IsForwardRequired, Is.True);
+            Assert.That(cp.NodeClassRequired, Is.True);
+            Assert.That(cp.BrowseNameRequired, Is.True);
+            Assert.That(cp.DisplayNameRequired, Is.True);
+            Assert.That(cp.TypeDefinitionRequired, Is.True);
+        }
+
+        [Test]
+        public void ReferenceTypeIdRequiredReflectsOnlyThatBit()
+        {
+            using var cp = new ContinuationPoint
+            {
+                ResultMask = BrowseResultMask.ReferenceTypeId
+            };
+
+            Assert.That(cp.ReferenceTypeIdRequired, Is.True);
+            Assert.That(cp.IsForwardRequired, Is.False);
+            Assert.That(cp.BrowseNameRequired, Is.False);
+        }
+
+        [Test]
+        public void TargetAttributesRequiredIsTrueWhenNodeClassMaskSet()
+        {
+            using var cp = new ContinuationPoint
             {
                 NodeClassMask = (uint)NodeClass.Variable,
                 ResultMask = BrowseResultMask.None
             };
 
-            Assert.That(continuationPoint.TargetAttributesRequired, Is.True);
+            Assert.That(cp.TargetAttributesRequired, Is.True);
         }
 
         [Test]
-        public void EmptyResultMaskDoesNotRequireOptionalFields()
+        public void TargetAttributesRequiredIsFalseWhenNoRelevantMaskSet()
         {
-            var continuationPoint = new ContinuationPoint
+            using var cp = new ContinuationPoint
             {
-                ResultMask = BrowseResultMask.None
+                NodeClassMask = 0,
+                ResultMask = BrowseResultMask.ReferenceTypeId | BrowseResultMask.IsForward
             };
 
-            Assert.Multiple(() =>
+            Assert.That(cp.TargetAttributesRequired, Is.False);
+        }
+
+        [Test]
+        public void TargetAttributesRequiredIsTrueWhenBrowseNameRequested()
+        {
+            using var cp = new ContinuationPoint
             {
-                Assert.That(continuationPoint.ReferenceTypeIdRequired, Is.False);
-                Assert.That(continuationPoint.IsForwardRequired, Is.False);
-                Assert.That(continuationPoint.NodeClassRequired, Is.False);
-                Assert.That(continuationPoint.BrowseNameRequired, Is.False);
-                Assert.That(continuationPoint.DisplayNameRequired, Is.False);
-                Assert.That(continuationPoint.TypeDefinitionRequired, Is.False);
-                Assert.That(continuationPoint.TargetAttributesRequired, Is.False);
-            });
+                NodeClassMask = 0,
+                ResultMask = BrowseResultMask.BrowseName
+            };
+
+            Assert.That(cp.TargetAttributesRequired, Is.True);
+        }
+
+        [Test]
+        public void DisposeDisposesDisposableData()
+        {
+            var disposable = new TrackingDisposable();
+            var cp = new ContinuationPoint { Data = disposable };
+
+            cp.Dispose();
+
+            Assert.That(disposable.DisposeCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void DisposeWithNonDisposableDataDoesNotThrow()
+        {
+            var cp = new ContinuationPoint { Data = "not-disposable" };
+
+            Assert.DoesNotThrow(() => cp.Dispose());
+        }
+
+        private sealed class TrackingDisposable : IDisposable
+        {
+            public int DisposeCount { get; private set; }
+
+            public void Dispose()
+            {
+                DisposeCount++;
+            }
         }
     }
 }
