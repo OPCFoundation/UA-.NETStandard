@@ -295,9 +295,23 @@ namespace Opc.Ua.Server.Hosting
             // available. Features register these without subclassing the server.
             foreach (IServerStartupTask startupTask in m_services.GetServices<IServerStartupTask>())
             {
-                await startupTask
-                    .OnServerStartedAsync(m_server.CurrentInstance, stoppingToken)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await startupTask
+                        .OnServerStartedAsync(m_server.CurrentInstance, stoppingToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(
+                        ex,
+                        "Server startup task {StartupTask} failed after server start.",
+                        startupTask.GetType().FullName);
+                }
             }
 
             foreach (string url in urls)

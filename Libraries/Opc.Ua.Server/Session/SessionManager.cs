@@ -374,6 +374,7 @@ namespace Opc.Ua.Server
             ByteString serverNonce = default;
 
             ISession? session = null;
+            ISession? restoredSession = null;
             IUserIdentityTokenHandler? newIdentity = null;
             UserTokenPolicy? userTokenPolicy = null;
             string? clientKey = null;
@@ -383,6 +384,14 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
+            if (!m_sessions.TryGetValue(authenticationToken, out _) && SupportsSessionRestore)
+            {
+                restoredSession = await RestoreSessionAsync(
+                    authenticationToken,
+                    context,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             Nonce? serverNonceObject = null;
             try
             {
@@ -399,23 +408,26 @@ namespace Opc.Ua.Server
                     // find session.
                     if (!m_sessions.TryGetValue(authenticationToken, out session))
                     {
-                        // Not present locally. In a distributed deployment this
-                        // is a failover reconnect: let a derived manager restore
-                        // the mirrored session so the standard ActivateSession
-                        // validation below (full client-signature check against
-                        // the restored, single-use serverNonce) still runs. The
-                        // token is a lookup key only, never an authenticator.
-                        session = await RestoreSessionAsync(
-                            authenticationToken, context, cancellationToken).ConfigureAwait(false);
-                        if (session == null)
+                        if (restoredSession == null)
                         {
                             throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                         }
-                        if (!m_sessions.TryAdd(authenticationToken, session) &&
+
+                        // Restore completed outside the global lock. Re-check
+                        // under the lock in case another concurrent activation
+                        // already admitted the same mirrored session.
+                        if (!m_sessions.TryAdd(authenticationToken, restoredSession) &&
                             !m_sessions.TryGetValue(authenticationToken, out session))
                         {
                             throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                         }
+
+                        session ??= restoredSession;
+                        if (!ReferenceEquals(session, restoredSession))
+                        {
+                            restoredSession.Dispose();
+                        }
+                        restoredSession = null;
                     }
 
                     // get client lockout key.
@@ -578,6 +590,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                restoredSession?.Dispose();
                 serverNonceObject?.Dispose();
             }
         }
@@ -1085,15 +1098,15 @@ namespace Opc.Ua.Server
         /// Restores a session that is not present in the local session table.
         /// </summary>
         /// <remarks>
-        /// Called by <see cref="ActivateSessionAsync"/> (under the session lock)
-        /// when the supplied <paramref name="authenticationToken"/> is unknown
-        /// locally. The default returns <c>null</c> so the activation is
-        /// rejected. A distributed manager overrides this to reconstruct a
-        /// mirrored session (e.g. from a shared store), after which the normal
-        /// activation path performs the full client-certificate signature
-        /// validation — the token is never an authenticator on its own. The
-        /// returned session must be fully initialized (its diagnostics node
-        /// registered, i.e. <see cref="ISession.InitializeAsync"/> awaited).
+        /// Called by <see cref="ActivateSessionAsync"/> when the supplied
+        /// <paramref name="authenticationToken"/> is unknown locally. The
+        /// default returns <c>null</c> so the activation is rejected. A
+        /// distributed manager overrides this to reconstruct a mirrored session
+        /// (e.g. from a shared store), after which the normal activation path
+        /// performs the full client-certificate signature validation — the
+        /// token is never an authenticator on its own. The returned session
+        /// must be fully initialized (its diagnostics node registered, i.e.
+        /// <see cref="ISession.InitializeAsync"/> awaited).
         /// </remarks>
         /// <param name="authenticationToken">The unknown authentication token.</param>
         /// <param name="context">The operation context of the activation.</param>
