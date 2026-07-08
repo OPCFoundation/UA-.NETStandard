@@ -248,10 +248,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 get
                 {
                     var snapshot = new List<IMonitoredItem>(m_byHandle.Count);
-                    foreach (FakeMonitoredItem v in m_byHandle.Values)
-                    {
-                        snapshot.Add(v);
-                    }
+                    snapshot.AddRange(m_byHandle.Values);
                     return snapshot;
                 }
             }

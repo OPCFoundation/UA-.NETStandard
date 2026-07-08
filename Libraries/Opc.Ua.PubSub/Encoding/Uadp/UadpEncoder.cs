@@ -347,7 +347,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 if (publisherIdType != PublisherIdType.Byte)
                 {
                     ext1 |= (ExtendedFlags1EncodingMask)
-                        ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(publisherIdType);
+                        publisherIdType.EncodePublisherIdType();
                 }
             }
 
@@ -429,8 +429,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             ExtendedFlags2EncodingMask ext2,
             PublisherIdType publisherIdType)
         {
-            writer.WriteByte(UadpFlagsEncodingMaskExtensions.Combine(
-                message.UadpVersion, uadpFlags));
+            writer.WriteByte(message.UadpVersion.Combine(
+uadpFlags));
 
             if ((uadpFlags & UadpFlagsEncodingMask.ExtendedFlags1Enabled) != 0)
             {
@@ -631,7 +631,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             DataSetFlags2EncodingMask flags2 = 0;
 
             flags1 |= (DataSetFlags1EncodingMask)
-                DataSetFlags1EncodingMaskExtensions.EncodeFieldEncoding(message.FieldEncoding);
+                message.FieldEncoding.EncodeFieldEncoding();
 
             if ((message.ContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
             {
@@ -659,7 +659,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 flags2 |= DataSetFlags2EncodingMask.PicoSecondsEnabled;
             }
             flags2 |= (DataSetFlags2EncodingMask)
-                DataSetFlags2EncodingMaskExtensions.EncodeMessageType(message.MessageType);
+                message.MessageType.EncodeMessageType();
 
             bool needFlags2 = flags2 != 0;
             if (needFlags2)
@@ -768,8 +768,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             byte ext1 = (byte)ExtendedFlags1EncodingMask.ExtendedFlags2Enabled;
             if (pidType != PublisherIdType.Byte)
             {
-                ext1 |= ExtendedFlags1EncodingMaskExtensions
-                    .EncodePublisherIdType(pidType);
+                ext1 |= pidType
+                    .EncodePublisherIdType();
             }
             const byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
 

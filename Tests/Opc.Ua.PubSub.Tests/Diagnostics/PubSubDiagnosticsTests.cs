@@ -228,7 +228,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.High, clock);
             const int extra = 5;
-            int total = PubSubDiagnostics.ErrorHistoryCapacity + extra;
+            const int total = PubSubDiagnostics.ErrorHistoryCapacity + extra;
             for (int i = 0; i < total; i++)
             {
                 sut.RecordError(StatusCodes.BadInternalError, $"err-{i}");

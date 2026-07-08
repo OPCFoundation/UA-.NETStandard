@@ -192,10 +192,7 @@ namespace OpcUaPubSubJsonTests
                 case JsonValueKind.Object:
                     writer.WriteStartObject();
                     var props = new List<JsonProperty>();
-                    foreach (JsonProperty p in element.EnumerateObject())
-                    {
-                        props.Add(p);
-                    }
+                    props.AddRange(element.EnumerateObject());
                     props.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
                     foreach (JsonProperty p in props)
                     {

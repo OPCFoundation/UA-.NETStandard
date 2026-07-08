@@ -1612,8 +1612,8 @@ namespace Opc.Ua.PubSub.Server
                 maxFutureKeyCount: (int)Math.Min(maxFuture, int.MaxValue),
                 maxPastKeyCount: (int)Math.Min(maxPast, int.MaxValue),
                 keys: Array.Empty<PubSubSecurityKey>(),
-                rolePermissions: TryReadRolePermissions(inputArguments, 5),
-                authorizedCallerIdentities: TryReadAuthorizedCallers(inputArguments, 6));
+                authorizedCallerIdentities: TryReadAuthorizedCallers(inputArguments, 6),
+                rolePermissions: TryReadRolePermissions(inputArguments, 5));
 
             try
             {

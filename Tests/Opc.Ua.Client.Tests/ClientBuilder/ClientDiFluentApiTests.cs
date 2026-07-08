@@ -82,22 +82,22 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void ClientBuilderFeatureExtensionsRejectNullBuilders()
         {
             Assert.That(
-                () => OpcUaAlarmsBuilderExtensions.AddAlarms((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddAlarms(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddWebApiTransportChannel(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddHistorian((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddHistorian(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddRoleManagement((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddRoleManagement(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddFileTransfer((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddFileTransfer(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddAliasNames((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddAliasNames(),
                 Throws.ArgumentNullException);
         }
 
@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var services = new ServiceCollection();
 
             Assert.That(
-                () => OpcUaClientBuilderExtensions.AddDiscovery((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddDiscovery(),
                 Throws.ArgumentNullException);
 
             services.AddOpcUa()

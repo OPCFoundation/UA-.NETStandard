@@ -1121,7 +1121,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 OpcUaClientOptions options =
                     m_sp.GetRequiredService<OpcUaClientOptions>();
-                return ConnectManagedSessionAsync(m_sp, options.Session, _ => { }, ct);
+                return m_sp.ConnectManagedSessionAsync(options.Session, _ => { }, ct);
             }
 
             private readonly IServiceProvider m_sp;

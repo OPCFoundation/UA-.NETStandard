@@ -120,15 +120,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     throw new NotSupportedException("AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
 #endif
                 }
-                else
-                {
-                    plaintext.CopyTo(record.AsSpan(HeaderLength));
-                    record[HeaderLength + plaintext.Length] = ApplicationDataContentType;
-                    ComputeHmac(
-                        record.AsSpan(0, HeaderLength),
-                        record.AsSpan(HeaderLength, innerPlaintextLength),
-                        record.AsSpan(HeaderLength + innerPlaintextLength, m_tagLength));
-                }
+                plaintext.CopyTo(record.AsSpan(HeaderLength));
+                record[HeaderLength + plaintext.Length] = ApplicationDataContentType;
+
+                ComputeHmac(
+                    record.AsSpan(0, HeaderLength),
+                    record.AsSpan(HeaderLength, innerPlaintextLength),
+                    record.AsSpan(HeaderLength + innerPlaintextLength, m_tagLength));
 
                 ApplySequenceNumberMask(
                     record.AsSpan(0, HeaderLength),
@@ -240,24 +238,21 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                             "AEAD DTLS record protection requires .NET 8 or later BCL primitives.");
 #endif
                     }
-                    else
+                    Span<byte> expectedTag = stackalloc byte[m_tagLength];
+                    ComputeHmac(
+                        header,
+                        record.Slice(HeaderLength, contentLength),
+                        expectedTag);
+                    bool authenticated = CryptoUtils.FixedTimeEquals(
+                        expectedTag,
+                        record.Slice(HeaderLength + contentLength, m_tagLength));
+                    CryptoUtils.ZeroMemory(expectedTag);
+                    if (!authenticated)
                     {
-                        Span<byte> expectedTag = stackalloc byte[m_tagLength];
-                        ComputeHmac(
-                            header,
-                            record.Slice(HeaderLength, contentLength),
-                            expectedTag);
-                        bool authenticated = CryptoUtils.FixedTimeEquals(
-                            expectedTag,
-                            record.Slice(HeaderLength + contentLength, m_tagLength));
-                        CryptoUtils.ZeroMemory(expectedTag);
-                        if (!authenticated)
-                        {
-                            return false;
-                        }
-
-                        record.Slice(HeaderLength, contentLength).CopyTo(plaintext);
+                        return false;
                     }
+
+                    record.Slice(HeaderLength, contentLength).CopyTo(plaintext);
 
                     if (plaintext.IsEmpty || plaintext[^1] != ApplicationDataContentType)
                     {

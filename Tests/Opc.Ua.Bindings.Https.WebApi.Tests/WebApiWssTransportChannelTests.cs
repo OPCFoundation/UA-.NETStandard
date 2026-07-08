@@ -100,8 +100,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0));
-                    webHost.ConfigureServices(s => { });
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0))
+                        .ConfigureServices(s => { });
                     webHost.Configure(app =>
                     {
                         app.UseWebSockets();

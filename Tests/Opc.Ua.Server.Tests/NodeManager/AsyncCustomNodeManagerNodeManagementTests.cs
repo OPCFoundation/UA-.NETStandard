@@ -58,14 +58,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void AllowNodeManagement_DefaultsToFalse()
         {
             using Harness h = CreateHarness();
-            Assert.That(((INodeManagementAsyncNodeManager)h.Manager).AllowNodeManagement, Is.False);
+            Assert.That(h.Manager.AllowNodeManagement, Is.False);
         }
 
         [Test]
         public void AllowNodeManagement_IsTrueWhenOptedIn()
         {
             using Harness h = CreateHarness(allowNodeManagement: true);
-            Assert.That(((INodeManagementAsyncNodeManager)h.Manager).AllowNodeManagement, Is.True);
+            Assert.That(h.Manager.AllowNodeManagement, Is.True);
         }
 
         [Test]
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestedNewNodeId = new NodeId("MyObj", ns)
             };
 
-            (ServiceResult result, NodeId added) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, NodeId added) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestedNewNodeId = new NodeId("MyObj", ns)
             };
 
-            (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, _) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadParentNodeIdInvalid));
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestedNewNodeId = new NodeId("Foreign", 0) // ns=0 not in this manager
             };
 
-            (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, _) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestedNewNodeId = existingId
             };
 
-            (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, _) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeClass = NodeClass.Object
             };
 
-            (ServiceResult firstResult, NodeId firstId) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult firstResult, NodeId firstId) = await h.Manager
                 .AddNodeAsync(h.OperationContext, first).ConfigureAwait(false);
             Assume.That(ServiceResult.IsGood(firstResult), Is.True);
             Assume.That(firstId.IsNull, Is.False);
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeClass = NodeClass.Object
             };
 
-            (ServiceResult secondResult, NodeId secondId) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult secondResult, NodeId secondId) = await h.Manager
                 .AddNodeAsync(h.OperationContext, second).ConfigureAwait(false);
 
             Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeClass = NodeClass.Object
             };
 
-            (ServiceResult result, NodeId added) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, NodeId added) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestedNewNodeId = requested
             };
 
-            (ServiceResult result, NodeId added) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, NodeId added) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeAttributes = new ExtensionObject(attributes)
             };
 
-            (ServiceResult result, NodeId added) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, NodeId added) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeClass = NodeClass.Method
             };
 
-            (ServiceResult result, _) = await ((INodeManagementAsyncNodeManager)h.Manager)
+            (ServiceResult result, _) = await h.Manager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeClassInvalid));
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DeleteTargetReferences = false
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .DeleteNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DeleteTargetReferences = false
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .DeleteNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -360,7 +360,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DeleteTargetReferences = false
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .DeleteNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DeleteTargetReferences = true
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .DeleteNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
@@ -415,7 +415,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DeleteTargetReferences = false
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .DeleteNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
@@ -440,7 +440,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TargetNodeId = new NodeId("Anything", ns)
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .AddReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSourceNodeIdInvalid));
@@ -463,11 +463,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TargetNodeId = targetId
             };
 
-            ServiceResult first = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult first = await h.Manager
                 .AddReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
             Assume.That(ServiceResult.IsGood(first), Is.True);
 
-            ServiceResult second = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult second = await h.Manager
                 .AddReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
@@ -490,7 +490,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TargetNodeId = targetId
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .AddReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
@@ -514,7 +514,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TargetNodeId = new NodeId("NoSuchTarget", ns)
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .DeleteReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
@@ -538,7 +538,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TargetNodeId = targetId
             };
 
-            ServiceResult result = await ((INodeManagementAsyncNodeManager)h.Manager)
+            ServiceResult result = await h.Manager
                 .DeleteReferenceAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);

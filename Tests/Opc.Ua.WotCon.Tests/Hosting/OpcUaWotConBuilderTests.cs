@@ -263,8 +263,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             IServiceCollection services = new ServiceCollection();
             IOpcUaBuilder builder = services.AddOpcUa();
 
-            Assert.That(() => OpcUaWotConClientBuilderExtensions
-                .AddWotConClient((IOpcUaBuilder)null!, configure: null),
+            Assert.That(() => ((IOpcUaBuilder)null!)
+                .AddWotConClient(configure: null),
                 Throws.ArgumentNullException);
 
             Assert.That(() => builder.AddWotConClient(

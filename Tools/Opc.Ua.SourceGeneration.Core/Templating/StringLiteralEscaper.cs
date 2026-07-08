@@ -125,8 +125,8 @@ namespace Opc.Ua.SourceGeneration.Templating
                     default:
                         if (IsControl(c))
                         {
-                            builder.Append("\\u");
-                            builder.Append(((int)c).ToString("X4",
+                            builder.Append("\\u")
+                                .Append(((int)c).ToString("X4",
                                 System.Globalization.CultureInfo.InvariantCulture));
                         }
                         else

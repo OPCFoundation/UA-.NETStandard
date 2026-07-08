@@ -127,8 +127,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseTestServer();
-                    webHost.ConfigureServices(services =>
+                    webHost.UseTestServer()
+                        .ConfigureServices(services =>
                     {
                         services.AddRouting();
                         services.AddAuthorization();

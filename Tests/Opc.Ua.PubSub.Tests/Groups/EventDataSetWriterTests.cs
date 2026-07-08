@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 await writer.BuildEventMessagesAsync().ConfigureAwait(false);
 
             Assert.That(messages, Has.Count.EqualTo(2));
-            Assert.That(((UadpDataSetMessageV2)messages[0]).MessageType,
+            Assert.That(messages[0].MessageType,
                 Is.EqualTo(PubSubDataSetMessageType.Event));
             Assert.That(((DataSetField[]?)messages[0].Fields) ?? [], Has.Length.EqualTo(2));
             Assert.That(messages[0].Fields[0].Value, Is.EqualTo(new Variant("A1")));

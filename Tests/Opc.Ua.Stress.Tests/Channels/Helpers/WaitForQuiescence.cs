@@ -335,8 +335,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                     .Append(", LastReconnectAttempt=")
                     .Append(diagnostic.LastReconnectAttempt.ToString(CultureInfo.InvariantCulture))
                     .Append(", LastError=")
-                    .Append(diagnostic.LastError?.ToString() ?? string.Empty)
-                    .AppendLine();
+                    .AppendLine(diagnostic.LastError?.ToString() ?? string.Empty);
             }
 
             return builder.ToString();

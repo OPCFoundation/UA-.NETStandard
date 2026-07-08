@@ -832,7 +832,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (type != PublisherIdType.Byte)
             {
                 ext1 |= (ExtendedFlags1EncodingMask)
-                    ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(type);
+                    type.EncodePublisherIdType();
             }
             if (((Guid)dataSetClassId) != Guid.Empty)
             {
@@ -843,7 +843,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ext1 |= ExtendedFlags1EncodingMask.SecurityEnabled;
             }
 
-            writer.WriteByte(UadpFlagsEncodingMaskExtensions.Combine(uadpVersion, uadpFlags));
+            writer.WriteByte(uadpVersion.Combine(uadpFlags));
             writer.WriteByte((byte)ext1);
             writer.WriteByte((byte)extendedFlags2);
 

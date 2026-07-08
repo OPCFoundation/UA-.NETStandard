@@ -1482,8 +1482,6 @@ namespace Opc.Ua.Client
                     // can run.
                     StateMachine.TriggerReconnect();
                     break;
-                default:
-                    break;
             }
         }
 

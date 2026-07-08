@@ -193,7 +193,7 @@ namespace Opc.Ua.Client
 
             // Honor a server-provided retry-after hint as a lower bound, clamped to
             // the maximum delay so a pathological hint cannot stall reconnection.
-            if (serverRetryAfter.HasValue && serverRetryAfter.Value > TimeSpan.Zero)
+            if (serverRetryAfter > TimeSpan.Zero)
             {
                 double hintMs = Math.Min(
                     serverRetryAfter.Value.TotalMilliseconds,

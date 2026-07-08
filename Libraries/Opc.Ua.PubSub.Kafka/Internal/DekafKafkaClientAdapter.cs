@@ -502,9 +502,9 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         {
             ApplyProducerCommonConfig(builder, options);
             KafkaDeliveryGuarantee guarantee = options.DeliveryGuarantee.ToDeliveryGuarantee();
-            builder.WithAcks(MapAcks(guarantee.Acks));
-            builder.WithIdempotence(guarantee.EnableIdempotence);
-            builder.WithDeliveryTimeout(options.MessageTimeout);
+            builder.WithAcks(MapAcks(guarantee.Acks))
+                .WithIdempotence(guarantee.EnableIdempotence)
+                .WithDeliveryTimeout(options.MessageTimeout);
         }
 
         private static void ApplyConsumerConfig(
@@ -512,9 +512,9 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             KafkaConnectionOptions options)
         {
             ApplyConsumerCommonConfig(builder, options);
-            builder.WithGroupId(ResolveGroupId(options));
-            builder.WithAutoOffsetReset(MapAutoOffsetReset(options.AutoOffsetReset));
-            builder.WithOffsetCommitMode(options.EnableAutoCommit ? OffsetCommitMode.Auto : OffsetCommitMode.Manual);
+            builder.WithGroupId(ResolveGroupId(options))
+                .WithAutoOffsetReset(MapAutoOffsetReset(options.AutoOffsetReset))
+                .WithOffsetCommitMode(options.EnableAutoCommit ? OffsetCommitMode.Auto : OffsetCommitMode.Manual);
         }
 
         private static void ApplyProducerCommonConfig(
@@ -563,7 +563,6 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     builder.WithSaslScramSha512(RequireUserName(options), ResolvePassword(options));
                     break;
                 case KafkaSaslMechanism.OAuthBearer:
-                    throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
                 default:
                     throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
             }
@@ -591,7 +590,6 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     builder.WithSaslScramSha512(RequireUserName(options), ResolvePassword(options));
                     break;
                 case KafkaSaslMechanism.OAuthBearer:
-                    throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
                 default:
                     throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
             }

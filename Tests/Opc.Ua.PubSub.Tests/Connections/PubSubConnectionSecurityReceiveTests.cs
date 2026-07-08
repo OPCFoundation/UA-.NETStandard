@@ -385,15 +385,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
             byte[] keyNonce = new byte[keyNonceLength];
             for (int i = 0; i < signing.Length; i++)
             {
-                signing[i] = (byte)((tokenId * 31u + (uint)i) & 0xFF);
+                signing[i] = (byte)(((tokenId * 31u) + (uint)i) & 0xFF);
             }
             for (int i = 0; i < encrypting.Length; i++)
             {
-                encrypting[i] = (byte)((tokenId * 17u + (uint)i + 1u) & 0xFF);
+                encrypting[i] = (byte)(((tokenId * 17u) + (uint)i + 1u) & 0xFF);
             }
             for (int i = 0; i < keyNonce.Length; i++)
             {
-                keyNonce[i] = (byte)((tokenId * 7u + (uint)i + 2u) & 0xFF);
+                keyNonce[i] = (byte)(((tokenId * 7u) + (uint)i + 2u) & 0xFF);
             }
 
             return new PubSubSecurityKey(

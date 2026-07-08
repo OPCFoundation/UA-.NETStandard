@@ -206,7 +206,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 "mixed \"\\\r\n\t\u0001\u007f end",
                 "\"\\\"\\\\\\\"",
                 JsonSerializer.Serialize("a\"b\\c\u0001\u0002"),
-                JsonSerializer.Serialize(new { A = "\"\\", B = "\r\n", C = "\u007f" }),
+                JsonSerializer.Serialize(new { A = "\"\\", B = "\r\n", C = "\u007f" })
             ];
 
             foreach (string seed in seeds)

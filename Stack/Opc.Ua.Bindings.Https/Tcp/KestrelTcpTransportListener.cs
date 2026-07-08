@@ -558,8 +558,8 @@ namespace Opc.Ua.Bindings
                             options.Listen(ip, baseAddress.Port,
                                 listenOptions => listenOptions.UseConnectionHandler<KestrelTcpConnectionHandler>());
                         }
-                    });
-                    builder.ConfigureServices(services =>
+                    })
+                        .ConfigureServices(services =>
                     {
                         services.AddSingleton(this);
                         services.AddSingleton<KestrelTcpConnectionHandler>();

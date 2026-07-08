@@ -204,7 +204,7 @@ namespace Opc.Ua.Pcap.Tests.Frame
             Assert.That(data, Has.Length.EqualTo(120));
 
             const int firstEpbStart = 48;
-            int secondEpbStart = firstEpbStart + 36;
+            const int secondEpbStart = firstEpbStart + 36;
             Assert.That(ReadUInt32(data, firstEpbStart), Is.EqualTo(BlockTypeEpb));
             Assert.That(ReadUInt32(data, firstEpbStart + 4), Is.EqualTo(36U));
             Assert.That(ReadUInt32(data, secondEpbStart), Is.EqualTo(BlockTypeEpb));

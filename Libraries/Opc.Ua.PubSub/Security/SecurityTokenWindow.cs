@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Security
                     if (src >= 0)
                     {
                         value = m_window[src] << bitShift;
-                        if (bitShift != 0 && src - 1 >= 0)
+                        if (bitShift != 0 && src >= 1)
                         {
                             value |= m_window[src - 1] >> (64 - bitShift);
                         }

@@ -95,8 +95,7 @@ namespace Opc.Ua.Pcap.Formats
                 builder.Append(',')
                     .Append(FrameFormatHelpers.GetChannelId(data)?.ToString(CultureInfo.InvariantCulture))
                     .Append(',')
-                    .Append(FrameFormatHelpers.GetTokenId(data)?.ToString(CultureInfo.InvariantCulture))
-                    .AppendLine();
+                    .AppendLine(FrameFormatHelpers.GetTokenId(data)?.ToString(CultureInfo.InvariantCulture));
                 count++;
             }
 

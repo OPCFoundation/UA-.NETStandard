@@ -225,7 +225,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             byte[] buffer = new byte[size];
             for (int i = 0; i < buffer.Length; i++)
             {
-                buffer[i] = (byte)((i * 131u + 7u) & 0xFF);
+                buffer[i] = (byte)(((i * 131u) + 7u) & 0xFF);
             }
             return buffer;
         }

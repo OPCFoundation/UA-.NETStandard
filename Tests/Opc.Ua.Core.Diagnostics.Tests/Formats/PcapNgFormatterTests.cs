@@ -120,8 +120,8 @@ namespace Opc.Ua.Pcap.Tests.Formats
             var formatter = new PcapNgFormatter();
             // No pcap file path and PcapNg not in SupportedFormats — must throw.
             using var source = new InMemoryCaptureSource(
-                pcapFilePath: null,
-                supportedFormats: [FormatKind.Json]);
+                supportedFormats: [FormatKind.Json],
+                pcapFilePath: null);
 
             Assert.That(
                 async () => await formatter.FormatAsync(source, maxFrames: null, CancellationToken.None)

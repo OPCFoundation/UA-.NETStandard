@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Transcoding
                 ?? throw new ArgumentException(
                     "TranscodeInput.Message must not be null.", nameof(input));
 
-            TranscodeEncoding sourceEncoding = TranscodeEncodingExtensions.EncodingOf(source);
+            TranscodeEncoding sourceEncoding = source.EncodingOf();
 
             if (m_identity &&
                 sourceEncoding == m_targetEncoding &&
@@ -243,7 +243,7 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             foreach (KeyValuePair<string, INetworkMessageEncoder> entry in m_encoders)
             {
-                if (TranscodeEncodingExtensions.FromTransportProfileUri(entry.Key) == encoding)
+                if (entry.Key.FromTransportProfileUri() == encoding)
                 {
                     return entry.Value;
                 }

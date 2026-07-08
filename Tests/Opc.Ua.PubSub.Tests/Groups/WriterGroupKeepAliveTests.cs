@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
             Assert.That(captured[0], Is.InstanceOf<UadpNetworkMessageV2>());
             var first = (UadpNetworkMessageV2)captured[0];
             Assert.That(((PubSubDataSetMessage[]?)first.DataSetMessages) ?? [], Has.Length.EqualTo(1));
-            Assert.That(((UadpDataSetMessageV2)first.DataSetMessages[0]).MessageType,
+            Assert.That(first.DataSetMessages[0].MessageType,
                 Is.EqualTo(PubSubDataSetMessageType.KeyFrame));
 
             // Second publish without elapsed time → empty delta path returns

@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddDiscoveryOnClientBuilderNullBuilderThrows()
         {
             Assert.That(
-                () => OpcUaClientBuilderExtensions.AddDiscovery((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddDiscovery(),
                 Throws.ArgumentNullException);
         }
 

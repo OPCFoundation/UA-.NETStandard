@@ -1092,9 +1092,6 @@ namespace Opc.Ua
                     case ParticipantReconnectResult.RequiresSessionRecreate:
                         DispatchRecreate(snapshot[i].Participant);
                         break;
-                    case ParticipantReconnectResult.Reactivated:
-                    default:
-                        break;
                 }
             }
             return outcome;

@@ -932,8 +932,8 @@ namespace Opc.Ua.Bindings
                         listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
 
-            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
-            webHostBuilder.ConfigureServices(services =>
+            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory())
+                .ConfigureServices(services =>
             {
                 services.AddSingleton(accessor);
                 ConfigureContributorServices(services);

@@ -200,7 +200,6 @@ namespace Opc.Ua.WotCon.Server.Assets
                 {
                     return true;
                 }
-                return false;
             }
             return false;
         }

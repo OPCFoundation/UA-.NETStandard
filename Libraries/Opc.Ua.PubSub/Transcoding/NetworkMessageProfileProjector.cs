@@ -83,7 +83,7 @@ namespace Opc.Ua.PubSub.Transcoding
                 throw new ArgumentNullException(nameof(options));
             }
 
-            TranscodeEncoding sourceEncoding = TranscodeEncodingExtensions.EncodingOf(source);
+            TranscodeEncoding sourceEncoding = source.EncodingOf();
             if (sourceEncoding == targetEncoding)
             {
                 return ApplySameEncodingOptions(source, targetEncoding, options);

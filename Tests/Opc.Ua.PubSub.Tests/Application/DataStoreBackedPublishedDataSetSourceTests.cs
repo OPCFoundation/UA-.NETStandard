@@ -30,8 +30,7 @@
 // DataStoreBackedPublishedDataSetSource is an internal shim that adapts the
 // legacy IUaPubSubDataStore (UA0023) to the new IPublishedDataSetSource
 // contract. Suppress the obsolete diagnostic throughout this test file.
-#pragma warning disable UA0023
-#pragma warning disable CS0618
+#pragma warning disable UA0023, CS0618
 
 using System;
 using System.Threading;

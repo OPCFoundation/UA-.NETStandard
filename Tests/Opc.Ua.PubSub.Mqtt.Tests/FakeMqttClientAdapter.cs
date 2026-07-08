@@ -133,10 +133,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             lock (m_subscriptions)
             {
-                foreach (MqttTopicFilter filter in topics)
-                {
-                    m_subscriptions.Add(filter);
-                }
+                m_subscriptions.AddRange(topics);
             }
             return default;
         }
@@ -147,10 +144,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             lock (m_unsubscribed)
             {
-                foreach (string topic in topics)
-                {
-                    m_unsubscribed.Add(topic);
-                }
+                m_unsubscribed.AddRange(topics);
             }
             return default;
         }

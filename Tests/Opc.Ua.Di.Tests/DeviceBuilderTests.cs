@@ -196,8 +196,8 @@ namespace Opc.Ua.Di.Tests
 
             FunctionalGroupState? first = null;
             FunctionalGroupState? second = null;
-            builder.WithMaintenanceGroup(fg => first = fg.Group);
-            builder.WithMaintenanceGroup(fg => second = fg.Group);
+            builder.WithMaintenanceGroup(fg => first = fg.Group)
+                .WithMaintenanceGroup(fg => second = fg.Group);
 
             Assert.That(second, Is.SameAs(first),
                 "Calling WithMaintenanceGroup twice should reuse the existing group.");

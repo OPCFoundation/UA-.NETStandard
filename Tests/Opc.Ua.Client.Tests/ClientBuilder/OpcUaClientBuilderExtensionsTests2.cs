@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             IOpcUaBuilder builder = services.AddOpcUa();
 
             Assert.That(
-                () => OpcUaClientBuilderExtensions.AddClient(builder, (IConfiguration)null!),
+                () => builder.AddClient((IConfiguration)null!),
                 Throws.ArgumentNullException);
         }
 
@@ -299,7 +299,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddWebApiTransportChannel_NullBuilder_Throws()
         {
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddWebApiTransportChannel(),
                 Throws.ArgumentNullException);
         }
 

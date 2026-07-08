@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 {
                     for (int i = 0; i < perTask; i++)
                     {
-                        ulong sequenceNumber = (ulong)(taskIndex * perTask + i + 1);
+                        ulong sequenceNumber = (ulong)((taskIndex * perTask) + i + 1);
                         byte[] nonce = new byte[12];
                         // Distinct nonce per (task, i) pair.
                         nonce[0] = (byte)taskIndex;

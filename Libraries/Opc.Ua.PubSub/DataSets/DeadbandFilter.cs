@@ -134,7 +134,7 @@ namespace Opc.Ua.PubSub.DataSets
                     return diff > deadband.DeadbandValue;
                 case DeadbandType.Percent:
                     double scale;
-                    if (deadband.EuRange.HasValue && deadband.EuRange.Value > 0)
+                    if (deadband.EuRange > 0)
                     {
                         scale = deadband.EuRange.Value;
                     }

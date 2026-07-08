@@ -141,11 +141,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             get
             {
-                if (!m_unpacked.HasValue)
-                {
-                    m_unpacked = UnpackKeys();
-                }
-                return m_unpacked.Value;
+                return m_unpacked ??= UnpackKeys();
             }
         }
 

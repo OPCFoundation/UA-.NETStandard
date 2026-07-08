@@ -281,12 +281,9 @@ namespace Opc.Ua.Bindings.WebApi
                 }
                 if (claim.Value.Contains(' ', StringComparison.Ordinal))
                 {
-                    foreach (string piece in claim.Value.Split(
+                    values.AddRange(claim.Value.Split(
                         ScopeSeparator,
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    {
-                        values.Add(piece);
-                    }
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
                 }
                 else
                 {
@@ -307,12 +304,9 @@ namespace Opc.Ua.Bindings.WebApi
                 }
                 if (claim.Value.IndexOfAny(s_roleSeparators) >= 0)
                 {
-                    foreach (string piece in claim.Value.Split(
+                    values.AddRange(claim.Value.Split(
                         s_roleSeparators,
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    {
-                        values.Add(piece);
-                    }
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
                 }
                 else
                 {

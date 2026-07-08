@@ -123,10 +123,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                     Is.EqualTo(Profiles.PubSubUdpUadpTransport));
                 Assert.That(TranscodeEncoding.Json.ToTransportProfileUri(),
                     Is.EqualTo(Profiles.PubSubMqttJsonTransport));
-                Assert.That(TranscodeEncodingExtensions.FromTransportProfileUri(
-                    Profiles.PubSubMqttJsonTransport), Is.EqualTo(TranscodeEncoding.Json));
-                Assert.That(TranscodeEncodingExtensions.FromTransportProfileUri(
-                    Profiles.PubSubUdpUadpTransport), Is.EqualTo(TranscodeEncoding.Uadp));
+                Assert.That(Profiles.PubSubMqttJsonTransport.FromTransportProfileUri(
+), Is.EqualTo(TranscodeEncoding.Json));
+                Assert.That(Profiles.PubSubUdpUadpTransport.FromTransportProfileUri(
+), Is.EqualTo(TranscodeEncoding.Uadp));
                 Assert.That(TranscodeEncodingExtensions.FromTransportProfileUri(null!),
                     Is.EqualTo(TranscodeEncoding.Uadp));
                 Assert.That(() => ((TranscodeEncoding)99).ToTransportProfileUri(),

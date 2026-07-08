@@ -93,8 +93,7 @@ namespace Opc.Ua.Pcap.Formats
                     .Append(" channel=")
                     .Append(channelId)
                     .Append(" token=")
-                    .Append(tokenId)
-                    .AppendLine();
+                    .AppendLine(tokenId);
                 count++;
             }
 

@@ -399,7 +399,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(4 + 2 * 4),
+            Assert.That(writer.Position, Is.EqualTo(4 + (2 * 4)),
                 "Legacy fallback writes 4-byte length prefix + N * sizeof(Int32).");
             ReadOnlySpan<byte> written = writer.WrittenSpan();
             Assert.That(written[0], Is.EqualTo((byte)2));

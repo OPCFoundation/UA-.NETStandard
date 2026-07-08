@@ -171,7 +171,6 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         mode,
                         context);
                     break;
-                case PubSubFieldEncoding.Variant:
                 default:
                     JsonVariantEncoder.WriteVariantProperty(
                         writer,

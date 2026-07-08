@@ -325,7 +325,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
             byte[] bytes = new byte[length];
             for (int i = 0; i < bytes.Length; i++)
             {
-                bytes[i] = (byte)((tokenId * multiplier + (uint)i + 1u) & 0xFF);
+                bytes[i] = (byte)(((tokenId * multiplier) + (uint)i + 1u) & 0xFF);
             }
             return bytes;
         }

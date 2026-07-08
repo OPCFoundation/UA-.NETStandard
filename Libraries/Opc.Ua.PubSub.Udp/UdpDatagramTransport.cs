@@ -891,7 +891,6 @@ namespace Opc.Ua.PubSub.Udp
                     JoinStandardDiscoveryGroupIfNeeded(socket);
                     m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
                     break;
-                case UdpAddressType.Unicast:
                 default:
                     BindForUnicast(socket);
                     JoinStandardDiscoveryGroupIfNeeded(socket);

@@ -320,8 +320,8 @@ namespace Opc.Ua.WotCon.Tests
                 .Append(assetName)
                 .Append("\", \"description\": \"");
             int payloadLen = bytes - builder.Length - 8;
-            builder.Append('A', Math.Max(payloadLen, 0));
-            builder.Append("\" }");
+            builder.Append('A', Math.Max(payloadLen, 0))
+                .Append("\" }");
             string path = Path.Combine(_tempFolder, assetName + ".jsonld");
             File.WriteAllText(path, builder.ToString());
         }
@@ -332,7 +332,7 @@ namespace Opc.Ua.WotCon.Tests
             // JsonSerializer treats each nested object as one level, so
             // a depth of MaxDepth+1 triggers JsonException via the
             // bounded JsonSerializerOptions.MaxDepth.
-            var builder = new StringBuilder(depth * 6 + 16);
+            var builder = new StringBuilder((depth * 6) + 16);
             for (int i = 0; i < depth; i++)
             {
                 builder.Append("{\"a\":");

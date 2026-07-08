@@ -472,8 +472,8 @@ namespace Opc.Ua.Server
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState!.NamespaceUri!.Value = namespaceUri;
-                namespaceMetadataState.AddDefaultRolePermissions(SystemContext);
-                namespaceMetadataState.AddDefaultUserRolePermissions(SystemContext);
+                namespaceMetadataState.AddDefaultRolePermissions(SystemContext)
+                    .AddDefaultUserRolePermissions(SystemContext);
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);

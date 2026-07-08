@@ -248,7 +248,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static FormatKind ParseFormat(string format)
         {
-            if (!FormatKindExtensions.TryParse(format, out FormatKind kind))
+            if (!format.TryParse(out FormatKind kind))
             {
                 throw new PcapDiagnosticsException(
                     $"Unsupported format '{format}'. Use pcap, pcapng, json, csv, text, or service-timeline.");

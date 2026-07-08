@@ -57,8 +57,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         public void AddWebApiTransportChannelWithConfigureThrowsForNullBuilder()
         {
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel(
-                    (IOpcUaBuilder)null!,
+                () => ((IOpcUaBuilder)null!).AddWebApiTransportChannel(
                     configure: null),
                 Throws.ArgumentNullException);
         }

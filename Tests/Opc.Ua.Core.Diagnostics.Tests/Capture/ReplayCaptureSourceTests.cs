@@ -252,7 +252,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
                     byte[] data = new byte[16 + i];
                     for (int j = 0; j < data.Length; j++)
                     {
-                        data[j] = (byte)((i * 7 + j) & 0xFF);
+                        data[j] = (byte)(((i * 7) + j) & 0xFF);
                     }
                     await writer.WriteAsync(
                         new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddSeconds(i),

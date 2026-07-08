@@ -554,8 +554,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             bool allowUntrusted = tls is not null && !tls.ValidateServerCertificate;
             return builder.WithTlsOptions(o =>
             {
-                o.UseTls();
-                o.WithAllowUntrustedCertificates(allowUntrusted);
+                o.UseTls()
+                    .WithAllowUntrustedCertificates(allowUntrusted);
                 if (trustChain is not null && trustChain.Count > 0)
                 {
 #if NET8_0_OR_GREATER

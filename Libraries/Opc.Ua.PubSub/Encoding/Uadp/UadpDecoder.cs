@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return null;
             }
             (byte version, UadpFlagsEncodingMask uadpFlags) =
-                UadpFlagsEncodingMaskExtensions.Split(rawFlags);
+                rawFlags.Split();
             if (version != 1)
             {
                 return null;
@@ -154,8 +154,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             var publisherId = PublisherId.FromByte(0);
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
-                if (!ExtendedFlags1EncodingMaskExtensions.TryGetPublisherIdType(
-                    (byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask),
+                if (!((byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask)).TryGetPublisherIdType(
                     out publisherIdType))
                 {
                     return null;
@@ -469,7 +468,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return false;
             }
             (byte version, UadpFlagsEncodingMask uadpFlags) =
-                UadpFlagsEncodingMaskExtensions.Split(rawFlags);
+                rawFlags.Split();
             if (version != 1)
             {
                 return false;
@@ -499,8 +498,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
-                if (!ExtendedFlags1EncodingMaskExtensions.TryGetPublisherIdType(
-                    (byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask),
+                if (!((byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask)).TryGetPublisherIdType(
                     out PublisherIdType pidType))
                 {
                     return false;
@@ -797,13 +795,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 contentMask |= UadpDataSetMessageContentMask.MinorVersion;
             }
 
-            if (!DataSetFlags1EncodingMaskExtensions.TryGetFieldEncoding(
-                flags1Byte, out PubSubFieldEncoding encoding))
+            if (!flags1Byte.TryGetFieldEncoding(
+out PubSubFieldEncoding encoding))
             {
                 return null;
             }
-            if (!DataSetFlags2EncodingMaskExtensions.TryGetMessageType(
-                (byte)flags2, out PubSubDataSetMessageType messageType))
+            if (!((byte)flags2).TryGetMessageType(
+out PubSubDataSetMessageType messageType))
             {
                 return null;
             }

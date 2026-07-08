@@ -89,8 +89,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     {
                         ServerCertificate = m_serverCert,
                         ClientCertificateMode = ClientCertificateMode.NoCertificate
-                    })));
-                    webHost.ConfigureServices(_ => { });
+                    })))
+                        .ConfigureServices(_ => { });
                     webHost.Configure(app => app.Run(ctx =>
                         {
                             // The TLS regression tests assert at the

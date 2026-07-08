@@ -247,7 +247,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         {
             try
             {
-                while (true)
+                do
                 {
                     try
                     {
@@ -259,12 +259,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                             ex,
                             "Metadata refresh after a model-change event failed.");
                     }
-
-                    if (Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) == 0)
-                    {
-                        break;
-                    }
                 }
+                while (Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) != 0);
             }
             finally
             {

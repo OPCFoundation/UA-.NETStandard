@@ -103,8 +103,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     {
                         ServerCertificate = m_serverCert,
                         ClientCertificateMode = ClientCertificateMode.NoCertificate
-                    })));
-                    webHost.ConfigureServices(s => { });
+                    })))
+                        .ConfigureServices(s => { });
                     webHost.Configure(app =>
                     {
                         app.UseWebSockets();

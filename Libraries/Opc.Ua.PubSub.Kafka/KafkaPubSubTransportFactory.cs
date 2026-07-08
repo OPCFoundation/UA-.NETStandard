@@ -258,8 +258,7 @@ namespace Opc.Ua.PubSub.Kafka
                         BrokerTransportQualityOfService.NotSpecified)
                 {
                     options.DeliveryGuarantee =
-                        KafkaQualityOfServiceExtensions.FromBrokerGuarantee(
-                            broker.RequestedDeliveryGuarantee,
+                        broker.RequestedDeliveryGuarantee.FromBrokerGuarantee(
                             options.DeliveryGuarantee);
                     return;
                 }

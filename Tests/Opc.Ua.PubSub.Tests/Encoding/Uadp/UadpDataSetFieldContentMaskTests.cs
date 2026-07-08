@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     StatusCode = StatusCodes.UncertainInitialValue
                 }).ConfigureAwait(false);
 
-            DataSetField field = ((PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
+            DataSetField field = decoded.DataSetMessages[0].Fields[0];
             Assert.That(field.Value, Is.EqualTo(new Variant(42)));
             Assert.That((uint)field.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
         }
@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     SourceTimestamp = ts
                 }).ConfigureAwait(false);
 
-            DataSetField field = ((PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
+            DataSetField field = decoded.DataSetMessages[0].Fields[0];
             Assert.That(field.SourceTimestamp, Is.EqualTo(ts));
         }
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     ServerPicoSeconds = 34
                 }).ConfigureAwait(false);
 
-            DataSetField field = ((PubSub.Encoding.Uadp.UadpDataSetMessage)decoded.DataSetMessages[0]).Fields[0];
+            DataSetField field = decoded.DataSetMessages[0].Fields[0];
             Assert.That(field.SourceTimestamp, Is.EqualTo(src));
             Assert.That(field.ServerTimestamp, Is.EqualTo(srv));
             Assert.That(field.SourcePicoSeconds, Is.EqualTo(12));

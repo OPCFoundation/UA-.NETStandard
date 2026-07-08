@@ -403,7 +403,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static FormatKind ParseDecodeFormat(string format)
         {
-            if (!FormatKindExtensions.TryParse(format, out FormatKind kind) ||
+            if (!format.TryParse(out FormatKind kind) ||
                 kind is not (FormatKind.ServiceTimeline or FormatKind.Json or FormatKind.Text))
             {
                 throw new PcapDiagnosticsException(

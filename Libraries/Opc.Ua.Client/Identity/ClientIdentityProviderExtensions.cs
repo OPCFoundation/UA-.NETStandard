@@ -578,8 +578,8 @@ namespace Opc.Ua.Identity
             for (int i = 0; i < reportCount; i++)
             {
                 (UserTokenPolicy policy, string reason) = rejections[i];
-                sb.AppendLine();
-                sb.Append("  - PolicyId='")
+                sb.AppendLine()
+                    .Append("  - PolicyId='")
                     .Append(Truncate(policy?.PolicyId ?? string.Empty))
                     .Append("', TokenType=")
                     .Append(policy?.TokenType.ToString() ?? "<null>");
@@ -600,16 +600,16 @@ namespace Opc.Ua.Identity
 
             if (rejections.Count > reportCount)
             {
-                sb.AppendLine();
-                sb.Append("  +").Append(rejections.Count - reportCount)
+                sb.AppendLine()
+                    .Append("  +").Append(rejections.Count - reportCount)
                     .Append(" more rejected policies (truncated).");
             }
 
             ArrayOf<string> enabled = context.EnabledSecurityPolicyUris;
             if (!enabled.IsNull && enabled.Count > 0)
             {
-                sb.AppendLine();
-                sb.Append("  Client-enabled SecurityPolicyUris: ");
+                sb.AppendLine()
+                    .Append("  Client-enabled SecurityPolicyUris: ");
                 int enabledReportCount = Math.Min(enabled.Count, MaxRejectionsInDiagnostic);
                 bool first = true;
                 for (int i = 0; i < enabledReportCount; i++)

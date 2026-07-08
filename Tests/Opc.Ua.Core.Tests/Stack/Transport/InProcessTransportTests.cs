@@ -258,7 +258,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 var col = new BufferCollection
                 {
                     new ArraySegment<byte>(seg1),
-                    new ArraySegment<byte>(seg2),
+                    new ArraySegment<byte>(seg2)
                 };
 
                 await client.SendChunkAsync(col, CancellationToken.None).ConfigureAwait(false);

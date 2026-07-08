@@ -280,7 +280,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             TimeSpan delay = targetElapsed - elapsed;
             if (delay > TimeSpan.Zero)
             {
-                await TimeProviderExtensions.Delay(m_timeProvider, delay, ct).ConfigureAwait(false);
+                await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
             }
         }
 
