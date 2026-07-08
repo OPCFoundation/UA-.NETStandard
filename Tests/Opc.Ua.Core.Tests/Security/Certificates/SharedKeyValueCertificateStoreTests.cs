@@ -73,6 +73,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return store;
         }
 
+        private static async Task<int> CountEntriesAsync(InMemorySharedKeyValueStore backend, string keyPrefix)
+        {
+            int count = 0;
+            await foreach (var _ in backend.ScanAsync(keyPrefix).ConfigureAwait(false))
+            {
+                count++;
+            }
+
+            return count;
+        }
+
         [Test]
         public void PropertiesReportPublicOnlyStore()
         {
@@ -221,6 +232,36 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using CertificateCollection rejected = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(rejected, Has.Count.Zero);
+        }
+
+        [Test]
+        public async Task AddRejectedTrimRemovesCorruptEntriesAsync()
+        {
+            var protector = new MarkerRecordProtector();
+            using var backend = new InMemorySharedKeyValueStore();
+            using SharedKeyValueCertificateStore store = CreateStore(backend, protector);
+
+            for (int i = 0; i < 3; i++)
+            {
+                using Certificate certificate = CreateCertificate($"CN=KvRejectedValid{i}");
+                using var collection = new CertificateCollection { certificate };
+                await store.AddRejectedAsync(collection, maxCertificates: 3).ConfigureAwait(false);
+            }
+
+            string corruptKey = StorePath + "/cert/corrupt";
+            await backend.SetAsync(corruptKey, new ByteString(new byte[] { 1, 2, 3, 4, 5 })).ConfigureAwait(false);
+
+            using (Certificate certificate = CreateCertificate("CN=KvRejectedValid3"))
+            using (var collection = new CertificateCollection { certificate })
+            {
+                await store.AddRejectedAsync(collection, maxCertificates: 3).ConfigureAwait(false);
+            }
+
+            Assert.That(await CountEntriesAsync(backend, StorePath + "/cert/").ConfigureAwait(false), Is.EqualTo(3));
+            (bool corruptFound, ByteString _) = await backend.TryGetAsync(corruptKey).ConfigureAwait(false);
+            Assert.That(corruptFound, Is.False);
+            using CertificateCollection rejected = await store.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(rejected, Has.Count.EqualTo(3));
         }
 
         [Test]

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
@@ -74,11 +75,25 @@ namespace Opc.Ua.Aot.Tests
         {
             var options = new ReplicatedAddressSpaceOptions
             {
-                ReplicaId = ReplicaId.New()
+                ReplicaId = ReplicaId.New(),
+                AllowUnauthenticatedGossip = true
             };
+            options.AddPeer(new IPEndPoint(IPAddress.Loopback, 4999));
             options.UseUdpGossip(System.Net.IPAddress.Loopback, 0);
 
             await Assert.That(options.TransportFactory).IsNotNull();
+            await using ITransport transport = options.TransportFactory!(NullServiceProvider.Instance);
+            await Assert.That(transport).IsTypeOf<UdpGossipTransport>();
+        }
+
+        private sealed class NullServiceProvider : IServiceProvider
+        {
+            public static NullServiceProvider Instance { get; } = new NullServiceProvider();
+
+            public object GetService(Type serviceType)
+            {
+                return null;
+            }
         }
     }
 }
