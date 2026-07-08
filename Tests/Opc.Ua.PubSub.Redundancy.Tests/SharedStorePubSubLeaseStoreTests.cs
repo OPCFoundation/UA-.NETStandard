@@ -122,6 +122,23 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         }
 
         [Test]
+        public async Task TryRenewAsyncExtendsLeaseForCurrentOwnerAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            var leaseStore = new SharedStorePubSubLeaseStore(store, time);
+            PubSubLease? first = await leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration);
+            time.Advance(TimeSpan.FromSeconds(5));
+
+            PubSubLease? renewed = await leaseStore.TryRenewAsync(first!.Value, LeaseDuration);
+
+            Assert.That(renewed, Is.Not.Null);
+            Assert.That(renewed!.Value.OwnerId, Is.EqualTo(OwnerA));
+            Assert.That(renewed.Value.FencingToken, Is.EqualTo(first!.Value.FencingToken));
+            Assert.That(renewed.Value.ExpiresAt, Is.EqualTo(time.GetUtcNow() + LeaseDuration));
+        }
+
+        [Test]
         public async Task ReleaseAsyncLetsAnotherOwnerAcquireImmediatelyAsync()
         {
             var time = new FakeTimeProvider();

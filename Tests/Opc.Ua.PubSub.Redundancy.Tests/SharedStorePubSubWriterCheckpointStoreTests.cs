@@ -82,6 +82,30 @@ namespace Opc.Ua.PubSub.Redundancy
         }
 
         [Test]
+        public async Task GetReturnsNullWhenStoredValueIsTruncatedAsync()
+        {
+            using var backend = new InMemorySharedKeyValueStore();
+            var store = new SharedStorePubSubWriterCheckpointStore(backend);
+            string key = PubSubRedundancyStoreKeys.CheckpointPrefix + "pubsub:writergroup:WriterGroup1/1";
+            await backend.SetAsync(key, new ByteString(new byte[] { 0x01 }));
+
+            uint? sequence = await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1);
+
+            Assert.That(sequence, Is.Null);
+        }
+
+        [Test]
+        public void SetSequenceNumberThrowsWhenComponentIdIsEmpty()
+        {
+            using var backend = new InMemorySharedKeyValueStore();
+            var store = new SharedStorePubSubWriterCheckpointStore(backend);
+
+            Assert.That(
+                async () => await store.SetSequenceNumberAsync(string.Empty, 1, 5u),
+                Throws.ArgumentException);
+        }
+
+        [Test]
         public async Task PromotedStandbyReadsTheActivesCheckpointAsync()
         {
             using var backend = new InMemorySharedKeyValueStore();
