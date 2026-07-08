@@ -125,6 +125,133 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(ex.ParamName, Is.EqualTo("verifyUserName"));
         }
 
+        [Test]
+        public void RegisterDefaultAuthenticatorsUserDatabaseOverloadRejectsNullRegistry()
+        {
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => ((IServerIdentityRegistry)null).RegisterDefaultAuthenticators(Mock.Of<IUserDatabase>()));
+            Assert.That(ex.ParamName, Is.EqualTo("registry"));
+        }
+
+        [Test]
+        public void RegisterDefaultAuthenticatorsDelegateOverloadRejectsNullRegistry()
+        {
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => ((IServerIdentityRegistry)null).RegisterDefaultAuthenticators(
+                    (handler, ct) => new ValueTask<IUserIdentity>(new UserIdentity())));
+            Assert.That(ex.ParamName, Is.EqualTo("registry"));
+        }
+
+        [Test]
+        public async Task UserDatabaseVerifierAcceptsValidCredentialsAsync()
+        {
+            var database = new FakeUserDatabase { CredentialsValid = true };
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", [1, 2, 3, 4]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.Not.Null);
+            Assert.That(result.Identity!.DisplayName, Is.EqualTo("alice"));
+        }
+
+        [Test]
+        public async Task UserDatabaseVerifierRejectsInvalidCredentialsAsync()
+        {
+            var database = new FakeUserDatabase { CredentialsValid = false };
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", [1, 2, 3, 4]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public async Task UserDatabaseVerifierRejectsEmptyUserNameAsync()
+        {
+            UserNamePasswordAuthenticator authenticator =
+                GetUserNamePasswordAuthenticator(new FakeUserDatabase());
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext(string.Empty, [1, 2, 3, 4]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
+        public async Task UserDatabaseVerifierRejectsEmptyPasswordAsync()
+        {
+            UserNamePasswordAuthenticator authenticator =
+                GetUserNamePasswordAuthenticator(new FakeUserDatabase());
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", []))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        private static UserNamePasswordAuthenticator GetUserNamePasswordAuthenticator(IUserDatabase database)
+        {
+            var registry = new RecordingRegistry();
+            registry.RegisterDefaultAuthenticators(database);
+            return (UserNamePasswordAuthenticator)registry.Authenticators[1];
+        }
+
+        private static AuthenticationContext CreateContext(string userName, byte[] password)
+        {
+            var handler = new UserNameIdentityTokenHandler(userName, password);
+            return new AuthenticationContext(
+                handler,
+                new UserTokenPolicy(),
+                new EndpointDescription(),
+                null!);
+        }
+
+        private sealed class FakeUserDatabase : IUserDatabase
+        {
+            public bool CredentialsValid { get; set; }
+
+            public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
+            {
+                return CredentialsValid;
+            }
+
+            public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
+            {
+                return true;
+            }
+
+            public bool DeleteUser(string userName)
+            {
+                return true;
+            }
+
+            public ICollection<Role> GetUserRoles(string userName)
+            {
+                return [];
+            }
+
+            public IReadOnlyList<UserManagementDataType> GetUsers()
+            {
+                return [];
+            }
+
+            public bool ChangePassword(
+                string userName,
+                ReadOnlySpan<byte> oldPassword,
+                ReadOnlySpan<byte> newPassword)
+            {
+                return true;
+            }
+        }
+
         private sealed class RecordingRegistry : IServerIdentityRegistry
         {
             public List<IUserTokenAuthenticator> Authenticators { get; } = [];
