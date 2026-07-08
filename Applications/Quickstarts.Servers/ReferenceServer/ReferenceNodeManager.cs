@@ -48,7 +48,7 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class ReferenceNodeManager : AsyncCustomNodeManager
+    public class ReferenceNodeManager : AsyncCustomNodeManager, IConformanceContributor
     {
         /// <summary>
         /// Initializes the node manager.
@@ -68,6 +68,22 @@ namespace Quickstarts.ReferenceServer
 
             // use suitable defaults if no configuration exists.
         }
+
+        /// <summary>
+        /// The conformance units this node manager enables. The Historical
+        /// Access units are advertised only once history archiving has been
+        /// turned on (see <see cref="EnableHistoryArchivingAsync"/>), so the
+        /// server publishes them only when the feature is actually present.
+        /// </summary>
+        public ArrayOf<QualifiedName> ConformanceUnits =>
+            m_historian != null ? s_historicalAccessConformanceUnits : [];
+
+        /// <summary>
+        /// The server profile URIs this node manager enables — the Historical
+        /// Raw Data and Historical Aggregate facets when history archiving is on.
+        /// </summary>
+        public ArrayOf<string> ServerProfiles =>
+            m_historian != null ? s_historicalAccessProfiles : [];
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -5508,6 +5524,31 @@ namespace Quickstarts.ReferenceServer
         private const uint MultiDimensionalArrayLength = 3;
 
         private InMemoryHistorianProvider? m_historian;
+
+        /// <summary>
+        /// Historical Access conformance units advertised while history
+        /// archiving is enabled.
+        /// </summary>
+        private static readonly ArrayOf<QualifiedName> s_historicalAccessConformanceUnits =
+            new QualifiedName[]
+            {
+                new("Aggregate Master Configuration"),
+                new("Attribute Historical Read"),
+                new("Base Info History Read Capabilities"),
+                new("Base Info History ReadData Capabilities"),
+                new("Historical Access Aggregates"),
+                new("Historical Access Read Raw")
+            }.ToArrayOf();
+
+        /// <summary>
+        /// Historical Access server profile URIs advertised while history
+        /// archiving is enabled.
+        /// </summary>
+        private static readonly ArrayOf<string> s_historicalAccessProfiles = new[]
+        {
+            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"
+        }.ToArrayOf();
 
         /// <summary>
         /// Identifiers of the nodes that support history archiving.

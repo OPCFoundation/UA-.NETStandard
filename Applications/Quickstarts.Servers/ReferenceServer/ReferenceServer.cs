@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -450,38 +451,122 @@ namespace Quickstarts.ReferenceServer
 
         /// <summary>
         /// Publishes the conformance units the server supports on
-        /// Server/ServerCapabilities/ConformanceUnits. The list mirrors the
-        /// required conformance units of the profiles declared in
-        /// ServerProfileArray (per OPC UA Part 7).
+        /// Server/ServerCapabilities/ConformanceUnits and merges the enabled
+        /// server profiles into Server/ServerCapabilities/ServerProfileArray
+        /// (per OPC UA Part 7). The published set is derived from an
+        /// always-supported base set plus the contributions of every registered
+        /// node manager implementing <see cref="IConformanceContributor"/>, so
+        /// areas that are only enabled at runtime (e.g. Historical Access when
+        /// history archiving is turned on) are advertised only when present.
         /// </summary>
         private static void PublishConformanceUnits(IServerInternal server)
         {
+            var units = new HashSet<QualifiedName>();
+            var profiles = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (QualifiedName baseUnit in s_baseConformanceUnits)
+            {
+                units.Add(baseUnit);
+            }
+
+            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
+            {
+                // A natively-async node manager (e.g. ReferenceNodeManager) is the
+                // contributor itself; a wrapped synchronous node manager exposes it
+                // through its SyncNodeManager. Check both so either shape is honoured.
+                if ((nodeManager as IConformanceContributor
+                    ?? nodeManager.SyncNodeManager as IConformanceContributor)
+                    is not IConformanceContributor contributor)
+                {
+                    continue;
+                }
+                foreach (QualifiedName unit in contributor.ConformanceUnits)
+                {
+                    units.Add(unit);
+                }
+                foreach (string profile in contributor.ServerProfiles)
+                {
+                    if (!string.IsNullOrEmpty(profile))
+                    {
+                        profiles.Add(profile);
+                    }
+                }
+            }
+
             BaseVariableState? conformanceUnits = server.DiagnosticsNodeManager
                 .FindPredefinedNode<BaseVariableState>(
                     VariableIds.Server_ServerCapabilities_ConformanceUnits);
 
             if (conformanceUnits != null)
             {
-                conformanceUnits.Value = Variant.From(s_conformanceUnits);
+                ArrayOf<QualifiedName> ordered = units
+                    .OrderBy(unit => unit.Name, StringComparer.Ordinal)
+                    .ToArrayOf();
+                conformanceUnits.Value = Variant.From(ordered);
                 conformanceUnits.ClearChangeMasks(server.DefaultSystemContext, false);
             }
+
+            MergeServerProfiles(server, profiles);
         }
 
         /// <summary>
-        /// The required conformance units of the profiles declared in
-        /// ServerProfileArray (StandardUA2022, DataAccess, Methods2022,
-        /// ReverseConnect, ClientRedundancy, Historical Raw Data 2022 and
-        /// Historical Aggregate 2022). Sourced from the OPC UA profile registry
-        /// (UACore 1.05 ProfileSet).
+        /// Adds the contributed server profile URIs to the existing
+        /// ServerProfileArray (which is otherwise sourced from configuration),
+        /// preserving any already-declared profiles.
         /// </summary>
-        private static readonly ArrayOf<QualifiedName> s_conformanceUnits = new QualifiedName[]
+        private static void MergeServerProfiles(IServerInternal server, HashSet<string> profiles)
+        {
+            if (profiles.Count == 0)
+            {
+                return;
+            }
+
+            BaseVariableState? profileArray = server.DiagnosticsNodeManager
+                .FindPredefinedNode<BaseVariableState>(
+                    VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            if (profileArray == null)
+            {
+                return;
+            }
+
+            var merged = new List<string>();
+            if (profileArray.Value.TryGetValue(out ArrayOf<string> existing))
+            {
+                foreach (string profile in existing)
+                {
+                    if (!string.IsNullOrEmpty(profile))
+                    {
+                        merged.Add(profile);
+                    }
+                }
+            }
+            foreach (string profile in profiles)
+            {
+                if (!merged.Contains(profile))
+                {
+                    merged.Add(profile);
+                }
+            }
+
+            profileArray.Value = Variant.From(merged.ToArrayOf());
+            profileArray.ClearChangeMasks(server.DefaultSystemContext, false);
+        }
+
+        /// <summary>
+        /// Base set of conformance units the reference server always supports
+        /// (core address space, attribute, base info, discovery, method,
+        /// monitoring, security, session, subscription, transport and view
+        /// facets). Feature-specific units — e.g. Historical Access — are added
+        /// by the node manager that enables them via
+        /// <see cref="IConformanceContributor"/>. Sourced from the OPC UA profile
+        /// registry (UACore 1.05 ProfileSet).
+        /// </summary>
+        private static readonly ArrayOf<QualifiedName> s_baseConformanceUnits = new QualifiedName[]
         {
             new("Address Space Atomicity"),
             new("Address Space Base"),
             new("Address Space Full Array Only"),
             new("Address Space Method"),
-            new("Aggregate Master Configuration"),
-            new("Attribute Historical Read"),
             new("Attribute Read"),
             new("Base Info Base Types"),
             new("Base Info Core Structure 2"),
@@ -489,8 +574,6 @@ namespace Quickstarts.ReferenceServer
             new("Base Info Date DataTypes"),
             new("Base Info Decimal DataType"),
             new("Base Info GetMonitoredItems Method"),
-            new("Base Info History Read Capabilities"),
-            new("Base Info History ReadData Capabilities"),
             new("Base Info Method Argument DataType"),
             new("Base Info Method Capabilities"),
             new("Base Info ResendData Method"),
@@ -506,8 +589,6 @@ namespace Quickstarts.ReferenceServer
             new("Discovery Register"),
             new("Discovery Register2"),
             new("Documentation - Core Capacities"),
-            new("Historical Access Aggregates"),
-            new("Historical Access Read Raw"),
             new("Method Call"),
             new("Monitor Basic"),
             new("Monitor Items 2"),
