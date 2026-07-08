@@ -242,5 +242,15 @@ namespace Opc.Ua.PubSub.Configuration
 
             return default;
         }
+
+        /// <inheritdoc/>
+        public ValueTask SetStateAsync(
+            string componentId,
+            PubSubState state,
+            long fencingToken,
+            CancellationToken cancellationToken = default)
+        {
+            return SetStateAsync(componentId, state, cancellationToken);
+        }
     }
 }

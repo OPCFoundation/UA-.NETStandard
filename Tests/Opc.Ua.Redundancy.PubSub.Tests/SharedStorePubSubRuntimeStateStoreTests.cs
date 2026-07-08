@@ -92,6 +92,28 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         [Test]
+        public async Task SetStateRejectsStaleFencingTokenAsync()
+        {
+            using var backend = new InMemorySharedKeyValueStore();
+            var store = new SharedStorePubSubRuntimeStateStore(backend);
+
+            await store.SetStateAsync(
+                "pubsub:datasetwriter:Writer1",
+                PubSubState.Operational,
+                10).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await store.SetStateAsync(
+                    "pubsub:datasetwriter:Writer1",
+                    PubSubState.Error,
+                    9).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+            Assert.That(
+                await store.GetStateAsync("pubsub:datasetwriter:Writer1").ConfigureAwait(false),
+                Is.EqualTo(PubSubState.Operational));
+        }
+
+        [Test]
         public void SetStateRejectsEmptyComponentId()
         {
             using var backend = new InMemorySharedKeyValueStore();

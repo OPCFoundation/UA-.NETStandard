@@ -57,6 +57,13 @@ namespace Opc.Ua.PubSub.Redundancy
         /// <summary>
         /// Gets or sets the redundancy behaviour a standby instance keeps warm.
         /// </summary>
+        /// <remarks>
+        /// <see cref="PubSubRedundancyMode.Cold"/> keeps only activation/election shared and
+        /// recreates process-local runtime state after promotion. <see cref="PubSubRedundancyMode.Warm"/>
+        /// additionally shares runtime state so the standby stays configured/paused. Only
+        /// <see cref="PubSubRedundancyMode.Hot"/> also shares writer checkpoints for
+        /// SequenceNumber continuity.
+        /// </remarks>
         public PubSubRedundancyMode Mode { get; set; } = PubSubRedundancyMode.Warm;
 
         /// <summary>

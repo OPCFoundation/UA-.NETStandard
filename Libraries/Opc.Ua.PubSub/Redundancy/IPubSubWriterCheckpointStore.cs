@@ -71,5 +71,21 @@ namespace Opc.Ua.PubSub.Redundancy
             ushort dataSetWriterId,
             uint sequenceNumber,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Records the current SequenceNumber for a writer using a lease fencing token to reject
+        /// stale active writers when the caller has already resolved ownership.
+        /// </summary>
+        /// <param name="writerGroupComponentId">Deterministic writer-group component id.</param>
+        /// <param name="dataSetWriterId">DataSetWriter id within the group.</param>
+        /// <param name="sequenceNumber">The SequenceNumber last emitted by the writer.</param>
+        /// <param name="fencingToken">Current lease fencing token.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask SetSequenceNumberAsync(
+            string writerGroupComponentId,
+            ushort dataSetWriterId,
+            uint sequenceNumber,
+            long fencingToken,
+            CancellationToken cancellationToken = default);
     }
 }

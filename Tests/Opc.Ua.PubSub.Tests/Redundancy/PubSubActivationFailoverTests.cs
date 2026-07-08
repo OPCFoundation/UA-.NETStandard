@@ -415,6 +415,33 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
 
         [Test]
         [TestSpec("9.1.6")]
+        public async Task WriterGroup_RetriesRestoreOnNextTickAfterTransientCheckpointFailureAsync()
+        {
+            const uint checkpoint = 5000;
+            PubSubComponentRole role = PubSubComponentRole.Standby;
+            Mock<IPubSubActivationCoordinator> coordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => role);
+            var captured = new List<PubSubNetworkMessage>();
+            WriterGroup group = CreateWriterGroup(coordinator.Object, captured);
+            group.ConfigureWriterCheckpointStore(new ThrowOnceCheckpointStore(checkpoint));
+
+            await group.EnableAsync().ConfigureAwait(false);
+            role = PubSubComponentRole.Active;
+            coordinator.Raise(
+                c => c.RoleChanged += null!,
+                new PubSubRoleChangedEventArgs(WriterComponentId, PubSubComponentRole.Active));
+
+            await group.PublishOnceAsync().ConfigureAwait(false);
+            await group.PublishOnceAsync().ConfigureAwait(false);
+
+            Assert.That(captured, Has.Count.EqualTo(1));
+            UadpDataSetMessage dataSetMessage = GetSingleDataSetMessage(captured[0]);
+            Assert.That(dataSetMessage.SequenceNumber, Is.GreaterThan(checkpoint));
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
         public async Task ReaderGroup_StandbyRoleSuppressesDispatchUntilActiveAsync()
         {
             PubSubComponentRole role = PubSubComponentRole.Standby;
@@ -674,6 +701,59 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 string writerGroupComponentId,
                 ushort dataSetWriterId,
                 uint sequenceNumber,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask SetSequenceNumberAsync(
+                string writerGroupComponentId,
+                ushort dataSetWriterId,
+                uint sequenceNumber,
+                long fencingToken,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+        }
+
+        private sealed class ThrowOnceCheckpointStore : IPubSubWriterCheckpointStore
+        {
+            private readonly uint m_checkpoint;
+            private int m_shouldThrow = 1;
+
+            public ThrowOnceCheckpointStore(uint checkpoint)
+            {
+                m_checkpoint = checkpoint;
+            }
+
+            public ValueTask<uint?> GetSequenceNumberAsync(
+                string writerGroupComponentId,
+                ushort dataSetWriterId,
+                CancellationToken cancellationToken = default)
+            {
+                if (Interlocked.Exchange(ref m_shouldThrow, 0) == 1)
+                {
+                    throw new InvalidOperationException("Transient checkpoint read failure.");
+                }
+
+                return new ValueTask<uint?>(m_checkpoint);
+            }
+
+            public ValueTask SetSequenceNumberAsync(
+                string writerGroupComponentId,
+                ushort dataSetWriterId,
+                uint sequenceNumber,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask SetSequenceNumberAsync(
+                string writerGroupComponentId,
+                ushort dataSetWriterId,
+                uint sequenceNumber,
+                long fencingToken,
                 CancellationToken cancellationToken = default)
             {
                 return default;

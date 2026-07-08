@@ -66,5 +66,16 @@ namespace Opc.Ua.PubSub.Redundancy
         {
             return default;
         }
+
+        /// <inheritdoc/>
+        public ValueTask SetSequenceNumberAsync(
+            string writerGroupComponentId,
+            ushort dataSetWriterId,
+            uint sequenceNumber,
+            long fencingToken,
+            CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
     }
 }

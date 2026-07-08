@@ -97,7 +97,9 @@ namespace Opc.Ua.PubSub.Redundancy
             }
 
             services.Replace(ServiceDescriptor.Singleton<IPubSubRuntimeStateStore>(sp =>
-                new SharedStorePubSubRuntimeStateStore(sp.GetRequiredService<ISharedKeyValueStore>())));
+                options.Mode == PubSubRedundancyMode.Cold
+                    ? new InMemoryPubSubRuntimeStateStore()
+                    : new SharedStorePubSubRuntimeStateStore(sp.GetRequiredService<ISharedKeyValueStore>())));
 
             services.Replace(ServiceDescriptor.Singleton<IPubSubSecurityKeyStore>(sp =>
             {
@@ -113,6 +115,11 @@ namespace Opc.Ua.PubSub.Redundancy
                 services.Replace(ServiceDescriptor.Singleton<IPubSubWriterCheckpointStore>(sp =>
                     new SharedStorePubSubWriterCheckpointStore(
                         sp.GetRequiredService<ISharedKeyValueStore>())));
+            }
+            else
+            {
+                services.Replace(ServiceDescriptor.Singleton<IPubSubWriterCheckpointStore>(
+                    NullPubSubWriterCheckpointStore.Instance));
             }
 
             return services;

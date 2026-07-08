@@ -228,50 +228,52 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return;
             }
-            if (Interlocked.Exchange(ref m_restorePending, 0) == 1)
+            try
             {
-                await RestoreSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
-            }
-            var dataSetMessages = new List<PubSubDataSetMessage>(m_writers.Count);
-            for (int i = 0; i < m_writers.Count; i++)
-            {
-                DataSetWriter writer = m_writers[i];
-                if (writer.State.State == PubSubState.Disabled)
+                if (Volatile.Read(ref m_restorePending) == 1)
                 {
-                    continue;
+                    await RestoreSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
+                    Interlocked.Exchange(ref m_restorePending, 0);
                 }
-                cancellationToken.ThrowIfCancellationRequested();
-                PubSubDataSetMessage? message = await BuildDataSetMessageAsync(
-                    writer,
-                    cancellationToken).ConfigureAwait(false);
-                if (message is not null)
+
+                var dataSetMessages = new List<PubSubDataSetMessage>(m_writers.Count);
+                for (int i = 0; i < m_writers.Count; i++)
                 {
-                    dataSetMessages.Add(message);
-                }
-            }
-            if (dataSetMessages.Count == 0)
-            {
-                if (!ShouldEmitKeepAlive())
-                {
-                    return;
-                }
-                foreach (DataSetWriter writer in m_writers)
-                {
+                    DataSetWriter writer = m_writers[i];
                     if (writer.State.State == PubSubState.Disabled)
                     {
                         continue;
                     }
                     cancellationToken.ThrowIfCancellationRequested();
-                    dataSetMessages.Add(BuildKeepAliveMessage(writer));
+                    PubSubDataSetMessage? message = await BuildDataSetMessageAsync(
+                        writer,
+                        cancellationToken).ConfigureAwait(false);
+                    if (message is not null)
+                    {
+                        dataSetMessages.Add(message);
+                    }
                 }
                 if (dataSetMessages.Count == 0)
                 {
-                    return;
+                    if (!ShouldEmitKeepAlive())
+                    {
+                        return;
+                    }
+                    foreach (DataSetWriter writer in m_writers)
+                    {
+                        if (writer.State.State == PubSubState.Disabled)
+                        {
+                            continue;
+                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        dataSetMessages.Add(BuildKeepAliveMessage(writer));
+                    }
+                    if (dataSetMessages.Count == 0)
+                    {
+                        return;
+                    }
                 }
-            }
-            PubSubNetworkMessage networkMessage = BuildNetworkMessage(dataSetMessages);
-            try
-            {
+                PubSubNetworkMessage networkMessage = BuildNetworkMessage(dataSetMessages);
                 await PublishSink(networkMessage, cancellationToken)
                     .ConfigureAwait(false);
                 Interlocked.Exchange(ref m_lastPublishedTicks, m_timeProvider.GetTimestamp());
@@ -451,7 +453,11 @@ namespace Opc.Ua.PubSub.Groups
 
             foreach (KeyValuePair<ushort, WriterRuntimeState> entry in m_writerState)
             {
-                await store.SetSequenceNumberAsync(componentId, entry.Key, entry.Value.SequenceNumber, cancellationToken)
+                await store.SetSequenceNumberAsync(
+                    componentId,
+                    entry.Key,
+                    entry.Value.SequenceNumber,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
         }

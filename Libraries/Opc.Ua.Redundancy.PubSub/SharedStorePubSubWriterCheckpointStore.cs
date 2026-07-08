@@ -44,7 +44,9 @@ namespace Opc.Ua.PubSub.Redundancy
     /// <remarks>
     /// SequenceNumbers are a high-water mark rather than a secret, so they are stored without
     /// record protection and may use an eventually-consistent store; the take-over safety margin
-    /// applied by the publisher covers any gossip lag.
+    /// applied by the publisher covers any gossip lag. When the caller provides a fencing token
+    /// the write is additionally guarded against stale-active overwrite; callers that do not yet
+    /// flow a token keep the previous unconditional behavior.
     /// </remarks>
     public sealed class SharedStorePubSubWriterCheckpointStore : IPubSubWriterCheckpointStore
     {
@@ -69,12 +71,12 @@ namespace Opc.Ua.PubSub.Redundancy
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(BuildKey(writerGroupComponentId, dataSetWriterId), cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || value.IsNull)
+            if (!found || !FencedSharedStoreValue.TryExtractPayload(value, out ByteString payload, out _))
             {
                 return null;
             }
 
-            ReadOnlySpan<byte> bytes = value.Span;
+            ReadOnlySpan<byte> bytes = payload.Span;
             if (bytes.Length < sizeof(uint))
             {
                 return null;
@@ -90,14 +92,45 @@ namespace Opc.Ua.PubSub.Redundancy
             uint sequenceNumber,
             CancellationToken cancellationToken = default)
         {
+            await SetSequenceNumberCoreAsync(
+                writerGroupComponentId,
+                dataSetWriterId,
+                sequenceNumber,
+                null,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetSequenceNumberAsync(
+            string writerGroupComponentId,
+            ushort dataSetWriterId,
+            uint sequenceNumber,
+            long fencingToken,
+            CancellationToken cancellationToken = default)
+        {
+            return SetSequenceNumberCoreAsync(
+                writerGroupComponentId,
+                dataSetWriterId,
+                sequenceNumber,
+                fencingToken,
+                cancellationToken);
+        }
+
+        private async ValueTask SetSequenceNumberCoreAsync(
+            string writerGroupComponentId,
+            ushort dataSetWriterId,
+            uint sequenceNumber,
+            long? fencingToken,
+            CancellationToken cancellationToken)
+        {
             var buffer = new byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32LittleEndian(buffer, sequenceNumber);
-            await m_store
-                .SetAsync(
-                    BuildKey(writerGroupComponentId, dataSetWriterId),
-                    new ByteString(buffer),
-                    cancellationToken)
-                .ConfigureAwait(false);
+            await FencedSharedStoreValue.StoreAsync(
+                m_store,
+                BuildKey(writerGroupComponentId, dataSetWriterId),
+                new ByteString(buffer),
+                fencingToken,
+                cancellationToken).ConfigureAwait(false);
         }
 
         private static string BuildKey(string writerGroupComponentId, ushort dataSetWriterId)

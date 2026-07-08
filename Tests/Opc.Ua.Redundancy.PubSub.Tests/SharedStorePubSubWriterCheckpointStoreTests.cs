@@ -117,5 +117,29 @@ namespace Opc.Ua.PubSub.Redundancy
 
             Assert.That(seen, Is.EqualTo(999u));
         }
+
+        [Test]
+        public async Task SetSequenceNumberRejectsStaleFencingTokenAsync()
+        {
+            using var backend = new InMemorySharedKeyValueStore();
+            var store = new SharedStorePubSubWriterCheckpointStore(backend);
+
+            await store.SetSequenceNumberAsync(
+                "pubsub:writergroup:WriterGroup1",
+                1,
+                123u,
+                10).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await store.SetSequenceNumberAsync(
+                    "pubsub:writergroup:WriterGroup1",
+                    1,
+                    456u,
+                    9).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+            Assert.That(
+                await store.GetSequenceNumberAsync("pubsub:writergroup:WriterGroup1", 1).ConfigureAwait(false),
+                Is.EqualTo(123u));
+        }
     }
 }

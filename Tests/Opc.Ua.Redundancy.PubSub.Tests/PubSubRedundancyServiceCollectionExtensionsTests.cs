@@ -103,6 +103,37 @@ namespace Opc.Ua.PubSub.Redundancy
         }
 
         [Test]
+        public async Task ColdModeKeepsProcessLocalRuntimeStateWhileWarmModeSharesItAsync()
+        {
+            await using ServiceProvider coldProvider = BuildProvider(
+                new InMemorySharedKeyValueStore(),
+                PubSubRedundancyElection.LeaderElection,
+                registerElection: true,
+                PubSubRedundancyMode.Cold);
+            await using ServiceProvider warmProvider = BuildProvider(
+                new InMemorySharedKeyValueStore(),
+                PubSubRedundancyElection.LeaderElection,
+                registerElection: true,
+                PubSubRedundancyMode.Warm);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    coldProvider.GetRequiredService<IPubSubRuntimeStateStore>(),
+                    Is.TypeOf<InMemoryPubSubRuntimeStateStore>());
+                Assert.That(
+                    coldProvider.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                    Is.TypeOf<NullPubSubWriterCheckpointStore>());
+                Assert.That(
+                    warmProvider.GetRequiredService<IPubSubRuntimeStateStore>(),
+                    Is.TypeOf<SharedStorePubSubRuntimeStateStore>());
+                Assert.That(
+                    warmProvider.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                    Is.TypeOf<NullPubSubWriterCheckpointStore>());
+            });
+        }
+
+        [Test]
         public async Task NetworkedStoreWithoutProtectorFailsClosedForSecurityKeyStoreAsync()
         {
             var networkedStore = new Mock<ISharedKeyValueStore>(MockBehavior.Loose).Object;

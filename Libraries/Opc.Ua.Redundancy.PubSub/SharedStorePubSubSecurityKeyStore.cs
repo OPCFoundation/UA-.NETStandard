@@ -97,7 +97,12 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return null;
             }
 
-            if (!m_protector.TryUnprotect(protectedRecord, out ByteString plaintext))
+            if (!FencedSharedStoreValue.TryExtractPayload(protectedRecord, out ByteString protectedPayload, out _))
+            {
+                return null;
+            }
+
+            if (!m_protector.TryUnprotect(protectedPayload, out ByteString plaintext))
             {
                 m_logger.LogWarning(
                     "Unable to unprotect shared PubSub SecurityGroup record for {SecurityGroupId}.",
@@ -113,6 +118,23 @@ namespace Opc.Ua.PubSub.Security.Sks
             SksSecurityGroup group,
             CancellationToken cancellationToken = default)
         {
+            await SaveSecurityGroupCoreAsync(group, null, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SaveSecurityGroupAsync(
+            SksSecurityGroup group,
+            long fencingToken,
+            CancellationToken cancellationToken = default)
+        {
+            return SaveSecurityGroupCoreAsync(group, fencingToken, cancellationToken);
+        }
+
+        private async ValueTask SaveSecurityGroupCoreAsync(
+            SksSecurityGroup group,
+            long? fencingToken,
+            CancellationToken cancellationToken)
+        {
             if (group is null)
             {
                 throw new ArgumentNullException(nameof(group));
@@ -120,9 +142,12 @@ namespace Opc.Ua.PubSub.Security.Sks
 
             ByteString plaintext = SerializeSecurityGroup(group);
             ByteString protectedRecord = m_protector.Protect(plaintext);
-            await m_store
-                .SetAsync(GetSecurityGroupKey(group.SecurityGroupId), protectedRecord, cancellationToken)
-                .ConfigureAwait(false);
+            await FencedSharedStoreValue.StoreAsync(
+                m_store,
+                GetSecurityGroupKey(group.SecurityGroupId),
+                protectedRecord,
+                fencingToken,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

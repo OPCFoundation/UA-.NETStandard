@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
@@ -154,9 +156,98 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             Assert.That(next.Value.FencingToken, Is.EqualTo(first.Value.FencingToken + 1));
         }
 
+        [Test]
+        public async Task TryAcquireAsyncRetriesAfterContendedCompareAndSwapAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var innerStore = new InMemorySharedKeyValueStore();
+            using var store = new CoordinatedReadSharedKeyValueStore(
+                innerStore,
+                PubSubRedundancyStoreKeys.LeasePrefix + LeaseKey);
+            var leaseStore = new SharedStorePubSubLeaseStore(store, time);
+
+            Task<PubSubLease?> firstAcquire = leaseStore.TryAcquireAsync(LeaseKey, OwnerA, LeaseDuration).AsTask();
+            Task<PubSubLease?> secondAcquire = leaseStore.TryAcquireAsync(LeaseKey, OwnerB, LeaseDuration).AsTask();
+            PubSubLease?[] results = await Task.WhenAll(firstAcquire, secondAcquire).ConfigureAwait(false);
+
+            Assert.That(results, Has.Exactly(1).Not.Null);
+            Assert.That(results, Has.Exactly(1).Null);
+        }
+
         private const string LeaseKey = "writer-group";
         private const string OwnerA = "owner-a";
         private const string OwnerB = "owner-b";
         private static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(30);
+
+        private sealed class CoordinatedReadSharedKeyValueStore : ISharedKeyValueStore, IDisposable
+        {
+            public CoordinatedReadSharedKeyValueStore(ISharedKeyValueStore innerStore, string coordinatedKey)
+            {
+                m_innerStore = innerStore;
+                m_coordinatedKey = coordinatedKey;
+            }
+
+            public async ValueTask<(bool Found, ByteString Value)> TryGetAsync(
+                string key,
+                CancellationToken ct = default)
+            {
+                if (string.Equals(key, m_coordinatedKey, StringComparison.Ordinal))
+                {
+                    int count = Interlocked.Increment(ref m_coordinatedReads);
+                    if (count == 2)
+                    {
+                        m_secondReadArrived.TrySetResult(true);
+                    }
+
+                    await m_secondReadArrived.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
+
+                return await m_innerStore.TryGetAsync(key, ct).ConfigureAwait(false);
+            }
+
+            public ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default)
+            {
+                return m_innerStore.SetAsync(key, value, ct);
+            }
+
+            public ValueTask<bool> CompareAndSwapAsync(
+                string key,
+                ByteString expected,
+                ByteString value,
+                CancellationToken ct = default)
+            {
+                return m_innerStore.CompareAndSwapAsync(key, expected, value, ct);
+            }
+
+            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            {
+                return m_innerStore.DeleteAsync(key, ct);
+            }
+
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+                string keyPrefix,
+                CancellationToken ct = default)
+            {
+                return m_innerStore.ScanAsync(keyPrefix, ct);
+            }
+
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(
+                string keyPrefix,
+                CancellationToken ct = default)
+            {
+                return m_innerStore.WatchAsync(keyPrefix, ct);
+            }
+
+            public void Dispose()
+            {
+                m_secondReadArrived.TrySetCanceled();
+            }
+
+            private readonly ISharedKeyValueStore m_innerStore;
+            private readonly string m_coordinatedKey;
+            private readonly TaskCompletionSource<bool> m_secondReadArrived =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_coordinatedReads;
+        }
     }
 }

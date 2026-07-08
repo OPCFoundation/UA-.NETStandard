@@ -116,6 +116,44 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             Assert.That(stored.ToArray(), Is.Not.EqualTo(plaintext.ToArray()));
         }
 
+        [Test]
+        public async Task GetSecurityGroupReturnsNullWhenStoredRecordCannotBeUnprotectedAsync()
+        {
+            using var sharedStore = new InMemorySharedKeyValueStore();
+            using var protector = CreateProtector();
+            var keyStore = CreateKeyStore(sharedStore, protector);
+
+            await sharedStore.SetAsync(
+                PubSubRedundancyStoreKeys.SecurityKeyPrefix + "group-a",
+                ByteString.From(new byte[] { 0x01, 0x02, 0x03, 0x04 })).ConfigureAwait(false);
+
+            SksSecurityGroup group = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
+
+            Assert.That(group, Is.Null);
+        }
+
+        [Test]
+        public async Task SaveSecurityGroupRejectsStaleFencingTokenAsync()
+        {
+            using var sharedStore = new InMemorySharedKeyValueStore();
+            using var protector = CreateProtector();
+            var keyStore = CreateKeyStore(sharedStore, protector);
+            SksSecurityGroup original = CreateGroup("group-a");
+            SksSecurityGroup replacement = CreateGroup("group-a", maxFutureKeyCount: 7);
+
+            await keyStore.SaveSecurityGroupAsync(original, 10).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await keyStore.SaveSecurityGroupAsync(
+                    replacement,
+                    9).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+
+            SksSecurityGroup actual = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
+            Assert.That(actual, Is.Not.Null);
+            AssertGroupsEqual(actual, original);
+        }
+
         private static SharedStorePubSubSecurityKeyStore CreateKeyStore(
             ISharedKeyValueStore sharedStore,
             IRecordProtector protector)
@@ -137,13 +175,13 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             return new AesCbcHmacRecordProtector(key);
         }
 
-        private static SksSecurityGroup CreateGroup(string securityGroupId)
+        private static SksSecurityGroup CreateGroup(string securityGroupId, int maxFutureKeyCount = 2)
         {
             return new SksSecurityGroup(
                 securityGroupId,
                 PubSubSecurityPolicyUri.PubSubAes128Ctr,
                 TimeSpan.FromMinutes(5),
-                2,
+                maxFutureKeyCount,
                 1,
                 new ArrayOf<PubSubSecurityKey>(
                 new[]
