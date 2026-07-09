@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Tests.Identity
             Assert.That(first.DisplayName, Is.EqualTo("cred\"\\id"));
             Assert.That(first.GrantedScopes, Has.Length.EqualTo(1));
             Assert.That(first.GrantedScopes[0], Is.EqualTo("scope-a"));
-            Assert.That(Encoding.UTF8.GetString(first.TokenData), Does.Contain("\\\"").And.Contain("\\\\"));
+            Assert.That(Encoding.UTF8.GetString(first.TokenData.ToArray()), Does.Contain("\\\"").And.Contain("\\\\"));
             Assert.That(second.DisplayName, Is.EqualTo(first.DisplayName));
         }
 
