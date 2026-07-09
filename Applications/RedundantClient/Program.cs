@@ -201,7 +201,7 @@ namespace RedundantClient
                             e, session.ConfiguredEndpoint?.EndpointUrl?.ToString());
                     session.ConnectionStateChanged += OnConnState;
 
-                    await LogRedundancyInfoAsync(session, ct).ConfigureAwait(false);
+                    await LogRedundancyInfoAsync(session, telemetry, ct).ConfigureAwait(false);
                     if (suite)
                     {
                         await RunClientSuiteAsync(session, haMonitor, ct).ConfigureAwait(false);
@@ -222,9 +222,13 @@ namespace RedundantClient
             }
         }
 
-        private static async Task LogRedundancyInfoAsync(ISession session, CancellationToken ct)
+        private static async Task LogRedundancyInfoAsync(
+            ISession session,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
         {
-            var handler = new DefaultServerRedundancyHandler();
+            var handler = new DefaultServerRedundancyHandler(
+                new DefaultRedundantServerEndpointResolver(telemetry));
             ServerRedundancyInfo info = await handler
                 .FetchRedundancyInfoAsync(session, ct)
                 .ConfigureAwait(false);
@@ -293,7 +297,7 @@ namespace RedundantClient
                         Console.WriteLine(
                             "ACTIVE CLIENT: replica '{0}' is now the active client; establishing monitoring.",
                             nodeId);
-                        await LogRedundancyInfoAsync(leaderSession, cfgCt).ConfigureAwait(false);
+                        await LogRedundancyInfoAsync(leaderSession, telemetry, cfgCt).ConfigureAwait(false);
                         if (suite)
                         {
                             await RunClientSuiteAsync(leaderSession, haMonitor, cfgCt).ConfigureAwait(false);
