@@ -44,10 +44,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// (Table 154). The PublisherId type bits are: Byte=0,
     /// UInt16=1, UInt32=2, UInt64=3, String=4. Value 5 is reserved.
     /// </remarks>
-#pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 158 uses both single-bit flags AND a
-    // bitmask helper (PublisherIdTypeMask = 0x07); [Flags] reflects the spec semantics.
-#pragma warning disable RCS1157 // Composite enum value contains undefined flag — PublisherIdTypeMask (0x07) is a
-    // spec-defined multi-bit selector (bits 0-2), not a composite of named single-bit flags; intentional per Table 159.
+    // CA2217: [Flags] with the multi-bit PublisherIdTypeMask (0x07) helper reflects the spec (Table 158).
+    // RCS1157: PublisherIdTypeMask (0x07) is a spec-defined multi-bit selector (bits 0-2), not named single-bit
+    // flags — intentional per Table 159.
+#pragma warning disable CA2217, RCS1157
     [Flags]
     public enum ExtendedFlags1EncodingMask : byte
     {
@@ -98,8 +98,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         ExtendedFlags2Enabled = 0x80
     }
-#pragma warning restore RCS1157
-#pragma warning restore CA2217
+#pragma warning restore CA2217, RCS1157
 
     /// <summary>
     /// Helpers for converting between the on-wire UADP PublisherId type
