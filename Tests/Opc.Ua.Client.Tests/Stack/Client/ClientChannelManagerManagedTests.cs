@@ -1710,9 +1710,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     if (record.Payload.Count > 0)
                     {
                         builder.Append(' ')
-                            .Append(string.Join(
+                            .AppendJoin(
                             ", ",
-                            record.Payload.Select(p => $"{p.Key}={p.Value}")));
+                            record.Payload.Select(p => $"{p.Key}={p.Value}"));
                     }
                     builder.AppendLine();
                 }
