@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,7 +49,7 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class ReferenceNodeManager : AsyncCustomNodeManager
+    public class ReferenceNodeManager : AsyncCustomNodeManager, IConformanceContributor
     {
         /// <summary>
         /// Initializes the node manager.
@@ -68,6 +69,23 @@ namespace Quickstarts.ReferenceServer
 
             // use suitable defaults if no configuration exists.
         }
+
+        /// <summary>
+        /// The conformance units this node manager enables: the reference
+        /// server's always-supported base set, plus the Historical Access units
+        /// once history archiving has been turned on (see
+        /// <see cref="EnableHistoryArchivingAsync"/>), so the server advertises
+        /// the HA facet only when the feature is actually present.
+        /// </summary>
+        public ArrayOf<QualifiedName> ConformanceUnits =>
+            m_historian != null ? s_baseWithHistoricalConformanceUnits : s_baseConformanceUnits;
+
+        /// <summary>
+        /// The server profile URIs this node manager enables — the Historical
+        /// Raw Data and Historical Aggregate facets when history archiving is on.
+        /// </summary>
+        public ArrayOf<string> ServerProfiles =>
+            m_historian != null ? s_historicalAccessProfiles : [];
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -302,25 +320,38 @@ namespace Quickstarts.ReferenceServer
                     // on the Int32 static scalar so the conformance attribute
                     // tests (AttributeReadComplexTests RolePermissions /
                     // UserRolePermissions read) return Good rather than
-                    // BadAttributeIdInvalid. Anonymous users are granted
-                    // Browse + Read + ReadRolePermissions; SecurityAdmin gets
-                    // full permissions for write-attribute scenarios.
+                    // BadAttributeIdInvalid. Because RolePermissions are
+                    // enforced once present, every role the CTT connects as
+                    // must be listed or it is denied all access: the CTT main
+                    // session authenticates as user1 (AuthenticatedUser), so
+                    // Anonymous AND AuthenticatedUser are granted
+                    // Browse + Read + Write + ReadHistory + ReadRolePermissions
+                    // (write/history are exercised by the WriteMask, Historical
+                    // Access and Aggregate conformance units); SecurityAdmin
+                    // gets full permissions for write-attribute scenarios.
+                    const uint kTestNodePermissions =
+                        (uint)PermissionType.Browse |
+                        (uint)PermissionType.Read |
+                        (uint)PermissionType.Write |
+                        (uint)PermissionType.ReadHistory |
+                        (uint)PermissionType.ReadRolePermissions;
                     var anonPerms = new RolePermissionType
                     {
                         RoleId = ObjectIds.WellKnownRole_Anonymous,
-                        Permissions =
-                            (uint)PermissionType.Browse |
-                            (uint)PermissionType.Read |
-                            (uint)PermissionType.Write |
-                            (uint)PermissionType.ReadRolePermissions
+                        Permissions = kTestNodePermissions
+                    };
+                    var authPerms = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = kTestNodePermissions
                     };
                     var adminPerms = new RolePermissionType
                     {
                         RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
                         Permissions = 0xFFFF
                     };
-                    int32Static.RolePermissions = new[] { anonPerms, adminPerms }.ToArrayOf();
-                    int32Static.UserRolePermissions = new[] { anonPerms }.ToArrayOf();
+                    int32Static.RolePermissions = new[] { anonPerms, authPerms, adminPerms }.ToArrayOf();
+                    int32Static.UserRolePermissions = new[] { anonPerms, authPerms }.ToArrayOf();
                     variables.Add(int32Static);
                     variables.Add(
                         CreateVariable(
@@ -3853,6 +3884,27 @@ namespace Quickstarts.ReferenceServer
                     myCompanyInstructions.Value
                         = "A place for the vendor to describe their address-space.";
                     variables.Add(myCompanyInstructions);
+
+                    // Second set of historized scalar variables used as the
+                    // paired "Two" nodes for the CTT Historical Access Aggregate
+                    // conformance units (the "One" nodes reuse the Static scalars).
+                    FolderState aggregatesFolder = CreateFolder(root, "Aggregates", "Aggregates");
+                    const string aggregates = "Aggregates_";
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Boolean", "Boolean",
+                        DataTypeIds.Boolean, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Int32", "Int32",
+                        DataTypeIds.Int32, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Float", "Float",
+                        DataTypeIds.Float, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "Double", "Double",
+                        DataTypeIds.Double, ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder, aggregates + "String", "String",
+                        DataTypeIds.String, ValueRanks.Scalar));
                 }
                 catch (Exception e)
                 {
@@ -4924,9 +4976,9 @@ namespace Quickstarts.ReferenceServer
             {
                 variable.ArrayDimensions = [0];
             }
-            else if (valueRank == ValueRanks.TwoDimensions)
+            else if (valueRank >= ValueRanks.TwoDimensions)
             {
-                variable.ArrayDimensions = [0, 0];
+                variable.ArrayDimensions = CreateFixedArrayDimensions(valueRank).ToArrayOf();
             }
 
             parent?.AddChild(variable);
@@ -5309,16 +5361,41 @@ namespace Quickstarts.ReferenceServer
         {
             Debug.Assert(m_generator != null, "Need a random generator!");
 
+            // Supply a concrete size for every dimension of a multi-dimensional
+            // array so the generated matrix is self-consistent with the node's
+            // ArrayDimensions attribute. Without this the CTT multi-dimensional
+            // read/index-range tests skip the node ("Length of second dimension:
+            // 0"). Scalars and single-dimension arrays keep the historic random
+            // length.
+            uint[] dimensions = variable.ValueRank >= ValueRanks.TwoDimensions
+                ? CreateFixedArrayDimensions(variable.ValueRank)
+                : [DefaultArrayLength];
+
             Variant value = default;
             for (int retryCount = 0; value.IsNull && retryCount < 10; retryCount++)
             {
                 value = m_generator!.GetRandom(
                     variable.DataType,
                     variable.ValueRank,
-                    [10],
+                    dimensions,
                     Server.TypeTree);
             }
             return value;
+        }
+
+        /// <summary>
+        /// Creates a fixed-size dimension array (one entry per dimension) for a
+        /// multi-dimensional array so its value and ArrayDimensions attribute stay
+        /// deterministic and consistent.
+        /// </summary>
+        private static uint[] CreateFixedArrayDimensions(int valueRank)
+        {
+            uint[] dimensions = new uint[valueRank];
+            for (int ii = 0; ii < valueRank; ii++)
+            {
+                dimensions[ii] = MultiDimensionalArrayLength;
+            }
+            return dimensions;
         }
 
         private void DoSimulation(object? state)
@@ -5437,16 +5514,158 @@ namespace Quickstarts.ReferenceServer
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
 
+        /// <summary>
+        /// Default random length used when generating single-dimension array values.
+        /// </summary>
+        private const uint DefaultArrayLength = 10;
+
+        /// <summary>
+        /// Fixed length used for every dimension of a generated multi-dimensional
+        /// array so its value and ArrayDimensions attribute stay deterministic.
+        /// </summary>
+        private const uint MultiDimensionalArrayLength = 3;
+
         private InMemoryHistorianProvider? m_historian;
+
+        /// <summary>
+        /// Base set of conformance units the reference server always supports
+        /// (core address space, attribute, base info, discovery, method,
+        /// monitoring, security, session, subscription, transport and view
+        /// facets). Feature-specific units — e.g. Historical Access — are added
+        /// on top when the corresponding feature is enabled. Sourced from the
+        /// OPC UA profile registry (UACore 1.05 ProfileSet).
+        /// </summary>
+        private static readonly QualifiedName[] s_baseConformanceUnitNames =
+        [
+            new("Address Space Atomicity"),
+            new("Address Space Base"),
+            new("Address Space Full Array Only"),
+            new("Address Space Method"),
+            new("Attribute Read"),
+            new("Base Info Base Types"),
+            new("Base Info Core Structure 2"),
+            new("Base Info Core Types Folders"),
+            new("Base Info Date DataTypes"),
+            new("Base Info Decimal DataType"),
+            new("Base Info GetMonitoredItems Method"),
+            new("Base Info Method Argument DataType"),
+            new("Base Info Method Capabilities"),
+            new("Base Info ResendData Method"),
+            new("Base Info SemanticChange Bit"),
+            new("Base Info Server Capabilities 2"),
+            new("Base Info Server Capabilities MaxMonitoredItemsQueueSize"),
+            new("Base Info Server Capabilities Subscriptions"),
+            new("Base Info ServerType"),
+            new("Base Info Type Information"),
+            new("Data Access DataItems"),
+            new("Discovery Find Servers Self"),
+            new("Discovery Get Endpoints"),
+            new("Discovery Register"),
+            new("Discovery Register2"),
+            new("Documentation - Core Capacities"),
+            new("Method Call"),
+            new("Monitor Basic"),
+            new("Monitor Items 2"),
+            new("Monitor Queueing"),
+            new("Monitor Triggering"),
+            new("Monitor Value Change V2"),
+            new("Monitored Items Deadband Filter"),
+            new("Protocol Reverse Connect Server"),
+            new("Protocol UA TCP"),
+            new("Push Model for Global Certificate and TrustList Management"),
+            new("Security Default ApplicationInstance Certificate"),
+            new("Security ECC Policy"),
+            new("Security Invalid user token"),
+            new("Security Policy Required"),
+            new("Security User Name Password 2"),
+            new("Security User X509"),
+            new("SecurityPolicy Support"),
+            new("Session Base"),
+            new("Session Cancel"),
+            new("Session General Service Behaviour"),
+            new("Session Multiple"),
+            new("Subscription Basic"),
+            new("Subscription Multiple"),
+            new("Subscription Publish Basic"),
+            new("Subscription PublishRequest Queue Overflow"),
+            new("Subscription Retransmission Queue"),
+            new("Subscription Transfer"),
+            new("Time Sync - Support"),
+            new("UA Binary Encoding"),
+            new("UA Secure Conversation"),
+            new("View Basic 2"),
+            new("View RegisterNodes"),
+            new("View TranslateBrowsePath")
+        ];
+
+        /// <summary>
+        /// Historical Access conformance units advertised while history
+        /// archiving is enabled.
+        /// </summary>
+        private static readonly QualifiedName[] s_historicalAccessConformanceUnitNames =
+        [
+            new("Aggregate Master Configuration"),
+            new("Attribute Historical Read"),
+            new("Base Info History Read Capabilities"),
+            new("Base Info History ReadData Capabilities"),
+            new("Historical Access Aggregates"),
+            new("Historical Access Read Raw")
+        ];
+
+        /// <summary>
+        /// The always-supported base conformance units.
+        /// </summary>
+        private static readonly ArrayOf<QualifiedName> s_baseConformanceUnits =
+            s_baseConformanceUnitNames.ToArrayOf();
+
+        /// <summary>
+        /// The base conformance units plus the Historical Access units, advertised
+        /// while history archiving is enabled.
+        /// </summary>
+        private static readonly ArrayOf<QualifiedName> s_baseWithHistoricalConformanceUnits =
+            new QualifiedName[][]
+                {
+                    s_baseConformanceUnitNames,
+                    s_historicalAccessConformanceUnitNames
+                }
+                .SelectMany(names => names)
+                .ToArrayOf();
+
+        /// <summary>
+        /// Historical Access server profile URIs advertised while history
+        /// archiving is enabled.
+        /// </summary>
+        private static readonly ArrayOf<string> s_historicalAccessProfiles = new[]
+        {
+            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"
+        }.ToArrayOf();
 
         /// <summary>
         /// Identifiers of the nodes that support history archiving.
         /// </summary>
         private static readonly string[] HistoricalNodeNames =
         [
-            "Scalar_Static_Double",
+            "Scalar_Static_Boolean",
+            "Scalar_Static_SByte",
+            "Scalar_Static_Byte",
+            "Scalar_Static_Int16",
+            "Scalar_Static_UInt16",
             "Scalar_Static_Int32",
-            "Scalar_Static_Float"
+            "Scalar_Static_UInt32",
+            "Scalar_Static_Int64",
+            "Scalar_Static_UInt64",
+            "Scalar_Static_Float",
+            "Scalar_Static_Double",
+            "Scalar_Static_String",
+            "Scalar_Static_DateTime",
+            "Scalar_Static_Guid",
+            "Scalar_Static_ByteString",
+            "Aggregates_Boolean",
+            "Aggregates_Int32",
+            "Aggregates_Float",
+            "Aggregates_Double",
+            "Aggregates_String"
         ];
 
         /// <inheritdoc/>
@@ -5472,6 +5691,24 @@ namespace Quickstarts.ReferenceServer
                 registry.HistorianRegistry.RegisterDefault(m_historian);
             }
 
+            // Capabilities advertised per historizing node. StartOfArchive is set
+            // slightly before the earliest seeded sample so History Access clients
+            // (and the CTT) can discover the archive window via the installed
+            // HistoricalDataConfigurationType companion object.
+            var capabilities = new HistorianNodeCapabilities
+            {
+                InsertData = true,
+                ReplaceData = true,
+                UpdateData = true,
+                DeleteRaw = true,
+                DeleteAtTime = true,
+                InsertAnnotation = true,
+                ServerTimestampSupported = true,
+                Stepped = false,
+                StartOfArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000)),
+                StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
+            };
+
             foreach (string name in HistoricalNodeNames)
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
@@ -5490,8 +5727,18 @@ namespace Quickstarts.ReferenceServer
                 variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
                 variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
-                m_historian.Register(nodeId);
+                m_historian.Register(nodeId, capabilities);
                 await SeedHistoricalNodeAsync(nodeId, TypeInfo.GetBuiltInType(variable.DataType), cancellationToken).ConfigureAwait(false);
+
+                // Attach a HistoricalDataConfigurationType companion object
+                // (browse name "HA Configuration") and wire it via the
+                // HasHistoricalConfiguration reference so History Access aggregate
+                // clients and the CTT can discover the node's configuration
+                // (OPC UA Part 11 5.2.3).
+                HistoricalDataConfigurationState config = await HistoricalDataConfigurationInstaller
+                    .EnsureInstalledAsync(SystemContext, variable, m_historian, cancellationToken)
+                    .ConfigureAwait(false);
+                await AddPredefinedNodeAsync(SystemContext, config, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -5504,9 +5751,21 @@ namespace Quickstarts.ReferenceServer
                 int value = 1000 - ii;
                 Variant variant = dataType switch
                 {
+                    BuiltInType.Boolean => new Variant((value & 1) == 0),
+                    BuiltInType.SByte => new Variant((sbyte)(value % 100)),
+                    BuiltInType.Byte => new Variant((byte)(value % 200)),
+                    BuiltInType.Int16 => new Variant((short)value),
+                    BuiltInType.UInt16 => new Variant((ushort)value),
                     BuiltInType.Int32 => new Variant(value),
+                    BuiltInType.UInt32 => new Variant((uint)value),
+                    BuiltInType.Int64 => new Variant((long)value),
+                    BuiltInType.UInt64 => new Variant((ulong)value),
                     BuiltInType.Float => new Variant((float)value),
                     BuiltInType.Double => new Variant((double)value),
+                    BuiltInType.String => new Variant(value.ToString(CultureInfo.InvariantCulture)),
+                    BuiltInType.DateTime => new Variant(new DateTimeUtc(now.AddSeconds(value))),
+                    BuiltInType.Guid => new Variant(new Uuid(new Guid(value, 0, 0, new byte[8]))),
+                    BuiltInType.ByteString => new Variant(new ByteString(BitConverter.GetBytes(value))),
                     _ => new Variant(value)
                 };
                 seed.Add(new DataValue(

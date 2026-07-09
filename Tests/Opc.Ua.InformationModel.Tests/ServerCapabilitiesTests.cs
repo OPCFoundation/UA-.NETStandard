@@ -52,6 +52,53 @@ namespace Opc.Ua.InformationModel.Tests
         }
 
         [Test]
+        public async Task ReadServerProfileArrayContainsHistoricalAccessProfilesAsync()
+        {
+            DataValue result = await ReadNodeValueAsync(
+                VariableIds.Server_ServerCapabilities_ServerProfileArray).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            Assert.That(result.WrappedValue.TryGetValue(out ArrayOf<string> profiles), Is.True);
+
+            var profileList = new System.Collections.Generic.List<string>();
+            foreach (string profile in profiles)
+            {
+                profileList.Add(profile);
+            }
+
+            // The reference server enables history archiving at startup, so the
+            // ReferenceNodeManager contributes the Historical Access profiles which
+            // the server merges into the configured ServerProfileArray (Part 7).
+            Assert.That(
+                profileList,
+                Has.Member("http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022"));
+            Assert.That(
+                profileList,
+                Has.Member("http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"));
+        }
+
+        [Test]
+        public async Task ReadConformanceUnitsContainsHistoricalAccessUnitsAsync()
+        {
+            DataValue result = await ReadNodeValueAsync(
+                VariableIds.Server_ServerCapabilities_ConformanceUnits).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            Assert.That(result.WrappedValue.TryGetValue(out ArrayOf<QualifiedName> units), Is.True);
+
+            var unitNames = new System.Collections.Generic.List<string>();
+            foreach (QualifiedName unit in units)
+            {
+                unitNames.Add(unit.Name);
+            }
+
+            // Base units are always advertised; the Historical Access units are
+            // contributed by the ReferenceNodeManager (IConformanceContributor)
+            // because the reference server historizes at startup.
+            Assert.That(unitNames, Has.Member("Address Space Base"));
+            Assert.That(unitNames, Has.Member("Historical Access Read Raw"));
+            Assert.That(unitNames, Has.Member("Attribute Historical Read"));
+        }
+
+        [Test]
         public async Task ReadLocaleIdArrayAsync()
         {
             DataValue result = await ReadNodeValueAsync(

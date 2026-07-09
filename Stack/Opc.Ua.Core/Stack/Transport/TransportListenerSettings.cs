@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -122,5 +124,35 @@ namespace Opc.Ua
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
         /// </summary>
         public bool HttpsMutualTls { get; set; }
+
+        /// <summary>
+        /// Optional decorator applied to the byte transport of every channel
+        /// accepted by the listener. When set, the raw transport is passed
+        /// through this function and the returned transport is used instead,
+        /// allowing an in-process diagnostic tap (for example the OPC UA Pcap
+        /// capture binding) to observe wire-level chunks. When <c>null</c>
+        /// (the default) the accepted transport is used unchanged and there is
+        /// no runtime cost.
+        /// </summary>
+        /// <remarks>
+        /// Honored by the <c>opc.tcp</c> listener; other transports ignore it.
+        /// </remarks>
+        public Func<IUaSCByteTransport, IUaSCByteTransport>? AcceptedTransportDecorator { get; set; }
+
+        /// <summary>
+        /// Optional callback invoked once for every channel accepted by the
+        /// listener, immediately before the channel starts processing wire
+        /// messages. A diagnostic binding uses it to subscribe to the
+        /// channel's key-material notifications
+        /// (<see cref="TcpListenerChannel.OnTokenActivated"/>). When <c>null</c>
+        /// (the default) no callback is invoked.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ Subscribing to the accepted channel grants access to symmetric
+        /// channel keys; see the remarks on
+        /// <see cref="TcpListenerChannel.OnTokenActivated"/>. Honored by the
+        /// <c>opc.tcp</c> listener; other transports ignore it.
+        /// </remarks>
+        public Action<TcpListenerChannel>? OnAcceptedChannel { get; set; }
     }
 }

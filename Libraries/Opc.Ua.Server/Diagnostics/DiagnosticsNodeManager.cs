@@ -1404,6 +1404,67 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
+        public async ValueTask PublishConformanceUnitsAsync(
+            ArrayOf<QualifiedName> conformanceUnits,
+            ArrayOf<string> serverProfiles,
+            CancellationToken cancellationToken = default)
+        {
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                BaseVariableState? conformanceUnitsNode = FindPredefinedNode<BaseVariableState>(
+                    VariableIds.Server_ServerCapabilities_ConformanceUnits);
+
+                if (conformanceUnitsNode != null)
+                {
+                    conformanceUnitsNode.Value = Variant.From(conformanceUnits);
+                    conformanceUnitsNode.ClearChangeMasks(SystemContext, false);
+                }
+
+                if (serverProfiles.Count == 0)
+                {
+                    return;
+                }
+
+                BaseVariableState? profileArrayNode = FindPredefinedNode<BaseVariableState>(
+                    VariableIds.Server_ServerCapabilities_ServerProfileArray);
+
+                if (profileArrayNode == null)
+                {
+                    return;
+                }
+
+                // Preserve profiles already declared (e.g. from configuration) and
+                // append the contributed ones that are not already present.
+                var merged = new List<string>();
+                if (profileArrayNode.Value.TryGetValue(out ArrayOf<string> existing))
+                {
+                    foreach (string profile in existing)
+                    {
+                        if (!string.IsNullOrEmpty(profile))
+                        {
+                            merged.Add(profile);
+                        }
+                    }
+                }
+                foreach (string profile in serverProfiles)
+                {
+                    if (!string.IsNullOrEmpty(profile) && !merged.Contains(profile))
+                    {
+                        merged.Add(profile);
+                    }
+                }
+
+                profileArrayNode.Value = Variant.From(merged.ToArrayOf());
+                profileArrayNode.ClearChangeMasks(SystemContext, false);
+            }
+            finally
+            {
+                m_modifyAddressSpaceSemaphoreSlim.Release();
+            }
+        }
+
         /// <summary>
         /// Updates the server diagnostics summary structure.
         /// </summary>

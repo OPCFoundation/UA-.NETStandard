@@ -34,6 +34,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -214,6 +215,51 @@ namespace Opc.Ua.Server.Tests.Historian
             };
         }
 
+        [Test]
+        public async Task InstallerAssignsInstanceNodeIdsToConfigurationSubtreeAsync()
+        {
+            IServerInternal server = CreateServerWithRegistry();
+            var ctx = new ServerSystemContext(server)
+            {
+                NodeIdFactory = new SequentialNodeIdFactory(Ns)
+            };
+            using var provider = new InMemoryHistorianProvider();
+
+            BaseDataVariableState variable = CreateVariable("cfg.var");
+            provider.Register(variable.NodeId);
+
+            HistoricalDataConfigurationState config = await HistoricalDataConfigurationInstaller
+                .EnsureInstalledAsync(ctx, variable, provider)
+                .ConfigureAwait(false);
+
+            // The configuration object must receive a fresh instance NodeId rather
+            // than the shared HistoricalDataConfigurationType NodeId.
+            Assert.That(config.NodeId, Is.Not.EqualTo(ObjectTypeIds.HistoricalDataConfigurationType));
+            Assert.That(config.NodeId.NamespaceIndex, Is.EqualTo(Ns));
+
+            // The variable must reference the instance via HasHistoricalConfiguration.
+            var refs = new List<IReference>();
+            variable.GetReferences(ctx, refs);
+            NodeId? target = null;
+            foreach (IReference reference in refs)
+            {
+                if (reference.ReferenceTypeId == ReferenceTypeIds.HasHistoricalConfiguration && !reference.IsInverse)
+                {
+                    target = ExpandedNodeId.ToNodeId(reference.TargetId, ctx.NamespaceUris);
+                }
+            }
+            Assert.That(target, Is.EqualTo(config.NodeId),
+                "Variable should reference the configuration instance via HasHistoricalConfiguration.");
+
+            // Mandatory children materialised from the type must also receive instance
+            // NodeIds instead of the type's shared NodeIds (avoids cross-node collisions).
+            BaseInstanceState? aggregate = config.FindChild(
+                ctx, new QualifiedName(BrowseNames.AggregateConfiguration));
+            Assert.That(aggregate, Is.Not.Null);
+            Assert.That(aggregate!.NodeId.NamespaceIndex, Is.EqualTo(Ns),
+                "AggregateConfiguration should get an instance NodeId, not the shared type NodeId.");
+        }
+
         private static IServerInternal CreateServerWithRegistry(
             NamespaceTable? nsTable = null)
         {
@@ -232,6 +278,22 @@ namespace Opc.Ua.Server.Tests.Historian
                 .Setup(p => p.HistorianRegistry).Returns(registry);
 
             return mockServer.Object;
+        }
+
+        private sealed class SequentialNodeIdFactory : INodeIdFactory
+        {
+            private readonly ushort m_namespaceIndex;
+            private uint m_next = 1;
+
+            public SequentialNodeIdFactory(ushort namespaceIndex)
+            {
+                m_namespaceIndex = namespaceIndex;
+            }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return new NodeId(m_next++, m_namespaceIndex);
+            }
         }
     }
 }

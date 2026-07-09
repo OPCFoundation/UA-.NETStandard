@@ -1746,6 +1746,12 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    // Capture the read time before dispatching to the node so a
+                    // value produced live during this read (its SourceTimestamp
+                    // is at or after this instant) can be told apart from a
+                    // stored/static value.
+                    DateTimeUtc readTime = DateTimeUtc.Now;
+
                     // read the attribute value.
                     errors[ii] = handle.Node.ReadAttribute(
                         systemContext,
@@ -1754,24 +1760,26 @@ namespace Opc.Ua.Server
                         nodeToRead.DataEncoding,
                         ref value);
 
-                    // Set timestamps after ReadAttribute to ensure consistency
-                    // For Value attributes, match ServerTimestamp to SourceTimestamp
-                    // For other attributes, just ensure ServerTimestamp is set
+                    // Set timestamps after ReadAttribute. ServerTimestamp
+                    // reflects when the Server verified the value. A value whose
+                    // SourceTimestamp was produced as part of this read (e.g.
+                    // ServerStatus children) keeps ServerTimestamp aligned with
+                    // SourceTimestamp (issue #2771); a stored/static value is
+                    // verified now, so ServerTimestamp is stamped with the
+                    // current read time to keep it within the requested MaxAge.
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
                         if (value.SourceTimestamp == DateTimeUtc.MinValue)
                         {
-                            value = value.WithSourceTimestamp(DateTimeUtc.Now);
+                            value = value.WithSourceTimestamp(readTime);
                         }
-                        value = value.WithServerTimestamp(value.SourceTimestamp);
+                        value = value.WithServerTimestamp(
+                            value.SourceTimestamp >= readTime ? value.SourceTimestamp : readTime);
                     }
-                    else
+                    else if (value.ServerTimestamp == DateTimeUtc.MinValue)
                     {
-                        // For non-value attributes, only ServerTimestamp is relevant
-                        if (value.ServerTimestamp == DateTimeUtc.MinValue)
-                        {
-                            value = value.WithServerTimestamp(DateTimeUtc.Now);
-                        }
+                        // For non-value attributes, only ServerTimestamp is relevant.
+                        value = value.WithServerTimestamp(readTime);
                     }
 
                     // Commit any With-chain rebindings back into the
@@ -2891,8 +2899,10 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // check timestamps to return.
-            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
+            // check timestamps to return. Neither is not valid for HistoryRead: historical
+            // values always carry a source and/or server timestamp (OPC UA Part 11; CTT
+            // HA Read Raw Err-002).
+            if (timestampsToReturn is < TimestampsToReturn.Source or >= TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -2905,7 +2915,10 @@ namespace Opc.Ua.Server
                 if (readRawModifiedDetails.StartTime == DateTime.MinValue &&
                     readRawModifiedDetails.EndTime == DateTime.MinValue)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    // Fewer than two of {startTime, endTime, numValuesPerNode} were
+                    // specified: the details are invalid (OPC UA Part 11 6.5.3.2),
+                    // which is reported with Bad_HistoryOperationInvalid.
+                    throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                 }
 
                 // if one is null the num values must be provided.
@@ -2914,7 +2927,7 @@ namespace Opc.Ua.Server
                 {
                     if (readRawModifiedDetails.NumValuesPerNode == 0)
                     {
-                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                     }
                 }
 

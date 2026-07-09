@@ -148,6 +148,14 @@ namespace Opc.Ua.Server
         ModellingRulesManager ModellingRulesManager { get; }
 
         /// <summary>
+        /// A manager for the conformance units and server profiles the server
+        /// advertises, aggregated from the registered
+        /// <see cref="IConformanceContributor"/> node managers.
+        /// </summary>
+        /// <value>The conformance units manager.</value>
+        ConformanceUnitsManager ConformanceUnitsManager { get; }
+
+        /// <summary>
         /// The manager for active sessions.
         /// </summary>
         /// <value>The session manager.</value>
@@ -416,6 +424,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
         void SetModellingRulesManager(ModellingRulesManager modellingRulesManager);
+
+        /// <summary>
+        /// Stores the ConformanceUnitsManager in the datastore.
+        /// </summary>
+        /// <param name="conformanceUnitsManager">The ConformanceUnitsManager.</param>
+        void SetConformanceUnitsManager(ConformanceUnitsManager conformanceUnitsManager);
 
         /// <summary>
         /// Updates the server status safely.
