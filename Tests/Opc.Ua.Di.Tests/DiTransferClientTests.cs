@@ -163,17 +163,17 @@ namespace Opc.Ua.Di.Tests
                     call++;
                     if (call == 1)
                     {
-                        var data1 = new global::Opc.Ua.Di.TransferResultDataDataType
+                        var data1 = new TransferResultDataDataType
                         {
                             SequenceNumber = 2,
                             EndOfResults = false,
                             ParameterDefs = new[]
                             {
-                                new global::Opc.Ua.Di.ParameterResultDataType
+                                new ParameterResultDataType
                                 {
                                     StatusCode = StatusCodes.Good
                                 },
-                                new global::Opc.Ua.Di.ParameterResultDataType
+                                new ParameterResultDataType
                                 {
                                     StatusCode = StatusCodes.Good
                                 }
@@ -181,13 +181,13 @@ namespace Opc.Ua.Di.Tests
                         };
                         return CallResponseFor(data1);
                     }
-                    var data2 = new global::Opc.Ua.Di.TransferResultDataDataType
+                    var data2 = new TransferResultDataDataType
                     {
                         SequenceNumber = 3,
                         EndOfResults = true,
                         ParameterDefs = new[]
                         {
-                            new global::Opc.Ua.Di.ParameterResultDataType
+                            new ParameterResultDataType
                             {
                                 StatusCode = StatusCodes.BadInternalError
                             }
@@ -224,7 +224,7 @@ namespace Opc.Ua.Di.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
                 {
-                    var err = new global::Opc.Ua.Di.TransferResultErrorDataType
+                    var err = new TransferResultErrorDataType
                     {
                         Status = (int)(uint)StatusCodes.BadOutOfMemory
                     };
