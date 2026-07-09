@@ -1,16 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <CustomTestTarget
-        Condition="'$(CustomTestTarget)' == '' AND ('$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48')">$(TargetFramework)</CustomTestTarget>
-    <NoWarn
-        Condition="'$(CustomTestTarget)' == 'net472' OR '$(CustomTestTarget)' == 'net48'">$(NoWarn);CS2008;CA1014;CA1016</NoWarn>
     <!-- Core.Diagnostics.Tests follows the same CustomTestTarget rule as the binding: when
          CI pins a single modern TFM the test project must match (otherwise it
          can't restore against the single-TFM Opc.Ua.Core). For legacy CI runs
          Directory.Build.targets strips this project to an empty no-op shell
          via $(RestrictForLegacyTfm). -->
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net48</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
     <!-- netstandard2.0/2.1 can't host the empty $(RestrictForLegacyTfm) shell
          (CS8021 - no reference assembly defines System.Object), so build those
