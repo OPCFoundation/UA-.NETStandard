@@ -51,8 +51,6 @@ namespace Opc.Ua.PubSub.Udp
     /// </remarks>
     public sealed class UdpMessageRepeater
     {
-        private readonly int m_count;
-        private readonly TimeSpan m_delay;
         private readonly TimeProvider m_timeProvider;
 
         /// <summary>
@@ -80,8 +78,8 @@ namespace Opc.Ua.PubSub.Udp
             {
                 throw new ArgumentNullException(nameof(timeProvider));
             }
-            m_count = count > 0 ? count : 0;
-            m_delay = delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
+            RepeatCount = count > 0 ? count : 0;
+            RepeatDelay = delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
             m_timeProvider = timeProvider;
         }
 
@@ -89,12 +87,12 @@ namespace Opc.Ua.PubSub.Udp
         /// Number of re-transmissions performed after the initial
         /// send.
         /// </summary>
-        public int RepeatCount => m_count;
+        public int RepeatCount { get; }
 
         /// <summary>
         /// Delay between successive sends.
         /// </summary>
-        public TimeSpan RepeatDelay => m_delay;
+        public TimeSpan RepeatDelay { get; }
 
         /// <summary>
         /// Invokes <paramref name="sendOnce"/> once and then
@@ -119,11 +117,11 @@ namespace Opc.Ua.PubSub.Udp
             }
             cancellationToken.ThrowIfCancellationRequested();
             await sendOnce(cancellationToken).ConfigureAwait(false);
-            for (int i = 0; i < m_count; i++)
+            for (int i = 0; i < RepeatCount; i++)
             {
-                if (m_delay > TimeSpan.Zero)
+                if (RepeatDelay > TimeSpan.Zero)
                 {
-                    await m_timeProvider.Delay(m_delay, cancellationToken)
+                    await m_timeProvider.Delay(RepeatDelay, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 else

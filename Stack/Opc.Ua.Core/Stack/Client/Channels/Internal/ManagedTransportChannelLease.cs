@@ -43,7 +43,7 @@ namespace Opc.Ua
             Endpoint = entry.Endpoint;
             ReverseConnection = entry.ReverseConnection;
             m_participant = participant ?? throw new ArgumentNullException(nameof(participant));
-            m_participantFactory = _ => Participant;
+            ParticipantFactory = _ => Participant;
             m_active = 1;
         }
 
@@ -63,7 +63,7 @@ namespace Opc.Ua
             m_active = 1;
             m_participant = participantFactory(this)
                 ?? throw new InvalidOperationException("Participant factory returned null.");
-            m_participantFactory = _ => Participant;
+            ParticipantFactory = _ => Participant;
         }
 
         internal ChannelEntry Entry => Volatile.Read(ref m_entry);
@@ -72,7 +72,7 @@ namespace Opc.Ua
 
         internal ITransportWaitingConnection? ReverseConnection { get; }
 
-        internal Func<IManagedTransportChannel, IReconnectParticipant> ParticipantFactory => m_participantFactory;
+        internal Func<IManagedTransportChannel, IReconnectParticipant> ParticipantFactory { get; }
 
         internal int SwapCount => Volatile.Read(ref m_swapCount);
 
@@ -311,7 +311,6 @@ namespace Opc.Ua
         private int m_active;
         private int m_swapCount;
         private readonly Lock m_participantLock = new();
-        private readonly Func<IManagedTransportChannel, IReconnectParticipant> m_participantFactory;
         private IReconnectParticipant m_participant;
     }
 }

@@ -90,8 +90,8 @@ namespace Opc.Ua
             ITransportChannelBindings? channelFactory = null,
             ChannelManagerOptions? options = null)
         {
-            m_configuration = configuration;
-            m_channelFactory = channelFactory;
+            Configuration = configuration;
+            ChannelBindings = channelFactory;
             m_options = options ?? new ChannelManagerOptions();
             m_certRotation = new ClientChannelManagerCertRotation(this);
             WireCertificateRotation();
@@ -113,26 +113,26 @@ namespace Opc.Ua
             if (connection != null)
             {
                 channel = await CreateUaBinaryChannelAsync(
-                    m_configuration,
+                    Configuration,
                     connection,
                     endpoint.Description,
                     endpoint.Configuration!,
                     clientCertificate,
                     clientCertificateChain,
                     context,
-                    m_channelFactory,
+                    ChannelBindings,
                     ct).ConfigureAwait(false);
             }
             else
             {
                 channel = await CreateUaBinaryChannelAsync(
-                    m_configuration,
+                    Configuration,
                     endpoint.Description,
                     endpoint.Configuration!,
                     clientCertificate,
                     clientCertificateChain,
                     context,
-                    m_channelFactory,
+                    ChannelBindings,
                     ct).ConfigureAwait(false);
             }
             if (channel is ISecureChannel secureChannel)
@@ -446,13 +446,13 @@ namespace Opc.Ua
             ChannelManagerOptions? options = null)
             : this(configuration, channelFactory, options)
         {
-            m_logger = telemetry?.CreateLogger<ClientChannelManager>();
+            Logger = telemetry?.CreateLogger<ClientChannelManager>();
             m_meter = telemetry?.CreateMeter();
             m_metrics = m_meter != null
                 ? new ClientChannelManagerMetrics(this, m_meter)
                 : null;
-            m_reconnectPolicy = reconnectPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
-            m_timeProvider = timeProvider ?? TimeProvider.System;
+            ReconnectPolicy = reconnectPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
+            TimeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -526,7 +526,7 @@ namespace Opc.Ua
                     "Channel was not produced by this manager.", nameof(channel));
             }
 
-            var budget = new RetryBudget(Timeout.InfiniteTimeSpan, m_timeProvider);
+            var budget = new RetryBudget(Timeout.InfiniteTimeSpan, TimeProvider);
             await ReconnectLeaseAsync(lease, budget, throwOnReconnectFailure: false, ct)
                 .ConfigureAwait(false);
         }
@@ -626,15 +626,15 @@ namespace Opc.Ua
             }
         }
 
-        internal ApplicationConfiguration Configuration => m_configuration;
+        internal ApplicationConfiguration Configuration { get; }
 
-        internal ITransportChannelBindings? ChannelBindings => m_channelFactory;
+        internal ITransportChannelBindings? ChannelBindings { get; }
 
-        internal IChannelReconnectPolicy ReconnectPolicy => m_reconnectPolicy;
+        internal IChannelReconnectPolicy ReconnectPolicy { get; } = new ExponentialBackoffChannelReconnectPolicy();
 
-        internal TimeProvider TimeProvider => m_timeProvider;
+        internal TimeProvider TimeProvider { get; } = TimeProvider.System;
 
-        internal ILogger? Logger => m_logger;
+        internal ILogger? Logger { get; }
 
         internal (Certificate? Certificate, CertificateCollection? Chain, long Version) CurrentClientCertificateSnapshot
         {
@@ -799,10 +799,10 @@ namespace Opc.Ua
         private TimeSpan GetReconnectPolicyDelay(int attempt)
         {
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
-            return m_reconnectPolicy.GetDelay(attempt, budget: null);
+            return ReconnectPolicy.GetDelay(attempt, budget: null);
 #else
             return ChannelReconnectPolicyBudget.GetDelay(
-                m_reconnectPolicy,
+                ReconnectPolicy,
                 attempt,
                 budget: null);
 #endif
@@ -815,7 +815,7 @@ namespace Opc.Ua
                 return Task.CompletedTask;
             }
 
-            return m_timeProvider.Delay(delay, ct);
+            return TimeProvider.Delay(delay, ct);
         }
 
         private async ValueTask<IManagedTransportChannel> GetCoreAsync(
@@ -921,12 +921,6 @@ namespace Opc.Ua
         private Certificate? m_clientCertificate;
         private CertificateCollection? m_clientCertificateChain;
         private long m_clientCertificateVersion;
-
-        private readonly IChannelReconnectPolicy m_reconnectPolicy
-            = new ExponentialBackoffChannelReconnectPolicy();
-
-        private readonly TimeProvider m_timeProvider = TimeProvider.System;
-        private readonly ILogger? m_logger;
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
@@ -1046,9 +1040,9 @@ namespace Opc.Ua
             m_certRotation.DisposeCertificateRotation();
         }
 
-        ApplicationConfiguration IChannelCertRotationHost.Configuration => m_configuration;
+        ApplicationConfiguration IChannelCertRotationHost.Configuration => Configuration;
 
-        ILogger? IChannelCertRotationHost.Logger => m_logger;
+        ILogger? IChannelCertRotationHost.Logger => Logger;
 
         bool IChannelCertRotationHost.IsDisposed => Volatile.Read(ref m_disposed) != 0;
 
@@ -1092,17 +1086,17 @@ namespace Opc.Ua
         private readonly ClientChannelManagerCertRotation m_certRotation;
         private Task? m_certificateRotationTask;
 
-        ILogger? IChannelEntryHost.Logger => m_logger;
+        ILogger? IChannelEntryHost.Logger => Logger;
 
-        TimeProvider IChannelEntryHost.TimeProvider => m_timeProvider;
+        TimeProvider IChannelEntryHost.TimeProvider => TimeProvider;
 
-        IChannelReconnectPolicy IChannelEntryHost.ReconnectPolicy => m_reconnectPolicy;
+        IChannelReconnectPolicy IChannelEntryHost.ReconnectPolicy => ReconnectPolicy;
 
         CancellationToken IChannelEntryHost.ShutdownToken => m_shutdownCts.Token;
 
-        ITransportChannelBindings? IChannelEntryHost.ChannelFactory => m_channelFactory;
+        ITransportChannelBindings? IChannelEntryHost.ChannelFactory => ChannelBindings;
 
-        ApplicationConfiguration IChannelEntryHost.Configuration => m_configuration;
+        ApplicationConfiguration IChannelEntryHost.Configuration => Configuration;
 
         void IChannelEntryHost.OnEntryStateChanged(ChannelEntry entry, ChannelStateChange change)
         {
@@ -1128,7 +1122,7 @@ namespace Opc.Ua
             ITransportWaitingConnection? reverseConnection,
             CancellationToken ct)
         {
-            IServiceMessageContext context = m_configuration.CreateMessageContext();
+            IServiceMessageContext context = Configuration.CreateMessageContext();
             return CreateChannelAsync(
                 endpoint,
                 context,
@@ -1266,10 +1260,7 @@ namespace Opc.Ua
         private static readonly Lazy<DefaultTransportBindingRegistry> s_defaultBindings = new(
             CreateDefaultBindingsRegistry,
             LazyThreadSafetyMode.ExecutionAndPublication);
-
-        private readonly ApplicationConfiguration m_configuration;
         private readonly ClientChannelManagerDiagnostics m_diagnostics = new();
-        private readonly ITransportChannelBindings? m_channelFactory;
     }
 
     /// <summary>

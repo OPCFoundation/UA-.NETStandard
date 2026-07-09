@@ -43,7 +43,6 @@ namespace Opc.Ua.PubSub.DataSets
     /// </remarks>
     public sealed class PublishedActionSource : IPublishedDataSetSource
     {
-        private readonly PublishedActionDataType m_action;
 
         /// <summary>
         /// Initializes a new <see cref="PublishedActionSource"/>.
@@ -56,30 +55,30 @@ namespace Opc.Ua.PubSub.DataSets
                 throw new ArgumentNullException(nameof(action));
             }
 
-            m_action = action;
+            Action = action;
         }
 
         /// <summary>
         /// The wrapped PublishedAction configuration.
         /// </summary>
-        public PublishedActionDataType Action => m_action;
+        public PublishedActionDataType Action { get; }
 
         /// <summary>
         /// Action targets that the runtime can dispatch requests to.
         /// </summary>
-        public ArrayOf<ActionTargetDataType> ActionTargets => m_action.ActionTargets;
+        public ArrayOf<ActionTargetDataType> ActionTargets => Action.ActionTargets;
 
         /// <summary>
         /// Method bindings for method-action datasets, or an empty collection for other action kinds.
         /// </summary>
-        public ArrayOf<ActionMethodDataType> ActionMethods => m_action is PublishedActionMethodDataType methodAction
+        public ArrayOf<ActionMethodDataType> ActionMethods => Action is PublishedActionMethodDataType methodAction
             ? methodAction.ActionMethods
             : [];
 
         /// <inheritdoc/>
         public DataSetMetaDataType BuildMetaData()
         {
-            return m_action.RequestDataSetMetaData;
+            return Action.RequestDataSetMetaData;
         }
 
         /// <inheritdoc/>

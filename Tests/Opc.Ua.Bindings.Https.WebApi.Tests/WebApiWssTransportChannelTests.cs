@@ -443,7 +443,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         JsonEncoderOptions.Compact))
                     {
                         encoder.EncodeMessage(response, response.TypeId);
-                        encoder.Close();
                     }
                     responseBytes = stream.ToArray();
                 }

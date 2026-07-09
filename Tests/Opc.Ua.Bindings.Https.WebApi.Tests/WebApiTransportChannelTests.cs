@@ -272,12 +272,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId JsonEncodingId => ExpandedNodeId.Null;
+
             public void Decode(IDecoder decoder)
             {
             }
+
             public void Encode(IEncoder encoder)
             {
             }
+
             public bool IsEqual(IEncodeable? encodeable)
             {
                 return false;

@@ -53,7 +53,6 @@ namespace Opc.Ua.PubSub.Groups
     public sealed class ReaderGroup : IReaderGroup, IAsyncDisposable
     {
         private readonly ArrayOf<DataSetReader> m_readers;
-        private readonly ArrayOf<IDataSetReader> m_dataSetReaders;
         private readonly ILogger<ReaderGroup> m_logger;
         private readonly IPubSubScheduler? m_scheduler;
         private readonly IPubSubDiagnostics? m_diagnostics;
@@ -116,7 +115,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             Configuration = configuration;
             m_readers = readers;
-            m_dataSetReaders = readers.ToArrayOf<DataSetReader, IDataSetReader>(static reader => reader);
+            DataSetReaders = readers.ToArrayOf<DataSetReader, IDataSetReader>(static reader => reader);
             Name = configuration.Name ?? string.Empty;
             ConfigureActivationCoordinator(
                 componentId ?? $"pubsub:readergroup:{Name}",
@@ -139,7 +138,7 @@ namespace Opc.Ua.PubSub.Groups
         public string Name { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<IDataSetReader> DataSetReaders => m_dataSetReaders;
+        public ArrayOf<IDataSetReader> DataSetReaders { get; }
 
         /// <inheritdoc/>
         public ReaderGroupDataType Configuration { get; }

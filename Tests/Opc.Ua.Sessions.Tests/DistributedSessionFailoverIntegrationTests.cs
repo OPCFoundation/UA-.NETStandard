@@ -206,11 +206,10 @@ namespace Opc.Ua.Sessions.Tests
         {
             var fixture = new ServerFixture<ReferenceServer>(telemetry =>
             {
-                var server = new ReferenceServer(telemetry)
+                return new ReferenceServer(telemetry)
                 {
                     SessionManagerFactory = factory
                 };
-                return server;
             })
             {
                 UriScheme = Utils.UriSchemeOpcTcp,

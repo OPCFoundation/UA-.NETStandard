@@ -53,8 +53,6 @@ namespace Opc.Ua.PubSub.DataSets
     public sealed class EventPublishedDataSet
     {
         private readonly IEventSampler m_sampler;
-        private readonly PublishedDataSetDataType m_configuration;
-        private readonly PublishedEventsDataType m_eventSource;
 
         /// <summary>
         /// Initializes a new <see cref="EventPublishedDataSet"/>.
@@ -86,9 +84,9 @@ namespace Opc.Ua.PubSub.DataSets
                     "PublishedEventsDataType (Part 14 §6.2.4).",
                     nameof(configuration));
             }
-            m_configuration = configuration;
+            Configuration = configuration;
             m_sampler = sampler;
-            m_eventSource = events;
+            EventSource = events;
             Name = configuration.Name ?? string.Empty;
             MetaData = configuration.DataSetMetaData
                 ?? new DataSetMetaDataType();
@@ -128,12 +126,12 @@ namespace Opc.Ua.PubSub.DataSets
         /// <summary>
         /// Raw configuration record.
         /// </summary>
-        public PublishedDataSetDataType Configuration => m_configuration;
+        public PublishedDataSetDataType Configuration { get; }
 
         /// <summary>
         /// Raw event-source descriptor.
         /// </summary>
-        public PublishedEventsDataType EventSource => m_eventSource;
+        public PublishedEventsDataType EventSource { get; }
 
         /// <summary>
         /// Samples pending events and converts each one to a list of

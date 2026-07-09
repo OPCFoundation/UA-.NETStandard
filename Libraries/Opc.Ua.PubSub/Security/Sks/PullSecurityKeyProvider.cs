@@ -62,7 +62,6 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly PullSecurityKeyProviderOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
-        private readonly PubSubSecurityKeyRing m_ring;
         private readonly CancellationTokenSource m_disposeCts = new();
         private readonly SemaphoreSlim m_refreshSemaphore = new(1, 1);
         private readonly Lock m_stateLock = new();
@@ -132,8 +131,8 @@ namespace Opc.Ua.PubSub.Security.Sks
             m_options = options;
             m_timeProvider = timeProvider;
             m_logger = telemetry.CreateLogger<PullSecurityKeyProvider>();
-            m_ring = new PubSubSecurityKeyRing(securityGroupId, timeProvider);
-            m_ring.Rotated += OnRingRotated;
+            Ring = new PubSubSecurityKeyRing(securityGroupId, timeProvider);
+            Ring.Rotated += OnRingRotated;
         }
 
         /// <inheritdoc/>
@@ -146,7 +145,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// Underlying ring exposed for diagnostics. Tests may inspect
         /// the populated keys; do not mutate the ring directly.
         /// </summary>
-        internal PubSubSecurityKeyRing Ring => m_ring;
+        internal PubSubSecurityKeyRing Ring { get; }
 
         /// <summary>
         /// Performs the initial pull from the SKS and starts the
@@ -177,7 +176,8 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            PubSubSecurityKey? current = m_ring.Current ?? throw new InvalidOperationException(
+            PubSubSecurityKey? current = Ring.Current ??
+                throw new InvalidOperationException(
                     $"No current key available for SecurityGroupId '{SecurityGroupId}'.");
             return new ValueTask<PubSubSecurityKey>(current);
         }
@@ -189,7 +189,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            PubSubSecurityKey? key = m_ring.TryGetByTokenId(tokenId);
+            PubSubSecurityKey? key = Ring.TryGetByTokenId(tokenId);
             if (key is not null)
             {
                 return key;
@@ -215,7 +215,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     tokenId);
                 return null;
             }
-            return m_ring.TryGetByTokenId(tokenId);
+            return Ring.TryGetByTokenId(tokenId);
         }
 
         /// <inheritdoc/>
@@ -253,8 +253,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                         "Background SKS refresh loop terminated with exception.");
                 }
             }
-            m_ring.Rotated -= OnRingRotated;
-            m_ring.Dispose();
+            Ring.Rotated -= OnRingRotated;
+            Ring.Dispose();
             m_disposeCts.Dispose();
             m_refreshSemaphore.Dispose();
             if (m_ownsSecurityKeyService && m_sks is IAsyncDisposable disposableSks)
@@ -333,7 +333,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return m_options.ReconnectDelay;
             }
-            PubSubSecurityKey? current = m_ring.Current;
+            PubSubSecurityKey? current = Ring.Current;
             if (current is null)
             {
                 return m_options.ReconnectDelay;
@@ -428,13 +428,13 @@ namespace Opc.Ua.PubSub.Security.Sks
                 {
                     continue;
                 }
-                if (m_ring.Current is null)
+                if (Ring.Current is null)
                 {
-                    m_ring.SetCurrent(key);
+                    Ring.SetCurrent(key);
                 }
                 else
                 {
-                    m_ring.AddFuture(key);
+                    Ring.AddFuture(key);
                 }
                 lock (m_stateLock)
                 {
@@ -445,10 +445,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
             }
 
-            PubSubSecurityKey? current = m_ring.Current;
+            PubSubSecurityKey? current = Ring.Current;
             if (current is not null && current.IsExpired(m_timeProvider))
             {
-                m_ring.RotateToNextFuture();
+                Ring.RotateToNextFuture();
             }
         }
 

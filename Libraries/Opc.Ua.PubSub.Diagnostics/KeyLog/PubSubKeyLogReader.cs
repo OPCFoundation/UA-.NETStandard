@@ -168,7 +168,8 @@ namespace Opc.Ua.PubSub.Pcap.KeyLog
         {
             PubSubKeyLogRecord? record = JsonSerializer.Deserialize(
                 line,
-                PubSubKeyLogJsonContext.Default.PubSubKeyLogRecord) ?? throw new FormatException("Invalid PubSub JSON key-log record.");
+                PubSubKeyLogJsonContext.Default.PubSubKeyLogRecord) ??
+                throw new FormatException("Invalid PubSub JSON key-log record.");
             return record.ToMaterial();
         }
     }

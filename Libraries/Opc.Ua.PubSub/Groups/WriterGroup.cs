@@ -60,7 +60,6 @@ namespace Opc.Ua.PubSub.Groups
     public sealed class WriterGroup : IWriterGroup, IAsyncDisposable
     {
         private readonly ArrayOf<DataSetWriter> m_writers;
-        private readonly ArrayOf<IDataSetWriter> m_dataSetWriters;
         private readonly IPubSubScheduler m_scheduler;
         private readonly ILogger<WriterGroup> m_logger;
         private readonly TimeProvider m_timeProvider;
@@ -113,7 +112,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             Configuration = configuration;
             m_writers = writers;
-            m_dataSetWriters = writers.ToArrayOf<DataSetWriter, IDataSetWriter>(static writer => writer);
+            DataSetWriters = writers.ToArrayOf<DataSetWriter, IDataSetWriter>(static writer => writer);
             Schedule = schedule;
             m_scheduler = scheduler;
             m_timeProvider = timeProvider;
@@ -147,7 +146,7 @@ namespace Opc.Ua.PubSub.Groups
         public string Name { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<IDataSetWriter> DataSetWriters => m_dataSetWriters;
+        public ArrayOf<IDataSetWriter> DataSetWriters { get; }
 
         /// <inheritdoc/>
         public PubSubSchedule Schedule { get; }

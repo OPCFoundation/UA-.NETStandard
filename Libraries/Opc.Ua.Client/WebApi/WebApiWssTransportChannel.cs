@@ -417,7 +417,6 @@ namespace Opc.Ua.Client.WebApi
                 using (var encoder = new JsonEncoder(memory, quotas.MessageContext, JsonEncoderOptions.Compact))
                 {
                     encoder.EncodeMessage(request, request.TypeId);
-                    encoder.Close();
                 }
                 requestBytes = memory.ToArray();
             }

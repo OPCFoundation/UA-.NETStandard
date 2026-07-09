@@ -104,6 +104,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
+
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
                 return default;
@@ -127,6 +128,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public void Close()
             {
             }
+
             public void Dispose()
             {
             }

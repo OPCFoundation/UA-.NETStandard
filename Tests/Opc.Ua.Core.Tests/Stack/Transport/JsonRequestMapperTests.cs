@@ -328,7 +328,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
             {
                 encoder.EncodeMessage(request, request.TypeId);
-                encoder.Close();
             }
             return memory.ToArray();
         }
@@ -353,6 +352,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public override void Flush()
             {
             }
+
             public override int Read(byte[] buffer, int offset, int count)
             {
                 return 0;

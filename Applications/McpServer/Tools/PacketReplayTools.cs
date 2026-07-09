@@ -166,11 +166,9 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentNullException.ThrowIfNull(services);
 
             // TODO: Remove this guard once replay registration is mandatory for every host using these tools.
-            ReplaySessionManager? manager = services.GetService<ReplaySessionManager>()
+            return services.GetService<ReplaySessionManager>()
                 ?? throw new NotSupportedException(
                     "Replay support is not yet wired - replay agent has not completed.");
-
-            return manager;
         }
 
         private static ValueTask AuditAsync(

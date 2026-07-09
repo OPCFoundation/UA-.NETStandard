@@ -77,16 +77,12 @@ namespace Opc.Ua.PubSub.Kafka
         : IPubSubTransport, IPubSubTopicProvider, IPubSubHeaderTransport
     {
         private readonly PubSubConnectionDataType m_connection;
-        private readonly KafkaEndpoint m_endpoint;
-        private readonly PubSubTransportDirection m_direction;
-        private readonly KafkaConnectionOptions m_options;
         private readonly IKafkaClientFactory m_clientFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly ILogger m_logger;
         private readonly Lock m_sync = new();
-        private readonly string m_transportProfileUri;
         private readonly byte[] m_partitionKey;
 
         private IKafkaClientAdapter? m_adapter;
@@ -156,25 +152,25 @@ namespace Opc.Ua.PubSub.Kafka
             }
 
             m_connection = connection;
-            m_endpoint = endpoint;
-            m_direction = direction;
-            m_options = options;
+            Endpoint = endpoint;
+            Direction = direction;
+            Options = options;
             m_clientFactory = clientFactory;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_diagnostics = diagnostics;
             m_logger = telemetry.CreateLogger<KafkaBrokerTransport>();
-            m_transportProfileUri = DetermineTransportProfileUri(connection);
+            TransportProfileUri = DetermineTransportProfileUri(connection);
             m_partitionKey = BuildPartitionKey(connection);
             Subscriptions = [];
             AddDefaultSubscriptions();
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => m_transportProfileUri;
+        public string TransportProfileUri { get; }
 
         /// <inheritdoc/>
-        public PubSubTransportDirection Direction => m_direction;
+        public PubSubTransportDirection Direction { get; }
 
         /// <inheritdoc/>
         public bool IsConnected
@@ -193,13 +189,13 @@ namespace Opc.Ua.PubSub.Kafka
         /// integration tests can confirm bootstrap server selection
         /// without re-parsing the URL.
         /// </summary>
-        public KafkaEndpoint Endpoint => m_endpoint;
+        public KafkaEndpoint Endpoint { get; }
 
         /// <summary>
         /// Resolved connection options. Exposed for diagnostics and
         /// tests; the password bytes are never serialized.
         /// </summary>
-        public KafkaConnectionOptions Options => m_options;
+        public KafkaConnectionOptions Options { get; }
 
         /// <summary>
         /// Kafka topics the subscriber consumes from. Populated from the
@@ -248,7 +244,7 @@ namespace Opc.Ua.PubSub.Kafka
 
             try
             {
-                await adapter.ConnectAsync(m_options, cancellationToken).ConfigureAwait(false);
+                await adapter.ConnectAsync(Options, cancellationToken).ConfigureAwait(false);
                 if (HasReceiveDirection && Subscriptions.Count > 0)
                 {
                     var topicList = new List<string>(Subscriptions);
@@ -280,9 +276,9 @@ namespace Opc.Ua.PubSub.Kafka
             m_logger.LogInformation(
                 "Kafka transport opened: connection='{Connection}' bootstrap={Bootstrap} direction={Direction} profile={Profile}",
                 m_connection.Name,
-                m_endpoint.BootstrapServers,
-                m_direction,
-                m_transportProfileUri);
+                Endpoint.BootstrapServers,
+                Direction,
+                TransportProfileUri);
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
 
@@ -391,7 +387,7 @@ namespace Opc.Ua.PubSub.Kafka
                     "Kafka transport must be opened before sending.");
             }
 
-            string? contentType = MapContentType(m_transportProfileUri);
+            string? contentType = MapContentType(TransportProfileUri);
             var message = new KafkaMessage(
                 topic,
                 m_partitionKey,
@@ -457,7 +453,7 @@ namespace Opc.Ua.PubSub.Kafka
                 return metadataQueue;
             }
             return BuildDefaultTopic(
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 "metadata",
                 publisherId.ToString(),
                 writerGroupId.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -489,7 +485,7 @@ namespace Opc.Ua.PubSub.Kafka
             }
             string? writerSegment = dataSetWriterId?.ToString(System.Globalization.CultureInfo.InvariantCulture);
             return BuildDefaultTopic(
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 "data",
                 publisherId.ToString(),
                 writerGroup.WriterGroupId.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -500,7 +496,7 @@ namespace Opc.Ua.PubSub.Kafka
         public string BuildDiscoveryTopic(PublisherId publisherId, string messageTypeSegment)
         {
             return BuildDefaultTopic(
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 messageTypeSegment,
                 publisherId.ToString(),
                 additional1: null,
@@ -508,7 +504,7 @@ namespace Opc.Ua.PubSub.Kafka
         }
 
         private bool HasReceiveDirection =>
-            (m_direction & PubSubTransportDirection.Receive) != 0;
+            (Direction & PubSubTransportDirection.Receive) != 0;
 
         private int GetReceiveQueueCapacity()
         {
@@ -691,7 +687,7 @@ namespace Opc.Ua.PubSub.Kafka
             string? additional2)
         {
             var builder = new StringBuilder();
-            AppendSegment(builder, m_options.Topics.Prefix);
+            AppendSegment(builder, Options.Topics.Prefix);
             AppendSegment(builder, encoding.ToTopicSegment());
             AppendSegment(builder, messageType);
             AppendSegment(builder, publisherId);

@@ -62,8 +62,6 @@ namespace Opc.Ua.PubSub.Security
 
         private readonly Lock m_lock = new();
         private readonly RandomNumberGenerator m_rng;
-        private readonly ulong m_publisherIdLow64;
-        private readonly ulong m_maxMessagesPerKey;
         private bool m_hasKey;
         private uint m_currentKeyId;
         private ulong m_messageCount;
@@ -97,21 +95,21 @@ namespace Opc.Ua.PubSub.Security
                     nameof(maxMessagesPerKey),
                     "The per-key message cap must be positive.");
             }
-            m_publisherIdLow64 = AesCtrNonceLayout.ToLow64(publisherId);
-            m_maxMessagesPerKey = maxMessagesPerKey;
+            PublisherIdLow64 = AesCtrNonceLayout.ToLow64(publisherId);
+            MaxMessagesPerKey = maxMessagesPerKey;
             m_rng = RandomNumberGenerator.Create();
         }
 
         /// <summary>
         /// Stable 64-bit projection of the configured PublisherId.
         /// </summary>
-        public ulong PublisherIdLow64 => m_publisherIdLow64;
+        public ulong PublisherIdLow64 { get; }
 
         /// <summary>
         /// Hard cap on the number of messages emitted under a single
         /// key before a rollover is forced.
         /// </summary>
-        public ulong MaxMessagesPerKey => m_maxMessagesPerKey;
+        public ulong MaxMessagesPerKey { get; }
 
         /// <inheritdoc/>
         public void GetNext(uint keyId, ReadOnlySpan<byte> keyNonce, Span<byte> buffer)
@@ -139,7 +137,7 @@ namespace Opc.Ua.PubSub.Security
                     m_messageCount = 0;
                 }
 
-                if (m_messageCount >= m_maxMessagesPerKey)
+                if (m_messageCount >= MaxMessagesPerKey)
                 {
                     throw new InvalidOperationException(
                         "PubSub nonce counter exhausted for key " +

@@ -603,7 +603,7 @@ namespace Opc.Ua.Bindings
             IServiceMessageContext context,
             JsonEncoderOptions? options = null) where T : IEncodeable
         {
-            if (value == null)
+            if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(value, default(T)))
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -616,7 +616,6 @@ namespace Opc.Ua.Bindings
             using (var encoder = new JsonEncoder(memory, context, options))
             {
                 value.Encode(encoder);
-                encoder.Close();
             }
             return memory.ToArray();
         }
@@ -698,7 +697,7 @@ namespace Opc.Ua.Bindings
             IServiceMessageContext context,
             JsonEncoderOptions? options = null) where T : IEncodeable
         {
-            if (value == null)
+            if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(value, default(T)))
             {
                 throw new ArgumentNullException(nameof(value));
             }

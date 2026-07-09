@@ -68,9 +68,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IReadOnlyDictionary<string, INetworkMessageEncoder> m_encoders;
         private readonly IReadOnlyDictionary<string, INetworkMessageDecoder> m_decoders;
         private readonly ArrayOf<WriterGroup> m_writerGroups;
-        private readonly ArrayOf<IWriterGroup> m_writerGroupViews;
         private readonly ArrayOf<ReaderGroup> m_readerGroups;
-        private readonly ArrayOf<IReaderGroup> m_readerGroupViews;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly IPubSubScheduler m_scheduler;
@@ -231,9 +229,9 @@ namespace Opc.Ua.PubSub.Connections
             m_encoders = encoders;
             m_decoders = decoders;
             m_writerGroups = writerGroups;
-            m_writerGroupViews = writerGroups.ToArrayOf<WriterGroup, IWriterGroup>(static group => group);
+            WriterGroups = writerGroups.ToArrayOf<WriterGroup, IWriterGroup>(static group => group);
             m_readerGroups = readerGroups;
-            m_readerGroupViews = readerGroups.ToArrayOf<ReaderGroup, IReaderGroup>(static group => group);
+            ReaderGroups = readerGroups.ToArrayOf<ReaderGroup, IReaderGroup>(static group => group);
             m_metaDataRegistry = metaDataRegistry;
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
@@ -290,10 +288,10 @@ namespace Opc.Ua.PubSub.Connections
         public string TransportProfileUri { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<IWriterGroup> WriterGroups => m_writerGroupViews;
+        public ArrayOf<IWriterGroup> WriterGroups { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<IReaderGroup> ReaderGroups => m_readerGroupViews;
+        public ArrayOf<IReaderGroup> ReaderGroups { get; }
 
         /// <inheritdoc/>
         public PubSubConnectionDataType Configuration { get; }

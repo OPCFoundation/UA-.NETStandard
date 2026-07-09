@@ -67,7 +67,6 @@ namespace Opc.Ua.PubSub.Kafka
         private readonly KafkaConnectionOptions m_defaultOptions;
         private readonly ISecretRegistry? m_secretRegistry;
         private readonly IPubSubDiagnostics? m_diagnostics;
-        private readonly string m_transportProfileUri;
 
         /// <summary>
         /// Initializes a new <see cref="KafkaPubSubTransportFactory"/>.
@@ -130,7 +129,7 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 throw new ArgumentNullException(nameof(defaultOptions));
             }
-            m_transportProfileUri = transportProfileUri;
+            TransportProfileUri = transportProfileUri;
             m_clientFactory = clientFactory;
             m_defaultOptions = defaultOptions.Value ?? new KafkaConnectionOptions();
             m_secretRegistry = secretRegistry;
@@ -138,7 +137,7 @@ namespace Opc.Ua.PubSub.Kafka
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => m_transportProfileUri;
+        public string TransportProfileUri { get; }
 
         /// <inheritdoc/>
         public IPubSubTransport Create(
@@ -360,7 +359,8 @@ namespace Opc.Ua.PubSub.Kafka
                     "ISecretRegistry was registered with the transport factory.");
             }
             SecretIdentifier id = ParseSecretIdentifier(options.PasswordSecretId);
-            ISecret? secret = m_secretRegistry.TryGet(id) ?? throw new InvalidOperationException(
+            ISecret? secret = m_secretRegistry.TryGet(id) ??
+                throw new InvalidOperationException(
                     $"Password secret '{options.PasswordSecretId}' could not be " +
                     "resolved from the registered secret stores.");
             try

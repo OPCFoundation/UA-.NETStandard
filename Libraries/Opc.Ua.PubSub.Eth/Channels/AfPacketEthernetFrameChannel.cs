@@ -61,7 +61,6 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private readonly EthChannelParameters m_parameters;
         private readonly ILogger m_logger;
-        private readonly PhysicalAddress m_interfaceAddress;
         private readonly uint m_interfaceIndex;
         private readonly ushort m_protocol;
         private readonly Lock m_sync = new();
@@ -94,7 +93,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                     nameof(parameters));
             }
             m_logger = telemetry.CreateLogger<AfPacketEthernetFrameChannel>();
-            m_interfaceAddress = parameters.InterfaceAddress
+            InterfaceAddress = parameters.InterfaceAddress
                 ?? parameters.NetworkInterface.GetPhysicalAddress();
             m_protocol = HostToNetwork(parameters.EtherType);
             m_interfaceIndex = NativeMethods.if_nametoindex(parameters.NetworkInterface.Name);
@@ -106,7 +105,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         }
 
         /// <inheritdoc/>
-        public PhysicalAddress InterfaceAddress => m_interfaceAddress;
+        public PhysicalAddress InterfaceAddress { get; }
 
         /// <inheritdoc/>
         public bool IsOpen

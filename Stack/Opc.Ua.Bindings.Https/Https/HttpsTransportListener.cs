@@ -858,11 +858,14 @@ namespace Opc.Ua.Bindings
         private sealed class WebHostAsIHost : IHost
         {
             private readonly IWebHost m_webHost;
+
             public WebHostAsIHost(IWebHost webHost)
             {
                 m_webHost = webHost;
             }
+
             public IServiceProvider Services => m_webHost.Services;
+
             public Task StartAsync(CancellationToken ct = default)
             {
                 return m_webHost.StartAsync(ct);

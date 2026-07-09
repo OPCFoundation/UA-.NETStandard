@@ -73,13 +73,7 @@ namespace Opc.Ua.PubSub.Udp
 
         private static readonly byte[] s_disableConnReset = [0, 0, 0, 0];
 
-        private static readonly IPEndPoint s_standardDiscoveryEndpoint = new(
-            IPAddress.Parse("224.0.2.14"),
-            StandardDiscoveryPort);
-
         private readonly PubSubConnectionDataType m_connection;
-        private readonly UdpEndpoint m_endpoint;
-        private readonly PubSubTransportDirection m_direction;
         private readonly NetworkInterface? m_networkInterface;
         private readonly TimeProvider m_timeProvider;
         private readonly UdpTransportOptions m_options;
@@ -179,8 +173,8 @@ namespace Opc.Ua.PubSub.Udp
                 throw new ArgumentNullException(nameof(options));
             }
             m_connection = connection;
-            m_endpoint = endpoint;
-            m_direction = direction;
+            Endpoint = endpoint;
+            Direction = direction;
             m_networkInterface = networkInterface;
             m_timeProvider = timeProvider;
             m_options = options;
@@ -198,7 +192,7 @@ namespace Opc.Ua.PubSub.Udp
         public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
 
         /// <inheritdoc/>
-        public PubSubTransportDirection Direction => m_direction;
+        public PubSubTransportDirection Direction { get; }
 
         /// <inheritdoc/>
         public bool IsConnected
@@ -217,7 +211,7 @@ namespace Opc.Ua.PubSub.Udp
         /// integration tests can confirm port selection without
         /// re-parsing.
         /// </summary>
-        public UdpEndpoint Endpoint => m_endpoint;
+        public UdpEndpoint Endpoint { get; }
 
         internal IPEndPoint? RemoteEndpoint
         {
@@ -244,7 +238,9 @@ namespace Opc.Ua.PubSub.Udp
         /// <summary>
         /// Standard IPv4 discovery multicast destination from Part 14 §7.3.2.1.
         /// </summary>
-        public static IPEndPoint StandardDiscoveryEndpoint => s_standardDiscoveryEndpoint;
+        public static IPEndPoint StandardDiscoveryEndpoint { get; } = new(
+            IPAddress.Parse("224.0.2.14"),
+            StandardDiscoveryPort);
 
         /// <summary>
         /// DiscoveryMaxMessageSize cap (bytes) honoured from the
@@ -281,7 +277,7 @@ namespace Opc.Ua.PubSub.Udp
                     return default;
                 }
                 Socket socket = new(
-                    m_endpoint.Address.AddressFamily,
+                    Endpoint.Address.AddressFamily,
                     SocketType.Dgram,
                     ProtocolType.Udp);
                 try
@@ -313,8 +309,8 @@ namespace Opc.Ua.PubSub.Udp
                 m_logger.LogInformation(
                     "UDP transport opened: connection='{Connection}' endpoint={Endpoint} direction={Direction}",
                     m_connection.Name,
-                    m_endpoint,
-                    m_direction);
+                    Endpoint,
+                    Direction);
             }
             RaiseStateChanged(true, StatusCodes.Good, null);
             return default;
@@ -524,7 +520,7 @@ namespace Opc.Ua.PubSub.Udp
             {
                 await SendOnceAsync(
                     socket,
-                    s_standardDiscoveryEndpoint,
+                    StandardDiscoveryEndpoint,
                     isConnectedSocket: false,
                     payload,
                     cancellationToken).ConfigureAwait(false);
@@ -538,7 +534,7 @@ namespace Opc.Ua.PubSub.Udp
             discoverySocket.Bind(new IPEndPoint(IPAddress.Any, 0));
             await SendOnceAsync(
                 discoverySocket,
-                s_standardDiscoveryEndpoint,
+                StandardDiscoveryEndpoint,
                 isConnectedSocket: false,
                 payload,
                 cancellationToken).ConfigureAwait(false);
@@ -647,7 +643,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             ChannelWriter<PubSubTransportFrame> writer = channel.Writer;
             int maxFrameSize = m_options.MaxFrameSize;
-            EndPoint anyEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+            EndPoint anyEndPoint = Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
                 ? new IPEndPoint(IPAddress.IPv6Any, 0)
                 : new IPEndPoint(IPAddress.Any, 0);
             byte[] receiveBuffer = ArrayPool<byte>.Shared.Rent(maxFrameSize);
@@ -710,7 +706,7 @@ namespace Opc.Ua.PubSub.Udp
                         topic: null,
                         receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
                         sourceEndpoint: sourceEndpoint);
-                    if (m_endpoint.AddressType == UdpAddressType.Unicast &&
+                    if (Endpoint.AddressType == UdpAddressType.Unicast &&
                         sourceEndpoint is not null)
                     {
                         lock (m_sync)
@@ -779,7 +775,7 @@ namespace Opc.Ua.PubSub.Udp
                         "SIO_UDP_CONNRESET disable failed for connection '{Connection}'.", m_connection.Name);
                 }
             }
-            if (m_endpoint.AddressType is UdpAddressType.Broadcast or UdpAddressType.SubnetBroadcast)
+            if (Endpoint.AddressType is UdpAddressType.Broadcast or UdpAddressType.SubnetBroadcast)
             {
                 try
                 {
@@ -791,7 +787,7 @@ namespace Opc.Ua.PubSub.Udp
                         "Setting SO_BROADCAST failed for connection '{Connection}'.", m_connection.Name);
                 }
             }
-            if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+            if (Endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
             {
                 try
                 {
@@ -809,7 +805,7 @@ namespace Opc.Ua.PubSub.Udp
                         "Setting IPv4 TTL failed for connection '{Connection}'.", m_connection.Name);
                 }
             }
-            else if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
+            else if (Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
             {
                 try
                 {
@@ -848,14 +844,14 @@ namespace Opc.Ua.PubSub.Udp
             int tos = MapQosCategoryToTos(m_v2Settings.QosCategory);
             try
             {
-                if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+                if (Endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
                 {
                     socket.SetSocketOption(
                         SocketOptionLevel.IP,
                         SocketOptionName.TypeOfService,
                         tos);
                 }
-                else if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                else if (Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
                 {
                     socket.SetSocketOption(
                         SocketOptionLevel.IPv6,
@@ -877,19 +873,19 @@ namespace Opc.Ua.PubSub.Udp
 
         private void BindAndJoin(Socket socket)
         {
-            switch (m_endpoint.AddressType)
+            switch (Endpoint.AddressType)
             {
                 case UdpAddressType.Multicast:
                     BindForMulticast(socket);
                     JoinMulticastGroup(socket);
                     JoinStandardDiscoveryGroupIfNeeded(socket);
-                    m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
+                    m_sendDestination = new IPEndPoint(Endpoint.Address, Endpoint.Port);
                     break;
                 case UdpAddressType.Broadcast:
                 case UdpAddressType.SubnetBroadcast:
                     BindForBroadcast(socket);
                     JoinStandardDiscoveryGroupIfNeeded(socket);
-                    m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
+                    m_sendDestination = new IPEndPoint(Endpoint.Address, Endpoint.Port);
                     break;
                 default:
                     BindForUnicast(socket);
@@ -900,15 +896,15 @@ namespace Opc.Ua.PubSub.Udp
 
         private void BindForMulticast(Socket socket)
         {
-            EndPoint bindEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
-                ? new IPEndPoint(IPAddress.IPv6Any, m_endpoint.Port)
-                : new IPEndPoint(IPAddress.Any, m_endpoint.Port);
+            EndPoint bindEndPoint = Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                ? new IPEndPoint(IPAddress.IPv6Any, Endpoint.Port)
+                : new IPEndPoint(IPAddress.Any, Endpoint.Port);
             socket.Bind(bindEndPoint);
         }
 
         private void BindForBroadcast(Socket socket)
         {
-            EndPoint bindEndPoint = new IPEndPoint(IPAddress.Any, m_endpoint.Port);
+            EndPoint bindEndPoint = new IPEndPoint(IPAddress.Any, Endpoint.Port);
             socket.Bind(bindEndPoint);
         }
 
@@ -916,76 +912,76 @@ namespace Opc.Ua.PubSub.Udp
         {
             if ((HasSendDirection && !HasReceiveDirection) || (m_useConnectedUnicastClient && HasSendDirection))
             {
-                EndPoint bindEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                EndPoint bindEndPoint = Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
                     ? new IPEndPoint(IPAddress.IPv6Any, 0)
                     : new IPEndPoint(IPAddress.Any, 0);
                 socket.Bind(bindEndPoint);
-                IPEndPoint remote = new(m_endpoint.Address, m_endpoint.Port);
+                IPEndPoint remote = new(Endpoint.Address, Endpoint.Port);
                 socket.Connect(remote);
                 m_sendDestination = remote;
                 m_socketIsConnected = true;
             }
             else
             {
-                EndPoint bindEndPoint = m_endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
-                    ? new IPEndPoint(IPAddress.IPv6Any, m_endpoint.Port)
-                    : new IPEndPoint(IPAddress.Any, m_endpoint.Port);
+                EndPoint bindEndPoint = Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6
+                    ? new IPEndPoint(IPAddress.IPv6Any, Endpoint.Port)
+                    : new IPEndPoint(IPAddress.Any, Endpoint.Port);
                 socket.Bind(bindEndPoint);
-                m_sendDestination = new IPEndPoint(m_endpoint.Address, m_endpoint.Port);
+                m_sendDestination = new IPEndPoint(Endpoint.Address, Endpoint.Port);
             }
         }
 
         private void JoinMulticastGroup(Socket socket)
         {
-            if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+            if (Endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
             {
                 IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
-                var option = new MulticastOption(m_endpoint.Address, localAddress);
+                var option = new MulticastOption(Endpoint.Address, localAddress);
                 socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, option);
             }
             else
             {
                 int interfaceIndex = SelectIPv6InterfaceIndex(m_networkInterface);
-                var option = new IPv6MulticastOption(m_endpoint.Address, interfaceIndex);
+                var option = new IPv6MulticastOption(Endpoint.Address, interfaceIndex);
                 socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.AddMembership, option);
             }
         }
 
         private void JoinStandardDiscoveryGroupIfNeeded(Socket socket)
         {
-            if (!ShouldJoinStandardDiscoveryGroup(m_endpoint, m_direction))
+            if (!ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
             {
                 return;
             }
 
             IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
-            var option = new MulticastOption(s_standardDiscoveryEndpoint.Address, localAddress);
+            var option = new MulticastOption(StandardDiscoveryEndpoint.Address, localAddress);
             socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, option);
         }
 
         private void DropMembershipsIfNeeded(Socket socket)
         {
-            if (m_endpoint.AddressType == UdpAddressType.Multicast)
+            if (Endpoint.AddressType == UdpAddressType.Multicast)
             {
-                if (m_endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
+                if (Endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
                 {
                     IPAddress localAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
-                    var option = new MulticastOption(m_endpoint.Address, localAddress);
+                    var option = new MulticastOption(Endpoint.Address, localAddress);
                     socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.DropMembership, option);
                 }
                 else
                 {
                     int interfaceIndex = SelectIPv6InterfaceIndex(m_networkInterface);
-                    var option = new IPv6MulticastOption(m_endpoint.Address, interfaceIndex);
+                    var option = new IPv6MulticastOption(Endpoint.Address, interfaceIndex);
                     socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.DropMembership, option);
                 }
             }
-            if (!ShouldJoinStandardDiscoveryGroup(m_endpoint, m_direction))
+            if (!ShouldJoinStandardDiscoveryGroup(Endpoint, Direction))
             {
                 return;
             }
 
-            IPAddress standardAddress = s_standardDiscoveryEndpoint.Address;
+            IPAddress standardAddress = StandardDiscoveryEndpoint.Address;
             IPAddress localDiscoveryAddress = SelectLocalIPv4(m_networkInterface) ?? IPAddress.Any;
             var discoveryOption = new MulticastOption(standardAddress, localDiscoveryAddress);
             socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.DropMembership, discoveryOption);
@@ -1011,7 +1007,7 @@ namespace Opc.Ua.PubSub.Udp
             {
                 return false;
             }
-            return !endpoint.Address.Equals(s_standardDiscoveryEndpoint.Address);
+            return !endpoint.Address.Equals(StandardDiscoveryEndpoint.Address);
         }
 
         private static IPAddress? SelectLocalIPv4(NetworkInterface? networkInterface)
@@ -1062,10 +1058,10 @@ namespace Opc.Ua.PubSub.Udp
         }
 
         private bool HasReceiveDirection
-            => (m_direction & PubSubTransportDirection.Receive) == PubSubTransportDirection.Receive;
+            => (Direction & PubSubTransportDirection.Receive) == PubSubTransportDirection.Receive;
 
         private bool HasSendDirection
-            => (m_direction & PubSubTransportDirection.Send) == PubSubTransportDirection.Send;
+            => (Direction & PubSubTransportDirection.Send) == PubSubTransportDirection.Send;
 
 #if !NET8_0_OR_GREATER
         private static ArraySegment<byte> ToSegment(ReadOnlyMemory<byte> payload)

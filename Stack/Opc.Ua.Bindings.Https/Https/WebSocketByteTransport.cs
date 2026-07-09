@@ -537,16 +537,16 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(socket));
             }
-            m_localEndpoint = localEndpoint;
-            m_remoteEndpoint = remoteEndpoint;
+            LocalEndpoint = localEndpoint;
+            RemoteEndpoint = remoteEndpoint;
             AttachSocket(socket);
         }
 
         /// <inheritdoc/>
-        public override EndPoint? LocalEndpoint => m_localEndpoint;
+        public override EndPoint? LocalEndpoint { get; }
 
         /// <inheritdoc/>
-        public override EndPoint? RemoteEndpoint => m_remoteEndpoint;
+        public override EndPoint? RemoteEndpoint { get; }
 
         /// <inheritdoc/>
         public override ValueTask ConnectAsync(Uri url, CancellationToken ct)
@@ -554,8 +554,5 @@ namespace Opc.Ua.Bindings
             throw new NotSupportedException(
                 "WebSocketServerByteTransport is constructed from an accepted WebSocket and cannot connect outbound.");
         }
-
-        private readonly EndPoint? m_localEndpoint;
-        private readonly EndPoint? m_remoteEndpoint;
     }
 }

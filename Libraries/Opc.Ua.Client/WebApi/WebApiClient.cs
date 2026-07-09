@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.WebApi
             where TRequest : IServiceRequest, new()
             where TResponse : IServiceResponse, new()
         {
-            if (request == null)
+            if (System.Collections.Generic.EqualityComparer<TRequest>.Default.Equals(request, default(TRequest)))
             {
                 throw new ArgumentNullException(nameof(request));
             }

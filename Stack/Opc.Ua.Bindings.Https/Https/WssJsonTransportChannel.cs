@@ -205,7 +205,6 @@ namespace Opc.Ua.Bindings
                         JsonEncoderOptions.Compact))
                     {
                         encoder.EncodeMessage(request, request.TypeId);
-                        encoder.Close();
                     }
                     payload = memory.ToArray();
                 }

@@ -512,16 +512,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         private sealed class FakeWaitingConnection : ITransportWaitingConnection
         {
-            private readonly Uri m_url;
 
             internal FakeWaitingConnection(Uri url)
             {
-                m_url = url;
+                EndpointUrl = url;
             }
 
             public string ServerUri => string.Empty;
 
-            public Uri EndpointUrl => m_url;
+            public Uri EndpointUrl { get; }
 
 #pragma warning disable CS8603 // Possible null reference return.
             public object Handle => null!;

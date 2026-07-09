@@ -562,7 +562,6 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 case KafkaSaslMechanism.ScramSha512:
                     builder.WithSaslScramSha512(RequireUserName(options), ResolvePassword(options));
                     break;
-                case KafkaSaslMechanism.OAuthBearer:
                 default:
                     throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
             }
@@ -589,7 +588,6 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 case KafkaSaslMechanism.ScramSha512:
                     builder.WithSaslScramSha512(RequireUserName(options), ResolvePassword(options));
                     break;
-                case KafkaSaslMechanism.OAuthBearer:
                 default:
                     throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
             }

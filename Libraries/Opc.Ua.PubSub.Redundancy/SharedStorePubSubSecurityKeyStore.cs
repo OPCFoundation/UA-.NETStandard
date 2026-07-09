@@ -202,7 +202,6 @@ namespace Opc.Ua.PubSub.Security.Sks
                 using (var encoder = new BinaryEncoder(stream, m_context, true))
                 {
                     rolePermissions[ii].Encode(encoder);
-                    encoder.Close();
                 }
 
                 byte[] buffer = stream.ToArray();

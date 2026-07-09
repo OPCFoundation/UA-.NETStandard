@@ -241,7 +241,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
         private static AuthorizationServiceOptions CreateOptions(Certificate certificate)
         {
-            var options = new AuthorizationServiceOptions
+            return new AuthorizationServiceOptions
             {
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint },
@@ -250,7 +250,6 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 // by StartRequestTokenTests.
                 AuthorizeRoles = (identity, audience, requestedRoles) => requestedRoles
             };
-            return options;
         }
 
         private static InMemoryAccessTokenProvider CreateProvider(

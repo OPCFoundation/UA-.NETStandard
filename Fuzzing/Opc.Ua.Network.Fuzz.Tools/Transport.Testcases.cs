@@ -100,7 +100,6 @@ namespace Opc.Ua.Fuzzing
                 encoder.WriteUInt32(null, 8192);
                 encoder.WriteUInt32(null, 8192);
                 encoder.WriteString(null, endpointUrl);
-                encoder.Close();
             }
 
             return stream.ToArray();
@@ -119,7 +118,6 @@ namespace Opc.Ua.Fuzzing
                 encoder.WriteUInt32(null, sendBufferSize);
                 encoder.WriteUInt32(null, 8192);
                 encoder.WriteUInt32(null, 8192);
-                encoder.Close();
             }
 
             return stream.ToArray();
@@ -135,7 +133,6 @@ namespace Opc.Ua.Fuzzing
             {
                 encoder.WriteStatusCode(null, statusCode);
                 encoder.WriteString(null, reason);
-                encoder.Close();
             }
 
             return stream.ToArray();
@@ -151,7 +148,6 @@ namespace Opc.Ua.Fuzzing
             {
                 encoder.WriteString(null, serverUri);
                 encoder.WriteString(null, endpointUrl);
-                encoder.Close();
             }
 
             return stream.ToArray();
@@ -169,7 +165,6 @@ namespace Opc.Ua.Fuzzing
                 encoder.WriteString(null, securityPolicyUri);
                 encoder.WriteByteString(null, Array.Empty<byte>());
                 encoder.WriteByteString(null, Array.Empty<byte>());
-                encoder.Close();
             }
 
             return stream.ToArray();

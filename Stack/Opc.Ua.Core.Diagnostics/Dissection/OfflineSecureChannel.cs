@@ -67,7 +67,6 @@ namespace Opc.Ua.Pcap.Dissection
         private readonly ChannelDecoderShim m_serverToClient;
         private readonly Dictionary<uint, ChannelKeyMaterial> m_tokens;
         private readonly ILogger m_logger;
-        private readonly uint m_channelId;
         private uint m_currentTokenId;
 
         /// <summary>
@@ -105,7 +104,7 @@ namespace Opc.Ua.Pcap.Dissection
             ArgumentNullException.ThrowIfNull(loggerFactory);
 
             m_logger = loggerFactory.CreateLogger<OfflineSecureChannel>();
-            m_channelId = firstToken.ChannelId;
+            ChannelId = firstToken.ChannelId;
             m_currentTokenId = firstToken.TokenId;
             m_tokens = [];
 
@@ -119,7 +118,7 @@ namespace Opc.Ua.Pcap.Dissection
         /// <summary>
         /// The secure-channel id this decoder handles.
         /// </summary>
-        public uint ChannelId => m_channelId;
+        public uint ChannelId { get; }
 
         /// <summary>
         /// Adds (or updates) the key material for a token observed on
@@ -137,12 +136,12 @@ namespace Opc.Ua.Pcap.Dissection
         public void LoadKeyMaterial(ChannelKeyMaterial material)
         {
             ArgumentNullException.ThrowIfNull(material);
-            if (material.ChannelId != m_channelId)
+            if (material.ChannelId != ChannelId)
             {
                 throw new PcapDiagnosticsException(
                     "ChannelKeyMaterial.ChannelId " +
                     $"(0x{material.ChannelId:X8}) does not match this " +
-                    $"OfflineSecureChannel (0x{m_channelId:X8}).");
+                    $"OfflineSecureChannel (0x{ChannelId:X8}).");
             }
             m_tokens[material.TokenId] = material;
             if (material.TokenId > m_currentTokenId)
@@ -196,11 +195,11 @@ namespace Opc.Ua.Pcap.Dissection
             }
 
             uint channelId = BinaryPrimitives.ReadUInt32LittleEndian(chunkBytes[8..]);
-            if (channelId != m_channelId)
+            if (channelId != ChannelId)
             {
                 throw new PcapDiagnosticsException(
                     $"Chunk channel id (0x{channelId:X8}) does not match " +
-                    $"this OfflineSecureChannel (0x{m_channelId:X8}).");
+                    $"this OfflineSecureChannel (0x{ChannelId:X8}).");
             }
             uint tokenId = BinaryPrimitives.ReadUInt32LittleEndian(chunkBytes[12..]);
             if (!m_tokens.TryGetValue(tokenId, out ChannelKeyMaterial? material))

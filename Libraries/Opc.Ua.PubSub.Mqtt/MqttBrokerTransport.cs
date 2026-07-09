@@ -89,8 +89,6 @@ namespace Opc.Ua.PubSub.Mqtt
         private const string ConnectionTopicSegment = "/connection/";
 
         private readonly PubSubConnectionDataType m_connection;
-        private readonly MqttEndpoint m_endpoint;
-        private readonly PubSubTransportDirection m_direction;
         private readonly MqttConnectionOptions m_options;
         private readonly IMqttClientFactory m_clientFactory;
         private readonly ITelemetryContext m_telemetry;
@@ -98,7 +96,6 @@ namespace Opc.Ua.PubSub.Mqtt
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly ILogger m_logger;
         private readonly Lock m_sync = new();
-        private readonly string m_transportProfileUri;
         private readonly Dictionary<string, MqttQualityOfService> m_topicQos;
 
         private IMqttClientAdapter? m_adapter;
@@ -168,24 +165,24 @@ namespace Opc.Ua.PubSub.Mqtt
             }
 
             m_connection = connection;
-            m_endpoint = endpoint;
-            m_direction = direction;
+            Endpoint = endpoint;
+            Direction = direction;
             m_options = options;
             m_clientFactory = clientFactory;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_diagnostics = diagnostics;
             m_logger = telemetry.CreateLogger<MqttBrokerTransport>();
-            m_transportProfileUri = DetermineTransportProfileUri(connection);
-            m_topicQos = BuildTopicQosMap(connection, m_options, m_transportProfileUri);
+            TransportProfileUri = DetermineTransportProfileUri(connection);
+            m_topicQos = BuildTopicQosMap(connection, m_options, TransportProfileUri);
             AddDefaultSubscriptions();
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => m_transportProfileUri;
+        public string TransportProfileUri { get; }
 
         /// <inheritdoc/>
-        public PubSubTransportDirection Direction => m_direction;
+        public PubSubTransportDirection Direction { get; }
 
         /// <inheritdoc/>
         public bool IsConnected
@@ -204,7 +201,7 @@ namespace Opc.Ua.PubSub.Mqtt
         /// integration tests can confirm host / port selection without
         /// re-parsing the URL.
         /// </summary>
-        public MqttEndpoint Endpoint => m_endpoint;
+        public MqttEndpoint Endpoint { get; }
 
         /// <summary>
         /// Resolved connection options. Exposed for diagnostics and
@@ -297,9 +294,9 @@ namespace Opc.Ua.PubSub.Mqtt
             m_logger.LogInformation(
                 "MQTT transport opened: connection='{Connection}' endpoint={Endpoint} direction={Direction} profile={Profile}",
                 m_connection.Name,
-                m_endpoint,
-                m_direction,
-                m_transportProfileUri);
+                Endpoint,
+                Direction,
+                TransportProfileUri);
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
 
@@ -413,7 +410,7 @@ namespace Opc.Ua.PubSub.Mqtt
             bool isDiscovery = IsDiscoveryTopic(topic);
             bool retain = (isMetaData && m_options.Topics.RetainMetaDataMessages) ||
                 (isDiscovery && m_options.Topics.RetainDiscoveryMessages);
-            string? contentType = MapContentType(m_transportProfileUri);
+            string? contentType = MapContentType(TransportProfileUri);
             var message = new MqttMessage(
                 topic,
                 payload,
@@ -467,7 +464,7 @@ namespace Opc.Ua.PubSub.Mqtt
         }
 
         private bool HasReceiveDirection =>
-            (m_direction & PubSubTransportDirection.Receive) != 0;
+            (Direction & PubSubTransportDirection.Receive) != 0;
 
         private int GetReceiveQueueCapacity()
         {
@@ -543,7 +540,7 @@ namespace Opc.Ua.PubSub.Mqtt
             ushort writerGroupId,
             ushort dataSetWriterId)
         {
-            MqttEncoding encoding = ResolveEncoding(m_transportProfileUri);
+            MqttEncoding encoding = ResolveEncoding(TransportProfileUri);
             if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer) &&
                 writer is not null &&
                 TryReadBrokerWriterSettings(
@@ -585,7 +582,7 @@ namespace Opc.Ua.PubSub.Mqtt
             }
             return MqttTopicBuilder.BuildDataTopic(
                 m_options.Topics.Prefix,
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 publisherId.ToVariant(),
                 writerGroup.WriterGroupId,
                 dataSetWriterId);
@@ -596,7 +593,7 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             return MqttTopicBuilder.BuildPublisherTopic(
                 m_options.Topics.Prefix,
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 messageTypeSegment,
                 publisherId.ToVariant());
         }
@@ -617,7 +614,7 @@ namespace Opc.Ua.PubSub.Mqtt
             {
                 return;
             }
-            MqttEncoding encoding = ResolveEncoding(m_transportProfileUri);
+            MqttEncoding encoding = ResolveEncoding(TransportProfileUri);
             string prefix = m_options.Topics.Prefix;
             MqttQualityOfService qos = m_options.Topics.DefaultQos;
             AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/metadata/#", qos);

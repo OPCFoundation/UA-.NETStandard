@@ -79,7 +79,6 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
             using (var encoder = new JsonEncoder(memory, context, options))
             {
                 write(encoder);
-                encoder.Close();
             }
             return JsonDocument.Parse(memory.ToArray());
         }

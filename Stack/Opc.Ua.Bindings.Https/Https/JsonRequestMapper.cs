@@ -238,7 +238,6 @@ namespace Opc.Ua.Bindings
             using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
             {
                 encoder.EncodeMessage(response, response.TypeId);
-                encoder.Close();
             }
             return memory.ToArray();
         }

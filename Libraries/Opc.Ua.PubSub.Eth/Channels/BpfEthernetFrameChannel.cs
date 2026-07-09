@@ -71,7 +71,6 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private readonly EthChannelParameters m_parameters;
         private readonly ILogger m_logger;
-        private readonly PhysicalAddress m_interfaceAddress;
         private readonly string m_interfaceName;
         private readonly Lock m_sync = new();
 
@@ -105,12 +104,12 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
             m_logger = telemetry.CreateLogger<BpfEthernetFrameChannel>();
             m_interfaceName = parameters.NetworkInterface.Name;
-            m_interfaceAddress = parameters.InterfaceAddress
+            InterfaceAddress = parameters.InterfaceAddress
                 ?? parameters.NetworkInterface.GetPhysicalAddress();
         }
 
         /// <inheritdoc/>
-        public PhysicalAddress InterfaceAddress => m_interfaceAddress;
+        public PhysicalAddress InterfaceAddress { get; }
 
         /// <inheritdoc/>
         public bool IsOpen

@@ -546,8 +546,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 m_queueFactory = new MonitoredItemQueueFactory(telemetry);
                 MockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
 
-                m_serverSystemContext = new ServerSystemContext(MockServer.Object);
-                MockServer.Setup(s => s.DefaultSystemContext).Returns(m_serverSystemContext);
+                Context = new ServerSystemContext(MockServer.Object);
+                MockServer.Setup(s => s.DefaultSystemContext).Returns(Context);
 
                 Configuration = new ApplicationConfiguration
                 {
@@ -675,7 +675,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             public BaseObjectState PublishedDataSetsObject { get; }
             public BaseObjectState SecurityGroupsObject { get; }
             public BaseObjectState KeyPushTargetsObject { get; }
-            public ServerSystemContext Context => m_serverSystemContext;
+            public ServerSystemContext Context { get; }
 
             public void Dispose()
             {
@@ -695,7 +695,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             }
 
             private readonly MonitoredItemQueueFactory m_queueFactory;
-            private readonly ServerSystemContext m_serverSystemContext;
 
             private sealed class StubTransportFactory : IPubSubTransportFactory
             {

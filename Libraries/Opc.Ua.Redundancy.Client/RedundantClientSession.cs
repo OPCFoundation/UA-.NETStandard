@@ -1255,11 +1255,11 @@ namespace Opc.Ua.Redundancy.Client
         private ISession RequireCurrentSession()
         {
             ThrowIfDisposed();
-            ISession? s = GetCurrentSession() ?? throw new ServiceResultException(
+            return GetCurrentSession() ??
+                throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
                     "The redundant client session is not the leader or has no live session."
-                );
-            return s;
+                    );
         }
 
         private ISession? GetCurrentSession()
