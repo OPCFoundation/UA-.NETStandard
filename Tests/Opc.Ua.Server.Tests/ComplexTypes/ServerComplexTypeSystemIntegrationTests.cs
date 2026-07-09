@@ -106,7 +106,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // Load the client complex type system so the runtime types are
-            // registered in the session factory and read values decode.
+            // registered in the session factory and read values decode correctly.
             var clientTypeSystem = ComplexTypeSystem.Create(m_session, m_telemetry);
             clientTypeSystem.DisableDataTypeDictionary = true;
             bool loaded = await clientTypeSystem.LoadAsync(false, true).ConfigureAwait(false);
@@ -125,9 +125,26 @@ namespace Opc.Ua.Server.Tests
                 m_session.Dispose();
                 m_session = null;
             }
-            await m_serverFixture.StopAsync().ConfigureAwait(false);
+
             m_clientFixture?.Dispose();
             m_server?.Dispose();
+
+            if (m_serverFixture != null)
+            {
+                await m_serverFixture.StopAsync().ConfigureAwait(false);
+            }
+
+            try
+            {
+                if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
+                {
+                    Directory.Delete(m_pkiRoot, recursive: true);
+                }
+            }
+            catch
+            {
+                // best-effort cleanup
+            }
         }
 
         /// <summary>

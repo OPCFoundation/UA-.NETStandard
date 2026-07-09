@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Tests
             ApplicationConfiguration configuration)
         {
             // Ownership of the node manager is transferred to the server.
-#pragma warning disable CA2000
+#pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
             return new ServerComplexTypesTestNodeManager(server, configuration);
 #pragma warning restore CA2000
         }
