@@ -36,6 +36,7 @@ using System.IO;
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -229,6 +230,65 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void ProcessOpenAndRequestAndCloseMessagesRoundTrip()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new RecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            uint openRequestId = 12u;
+            channel.FeedIncomingMessage(
+                TcpMessageType.Open,
+                new ArraySegment<byte>(channel.BuildOpenSecureChannelRequest(openRequestId)));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(transport.SendCount, Is.EqualTo(1));
+
+            channel.SetRequestReceivedCallback((listener, requestId, request) =>
+            {
+                channel.SendResponse(
+                    requestId,
+                    new GetEndpointsResponse
+                    {
+                        ResponseHeader = new ResponseHeader
+                        {
+                            RequestHandle = request.RequestHeader.RequestHandle,
+                            ServiceResult = StatusCodes.Good
+                        }
+                    });
+            });
+
+            uint serviceRequestId = 33u;
+            channel.FeedIncomingMessage(
+                TcpMessageType.Message,
+                new ArraySegment<byte>(channel.BuildSymmetricRequest(
+                    serviceRequestId,
+                    new GetEndpointsRequest
+                    {
+                        RequestHeader = new RequestHeader(),
+                        EndpointUrl = "opc.tcp://localhost:4840"
+                    })));
+
+            Assert.That(transport.SendCount, Is.EqualTo(2));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+            uint closeRequestId = 44u;
+            channel.FeedIncomingMessage(
+                TcpMessageType.Close,
+                new ArraySegment<byte>(channel.BuildSymmetricRequest(
+                    closeRequestId,
+                    new CloseSecureChannelRequest
+                    {
+                        RequestHeader = new RequestHeader()
+                    })));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
+        }
+
+        [Test]
         public void DoMessageLimitsExceededClosesChannelAndNotifiesListener()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
@@ -346,6 +406,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return ReferenceEquals(completed, task);
         }
 
+        private byte[] BuildHello(string endpointUrl)
+        {
+            return BuildChunk(TcpMessageType.Hello, encoder =>
+            {
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteUInt32(null, 8192);
+                encoder.WriteUInt32(null, 8192);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteUInt32(null, 0);
+                byte[] bytes = Encoding.UTF8.GetBytes(endpointUrl);
+                encoder.WriteInt32(null, bytes.Length);
+                foreach (byte value in bytes)
+                {
+                    encoder.WriteByte(null, value);
+                }
+            });
+        }
+
         private byte[] BuildHelloWithUrlLength(int urlLength)
         {
             return BuildChunk(TcpMessageType.Hello, encoder =>
@@ -375,6 +453,26 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Array.Copy(buffer, chunk, size);
             BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(4), (uint)size);
             return chunk;
+        }
+
+        private uint ReadAsymmetricRequestId(byte[] chunk)
+        {
+            using var decoder = new BinaryDecoder(new ArraySegment<byte>(chunk, 8, chunk.Length - 8), m_context);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadUInt32(null);
+            return decoder.ReadUInt32(null);
+        }
+
+        private uint ReadSymmetricRequestId(byte[] chunk)
+        {
+            using var decoder = new BinaryDecoder(new ArraySegment<byte>(chunk, 8, chunk.Length - 8), m_context);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadUInt32(null);
+            return decoder.ReadUInt32(null);
         }
 
         private static uint DecodeErrorStatusCode(byte[] chunk)
@@ -436,6 +534,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 set => State = value;
             }
 
+            public ChannelToken? CurrentTokenSnapshot => CurrentToken;
+
             public Certificate? SelectedClientCertificate
             {
                 get => ClientCertificate;
@@ -466,6 +566,83 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 SendServiceFault(requestId, renew, fault);
             }
+
+            public byte[] BuildOpenSecureChannelRequest(uint requestId)
+            {
+                var request = new OpenSecureChannelRequest
+                {
+                    RequestHeader = new RequestHeader
+                    {
+                        RequestHandle = 7,
+                        Timestamp = DateTime.UtcNow
+                    },
+                    RequestType = SecurityTokenRequestType.Issue,
+                    SecurityMode = MessageSecurityMode.None,
+                    ClientNonce = Array.Empty<byte>().ToByteString(),
+                    RequestedLifetime = 60000
+                };
+
+                return BuildAsymmetricChunk(requestId, request);
+            }
+
+            public byte[] BuildSymmetricRequest(uint requestId, object request)
+            {
+                ChannelToken token = CurrentTokenSnapshot ?? throw new InvalidOperationException(
+                    "Current token is not available.");
+
+                bool limitsExceeded;
+                BufferCollection buffers = WriteSymmetricMessage(
+                    TcpMessageType.Message,
+                    requestId,
+                    token,
+                    request,
+                    true,
+                    out limitsExceeded);
+
+                if (limitsExceeded)
+                {
+                    throw new InvalidOperationException("Test request exceeded message limits.");
+                }
+
+                return FlattenBuffers(buffers);
+            }
+
+            private byte[] BuildAsymmetricChunk(uint requestId, IEncodeable body)
+            {
+                BufferCollection buffers = WriteAsymmetricMessage(
+                    TcpMessageType.Open,
+                    requestId,
+                    null,
+                    null,
+                    null,
+                    new ArraySegment<byte>(BinaryEncoder.EncodeMessage(body, Quotas.MessageContext)),
+                    null,
+                    out _);
+
+                return FlattenBuffers(buffers);
+            }
+
+            private byte[] FlattenBuffers(BufferCollection buffers)
+            {
+                try
+                {
+                    int total = buffers.TotalSize;
+                    byte[] flattened = new byte[total];
+                    int offset = 0;
+
+                    foreach (ArraySegment<byte> segment in buffers)
+                    {
+                        Buffer.BlockCopy(segment.Array!, segment.Offset, flattened, offset, segment.Count);
+                        offset += segment.Count;
+                    }
+
+                    return flattened;
+                }
+                finally
+                {
+                    buffers.Release(BufferManager, nameof(TestServerChannel));
+                }
+            }
         }
 
         private sealed class RecordingByteTransport : IUaSCByteTransport
@@ -487,6 +664,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task FirstSendTask => m_firstSend.Task;
 
+            public int SendCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_sent.Count;
+                    }
+                }
+            }
+
             public byte[] LastSent
             {
                 get
@@ -495,6 +683,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     {
                         return m_sent[m_sent.Count - 1];
                     }
+                }
+            }
+
+            public byte[] GetSent(int index)
+            {
+                lock (m_lock)
+                {
+                    return m_sent[index];
                 }
             }
 

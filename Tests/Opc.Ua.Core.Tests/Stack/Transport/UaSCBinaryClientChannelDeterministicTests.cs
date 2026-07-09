@@ -269,6 +269,109 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ConnectAsyncCompletesAndProcessesQueuedAndDirectRequestsAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var transport = new RecordingByteTransport();
+            var factory = new RecordingByteTransportFactory(transport);
+            EndpointDescription endpoint = BuildEndpoint(
+                MessageSecurityMode.None, SecurityPolicies.None);
+
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                endpoint,
+                m_telemetry,
+                timeProvider);
+
+            Task connectTask = channel
+                .ConnectAsync(new Uri("opc.tcp://localhost:4840"), 60000, CancellationToken.None)
+                .AsTask();
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never sent the Hello message");
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Connecting));
+
+            var queuedRequest = new GetEndpointsRequest
+            {
+                RequestHeader = new RequestHeader(),
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            Task<IServiceResponse> queuedResponseTask = channel
+                .SendRequestAsync(queuedRequest, 60000, CancellationToken.None)
+                .AsTask();
+
+            channel.FeedIncomingMessage(
+                TcpMessageType.Acknowledge,
+                new ArraySegment<byte>(BuildAcknowledge(8192, 8192)));
+
+            Assert.That(transport.SendCount, Is.GreaterThanOrEqualTo(2));
+            uint openRequestId = ReadAsymmetricRequestId(transport.GetSent(1), m_context);
+
+            channel.FeedIncomingMessage(
+                TcpMessageType.Open,
+                new ArraySegment<byte>(channel.BuildOpenSecureChannelResponse(
+                    openRequestId,
+                    channelId: 0u,
+                    tokenId: 1u,
+                    revisedLifetime: 60000u)));
+
+            await connectTask.ConfigureAwait(false);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(transport.SendCount, Is.GreaterThanOrEqualTo(3));
+
+            uint queuedRequestId = ReadSymmetricRequestId(transport.GetSent(2), m_context);
+            channel.FeedIncomingMessage(
+                TcpMessageType.Message,
+                new ArraySegment<byte>(channel.BuildSymmetricResponse(
+                    queuedRequestId,
+                    new GetEndpointsResponse
+                    {
+                        ResponseHeader = new ResponseHeader
+                        {
+                            RequestHandle = queuedRequest.RequestHeader.RequestHandle,
+                            ServiceResult = StatusCodes.Good
+                        }
+                    })));
+
+            IServiceResponse queuedResponse = await queuedResponseTask.ConfigureAwait(false);
+            Assert.That(queuedResponse, Is.InstanceOf<GetEndpointsResponse>());
+
+            var directRequest = new GetEndpointsRequest
+            {
+                RequestHeader = new RequestHeader(),
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            Task<IServiceResponse> directResponseTask = channel
+                .SendRequestAsync(directRequest, 60000, CancellationToken.None)
+                .AsTask();
+
+            Assert.That(transport.SendCount, Is.GreaterThanOrEqualTo(4));
+            uint directRequestId = ReadSymmetricRequestId(transport.GetSent(3), m_context);
+            channel.FeedIncomingMessage(
+                TcpMessageType.Message,
+                new ArraySegment<byte>(channel.BuildSymmetricResponse(
+                    directRequestId,
+                    new GetEndpointsResponse
+                    {
+                        ResponseHeader = new ResponseHeader
+                        {
+                            RequestHandle = directRequest.RequestHeader.RequestHandle,
+                            ServiceResult = StatusCodes.Good
+                        }
+                    })));
+
+            IServiceResponse directResponse = await directResponseTask.ConfigureAwait(false);
+            Assert.That(directResponse, Is.InstanceOf<GetEndpointsResponse>());
+        }
+
+        [Test]
         public async Task ConnectAsyncFaultsOnUnknownMessageTypeAsync()
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
@@ -373,6 +476,30 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .WhenAny(task, Task.Delay(TimeSpan.FromSeconds(seconds)))
                 .ConfigureAwait(false);
             return ReferenceEquals(completed, task);
+        }
+
+        private static uint ReadAsymmetricRequestId(byte[] chunk, ServiceMessageContext context)
+        {
+            using var decoder = new BinaryDecoder(
+                new ArraySegment<byte>(chunk, 8, chunk.Length - 8),
+                context);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadUInt32(null);
+            return decoder.ReadUInt32(null);
+        }
+
+        private static uint ReadSymmetricRequestId(byte[] chunk, ServiceMessageContext context)
+        {
+            using var decoder = new BinaryDecoder(
+                new ArraySegment<byte>(chunk, 8, chunk.Length - 8),
+                context);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadUInt32(null);
+            return decoder.ReadUInt32(null);
         }
 
         private static EndpointDescription BuildEndpoint(
@@ -511,6 +638,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 set => State = value;
             }
 
+            public ChannelToken? CurrentTokenSnapshot => CurrentToken;
+
             public void SetupReverseTransport(IUaSCByteTransport transport)
             {
                 ReverseSocket = true;
@@ -532,6 +661,39 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 DoMessageLimitsExceeded();
             }
 
+            public byte[] BuildOpenSecureChannelResponse(
+                uint requestId,
+                uint channelId,
+                uint tokenId,
+                uint revisedLifetime)
+            {
+                var response = new OpenSecureChannelResponse
+                {
+                    ResponseHeader = new ResponseHeader
+                    {
+                        ServiceResult = StatusCodes.Good
+                    },
+                    SecurityToken = new ChannelSecurityToken
+                    {
+                        ChannelId = channelId,
+                        TokenId = tokenId,
+                        RevisedLifetime = revisedLifetime,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    ServerNonce = Array.Empty<byte>().ToByteString()
+                };
+
+                return BuildAsymmetricChunk(requestId, response);
+            }
+
+            public byte[] BuildSymmetricResponse(uint requestId, IServiceResponse response)
+            {
+                ChannelToken token = CurrentTokenSnapshot ?? throw new InvalidOperationException(
+                    "Current token is not available.");
+
+                return BuildSymmetricChunk(requestId, token, response);
+            }
+
             public static ServiceResult CallReadErrorMessageBody(BinaryDecoder decoder)
             {
                 return ReadErrorMessageBody(decoder);
@@ -546,6 +708,65 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 IDecoder decoder, uint expectedMessageType, int count)
             {
                 ReadAndVerifyMessageTypeAndSize(decoder, expectedMessageType, count);
+            }
+
+            private byte[] BuildAsymmetricChunk(uint requestId, IEncodeable body)
+            {
+                BufferCollection buffers = WriteAsymmetricMessage(
+                    TcpMessageType.Open,
+                    requestId,
+                    null,
+                    null,
+                    null,
+                    new ArraySegment<byte>(BinaryEncoder.EncodeMessage(body, Quotas.MessageContext)),
+                    null,
+                    out _);
+
+                return FlattenBuffers(buffers);
+            }
+
+            private byte[] BuildSymmetricChunk(
+                uint requestId,
+                ChannelToken token,
+                object body)
+            {
+                bool limitsExceeded;
+                BufferCollection buffers = WriteSymmetricMessage(
+                    TcpMessageType.Message,
+                    requestId,
+                    token,
+                    body,
+                    false,
+                    out limitsExceeded);
+
+                if (limitsExceeded)
+                {
+                    throw new InvalidOperationException("Test response exceeded message limits.");
+                }
+
+                return FlattenBuffers(buffers);
+            }
+
+            private byte[] FlattenBuffers(BufferCollection buffers)
+            {
+                try
+                {
+                    int total = buffers.TotalSize;
+                    byte[] flattened = new byte[total];
+                    int offset = 0;
+
+                    foreach (ArraySegment<byte> segment in buffers)
+                    {
+                        Buffer.BlockCopy(segment.Array!, segment.Offset, flattened, offset, segment.Count);
+                        offset += segment.Count;
+                    }
+
+                    return flattened;
+                }
+                finally
+                {
+                    buffers.Release(BufferManager, nameof(TestClientChannel));
+                }
             }
         }
 
@@ -591,6 +812,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task FirstSendTask => m_firstSend.Task;
 
+            public int SendCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_sent.Count;
+                    }
+                }
+            }
+
             public byte[] LastSent
             {
                 get
@@ -599,6 +831,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     {
                         return m_sent[m_sent.Count - 1];
                     }
+                }
+            }
+
+            public byte[] GetSent(int index)
+            {
+                lock (m_lock)
+                {
+                    return m_sent[index];
                 }
             }
 
