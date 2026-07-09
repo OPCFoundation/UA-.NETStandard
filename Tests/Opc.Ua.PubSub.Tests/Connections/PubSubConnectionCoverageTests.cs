@@ -254,22 +254,20 @@ namespace Opc.Ua.PubSub.Tests.Connections
             var transport = new AnnouncementHarnessTransport(UadpProfile);
             var encoder = new CapturingEncoder(UadpProfile);
             var scheduler = new ImmediateScheduler();
-            await using (PubSubConnection connection = CreateConnection(
+            await using PubSubConnection connection = CreateConnection(
                 Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
                 EncMap(UadpProfile, encoder), NoDecoders(),
-                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low), scheduler: scheduler))
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low), scheduler: scheduler);
+            await connection.EnableAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
             {
-                await connection.EnableAsync().ConfigureAwait(false);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(scheduler.ScheduleCalled, Is.True);
-                    Assert.That(scheduler.CallbackInvoked, Is.True);
-                    Assert.That(transport.AnnouncementCount, Is.GreaterThanOrEqualTo(3));
-                });
+                Assert.That(scheduler.ScheduleCalled, Is.True);
+                Assert.That(scheduler.CallbackInvoked, Is.True);
+                Assert.That(transport.AnnouncementCount, Is.GreaterThanOrEqualTo(3));
+            });
 
-                await connection.DisableAsync().ConfigureAwait(false);
-                Assert.That(scheduler.DisposeCalled, Is.True);
-            }
+            await connection.DisableAsync().ConfigureAwait(false);
+            Assert.That(scheduler.DisposeCalled, Is.True);
         }
 
         [Test]
@@ -1129,7 +1127,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     lock (m_sync)
                     {
-                        return m_sentPayloads.ToArray();
+                        return [.. m_sentPayloads];
                     }
                 }
             }
@@ -1140,7 +1138,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     lock (m_sync)
                     {
-                        return m_sentTopics.ToArray();
+                        return [.. m_sentTopics];
                     }
                 }
             }

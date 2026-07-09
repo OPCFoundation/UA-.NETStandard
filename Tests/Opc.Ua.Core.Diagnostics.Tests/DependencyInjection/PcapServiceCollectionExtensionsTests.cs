@@ -257,7 +257,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             services.AddPcap();
 
             await using ServiceProvider provider = services.BuildServiceProvider();
-            var bindings = provider.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry bindings = provider.GetRequiredService<ITransportBindingRegistry>();
 
             ITransportChannelFactory? binding = bindings.GetChannelFactory(
                 Utils.UriSchemeOpcTcp);

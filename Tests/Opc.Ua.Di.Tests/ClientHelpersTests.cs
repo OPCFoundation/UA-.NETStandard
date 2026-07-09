@@ -29,6 +29,7 @@
 
 using System;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Di.Client;
 
 namespace Opc.Ua.Di.Tests
@@ -64,7 +65,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void DiLockClientExposesConstructorArguments()
         {
-            var session = FakeSession();
+            ISession session = FakeSession();
             var nodeId = new NodeId("lock-1", 2);
             var client = new DiLockClient(session, nodeId, NullTelemetry());
 
@@ -83,7 +84,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void DiTopologyClientExposesWellKnownNodeIds()
         {
-            var session = FakeSession();
+            ISession session = FakeSession();
             var client = new DiTopologyClient(session, NullTelemetry());
 
             Assert.That(client.DeviceSetId.IsNull, Is.False);
@@ -135,7 +136,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void SoftwareUpdateClientExposesConstructorArguments()
         {
-            var session = FakeSession();
+            ISession session = FakeSession();
             var nodeId = new NodeId("update-1", 2);
             var client = new SoftwareUpdateClient(session, nodeId, NullTelemetry());
             Assert.That(client.Session, Is.SameAs(session));

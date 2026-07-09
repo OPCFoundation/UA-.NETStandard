@@ -697,7 +697,7 @@ namespace Opc.Ua.PubSub.Mqtt
             {
                 return result;
             }
-            var publisherId = connection.PublisherId.IsNull
+            PublisherId publisherId = connection.PublisherId.IsNull
                 ? PublisherId.Null
                 : PublisherId.From(connection.PublisherId);
             MqttEncoding encoding = ResolveEncoding(transportProfileUri);

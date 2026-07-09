@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         public void DataSetReaders_ReturnsProvidedReaders()
         {
             DataSetReader r = MakeReader(3);
-            var group = MakeGroup([r]);
+            ReaderGroup group = MakeGroup([r]);
 
             Assert.That(((IDataSetReader[]?)group.DataSetReaders) ?? [], Is.EquivalentTo([r]));
         }
@@ -159,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
             _ = reader.State.TryMarkOperational();
 
             // Group is NOT enabled — default state is Disabled.
-            var group = MakeGroup([reader]);
+            ReaderGroup group = MakeGroup([reader]);
 
             var net = new UadpNetworkMessageV2
             {
@@ -247,7 +247,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         [Test]
         public async Task EnableAsync_TransitionsGroupToOperationalAsync()
         {
-            var group = MakeGroup();
+            ReaderGroup group = MakeGroup();
 
             await group.EnableAsync().ConfigureAwait(false);
 
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         {
             DataSetReader r1 = MakeReader(1);
             DataSetReader r2 = MakeReader(2);
-            var group = MakeGroup([r1, r2]);
+            ReaderGroup group = MakeGroup([r1, r2]);
 
             await group.EnableAsync().ConfigureAwait(false);
 
@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         [Test]
         public async Task EnableAsync_CalledTwice_IsIdempotentAsync()
         {
-            var group = MakeGroup();
+            ReaderGroup group = MakeGroup();
             await group.EnableAsync().ConfigureAwait(false);
             await group.EnableAsync().ConfigureAwait(false); // must not throw
 
@@ -305,7 +305,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         [Test]
         public async Task DisableAsync_TransitionsToDisabledAsync()
         {
-            var group = MakeGroup();
+            ReaderGroup group = MakeGroup();
             await group.EnableAsync().ConfigureAwait(false);
             await group.DisableAsync().ConfigureAwait(false);
 
@@ -315,7 +315,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         [Test]
         public async Task DisposeAsync_DisablesGroupAsync()
         {
-            var group = MakeGroup();
+            ReaderGroup group = MakeGroup();
             await group.EnableAsync().ConfigureAwait(false);
             await group.DisposeAsync().ConfigureAwait(false);
 

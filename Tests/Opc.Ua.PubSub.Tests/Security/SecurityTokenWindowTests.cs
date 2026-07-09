@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         [Test]
         public void Properties_ReflectConfiguration()
         {
-            var clock = TimeProvider.System;
+            TimeProvider clock = TimeProvider.System;
             var window = new SecurityTokenWindow(historySize: 16, timeProvider: clock);
             Assert.Multiple(() =>
             {

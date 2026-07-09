@@ -256,7 +256,7 @@ namespace Opc.Ua.Bindings
             string oldThumbprint = oldCertificate.Thumbprint;
             if (string.IsNullOrEmpty(oldThumbprint))
             {
-                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             // Snapshot the channel map so we can iterate without holding
@@ -267,15 +267,15 @@ namespace Opc.Ua.Bindings
 
             if (entries.Length == 0)
             {
-                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             var closed = new List<string>(entries.Length);
-            foreach (var entry in entries)
+            foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> Done) in entries)
             {
                 try
                 {
-                    if (entry.Channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId) &&
+                    if (Channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId) &&
                         !string.IsNullOrEmpty(globalChannelId))
                     {
                         closed.Add(globalChannelId!);
@@ -393,7 +393,7 @@ namespace Opc.Ua.Bindings
 
         internal void UnregisterChannel(uint channelId)
         {
-            if (m_channels != null && m_channels.TryRemove(channelId, out var entry))
+            if (m_channels != null && m_channels.TryRemove(channelId, out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry))
             {
                 entry.Done.TrySetResult(true);
             }
@@ -401,7 +401,7 @@ namespace Opc.Ua.Bindings
 
         internal Task WaitForConnectionAsync(uint channelId, CancellationToken ct)
         {
-            if (m_channels != null && m_channels.TryGetValue(channelId, out var entry))
+            if (m_channels != null && m_channels.TryGetValue(channelId, out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry))
             {
                 return Task.WhenAny(entry.Done.Task, ct.AsTask()).ContinueWith(_ => { }, TaskScheduler.Default);
             }
@@ -426,7 +426,7 @@ namespace Opc.Ua.Bindings
             bool accepted = false;
 
             if (m_channels == null ||
-                !m_channels.TryRemove(channelId, out var entry))
+                !m_channels.TryRemove(channelId, out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,

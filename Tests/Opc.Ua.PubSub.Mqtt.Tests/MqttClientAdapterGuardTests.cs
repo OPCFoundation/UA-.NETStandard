@@ -144,10 +144,10 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttEndpoint wssEndpoint = MqttEndpointParser.Parse("wss://broker.example/mqtt");
 
 #if MQTTNET_V5
-            var wsOptions = MqttClientAdapter.ConfigureBrokerTransport(
+            MqttClientOptions wsOptions = MqttClientAdapter.ConfigureBrokerTransport(
                 new MqttClientOptionsBuilder(),
                 wsEndpoint).Build();
-            var wssOptions = MqttClientAdapter.ConfigureBrokerTransport(
+            MqttClientOptions wssOptions = MqttClientAdapter.ConfigureBrokerTransport(
                 new MqttClientOptionsBuilder(),
                 wssEndpoint).Build();
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public void ConfigureBrokerTransportMqttSchemesUseTcpChannel()
         {
             MqttEndpoint endpoint = MqttEndpointParser.Parse("mqtt://broker.example:1884");
-            var options = MqttClientAdapter.ConfigureBrokerTransport(
+            MqttClientOptions options = MqttClientAdapter.ConfigureBrokerTransport(
                 new MqttClientOptionsBuilder(),
                 endpoint).Build();
 
@@ -204,7 +204,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 AuthenticationProfileUri = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json",
                 ResourceUri = "urn:broker:resource"
             };
-            var mqttOptions = new MqttClientOptionsBuilder()
+            MqttClientOptions mqttOptions = new MqttClientOptionsBuilder()
                 .WithTcpServer("broker.example", 8883)
                 .Build();
 

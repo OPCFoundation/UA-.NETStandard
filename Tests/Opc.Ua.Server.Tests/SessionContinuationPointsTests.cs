@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests
         {
             SessionContinuationPoints holder = NewHolder();
             var id = Guid.NewGuid();
-            object value = new object();
+            object value = new();
 
             holder.SaveHistory(id, value);
 

@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public void Constructor_NullConfiguration_ThrowsArgumentNullException()
         {
-            var store = new Mock<IUaPubSubDataStore>().Object;
+            IUaPubSubDataStore store = new Mock<IUaPubSubDataStore>().Object;
             Assert.That(
                 () => new DataStoreBackedPublishedDataSetSource(store, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configuration"));
@@ -79,7 +79,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Name = "ds",
                 DataSetMetaData = meta
             };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             DataSetMetaDataType result = source.BuildMetaData();
 
@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Name = "ds"
                 // DataSetMetaData left as null (default)
             };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             DataSetMetaDataType result = source.BuildMetaData();
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task SampleAsync_WithCancelledToken_ThrowsOperationCanceledExceptionAsync()
         {
             var config = new PublishedDataSetDataType { Name = "ds" };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task SampleAsync_WithNullDataSetSource_ReturnsEmptyFieldsAsync()
         {
             var config = new PublishedDataSetDataType { Name = "ds" };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(new DataSetMetaDataType()).ConfigureAwait(false);
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Name = "ds",
                 DataSetSource = new ExtensionObject()
             };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(null!).ConfigureAwait(false);

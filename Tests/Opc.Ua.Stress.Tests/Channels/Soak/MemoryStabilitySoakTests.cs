@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,9 +72,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
             TcpChaosProxy proxy = await TcpChaosProxy
                 .StartAsync(ServerUrl, telemetry: Telemetry)
                 .ConfigureAwait(false);
-            await using var proxyDispose = proxy.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable proxyDispose = proxy.ConfigureAwait(false);
             ClientChannelManager manager = CreateChannelManager();
-            await using var managerDispose = manager.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable managerDispose = manager.ConfigureAwait(false);
             using var runCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             CancellationToken runToken = runCts.Token;
 
@@ -106,14 +107,14 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
                     operations,
                     concurrency: StressConcurrency,
                     targetOpsPerSecond: TargetOperationsPerSecond);
-                await using var runnerDispose = runner.ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable runnerDispose = runner.ConfigureAwait(false);
                 await runner.StartAsync(runToken).ConfigureAwait(false);
 
                 ChaosSchedule schedule = CreateDropSchedule(seed);
                 var dispatcher = new ChaosScheduleRunner(
                     schedule,
                     (chaosEvent, workerCt) => DispatchChaosEventAsync(proxy, chaosEvent, workerCt));
-                await using var dispatcherDispose = dispatcher.ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable dispatcherDispose = dispatcher.ConfigureAwait(false);
                 Task dispatchTask = dispatcher.RunAsync(runToken);
 
                 try

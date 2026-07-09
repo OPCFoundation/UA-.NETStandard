@@ -111,7 +111,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             {
                 lock (m_latencyLock)
                 {
-                    return m_latencySamples.ToArray();
+                    return [.. m_latencySamples];
                 }
             }
         }

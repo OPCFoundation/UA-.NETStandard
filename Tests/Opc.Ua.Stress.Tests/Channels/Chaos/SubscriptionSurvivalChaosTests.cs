@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -96,7 +97,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
 
             TcpChaosProxy proxy = await TcpChaosProxy.StartAsync(ServerUrl, telemetry: Telemetry)
                 .ConfigureAwait(false);
-            await using var proxyDispose = proxy.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable proxyDispose = proxy.ConfigureAwait(false);
             ClientChannelManager manager = CreateChannelManager(
                 new ExponentialBackoffChannelReconnectPolicy
                 {
@@ -104,7 +105,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                     MaxDelay = TimeSpan.FromSeconds(1),
                     MaxAttempts = 120
                 });
-            await using var managerDispose = manager.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable managerDispose = manager.ConfigureAwait(false);
 
             ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None, proxy.LocalUrl)
                 .ConfigureAwait(false);
@@ -141,7 +142,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                     concurrency: ReadConcurrency,
                     targetOpsPerSecond: ReadTargetOpsPerSecond,
                     telemetry: Telemetry);
-                await using var runnerDispose = runner.ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable runnerDispose = runner.ConfigureAwait(false);
                 await runner.StartAsync(ct).ConfigureAwait(false);
 
                 try
@@ -160,7 +161,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                             manager,
                             sharedKey,
                             workerCt));
-                    await using var dispatcherDispose = dispatcher.ConfigureAwait(false);
+                    await using ConfiguredAsyncDisposable dispatcherDispose = dispatcher.ConfigureAwait(false);
 
                     await dispatcher.RunAsync(ct).ConfigureAwait(false);
                     await DelayRemainingChaosWindowAsync(started, ct).ConfigureAwait(false);

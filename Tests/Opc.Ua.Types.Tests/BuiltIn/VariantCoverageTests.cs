@@ -462,7 +462,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CopyClonesExtensionObjectMatrix()
         {
             var body = new Argument();
-            var matrix = Matrix(new ExtensionObject(body), new ExtensionObject(new Argument()));
+            MatrixOf<ExtensionObject> matrix = Matrix(new ExtensionObject(body), new ExtensionObject(new Argument()));
             Variant copy = new Variant(matrix).Copy();
             bool ok = copy.Expand().Span[0].GetExtensionObject().TryGetValue(out Argument copiedBody);
             bool sameInstance = ReferenceEquals(copiedBody, body);
@@ -476,7 +476,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CopyClonesDataValueMatrix()
         {
-            var matrix = Matrix(new DataValue(1), new DataValue(2));
+            MatrixOf<DataValue> matrix = Matrix(new DataValue(1), new DataValue(2));
             Variant copy = new Variant(matrix).Copy();
             ArrayOf<Variant> expanded = copy.Expand();
             Assert.Multiple(() =>

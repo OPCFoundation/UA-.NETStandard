@@ -326,7 +326,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void HostedServiceNullRuntimeThrows()
         {
-            var application = new Mock<IPubSubApplication>().Object;
+            IPubSubApplication application = new Mock<IPubSubApplication>().Object;
 
             Assert.That(
                 () => new ServerAdapterHostedService(
@@ -337,7 +337,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void HostedServiceNullReloadCoordinatorThrows()
         {
-            var application = new Mock<IPubSubApplication>().Object;
+            IPubSubApplication application = new Mock<IPubSubApplication>().Object;
             var runtime = new ServerAdapterRuntime();
 
             Assert.That(

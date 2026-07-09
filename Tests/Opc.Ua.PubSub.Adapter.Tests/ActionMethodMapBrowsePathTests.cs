@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void AddBrowsePathOverloadStoresBrowsePathSentinels()
         {
-            var map = new ActionMethodMap().Add(
+            ActionMethodMap map = new ActionMethodMap().Add(
                 "Reset",
                 "/2:Demo",
                 "/2:Demo/2:Reset");

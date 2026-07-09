@@ -68,7 +68,7 @@ namespace Opc.Ua.Di.Tests
                 .AddOpcUaDi();
 
             ServiceProvider provider = services.BuildServiceProvider();
-            var factory = provider.GetService<DiNodeManagerFactory>();
+            DiNodeManagerFactory? factory = provider.GetService<DiNodeManagerFactory>();
             Assert.That(factory, Is.Not.Null);
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.Di.Tests
                 .AddOpcUaDi();
 
             ServiceProvider provider = services.BuildServiceProvider();
-            var runner = provider.GetService<IDiPostSetupRunner>();
+            IDiPostSetupRunner? runner = provider.GetService<IDiPostSetupRunner>();
             Assert.That(runner, Is.Not.Null);
             Assert.That(runner, Is.InstanceOf<DiPostSetupRunner>());
         }

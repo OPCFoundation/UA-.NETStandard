@@ -33,93 +33,94 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Redundancy;
 
-namespace RedundantPubSub;
-
-internal sealed class ManualLeaderElection
+namespace RedundantPubSub
 {
-    public ILeaderElection ForOwner(string ownerId)
+    internal sealed class ManualLeaderElection
     {
-        return new Node(this, ownerId);
-    }
-
-    public void SetLeader(string ownerId)
-    {
-        List<Node> nodes;
-        lock (m_lock)
+        public ILeaderElection ForOwner(string ownerId)
         {
-            m_leader = ownerId;
-            nodes = [.. m_nodes];
+            return new Node(this, ownerId);
         }
 
-        foreach (Node node in nodes)
+        public void SetLeader(string ownerId)
         {
-            node.Notify();
-        }
-    }
+            List<Node> nodes;
+            lock (m_lock)
+            {
+                m_leader = ownerId;
+                nodes = [.. m_nodes];
+            }
 
-    private bool IsLeader(string ownerId)
-    {
-        lock (m_lock)
-        {
-            return string.Equals(m_leader, ownerId, StringComparison.Ordinal);
-        }
-    }
-
-    private void Add(Node node)
-    {
-        lock (m_lock)
-        {
-            m_nodes.Add(node);
-        }
-    }
-
-    private void Remove(Node node)
-    {
-        lock (m_lock)
-        {
-            m_nodes.Remove(node);
-        }
-    }
-
-    private readonly Lock m_lock = new();
-    private readonly List<Node> m_nodes = [];
-    private string? m_leader;
-
-    private sealed class Node : ILeaderElection
-    {
-        public Node(ManualLeaderElection owner, string ownerId)
-        {
-            m_owner = owner;
-            m_ownerId = ownerId;
-            m_owner.Add(this);
+            foreach (Node node in nodes)
+            {
+                node.Notify();
+            }
         }
 
-        public bool IsLeader => m_owner.IsLeader(m_ownerId);
-
-        public event Action<bool>? LeadershipChanged;
-
-        public ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
+        private bool IsLeader(string ownerId)
         {
-            return new ValueTask<bool>(IsLeader);
+            lock (m_lock)
+            {
+                return string.Equals(m_leader, ownerId, StringComparison.Ordinal);
+            }
         }
 
-        public void Start()
+        private void Add(Node node)
         {
-            Notify();
+            lock (m_lock)
+            {
+                m_nodes.Add(node);
+            }
         }
 
-        public ValueTask DisposeAsync()
+        private void Remove(Node node)
         {
-            m_owner.Remove(this);
-            return default;
+            lock (m_lock)
+            {
+                m_nodes.Remove(node);
+            }
         }
 
-        public void Notify()
-        {
-            LeadershipChanged?.Invoke(IsLeader);
-        }
+        private readonly Lock m_lock = new();
+        private readonly List<Node> m_nodes = [];
+        private string? m_leader;
 
-        private readonly ManualLeaderElection m_owner;
-        private readonly string m_ownerId;
+        private sealed class Node : ILeaderElection
+        {
+            public Node(ManualLeaderElection owner, string ownerId)
+            {
+                m_owner = owner;
+                m_ownerId = ownerId;
+                m_owner.Add(this);
+            }
+
+            public bool IsLeader => m_owner.IsLeader(m_ownerId);
+
+            public event Action<bool>? LeadershipChanged;
+
+            public ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(IsLeader);
+            }
+
+            public void Start()
+            {
+                Notify();
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                m_owner.Remove(this);
+                return default;
+            }
+
+            public void Notify()
+            {
+                LeadershipChanged?.Invoke(IsLeader);
+            }
+
+            private readonly ManualLeaderElection m_owner;
+            private readonly string m_ownerId;
+        }
     }
 }

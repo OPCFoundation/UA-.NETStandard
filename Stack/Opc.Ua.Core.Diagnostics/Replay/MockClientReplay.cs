@@ -235,7 +235,7 @@ namespace Opc.Ua.Pcap.Replay
                 }
 
                 OfflineDecodedChunk decoded = channel.ReadChunk(frame.Data.Span, true);
-                var key = (decoded.ChannelId, decoded.RequestId);
+                (uint ChannelId, uint RequestId) key = (decoded.ChannelId, decoded.RequestId);
                 if (!pending.TryGetValue(key, out PendingRequest? request))
                 {
                     request = new PendingRequest(frame.Timestamp);

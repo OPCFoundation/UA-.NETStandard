@@ -129,8 +129,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             await adapter.ConnectAsync(new KafkaConnectionOptions { Endpoint = KafkaTestHelper.EndpointUrl },
                 CancellationToken.None).ConfigureAwait(false);
 
-            await adapter.SubscribeAsync(Array.Empty<string>(), CancellationToken.None).ConfigureAwait(false);
-            await adapter.UnsubscribeAsync(Array.Empty<string>(), CancellationToken.None).ConfigureAwait(false);
+            await adapter.SubscribeAsync([], CancellationToken.None).ConfigureAwait(false);
+            await adapter.UnsubscribeAsync([], CancellationToken.None).ConfigureAwait(false);
             Assert.That(async () => await adapter.SubscribeAsync(null!, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(async () => await adapter.UnsubscribeAsync(null!, CancellationToken.None).ConfigureAwait(false),
@@ -150,9 +150,9 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             await adapter.DisposeAsync().ConfigureAwait(false);
             Assert.That(async () => await adapter.ConnectAsync(new KafkaConnectionOptions(), CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
-            Assert.That(async () => await adapter.SubscribeAsync(Array.Empty<string>(), CancellationToken.None).ConfigureAwait(false),
+            Assert.That(async () => await adapter.SubscribeAsync([], CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
-            Assert.That(async () => await adapter.UnsubscribeAsync(Array.Empty<string>(), CancellationToken.None).ConfigureAwait(false),
+            Assert.That(async () => await adapter.UnsubscribeAsync([], CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 

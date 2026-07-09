@@ -64,7 +64,7 @@ namespace Opc.Ua.Subscriptions.Tests
             new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         private static readonly IReadOnlyList<string> s_emptyStringTable =
-            Array.Empty<string>();
+            [];
 
         private static readonly NodeId s_nodeA = new("SensorA", 2);
         private static readonly NodeId s_nodeB = new("SensorB", 2);
@@ -970,7 +970,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return new List<IMonitoredItem>(m_items.Values);
+                        return [.. m_items.Values];
                     }
                 }
             }
@@ -992,7 +992,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return m_removed.ToArray();
+                        return [.. m_removed];
                     }
                 }
             }
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return m_removeAttempts.ToArray();
+                        return [.. m_removeAttempts];
                     }
                 }
             }

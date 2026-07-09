@@ -96,10 +96,11 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         {
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP384_AesGcm");
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
-            var validator = CreateSuccessfulValidator();
-            var pair = InMemoryDtlsDatagramChannel.CreatePair(serverToClientTransform: DowngradeServerCipherSuite);
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair
+                = InMemoryDtlsDatagramChannel.CreatePair(serverToClientTransform: DowngradeServerCipherSuite);
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
             Task clientTask = client.OpenAsync(pair.Client, cts.Token).AsTask();
@@ -115,10 +116,11 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         {
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
-            var validator = CreateSuccessfulValidator();
-            var pair = InMemoryDtlsDatagramChannel.CreatePair(serverToClientTransform: TamperFirstFinished);
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair
+                = InMemoryDtlsDatagramChannel.CreatePair(serverToClientTransform: TamperFirstFinished);
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
             Task clientTask = client.OpenAsync(pair.Client, cts.Token).AsTask();
@@ -144,9 +146,9 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                     statusCode: StatusCodes.BadCertificateInvalid,
                     errors: [new ServiceResult(StatusCodes.BadCertificateInvalid)],
                     isSuppressible: false));
-            var pair = InMemoryDtlsDatagramChannel.CreatePair();
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair = InMemoryDtlsDatagramChannel.CreatePair();
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
             Task clientTask = client.OpenAsync(pair.Client, cts.Token).AsTask();
@@ -163,8 +165,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate nistP384 = CreateEcdsaCertificate(DtlsNamedCurve.NistP384);
             using Certificate nistP256 = CreateEcdsaCertificate(DtlsNamedCurve.NistP256);
-            var validator = CreateSuccessfulValidator();
-            var pair = InMemoryDtlsDatagramChannel.CreatePair();
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair = InMemoryDtlsDatagramChannel.CreatePair();
 
             var clientOptions = new DtlsTransportOptions { PeerCertificateValidator = validator.Object };
             clientOptions.LocalCertificates.Add(nistP256);
@@ -172,8 +174,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             serverOptions.LocalCertificates.Add(nistP384);
             serverOptions.LocalCertificates.Add(nistP256);
 
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
 
             await Task.WhenAll(
                 client.OpenAsync(pair.Client, CancellationToken.None).AsTask(),
@@ -194,7 +196,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate clientCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
             using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
-            var validator = CreateSuccessfulValidator();
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
             var certificateProvider = new Mock<ICertificateProvider>(MockBehavior.Strict);
             certificateProvider
                 .Setup(p => p.GetPrivateKeyCertificateAsync(
@@ -213,8 +215,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 new DtlsProfileRegistry(),
                 validator.Object,
                 certificateProvider.Object);
-            var pair = InMemoryDtlsDatagramChannel.CreatePair();
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, clientCertificate, validator.Object);
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair = InMemoryDtlsDatagramChannel.CreatePair();
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, clientCertificate, validator.Object);
             using IDtlsContext server = await factory.CreateAsync(
                     new PubSubConnectionDataType { Name = "resolved-server" },
                     CreateEndpoint(profile),
@@ -245,11 +247,11 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         {
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate nistP384 = CreateEcdsaCertificate(DtlsNamedCurve.NistP384);
-            var validator = CreateSuccessfulValidator();
-            var pair = InMemoryDtlsDatagramChannel.CreatePair();
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair = InMemoryDtlsDatagramChannel.CreatePair();
             var serverOptions = new DtlsTransportOptions { PeerCertificateValidator = validator.Object };
             serverOptions.LocalCertificates.Add(nistP384);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
 
             Assert.That(
                 async () => await server.OpenAsync(pair.Server, CancellationToken.None).ConfigureAwait(false),
@@ -262,8 +264,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         {
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
-            var validator = CreateSuccessfulValidator();
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
             var channel = new AlwaysHelloRetryRequestChannel(profile);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
@@ -279,8 +281,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate clientCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
             using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
-            var validator = CreateSuccessfulValidator();
-            var pair = InMemoryDtlsDatagramChannel.CreatePair();
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair = InMemoryDtlsDatagramChannel.CreatePair();
 
             var clientOptions = new DtlsTransportOptions
             {
@@ -296,8 +298,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             };
             serverOptions.LocalCertificates.Add(serverCertificate);
 
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
 
             await Task.WhenAll(
                 client.OpenAsync(pair.Client, CancellationToken.None).AsTask(),
@@ -318,8 +320,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         {
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
             using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
-            var validator = CreateSuccessfulValidator();
-            var pair = InMemoryDtlsDatagramChannel.CreatePair();
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair = InMemoryDtlsDatagramChannel.CreatePair();
 
             var clientOptions = new DtlsTransportOptions
             {
@@ -334,8 +336,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             };
             serverOptions.LocalCertificates.Add(serverCertificate);
 
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
             Task clientTask = client.OpenAsync(pair.Client, cts.Token).AsTask();
@@ -349,10 +351,10 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         private static async Task RunHandshakeAndApplicationRoundTripAsync(DtlsProfile profile)
         {
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
-            var validator = CreateSuccessfulValidator();
-            var pair = InMemoryDtlsDatagramChannel.CreatePair();
-            using var client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
-            using var server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair = InMemoryDtlsDatagramChannel.CreatePair();
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
 
             await Task.WhenAll(
                 client.OpenAsync(pair.Client, CancellationToken.None).AsTask(),

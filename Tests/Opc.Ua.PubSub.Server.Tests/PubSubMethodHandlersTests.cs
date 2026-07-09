@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 out _,
                 out InMemoryPubSubKeyServiceServer sks,
                 opt => opt.ExposeSecurityKeyService = true);
-            var inputs = BuildArray(
+            ArrayOf<Variant> inputs = BuildArray(
                 Variant.From("group-a"),
                 Variant.From(60_000.0),
                 Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),

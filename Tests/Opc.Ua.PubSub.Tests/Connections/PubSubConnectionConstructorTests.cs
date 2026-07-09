@@ -252,7 +252,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         [Test]
         public async Task ConstructorSetsConfigurationProperty()
         {
-            var cfg = NewConfig("cfg-test", UdpProfile);
+            PubSubConnectionDataType cfg = NewConfig("cfg-test", UdpProfile);
             await using PubSubConnection conn = NewConnectionWithConfig(cfg);
             Assert.That(conn.Configuration, Is.SameAs(cfg));
         }

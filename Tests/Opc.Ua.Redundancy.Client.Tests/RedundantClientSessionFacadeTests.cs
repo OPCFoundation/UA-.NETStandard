@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             ISessionFactory sessionFactory = Mock.Of<ISessionFactory>();
             IUserIdentity identity = Mock.Of<IUserIdentity>();
-            var identityHistory = Array.Empty<IUserIdentity>();
+            IUserIdentity[] identityHistory = Array.Empty<IUserIdentity>();
             ISystemContext systemContext = Mock.Of<ISystemContext>();
             IEncodeableFactory factory = Mock.Of<IEncodeableFactory>();
             ITypeTable typeTree = Mock.Of<ITypeTable>();
@@ -103,11 +103,11 @@ namespace Opc.Ua.Client.Redundancy.Tests
             IServiceMessageContext messageContext = Mock.Of<IServiceMessageContext>();
             ITransportChannel nullableChannel = Mock.Of<ITransportChannel>();
             ITransportChannel transportChannel = Mock.Of<ITransportChannel>();
-            var subscriptions = Array.Empty<Subscription>();
+            Subscription[] subscriptions = Array.Empty<Subscription>();
             var namespaceUris = new NamespaceTable();
             var serverUris = new StringTable();
             var sessionId = new NodeId(42u);
-            object handle = new object();
+            object handle = new();
             var lastKeepAlive = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
 
             session.SetupGet(s => s.SessionFactory).Returns(sessionFactory);
@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var session = new Mock<ISession>();
             RedundantClientSession facade = CreateLeaderFacade(session);
 
-            var loaded = Array.Empty<Subscription>();
+            Subscription[] loaded = Array.Empty<Subscription>();
             var savedConfiguration = new SessionConfiguration();
             session.Setup(s => s.Load(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<IEnumerable<Type>?>()))
                 .Returns(loaded);
@@ -260,7 +260,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             session.Setup(s => s.BeginPublish(It.IsAny<int>())).Returns(true);
             session.Setup(s => s.NewRequestHandle()).Returns(4242u);
 
-            facade.Save(Stream.Null, Array.Empty<Subscription>(), null);
+            facade.Save(Stream.Null, [], null);
             Assert.That(facade.Load(Stream.Null, false, null), Is.SameAs(loaded));
             Assert.That(facade.SaveSessionConfiguration(), Is.SameAs(savedConfiguration));
             Assert.That(facade.ApplySessionConfiguration(new SessionConfiguration()), Is.True);
@@ -730,7 +730,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(await facade.CloseAsync(1000, true, ct).ConfigureAwait(false), Is.EqualTo(StatusCodes.Good));
             Assert.That(await facade.CloseAsync(ct).ConfigureAwait(false), Is.EqualTo(StatusCodes.Good));
             Assert.That(await facade.RemoveSubscriptionAsync(null!, ct).ConfigureAwait(false), Is.True);
-            Assert.That(await facade.RemoveSubscriptionsAsync(Array.Empty<Subscription>(), ct).ConfigureAwait(false), Is.True);
+            Assert.That(await facade.RemoveSubscriptionsAsync([], ct).ConfigureAwait(false), Is.True);
             Assert.That(await facade.ReactivateSubscriptionsAsync([], true, ct).ConfigureAwait(false), Is.True);
             Assert.That(await facade.TransferSubscriptionsAsync([], false, ct).ConfigureAwait(false), Is.True);
 
@@ -803,7 +803,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             current = first.Object;
             RedundantClientSession facade = CreateLeaderFacade(() => current);
 
-            object handle = new object();
+            object handle = new();
             facade.DeleteSubscriptionsOnClose = true;
             facade.KeepAliveInterval = 5;
             facade.MinPublishRequestCount = 6;

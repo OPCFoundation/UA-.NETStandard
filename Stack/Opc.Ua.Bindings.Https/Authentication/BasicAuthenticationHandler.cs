@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 
 namespace Opc.Ua.Bindings.WebApi.Authentication
 {
@@ -130,7 +131,7 @@ namespace Opc.Ua.Bindings.WebApi.Authentication
                     "Basic authentication requires HTTPS — refusing to accept credentials over plain HTTP.");
             }
 
-            if (!Request.Headers.TryGetValue("Authorization", out var headerValues))
+            if (!Request.Headers.TryGetValue("Authorization", out StringValues headerValues))
             {
                 return AuthenticateResult.NoResult();
             }
@@ -141,7 +142,7 @@ namespace Opc.Ua.Bindings.WebApi.Authentication
                 return AuthenticateResult.NoResult();
             }
 
-            if (!AuthenticationHeaderValue.TryParse(header, out var parsed) ||
+            if (!AuthenticationHeaderValue.TryParse(header, out AuthenticationHeaderValue? parsed) ||
                 !string.Equals(parsed.Scheme, "Basic", StringComparison.OrdinalIgnoreCase) ||
                 string.IsNullOrEmpty(parsed.Parameter))
             {

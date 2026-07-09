@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task AcquireWithFirstListenerInvokesHostFactoryAsync()
         {
-            var key = NewKey();
+            SharedHostKey key = NewKey();
             var listener = (HttpsTransportListener?)null;
             int factoryInvocations = 0;
             try
@@ -91,7 +91,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task AcquireWithSecondListenerReusesExistingHostAsync()
         {
-            var key = NewKey();
+            SharedHostKey key = NewKey();
             int factoryInvocations = 0;
             await using SharedHostLease lease1 = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task AcquireWithMismatchedThumbprintThrowsAsync()
         {
-            var key = NewKey();
+            SharedHostKey key = NewKey();
             await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 null!,
@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReleasingLastLeaseStopsTheHostAsync()
         {
-            var key = NewKey();
+            SharedHostKey key = NewKey();
             SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 null!,
@@ -157,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task DoubleDisposeOfLeaseIsIdempotentAsync()
         {
-            var key = NewKey();
+            SharedHostKey key = NewKey();
             SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,
                 null!,
@@ -171,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task AcquireValidatesArgumentsAsync()
         {
-            var key = NewKey();
+            SharedHostKey key = NewKey();
             Assert.ThrowsAsync<ArgumentNullException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
                     key, null!, "/test", null!, kThumbprint).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             // the hostFactory, so the factory (and the Kestrel Startup that
             // it builds) can resolve the SharedKestrelHost via DI during
             // the synchronous IHost.StartAsync that follows.
-            var key = NewKey();
+            SharedHostKey key = NewKey();
             SharedHostAccessor? captured = null;
             await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
                 key,

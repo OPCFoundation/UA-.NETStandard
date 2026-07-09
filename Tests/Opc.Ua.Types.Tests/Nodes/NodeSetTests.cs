@@ -407,7 +407,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri); // custom at index 2
 
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(10u),
                 new Variant(new NodeId("Sensor", 2)),
                 new NodeId(11u, 2));
@@ -425,7 +425,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri);
 
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(12u),
                 new Variant(new ExpandedNodeId(new NodeId("E", 2))),
                 new NodeId(13u));
@@ -443,7 +443,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri);
 
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(14u),
                 new Variant(new QualifiedName("Temp", 2)),
                 new NodeId(15u));
@@ -460,7 +460,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             NamespaceTable source = SourceTable(kCustomUri);
 
             var argument = new Argument { Name = "arg", DataType = new NodeId(20u), ValueRank = -1 };
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(16u),
                 new Variant(new ExtensionObject(argument)),
                 new NodeId(17u));
@@ -476,7 +476,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void AddLocalVariableWithScalarInt32ValueIsUnchanged()
         {
             var set = new NodeSet();
-            var variable = CreateVariable(new NodeId(18u), new Variant(42), new NodeId(19u));
+            VariableNode variable = CreateVariable(new NodeId(18u), new Variant(42), new NodeId(19u));
 
             var exported = (VariableNode)set.Add(variable, new NamespaceTable(), new StringTable());
 
@@ -490,7 +490,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri);
 
             var value = new Variant(new[] { new NodeId("A", 2), new NodeId("B", 2) }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(21u), value, new NodeId(22u));
+            VariableNode variable = CreateVariable(new NodeId(21u), value, new NodeId(22u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -509,7 +509,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 new ExpandedNodeId(new NodeId("A", 2)),
                 new ExpandedNodeId(new NodeId("B", 2))
             }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(23u), value, new NodeId(24u));
+            VariableNode variable = CreateVariable(new NodeId(23u), value, new NodeId(24u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -530,7 +530,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 new QualifiedName("A", 2),
                 new QualifiedName("B", 2)
             }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(25u), value, new NodeId(26u));
+            VariableNode variable = CreateVariable(new NodeId(25u), value, new NodeId(26u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -549,7 +549,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 new ExtensionObject(new Argument { Name = "a", DataType = new NodeId(1u), ValueRank = -1 }),
                 new ExtensionObject(new Argument { Name = "b", DataType = new NodeId(2u), ValueRank = -1 })
             }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(27u), value, new NodeId(28u));
+            VariableNode variable = CreateVariable(new NodeId(27u), value, new NodeId(28u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -565,8 +565,8 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri);
 
-            var matrix = new NodeId[,] { { new NodeId("A", 2), new NodeId("B", 2) } }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(29u), new Variant(matrix), new NodeId(30u));
+            MatrixOf<NodeId> matrix = new NodeId[,] { { new NodeId("A", 2), new NodeId("B", 2) } }.ToMatrixOf();
+            VariableNode variable = CreateVariable(new NodeId(29u), new Variant(matrix), new NodeId(30u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -582,11 +582,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri);
 
-            var matrix = new ExpandedNodeId[,]
+            MatrixOf<ExpandedNodeId> matrix = new ExpandedNodeId[,]
             {
                 { new ExpandedNodeId(new NodeId("A", 2)), new ExpandedNodeId(new NodeId("B", 2)) }
             }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(31u), new Variant(matrix), new NodeId(32u));
+            VariableNode variable = CreateVariable(new NodeId(31u), new Variant(matrix), new NodeId(32u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -601,8 +601,8 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             NamespaceTable source = SourceTable(kOtherUri, kCustomUri);
 
-            var matrix = new QualifiedName[,] { { new QualifiedName("A", 2), new QualifiedName("B", 2) } }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(33u), new Variant(matrix), new NodeId(34u));
+            MatrixOf<QualifiedName> matrix = new QualifiedName[,] { { new QualifiedName("A", 2), new QualifiedName("B", 2) } }.ToMatrixOf();
+            VariableNode variable = CreateVariable(new NodeId(33u), new Variant(matrix), new NodeId(34u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -617,14 +617,14 @@ namespace Opc.Ua.Types.Tests.Nodes
             var set = new NodeSet();
             NamespaceTable source = SourceTable(kCustomUri);
 
-            var matrix = new ExtensionObject[,]
+            MatrixOf<ExtensionObject> matrix = new ExtensionObject[,]
             {
                 {
                     new ExtensionObject(new Argument { Name = "a", DataType = new NodeId(1u), ValueRank = -1 }),
                     new ExtensionObject(new Argument { Name = "b", DataType = new NodeId(2u), ValueRank = -1 })
                 }
             }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(35u), new Variant(matrix), new NodeId(36u));
+            VariableNode variable = CreateVariable(new NodeId(35u), new Variant(matrix), new NodeId(36u));
 
             var exported = (VariableNode)set.Add(variable, source, new StringTable());
 
@@ -665,7 +665,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(50u, 2),
                 new Variant(new NodeId("V", 2)),
                 new NodeId(51u, 2));
@@ -687,7 +687,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(52u, 2),
                 new Variant(new ExpandedNodeId(new NodeId("E", 2))),
                 new NodeId(53u, 2));
@@ -707,7 +707,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(54u, 2),
                 new Variant(new QualifiedName("Q", 2)),
                 new NodeId(55u, 2));
@@ -727,7 +727,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var callerTable = new NamespaceTable();
             var argument = new Argument { Name = "arg", DataType = new NodeId(60u), ValueRank = -1 };
-            var variable = CreateVariable(
+            VariableNode variable = CreateVariable(
                 new NodeId(56u, 1),
                 new Variant(new ExtensionObject(argument)),
                 new NodeId(57u, 1));
@@ -748,7 +748,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var callerTable = new NamespaceTable();
             var value = new Variant(new[] { new NodeId("A", 2), new NodeId("B", 2) }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(58u, 2), value, new NodeId(59u, 2));
+            VariableNode variable = CreateVariable(new NodeId(58u, 2), value, new NodeId(59u, 2));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -770,7 +770,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 new ExpandedNodeId(new NodeId("A", 2)),
                 new ExpandedNodeId(new NodeId("B", 2))
             }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(61u, 2), value, new NodeId(62u, 2));
+            VariableNode variable = CreateVariable(new NodeId(61u, 2), value, new NodeId(62u, 2));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -787,7 +787,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var callerTable = new NamespaceTable();
             var value = new Variant(new[] { new QualifiedName("A", 2), new QualifiedName("B", 2) }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(63u, 2), value, new NodeId(64u, 2));
+            VariableNode variable = CreateVariable(new NodeId(63u, 2), value, new NodeId(64u, 2));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -809,7 +809,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 new ExtensionObject(new Argument { Name = "a", DataType = new NodeId(1u), ValueRank = -1 }),
                 new ExtensionObject(new Argument { Name = "b", DataType = new NodeId(2u), ValueRank = -1 })
             }.ToArrayOf());
-            var variable = CreateVariable(new NodeId(65u, 1), value, new NodeId(66u, 1));
+            VariableNode variable = CreateVariable(new NodeId(65u, 1), value, new NodeId(66u, 1));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -825,8 +825,8 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var matrix = new NodeId[,] { { new NodeId("A", 2), new NodeId("B", 2) } }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(67u, 2), new Variant(matrix), new NodeId(68u, 2));
+            MatrixOf<NodeId> matrix = new NodeId[,] { { new NodeId("A", 2), new NodeId("B", 2) } }.ToMatrixOf();
+            VariableNode variable = CreateVariable(new NodeId(67u, 2), new Variant(matrix), new NodeId(68u, 2));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -843,11 +843,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var matrix = new ExpandedNodeId[,]
+            MatrixOf<ExpandedNodeId> matrix = new ExpandedNodeId[,]
             {
                 { new ExpandedNodeId(new NodeId("A", 2)), new ExpandedNodeId(new NodeId("B", 2)) }
             }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(69u, 2), new Variant(matrix), new NodeId(70u, 2));
+            VariableNode variable = CreateVariable(new NodeId(69u, 2), new Variant(matrix), new NodeId(70u, 2));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -863,8 +863,8 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var matrix = new QualifiedName[,] { { new QualifiedName("A", 2), new QualifiedName("B", 2) } }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(71u, 2), new Variant(matrix), new NodeId(72u, 2));
+            MatrixOf<QualifiedName> matrix = new QualifiedName[,] { { new QualifiedName("A", 2), new QualifiedName("B", 2) } }.ToMatrixOf();
+            VariableNode variable = CreateVariable(new NodeId(71u, 2), new Variant(matrix), new NodeId(72u, 2));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -881,14 +881,14 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var matrix = new ExtensionObject[,]
+            MatrixOf<ExtensionObject> matrix = new ExtensionObject[,]
             {
                 {
                     new ExtensionObject(new Argument { Name = "a", DataType = new NodeId(1u), ValueRank = -1 }),
                     new ExtensionObject(new Argument { Name = "b", DataType = new NodeId(2u), ValueRank = -1 })
                 }
             }.ToMatrixOf();
-            var variable = CreateVariable(new NodeId(73u, 1), new Variant(matrix), new NodeId(74u, 1));
+            VariableNode variable = CreateVariable(new NodeId(73u, 1), new Variant(matrix), new NodeId(74u, 1));
 
             var copy = (VariableNode)set.Copy(variable, callerTable, new StringTable());
 
@@ -904,7 +904,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
 
             var callerTable = new NamespaceTable();
-            var variable = CreateVariable(new NodeId(75u, 1), new Variant(1), new NodeId(76u));
+            VariableNode variable = CreateVariable(new NodeId(75u, 1), new Variant(1), new NodeId(76u));
             variable.References = new[]
             {
                 new ReferenceNode(new NodeId(47u), false, new ExpandedNodeId(new NodeId("Tgt", 1)))

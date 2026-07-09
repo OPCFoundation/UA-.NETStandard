@@ -48,7 +48,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsValueOnSuccess()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
@@ -73,7 +73,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenBrowsePathBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.BadNoMatch,
@@ -90,7 +90,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenNoTargets()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
@@ -107,7 +107,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenReadStatusBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
@@ -132,7 +132,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenValueNotString()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,

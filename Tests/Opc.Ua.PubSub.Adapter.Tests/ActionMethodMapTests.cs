@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             var objectId = new NodeId(1u);
             var methodId = new NodeId(2u);
-            var map = new ActionMethodMap().Add(7, 9, objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add(7, 9, objectId, methodId);
 
             bool resolved = map.TryResolve(
                 new PubSubActionTarget { DataSetWriterId = 7, ActionTargetId = 9 },
@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             var objectId = new NodeId(10u);
             var methodId = new NodeId(11u);
-            var map = new ActionMethodMap().Add("Start", objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add("Start", objectId, methodId);
 
             bool resolved = map.TryResolve(
                 new PubSubActionTarget { ActionName = "Start" },
@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             var byPair = new NodeId(1u);
             var byName = new NodeId(2u);
-            var map = new ActionMethodMap()
+            ActionMethodMap map = new ActionMethodMap()
                 .Add(3, 4, new NodeId(100u), byPair)
                 .Add("Action", new NodeId(200u), byName);
 
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void TryResolveNullTargetReturnsFalse()
         {
-            var map = new ActionMethodMap().Add("X", new NodeId(1u), new NodeId(2u));
+            ActionMethodMap map = new ActionMethodMap().Add("X", new NodeId(1u), new NodeId(2u));
 
             bool resolved = map.TryResolve(null!, out ActionMethodBinding binding);
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             string[] rawNames = ["Result", "Code"];
             ArrayOf<string> names = rawNames.ToArrayOf();
-            var map = new ActionMethodMap()
+            ActionMethodMap map = new ActionMethodMap()
                 .Add(1, 2, new NodeId(1u), new NodeId(2u), names);
 
             map.TryResolve(

@@ -468,7 +468,6 @@ namespace Opc.Ua.Server
             ByteString serverNonce;
             ByteString serverCertificate = default;
             ArrayOf<EndpointDescription> serverEndpoints = default;
-            SignatureData? serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = await ValidateRequestAsync(
@@ -681,7 +680,7 @@ namespace Opc.Ua.Server
 
                 // The acquired certificate entry is a caller-owned ref-counted handle, so rotation cannot
                 // dispose the X509Certificate2 core while the signature is created outside the server lock.
-                serverSignature = CreateSessionServerSignature(
+                SignatureData? serverSignature = CreateSessionServerSignature(
                     context,
                     instanceCertificate,
                     parsedClientCertificate,

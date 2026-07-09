@@ -370,7 +370,7 @@ namespace OpcUaPubSubJsonTests
         public void DecodeFieldsReturnsEmptyForNonObjectPayload()
         {
             using var document = JsonDocument.Parse("[1,2,3]");
-            var fields = JsonFieldDecoder.DecodeFields(
+            ArrayOf<DataSetField> fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
@@ -391,7 +391,7 @@ namespace OpcUaPubSubJsonTests
                 }
                 """;
             using var document = JsonDocument.Parse(json);
-            var fields = JsonFieldDecoder.DecodeFields(
+            ArrayOf<DataSetField> fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
@@ -410,7 +410,7 @@ namespace OpcUaPubSubJsonTests
                 }
                 """;
             using var document = JsonDocument.Parse(nonDataValueObject);
-            var fields = JsonFieldDecoder.DecodeFields(
+            ArrayOf<DataSetField> fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement, null,
                 JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));

@@ -224,13 +224,13 @@ namespace Opc.Ua.PubSub.Tests.Security
         [Test]
         public void Constructor_RejectsNullArguments()
         {
-            var policy = PubSubNonePolicy.Instance;
+            PubSubNonePolicy policy = PubSubNonePolicy.Instance;
             var ring = new PubSubSecurityKeyRing("g");
             ring.SetCurrent(TestSecurityKeyFactory.Create(1U));
             var keyProvider = new StaticSecurityKeyProvider("g", ring);
             var nonceProvider = new RandomNonceProvider(PublisherId.FromUInt16(1));
             var window = new SecurityTokenWindow();
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Assert.Multiple(() =>
             {
                 Assert.That(

@@ -470,7 +470,7 @@ namespace Opc.Ua.PubSub.StateMachine
             StatusCode statusCode,
             Func<PubSubState, bool> allowed)
         {
-            PubSubStateChangedEventArgs? evt = null;
+            PubSubStateChangedEventArgs? evt;
             lock (m_lock)
             {
                 ThrowIfDisposedLocked();

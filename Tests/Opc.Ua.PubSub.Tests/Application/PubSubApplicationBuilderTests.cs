@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Connections = [],
                 PublishedDataSets = []
             };
-            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("test-app")
                 .UseConfiguration(config)
                 .UseAllStandardEncoders();
@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public void Build_WhenInlineAndFileBothSet_Throws()
         {
-            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .UseConfiguration(new PubSubConfigurationDataType
                 {
                     Connections = [],
@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public void Configure_ModifiesOptions()
         {
             string? captured = null;
-            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .Configure(o =>
                 {
                     o.ApplicationId = "configured-id";
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public void WithDiagnosticsLevel_PropagatesLevel()
         {
-            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithDiagnosticsLevel(PubSubDiagnosticsLevel.Medium);
             IPubSubApplication app = builder.Build();
             Assert.That(app, Is.Not.Null);
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public void UseInMemorySks_RegistersServer()
         {
-            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .UseInMemorySks();
             Assert.That(builder.SecurityKeyServiceServer, Is.Not.Null);
         }

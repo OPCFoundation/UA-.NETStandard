@@ -718,9 +718,9 @@ namespace Opc.Ua.PubSub.Kafka
             var builder = new StringBuilder(segment.Length);
             foreach (char c in segment)
             {
-                bool allowed = c is >= 'a' and <= 'z' or
-                    >= 'A' and <= 'Z' or
-                    >= '0' and <= '9' or
+                bool allowed = c is (>= 'a' and <= 'z') or
+                    (>= 'A' and <= 'Z') or
+                    (>= '0' and <= '9') or
                     '_' or '-';
                 builder.Append(allowed ? c : '_');
             }

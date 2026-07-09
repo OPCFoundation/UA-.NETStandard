@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             {
                 lock (m_sync)
                 {
-                    return m_subscriptions.ToArray();
+                    return [.. m_subscriptions];
                 }
             }
         }
@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             {
                 lock (m_sync)
                 {
-                    return m_unsubscriptions.ToArray();
+                    return [.. m_unsubscriptions];
                 }
             }
         }

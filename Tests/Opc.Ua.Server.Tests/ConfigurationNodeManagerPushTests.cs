@@ -805,7 +805,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
             m_configManager.ApplyChangesGracePeriod = TimeSpan.FromMilliseconds(-1);
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = ArrayOf<Variant>.Empty;
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResult result = m_configNode.ApplyChanges.OnCallMethod2(
@@ -826,7 +826,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
             m_configManager.ApplyChangesGracePeriod = TimeSpan.FromMilliseconds(250);
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = ArrayOf<Variant>.Empty;
             var outputArguments = new System.Collections.Generic.List<Variant>();
             ServiceResult result = m_configNode.ApplyChanges.OnCallMethod2(
                 context,
@@ -869,7 +869,7 @@ namespace Opc.Ua.Server.Tests
         public void ApplyChangesWithNoPendingUpdatesReturnsGood()
         {
             ISystemContext context = CreateAdminContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = ArrayOf<Variant>.Empty;
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResult result = m_configNode.ApplyChanges.OnCallMethod2(
@@ -886,7 +886,7 @@ namespace Opc.Ua.Server.Tests
         public void ApplyChangesNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = ArrayOf<Variant>.Empty;
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>

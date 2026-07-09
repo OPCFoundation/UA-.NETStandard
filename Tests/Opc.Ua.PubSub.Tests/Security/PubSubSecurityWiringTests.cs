@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             services.AddOpcUa().AddPubSub();
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var resolver = sp.GetService<IPubSubSecurityWrapperResolver>();
+            IPubSubSecurityWrapperResolver? resolver = sp.GetService<IPubSubSecurityWrapperResolver>();
 
             Assert.That(resolver, Is.Not.Null);
         }

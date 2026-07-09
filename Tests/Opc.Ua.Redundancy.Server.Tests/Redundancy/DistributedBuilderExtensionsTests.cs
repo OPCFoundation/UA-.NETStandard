@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
 
-            var cache = sp.GetRequiredService<IDistributedValueCache>();
+            IDistributedValueCache cache = sp.GetRequiredService<IDistributedValueCache>();
             Assert.That(cache, Is.Not.Null);
 
             // Before the server starts, the node-state store registry is not

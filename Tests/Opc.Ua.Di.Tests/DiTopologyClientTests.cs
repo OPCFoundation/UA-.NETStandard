@@ -53,7 +53,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateDevicesAsyncBrowsesDeviceSet()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             BrowseDescription? captured = null;
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
@@ -78,7 +78,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateNetworksAsyncBrowsesNetworkSet()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             BrowseDescription? captured = null;
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
@@ -100,7 +100,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void EnumerateChildrenAsyncThrowsOnNullParent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
 
             System.ArgumentException ex = Assert.Throws<System.ArgumentException>(
@@ -111,7 +111,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateChildrenAsyncBrowsesParent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             BrowseDescription? captured = null;
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
@@ -136,7 +136,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateReturnsEmptyListWhenBrowseStatusBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
                 StatusCode = StatusCodes.BadNodeIdUnknown,
@@ -155,7 +155,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateReturnsEmptyListWhenNoReferences()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
                 StatusCode = StatusCodes.Good,
@@ -171,7 +171,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateReturnsEmptyListWhenResponseHasNoResults()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             sessionMock
                 .Setup(s => s.BrowseAsync(
                     It.IsAny<RequestHeader?>(),

@@ -175,7 +175,7 @@ namespace Opc.Ua.InformationModel.Tests
                 VariableIds.Server_ServerRedundancy_RedundancySupport)
                 .ConfigureAwait(false);
 
-            var expectedTypeDefinition = redundancySupport.WrappedValue.GetInt32() switch
+            NodeId expectedTypeDefinition = redundancySupport.WrappedValue.GetInt32() switch
             {
                 4 => TransparentRedundancyTypeId,
                 1 or 2 or 3 or 5 => NonTransparentRedundancyTypeId,

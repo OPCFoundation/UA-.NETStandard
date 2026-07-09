@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// <param name="budget">Optional shared retry budget.</param>
         /// <returns>The wait period, capped to the remaining budget
         /// when possible.</returns>
-        public TimeSpan GetDelay(int attempt, IRetryBudget? budget)
+        TimeSpan GetDelay(int attempt, IRetryBudget? budget)
         {
             return ChannelReconnectPolicyBudget.GetDelay(this, attempt, budget);
         }
@@ -82,7 +82,7 @@ namespace Opc.Ua
         /// The default preserves the historical unbounded behavior. Policies that opt in to bounded
         /// participant work should return a non-negative timeout value.
         /// </remarks>
-        public TimeSpan ParticipantTimeout => Timeout.InfiniteTimeSpan;
+        TimeSpan ParticipantTimeout => Timeout.InfiniteTimeSpan;
 #endif
     }
 

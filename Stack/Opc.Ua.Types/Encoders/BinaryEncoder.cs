@@ -841,7 +841,7 @@ namespace Opc.Ua
             // DataValue and ExtensionObject are excluded because they can recurse:
             // DataValue via WrappedValue (Variant -> DataValue -> Variant -> ...)
             // and ExtensionObject via IEncodeable.
-            var builtInType = value.TypeInfo.BuiltInType;
+            BuiltInType builtInType = value.TypeInfo.BuiltInType;
             if (value.TypeInfo.IsScalar &&
                 builtInType != BuiltInType.DataValue &&
                 builtInType != BuiltInType.ExtensionObject)

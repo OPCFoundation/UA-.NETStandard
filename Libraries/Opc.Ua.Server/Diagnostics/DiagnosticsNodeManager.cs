@@ -332,7 +332,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            var nodes = new NodeStateCollection().AddOpcUa(context);
+            NodeStateCollection nodes = new NodeStateCollection().AddOpcUa(context);
 
             AddSdkImplementedOptionalChildren(context, nodes);
 

@@ -337,7 +337,7 @@ namespace Opc.Ua.PubSub.Application
                 ? Uuid.Empty
                 : new Uuid(metaData.DataSetClassId);
             ReadOnlyMemory<byte> payload;
-            string? topic = null;
+            string? topic;
             if (string.Equals(family, "Json", StringComparison.Ordinal))
             {
                 if (!TryResolveEncoder(profile, family, out INetworkMessageEncoder? encoder) ||

@@ -140,7 +140,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 uint originItemServerId = originItem!.ServerId;
                 uint originItemClientHandle = originItem.ClientHandle;
 
-                using (var saveStream = File.Create(saveFile))
+                using (FileStream saveStream = File.Create(saveFile))
                 {
                     await originSession.SaveSubscriptionsAsync(saveStream, ct: ct)
                         .ConfigureAwait(false);
@@ -182,7 +182,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 var targetHandler = new RecordingSubscriptionHandler();
                 IReadOnlyList<ISubscription> loaded;
-                using (var input = File.OpenRead(saveFile))
+                using (FileStream input = File.OpenRead(saveFile))
                 {
                     loaded = await targetSession.LoadSubscriptionsAsync(
                         input, _ => targetHandler,
@@ -307,7 +307,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 uint originSubServerId = ((LogicalSubscription)originSub).ServerId;
 
-                using (var output = File.Create(saveFile))
+                using (FileStream output = File.Create(saveFile))
                 {
                     await originSession.RequireSubscriptionManager().SaveAsync(
                         output, originSession.MessageContext, null, ct)
@@ -320,7 +320,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 var targetHandler = new RecordingSubscriptionHandler();
                 IReadOnlyList<ISubscription> loaded;
-                using (var input = File.OpenRead(saveFile))
+                using (FileStream input = File.OpenRead(saveFile))
                 {
                     loaded = await targetSession.RequireSubscriptionManager()
                         .LoadAsync(input, targetSession.MessageContext,
@@ -498,7 +498,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(allCreated, Is.True);
 
-                using (var output = File.Create(saveFile))
+                using (FileStream output = File.Create(saveFile))
                 {
                     await session.RequireSubscriptionManager().SaveAsync(
                         output, session.MessageContext, null, ct)
@@ -511,7 +511,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 var targetHandler = new RecordingSubscriptionHandler();
                 IReadOnlyList<ISubscription> loaded;
-                using (var input = File.OpenRead(saveFile))
+                using (FileStream input = File.OpenRead(saveFile))
                 {
                     loaded = await target.RequireSubscriptionManager().LoadAsync(input,
                         target.MessageContext, _ => targetHandler,

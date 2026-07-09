@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             {
                 lock (m_subscriptions)
                 {
-                    return m_subscriptions.ToArray();
+                    return [.. m_subscriptions];
                 }
             }
         }
@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             {
                 lock (m_unsubscribed)
                 {
-                    return m_unsubscribed.ToArray();
+                    return [.. m_unsubscribed];
                 }
             }
         }

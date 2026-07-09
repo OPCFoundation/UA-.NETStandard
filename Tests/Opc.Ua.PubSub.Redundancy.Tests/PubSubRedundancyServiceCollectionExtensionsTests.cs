@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Redundancy
         [Test]
         public async Task NetworkedStoreWithoutProtectorFailsClosedForSecurityKeyStoreAsync()
         {
-            var networkedStore = new Mock<ISharedKeyValueStore>(MockBehavior.Loose).Object;
+            ISharedKeyValueStore networkedStore = new Mock<ISharedKeyValueStore>(MockBehavior.Loose).Object;
             await using ServiceProvider provider = BuildProvider(
                 networkedStore,
                 PubSubRedundancyElection.LeaderElection,
@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Redundancy
         [Test]
         public async Task NetworkedStoreWithProtectorResolvesSecurityKeyStoreAsync()
         {
-            var networkedStore = new Mock<ISharedKeyValueStore>(MockBehavior.Loose).Object;
+            ISharedKeyValueStore networkedStore = new Mock<ISharedKeyValueStore>(MockBehavior.Loose).Object;
             ServiceCollection services = CreateServices(networkedStore, registerElection: true);
             services.AddSingleton<IRecordProtector>(new AesCbcHmacRecordProtector(new byte[32]));
             services.AddPubSubRedundancy(o => o.Election = PubSubRedundancyElection.LeaderElection);

@@ -97,7 +97,7 @@ namespace Opc.Ua.WotCon.Tests
             const string assetName = "asset-001";
             WriteValidTd(assetName);
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.WotCon.Tests
             WriteValidTd(goodName);
             WriteOversizeJson(oversizeName, sizeLimit * 2);
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxThingDescriptionSize = sizeLimit;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -153,7 +153,7 @@ namespace Opc.Ua.WotCon.Tests
                 WriteValidTd($"asset-{i:D3}");
             }
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxPersistedThingDescriptionFiles = limit;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -176,7 +176,7 @@ namespace Opc.Ua.WotCon.Tests
             // directory-load behaviour without removing the folder.
             WriteValidTd("asset-001");
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxPersistedThingDescriptionFiles = 0;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -199,7 +199,7 @@ namespace Opc.Ua.WotCon.Tests
             WriteValidTd(okName);
             WriteOverDeepJson(overDeepName, depthLimit + 16);
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxThingDescriptionJsonDepth = depthLimit;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -230,7 +230,7 @@ namespace Opc.Ua.WotCon.Tests
                 Path.Combine(_tempFolder, badName + ".jsonld"),
                 "{ \"this is\": not-valid-json");
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
 
@@ -249,7 +249,7 @@ namespace Opc.Ua.WotCon.Tests
             // OperationCanceledException must escape unmodified — the
             // catch filter in EnumeratePersistedAsync explicitly
             // rethrows on cancellation per the task spec.
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.ThrowsAsync<OperationCanceledException>(async () =>
             {
-                await foreach (var _ in registry.EnumeratePersistedAsync(cts.Token)
+                await foreach ((string Name, ThingDescription Description) in registry.EnumeratePersistedAsync(cts.Token)
                     .ConfigureAwait(false))
                 {
                     // unreachable — cancellation must fire on first iteration.
@@ -350,7 +350,7 @@ namespace Opc.Ua.WotCon.Tests
             AssetRegistry registry)
         {
             var results = new List<(string, ThingDescription)>();
-            await foreach (var entry in registry.EnumeratePersistedAsync(CancellationToken.None)
+            await foreach ((string Name, ThingDescription Description) entry in registry.EnumeratePersistedAsync(CancellationToken.None)
                 .ConfigureAwait(false))
             {
                 results.Add(entry);

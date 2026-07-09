@@ -183,7 +183,7 @@ namespace Opc.Ua.Bindings.Tests
             services.AddOpcUa().AddOpcTcpTransport();
             using ServiceProvider provider = services.BuildServiceProvider();
 
-            var registry = provider.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
 
             Assert.That(registry.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.True);
             Assert.That(registry.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
@@ -202,8 +202,8 @@ namespace Opc.Ua.Bindings.Tests
 
             // The registry is registered exactly once (singleton); resolving
             // it twice must return the same instance.
-            var registry1 = provider.GetRequiredService<ITransportBindingRegistry>();
-            var registry2 = provider.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry registry1 = provider.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry registry2 = provider.GetRequiredService<ITransportBindingRegistry>();
 
             Assert.That(registry2, Is.SameAs(registry1));
         }
@@ -217,7 +217,7 @@ namespace Opc.Ua.Bindings.Tests
                 .AddCustomTransport<FakeListenerFactory, FakeChannelFactory>();
             using ServiceProvider provider = services.BuildServiceProvider();
 
-            var registry = provider.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
 
             Assert.That(registry.HasListenerFactory(FakeListenerFactory.FakeScheme), Is.True);
             Assert.That(registry.HasChannelFactory(FakeListenerFactory.FakeScheme), Is.True);
@@ -240,8 +240,8 @@ namespace Opc.Ua.Bindings.Tests
             servicesB.AddOpcUa().AddCustomTransport<FakeListenerFactory, FakeChannelFactory>();
             using ServiceProvider providerB = servicesB.BuildServiceProvider();
 
-            var registryA = providerA.GetRequiredService<ITransportBindingRegistry>();
-            var registryB = providerB.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry registryA = providerA.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry registryB = providerB.GetRequiredService<ITransportBindingRegistry>();
 
             Assert.That(registryB, Is.Not.SameAs(registryA),
                 "Each ServiceProvider owns its own registry instance.");
@@ -267,7 +267,7 @@ namespace Opc.Ua.Bindings.Tests
                     registry.RegisterListenerFactory(new FakeListenerFactory(Utils.UriSchemeOpcTcp))));
             using ServiceProvider provider = services.BuildServiceProvider();
 
-            var registry = provider.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
 
             Assert.That(registry.GetListenerFactory(Utils.UriSchemeOpcTcp),
                 Is.InstanceOf<FakeListenerFactory>(),

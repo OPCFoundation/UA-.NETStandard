@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
         public async Task DisposeIsIdempotentAsync()
         {
             await using var network = new InMemoryNetwork();
-            var store = CreateStore(network);
+            ReplicatedSharedKeyValueStore store = CreateStore(network);
 
             await store.DisposeAsync().ConfigureAwait(false);
             Assert.That(async () => await store.DisposeAsync().ConfigureAwait(false), Throws.Nothing);

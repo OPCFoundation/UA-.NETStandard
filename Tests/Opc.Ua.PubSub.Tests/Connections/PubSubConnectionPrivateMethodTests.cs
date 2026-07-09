@@ -329,7 +329,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 diagnostics: diagnostics);
             var transport = new SpyTransport();
 
-            var exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await InvokePrivateAsync(
                     connection,
                     "SendChunkedAsync",
@@ -591,7 +591,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task EncodeAndWrapUadpAsync_WhenWrapperThrows_RecordsDiagnosticAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var throwingWrapper = CreateSecurityWrapper(throwOnCurrentKey: true);
+            UadpSecurityWrapper throwingWrapper = CreateSecurityWrapper(throwOnCurrentKey: true);
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>(),
@@ -919,7 +919,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
             public SpyTransport(IReadOnlyList<PubSubTransportFrame>? frames = null)
             {
-                m_frames = frames ?? Array.Empty<PubSubTransportFrame>();
+                m_frames = frames ?? [];
             }
 
             public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;

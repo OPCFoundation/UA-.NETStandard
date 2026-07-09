@@ -37,42 +37,43 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
-namespace RedundantPubSub;
-
-internal sealed class HaSubscriberSink : ISubscribedDataSetSink
+namespace RedundantPubSub
 {
-    public HaSubscriberSink(ILogger<HaSubscriberSink> logger)
+    internal sealed class HaSubscriberSink : ISubscribedDataSetSink
     {
-        m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
-    public ValueTask WriteAsync(IReadOnlyList<DataSetField> fields, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        m_logger.LogInformation(
-            "DataSet with {FieldCount} field(s) received: {FieldNames}.",
-            fields.Count,
-            FormatFieldNames(fields));
-        return ValueTask.CompletedTask;
-    }
-
-    private static string FormatFieldNames(IReadOnlyList<DataSetField> fields)
-    {
-        var builder = new StringBuilder();
-        for (int ii = 0; ii < fields.Count; ii++)
+        public HaSubscriberSink(ILogger<HaSubscriberSink> logger)
         {
-            if (ii > 0)
-            {
-                builder.Append(", ");
-            }
-
-            DataSetField field = fields[ii];
-            builder.Append(string.IsNullOrEmpty(field.Name)
-                ? string.Create(CultureInfo.InvariantCulture, $"f{ii}")
-                : field.Name);
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
-        return builder.ToString();
-    }
 
-    private readonly ILogger<HaSubscriberSink> m_logger;
+        public ValueTask WriteAsync(IReadOnlyList<DataSetField> fields, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            m_logger.LogInformation(
+                "DataSet with {FieldCount} field(s) received: {FieldNames}.",
+                fields.Count,
+                FormatFieldNames(fields));
+            return ValueTask.CompletedTask;
+        }
+
+        private static string FormatFieldNames(IReadOnlyList<DataSetField> fields)
+        {
+            var builder = new StringBuilder();
+            for (int ii = 0; ii < fields.Count; ii++)
+            {
+                if (ii > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                DataSetField field = fields[ii];
+                builder.Append(string.IsNullOrEmpty(field.Name)
+                    ? string.Create(CultureInfo.InvariantCulture, $"f{ii}")
+                    : field.Name);
+            }
+            return builder.ToString();
+        }
+
+        private readonly ILogger<HaSubscriberSink> m_logger;
+    }
 }

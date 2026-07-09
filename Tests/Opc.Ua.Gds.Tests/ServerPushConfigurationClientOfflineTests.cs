@@ -103,14 +103,14 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void MessageContextExposesOpcUaBaseNamespace()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.MessageContext.NamespaceUris.GetString(0), Is.EqualTo(OpcUaNamespaceUri));
         }
 
         [Test]
         public void AdminCredentialsDefaultsToNull()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.AdminCredentials, Is.Null);
         }
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Gds.Tests
         public void AdminCredentialsRoundTrips()
         {
             var identity = new UserIdentity();
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             client.AdminCredentials = identity;
             Assert.That(client.AdminCredentials, Is.SameAs(identity));
         }
@@ -126,7 +126,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ResetCredentialsClearsAdminCredentials()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             client.AdminCredentials = new UserIdentity();
             client.ResetCredentials();
             Assert.That(client.AdminCredentials, Is.Null);
@@ -135,14 +135,14 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void PreferredLocalesDefaultsToNull()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.PreferredLocales.IsNull, Is.True);
         }
 
         [Test]
         public void PreferredLocalesRoundTrips()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             client.PreferredLocales = new[] { "en-US", "de-DE" };
             Assert.Multiple(() =>
             {
@@ -155,56 +155,56 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void IsConnectedDefaultsToFalse()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.IsConnected, Is.False);
         }
 
         [Test]
         public void SessionDefaultsToNull()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.Session, Is.Null);
         }
 
         [Test]
         public void ServerConfigurationDefaultsToNull()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.ServerConfiguration, Is.Null);
         }
 
         [Test]
         public void DefaultApplicationGroupIsNullBeforeConnect()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.DefaultApplicationGroup.IsNull, Is.True);
         }
 
         [Test]
         public void DefaultHttpsGroupIsNullBeforeConnect()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.DefaultHttpsGroup.IsNull, Is.True);
         }
 
         [Test]
         public void DefaultUserTokenGroupIsNullBeforeConnect()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.DefaultUserTokenGroup.IsNull, Is.True);
         }
 
         [Test]
         public void EndpointIsNullWhenNotConfigured()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.Endpoint, Is.Null);
         }
 
         [Test]
         public void EndpointUrlIsNullWhenNotConfigured()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             Assert.That(client.EndpointUrl, Is.Null);
         }
 
@@ -289,7 +289,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithNullEndpointUrlThrows()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync((string)null!).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithEmptyEndpointUrlThrows()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync(string.Empty).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
@@ -307,7 +307,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithMalformedEndpointUrlThrows()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
                 () => client.ConnectAsync("not a valid url").AsTask());
             Assert.Multiple(() =>
@@ -320,7 +320,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithoutEndpointThrows()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             ConfiguredEndpoint nullEndpoint = null!;
             AssertThrowsEndpointNull(() => client.ConnectAsync(nullEndpoint).AsTask());
         }
@@ -328,14 +328,14 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithCancellationTokenAndNoEndpointThrows()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             AssertThrowsEndpointNull(() => client.ConnectAsync().AsTask());
         }
 
         [Test]
         public void CertificateManagementOperationsWithoutEndpointThrow()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             AssertThrowsEndpointNull(() => client.GetCertificatesAsync(NodeId.Null).AsTask());
             AssertThrowsEndpointNull(
                 () => client.CreateSigningRequestAsync(
@@ -353,7 +353,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void TrustListOperationsWithoutEndpointThrow()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null).AsTask());
             AssertThrowsEndpointNull(() => client.ReadTrustListAsync().AsTask());
             AssertThrowsEndpointNull(() => client.UpdateTrustListAsync(null!).AsTask());
@@ -372,7 +372,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task GetSupportedKeyFormatsReturnsNullWhenNotConfiguredAsync()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             ArrayOf<string> formats = await client.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
             Assert.That(formats.IsNull, Is.True);
         }
@@ -380,7 +380,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task DisconnectWhenNotConnectedCompletesAsync()
         {
-            using var client = CreateClient();
+            using ServerPushConfigurationClient client = CreateClient();
             await client.DisconnectAsync().ConfigureAwait(false);
             Assert.That(client.IsConnected, Is.False);
         }
@@ -388,7 +388,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void DisposeTwiceDoesNotThrow()
         {
-            var client = CreateClient();
+            ServerPushConfigurationClient client = CreateClient();
             client.Dispose();
             Assert.DoesNotThrow(client.Dispose);
             Assert.That(client.IsConnected, Is.False);
@@ -397,7 +397,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task DisposeAsyncTwiceDoesNotThrowAsync()
         {
-            var client = CreateClient();
+            ServerPushConfigurationClient client = CreateClient();
             await client.DisposeAsync().ConfigureAwait(false);
             await client.DisposeAsync().ConfigureAwait(false);
             Assert.That(client.IsConnected, Is.False);

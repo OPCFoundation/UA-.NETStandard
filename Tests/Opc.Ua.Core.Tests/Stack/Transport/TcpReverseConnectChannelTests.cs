@@ -104,7 +104,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
 
-            using var channel = BuildChannel(listenerMock);
+            using TcpReverseConnectChannel channel = BuildChannel(listenerMock);
 
             Assert.That(channel.ChannelName, Is.EqualTo("TCPREVERSECONNECTCHANNEL"));
         }
@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
 
-            using var channel = BuildChannel(listenerMock);
+            using TcpReverseConnectChannel channel = BuildChannel(listenerMock);
 
             var buffers = new BufferManager("rcc-test", 8192, m_telemetry);
             (InProcessTransport client, InProcessTransport peer) =
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
 
-            using var channel = BuildChannel(listenerMock);
+            using TcpReverseConnectChannel channel = BuildChannel(listenerMock);
 
             var buffers = new BufferManager("rcc-cancel-test", 8192, m_telemetry);
             (InProcessTransport client, InProcessTransport peer) =

@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             ValidatePrefix(prefix);
             string publisherToken = ToPublisherIdToken(publisherId);
-            var sb = new StringBuilder(prefix.Length + 64)
+            StringBuilder sb = new StringBuilder(prefix.Length + 64)
                 .Append(prefix)
                 .Append('/').Append(encoding.ToTopicSegment())
                 .Append('/').Append(DataSegment)

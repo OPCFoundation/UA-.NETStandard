@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests
         {
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
 
-            var (typeId, encodingId, dataTypeNode) = await resolver
+            (ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode) = await resolver
                 .BrowseTypeIdsForDictionaryComponentAsync(
                     NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris))
                 .ConfigureAwait(false);
@@ -396,7 +396,7 @@ namespace Opc.Ua.Server.Tests
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
             string[] supported = [BrowseNames.DefaultBinary];
 
-            var (encodings, binaryEncodingId, xmlEncodingId) = await resolver
+            (ArrayOf<NodeId> encodings, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId) = await resolver
                 .BrowseForEncodingsAsync(
                     NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris),
                     supported)

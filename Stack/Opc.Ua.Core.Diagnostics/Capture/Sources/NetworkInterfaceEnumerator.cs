@@ -56,9 +56,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
         {
             try
             {
-                return LibPcapLiveDeviceList.Instance
-                    .Select(CreateInfo)
-                    .ToArray();
+                return [.. LibPcapLiveDeviceList.Instance.Select(CreateInfo)];
             }
             catch (Exception ex) when (ex is not PcapDiagnosticsException)
             {

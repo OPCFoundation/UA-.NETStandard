@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddSingleton<IOpcUaDiscoveryService>(new EmptyDiscoveryStub());
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var factory =
+            Func<CancellationToken, Task<Client.ManagedSession>> factory =
                 sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
 
             InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(

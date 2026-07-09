@@ -132,8 +132,8 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<TChannelFactory>();
             builder.Services.AddSingleton<ITransportBindingConfigurator>(provider =>
             {
-                var listenerFactory = provider.GetRequiredService<TListenerFactory>();
-                var channelFactory = provider.GetRequiredService<TChannelFactory>();
+                TListenerFactory listenerFactory = provider.GetRequiredService<TListenerFactory>();
+                TChannelFactory channelFactory = provider.GetRequiredService<TChannelFactory>();
                 return new TransportBindingConfigurator(registry =>
                 {
                     registry.RegisterListenerFactory(listenerFactory);

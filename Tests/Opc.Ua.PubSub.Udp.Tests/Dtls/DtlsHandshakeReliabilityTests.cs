@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
@@ -47,7 +48,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public void FragmentsReassembleOutOfOrder()
         {
             byte[] body = [.. Enumerable.Range(0, 100).Select(value => (byte)value)];
-            var fragments = DtlsHandshakeReassembler.Fragment(DtlsHandshakeType.Certificate, 3, body, 37);
+            IReadOnlyList<byte[]> fragments = DtlsHandshakeReassembler.Fragment(DtlsHandshakeType.Certificate, 3, body, 37);
             var reassembler = new DtlsHandshakeReassembler();
 
             byte[]? reassembled = null;
@@ -65,7 +66,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         {
             DtlsRecordNumber[] records = [new(1, 7), new(2, 9)];
 
-            var decoded = DtlsAckCodec.Decode(DtlsAckCodec.Encode(records));
+            IReadOnlyList<DtlsRecordNumber> decoded = DtlsAckCodec.Decode(DtlsAckCodec.Encode(records));
 
             Assert.That(decoded, Is.EqualTo(records));
         }

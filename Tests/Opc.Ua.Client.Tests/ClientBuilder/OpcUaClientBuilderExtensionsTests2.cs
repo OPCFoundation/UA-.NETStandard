@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(clientBuilder, Is.Not.Null);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetRequiredService<OpcUaClientOptions>();
+            OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
 
             // OpcUaClientOptions itself is successfully resolved.
             Assert.That(options, Is.Not.Null);
@@ -310,7 +310,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddWebApiTransportChannel();
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetService<WebApiClientOptions>();
+            WebApiClientOptions? options = sp.GetService<WebApiClientOptions>();
 
             Assert.That(options, Is.Not.Null);
         }
@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using ServiceProvider sp = services.BuildServiceProvider();
 
             // Resolve the options to trigger the lazy factory.
-            var options = sp.GetRequiredService<WebApiClientOptions>();
+            WebApiClientOptions options = sp.GetRequiredService<WebApiClientOptions>();
 
             Assert.That(actionRan, Is.True);
             Assert.That(options.Encoding, Is.EqualTo(WebApiEncoding.Verbose));
@@ -342,7 +342,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddWebApiTransportChannel(configure: null);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetRequiredService<WebApiClientOptions>();
+            WebApiClientOptions options = sp.GetRequiredService<WebApiClientOptions>();
 
             Assert.That(options, Is.Not.Null);
             Assert.That(options.Encoding, Is.EqualTo(WebApiEncoding.Compact));

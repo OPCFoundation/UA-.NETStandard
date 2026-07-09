@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void EmptyIssues_IsValidTrue()
         {
             var result = new PubSubConfigurationValidationResult(
-                Array.Empty<PubSubConfigurationIssue>());
+                []);
             Assert.That(result.IsValid, Is.True);
             Assert.That(((PubSubConfigurationIssue[]?)result.Issues) ?? [], Is.Empty);
         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void Exception_MessageSummarisesFirstErrors()
         {
-            var issues = new[]
+            PubSubConfigurationIssue[] issues = new[]
             {
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCAAA"),
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCBBB"),
@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void Exception_NoIssues_StillProducesMessage()
         {
             var ex = new PubSubConfigurationException(
-                Array.Empty<PubSubConfigurationIssue>());
+                []);
             Assert.That(ex.Message, Is.Not.Null);
             Assert.That(((PubSubConfigurationIssue[]?)ex.Issues) ?? [], Is.Empty);
         }

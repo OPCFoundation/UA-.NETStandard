@@ -87,7 +87,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             if (string.IsNullOrEmpty(m_options.HostName))
             {
-                return Array.Empty<DiscoveredPeer>();
+                return [];
             }
 
             ISet<IPAddress> local = m_options.ExcludeLocalAddresses

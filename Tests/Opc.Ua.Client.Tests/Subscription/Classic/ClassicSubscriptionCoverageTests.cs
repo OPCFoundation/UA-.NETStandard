@@ -144,7 +144,7 @@ namespace Opc.Ua.Client.Tests
         public void PropertySettersRoundTripExpectedValues()
         {
             using Subscription subscription = CreateSubscription();
-            object handle = new object();
+            object handle = new();
 
             subscription.DisplayName = "Custom";
             subscription.PublishingInterval = 2000;
@@ -593,7 +593,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void DisposeIsIdempotent()
         {
-            var subscription = CreateSubscription();
+            Subscription subscription = CreateSubscription();
 
             subscription.Dispose();
 

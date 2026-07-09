@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public void Constructor_RecordsAllFields()
         {
-            byte[][] packed = new[] { new byte[] { 1, 2, 3 } };
+            byte[][] packed = [new byte[] { 1, 2, 3 }];
             var response = new SksKeyResponse(
                 PubSubSecurityPolicyUri.None,
                 42U,

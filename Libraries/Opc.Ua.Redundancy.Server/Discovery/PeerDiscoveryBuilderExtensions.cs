@@ -79,7 +79,7 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.TryAddSingleton<DiscoveredRedundantServerSetProvider>();
             builder.Services.AddSingleton<IRedundantServerSetProvider>(sp =>
             {
-                var discovered = sp.GetRequiredService<DiscoveredRedundantServerSetProvider>();
+                DiscoveredRedundantServerSetProvider discovered = sp.GetRequiredService<DiscoveredRedundantServerSetProvider>();
                 // Static configuration (ServerRedundancyOptions from AddServerRedundancy) is the fallback used
                 // until dynamic discovery finds peers.
                 ServerRedundancyOptions? configured = sp.GetService<ServerRedundancyOptions>();

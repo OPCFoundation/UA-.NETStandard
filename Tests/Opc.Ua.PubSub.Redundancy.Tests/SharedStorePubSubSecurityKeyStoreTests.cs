@@ -46,8 +46,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         public async Task SaveThenGetRoundTripsEverySecurityGroupFieldAsync()
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
-            using var protector = CreateProtector();
-            var keyStore = CreateKeyStore(sharedStore, protector);
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             SksSecurityGroup expected = CreateGroup("group-a");
 
             await keyStore.SaveSecurityGroupAsync(expected).ConfigureAwait(false);
@@ -61,8 +61,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         public async Task GetSecurityGroupIdsReflectsSavedGroupsAsync()
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
-            using var protector = CreateProtector();
-            var keyStore = CreateKeyStore(sharedStore, protector);
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
 
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-a")).ConfigureAwait(false);
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-b")).ConfigureAwait(false);
@@ -75,8 +75,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         public async Task RemoveSecurityGroupDeletesGroupAsync()
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
-            using var protector = CreateProtector();
-            var keyStore = CreateKeyStore(sharedStore, protector);
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-a")).ConfigureAwait(false);
 
             bool removed = await keyStore.RemoveSecurityGroupAsync("group-a").ConfigureAwait(false);
@@ -90,8 +90,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         public async Task GetSecurityGroupReturnsNullForUnknownGroupAsync()
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
-            using var protector = CreateProtector();
-            var keyStore = CreateKeyStore(sharedStore, protector);
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
 
             SksSecurityGroup actual = await keyStore.GetSecurityGroupAsync("missing").ConfigureAwait(false);
 
@@ -102,8 +102,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         public async Task SaveSecurityGroupStoresProtectedBytesAsync()
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
-            using var protector = CreateProtector();
-            var keyStore = CreateKeyStore(sharedStore, protector);
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
 
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-a")).ConfigureAwait(false);
             (bool found, ByteString stored) = await sharedStore

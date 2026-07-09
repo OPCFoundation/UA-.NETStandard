@@ -50,8 +50,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task InitLockAsyncCallsInitLockMethodWithContext()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
@@ -82,8 +82,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task RenewLockAsyncCallsRenewLockMethodWithoutInputs()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
@@ -110,8 +110,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ExitLockAsyncCallsExitLockMethod()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
@@ -137,8 +137,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task BreakLockAsyncCallsBreakLockMethod()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
@@ -163,7 +163,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void CallThrowsServiceResultExceptionWhenStatusBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.BadUserAccessDenied,
@@ -181,7 +181,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void CallThrowsBadUnexpectedErrorWhenOutputEmpty()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
@@ -199,7 +199,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void CallThrowsBadUnexpectedErrorWhenOutputIsNotInt32()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,

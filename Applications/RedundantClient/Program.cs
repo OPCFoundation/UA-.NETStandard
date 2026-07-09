@@ -566,7 +566,7 @@ namespace RedundantClient
                 .ConfigureAwait(false);
             if (browseResponse.Results.Count > 0)
             {
-                var references = browseResponse.Results[0].References;
+                ArrayOf<ReferenceDescription> references = browseResponse.Results[0].References;
                 for (int ii = 0; ii < references.Count; ii++)
                 {
                     Console.WriteLine("  {0} ({1})", references[ii].DisplayName, references[ii].NodeClass);

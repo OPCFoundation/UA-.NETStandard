@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .SampleAsync(metaDataBuilder.BuildMetaData())
                 .ConfigureAwait(false);
 
-            var fields = (DataSetField[]?)snapshot.Fields ?? [];
+            DataSetField[] fields = (DataSetField[]?)snapshot.Fields ?? [];
             Assert.That(fields, Has.Length.EqualTo(1));
             Assert.That(StatusCode.IsGood(fields[0].StatusCode), Is.True);
             Assert.That(fields[0].Value.TryGetValue(out int value), Is.True);
@@ -229,7 +229,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             NodeId methodId = ScalarNode("Methods_Add");
 
             string[] outputNames = ["Sum"];
-            var map = new ActionMethodMap()
+            ActionMethodMap map = new ActionMethodMap()
                 .Add(writerId, targetId, objectId, methodId, outputNames.ToArrayOf());
             var handler = new ServerActionHandler(m_session, map, m_telemetry);
 

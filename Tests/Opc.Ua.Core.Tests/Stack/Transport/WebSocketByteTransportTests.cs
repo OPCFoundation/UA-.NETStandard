@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendChunkAsyncEmitsSingleBinaryFrame()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReceiveChunkAsyncReassemblesAcrossFrames()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReceiveChunkAsyncRejectsTextFrame()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -188,7 +188,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReceiveChunkAsyncRejectsMessageExceedingBufferSize()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -217,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReceiveChunkAsyncReportsCloseFrameAsBadConnectionClosed()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -240,7 +240,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendChunkAsyncBufferCollectionConcatenatesIntoSingleFrame()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,

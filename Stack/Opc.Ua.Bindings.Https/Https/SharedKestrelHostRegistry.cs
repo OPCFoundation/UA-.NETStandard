@@ -524,6 +524,6 @@ namespace Opc.Ua.Bindings
         private readonly Dictionary<string, HttpsTransportListener> m_listeners =
             new(StringComparer.OrdinalIgnoreCase);
 
-        private IReadOnlyList<string> m_routeOrder = Array.Empty<string>();
+        private IReadOnlyList<string> m_routeOrder = [];
     }
 }

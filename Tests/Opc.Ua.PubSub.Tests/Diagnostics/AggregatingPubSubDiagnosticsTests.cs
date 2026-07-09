@@ -188,7 +188,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             var root = new PubSubDiagnostics(PubSubDiagnosticsLevel.Low);
             var agg = new AggregatingPubSubDiagnostics(
                 root,
-                () => Array.Empty<IPubSubDiagnostics>());
+                () => []);
 
             root.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages, 4);
 

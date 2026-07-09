@@ -479,22 +479,20 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 .ConfigureAwait(false);
             RequireMessage(certificateFrame, DtlsHandshakeType.Certificate);
             transcript.Append(ToCompleteFrame(certificateFrame));
-            using (CertificateCollection peerChain =
-                DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment))
-            {
-                await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
-                byte[] certificateVerifyTranscriptHash = transcript.GetHash();
-                DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(channel, cancellationToken)
-                    .ConfigureAwait(false);
-                RequireMessage(certificateVerifyFrame, DtlsHandshakeType.CertificateVerify);
-                DtlsCertificateAuthenticator.VerifyCertificateVerify(
-                    peerChain[0],
-                    Profile.CipherSuite,
-                    certificateVerifyTranscriptHash,
-                    certificateVerifyFrame.Fragment,
-                    isServer: false);
-                transcript.Append(ToCompleteFrame(certificateVerifyFrame));
-            }
+            using CertificateCollection peerChain =
+                DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment);
+            await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
+            byte[] certificateVerifyTranscriptHash = transcript.GetHash();
+            DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(channel, cancellationToken)
+                .ConfigureAwait(false);
+            RequireMessage(certificateVerifyFrame, DtlsHandshakeType.CertificateVerify);
+            DtlsCertificateAuthenticator.VerifyCertificateVerify(
+                peerChain[0],
+                Profile.CipherSuite,
+                certificateVerifyTranscriptHash,
+                certificateVerifyFrame.Fragment,
+                isServer: false);
+            transcript.Append(ToCompleteFrame(certificateVerifyFrame));
         }
 
         private CancellationTokenSource CreateHandshakeTimeoutCts(CancellationToken cancellationToken)

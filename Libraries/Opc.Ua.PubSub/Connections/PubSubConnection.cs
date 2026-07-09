@@ -734,7 +734,7 @@ namespace Opc.Ua.PubSub.Connections
             ushort requestId = NewActionRequestId();
             ByteString correlationData = CreateCorrelationData(requestId);
             ushort actionTargetId = ResolveActionTargetId(request.Target);
-            var target = request.Target with { ActionTargetId = actionTargetId };
+            PubSubActionTarget target = request.Target with { ActionTargetId = actionTargetId };
             var pending = new PendingActionRequest(requestId, correlationData, target);
             RegisterPendingAction(pending);
             try
@@ -1184,11 +1184,12 @@ namespace Opc.Ua.PubSub.Connections
                 throw new ArgumentNullException(nameof(message));
             }
 
-            DataSetMetaDataType? meta = null;
             PublisherId publisherId = message.PublisherId;
-            ushort writerId = 0;
-            Uuid classId = default;
 
+
+            DataSetMetaDataType? meta;
+            ushort writerId;
+            Uuid classId;
             switch (message)
             {
                 case JsonMetaDataMessage json:
@@ -1817,7 +1818,7 @@ namespace Opc.Ua.PubSub.Connections
 
         private bool ShouldDiscardDuplicateProbe(UadpDiscoveryRequestMessage request)
         {
-            var key = CreateThrottleKey(request);
+            DiscoveryThrottleKey key = CreateThrottleKey(request);
             long now = m_timeProvider.GetTimestamp();
             lock (m_gate)
             {
@@ -1833,7 +1834,7 @@ namespace Opc.Ua.PubSub.Connections
 
         private bool ShouldThrottleDiscoveryResponse(UadpDiscoveryResponseMessage response)
         {
-            var key = CreateThrottleKey(response);
+            DiscoveryThrottleKey key = CreateThrottleKey(response);
             long now = m_timeProvider.GetTimestamp();
             lock (m_gate)
             {

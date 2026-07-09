@@ -84,7 +84,7 @@ namespace Opc.Ua.Redundancy.Server
             ArrayOf<ApplicationDescription> servers = await m_findServers(ct).ConfigureAwait(false);
             if (servers.IsNull || servers.Count == 0)
             {
-                return Array.Empty<DiscoveredPeer>();
+                return [];
             }
 
             var peers = new List<DiscoveredPeer>(servers.Count);

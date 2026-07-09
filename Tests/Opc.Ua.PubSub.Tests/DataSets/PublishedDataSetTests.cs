@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         public void Constructor_WithConfigName_SetsNameProperty()
         {
             var config = new PublishedDataSetDataType { Name = "my-dataset" };
-            var sourceMock = SourceReturning(new DataSetMetaDataType());
+            IPublishedDataSetSource sourceMock = SourceReturning(new DataSetMetaDataType());
 
             var ds = new PublishedDataSet(config, sourceMock);
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         public void Constructor_WithNullConfigName_NameIsEmptyString()
         {
             var config = new PublishedDataSetDataType { Name = null };
-            var sourceMock = SourceReturning(new DataSetMetaDataType());
+            IPublishedDataSetSource sourceMock = SourceReturning(new DataSetMetaDataType());
 
             var ds = new PublishedDataSet(config, sourceMock);
 
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 Name = "ds",
                 DataSetMetaData = configMetaData
             };
-            var sourceMock = SourceReturning(sourceMetaData);
+            IPublishedDataSetSource sourceMock = SourceReturning(sourceMetaData);
 
             var ds = new PublishedDataSet(config, sourceMock);
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 Name = "ds",
                 DataSetMetaData = configMetaData
             };
-            var sourceMock = SourceReturningNull();
+            IPublishedDataSetSource sourceMock = SourceReturningNull();
 
             var ds = new PublishedDataSet(config, sourceMock);
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         {
             var config = new PublishedDataSetDataType { Name = "ds" };
             // DataSetMetaData defaults to null; SourceReturning(null) also returns null
-            var sourceMock = SourceReturningNull();
+            IPublishedDataSetSource sourceMock = SourceReturningNull();
 
             var ds = new PublishedDataSet(config, sourceMock);
 
@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             var guid = Guid.NewGuid();
             var meta = new DataSetMetaDataType { DataSetClassId = new Uuid(guid) };
             var config = new PublishedDataSetDataType { Name = "ds" };
-            var sourceMock = SourceReturning(meta);
+            IPublishedDataSetSource sourceMock = SourceReturning(meta);
 
             var ds = new PublishedDataSet(config, sourceMock);
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         {
             var meta = new DataSetMetaDataType { DataSetClassId = Uuid.Empty };
             var config = new PublishedDataSetDataType { Name = "ds" };
-            var sourceMock = SourceReturning(meta);
+            IPublishedDataSetSource sourceMock = SourceReturning(meta);
 
             var ds = new PublishedDataSet(config, sourceMock);
 

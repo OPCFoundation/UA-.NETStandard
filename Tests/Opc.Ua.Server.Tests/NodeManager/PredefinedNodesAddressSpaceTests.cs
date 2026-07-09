@@ -53,7 +53,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             predefinedNodes[parent.NodeId] = parent;
             predefinedNodes[child.NodeId] = child;
 
-            var addressSpace = CreateAddressSpace(predefinedNodes);
+            PredefinedNodesAddressSpace addressSpace = CreateAddressSpace(predefinedNodes);
 
             NodeState[] nodes = [.. addressSpace.Nodes];
 
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeIdDictionary<NodeState> predefinedNodes = [];
             BaseObjectState node = CreateObject("Lookup");
             predefinedNodes[node.NodeId] = node;
-            var addressSpace = CreateAddressSpace(predefinedNodes);
+            PredefinedNodesAddressSpace addressSpace = CreateAddressSpace(predefinedNodes);
 
             bool found = addressSpace.TryGetNode(node.NodeId, out NodeState? result);
 

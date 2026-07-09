@@ -237,7 +237,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         public async Task BudgetReferenceIsForwardedToChannelManagerAsync()
         {
             var managerMock = new Mock<IClientChannelManager>(MockBehavior.Strict);
-            var channelMock = new Mock<IManagedTransportChannel>(MockBehavior.Loose).Object;
+            IManagedTransportChannel channelMock = new Mock<IManagedTransportChannel>(MockBehavior.Loose).Object;
 
             IRetryBudget? capturedBudget = null;
             managerMock

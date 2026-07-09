@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
             using var _l = new ListenerScope(listener);
-            using var _s = serverSocket;
+            using Socket _s = serverSocket;
             using (client)
             {
                 byte[] payload = BuildValidChunk(TcpMessageType.Hello, 64);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
             using var _l = new ListenerScope(listener);
-            using var _s = serverSocket;
+            using Socket _s = serverSocket;
             using (client)
             {
                 byte[] payload = BuildValidChunk(TcpMessageType.Acknowledge, 16);
@@ -149,7 +149,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
             using var _l = new ListenerScope(listener);
-            using var _s = serverSocket;
+            using Socket _s = serverSocket;
             using (client)
             {
                 // Header with a bogus message type but a valid size.
@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
                 await CreateConnectedPairAsync().ConfigureAwait(false);
             using var _l = new ListenerScope(listener);
-            using var _s = serverSocket;
+            using Socket _s = serverSocket;
             using (client)
             {
                 byte[] header = new byte[8];

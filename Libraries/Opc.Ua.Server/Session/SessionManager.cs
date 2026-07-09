@@ -371,11 +371,8 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             CancellationToken cancellationToken = default)
         {
-            ByteString serverNonce = default;
-
             ISession? session = null;
             IUserIdentityTokenHandler? newIdentity = null;
-            UserTokenPolicy? userTokenPolicy = null;
             string? clientKey = null;
 
             // fast path no lock
@@ -447,6 +444,8 @@ namespace Opc.Ua.Server
                     m_semaphoreSlim.Release();
                 }
 
+                ByteString serverNonce;
+                UserTokenPolicy? userTokenPolicy;
                 // Note: session lookup, lockout and expiry failures above are not
                 // authentication failures and deliberately do NOT record a
                 // brute-force attempt - only a failed client-signature or user

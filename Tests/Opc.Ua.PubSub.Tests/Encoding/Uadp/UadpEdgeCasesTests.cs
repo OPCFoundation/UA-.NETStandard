@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             // Now construct a frame whose announced MajorVersion = 2
             // (no registered metadata for that version).
-            var mismatchMsg = matchingMsg with
+            UadpNetworkMessage mismatchMsg = matchingMsg with
             {
                 DataSetMessages =
                 [

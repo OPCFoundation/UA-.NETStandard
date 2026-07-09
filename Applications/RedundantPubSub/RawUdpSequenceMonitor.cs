@@ -41,80 +41,81 @@ using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Udp;
 
-namespace RedundantPubSub;
-
-public sealed class RawUdpSequenceMonitor : BackgroundService
+namespace RedundantPubSub
 {
-    public RawUdpSequenceMonitor(
-        SampleOptions options,
-        SequenceContinuityMonitor monitor,
-        ILogger<RawUdpSequenceMonitor> logger)
+    public sealed class RawUdpSequenceMonitor : BackgroundService
     {
-        m_options = options ?? throw new ArgumentNullException(nameof(options));
-        m_monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
-        m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        UdpEndpoint endpoint = UdpEndpointParser.Parse(m_options.Endpoint);
-        using UdpClient client = CreateClient(endpoint);
-        PubSubNetworkMessageContext context = CreateContext();
-        m_logger.LogInformation("Sequence monitor listening on {Endpoint}.", m_options.Endpoint);
-
-        while (!stoppingToken.IsCancellationRequested)
+        public RawUdpSequenceMonitor(
+            SampleOptions options,
+            SequenceContinuityMonitor monitor,
+            ILogger<RawUdpSequenceMonitor> logger)
         {
-            UdpReceiveResult result = await client.ReceiveAsync(stoppingToken).ConfigureAwait(false);
-            PubSubNetworkMessage? message = UadpDecoder.Decode(result.Buffer, context);
-            if (message is null)
-            {
-                continue;
-            }
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
 
-            for (int ii = 0; ii < message.DataSetMessages.Count; ii++)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            UdpEndpoint endpoint = UdpEndpointParser.Parse(m_options.Endpoint);
+            using UdpClient client = CreateClient(endpoint);
+            PubSubNetworkMessageContext context = CreateContext();
+            m_logger.LogInformation("Sequence monitor listening on {Endpoint}.", m_options.Endpoint);
+
+            while (!stoppingToken.IsCancellationRequested)
             {
-                PubSubDataSetMessage dataSetMessage = message.DataSetMessages[ii];
-                if (dataSetMessage.DataSetWriterId == m_options.DataSetWriterId)
+                UdpReceiveResult result = await client.ReceiveAsync(stoppingToken).ConfigureAwait(false);
+                PubSubNetworkMessage? message = UadpDecoder.Decode(result.Buffer, context);
+                if (message is null)
                 {
-                    m_monitor.OnSequence(dataSetMessage.SequenceNumber, dataSetMessage.Fields);
+                    continue;
+                }
+
+                for (int ii = 0; ii < message.DataSetMessages.Count; ii++)
+                {
+                    PubSubDataSetMessage dataSetMessage = message.DataSetMessages[ii];
+                    if (dataSetMessage.DataSetWriterId == m_options.DataSetWriterId)
+                    {
+                        m_monitor.OnSequence(dataSetMessage.SequenceNumber, dataSetMessage.Fields);
+                    }
                 }
             }
         }
-    }
 
-    private UdpClient CreateClient(UdpEndpoint endpoint)
-    {
-        var client = new UdpClient(AddressFamily.InterNetwork);
-        client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        client.ExclusiveAddressUse = false;
-        client.Client.Bind(new IPEndPoint(IPAddress.Any, endpoint.Port));
-        if (endpoint.AddressType == UdpAddressType.Multicast)
+        private UdpClient CreateClient(UdpEndpoint endpoint)
         {
-            client.JoinMulticastGroup(endpoint.Address);
+            var client = new UdpClient(AddressFamily.InterNetwork);
+            client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            client.ExclusiveAddressUse = false;
+            client.Client.Bind(new IPEndPoint(IPAddress.Any, endpoint.Port));
+            if (endpoint.AddressType == UdpAddressType.Multicast)
+            {
+                client.JoinMulticastGroup(endpoint.Address);
+            }
+            return client;
         }
-        return client;
-    }
 
-    private PubSubNetworkMessageContext CreateContext()
-    {
-        var registry = new DataSetMetaDataRegistry();
-        DataSetMetaDataType metaData = HaDataSetSource.BuildMetaDataCore();
-        registry.Register(
-            new DataSetMetaDataKey(
-                PublisherId.FromUInt16(m_options.PublisherId),
-                m_options.WriterGroupId,
-                m_options.DataSetWriterId,
-                Uuid.Empty,
-                metaData.ConfigurationVersion?.MajorVersion ?? 1),
-            metaData);
-        return new PubSubNetworkMessageContext(
-            ServiceMessageContext.CreateEmpty(DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning))),
-            registry,
-            new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
-            TimeProvider.System);
-    }
+        private PubSubNetworkMessageContext CreateContext()
+        {
+            var registry = new DataSetMetaDataRegistry();
+            DataSetMetaDataType metaData = HaDataSetSource.BuildMetaDataCore();
+            registry.Register(
+                new DataSetMetaDataKey(
+                    PublisherId.FromUInt16(m_options.PublisherId),
+                    m_options.WriterGroupId,
+                    m_options.DataSetWriterId,
+                    Uuid.Empty,
+                    metaData.ConfigurationVersion?.MajorVersion ?? 1),
+                metaData);
+            return new PubSubNetworkMessageContext(
+                ServiceMessageContext.CreateEmpty(DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning))),
+                registry,
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
+                TimeProvider.System);
+        }
 
-    private readonly SampleOptions m_options;
-    private readonly SequenceContinuityMonitor m_monitor;
-    private readonly ILogger<RawUdpSequenceMonitor> m_logger;
+        private readonly SampleOptions m_options;
+        private readonly SequenceContinuityMonitor m_monitor;
+        private readonly ILogger<RawUdpSequenceMonitor> m_logger;
+    }
 }

@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(uint.MaxValue);
             int factoryCalls = 0;
             var partitions = new List<IManagedSubscription> { primary };
-            object lockObj = new object();
+            object lockObj = new();
             var composite = new CompositeMonitoredItemCollection(
                 partitions, lockObj, policy,
                 () =>

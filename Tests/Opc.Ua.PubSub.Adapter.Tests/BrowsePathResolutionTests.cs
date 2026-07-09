@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 })
                 .Returns(new ValueTask<RemoteCallResult>(
                     new RemoteCallResult(StatusCodes.Good, [])));
-            var map = new ActionMethodMap().Add(
+            ActionMethodMap map = new ActionMethodMap().Add(
                 "Reset",
                 objectBrowsePath,
                 methodBrowsePath);

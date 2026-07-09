@@ -1145,7 +1145,7 @@ namespace Opc.Ua.Server
             using CertificateCollection validationChain = issuerCertificates.AddRef();
             validationChain.Insert(0, newCertificate);
 
-            using var validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
+            using CertificateManager validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
             var options = new Security.Certificates.CertificateValidationOptions
             {
                 AllowCertificateDownload = false,

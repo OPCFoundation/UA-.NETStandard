@@ -35,73 +35,74 @@ using Opc.Ua;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
-namespace RedundantPubSub;
-
-internal sealed class HaDataSetSource : IPublishedDataSetSource
+namespace RedundantPubSub
 {
-    public HaDataSetSource(string ownerId)
+    internal sealed class HaDataSetSource : IPublishedDataSetSource
     {
-        m_ownerId = ownerId ?? throw new ArgumentNullException(nameof(ownerId));
-    }
-
-    public DataSetMetaDataType BuildMetaData()
-    {
-        return BuildMetaDataCore();
-    }
-
-    public ValueTask<PublishedDataSetSnapshot> SampleAsync(
-        DataSetMetaDataType metaData,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        long counter = Interlocked.Increment(ref m_counter);
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        var fields = new List<DataSetField>
+        public HaDataSetSource(string ownerId)
         {
-            new() { Name = "Counter", Value = new Variant(counter) },
-            new() { Name = "SourceTimestamp", Value = new Variant(now.UtcDateTime) },
-            new() { Name = "OwnerId", Value = new Variant(m_ownerId) }
-        };
-        ConfigurationVersionDataType version = metaData?.ConfigurationVersion
-            ?? new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 };
-        return new ValueTask<PublishedDataSetSnapshot>(
-            new PublishedDataSetSnapshot(version, fields, DateTimeUtc.From(now)));
-    }
+            m_ownerId = ownerId ?? throw new ArgumentNullException(nameof(ownerId));
+        }
 
-    public static DataSetMetaDataType BuildMetaDataCore()
-    {
-        return new DataSetMetaDataType
+        public DataSetMetaDataType BuildMetaData()
         {
-            Name = SampleConstants.DataSetName,
-            DataSetClassId = Uuid.Empty,
-            Fields = new ArrayOf<FieldMetaData>(new[]
+            return BuildMetaDataCore();
+        }
+
+        public ValueTask<PublishedDataSetSnapshot> SampleAsync(
+            DataSetMetaDataType metaData,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            long counter = Interlocked.Increment(ref m_counter);
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            var fields = new List<DataSetField>
             {
-                new FieldMetaData
-                {
-                    Name = "Counter",
-                    BuiltInType = (byte)DataTypes.Int64,
-                    DataType = DataTypeIds.Int64,
-                    ValueRank = ValueRanks.Scalar
-                },
-                new FieldMetaData
-                {
-                    Name = "SourceTimestamp",
-                    BuiltInType = (byte)DataTypes.DateTime,
-                    DataType = DataTypeIds.DateTime,
-                    ValueRank = ValueRanks.Scalar
-                },
-                new FieldMetaData
-                {
-                    Name = "OwnerId",
-                    BuiltInType = (byte)DataTypes.String,
-                    DataType = DataTypeIds.String,
-                    ValueRank = ValueRanks.Scalar
-                }
-            }),
-            ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 }
-        };
-    }
+                new() { Name = "Counter", Value = new Variant(counter) },
+                new() { Name = "SourceTimestamp", Value = new Variant(now.UtcDateTime) },
+                new() { Name = "OwnerId", Value = new Variant(m_ownerId) }
+            };
+            ConfigurationVersionDataType version = metaData?.ConfigurationVersion
+                ?? new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 };
+            return new ValueTask<PublishedDataSetSnapshot>(
+                new PublishedDataSetSnapshot(version, fields, DateTimeUtc.From(now)));
+        }
 
-    private readonly string m_ownerId;
-    private long m_counter;
+        public static DataSetMetaDataType BuildMetaDataCore()
+        {
+            return new DataSetMetaDataType
+            {
+                Name = SampleConstants.DataSetName,
+                DataSetClassId = Uuid.Empty,
+                Fields = new ArrayOf<FieldMetaData>(new[]
+                {
+                    new FieldMetaData
+                    {
+                        Name = "Counter",
+                        BuiltInType = (byte)DataTypes.Int64,
+                        DataType = DataTypeIds.Int64,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData
+                    {
+                        Name = "SourceTimestamp",
+                        BuiltInType = (byte)DataTypes.DateTime,
+                        DataType = DataTypeIds.DateTime,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData
+                    {
+                        Name = "OwnerId",
+                        BuiltInType = (byte)DataTypes.String,
+                        DataType = DataTypeIds.String,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                }),
+                ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 }
+            };
+        }
+
+        private readonly string m_ownerId;
+        private long m_counter;
+    }
 }

@@ -359,14 +359,14 @@ namespace Opc.Ua.Bindings.WebApi
             {
                 return identity != null && s_table.TryGetValue(identity, out Projection? p)
                     ? p.Scopes
-                    : Array.Empty<string>();
+                    : [];
             }
 
             public static IReadOnlyList<string> GetRoles(IUserIdentity? identity)
             {
                 return identity != null && s_table.TryGetValue(identity, out Projection? p)
                     ? p.Roles
-                    : Array.Empty<string>();
+                    : [];
             }
 
             private sealed record Projection(

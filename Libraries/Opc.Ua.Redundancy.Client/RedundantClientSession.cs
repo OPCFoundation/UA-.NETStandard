@@ -1282,7 +1282,7 @@ namespace Opc.Ua.Redundancy.Client
         private void UpdateActiveSession()
         {
             ISession? s = m_coordinator.IsLeader ? m_currentSessionAccessor() : null;
-            TaskCompletionSource<ISession>? release = null;
+            TaskCompletionSource<ISession>? release;
             lock (m_syncRoot)
             {
                 if (m_disposed)

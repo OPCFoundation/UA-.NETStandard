@@ -33,33 +33,34 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Redundancy;
 
-namespace RedundantPubSub;
-
-public sealed class RaftLifetimeService : IHostedService, IAsyncDisposable
+namespace RedundantPubSub
 {
-    public RaftLifetimeService(IRaftConsensus consensus)
+    public sealed class RaftLifetimeService : IHostedService, IAsyncDisposable
     {
-        m_consensus = consensus ?? throw new ArgumentNullException(nameof(consensus));
-    }
-
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        await DisposeAsync().ConfigureAwait(false);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+        public RaftLifetimeService(IRaftConsensus consensus)
         {
-            await m_consensus.DisposeAsync().ConfigureAwait(false);
+            m_consensus = consensus ?? throw new ArgumentNullException(nameof(consensus));
         }
-    }
 
-    private readonly IRaftConsensus m_consensus;
-    private int m_disposed;
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            await DisposeAsync().ConfigureAwait(false);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+            {
+                await m_consensus.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        private readonly IRaftConsensus m_consensus;
+        private int m_disposed;
+    }
 }

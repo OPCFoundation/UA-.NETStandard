@@ -150,10 +150,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ext2 = (ExtendedFlags2EncodingMask)ext2Byte;
             }
 
-            PublisherIdType publisherIdType = PublisherIdType.Byte;
             var publisherId = PublisherId.FromByte(0);
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
+
+                PublisherIdType publisherIdType;
                 if (!((byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask)).TryGetPublisherIdType(
                     out publisherIdType))
                 {
@@ -212,7 +213,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 contentMask |= UadpNetworkMessageContentMask.DataSetClassId;
             }
 
-            GroupFlagsEncodingMask groupFlags = 0;
             if ((uadpFlags & UadpFlagsEncodingMask.GroupHeaderEnabled) != 0)
             {
                 contentMask |= UadpNetworkMessageContentMask.GroupHeader;
@@ -220,7 +220,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 {
                     return null;
                 }
-                groupFlags = (GroupFlagsEncodingMask)gfByte;
+                var groupFlags = (GroupFlagsEncodingMask)gfByte;
 
                 if ((groupFlags & GroupFlagsEncodingMask.WriterGroupIdEnabled) != 0)
                 {

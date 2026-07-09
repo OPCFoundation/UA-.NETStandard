@@ -116,8 +116,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             ThrowIfDisposed();
 
-            var endpoint = MqttEndpointParser.Parse(options.Endpoint);
-            var builder = ConfigureBrokerTransport(new MqttClientOptionsBuilder(), endpoint)
+            MqttEndpoint endpoint = MqttEndpointParser.Parse(options.Endpoint);
+            MqttClientOptionsBuilder builder = ConfigureBrokerTransport(new MqttClientOptionsBuilder(), endpoint)
                 .WithKeepAlivePeriod(options.KeepAlivePeriod)
                 .WithCleanSession(options.CleanSession)
                 .WithProtocolVersion(MapProtocolVersion(options.ProtocolVersion))
@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 builder = ConfigureTls(builder, options.Tls, trustChain);
             }
 
-            var mqttOptions = builder.Build();
+            MqttClientOptions mqttOptions = builder.Build();
             ApplyEnhancedAuthentication(mqttOptions, options);
             if (!string.IsNullOrEmpty(options.WillTopic))
             {
@@ -306,7 +306,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             ThrowIfDisposed();
 
-            var builder = new MqttApplicationMessageBuilder()
+            MqttApplicationMessageBuilder builder = new MqttApplicationMessageBuilder()
                 .WithTopic(message.Topic)
                 .WithQualityOfServiceLevel(MapQos(message.Qos))
                 .WithRetainFlag(message.Retain);

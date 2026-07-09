@@ -137,13 +137,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <see cref="InvalidOperationException"/> when a packed key
         /// has the wrong length for the resolved policy.
         /// </remarks>
-        public ArrayOf<PubSubSecurityKey> Unpacked
-        {
-            get
-            {
-                return m_unpacked ??= UnpackKeys();
-            }
-        }
+        public ArrayOf<PubSubSecurityKey> Unpacked => m_unpacked ??= UnpackKeys();
 
         private ArrayOf<PubSubSecurityKey> UnpackKeys()
         {

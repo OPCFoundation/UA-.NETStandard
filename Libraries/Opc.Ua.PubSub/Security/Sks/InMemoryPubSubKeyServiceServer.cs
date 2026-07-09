@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     StatusCodes.BadSecurityPolicyRejected,
                     $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
 
-            SksSecurityGroup? snapshot = null;
+            SksSecurityGroup? snapshot;
             lock (m_lock)
             {
                 if (m_groups.ContainsKey(group.SecurityGroupId))
@@ -290,7 +290,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return;
             }
 
-            var keys = group.Keys.IsNull
+            List<PubSubSecurityKey> keys = group.Keys.IsNull
                 ? []
                 : new List<PubSubSecurityKey>([.. group.Keys]);
             if (keys.Count == 0)
@@ -381,7 +381,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 if (matched < request.RequestedKeyCount)
                 {
                     int additional = (int)request.RequestedKeyCount - matched;
-                    int allowed = (state.Group.MaxFutureKeyCount + 1) - FutureKeyCountLocked(state);
+                    int allowed = state.Group.MaxFutureKeyCount + 1 - FutureKeyCountLocked(state);
                     int toGenerate = Math.Min(additional, allowed);
                     if (toGenerate > 0)
                     {

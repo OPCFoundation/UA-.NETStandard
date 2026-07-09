@@ -464,7 +464,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private static TestValues CreateTestValues()
         {
-            object handle = new object();
+            object handle = new();
             return new TestValues
             {
                 ExternalReferences = new Dictionary<NodeId, IList<IReference>>(),

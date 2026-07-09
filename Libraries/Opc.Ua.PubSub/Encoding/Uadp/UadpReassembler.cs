@@ -432,11 +432,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             public bool HasOverlap(int offset, int length)
             {
-                foreach ((int Offset, int Length) existing in m_chunks)
+                foreach ((int Offset, int Length) in m_chunks)
                 {
-                    int existingEnd = existing.Offset + existing.Length;
+                    int existingEnd = Offset + Length;
                     int newEnd = offset + length;
-                    if (offset < existingEnd && existing.Offset < newEnd)
+                    if (offset < existingEnd && Offset < newEnd)
                     {
                         return true;
                     }

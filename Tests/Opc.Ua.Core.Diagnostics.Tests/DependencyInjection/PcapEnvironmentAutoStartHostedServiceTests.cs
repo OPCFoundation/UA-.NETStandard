@@ -283,7 +283,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             await autoStart.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-            var registry = provider.GetRequiredService<IChannelCaptureRegistry>();
+            IChannelCaptureRegistry registry = provider.GetRequiredService<IChannelCaptureRegistry>();
             Assert.That(registry.CurrentObserver, Is.Null);
 
             await autoStart.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -306,7 +306,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             await autoStart.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-            var registry = provider.GetRequiredService<IChannelCaptureRegistry>();
+            IChannelCaptureRegistry registry = provider.GetRequiredService<IChannelCaptureRegistry>();
             Assert.That(registry.CurrentObserver, Is.InstanceOf<StandaloneKeyLogObserver>());
 
             await autoStart.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -332,7 +332,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
                 options.BaseFolder = CreateTempPath("user-base"));
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
             Assert.That(
                 options.BaseFolder,
                 Is.EqualTo(Path.GetFullPath(sessionFolder)).IgnoreCase);
@@ -349,7 +349,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
                 => options.BaseFolder = userBase);
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
             Assert.That(options.BaseFolder, Is.EqualTo(userBase));
         }
     }

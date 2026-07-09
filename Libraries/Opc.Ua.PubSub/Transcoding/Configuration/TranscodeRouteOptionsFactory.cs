@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Transcoding
                     $"Transcoding route '{route.Name}' requires a Target connection.");
             }
 
-            var builder = new PubSubTranscoderBuilder()
+            PubSubTranscoderBuilder builder = new PubSubTranscoderBuilder()
                 .From(route.Source!)
                 .To(route.Target!, route.TargetEncoding)
                 .PreserveMetaDataVersion(route.PreserveMetaDataVersion);

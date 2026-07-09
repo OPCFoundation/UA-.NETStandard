@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public void MutableDataSetSinkProviderReturnsRegisteredSinkByName()
         {
             var provider = new MutableDataSetSinkProvider();
-            var sink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink sink = new Mock<ISubscribedDataSetSink>().Object;
 
             provider.Register("reader", sink);
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task DataSetReaderUsesSinkRegisteredInProvider()
         {
             var provider = new MutableDataSetSinkProvider();
-            var sink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink sink = new Mock<ISubscribedDataSetSink>().Object;
             provider.Register("reader", sink);
             await using IPubSubApplication app = CreateApplication(
                 CreateSubscriberConfiguration("reader"),
@@ -144,8 +144,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task BuildTimeDictionarySinkTakesPrecedenceOverProviderSink()
         {
             var provider = new MutableDataSetSinkProvider();
-            var providerSink = new Mock<ISubscribedDataSetSink>().Object;
-            var buildTimeSink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink providerSink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink buildTimeSink = new Mock<ISubscribedDataSetSink>().Object;
             provider.Register("reader", providerSink);
             await using IPubSubApplication app = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("provider-tests")
@@ -166,7 +166,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             IDataSetSourceProvider? sourceProvider,
             IDataSetSinkProvider? sinkProvider)
         {
-            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("provider-tests")
                 .UseConfiguration(configuration)
                 .UseAllStandardEncoders()

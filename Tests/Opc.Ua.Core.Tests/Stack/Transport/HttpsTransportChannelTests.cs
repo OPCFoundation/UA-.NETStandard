@@ -266,7 +266,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, m_telemetry);
             var url = new Uri("https://localhost:4840/UA");
-            var settings = CreateMinimalSettings(url);
+            TransportChannelSettings settings = CreateMinimalSettings(url);
             await channel.OpenAsync(url, settings, CancellationToken.None).ConfigureAwait(false);
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }
@@ -382,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, m_telemetry);
             var url = new Uri("https://localhost:4840/UA");
-            var settings = CreateMinimalSettings(url);
+            TransportChannelSettings settings = CreateMinimalSettings(url);
             await channel.OpenAsync(url, settings, CancellationToken.None).ConfigureAwait(false);
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -403,7 +403,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var channel = new HttpsTransportChannel(Utils.UriSchemeOpcHttps, m_telemetry);
             var url = new Uri("opc.https://localhost:4840/UA");
-            var settings = CreateMinimalSettings(url);
+            TransportChannelSettings settings = CreateMinimalSettings(url);
 
             // OpenAsync must succeed without throwing even for opc.https URLs.
             await channel.OpenAsync(url, settings, CancellationToken.None).ConfigureAwait(false);

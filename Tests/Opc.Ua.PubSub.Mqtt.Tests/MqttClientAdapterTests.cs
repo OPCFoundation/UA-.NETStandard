@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     .ConfigureAwait(false);
 
                 const string topic = "opcua/pubsub/json/data/9/8/7";
-                var filters = new[]
+                MqttTopicFilter[] filters = new[]
                 {
                     new MqttTopicFilter(topic, MqttQualityOfService.AtLeastOnce)
                 };
@@ -203,10 +203,10 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
 
                 // empty-collection short-circuit
                 await adapter.SubscribeAsync(
-                    Array.Empty<MqttTopicFilter>(),
+                    [],
                     CancellationToken.None).ConfigureAwait(false);
                 await adapter.UnsubscribeAsync(
-                    Array.Empty<string>(),
+                    [],
                     CancellationToken.None).ConfigureAwait(false);
 
                 await adapter.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);

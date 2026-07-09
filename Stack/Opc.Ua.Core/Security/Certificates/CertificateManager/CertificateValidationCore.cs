@@ -446,7 +446,6 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             bool isTrusted = false;
-            CertificateIssuerReference? issuer = null;
             ServiceResultException? revocationStatus = null;
             Certificate? certificate = certificates[0];
 
@@ -459,6 +458,7 @@ namespace Opc.Ua
 
             TrustListState state = m_state;
 
+            CertificateIssuerReference? issuer;
             do
             {
                 // check for root.
@@ -1125,9 +1125,10 @@ namespace Opc.Ua
                     isSuppressible: false);
             }
 
-            // invoke callback per inner-error.
-            bool accept = false;
             ServiceResult? serviceResult = se.Result;
+
+            // invoke callback per inner-error.
+            bool accept;
             do
             {
                 accept = false;

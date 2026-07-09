@@ -2729,7 +2729,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ListOfInstanceNodeIdBranches,
                 NodeStateTemplates.InstanceNodeIdBranch,
-                branches.Cast<object>().ToArray(),
+                [.. branches.Cast<object>()],
                 WriteTemplate_InstanceNodeIdBranch);
             return context.Template.Render();
         }

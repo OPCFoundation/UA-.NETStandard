@@ -401,7 +401,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 TimeProvider clock =
                     sp.GetService<TimeProvider>() ?? TimeProvider.System;
 
-                var pb = new PubSubApplicationBuilder(telemetry)
+                PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
                     .WithTimeProvider(clock)
                     .WithDiagnosticsLevel(options.DiagnosticsLevel);
                 IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();

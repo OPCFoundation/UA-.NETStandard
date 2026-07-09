@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 ContentFilter? filter,
                 CancellationToken cancellationToken = default)
             {
-                IReadOnlyList<IReadOnlyList<Variant>> copy = m_pending.ToArray();
+                IReadOnlyList<IReadOnlyList<Variant>> copy = [.. m_pending];
                 m_pending.Clear();
                 return new ValueTask<IReadOnlyList<IReadOnlyList<Variant>>>(copy);
             }

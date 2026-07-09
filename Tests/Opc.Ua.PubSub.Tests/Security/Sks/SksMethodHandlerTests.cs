@@ -79,7 +79,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var outputs = new List<Variant>();
             ServiceResult result = handler.HandleGetSecurityKeys(
                 ctx,
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),
@@ -149,7 +149,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From(string.Empty),
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             var server = new InMemoryPubSubKeyServiceServer();
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From("missing"),
@@ -195,7 +195,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync(
                 authorizedCallerIdentities: ["authorized-user"]).ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("unauthorized-user");
+            SystemContext ctx = BuildContext("unauthorized-user");
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),
@@ -217,7 +217,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext(userId: null);
+            SystemContext ctx = BuildContext(userId: null);
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),

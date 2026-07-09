@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         [Test]
         public void Factory_NetworkInterfaceOnUrl_TakesPriority()
         {
-            var options = Options.Create(new UdpTransportOptions());
+            IOptions<UdpTransportOptions> options = Options.Create(new UdpTransportOptions());
             var factory = new UdpPubSubTransportFactory(options);
             var connection = new PubSubConnectionDataType
             {
@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         [Test]
         public void Factory_UnrelatedConnectionPropertyKey_IgnoredAndFallsThrough()
         {
-            var options = Options.Create(new UdpTransportOptions());
+            IOptions<UdpTransportOptions> options = Options.Create(new UdpTransportOptions());
             var factory = new UdpPubSubTransportFactory(options);
             var connection = new PubSubConnectionDataType
             {
@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         [Test]
         public void Factory_NetworkInterfacePropertyWithEmptyValue_FallsThrough()
         {
-            var options = Options.Create(new UdpTransportOptions());
+            IOptions<UdpTransportOptions> options = Options.Create(new UdpTransportOptions());
             var factory = new UdpPubSubTransportFactory(options);
             var connection = new PubSubConnectionDataType
             {

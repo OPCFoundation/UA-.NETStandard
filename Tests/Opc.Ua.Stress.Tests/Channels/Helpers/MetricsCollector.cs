@@ -75,7 +75,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             {
                 lock (m_lock)
                 {
-                    return m_measurements.ToArray();
+                    return [.. m_measurements];
                 }
             }
         }
@@ -89,7 +89,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             {
                 lock (m_lock)
                 {
-                    return m_events.ToArray();
+                    return [.. m_events];
                 }
             }
         }

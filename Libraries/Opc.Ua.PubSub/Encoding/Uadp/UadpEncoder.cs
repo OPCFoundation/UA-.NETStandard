@@ -759,7 +759,7 @@ uadpFlags));
             }
 
             PublisherIdType pidType = publisherId.Type;
-            var uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled |
+            UadpFlagsEncodingMask uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled |
                 UadpFlagsEncodingMask.ExtendedFlags1Enabled;
             if (writerGroupId.HasValue)
             {

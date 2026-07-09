@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            var inputs = BuildArray(Variant.From(new ExtensionObject(connCfg)));
+            ArrayOf<Variant> inputs = BuildArray(Variant.From(new ExtensionObject(connCfg)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddConnection(
                 BuildContext(), method: null!, inputArguments: inputs, outputArguments: outputs);
@@ -86,13 +86,13 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            var addInputs = BuildArray(Variant.From(new ExtensionObject(connCfg)));
+            ArrayOf<Variant> addInputs = BuildArray(Variant.From(new ExtensionObject(connCfg)));
             var addOutputs = new List<Variant>();
             handlers.OnAddConnection(
                 BuildContext(), method: null!, inputArguments: addInputs, outputArguments: addOutputs);
             Assert.That(addOutputs[0].TryGetValue(out NodeId connId), Is.True);
 
-            var removeInputs = BuildArray(Variant.From(connId));
+            ArrayOf<Variant> removeInputs = BuildArray(Variant.From(connId));
             var removeOutputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveConnection(
                 BuildContext(), method: null!, inputArguments: removeInputs,
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Connections = [],
                 PublishedDataSets = []
             };
-            var inputs = BuildArray(Variant.From(new ExtensionObject(cfg)));
+            ArrayOf<Variant> inputs = BuildArray(Variant.From(new ExtensionObject(cfg)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnSetConfiguration(
                 BuildContext(), method: null!, inputArguments: inputs, outputArguments: outputs);
@@ -317,7 +317,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetFolder_ReturnsGoodWithNodeId()
         {
             PubSubMethodHandlers handlers = CreateHandlers();
-            var inputs = BuildArray(Variant.From("my-folder"));
+            ArrayOf<Variant> inputs = BuildArray(Variant.From("my-folder"));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetFolder(
                 BuildContext(), method: null!, inputArguments: inputs, outputArguments: outputs);

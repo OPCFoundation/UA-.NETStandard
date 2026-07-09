@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         [Test]
         public void Builder_AllFluentMethods_ComposeSpecAndDescriptor()
         {
-            var builder = new PubSubTranscoderBuilder()
+            PubSubTranscoderBuilder builder = new PubSubTranscoderBuilder()
                 .From("in")
                 .To("out", TranscodeEncoding.Json)
                 .AddTransform(new IdRemapTransform(PublisherId.FromByte(2)))

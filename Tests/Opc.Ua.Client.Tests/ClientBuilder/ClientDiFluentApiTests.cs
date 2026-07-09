@@ -259,7 +259,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddClient(options => options.Configuration = CreateConfig());
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var factory = sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
+            Func<CancellationToken, Task<Client.ManagedSession>> factory = sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
 
             OptionsValidationException ex = Assert.ThrowsAsync<OptionsValidationException>(
                 () => factory(CancellationToken.None))!;

@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ConstructorNullMethodMapThrows()
         {
-            var session = new Mock<IServerSession>().Object;
+            IServerSession session = new Mock<IServerSession>().Object;
             Assert.That(
                 () => new ServerActionHandler(
                     session, null!, AdapterTestHelpers.Telemetry()),
@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     new[] { new Variant(3.5f) }.ToArrayOf())));
 
             string[] outputNames = ["Sum"];
-            var map = new ActionMethodMap()
+            ActionMethodMap map = new ActionMethodMap()
                 .Add(WriterId, TargetId, objectId, methodId, outputNames.ToArrayOf());
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     StatusCodes.Good,
                     new[] { new Variant(10), new Variant(20) }.ToArrayOf())));
 
-            var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
                     StatusCodes.Good, [])));
 
-            var map = new ActionMethodMap().Add("Reset", objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add("Reset", objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 
@@ -231,7 +231,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Throws(ServiceResultException.Create(StatusCodes.BadMethodInvalid, "x"));
 
-            var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 
@@ -262,7 +262,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
                     StatusCodes.BadArgumentsMissing, [])));
 
-            var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 

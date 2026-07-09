@@ -81,9 +81,9 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ConstructorExposesArgumentsAndCreatesProxy()
         {
-            var session = CreateSessionMock().Object;
+            ISession session = CreateSessionMock().Object;
             var nodeId = new NodeId("dev-1", 2);
-            var telemetry = NullTelemetry();
+            ITelemetryContext telemetry = NullTelemetry();
             var client = new DiDeviceClient(session, nodeId, telemetry);
 
             Assert.That(client.Session, Is.SameAs(session));
@@ -95,7 +95,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadIdentificationAsyncBuildsEightBrowsePathsAndPopulatesValues()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
 
             ArrayOf<BrowsePath> capturedPaths = default;
             sessionMock
@@ -140,7 +140,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadIdentificationAsyncBadValueReadIsNull()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(
                 sessionMock, BuildAllGoodBrowsePathResults(IdentificationCount));
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadIdentificationAsyncReturnsAllNullsWhenAllBrowsePathsBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
 
             var badResults = new BrowsePathResult[IdentificationCount];
             for (int i = 0; i < IdentificationCount; i++)
@@ -204,7 +204,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ForDeviceAsyncThrowsBadNodeIdUnknownWhenReadStatusBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupReadReturns(sessionMock,
             [
                 new DataValue(Variant.Null
@@ -222,7 +222,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ForDeviceAsyncReturnsClientWhenReadSucceeds()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupReadReturns(sessionMock,
             [
                 new DataValue(new Variant((int)NodeClass.Object)
@@ -250,7 +250,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ForDeviceAsyncThrowsOnNullDeviceNodeId()
         {
-            var session = CreateSessionMock().Object;
+            ISession session = CreateSessionMock().Object;
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
                     session, NodeId.Null, NullTelemetry()).ConfigureAwait(false))!;

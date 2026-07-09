@@ -2638,7 +2638,7 @@ namespace Opc.Ua.PubSub.Diagnostics
         private IEnumerable<IPubSubDiagnostics> ResolveComponents()
         {
             return m_componentResolver?.Invoke()
-                ?? Array.Empty<IPubSubDiagnostics>();
+                ?? [];
         }
     }
 }

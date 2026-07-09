@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -82,7 +83,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ReadOnlyMemory<byte> frame,
             PubSubNetworkMessageContext context)
         {
-            JsonDocument? document = null;
+            JsonDocument? document;
             try
             {
                 document = JsonDocument.Parse(frame);
@@ -370,7 +371,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
             uint statusCode = ReadOptionalUInt32(root, "Status");
-            var discoveryType = forcedType ?? (Uadp.UadpDiscoveryType)typeCode;
+            UadpDiscoveryType discoveryType = forcedType ?? (Uadp.UadpDiscoveryType)typeCode;
             if (discoveryType == Uadp.UadpDiscoveryType.None &&
                 root.TryGetProperty("WriterConfiguration", out _))
             {

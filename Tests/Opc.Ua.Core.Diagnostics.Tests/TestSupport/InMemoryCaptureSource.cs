@@ -60,8 +60,8 @@ namespace Opc.Ua.Pcap.Tests
             string? pcapFilePath = null,
             string? keyLogFilePath = null)
         {
-            m_frames = [.. frames ?? Array.Empty<CaptureFrame>()];
-            m_materials = [.. materials ?? Array.Empty<ChannelKeyMaterial>()];
+            m_frames = [.. frames ?? []];
+            m_materials = [.. materials ?? []];
             m_supportedFormats = [.. supportedFormats ??
                 [
                     FormatKind.PcapNg,

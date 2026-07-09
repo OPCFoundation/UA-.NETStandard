@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await using var transport = NewSendTransport(port);
+            await using UdpDatagramTransport transport = NewSendTransport(port);
             try
             {
                 await transport.OpenAsync().ConfigureAwait(false);
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await using var transport = NewSendTransport(port);
+            await using UdpDatagramTransport transport = NewSendTransport(port);
             try
             {
                 await transport.OpenAsync().ConfigureAwait(false);
@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await using var transport = NewSendTransport(port);
+            await using UdpDatagramTransport transport = NewSendTransport(port);
             try
             {
                 await transport.OpenAsync().ConfigureAwait(false);
@@ -240,7 +240,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await using var transport = NewSendTransport(port);
+            await using UdpDatagramTransport transport = NewSendTransport(port);
 
             Assert.That(
                 async () => await transport.SendAsync(new byte[] { 1 }).ConfigureAwait(false),
@@ -305,7 +305,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await using var transport = NewSendTransport(port);
+            await using UdpDatagramTransport transport = NewSendTransport(port);
             var events = new List<bool>();
             transport.StateChanged += (_, args) => events.Add(args.IsConnected);
             try
@@ -338,7 +338,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await using var transport = NewSendTransport(port);
+            await using UdpDatagramTransport transport = NewSendTransport(port);
             try
             {
                 await transport.OpenAsync().ConfigureAwait(false);
@@ -373,7 +373,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return;
             }
 
-            await using var transport = NewSendTransport(port);
+            await using UdpDatagramTransport transport = NewSendTransport(port);
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
