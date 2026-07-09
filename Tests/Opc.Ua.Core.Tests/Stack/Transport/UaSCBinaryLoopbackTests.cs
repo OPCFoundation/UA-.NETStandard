@@ -121,9 +121,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
-        [Test]
+        [TestCase(SecurityPolicies.Basic256Sha256)]
+        [TestCase(SecurityPolicies.Basic256)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
         [CancelAfter(15000)]
-        public async Task SecureClientAndTcpListenerExchangeSignedEncryptedRequestAsync()
+        public async Task SecureClientAndTcpListenerExchangeSignedEncryptedRequestAsync(string securityPolicyUri)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using Certificate serverCertificate = s_certificateFactory.CreateCertificate("CN=server").CreateForRSA();
@@ -133,7 +136,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Uri endpointUrl = new($"opc.tcp://127.0.0.1:{GetFreeTcpPort()}");
             EndpointDescription endpoint = CreateEndpoint(endpointUrl);
             endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-            endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            endpoint.SecurityPolicyUri = securityPolicyUri;
             endpoint.ServerCertificate = serverCertificate.RawData.ToByteString();
             EndpointConfiguration configuration = EndpointConfiguration.Create();
             configuration.OperationTimeout = 5000;
@@ -145,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var certificateRegistry = new Mock<ICertificateRegistry>();
             certificateRegistry.SetupGet(r => r.SendCertificateChain).Returns(false);
             certificateRegistry
-                .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256))
+                .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri))
                 .Returns(() => new CertificateEntry(
                     serverCertificate,
                     serverChain,
