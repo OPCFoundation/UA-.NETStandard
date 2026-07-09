@@ -137,6 +137,55 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public async Task LoadAsyncUsesBinaryDictionaryWhenDataTypeDefinitionsAreDisabled()
+        {
+            var resolver = new TestComplexTypeResolver();
+            NodeId enumTypeId = new(7601, SchemaTestData.TestNamespaceIndex);
+            NodeId structureTypeId = new(7602, SchemaTestData.TestNamespaceIndex);
+            NodeId enumDescriptionId = new(8601, SchemaTestData.TestNamespaceIndex);
+            NodeId structureDescriptionId = new(8602, SchemaTestData.TestNamespaceIndex);
+            resolver.AddDataType(
+                new DataTypeNode
+                {
+                    NodeId = enumTypeId,
+                    BrowseName = new QualifiedName("DictionaryEnum", SchemaTestData.TestNamespaceIndex)
+                },
+                DataTypeIds.Enumeration);
+            resolver.AddDataType(
+                new DataTypeNode
+                {
+                    NodeId = structureTypeId,
+                    BrowseName = new QualifiedName("DictionaryStructure", SchemaTestData.TestNamespaceIndex)
+                },
+                DataTypeIds.Structure);
+            resolver.AddDictionaryDescription(enumDescriptionId, enumTypeId);
+            resolver.AddDictionaryDescription(structureDescriptionId, structureTypeId);
+            resolver.DataTypeSystem[new NodeId(9600, SchemaTestData.TestNamespaceIndex)] = CreateBinaryDictionary(
+                enumDescriptionId,
+                structureDescriptionId);
+            var factory = new RecordingComplexTypeFactory();
+            var system = new ComplexTypeSystem(resolver, factory, null!)
+            {
+                DisableDataTypeDefinition = true
+            };
+
+            bool loaded = await system.LoadAsync();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.True);
+                Assert.That(factory.GetTypes().Select(t => t.XmlName.Name), Does.Contain("DictionaryEnum"));
+                Assert.That(factory.GetTypes().Select(t => t.XmlName.Name), Does.Contain("DictionaryStructure"));
+                Assert.That(
+                    system.GetDefinedDataTypeIds(),
+                    Does.Contain(NodeId.ToExpandedNodeId(enumTypeId, resolver.NamespaceUris)));
+                Assert.That(
+                    system.GetDefinedDataTypeIds(),
+                    Does.Contain(NodeId.ToExpandedNodeId(structureTypeId, resolver.NamespaceUris)));
+            });
+        }
+
+        [Test]
         public async Task LoadAsyncFallsBackToEnumStringsWhenDataTypeDefinitionIsDisabled()
         {
             var resolver = new TestComplexTypeResolver();
@@ -351,6 +400,69 @@ namespace Opc.Ua.Schema.Tests
             return new EnumDefinition { Fields = fields };
         }
 
+        private static DataDictionary CreateBinaryDictionary(
+            NodeId enumDescriptionId,
+            NodeId structureDescriptionId)
+        {
+            var dictionary = (DataDictionary)Activator.CreateInstance(typeof(DataDictionary), nonPublic: true)!;
+            SetInternalProperty(dictionary, nameof(DataDictionary.Name), "CoverageDictionary");
+            SetInternalProperty(
+                dictionary,
+                nameof(DataDictionary.TypeSystemId),
+                new NodeId(Objects.OPCBinarySchema_TypeSystem));
+            SetInternalProperty(
+                dictionary,
+                nameof(DataDictionary.DataTypes),
+                new NodeIdDictionary<QualifiedName>
+                {
+                    [enumDescriptionId] = new QualifiedName("DictionaryEnum", SchemaTestData.TestNamespaceIndex),
+                    [structureDescriptionId] = new QualifiedName(
+                        "DictionaryStructure",
+                        SchemaTestData.TestNamespaceIndex)
+                });
+            SetInternalProperty(
+                dictionary,
+                nameof(DataDictionary.TypeDictionary),
+                new Schema.Binary.TypeDictionary
+                {
+                    TargetNamespace = SchemaTestData.TestNamespace,
+                    Items =
+                    [
+                        new Schema.Binary.EnumeratedType
+                        {
+                            Name = "DictionaryEnum",
+                            EnumeratedValue =
+                            [
+                                new Schema.Binary.EnumeratedValue { Name = "Zero", Value = 0 },
+                                new Schema.Binary.EnumeratedValue { Name = "One", Value = 1 }
+                            ]
+                        },
+                        new Schema.Binary.StructuredType
+                        {
+                            Name = "DictionaryStructure",
+                            QName = new XmlQualifiedName("DictionaryStructure", SchemaTestData.TestNamespace),
+                            Field =
+                            [
+                                new Schema.Binary.FieldType
+                                {
+                                    Name = "Value",
+                                    TypeName = new XmlQualifiedName("Int32", Namespaces.OpcUa)
+                                }
+                            ]
+                        }
+                    ]
+                });
+            return dictionary;
+        }
+
+        private static void SetInternalProperty<T>(
+            DataDictionary dictionary,
+            string propertyName,
+            T value)
+        {
+            typeof(DataDictionary).GetProperty(propertyName)!.SetValue(dictionary, value);
+        }
+
         private static void AddCachedDefinition(
             ComplexTypeSystem system,
             NodeId nodeId,
@@ -416,6 +528,11 @@ namespace Opc.Ua.Schema.Tests
                 m_enumTypeArrays[nodeId] = value;
             }
 
+            public void AddDictionaryDescription(NodeId descriptionId, NodeId dataTypeId)
+            {
+                m_dictionaryDescriptions[descriptionId] = dataTypeId;
+            }
+
             public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
                 NodeId dataTypeSystem = default,
                 CancellationToken ct = default)
@@ -432,8 +549,13 @@ namespace Opc.Ua.Schema.Tests
                 CancellationToken ct = default)
             {
                 NodeId localNodeId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
-                m_nodes.TryGetValue(localNodeId, out DataTypeNode? dataTypeNode);
-                return Task.FromResult((nodeId, new ExpandedNodeId(new NodeId(50000, localNodeId.NamespaceIndex)), dataTypeNode));
+                NodeId dataTypeId = m_dictionaryDescriptions.TryGetValue(localNodeId, out NodeId mappedId)
+                    ? mappedId
+                    : localNodeId;
+                m_nodes.TryGetValue(dataTypeId, out DataTypeNode? dataTypeNode);
+                var typeId = NodeId.ToExpandedNodeId(dataTypeId, NamespaceUris);
+                var encodingId = new ExpandedNodeId(new NodeId(50000, dataTypeId.NamespaceIndex));
+                return Task.FromResult((typeId, encodingId, dataTypeNode));
             }
 
             public Task<ArrayOf<NodeId>> BrowseForEncodingsAsync(
@@ -527,6 +649,7 @@ namespace Opc.Ua.Schema.Tests
             private readonly Dictionary<NodeId, DataTypeNode> m_nodes = [];
             private readonly Dictionary<NodeId, NodeId> m_superTypes = [];
             private readonly Dictionary<NodeId, Variant> m_enumTypeArrays = [];
+            private readonly Dictionary<NodeId, NodeId> m_dictionaryDescriptions = [];
         }
 
         private sealed class RecordingComplexTypeFactory : IComplexTypeFactory
