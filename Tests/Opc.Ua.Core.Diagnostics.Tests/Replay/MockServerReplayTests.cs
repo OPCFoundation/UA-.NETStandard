@@ -28,6 +28,7 @@
  * ======================================================================*/
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -152,12 +153,77 @@ namespace Opc.Ua.Pcap.Tests.Replay
             }
         }
 
+        [Test]
+        public void ConstructorRejectsNullSource()
+        {
+            Assert.That(
+                () => new MockServerReplay(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("source"));
+        }
+
+        [Test]
+        public async Task StopAsyncHonorsCanceledTokenBeforeStart()
+        {
+            FakeCaptureFolder capture = await CreateSingleFrameCaptureAsync().ConfigureAwait(false);
+            ReplayCaptureSource source = await ReplayTestHelpers.CreateReplaySourceAsync(
+                capture,
+                includeKeyLog: true,
+                CancellationToken.None).ConfigureAwait(false);
+            await using (source.ConfigureAwait(false))
+            {
+                var replay = new MockServerReplay(source);
+                await using (replay.ConfigureAwait(false))
+                {
+                    using var cts = new CancellationTokenSource();
+                    cts.Cancel();
+
+                    Assert.That(
+                        async () => await replay.StopAsync(cts.Token).ConfigureAwait(false),
+                        Throws.InstanceOf<OperationCanceledException>());
+                }
+            }
+        }
+
+        [Test]
+        public async Task PrivateScaleDelayHandlesZeroNegativeAndSpeedMultiplier()
+        {
+            FakeCaptureFolder capture = await CreateSingleFrameCaptureAsync().ConfigureAwait(false);
+            ReplayCaptureSource source = await ReplayTestHelpers.CreateReplaySourceAsync(
+                capture,
+                includeKeyLog: true,
+                CancellationToken.None).ConfigureAwait(false);
+            await using (source.ConfigureAwait(false))
+            {
+                var replay = new MockServerReplay(source)
+                {
+                    Speed = 2.0
+                };
+                await using (replay.ConfigureAwait(false))
+                {
+                    Assert.That(InvokeScaleDelay(replay, TimeSpan.Zero), Is.EqualTo(TimeSpan.Zero));
+                    Assert.That(InvokeScaleDelay(replay, TimeSpan.FromTicks(-1)), Is.EqualTo(TimeSpan.Zero));
+                    Assert.That(
+                        InvokeScaleDelay(replay, TimeSpan.FromSeconds(1)),
+                        Is.EqualTo(TimeSpan.FromMilliseconds(500)));
+                }
+            }
+        }
+
         private ValueTask<FakeCaptureFolder> CreateSingleFrameCaptureAsync()
         {
             return ReplayTestHelpers.CreateFakeCaptureFolderAsync(
                 TempDirectory,
                 new[] { ReplayTestHelpers.CreateFrame(DateTimeOffset.UtcNow, fromClient: false, 0xAA) },
                 CancellationToken.None);
+        }
+
+        private static TimeSpan InvokeScaleDelay(MockServerReplay replay, TimeSpan delay)
+        {
+            MethodInfo method = typeof(MockServerReplay).GetMethod(
+                "ScaleDelay",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            return (TimeSpan)method.Invoke(replay, new object[] { delay })!;
         }
 
         private sealed class NonReplayCaptureSource : ICaptureSource
