@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             using DtlsRecordProtection writer = client.CreateClientApplicationWriteProtection();
             using DtlsRecordProtection reader = server.CreateClientApplicationWriteProtection();
 
-            Assert.That(reader.Open(writer.Seal([0x55])), Is.EqualTo(new byte[] { 0x55 }));
+            Assert.That(reader.Open(writer.Seal([0x55])), Is.EqualTo("U"u8.ToArray()));
         }
 
         [Test]

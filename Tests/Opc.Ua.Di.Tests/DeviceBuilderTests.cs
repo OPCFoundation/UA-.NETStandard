@@ -260,7 +260,7 @@ namespace Opc.Ua.Di.Tests
 
             a.ConnectsTo(b.Device.NodeId);
 
-            NodeId connectsToRefType = NodeId.Create(
+            var connectsToRefType = NodeId.Create(
                 global::Opc.Ua.Di.ReferenceTypes.ConnectsTo,
                 DiNodeManager.DiNamespaceUri,
                 m_fixture.Server.CurrentInstance.NamespaceUris);

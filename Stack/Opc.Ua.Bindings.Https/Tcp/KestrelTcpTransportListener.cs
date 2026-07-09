@@ -271,7 +271,8 @@ namespace Opc.Ua.Bindings
             }
 
             var closed = new List<string>(entries.Length);
-            foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> Done) in entries)
+
+            foreach ((TcpListenerChannel Channel, _) in entries)
             {
                 try
                 {

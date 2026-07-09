@@ -190,10 +190,10 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     .ConfigureAwait(false);
 
                 const string topic = "opcua/pubsub/json/data/9/8/7";
-                MqttTopicFilter[] filters = new[]
-                {
+                MqttTopicFilter[] filters =
+                [
                     new MqttTopicFilter(topic, MqttQualityOfService.AtLeastOnce)
-                };
+                ];
                 await adapter.SubscribeAsync(filters, CancellationToken.None)
                     .ConfigureAwait(false);
 

@@ -93,7 +93,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             Assert.That(received, Has.Count.EqualTo(2));
             Assert.That(sink.ReceivedChunks, Has.Count.EqualTo(1));
             Assert.That(sink.ReceivedChunks[0].ChannelId, Is.Zero);
-            Assert.That(sink.ReceivedChunks[0].Bytes, Is.EqualTo(new byte[] { 40, 50 }));
+            Assert.That(sink.ReceivedChunks[0].Bytes, Is.EqualTo("(2"u8.ToArray()));
         }
 
         [Test]

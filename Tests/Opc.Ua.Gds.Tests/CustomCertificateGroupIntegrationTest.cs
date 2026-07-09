@@ -169,7 +169,7 @@ namespace Opc.Ua.Gds.Tests
 
                 // The default application group has a well-known NodeId (predefined in the GDS NodeSet)
                 // The custom group has a dynamically generated NodeId outside that namespace
-                NodeId defaultGroupId = ExpandedNodeId.ToNodeId(
+                var defaultGroupId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
                     m_gdsClient.GDSClient.Session.NamespaceUris);
 

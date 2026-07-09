@@ -204,12 +204,9 @@ namespace Opc.Ua.Sessions.Tests
         private async Task<(ServerFixture<ReferenceServer> Fixture, Uri Url)> StartHaServerAsync(
             DistributedSessionManagerFactory factory)
         {
-            var fixture = new ServerFixture<ReferenceServer>(telemetry =>
+            var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry)
             {
-                return new ReferenceServer(telemetry)
-                {
-                    SessionManagerFactory = factory
-                };
+                SessionManagerFactory = factory
             })
             {
                 UriScheme = Utils.UriSchemeOpcTcp,

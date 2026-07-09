@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             ISessionFactory sessionFactory = Mock.Of<ISessionFactory>();
             IUserIdentity identity = Mock.Of<IUserIdentity>();
-            IUserIdentity[] identityHistory = Array.Empty<IUserIdentity>();
+            IUserIdentity[] identityHistory = [];
             ISystemContext systemContext = Mock.Of<ISystemContext>();
             IEncodeableFactory factory = Mock.Of<IEncodeableFactory>();
             ITypeTable typeTree = Mock.Of<ITypeTable>();
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             IServiceMessageContext messageContext = Mock.Of<IServiceMessageContext>();
             ITransportChannel nullableChannel = Mock.Of<ITransportChannel>();
             ITransportChannel transportChannel = Mock.Of<ITransportChannel>();
-            Subscription[] subscriptions = Array.Empty<Subscription>();
+            Subscription[] subscriptions = [];
             var namespaceUris = new NamespaceTable();
             var serverUris = new StringTable();
             var sessionId = new NodeId(42u);
@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var session = new Mock<ISession>();
             RedundantClientSession facade = CreateLeaderFacade(session);
 
-            Subscription[] loaded = Array.Empty<Subscription>();
+            Subscription[] loaded = [];
             var savedConfiguration = new SessionConfiguration();
             session.Setup(s => s.Load(It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<IEnumerable<Type>?>()))
                 .Returns(loaded);

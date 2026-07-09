@@ -622,7 +622,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task TryRespondToActionRequest_WithOutOfPolicyResponseAddress_DropsResponseAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, "\t"u8.ToArray());
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>
@@ -674,7 +674,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task TryRespondToActionRequest_WithInPolicyResponseAddress_SendsResponseAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, "\t"u8.ToArray());
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>
@@ -723,7 +723,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task TryRespondToActionRequest_OnDatagramTransport_SendsRegardlessOfAddressAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, "\t"u8.ToArray());
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>

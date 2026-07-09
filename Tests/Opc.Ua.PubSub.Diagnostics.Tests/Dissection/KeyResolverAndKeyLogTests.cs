@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                 Assert.That(materials[0].SecurityGroupId, Is.EqualTo("hex-group"));
                 Assert.That(materials[0].SigningKey.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
                 Assert.That(materials[0].EncryptingKey.ToArray(), Is.EqualTo(new byte[] { 5, 6, 7, 8 }));
-                Assert.That(materials[0].KeyNonce.ToArray(), Is.EqualTo(new byte[] { 9, 10 }));
+                Assert.That(materials[0].KeyNonce.ToArray(), Is.EqualTo("\t\n"u8.ToArray()));
             });
             DisposeAll(materials);
         }

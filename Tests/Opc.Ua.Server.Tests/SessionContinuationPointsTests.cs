@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests
             SessionContinuationPoints holder = NewHolder();
             holder.SaveHistory(Guid.NewGuid(), new object());
 
-            Assert.That(holder.RestoreHistory(new ByteString(new byte[] { 9 })), Is.Null);
+            Assert.That(holder.RestoreHistory(new ByteString("\t"u8.ToArray())), Is.Null);
         }
 
         [Test]

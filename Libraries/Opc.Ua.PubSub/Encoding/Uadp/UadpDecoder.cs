@@ -153,9 +153,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             var publisherId = PublisherId.FromByte(0);
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
-                PublisherIdType publisherIdType;
                 if (!((byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask)).TryGetPublisherIdType(
-                    out publisherIdType))
+                    out PublisherIdType publisherIdType))
                 {
                     return null;
                 }

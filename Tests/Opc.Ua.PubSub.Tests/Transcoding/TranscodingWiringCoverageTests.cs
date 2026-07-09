@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             var egress = new ConnectionTranscodeEgress(target);
             var result = new TranscodeResult
             {
-                Frames = new List<ReadOnlyMemory<byte>> { new byte[] { 9 } },
+                Frames = new List<ReadOnlyMemory<byte>> { "\t"u8.ToArray() },
                 Properties = new List<PubSubMessageProperty> { new("k", "v") }
             };
 

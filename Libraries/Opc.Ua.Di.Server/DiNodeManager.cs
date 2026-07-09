@@ -309,7 +309,7 @@ namespace Opc.Ua.Di.Server
         /// </returns>
         protected virtual NodeState? ResolveDefaultDeviceParent()
         {
-            NodeId deviceSetId = NodeId.Create(
+            var deviceSetId = NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
                 DiNamespaceUri,
                 Server.NamespaceUris);

@@ -137,13 +137,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void Exception_MessageSummarisesFirstErrors()
         {
-            PubSubConfigurationIssue[] issues = new[]
-            {
+            PubSubConfigurationIssue[] issues =
+            [
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCAAA"),
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCBBB"),
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCCCC"),
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCDDD")
-            };
+            ];
             var ex = new PubSubConfigurationException(issues);
             Assert.That(ex.Message, Does.Contain("PSCAAA"));
             Assert.That(ex.Message, Does.Contain("PSCBBB"));

@@ -623,7 +623,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 ByteString.From(3),
                 ByteString.From(4)
             ];
-            ByteString[] byteStringSlice = [ByteString.From(77), ByteString.From(88)];
+            ByteString[] byteStringSlice = [ByteString.From("M"u8.ToArray()), ByteString.From("X"u8.ToArray())];
             yield return new TestCaseData(
                 Variant.From(byteStringDst.ToArrayOf()),
                 Variant.From(byteStringSlice.ToArrayOf()),
@@ -956,7 +956,7 @@ namespace Opc.Ua.Types.Tests.Utils
             };
             var byteStringSlice = new ByteString[,]
             {
-                { ByteString.From(77), ByteString.From(88) }
+                { ByteString.From("M"u8.ToArray()), ByteString.From("X"u8.ToArray()) }
             };
             var byteStringExp = new ByteString[,]
             {
