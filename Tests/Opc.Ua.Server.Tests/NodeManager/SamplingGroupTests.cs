@@ -226,9 +226,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool added = group.StartMonitoring(
                 SessionlessContext(), item.Object, identity.Object);
 
+            bool addedWithNullContext = group.StartMonitoring(
+                null!, item.Object, identity.Object);
+
             Assert.That(added, Is.True);
+            Assert.That(addedWithNullContext, Is.False);
             item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
-        }
 
         [Test]
         public void StartMonitoringRejectsMismatchedOwnerIdentitySessionless()
