@@ -88,8 +88,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decoded[2]!.SequenceNumber, Is.EqualTo((ushort)4));
             // The decoder makes the raw order observable to a higher
             // layer that can then flag the regression.
-            Assert.That(decoded[1]!.SequenceNumber < decoded[0]!.SequenceNumber,
-                Is.True, "Out-of-order sequence is observable post-decode.");
+            Assert.That(decoded[1]!.SequenceNumber, Is.LessThan(decoded[0]!.SequenceNumber),
+                "Out-of-order sequence is observable post-decode.");
         }
 
         [Test]

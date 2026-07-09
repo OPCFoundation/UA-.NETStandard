@@ -225,7 +225,7 @@ namespace Opc.Ua.Bindings.WebApi
             // Place the token in the Authorization header so JwtBearerHandler
             // resolves the credential from its standard location instead of
             // requiring a bespoke per-handler API.
-            context.Request.Headers["Authorization"] = $"Bearer {accessToken}";
+            context.Request.Headers.Authorization = $"Bearer {accessToken}";
             IAuthenticationService authService = context.RequestServices
                 .GetRequiredService<IAuthenticationService>();
             AuthenticateResult result = await authService

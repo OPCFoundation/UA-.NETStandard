@@ -381,6 +381,11 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return IocOut | ((length & IocParmMask) << 16) | ((uint)group << 8) | number;
         }
 
+        // SYSLIB1054 (source-generated LibraryImport) is unavailable on the
+        // net472/net48/netstandard2.1 targets this channel also builds for, and
+        // classic DllImport of these blittable libc calls remains NativeAOT
+        // compatible, so the interop stays on DllImport across all TFMs.
+#pragma warning disable SYSLIB1054
         private static class NativeMethods
         {
             [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
@@ -404,5 +409,6 @@ namespace Opc.Ua.PubSub.Eth.Channels
             [DllImport("libc", SetLastError = true)]
             internal static extern nint write(int fd, byte[] buf, nint count);
         }
+#pragma warning restore SYSLIB1054
     }
 }

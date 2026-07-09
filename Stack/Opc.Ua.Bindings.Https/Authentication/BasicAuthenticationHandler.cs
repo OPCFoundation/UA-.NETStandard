@@ -197,7 +197,7 @@ namespace Opc.Ua.Bindings.WebApi.Authentication
         /// <inheritdoc/>
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            Response.Headers["WWW-Authenticate"] = $"Basic realm=\"{Options.Realm}\", charset=\"UTF-8\"";
+            Response.Headers.WWWAuthenticate = $"Basic realm=\"{Options.Realm}\", charset=\"UTF-8\"";
             return base.HandleChallengeAsync(properties);
         }
     }

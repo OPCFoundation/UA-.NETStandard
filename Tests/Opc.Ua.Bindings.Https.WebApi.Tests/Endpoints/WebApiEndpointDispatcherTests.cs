@@ -167,7 +167,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
             var server = new StubServer();
             DefaultHttpContext context = BuildContext("/read", server);
             WriteJsonBody(context.Request, "{}");
-            context.Request.Headers["Accept"] =
+            context.Request.Headers.Accept =
                 WebApiMediaType.FormatContentType(WebApiEncoding.Compact);
 
             await WebApiEndpointDispatcher
@@ -186,7 +186,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
             var server = new StubServer();
             DefaultHttpContext context = BuildContext("/read", server);
             WriteJsonBody(context.Request, "{}");
-            context.Request.Headers["Accept"] =
+            context.Request.Headers.Accept =
                 WebApiMediaType.FormatContentType(WebApiEncoding.Verbose);
 
             await WebApiEndpointDispatcher

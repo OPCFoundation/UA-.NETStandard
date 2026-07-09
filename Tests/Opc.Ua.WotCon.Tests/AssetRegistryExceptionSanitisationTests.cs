@@ -187,9 +187,9 @@ namespace Opc.Ua.WotCon.Tests
             else
             {
                 Assert.Inconclusive(
-                    $"CreateAssetAsync failed before the discovery path was exercised " +
+                    "CreateAssetAsync failed before the discovery path was exercised " +
                     $"(status={status}). Sanitisation contract is covered by the dedicated " +
-                    $"DiscoverAssets / ConnectionTest tests above.");
+                    "DiscoverAssets / ConnectionTest tests above.");
             }
         }
 

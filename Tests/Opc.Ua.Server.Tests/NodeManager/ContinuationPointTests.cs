@@ -44,6 +44,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var continuationPoint = new ContinuationPoint
             {
+                // BrowseResultMask is a spec-defined OPC UA bit mask that is
+                // intentionally generated without [Flags]; combining members
+                // with bitwise-or is the sanctioned usage.
+#pragma warning disable RCS1130
                 ResultMask = BrowseResultMask.ReferenceTypeId |
                     BrowseResultMask.IsForward |
                     BrowseResultMask.NodeClass |
@@ -51,6 +55,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     BrowseResultMask.DisplayName |
                     BrowseResultMask.TypeDefinition
             };
+#pragma warning restore RCS1130
 
             Assert.Multiple(() =>
             {

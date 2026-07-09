@@ -304,7 +304,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
             };
             if (bearer != null)
             {
-                context.Request.Headers["Authorization"] = "Bearer " + bearer;
+                context.Request.Headers.Authorization = "Bearer " + bearer;
             }
             return context;
         }

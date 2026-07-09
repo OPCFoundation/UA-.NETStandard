@@ -45,6 +45,10 @@ namespace Opc.Ua.PubSub.Configuration
         "Design",
         "CA1032:Implement standard exception constructors",
         Justification = "Configuration exceptions always carry the issue list; a default or message-only constructor would discard required diagnostic context.")]
+    [SuppressMessage(
+        "Usage",
+        "RCS1194:Implement exception constructors",
+        Justification = "Configuration exceptions always carry the issue list; a default or message-only constructor would discard required diagnostic context.")]
     public sealed class PubSubConfigurationException : Exception
     {
         /// <summary>

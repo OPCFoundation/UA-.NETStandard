@@ -51,7 +51,14 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// <param name="key">HMAC key (any non-empty length).</param>
         /// <param name="data">Bytes to authenticate.</param>
         /// <param name="destination">Destination span receiving the MAC.</param>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="destination"/> is shorter than
+        /// <see cref="OutputLength"/> bytes.
+        /// </exception>
+        /// <exception cref="CryptographicException">
+        /// Thrown when the platform HMAC-SHA-256 primitive returns an
+        /// unexpected output length.
+        /// </exception>
         public static void HashData(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> data,

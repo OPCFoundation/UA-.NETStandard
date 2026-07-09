@@ -3916,9 +3916,9 @@ namespace Opc.Ua
             // path must lock on the same instance to preserve mutual
             // exclusion. Switching to a private lock object requires
             // updating every external `lock(source)` site.
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
             lock (this)
-#pragma warning restore CA2002
+#pragma warning restore CA2002, RCS1059
             {
                 result = ReadAttribute(context, attributeId, indexRange, dataEncoding, ref value);
             }
@@ -4245,9 +4245,9 @@ namespace Opc.Ua
             ServiceResult result;
             // TODO: introduce a dedicated private lock object on NodeState —
             // see the sibling note in ReadAttributeAsync for the rationale.
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
+#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
             lock (this)
-#pragma warning restore CA2002
+#pragma warning restore CA2002, RCS1059
             {
                 result = WriteAttribute(context, attributeId, indexRange, value);
             }
