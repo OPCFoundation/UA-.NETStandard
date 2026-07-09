@@ -27,14 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
     /// Shared <see cref="Variant"/> marshalling helper used by the fluent
     /// variable surface (typed <c>OnRead</c> getters, the runtime
     /// <see cref="IValueUpdater{TValue}"/> handle, and auto-sampling).
-    /// Centralises the single reflection-based boxing entry point so the
-    /// AOT/trimming suppression lives in exactly one place.
+    /// Routes every typed value through the statically-registered
+    /// <see cref="IVariantBuilder{T}"/> implementations so the bridge stays
+    /// free of the obsolete <c>Variant(object)</c> constructor and of
+    /// reflection.
     /// </summary>
     internal static class FluentVariant
     {
@@ -45,35 +49,49 @@ namespace Opc.Ua.Server.Fluent
         /// variable.
         /// </summary>
         /// <remarks>
-        /// The reflection-based <c>Variant(object)</c> constructor is the
-        /// only generic entry point for an open-ended <typeparamref name="TValue"/>.
-        /// AOT users should prefer the per-type generated walker
-        /// (<c>FluentBuilderGenerator</c>) which routes through the typed
-        /// <c>Variant.From</c> overloads instead. The suppression is scoped
-        /// to this single call site so trim/AOT analysis still tracks every
-        /// other path through this assembly.
+        /// Built-in OPC UA types (booleans, numerics, strings,
+        /// <see cref="ByteString"/>, <see cref="NodeId"/>,
+        /// <see cref="ArrayOf{T}"/>, <see cref="MatrixOf{T}"/>, …) are
+        /// converted through the explicit <see cref="IVariantBuilder{T}"/>
+        /// implementations on <see cref="VariantBuilder"/>; enumerations map
+        /// onto their Int32 wire representation. Both paths are CS0618- and
+        /// reflection-free, so no trim/AOT suppression is required.
         /// </remarks>
         /// <typeparam name="TValue">
         /// CLR type of the value being wrapped.
         /// </typeparam>
         /// <param name="value">The value to wrap.</param>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
-            "Trimming",
-            "IL2026:RequiresUnreferencedCode",
-            Justification = "Generic typed-variable bridge requires the reflection-based Variant(object) constructor.")]
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
-            "AOT",
-            "IL3050:RequiresDynamicCode",
-            Justification = "Generic typed-variable bridge requires the reflection-based Variant(object) constructor.")]
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadNotSupported"/> when
+        /// <typeparamref name="TValue"/> is neither a built-in
+        /// Variant-convertible type nor an enumeration.
+        /// </exception>
         public static Variant ToVariant<TValue>(TValue value)
         {
             if (value is null)
             {
                 return Variant.Null;
             }
-#pragma warning disable CS0618 // Variant(object) is obsolete on net472
-            return new Variant(value);
-#pragma warning restore CS0618
+            // Built-in Variant-convertible types route through the statically
+            // registered IVariantBuilder<T> implementations on VariantBuilder.
+            // The struct is boxed once so the runtime type test resolves against
+            // the closed set of IVariantBuilder<T> interfaces it implements.
+            object boxedBuilder = default(VariantBuilder);
+            if (boxedBuilder is IVariantBuilder<TValue> builder)
+            {
+                return builder.WithValue(value);
+            }
+            // OPC UA enumerations map onto their Int32 wire representation.
+            if (value is Enum)
+            {
+                return Variant.From(EnumValue.From(value, typeof(TValue)));
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadNotSupported,
+                "Cannot marshal a value of type '{0}' to a Variant through the " +
+                "fluent typed surface. Use a built-in OPC UA type, an enum, or " +
+                "wrap the value in an ExtensionObject.",
+                typeof(TValue).FullName ?? typeof(TValue).Name);
         }
     }
 }

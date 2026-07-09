@@ -77,9 +77,9 @@ namespace Opc.Ua.Server.Fluent
         {
             lock (m_lock)
             {
-                // Refreshing the timestamp flags the value change mask so
-                // ClearChangeMasks reports an in-place value mutation.
-                m_variable.Timestamp = DateTime.UtcNow;
+                // Explicitly flag a value change so the notification fires even
+                // when the value object was mutated in place (no setter ran).
+                m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 m_variable.ClearChangeMasks(m_context, includeChildren: false);
             }
         }

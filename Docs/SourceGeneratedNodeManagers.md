@@ -788,9 +788,9 @@ does); calling `.Simulation()` on a plain `CustomNodeManager2` throws
 `OnRead` getters are invoked on the **Attribute (Read) service**, but a
 value that only lives behind a getter — or in a backing field mutated by
 an `OnCall` handler — will **not** reach subscribed MonitoredItems on its
-own. Historically the fix was to mutate `Node.Value` and call
-`Node.ClearChangeMasks(...)`, but that node handle is unavailable through
-the fluent surface once `Configure` returns (the builder is sealed).
+own. In previous implementations the fix was to mutate `Node.Value` and call
+`Node.ClearChangeMasks(...)`, but that node handle is deliberately unavailable
+through the fluent surface once `Configure` returns (the builder is sealed).
 
 Two fluent mechanisms close that gap.
 
