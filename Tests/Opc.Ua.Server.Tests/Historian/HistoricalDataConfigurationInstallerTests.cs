@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void EnsureInstalledAsyncThrowsWhenContextIsNull()
         {
-            var variable = CreateVariable("v-null-ctx");
+            BaseDataVariableState variable = CreateVariable("v-null-ctx");
             var provider = new InMemoryHistorianProvider();
 
             Assert.That(
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void EnsureInstalledAsyncThrowsWhenProviderIsNull()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-null-prov");
+            BaseDataVariableState variable = CreateVariable("v-null-prov");
 
             Assert.That(
                 async () => await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncCreatesConfigChildOnFirstCallAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-create");
+            BaseDataVariableState variable = CreateVariable("v-create");
             using var provider = new InMemoryHistorianProvider();
 
             HistoricalDataConfigurationState config =
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncIsIdempotentAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-idem");
+            BaseDataVariableState variable = CreateVariable("v-idem");
             using var provider = new InMemoryHistorianProvider();
 
             HistoricalDataConfigurationState first =
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncPopulatesSteppedFromCapabilitiesAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-stepped");
+            BaseDataVariableState variable = CreateVariable("v-stepped");
             using var provider = new InMemoryHistorianProvider();
 
             // Override capabilities to include Stepped = true.
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncPopulatesDefinitionWhenSetAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-def");
+            BaseDataVariableState variable = CreateVariable("v-def");
             using var provider = new InMemoryHistorianProvider();
 
             provider.Register(variable.NodeId, new HistorianNodeCapabilities

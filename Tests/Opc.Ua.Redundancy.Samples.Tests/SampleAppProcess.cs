@@ -140,7 +140,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             TimeSpan timeout,
             CancellationToken cancellationToken = default)
         {
-            var deadline = DateTime.UtcNow + timeout;
+            DateTime deadline = DateTime.UtcNow + timeout;
             int index = 0;
             while (DateTime.UtcNow < deadline)
             {
@@ -240,7 +240,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             TimeSpan timeout,
             CancellationToken cancellationToken = default)
         {
-            var deadline = DateTime.UtcNow + timeout;
+            DateTime deadline = DateTime.UtcNow + timeout;
             while (DateTime.UtcNow < deadline)
             {
                 if (CountLinesContaining(substring) >= minimumCount)

@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerSession session = CreateSession(CreateEndpoint());
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateRequest(new RequestHeader(), null!, RequestType.CloseSession));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
             var channelContext = new SecureChannelContext("wrong-channel", CreateEndpoint(), RequestEncoding.Binary);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
@@ -259,7 +259,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
             var channelContext = new SecureChannelContext("channel-1", CreateEndpoint(), RequestEncoding.Binary);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
         }
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server.Tests
             var context = new OperationContext(
                 requestHeader, null, RequestType.ActivateSession, RequestLifetime.None);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => new ServerSession(
                     context,
                     m_serverMock.Object,
@@ -441,7 +441,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdmin()
         {
-            var tokens = new[]
+            UserTokenPolicy[] tokens = new[]
             {
                 new UserTokenPolicy { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
             };
@@ -493,7 +493,7 @@ namespace Opc.Ua.Server.Tests
                 endpoint, channelId: "channel-1", clientCertificate: clientCertificate);
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),
@@ -529,7 +529,7 @@ namespace Opc.Ua.Server.Tests
             OperationContext context = CreateContext(
                 CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),
@@ -546,7 +546,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint(), channelId: "channel-1");
             OperationContext context = CreateContext(CreateEndpoint(), channelId: "other-channel");
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),
@@ -592,7 +592,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint);
             OperationContext context = CreateContext(endpoint);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),

@@ -109,8 +109,8 @@ namespace Opc.Ua.Server.Tests
         public async Task PreHydrateContinuesAfterStoreFailureAndHonorsQueueSizeGateAsync()
         {
             using var loggerProvider = new CapturingLoggerProvider();
-            using var loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
-            await using var fixture = await CreateMasterNodeManagerFixtureAsync(loggerFactory).ConfigureAwait(false);
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
+            await using MasterNodeManagerFixture fixture = await CreateMasterNodeManagerFixtureAsync(loggerFactory).ConfigureAwait(false);
             using var queueFactory = new MonitoredItemQueueFactory(fixture.Telemetry);
             var storeMock = new Mock<ISubscriptionStore>();
             IDataChangeMonitoredItemQueue restoredQueue = queueFactory.CreateDataChangeQueue(false, 2);

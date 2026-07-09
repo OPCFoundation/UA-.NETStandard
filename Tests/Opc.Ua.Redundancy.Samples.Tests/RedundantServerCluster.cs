@@ -322,7 +322,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             TimeSpan timeout,
             CancellationToken cancellationToken)
         {
-            var deadline = DateTime.UtcNow + timeout;
+            DateTime deadline = DateTime.UtcNow + timeout;
             while (DateTime.UtcNow < deadline)
             {
                 if (process.ContainsLine("listening at"))

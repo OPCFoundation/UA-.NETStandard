@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void DispatchRawReadAsyncThrowsWhenProviderIsNull()
         {
             HarnessFixture h = CreateHarness();
-            var node = CreateVariable(new NodeId("rrn-prov", 1));
+            BaseDataVariableState node = CreateVariable(new NodeId("rrn-prov", 1));
 
             Assert.That(() =>
                 HistorianDispatcher.DispatchRawReadAsync(
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void DispatchRawReadAsyncThrowsWhenNodeToReadIsNull()
         {
             HarnessFixture h = CreateHarness();
-            var node = CreateVariable(new NodeId("rrn-ntr", 1));
+            BaseDataVariableState node = CreateVariable(new NodeId("rrn-ntr", 1));
 
             Assert.That(() =>
                 HistorianDispatcher.DispatchRawReadAsync(
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void DispatchRawReadAsyncThrowsWhenDetailsIsNull()
         {
             HarnessFixture h = CreateHarness();
-            var node = CreateVariable(new NodeId("rrn-det", 1));
+            BaseDataVariableState node = CreateVariable(new NodeId("rrn-det", 1));
 
             Assert.That(() =>
                 HistorianDispatcher.DispatchRawReadAsync(
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void DispatchRawReadAsyncThrowsWhenResultIsNull()
         {
             HarnessFixture h = CreateHarness();
-            var node = CreateVariable(new NodeId("rrn-res", 1));
+            BaseDataVariableState node = CreateVariable(new NodeId("rrn-res", 1));
 
             Assert.That(() =>
                 HistorianDispatcher.DispatchRawReadAsync(
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 isDeleteModified: false,
                 CancellationToken.None).ConfigureAwait(false);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadRawModifiedDetails
             {
                 StartTime = BaseTime,
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [new DataValue(new Variant(77.0), StatusCodes.Good, t, t)],
                 CancellationToken.None).ConfigureAwait(false);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadAtTimeDetails
             {
                 ReqTimes = new DateTimeUtc[] { (DateTimeUtc)t },
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId($"at-nodata-{Guid.NewGuid():N}", 1);
             h.Provider.Register(nodeId);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             // No values inserted — both before and after are null.
             var details = new ReadAtTimeDetails
             {
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [new DataValue(new Variant(50.0), StatusCodes.Good, tAfter, tAfter)],
                 CancellationToken.None).ConfigureAwait(false);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             // Requested time is before the only data point; "before" will be null.
             var details = new ReadAtTimeDetails
             {
@@ -309,7 +309,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [new DataValue(new Variant("world"), StatusCodes.Good, t2, t2)],
                 CancellationToken.None).ConfigureAwait(false);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadAtTimeDetails
             {
                 ReqTimes = new DateTimeUtc[] { (DateTimeUtc)BaseTime.AddSeconds(10) },
@@ -347,7 +347,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void DispatchRawReadAsyncThrowsWhenSystemContextIsNull()
         {
             HarnessFixture h = CreateHarness();
-            var node = CreateVariable(new NodeId("rrn-sc", 1));
+            BaseDataVariableState node = CreateVariable(new NodeId("rrn-sc", 1));
 
             Assert.That(() =>
                 HistorianDispatcher.DispatchRawReadAsync(
@@ -397,7 +397,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [new DataValue(new Variant(42.0), StatusCodes.Good, t1, t1)],
                 CancellationToken.None).ConfigureAwait(false);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadRawModifiedDetails
             {
                 StartTime = (DateTimeUtc)BaseTime,
@@ -438,7 +438,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [new DataValue(new Variant(99.0), StatusCodes.Good, t1, t1)],
                 CancellationToken.None).ConfigureAwait(false);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadRawModifiedDetails
             {
                 StartTime = (DateTimeUtc)BaseTime,

@@ -34,6 +34,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -76,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private static async Task<int> CountEntriesAsync(InMemorySharedKeyValueStore backend, string keyPrefix)
         {
             int count = 0;
-            await foreach (var _ in backend.ScanAsync(keyPrefix).ConfigureAwait(false))
+            await foreach (KeyValuePair<string, ByteString> _ in backend.ScanAsync(keyPrefix).ConfigureAwait(false))
             {
                 count++;
             }

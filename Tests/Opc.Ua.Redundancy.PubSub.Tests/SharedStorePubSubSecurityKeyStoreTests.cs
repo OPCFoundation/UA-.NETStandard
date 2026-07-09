@@ -120,8 +120,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         public async Task GetSecurityGroupReturnsNullWhenStoredRecordCannotBeUnprotectedAsync()
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
-            using var protector = CreateProtector();
-            var keyStore = CreateKeyStore(sharedStore, protector);
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
 
             await sharedStore.SetAsync(
                 PubSubRedundancyStoreKeys.SecurityKeyPrefix + "group-a",
@@ -136,8 +136,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         public async Task SaveSecurityGroupRejectsStaleFencingTokenAsync()
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
-            using var protector = CreateProtector();
-            var keyStore = CreateKeyStore(sharedStore, protector);
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             SksSecurityGroup original = CreateGroup("group-a");
             SksSecurityGroup replacement = CreateGroup("group-a", maxFutureKeyCount: 7);
 

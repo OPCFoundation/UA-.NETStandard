@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task DispatchUpdateDataAsyncThrowsWhenSystemContextIsNullAsync()
         {
             var provider = new InMemoryHistorianProvider();
-            var node = CreateVariable(new NodeId("n", 1));
+            BaseDataVariableState node = CreateVariable(new NodeId("n", 1));
             var details = new UpdateDataDetails { PerformInsertReplace = PerformUpdateType.Insert };
             var result = new HistoryUpdateResult();
 
@@ -604,7 +604,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void ProjectEventFieldsResolvesNodeIdAttributeFromEmptyBrowsePath()
         {
-            var eventType = ObjectTypeIds.AuditEventType;
+            NodeId eventType = ObjectTypeIds.AuditEventType;
             var record = new HistorianEventRecord(
                 ByteString.Empty, eventType,
                 (DateTimeUtc)BaseTime,

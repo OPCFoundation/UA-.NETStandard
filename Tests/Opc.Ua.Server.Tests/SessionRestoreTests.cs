@@ -373,7 +373,7 @@ namespace Opc.Ua.Server.Tests
 
                 if (m_behavior == RestoreBehavior.DelayThenRestore)
                 {
-                    using var registration = cancellationToken.Register(
+                    using CancellationTokenRegistration registration = cancellationToken.Register(
                         static state => ((TaskCompletionSource<bool>)state!).TrySetCanceled(),
                         m_restoreGate);
                     await m_restoreGate.Task.ConfigureAwait(false);

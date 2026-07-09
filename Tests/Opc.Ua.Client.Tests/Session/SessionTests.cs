@@ -1857,7 +1857,7 @@ namespace Opc.Ua.Client.Tests
             sut.EnableTokenReuseFailover = true;
             SetServerNonce(sut, [1, 2, 3, 4]);
 
-            var failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
+            Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
             failoverChannel
                 .Setup(c => c.SendRequestAsync(
                     It.Is<ActivateSessionRequest>(r =>
@@ -1896,7 +1896,7 @@ namespace Opc.Ua.Client.Tests
 
             var newSessionId = NodeId.Parse("s=recreated");
             var newAuthenticationToken = NodeId.Parse("s=new-auth");
-            var failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
+            Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
             ConfigureOpenAsyncReadResponses(failoverChannel);
             failoverChannel
                 .Setup(c => c.SendRequestAsync(
@@ -1949,7 +1949,7 @@ namespace Opc.Ua.Client.Tests
             sut.EnableTokenReuseFailover = false;
             SetServerNonce(sut, [1, 2, 3, 4]);
 
-            var failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
+            Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await InvokeRecreateInPlaceCoreAsync(

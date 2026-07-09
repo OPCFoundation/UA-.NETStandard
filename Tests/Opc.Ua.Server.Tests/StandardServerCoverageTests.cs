@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ConstructorUsesSystemTimeProviderByDefault()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             Assert.That(server.TimeProviderAccessor, Is.SameAs(TimeProvider.System));
         }
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void LoadComplexTypesDefaultsToTrue()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             Assert.That(server.LoadComplexTypes, Is.True);
         }
@@ -112,7 +112,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void LoadComplexTypesCanBeDisabled()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             server.LoadComplexTypes = false;
 
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CurrentInstanceThrowsWhenNotStarted()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => _ = server.CurrentInstance);
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CurrentStateThrowsWhenNotStarted()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => _ = server.CurrentState);
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void GetStatusThrowsWhenNotStarted()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
 #pragma warning disable CS0618 // GetStatus is obsolete but still exercised for coverage.
             Assert.That(() => server.GetStatus(), Throws.Exception);
@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValidateRequestThrowsWhenNotStarted()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => server.ValidateRequestPublic(new RequestHeader()));
@@ -162,7 +162,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetServerStateThrowsWhenNotStarted()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => server.SetServerStatePublic(ServerState.Running));
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetServerErrorUpdatesServerErrorProperty()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
             var error = new ServiceResult(StatusCodes.BadInternalError);
 
             server.SetServerErrorPublic(error);
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValidateRequestThrowsServerErrorWhenSet()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
             server.SetServerErrorPublic(new ServiceResult(StatusCodes.BadInternalError));
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetServerStateThrowsServerErrorWhenSet()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
             server.SetServerErrorPublic(new ServiceResult(StatusCodes.BadInternalError));
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
                 StatusCodes.BadCertificateChainIncomplete,
                 StatusCodes.BadCertificateIssuerRevocationUnknown
             ];
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             foreach (StatusCode certStatusCode in certStatusCodes)
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void OnApplicationCertificateErrorPassesThroughUnmappedCode()
         {
-            using var server = CreateServer();
+            using TestableStandardServer server = CreateServer();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => server.OnApplicationCertificateErrorPublic(
