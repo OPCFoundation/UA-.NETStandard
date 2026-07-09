@@ -46,9 +46,9 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Redundancy;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Redundancy.Tests
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
 
             ConfiguredEndpoint expectedEndpoint = seedSession.ConfiguredEndpoint;
-            NodeId expectedAuthenticationToken = NodeId.Parse("s=auth");
+            var expectedAuthenticationToken = NodeId.Parse("s=auth");
             ManagedSession managedSession = CreateManagedSessionForTokenReuse(expectedEndpoint, expectedAuthenticationToken);
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
