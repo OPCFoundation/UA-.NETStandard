@@ -227,6 +227,33 @@ namespace Opc.Ua.InformationModel.Tests
         }
 
         [Test]
+        public async Task ReadConformanceUnitsIsPopulatedAsync()
+        {
+            DataValue result = await ReadNodeValueAsync(
+                VariableIds.Server_ServerCapabilities_ConformanceUnits)
+                .ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+
+            ArrayOf<QualifiedName> units = result.GetValue(default(ArrayOf<QualifiedName>));
+            Assert.That(units.Count, Is.GreaterThan(0),
+                "ServerCapabilities.ConformanceUnits should be populated.");
+
+            bool hasCoreUnit = false;
+            foreach (QualifiedName unit in units)
+            {
+                if (unit.Name == "Attribute Read")
+                {
+                    hasCoreUnit = true;
+                    break;
+                }
+            }
+
+            Assert.That(hasCoreUnit, Is.True,
+                "ConformanceUnits should include the core 'Attribute Read' unit.");
+        }
+
+        [Test]
         public async Task ReadOperationLimitsMaxNodesPerHistoryReadEventsAsync()
         {
             DataValue result = await ReadNodeValueAsync(

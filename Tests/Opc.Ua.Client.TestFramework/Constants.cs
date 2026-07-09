@@ -144,6 +144,13 @@ namespace Opc.Ua.Client.TestFramework
         public static readonly ExpandedNodeId ScalarStaticArrayByteString =
             new("Scalar_Static_Arrays_ByteString", ReferenceServerNamespaceUri);
 
+        /// <summary>
+        /// One-dimensional Variant array node whose elements are themselves
+        /// arrays/scalars of mixed built-in types.
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarStaticArrayVariant =
+            new("Scalar_Static_Arrays_Variant", ReferenceServerNamespaceUri);
+
         public static readonly ExpandedNodeId[] ScalarStaticArrayNodes =
         [
             ScalarStaticArrayBoolean,
@@ -151,6 +158,32 @@ namespace Opc.Ua.Client.TestFramework
             ScalarStaticArrayString,
             ScalarStaticArrayDouble,
             ScalarStaticArrayDateTime
+        ];
+
+        /// <summary>
+        /// Static multi-dimensional (2D) Array Nodes
+        /// </summary>
+        public static readonly ExpandedNodeId ScalarStaticArrays2DBoolean =
+            new("Scalar_Static_Arrays2D_Boolean", ReferenceServerNamespaceUri);
+
+        public static readonly ExpandedNodeId ScalarStaticArrays2DInt32 =
+            new("Scalar_Static_Arrays2D_Int32", ReferenceServerNamespaceUri);
+
+        public static readonly ExpandedNodeId ScalarStaticArrays2DDouble =
+            new("Scalar_Static_Arrays2D_Double", ReferenceServerNamespaceUri);
+
+        public static readonly ExpandedNodeId ScalarStaticArrays2DString =
+            new("Scalar_Static_Arrays2D_String", ReferenceServerNamespaceUri);
+
+        /// <summary>
+        /// Collection of static multi-dimensional (2D) array node IDs.
+        /// </summary>
+        public static readonly ExpandedNodeId[] ScalarStaticArrays2DNodes =
+        [
+            ScalarStaticArrays2DBoolean,
+            ScalarStaticArrays2DInt32,
+            ScalarStaticArrays2DDouble,
+            ScalarStaticArrays2DString
         ];
 
         /// <summary>

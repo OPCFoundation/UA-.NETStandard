@@ -72,11 +72,13 @@ namespace Opc.Ua.Pcap.Capture.Sources
     }
 
     /// <summary>
-    /// In-process capture source for server-hosting scenarios. Same
-    /// behaviour as <see cref="InProcessClientCaptureSource"/> - the
-    /// distinction is preserved only for future server-side bindings;
-    /// today both sources just install an observer on the shared
-    /// registry.
+    /// In-process capture source for server-hosting scenarios. Installs the
+    /// active <see cref="IFrameCaptureSink"/> observer on the shared
+    /// <see cref="IChannelCaptureRegistry"/>; the server listener binding
+    /// (<see cref="PcapTransportListenerBinding"/>, installed via
+    /// <c>PcapBindings.InstallServer</c> / <c>AddPcap</c>) feeds wire chunks
+    /// and channel-token key material from every accepted server channel to
+    /// that observer.
     /// </summary>
     public sealed class InProcessServerCaptureSource : InProcessCaptureSourceBase
     {
