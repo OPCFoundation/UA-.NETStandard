@@ -266,13 +266,13 @@ the generator emits, into a single `{Manager}.FluentBuilders.g.cs`:
   to typed `IVariableBuilder<TValue>`, child wrapper instances, and
   method wrappers.
 - One `internal sealed class` per method — exposing typed
-  `OnCall(Func<TIn1, …, TResult>)` and async
-  `OnCall(Func<TIn1, …, CancellationToken, ValueTask<TResult>>)`
-  overloads when the model declares input/output arguments
+  `OnCall(...)` overloads bound to the method's declared arguments
   (the generator handles `Variant.TryGetValue` unpacking and
   `Variant.From<T>` boxing — see [Methods with arguments](#methods-with-arguments--typed-oncall-overloads)).
-  Argument-less methods keep the no-arg `OnCall(Action)` /
-  `OnCall(Func<CancellationToken, ValueTask>)` overloads.
+  A method with inputs but no output binds to `OnCall(Action<TIn…>)`;
+  a method with neither inputs nor outputs keeps the argument-less
+  `OnCall(Action)` / `OnCall(Func<CancellationToken, ValueTask>)`
+  overloads.
 
 All emitted types are `internal sealed` because `Configure` is a
 private partial — the surface never escapes the assembly. Child
@@ -290,19 +290,31 @@ through `Variant.From<T>(value)`, and `BadInvalidArgument` /
 `BadArgumentsMissing` is returned when the wire shape does not match
 the declared signature — none of which the user has to spell out.
 
-Two overloads are emitted per method:
+Two overloads are emitted per method, shaped by the declared arguments:
 
-- `OnCall(Func<TIn1, TIn2, …, TResult> handler)` — synchronous
-  dispatch through `MethodState.OnCallMethod2`.
-- `OnCall(Func<TIn1, TIn2, …, CancellationToken, ValueTask<TResult>>
-  handler)` — async dispatch through `MethodState.OnCallMethod2Async`,
-  awaited inside `AsyncCustomNodeManager.CallAsync` so the lambda may
-  freely `await`.
+- **Inputs and outputs** →
+  `OnCall(Func<TIn1, …, TResult> handler)` (synchronous dispatch through
+  `MethodState.OnCallMethod2`) and
+  `OnCall(Func<TIn1, …, CancellationToken, ValueTask<TResult>> handler)`
+  (async dispatch through `MethodState.OnCallMethod2Async`, awaited inside
+  `AsyncCustomNodeManager.CallAsync` so the lambda may freely `await`).
+- **Inputs but no output** (a `void`-returning action) →
+  `OnCall(Action<TIn1, …> handler)` and
+  `OnCall(Func<TIn1, …, CancellationToken, ValueTask> handler)`. The inputs
+  are still unpacked via `Variant.TryGetValue<T>`, so
+  `builder.X.SetOutputVal.OnCall((float v) => …)` binds directly to the
+  argument.
+- **No inputs and no output** → the argument-less `OnCall(Action)` /
+  `OnCall(Func<CancellationToken, ValueTask>)` overloads.
 
 Methods with multiple output arguments are bound to a `ValueTuple`
-return — slot `i` is written from `__r.Item{i+1}`. Methods with no
-return value (action-only) keep the existing `OnCall(Action)` /
-`OnCall(Func<CancellationToken, ValueTask>)` overloads.
+return — slot `i` is written from `__r.Item{i+1}`.
+
+The declared arguments are resolved from the method itself and, when the
+method carries none of its own, from its method declaration / method type.
+This means **instance methods imported from a NodeSet2** (whose
+`InputArguments`/`OutputArguments` live on the referenced declaration) get
+the same typed `OnCall` overloads as methods authored in a ModelDesign.
 
 ```csharp
 [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
@@ -769,6 +781,55 @@ tick.
 The simulation registry **requires** the manager to derive from
 `FluentNodeManagerBase` (the source generator-emitted manager already
 does); calling `.Simulation()` on a plain `CustomNodeManager2` throws
+`StatusCodes.BadConfigurationError`.
+
+### Pushing runtime value changes to subscribers
+
+`OnRead` getters are invoked on the **Attribute (Read) service**, but a
+value that only lives behind a getter — or in a backing field mutated by
+an `OnCall` handler — will **not** reach subscribed MonitoredItems on its
+own. Historically the fix was to mutate `Node.Value` and call
+`Node.ClearChangeMasks(...)`, but that node handle is unavailable through
+the fluent surface once `Configure` returns (the builder is sealed).
+
+Two fluent mechanisms close that gap.
+
+**1. `Bind(out IValueUpdater<TValue>)` — explicit push.** Capture a runtime
+handle during `Configure` and store it on the manager; the handle survives
+sealing. `SetValue` assigns the value, timestamp and status and flushes the
+change mask in one serialized call, so both reads *and* subscriptions see
+the update:
+
+```csharp
+private IValueUpdater<float> m_ao01 = null!;
+
+partial void Configure(IMyNodeManagerBuilder builder)
+{
+    builder.MyEquipment03.AO01.Builder.AsVariable<float>()
+           .Bind(out m_ao01);
+
+    builder.MyEquipment03.SetOutputVal
+           .OnCall((float value) => m_ao01.SetValue(value));
+}
+```
+
+`IValueUpdater<TValue>` also exposes `SetValue(value, statusCode)`,
+`SetValue(value, statusCode, sourceTimestamp)`, and `NotifyChange()` (flush
+a notification after an in-place mutation without changing the value).
+
+**2. `PollEvery(interval, getter)` — opt-in auto-sampling.** Register a
+periodic loop that reads the getter and pushes a change only when the value
+actually differs, so subscriptions update automatically with no
+change-notification code. An initial sample is applied immediately:
+
+```csharp
+builder.MyEquipment03.AO01
+       .PollEvery(TimeSpan.FromMilliseconds(250), () => m_ao01Value);
+```
+
+Like `Simulation`, `PollEvery` reuses the manager-owned loop
+infrastructure and therefore **requires** the manager to derive from
+`FluentNodeManagerBase`; calling it on a plain `CustomNodeManager2` throws
 `StatusCodes.BadConfigurationError`.
 
 ### Multi-model composition
