@@ -152,6 +152,7 @@ namespace Opc.Ua.Server.Tests
         /// runtime-loaded structure and enumeration DataTypes.
         /// </summary>
         [Test]
+        [Order(100)]
         public void ServerRegistersRuntimeStandInTypes()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -193,6 +194,7 @@ namespace Opc.Ua.Server.Tests
         /// via its stand-in and the client decodes it into a structured value.
         /// </summary>
         [Test]
+        [Order(200)]
         public async Task ClientReadsRuntimeStructureValue()
         {
             NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.PointValueVariable);
@@ -218,6 +220,7 @@ namespace Opc.Ua.Server.Tests
         /// enumeration value.
         /// </summary>
         [Test]
+        [Order(300)]
         public async Task ClientReadsRuntimeEnumValue()
         {
             NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.ColorValueVariable);
@@ -237,6 +240,7 @@ namespace Opc.Ua.Server.Tests
         /// on the next read.
         /// </summary>
         [Test]
+        [Order(400)]
         public async Task ClientWritesRuntimeStructureValue()
         {
             NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.PointValueVariable);
