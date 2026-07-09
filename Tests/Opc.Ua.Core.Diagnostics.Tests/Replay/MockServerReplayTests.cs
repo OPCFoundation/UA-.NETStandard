@@ -113,8 +113,9 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 var replay = new MockServerReplay(source);
                 await using (replay.ConfigureAwait(false))
                 {
-                    Assert.DoesNotThrowAsync(async () =>
-                        await replay.StopAsync(CancellationToken.None).ConfigureAwait(false));
+                    Assert.That(
+                        async () => await replay.StopAsync(CancellationToken.None).ConfigureAwait(false),
+                        Throws.Nothing);
                 }
             }
         }
@@ -130,8 +131,12 @@ namespace Opc.Ua.Pcap.Tests.Replay
             var replay = new MockServerReplay(source);
             await using (replay.ConfigureAwait(false))
             {
-                Assert.DoesNotThrowAsync(async () => await replay.DisposeAsync().ConfigureAwait(false));
-                Assert.DoesNotThrowAsync(async () => await replay.DisposeAsync().ConfigureAwait(false));
+                Assert.That(
+                    async () => await replay.DisposeAsync().ConfigureAwait(false),
+                    Throws.Nothing);
+                Assert.That(
+                    async () => await replay.DisposeAsync().ConfigureAwait(false),
+                    Throws.Nothing);
             }
         }
 
@@ -236,12 +241,12 @@ namespace Opc.Ua.Pcap.Tests.Replay
 
             public ValueTask StartAsync(StartCaptureRequest request, CancellationToken ct)
             {
-                return ValueTask.CompletedTask;
+                return new ValueTask();
             }
 
             public ValueTask StopAsync(CancellationToken ct)
             {
-                return ValueTask.CompletedTask;
+                return new ValueTask();
             }
 
             public string? GetRawPcapFilePath()
@@ -257,7 +262,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
             public async IAsyncEnumerable<ChannelKeyMaterial> ReadKeyMaterialAsync(
                 [EnumeratorCancellation] CancellationToken ct)
             {
-                await Task.CompletedTask.ConfigureAwait(false);
+                await Task.Yield();
                 yield break;
             }
 
@@ -265,13 +270,13 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 long? maxFrames,
                 [EnumeratorCancellation] CancellationToken ct)
             {
-                await Task.CompletedTask.ConfigureAwait(false);
+                await Task.Yield();
                 yield break;
             }
 
             public ValueTask DisposeAsync()
             {
-                return ValueTask.CompletedTask;
+                return new ValueTask();
             }
         }
     }

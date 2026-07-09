@@ -29,7 +29,9 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -297,7 +299,269 @@ namespace Opc.Ua.Pcap.Tests.Dissection
                 "compares against the un-masked case labels. Document the behaviour.");
         }
 
+        [Test]
+        public void PrivateAddControlMessageProducesCompletedEntry()
+        {
+            var reassembler = new ServiceCallReassembler(NullLoggerFactory.Instance);
+            var timestamp = new DateTimeOffset(2026, 4, 5, 6, 7, 8, TimeSpan.Zero);
+            CaptureFrame frame = MakeControlFrame(TcpMessageType.Hello, timestamp);
+
+            InvokeInstance<object?>(reassembler, "AddControlMessage", frame, "Hello");
+
+            IReadOnlyList<DecodedServiceCall> completed = reassembler.DrainCompleted();
+
+            Assert.That(completed, Has.Count.EqualTo(1));
+            Assert.That(completed[0].RequestName, Is.EqualTo("Hello"));
+            Assert.That(completed[0].RequestTimestamp, Is.EqualTo(timestamp));
+            Assert.That(completed[0].RequestBodySize, Is.EqualTo(8));
+        }
+
+        [Test]
+        public void PushMessageWithoutKeyMaterialIsSkipped()
+        {
+            var reassembler = new ServiceCallReassembler(NullLoggerFactory.Instance);
+            byte[] chunk = BuildMsgChunk(channelId: 0x12345678, tokenId: 0x42, body: [1, 2, 3]);
+
+            Assert.That(
+                () => reassembler.Push(
+                    new CaptureFrame(
+                        DateTimeOffset.UtcNow,
+                        CaptureFrameDirection.ClientToServer,
+                        string.Empty,
+                        string.Empty,
+                        chunk)),
+                Throws.Nothing);
+            Assert.That(reassembler.DrainCompleted(), Is.Empty);
+        }
+
+        [Test]
+        public void PrivateRequestSummaryFormatsKnownRequestKinds()
+        {
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new ReadRequest
+                    {
+                        RequestHeader = new RequestHeader { RequestHandle = 10, AuditEntryId = "audit" },
+                        NodesToRead = [new ReadValueId { NodeId = ObjectIds.Server }],
+                        MaxAge = 12.5
+                    },
+                    "ReadRequest",
+                    100),
+                Is.EqualTo("handle=10 audit=audit ReadRequest body=100B"));
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new BrowseRequest
+                    {
+                        NodesToBrowse = [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }]
+                    },
+                    "BrowseRequest",
+                    101),
+                Does.Contain("BrowseRequest body=101B"));
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new WriteRequest { NodesToWrite = [new WriteValue()] },
+                    "WriteRequest",
+                    102),
+                Does.Contain("WriteRequest body=102B"));
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new CallRequest { MethodsToCall = [new CallMethodRequest()] },
+                    "CallRequest",
+                    103),
+                Does.Contain("CallRequest body=103B"));
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new HistoryReadRequest { NodesToRead = [new HistoryReadValueId()] },
+                    "HistoryReadRequest",
+                    104),
+                Does.Contain("HistoryReadRequest body=104B"));
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new CreateMonitoredItemsRequest { ItemsToCreate = [new MonitoredItemCreateRequest()] },
+                    "CreateMonitoredItemsRequest",
+                    105),
+                Does.Contain("CreateMonitoredItemsRequest body=105B"));
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new DeleteMonitoredItemsRequest { MonitoredItemIds = [1U, 2U] },
+                    "DeleteMonitoredItemsRequest",
+                    106),
+                Does.Contain("DeleteMonitoredItemsRequest body=106B"));
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new PublishRequest { SubscriptionAcknowledgements = [new SubscriptionAcknowledgement()] },
+                    "PublishRequest",
+                    107),
+                Does.Contain("PublishRequest body=107B"));
+            Assert.That(
+                InvokeCreateRequestSummary(new RegisterNodesRequest(), "RegisterNodesRequest", 108),
+                Does.Contain("RegisterNodesRequest body=108B"));
+        }
+
+        [Test]
+        public void PrivateFormattingHelpersHandleCollectionsAndMissingProperties()
+        {
+            var encodeable = new EncodeableWithCollections();
+
+            Assert.That(
+                InvokeStatic<string>("FormatCount", encodeable, "Items", "items"),
+                Is.EqualTo("2 items"));
+            Assert.That(
+                InvokeStatic<string>("FormatCount", encodeable, "Missing", "items"),
+                Is.EqualTo(string.Empty));
+            Assert.That(
+                InvokeStatic<string>("FormatCountAndValue", encodeable, "Items", "items", "Value", "value"),
+                Is.EqualTo("2 items, value=42"));
+            Assert.That(
+                InvokeStatic<string>("FormatCountAndValue", encodeable, "Items", "items", "NullValue", "value"),
+                Is.EqualTo("2 items, value=null"));
+            Assert.That(
+                InvokeStatic<string>("FormatCountAndValue", encodeable, "Missing", "items", "Value", "value"),
+                Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void PrivateDecodedMessageHelpersCoverResponsesAndAnnotations()
+        {
+            var reassembler = new ServiceCallReassembler(NullLoggerFactory.Instance);
+            var response = new ReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    ServiceResult = StatusCodes.BadUnexpectedError,
+                    Timestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc)
+                }
+            };
+            object decodedResponse = InvokeInstance<object>(
+                reassembler,
+                "CreateDecodedMessage",
+                response,
+                10);
+            object decodedEncodeable = InvokeInstance<object>(
+                reassembler,
+                "CreateDecodedMessage",
+                new Argument { Name = "Input" },
+                11);
+            var annotations = new Dictionary<string, string?>();
+
+            InvokeStatic<object?>(
+                "AddRequestAnnotations",
+                annotations,
+                new ReadRequest
+                {
+                    RequestHeader = new RequestHeader { RequestHandle = 123, AuditEntryId = "audit" }
+                });
+            InvokeStatic<object?>("AddRequestAnnotations", annotations, new Argument());
+
+            Assert.That(GetProperty<string?>(decodedResponse, "Name"), Is.EqualTo("ReadResponse"));
+            Assert.That(GetProperty<StatusCode?>(decodedResponse, "ResponseStatus"), Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(GetProperty<string?>(decodedResponse, "Summary"), Does.Contain("status=BadUnexpectedError"));
+            Assert.That(GetProperty<string?>(decodedEncodeable, "Name"), Is.EqualTo("Argument"));
+            Assert.That(GetProperty<string?>(decodedEncodeable, "Summary"), Is.EqualTo("Argument body=11B"));
+            Assert.That(annotations["RequestHandle"], Is.EqualTo("123"));
+            Assert.That(annotations["AuditEntryId"], Is.EqualTo("audit"));
+            Assert.That(annotations, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void PrivateDecodeMessageReturnsUndecodedForMalformedBody()
+        {
+            var reassembler = new ServiceCallReassembler(NullLoggerFactory.Instance);
+            var chunks = new List<byte[]> { new byte[] { 0xFF, 0x00 }, new byte[] { 0xAA } };
+
+            object decoded = InvokeInstance<object>(reassembler, "DecodeMessage", chunks);
+
+            Assert.That(GetProperty<string?>(decoded, "Name"), Is.EqualTo("3B"));
+            Assert.That(GetProperty<string?>(decoded, "Summary"), Is.EqualTo("(undecoded: 3 bytes)"));
+        }
+
         // ---- helpers ----
+
+        private static CaptureFrame MakeControlFrame(uint messageType, DateTimeOffset timestamp)
+        {
+            byte[] payload = new byte[8];
+            BinaryPrimitives.WriteUInt32LittleEndian(payload, messageType);
+            BinaryPrimitives.WriteUInt32LittleEndian(payload.AsSpan(4), (uint)payload.Length);
+            return new CaptureFrame(
+                timestamp,
+                CaptureFrameDirection.ClientToServer,
+                string.Empty,
+                string.Empty,
+                payload);
+        }
+
+        private static byte[] BuildMsgChunk(uint channelId, uint tokenId, byte[] body)
+        {
+            int size = 24 + body.Length;
+            byte[] chunk = new byte[size];
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk, TcpMessageType.MessageFinal);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(4), (uint)size);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(8), channelId);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(12), tokenId);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(16), 1);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(20), 2);
+            body.CopyTo(chunk.AsSpan(24));
+            return chunk;
+        }
+
+        private static string InvokeCreateRequestSummary(IServiceRequest request, string typeName, int byteCount)
+        {
+            return InvokeStatic<string>("CreateRequestSummary", request, typeName, byteCount);
+        }
+
+        private static T InvokeInstance<T>(ServiceCallReassembler reassembler, string methodName, params object?[] parameters)
+        {
+            MethodInfo method = typeof(ServiceCallReassembler).GetMethod(
+                methodName,
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            return (T)method.Invoke(reassembler, parameters)!;
+        }
+
+        private static T InvokeStatic<T>(string methodName, params object?[] parameters)
+        {
+            MethodInfo method = typeof(ServiceCallReassembler).GetMethod(
+                methodName,
+                BindingFlags.NonPublic | BindingFlags.Static)!;
+            return (T)method.Invoke(null, parameters)!;
+        }
+
+        private static T GetProperty<T>(object value, string name)
+        {
+            return (T)value.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance)!.GetValue(value)!;
+        }
+
+        private sealed class EncodeableWithCollections : IEncodeable
+        {
+            public ExpandedNodeId TypeId => ExpandedNodeId.Null;
+
+            public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
+
+            public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+
+            public ICollection Items { get; } = new ArrayList { 1, 2 };
+
+            public int Value => 42;
+
+            public string? NullValue => null;
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return ReferenceEquals(this, encodeable);
+            }
+
+            public object Clone()
+            {
+                return new EncodeableWithCollections();
+            }
+        }
 
         private static byte[] BuildOpnChunk(uint channelId, uint tokenId, int size)
         {

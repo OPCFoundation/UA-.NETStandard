@@ -230,7 +230,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
             public ValueTask OnEventAsync(PcapAuditEvent auditEvent, CancellationToken cancellationToken)
             {
                 Events.Add(auditEvent);
-                return ValueTask.CompletedTask;
+                return new ValueTask();
             }
         }
     }
