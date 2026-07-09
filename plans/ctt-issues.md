@@ -242,6 +242,58 @@ ready-made golden vector to validate the CTT codec against.
 
 ---
 
+## 5. HA Aggregate helper — multi-node path dereferences `possibleNodeId` without an `isDefined` guard
+
+`ServerProjects/Standard/library/ServiceBased/AttributeServiceSet/HistoryRead/HAAggregateHelper.js`,
+`PerformMultipleNodeTest` (around line 1484), raises `possibleNodeId [undefined] is not an object`
+(a JavaScript `TypeError`) roughly 100 times across the aggregate conformance units, aborting the
+affected multi-node aggregate cases.
+
+### What the test does
+
+For the multi-node aggregate cases (`configObject.Items.length > 1`) the helper walks the raw-data
+cache and, for every node referenced by a cached request entry, maps the cached position back to the
+current test's variable list:
+
+```js
+for ( var nodeIndex = 0; nodeIndex < requestEntry.Nodes.length; nodeIndex++ ) {
+    var originalItemIndex = requestEntry.Nodes[ nodeIndex ].Index;
+    var possibleNodeId = variables.Items[ originalItemIndex ];   // may be undefined
+    if ( itemLookup.Contains( possibleNodeId.NodeId.toString() ) ) {   // <-- throws here
+        ...
+    }
+}
+```
+
+`originalItemIndex` is an index that was captured against the **full** variable set when the raw-data
+cache was built, but `variables.Items` here is the **current** (potentially smaller / re-ordered)
+per-configuration subset. When the cached index has no corresponding entry in `variables.Items`,
+`possibleNodeId` is `undefined` and the immediate `possibleNodeId.NodeId.toString()` throws.
+
+### Why this is a CTT defect
+
+Every other place in the same helper that indexes `variables.Items` guards the lookup with
+`isDefined(...)` before dereferencing (e.g. the single-node path). This one call site does not, so a
+perfectly valid server address space (whose node ordering simply differs from the cache's captured
+indices) makes the script throw instead of skipping the unmatched entry. The server returns no error
+here — the failure is entirely inside the CTT script.
+
+### Recommended CTT fix
+
+Guard the dereference exactly as the sibling code paths already do:
+
+```js
+var possibleNodeId = variables.Items[ originalItemIndex ];
+if ( isDefined( possibleNodeId ) && itemLookup.Contains( possibleNodeId.NodeId.toString() ) ) {
+    ...
+}
+```
+
+Alternatively, resolve the node through `itemLookup` by the cached NodeId rather than by positional
+index, so the current-subset ordering is irrelevant.
+
+---
+
 ## Notes on items that are **not** CTT defects
 
 ### Security (Run2) — server-side / configuration items (not CTT script defects)
@@ -364,3 +416,59 @@ model / test-script inputs (which the XML does not carry).
   above (the item `.Value` was empty for denied nodes); expected to clear once the
   server permission fix lets the initial read succeed. Re-confirm on the next CTT
   run.
+
+### Latest run (everything except security in pass 1, security in pass 2) — new findings
+
+This run was taken after the RolePermissions / conformance / X.509-signing / cert-error fixes had
+landed, so the earlier cascades are cleared and the residual clusters below are what remains.
+
+* **Security User X509 — `ActivateSession` returns `BadUserAccessDenied` for tests 005-018 (server
+  brute-force lockout, now fixed by configuration).** The first few X.509 negative cases (001-004)
+  return their expected token-specific codes, but from 005 onward **every** activation — including the
+  positive cases 011/013 that send a valid token and expect `Good` — returns
+  `BadUserAccessDenied (0x801f0000)`. A valid token cannot be access-denied by token validation, which
+  pinpoints the cause: the session manager's **brute-force lockout**
+  (`SessionManager.cs`, `MaxFailedAuthenticationAttempts`, default **5**) is keyed on the *client
+  application-instance certificate thumbprint* — which is identical for every case in the suite — and
+  **every rejected attempt counts, even the ones the CTT deliberately expects to fail**. After five
+  the client is locked out for five minutes and all remaining activations short-circuit to
+  `BadUserAccessDenied`, masking the real per-token result. The lockout is a vendor hardening feature,
+  **not** an OPC UA conformance requirement, so it is disabled for compliance testing by setting
+  `<MaxFailedAuthenticationAttempts>0</MaxFailedAuthenticationAttempts>` in
+  `Ctt.ReferenceServer.Config.xml` (production keeps the default of 5). This behaviour is proven by
+  `ClientLockoutTests.ClientIsNotLockedOutWhenLockoutDisabledAsync`. *Note for the CTT team:* because
+  a compliant server MAY implement account/endpoint lockout, a robust conformance harness should not
+  assume that a long run of intentional authentication failures leaves the client able to
+  authenticate — consider spacing the negative cases, using a distinct client instance certificate per
+  case, or tolerating a lockout status on the positive cases that follow a burst of failures.
+
+* **Security Certificate Validation — valid client certs report `BadSecurityChecksFailed` where `Good`
+  is expected (037/044/051/052): certificate-trust provisioning, not a server code defect.** The
+  specific-code surfacing for expired / wrong-usage certs is already fixed (see the Run2 note above:
+  `TcpServerChannel` now forwards `BadCertificateTimeInvalid` / `BadCertificateUseNotAllowed`). The
+  remaining cases expect `Good` for a **valid** client certificate but receive
+  `BadSecurityChecksFailed` — which is exactly the code the server (deliberately, per Part 4 §7.39
+  non-disclosure) returns for an **untrusted** certificate. That means the CTT's client certificates
+  for these cases were not present in the server's trusted store when the security pass ran. This is a
+  certificate-provisioning step in the test environment (push the CTT client certs to the server trust
+  list, or run the reference server with auto-accept for the security pass), not a server bug. Confirm
+  via a CTT loop once the CTT client certs are trusted.
+
+* **Aggregates — the dominant cluster is the server-vs-CTT value comparison and needs the CTT loop to
+  attribute.** With the earlier cascades cleared, the aggregate units now reach
+  `HAAggregateHelper.js` `PerformAggregateCheck`, which reads the aggregate from the **server**
+  (`ReadProcessedDetails`) and compares it, value by value, against the aggregate the **CTT computes
+  itself** from the raw-data cache; a mismatch is reported as *"Query did not result in identical
+  readings"* (`:1291`). The equality test (`equals`, `:2411`) requires the `StatusCode` **and** the
+  `SourceTimestamp` to match exactly (with a 0.01 numeric tolerance on the value). The reference
+  server's calculator timestamps each interval at the slice start
+  (`AggregateCalculator.GetTimestamp`, spec-correct per Part 11), and the reference server's own
+  history archive for the aggregated nodes is static (seeded, not mutated by the simulation timer), so
+  there is no obvious non-determinism. However, the results XML only carries the CTT's `addError`
+  lines — the per-value `Server Value = … / CTT Value = …` diagnostics are emitted with `print()` and
+  are **not** in the XML — so which of {status, timestamp binning, value} diverges cannot be
+  determined from the file alone. Attributing this cluster (server calculator vs CTT-bundled
+  calculator version skew vs raw-cache alignment) requires running the CTT against the current
+  reference server and capturing its live log. → **Needs the CTT loop.** (The repo's own aggregate
+  tests assert only `Good`/`Uncertain` status, not exact values, so they neither confirm nor refute a
+  value-level discrepancy.)
