@@ -138,7 +138,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    m_bufferManager.ReturnBuffer(chunk.Array!, nameof(ReceiveChunkAsyncReturnsCompleteChunk));
+                    m_bufferManager.ReturnBuffer(chunk.Array, nameof(ReceiveChunkAsyncReturnsCompleteChunk));
                 }
             }
         }

@@ -82,7 +82,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    buffers.ReturnBuffer(received.Array!, nameof(PairedInProcessTransportsRoundTripChunksAsync));
+                    buffers.ReturnBuffer(received.Array, nameof(PairedInProcessTransportsRoundTripChunksAsync));
                 }
             }
             finally
@@ -276,7 +276,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    buffers.ReturnBuffer(received.Array!, nameof(SendChunkBufferCollectionRoundTripsAsync));
+                    buffers.ReturnBuffer(received.Array, nameof(SendChunkBufferCollectionRoundTripsAsync));
                 }
             }
             finally

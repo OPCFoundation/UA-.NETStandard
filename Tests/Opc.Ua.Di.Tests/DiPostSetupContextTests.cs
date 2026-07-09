@@ -133,7 +133,7 @@ namespace Opc.Ua.Di.Tests
 
             InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
                 () => context.GetRequiredService<MarkerService>())!;
-            Assert.That(ex.Message, Does.Contain(typeof(MarkerService).FullName!));
+            Assert.That(ex.Message, Does.Contain(typeof(MarkerService).FullName));
         }
 
         [Test]

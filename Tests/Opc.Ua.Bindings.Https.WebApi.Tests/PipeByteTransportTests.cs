@@ -247,7 +247,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
             finally
             {
-                m_bufferManager.ReturnBuffer(received.Array!, nameof(ReceiveChunkAsyncReturnsCompleteChunkAsync));
+                m_bufferManager.ReturnBuffer(received.Array, nameof(ReceiveChunkAsyncReturnsCompleteChunkAsync));
             }
         }
 

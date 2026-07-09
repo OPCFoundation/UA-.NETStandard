@@ -156,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             finally
             {
-                m_bufferManager.ReturnBuffer(chunk.Array!, nameof(ReceiveChunkAsyncReassemblesAcrossFrames));
+                m_bufferManager.ReturnBuffer(chunk.Array, nameof(ReceiveChunkAsyncReassemblesAcrossFrames));
             }
         }
 
