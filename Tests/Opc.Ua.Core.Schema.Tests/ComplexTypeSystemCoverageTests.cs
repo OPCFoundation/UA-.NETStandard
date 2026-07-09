@@ -102,6 +102,40 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public async Task LoadTypeAsyncReturnsNullForOptionSetWhenFallbackCannotResolve()
+        {
+            var resolver = new TestComplexTypeResolver();
+            resolver.AddDataType(
+                CreateEnumNode(TestIds.OptionSetNodeId, "SingleOptionSet", CreateEnumDefinition("Bit0", "Bit1")),
+                DataTypeIds.OptionSet);
+            var factory = new RecordingComplexTypeFactory();
+            var system = new ComplexTypeSystem(resolver, factory, null!);
+
+            IType? loadedType = await system.LoadTypeAsync(TestIds.OptionSetType, throwOnError: true);
+
+            Assert.That(loadedType, Is.Null);
+        }
+
+        [Test]
+        public async Task LoadTypeAsyncReturnsCachedTypeWhenSubtypeLoadingIsNotRequested()
+        {
+            var resolver = new TestComplexTypeResolver();
+            resolver.FactoryBuilder.AddEncodeableType(
+                TestIds.StructureType,
+                new RecordingEncodeableType(new XmlQualifiedName("CachedStructure", SchemaTestData.TestNamespace)));
+            resolver.FactoryBuilder.Commit();
+            var system = new ComplexTypeSystem(resolver, new RecordingComplexTypeFactory(), null!);
+
+            IType? loadedType = await system.LoadTypeAsync(TestIds.StructureType);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loadedType, Is.Not.Null);
+                Assert.That(loadedType!.XmlName.Name, Is.EqualTo("CachedStructure"));
+            });
+        }
+
+        [Test]
         public async Task LoadTypeAsyncReturnsNullOrThrowsWhenResolverFails()
         {
             var resolver = new ThrowingComplexTypeResolver();
@@ -249,6 +283,134 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public async Task InternalAddOptionSetTypeCreatesTypeAndCachesDefinition()
+        {
+            var resolver = new TestComplexTypeResolver();
+            var factory = new RecordingComplexTypeFactory();
+            var system = new ComplexTypeSystem(resolver, factory, null!);
+            IComplexTypeBuilder builder = factory.Create(
+                SchemaTestData.TestNamespace,
+                SchemaTestData.TestNamespaceIndex);
+            DataTypeNode optionSetNode = CreateEnumNode(
+                TestIds.OptionSetNodeId,
+                "DirectOptionSet",
+                CreateEnumDefinition("Bit0", "Bit1"));
+
+            object? optionSetType = await InvokePrivateAsync(
+                system,
+                "AddOptionSetTypeAsync",
+                builder,
+                optionSetNode,
+                TestIds.OptionSetType,
+                new ExpandedNodeId(new NodeId(7701, SchemaTestData.TestNamespaceIndex), SchemaTestData.TestNamespace),
+                ExpandedNodeId.Null,
+                CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(optionSetType, Is.InstanceOf<IEncodeableType>());
+                Assert.That(factory.GetTypes().Select(t => t.XmlName.Name), Does.Contain("DirectOptionSet"));
+                Assert.That(system.GetDefinedDataTypeIds(), Does.Contain(TestIds.OptionSetType));
+            });
+        }
+
+        [Test]
+        public async Task InternalAddStructuredTypeCreatesTypeAndReportsMissingDependencies()
+        {
+            var resolver = new TestComplexTypeResolver();
+            var factory = new RecordingComplexTypeFactory();
+            var system = new ComplexTypeSystem(resolver, factory, null!);
+            IComplexTypeBuilder builder = factory.Create(
+                SchemaTestData.TestNamespace,
+                SchemaTestData.TestNamespaceIndex);
+            var definition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.StructureWithSubtypedValues,
+                Fields =
+                [
+                    CreateStructureField("Value", DataTypeIds.Int32),
+                    CreateStructureField("Self", TestIds.StructureNodeId)
+                ]
+            };
+
+            object? createdResult = await InvokePrivateAsync(
+                system,
+                "AddStructuredTypeAsync",
+                builder,
+                definition,
+                new QualifiedName("DirectStructure", SchemaTestData.TestNamespaceIndex),
+                TestIds.StructureType,
+                new ExpandedNodeId(new NodeId(7702, SchemaTestData.TestNamespaceIndex), SchemaTestData.TestNamespace),
+                ExpandedNodeId.Null,
+                CancellationToken.None);
+            var missingDefinition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    CreateStructureField("Missing", new NodeId(7999, SchemaTestData.TestNamespaceIndex))
+                ]
+            };
+            object? missingResult = await InvokePrivateAsync(
+                system,
+                "AddStructuredTypeAsync",
+                builder,
+                missingDefinition,
+                new QualifiedName("MissingStructure", SchemaTestData.TestNamespaceIndex),
+                new ExpandedNodeId(new NodeId(7998, SchemaTestData.TestNamespaceIndex), SchemaTestData.TestNamespace),
+                ExpandedNodeId.Null,
+                ExpandedNodeId.Null,
+                CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(GetTupleItem<IEncodeableType>(createdResult, "Item1"), Is.Not.Null);
+                Assert.That(GetTupleItem<object>(createdResult, "Item2"), Is.Null);
+                Assert.That(GetTupleItem<IEncodeableType>(missingResult, "Item1"), Is.Null);
+                Assert.That(GetTupleItem<List<ExpandedNodeId>>(missingResult, "Item2"), Has.Count.EqualTo(1));
+                Assert.That(factory.GetTypes().Select(t => t.XmlName.Name), Does.Contain("DirectStructure"));
+            });
+        }
+
+        [Test]
+        public void InternalGetStructureDefinitionValidatesRequiredMembers()
+        {
+            StructureDefinition validDefinition = CreateStructureDefinitionForValidation(
+                DataTypeIds.Structure,
+                ValueRanks.Scalar,
+                "Value");
+            StructureDefinition missingBaseType = CreateStructureDefinitionForValidation(
+                NodeId.Null,
+                ValueRanks.Scalar,
+                "Value");
+            StructureDefinition missingFieldDataType = CreateStructureDefinitionForValidation(
+                DataTypeIds.Structure,
+                ValueRanks.Scalar,
+                "Value");
+            missingFieldDataType.Fields[0].DataType = NodeId.Null;
+            StructureDefinition missingFieldName = CreateStructureDefinitionForValidation(
+                DataTypeIds.Structure,
+                ValueRanks.Scalar,
+                null);
+            StructureDefinition invalidValueRank = CreateStructureDefinitionForValidation(
+                DataTypeIds.Structure,
+                ValueRanks.Any,
+                "Value");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(InvokeGetStructureDefinition(validDefinition), Is.SameAs(validDefinition));
+                Assert.That(InvokeGetStructureDefinition(missingBaseType), Is.Null);
+                Assert.That(InvokeGetStructureDefinition(missingFieldDataType), Is.Null);
+                Assert.That(InvokeGetStructureDefinition(missingFieldName), Is.Null);
+                Assert.That(InvokeGetStructureDefinition(invalidValueRank), Is.Null);
+                Assert.That(InvokeGetStructureDefinition(null), Is.Null);
+            });
+        }
+
+        [Test]
         public void DefaultComplexTypeFactoryCreatesEnumOptionSetStructureAndUnionTypes()
         {
             var factory = new DefaultComplexTypeFactory();
@@ -384,6 +546,67 @@ namespace Opc.Ua.Schema.Tests
                 1,
                 allowSubTypes: optional);
             return fieldBuilder.CreateType();
+        }
+
+        private static StructureDefinition CreateStructureDefinitionForValidation(
+            NodeId baseDataType,
+            int valueRank,
+            string? fieldName)
+        {
+            return new StructureDefinition
+            {
+                BaseDataType = baseDataType,
+                DefaultEncodingId = new NodeId(7801, SchemaTestData.TestNamespaceIndex),
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = fieldName,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = valueRank
+                    }
+                ]
+            };
+        }
+
+        private static StructureDefinition? InvokeGetStructureDefinition(StructureDefinition? definition)
+        {
+            var node = new DataTypeNode
+            {
+                NodeId = new NodeId(7800, SchemaTestData.TestNamespaceIndex),
+                BrowseName = new QualifiedName("ValidationNode", SchemaTestData.TestNamespaceIndex)
+            };
+            if (definition != null)
+            {
+                node.DataTypeDefinition = new ExtensionObject(definition);
+            }
+
+            return (StructureDefinition?)typeof(ComplexTypeSystem)
+                .GetMethod(
+                    "GetStructureDefinition",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(null, [node]);
+        }
+
+        private static async Task<object?> InvokePrivateAsync(
+            ComplexTypeSystem system,
+            string methodName,
+            params object?[] arguments)
+        {
+            object task = typeof(ComplexTypeSystem)
+                .GetMethod(
+                    methodName,
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(system, arguments)!;
+            await ((Task)task).ConfigureAwait(false);
+            return task.GetType().GetProperty("Result")!.GetValue(task);
+        }
+
+        private static T? GetTupleItem<T>(object? tuple, string itemName)
+            where T : class
+        {
+            return (T?)tuple?.GetType().GetField(itemName)!.GetValue(tuple);
         }
 
         private static EnumDefinition CreateEnumDefinition(params string[] names)
