@@ -65,7 +65,8 @@ namespace Opc.Ua.Client.Tests.Identity
             Assert.That(acquireCount, Is.EqualTo(1));
             Assert.That(first.ProfileUri, Is.EqualTo(GdsKeyCredentialAccessTokenProvider.ProfileUri));
             Assert.That(first.DisplayName, Is.EqualTo("cred\"\\id"));
-            Assert.That(first.GrantedScopes, Is.EqualTo(new[] { "scope-a" }));
+            Assert.That(first.GrantedScopes, Has.Length.EqualTo(1));
+            Assert.That(first.GrantedScopes[0], Is.EqualTo("scope-a"));
             Assert.That(Encoding.UTF8.GetString(first.TokenData), Does.Contain("\\\"").And.Contain("\\\\"));
             Assert.That(second.DisplayName, Is.EqualTo(first.DisplayName));
         }
