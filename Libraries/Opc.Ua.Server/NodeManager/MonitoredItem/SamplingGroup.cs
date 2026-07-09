@@ -345,7 +345,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            if (m_session == null && context?.SessionId == null)
+            if (m_session == null)
             {
                 // fallback to compare user Identity if session is not set.
                 if (!m_effectiveIdentity!.Equals(savedOwnerIdentity))
@@ -353,17 +353,15 @@ namespace Opc.Ua.Server
                     return false;
                 }
             }
-            else
+            // compare session
+            else if (context?.SessionId != m_session.Id)
             {
-                // compare session
-                if (context?.SessionId != m_session?.Id)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // check the diagnostics marks.
-            return m_diagnosticsMask == (context!.DiagnosticsMask & DiagnosticsMasks.OperationAll);
+            return context != null &&
+                m_diagnosticsMask == (context.DiagnosticsMask & DiagnosticsMasks.OperationAll);
         }
 
         /// <summary>
