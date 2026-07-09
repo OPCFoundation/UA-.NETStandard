@@ -346,6 +346,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     sessionFactory: mockFactory.Object).ConfigureAwait(false));
         }
 
+#pragma warning disable IDE0051, RCS1213 // Test scaffold kept for reconnect-path tests that need the private handler.
         private static Task<ServiceResult> InvokeHandleReconnectAsync(
             Client.ManagedSession managedSession,
             IRetryBudget budget)
@@ -366,7 +367,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(task, Is.Not.Null);
             return task!;
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Test scaffold kept for tests that inject an already-created inner Session.
         private static Client.ManagedSession CreateManagedSessionWithInner(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -440,7 +443,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             return managedSession;
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Test scaffold kept for ManagedSession construction tests.
         private static ApplicationConfiguration CreateClientConfiguration(
             ITelemetryContext telemetry)
         {
@@ -465,7 +470,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 }
             };
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Test scaffold kept for ManagedSession endpoint construction tests.
         private static ConfiguredEndpoint CreateEndpoint()
         {
             var description = new EndpointDescription
@@ -495,5 +502,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 UpdateBeforeConnect = false
             };
         }
+#pragma warning restore IDE0051, RCS1213
     }
 }

@@ -1084,7 +1084,9 @@ namespace Opc.Ua
         }
 
         private readonly ClientChannelManagerCertRotation m_certRotation;
+#pragma warning disable IDE0052 // Background certificate-rotation task is retained so it is not garbage-collected early.
         private Task? m_certificateRotationTask;
+#pragma warning restore IDE0052
 
         ILogger? IChannelEntryHost.Logger => Logger;
 

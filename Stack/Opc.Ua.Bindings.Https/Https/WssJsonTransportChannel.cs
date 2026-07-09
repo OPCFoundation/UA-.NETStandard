@@ -347,6 +347,7 @@ namespace Opc.Ua.Bindings
 #endif
         }
 
+#if NET5_0_OR_GREATER
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             System.Security.Cryptography.X509Certificates.X509Certificate2? cert,
@@ -388,6 +389,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
         }
+#endif
 
         private static ServiceResultException BadNotConnected()
         {

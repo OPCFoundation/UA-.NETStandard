@@ -276,12 +276,14 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOpcUa();
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept for the optional hosted-service duplicate-registration guard.
         private static bool HasOpcUaServerHostedService(IServiceCollection services)
         {
             return services.Any(d =>
                 d.ServiceType == typeof(IHostedService) &&
                 d.ImplementationType?.Name == "OpcUaServerHostedService");
         }
+#pragma warning restore IDE0051, RCS1213
 
         private sealed class WotConServerBuilder : IWotConServerBuilder
         {

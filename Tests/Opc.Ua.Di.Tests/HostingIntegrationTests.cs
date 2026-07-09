@@ -346,10 +346,12 @@ namespace Opc.Ua.Di.Tests
 #pragma warning disable CA1812
         private sealed class UnrelatedSubclass : DiNodeManager
         {
+#pragma warning disable IDE0051 // Reflection-only negative test type; constructor is intentionally never called.
             private UnrelatedSubclass(IServerInternal s, ApplicationConfiguration c)
                 : base(s, c)
             {
             }
+#pragma warning restore IDE0051
         }
 
         /// <summary>

@@ -146,7 +146,9 @@ namespace Opc.Ua.Pcap.Capture.Sources
         private string? m_sessionFolder;
         private string? m_resolvedPcapPath;
         private string? m_resolvedJsonKeyLogPath;
+#pragma warning disable IDE0052 // Text key-log path is resolved for paired JSON/text key-log capture diagnostics.
         private string? m_resolvedTextKeyLogPath;
+#pragma warning restore IDE0052
         private Channel<CaptureWorkItem>? m_queue;
         private Task? m_workerTask;
         private long m_frameCount;

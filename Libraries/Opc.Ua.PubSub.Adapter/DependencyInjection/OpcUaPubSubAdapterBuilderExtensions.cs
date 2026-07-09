@@ -654,6 +654,7 @@ namespace Microsoft.Extensions.DependencyInjection
             assign(parsed);
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept as the DI session factory hook for upcoming PubSub adapter wiring.
         private static IServerSession CreateSession(
             IServiceProvider sp,
             ServerConnectionOptions connection,
@@ -663,7 +664,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IServerSessionFactory>();
             return factory.Create(connection, telemetry);
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Kept for pending configuration-driven PubSub adapter validation.
         private static List<PublishedDataSetDataType> EnumeratePublishedDataSets(
             PubSubConfigurationDataType configuration)
         {
@@ -681,7 +684,9 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             return dataSets;
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Kept for pending configuration-driven PubSub adapter validation.
         private static List<DataSetReaderDataType> EnumerateDataSetReaders(
             PubSubConfigurationDataType configuration)
         {
@@ -713,7 +718,9 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             return readers;
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Kept for pending writer/reader dataset-name cross-validation.
         private static HashSet<string> CollectWriterDataSetNames(
             PubSubConfigurationDataType configuration)
         {
@@ -745,5 +752,6 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             return names;
         }
+#pragma warning restore IDE0051, RCS1213
     }
 }

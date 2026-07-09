@@ -58,7 +58,9 @@ namespace Opc.Ua.PubSub.Security.Sks
     {
         private readonly ISecurityKeyService m_sks;
         private readonly bool m_ownsSecurityKeyService;
+#pragma warning disable IDE0052 // Kept so future key derivation can validate SKS keys against the configured policy.
         private readonly IPubSubSecurityPolicy m_policy;
+#pragma warning restore IDE0052
         private readonly PullSecurityKeyProviderOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;

@@ -456,6 +456,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+#if NET5_0_OR_GREATER
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             X509Certificate2? cert,
@@ -499,6 +500,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
         }
+#endif
 
         private static Uri NormalizeUrl(Uri url)
         {

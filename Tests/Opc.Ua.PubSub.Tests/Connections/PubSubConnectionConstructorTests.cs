@@ -447,6 +447,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 TimeProvider.System);
         }
 
+#pragma warning disable IDE0051, RCS1213 // Test scaffold kept for constructor tests with explicit encoder/decoder maps.
         private static PubSubConnection NewConnectionWithDicts(
             string profile,
             IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
@@ -464,6 +465,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
         }
+#pragma warning restore IDE0051, RCS1213
 
         private sealed class StubTransportFactory : IPubSubTransportFactory
         {

@@ -867,10 +867,12 @@ namespace Opc.Ua.PubSub.Tests.Connections
             return result;
         }
 
+#pragma warning disable RCS1213 // Reflection helper overload kept for private-method tests that do not disambiguate arity.
         private static MethodInfo GetMethod(Type type, string methodName)
         {
             return GetMethod(type, methodName, parameterCount: -1);
         }
+#pragma warning restore RCS1213
 
         private static MethodInfo GetMethod(Type type, string methodName, int parameterCount)
         {

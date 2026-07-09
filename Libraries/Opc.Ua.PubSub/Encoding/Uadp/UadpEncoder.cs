@@ -249,6 +249,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept as a test/debug helper for callers that do not need the payload offset.
         private static int EncodeIntoBuffer(
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
@@ -256,6 +257,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             return EncodeIntoBuffer(message, context, buffer, out _);
         }
+#pragma warning restore IDE0051, RCS1213
 
         private static int EncodeIntoBuffer(
             UadpNetworkMessage message,

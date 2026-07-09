@@ -207,7 +207,9 @@ namespace Opc.Ua.Bindings
 
         private readonly BufferManager m_buffers;
         private readonly int m_receiveBufferSize;
+#pragma warning disable IDE0052 // Kept to preserve the telemetry dependency for future in-process transport diagnostics.
         private readonly ITelemetryContext m_telemetry;
+#pragma warning restore IDE0052
         private readonly ChannelReader<byte[]> m_inbound;
         private readonly ChannelWriter<byte[]> m_outbound;
         private int m_closed;

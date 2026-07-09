@@ -59,7 +59,9 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private readonly Func<CancellationToken, ValueTask<ISession>> m_sessionFactory;
         private readonly ILogger m_logger;
+#pragma warning disable IDE0052 // Kept for the injected SKS clock; reconnect pacing is implemented by the caller today.
         private readonly TimeProvider m_timeProvider;
+#pragma warning restore IDE0052
         private readonly SemaphoreSlim m_sessionGate = new(1, 1);
         private readonly Lock m_stateLock = new();
         private ISession? m_session;

@@ -60,7 +60,9 @@ namespace Pumps
         /// simulation tick can mutate its DI properties in response to
         /// supervision flags. Set by CreatePumpInstanceAsync.
         /// </summary>
+#pragma warning disable IDE0052 // Kept to retain the materialized Pump #1 instance for pending DI-health wiring.
         private PumpState? m_pump1;
+#pragma warning restore IDE0052
 
         /// <summary>
         /// Optional DI DeviceHealth variable supplied by a declarative

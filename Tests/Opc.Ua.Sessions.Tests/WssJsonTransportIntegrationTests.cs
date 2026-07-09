@@ -148,7 +148,7 @@ namespace Opc.Ua.Sessions.Tests
                     ep.SecurityMode == MessageSecurityMode.None);
             var jsonEndpoint = new EndpointDescription
             {
-                EndpointUrl = wssNone.EndpointUrl,
+                EndpointUrl = m_endpointUrl.ToString(),
                 Server = wssNone.Server,
                 ServerCertificate = wssNone.ServerCertificate,
                 SecurityMode = MessageSecurityMode.None,
@@ -161,7 +161,7 @@ namespace Opc.Ua.Sessions.Tests
             TransportChannelSettings settings = CreateClientSettings(jsonEndpoint, endpointConfiguration);
 
             using var channel = new WssJsonTransportChannel(m_telemetry);
-            await channel.OpenAsync(new Uri(jsonEndpoint.EndpointUrl), settings, CancellationToken.None)
+            await channel.OpenAsync(m_endpointUrl, settings, CancellationToken.None)
                 .ConfigureAwait(false);
 
             var request = new GetEndpointsRequest
@@ -204,4 +204,3 @@ namespace Opc.Ua.Sessions.Tests
 }
 
 #endif // NET5_0_OR_GREATER
-

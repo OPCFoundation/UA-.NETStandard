@@ -73,7 +73,9 @@ namespace Opc.Ua.PubSub.Application
         private readonly IPubSubTransportFactory[] m_factories;
         private readonly INetworkMessageEncoder[] m_encoderArray;
         private readonly INetworkMessageDecoder[] m_decoderArray;
+#pragma warning disable IDE0052 // Kept until PubSub security-wrapper resolution is wired to registered policies.
         private readonly IPubSubSecurityPolicy[] m_securityPolicies;
+#pragma warning restore IDE0052
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;

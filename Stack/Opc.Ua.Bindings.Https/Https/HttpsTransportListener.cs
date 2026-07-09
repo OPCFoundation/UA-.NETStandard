@@ -1629,12 +1629,14 @@ namespace Opc.Ua.Bindings
             }
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept for the Task-returning request callback path used by alternate listeners.
         private async Task<IServiceResponse> OnRequestReceivedAsyncShim(
             SecureChannelContext channelContext,
             IServiceRequest request)
         {
             return await m_callback!.ProcessRequestAsync(channelContext, request).ConfigureAwait(false);
         }
+#pragma warning restore IDE0051, RCS1213
 
         private async void OnRequestReceivedAsync(
             TcpListenerChannel channel,

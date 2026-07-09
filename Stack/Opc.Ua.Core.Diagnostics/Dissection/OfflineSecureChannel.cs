@@ -66,7 +66,9 @@ namespace Opc.Ua.Pcap.Dissection
         private readonly ChannelDecoderShim m_clientToServer;
         private readonly ChannelDecoderShim m_serverToClient;
         private readonly Dictionary<uint, ChannelKeyMaterial> m_tokens;
+#pragma warning disable IDE0052 // Kept for diagnostics context; decode paths currently throw typed exceptions directly.
         private readonly ILogger m_logger;
+#pragma warning restore IDE0052
         private uint m_currentTokenId;
 
         /// <summary>

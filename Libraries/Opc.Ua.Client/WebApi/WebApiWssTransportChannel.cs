@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.WebApi
             {
                 RequestHeader = new RequestHeader
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = m_timeProvider.GetUtcNow().UtcDateTime,
                     RequestHandle = 1,
                     TimeoutHint = (uint)OperationTimeout
                 },
@@ -528,6 +528,7 @@ namespace Opc.Ua.Client.WebApi
             }
         }
 
+#if NET7_0_OR_GREATER
         private bool ValidateServerCertificate(
             object sender,
             X509Certificate? certificate,
@@ -604,6 +605,7 @@ namespace Opc.Ua.Client.WebApi
                 return false;
             }
         }
+#endif
 
         /// <summary>
         /// WSS-bearer requires TLS so the token cannot be observed by
