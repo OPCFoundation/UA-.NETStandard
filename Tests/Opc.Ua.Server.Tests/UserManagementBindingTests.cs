@@ -32,10 +32,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.UserManagement;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -93,6 +96,10 @@ namespace Opc.Ua.Server.Tests
             };
 
             m_userManagement = new Mock<IUserManagement>();
+            m_userManagement.Setup(m => m.PasswordLength).Returns(new Range { Low = 8, High = 64 });
+            m_userManagement.Setup(m => m.PasswordOptions).Returns(PasswordOptionsMask.None);
+            m_userManagement.Setup(m => m.PasswordRestrictions).Returns(new LocalizedText("restrictions"));
+            m_userManagement.Setup(m => m.SnapshotUsers()).Returns([]);
         }
 
         [TearDown]
@@ -121,6 +128,21 @@ namespace Opc.Ua.Server.Tests
             return manager;
         }
 
+        private (TestableAsyncCustomNodeManager Manager, UserManagementState State)
+            CreateNodeManagerWithCreatedUserManagementNode()
+        {
+            TestableAsyncCustomNodeManager manager = CreateNodeManager();
+            var state = new UserManagementState(null);
+            state.Create(
+                manager.SystemContext,
+                new NodeId(Objects.UserManagement),
+                new QualifiedName(BrowseNames.UserManagement),
+                new LocalizedText(BrowseNames.UserManagement),
+                false);
+            manager.PredefinedNodes[state.NodeId] = state;
+            return (manager, state);
+        }
+
         private static Mock<ISession> CreateSessionWithUser(string? userName)
         {
             var identity = new Mock<IUserIdentity>();
@@ -130,6 +152,47 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.Identity).Returns(identity.Object);
             session.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
             return session;
+        }
+
+        private static SessionSystemContext BuildContext(
+            MessageSecurityMode securityMode,
+            IUserIdentity identity)
+        {
+            var endpoint = new EndpointDescription { SecurityMode = securityMode };
+            var channelContext = new SecureChannelContext("test-channel", endpoint, RequestEncoding.Binary);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.Call,
+                RequestLifetime.None,
+                identity);
+            return new SessionSystemContext(operationContext, NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+        }
+
+        private static IUserIdentity BuildIdentity(
+            UserTokenType tokenType,
+            string displayName,
+            params NodeId[] grantedRoles)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(tokenType);
+            identity.Setup(i => i.DisplayName).Returns(displayName);
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Wrapped(grantedRoles));
+            return identity.Object;
+        }
+
+        private static SessionSystemContext BuildAdminContext()
+        {
+            return BuildContext(
+                MessageSecurityMode.SignAndEncrypt,
+                BuildIdentity(
+                    UserTokenType.UserName,
+                    "admin",
+                    ObjectIds.WellKnownRole_SecurityAdmin));
         }
 
         [Test]
@@ -165,6 +228,167 @@ namespace Opc.Ua.Server.Tests
             using UserManagementBinding? binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null);
             Assert.That(binding, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task AddUserRejectsNonAdminAndDoesNotDelegateAsync()
+        {
+            (TestableAsyncCustomNodeManager manager, UserManagementState state) =
+                CreateNodeManagerWithCreatedUserManagementNode();
+            using (manager)
+            using (UserManagementBinding? binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, null))
+            {
+                Assert.That(binding, Is.Not.Null);
+                SessionSystemContext context = BuildContext(
+                    MessageSecurityMode.SignAndEncrypt,
+                    BuildIdentity(UserTokenType.UserName, "operator", ObjectIds.WellKnownRole_Operator));
+
+                AddUserMethodStateResult result = await state.AddUser!.OnCallAsync!(
+                    context,
+                    state.AddUser,
+                    state.NodeId,
+                    "alice",
+                    "password",
+                    (uint)UserConfigurationMask.None,
+                    "Alice",
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                m_userManagement.Verify(
+                    m => m.AddUser(
+                        It.IsAny<string>(),
+                        It.IsAny<string>(),
+                        It.IsAny<UserConfigurationMask>(),
+                        It.IsAny<string>()),
+                    Times.Never);
+            }
+        }
+
+        [Test]
+        public async Task AdminMethodsDelegateToUserManagementAndRefreshPropertiesAsync()
+        {
+            var users = new[]
+            {
+                new UserManagementDataType
+                {
+                    UserName = "alice",
+                    UserConfiguration = (uint)UserConfigurationMask.None,
+                    Description = "Alice"
+                }
+            };
+            m_userManagement.Setup(m => m.SnapshotUsers()).Returns(users);
+            m_userManagement.Setup(m => m.AddUser("alice", "password", UserConfigurationMask.None, "Alice"))
+                .Returns(ServiceResult.Good);
+            m_userManagement
+                .Setup(m => m.ModifyUser(
+                    "alice", true, "new", true, UserConfigurationMask.Disabled, true, "Disabled", "admin"))
+                .Returns(ServiceResult.Good);
+            m_userManagement.Setup(m => m.RemoveUser("alice", "admin")).Returns(ServiceResult.Good);
+            (TestableAsyncCustomNodeManager manager, UserManagementState state) =
+                CreateNodeManagerWithCreatedUserManagementNode();
+
+            using (manager)
+            using (UserManagementBinding? binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, null))
+            {
+                Assert.That(binding, Is.Not.Null);
+                SessionSystemContext context = BuildAdminContext();
+
+                AddUserMethodStateResult addResult = await state.AddUser!.OnCallAsync!(
+                    context,
+                    state.AddUser,
+                    state.NodeId,
+                    "alice",
+                    "password",
+                    (uint)UserConfigurationMask.None,
+                    "Alice",
+                    CancellationToken.None).ConfigureAwait(false);
+                ModifyUserMethodStateResult modifyResult = await state.ModifyUser!.OnCallAsync!(
+                    context,
+                    state.ModifyUser,
+                    state.NodeId,
+                    "alice",
+                    true,
+                    "new",
+                    true,
+                    (uint)UserConfigurationMask.Disabled,
+                    true,
+                    "Disabled",
+                    CancellationToken.None).ConfigureAwait(false);
+                RemoveUserMethodStateResult removeResult = await state.RemoveUser!.OnCallAsync!(
+                    context,
+                    state.RemoveUser,
+                    state.NodeId,
+                    "alice",
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(addResult.ServiceResult), Is.True);
+                Assert.That(ServiceResult.IsGood(modifyResult.ServiceResult), Is.True);
+                Assert.That(ServiceResult.IsGood(removeResult.ServiceResult), Is.True);
+                Assert.That(state.Users!.Value, Has.Count.EqualTo(1));
+                Assert.That(state.PasswordLength!.Value.High, Is.EqualTo(64));
+            }
+        }
+
+        [Test]
+        public async Task ChangePasswordRequiresUserNameIdentityAsync()
+        {
+            (TestableAsyncCustomNodeManager manager, UserManagementState state) =
+                CreateNodeManagerWithCreatedUserManagementNode();
+
+            using (manager)
+            using (UserManagementBinding? binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, null))
+            {
+                Assert.That(binding, Is.Not.Null);
+                SessionSystemContext context = BuildContext(
+                    MessageSecurityMode.SignAndEncrypt,
+                    BuildIdentity(UserTokenType.IssuedToken, "alice", ObjectIds.WellKnownRole_SecurityAdmin));
+
+                ChangePasswordMethodStateResult result = await state.ChangePassword!.OnCallAsync!(
+                    context,
+                    state.ChangePassword,
+                    state.NodeId,
+                    "old",
+                    "new",
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                m_userManagement.Verify(
+                    m => m.ChangePassword(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+                    Times.Never);
+            }
+        }
+
+        [Test]
+        public async Task ChangePasswordDelegatesForSelfUserNameAsync()
+        {
+            m_userManagement.Setup(m => m.ChangePassword("alice", "old", "new"))
+                .Returns(ServiceResult.Good);
+            (TestableAsyncCustomNodeManager manager, UserManagementState state) =
+                CreateNodeManagerWithCreatedUserManagementNode();
+
+            using (manager)
+            using (UserManagementBinding? binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, null))
+            {
+                Assert.That(binding, Is.Not.Null);
+                SessionSystemContext context = BuildContext(
+                    MessageSecurityMode.SignAndEncrypt,
+                    BuildIdentity(UserTokenType.UserName, "alice", ObjectIds.WellKnownRole_Observer));
+
+                ChangePasswordMethodStateResult result = await state.ChangePassword!.OnCallAsync!(
+                    context,
+                    state.ChangePassword,
+                    state.NodeId,
+                    "old",
+                    "new",
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                m_userManagement.Verify(m => m.ChangePassword("alice", "old", "new"), Times.Once);
+            }
         }
 
         [Test]
