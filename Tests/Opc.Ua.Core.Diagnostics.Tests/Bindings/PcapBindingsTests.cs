@@ -100,7 +100,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallInstallsBothClientAndServerBindings()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             PcapBindings.Install(bindings);
 
             Assert.That(
@@ -114,7 +114,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallClientRegistersOnlyChannelBinding()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             PcapBindings.InstallClient(bindings);
 
             Assert.That(
@@ -128,7 +128,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallServerWrapsListenerFactory()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             PcapBindings.InstallServer(bindings);
 
             Assert.That(
@@ -142,7 +142,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public void InstallServerIsIdempotent()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             var registry = new ChannelCaptureRegistry();
             PcapBindings.InstallServer(bindings, registry);
             ITransportListenerFactory? first = bindings.GetListenerFactory(Utils.UriSchemeOpcTcp);

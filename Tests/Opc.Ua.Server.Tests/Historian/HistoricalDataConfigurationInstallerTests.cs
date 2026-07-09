@@ -66,7 +66,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(
                 async () => await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    null!, variable, provider, CancellationToken.None),
+                    null!, variable, provider, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(
                 async () => await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, null!, provider, CancellationToken.None),
+                    context, null!, provider, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(
                 async () => await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, null!, CancellationToken.None),
+                    context, variable, null!, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistoricalDataConfigurationState config =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(config, Is.Not.Null);
             var browseName = new QualifiedName(BrowseNames.HAConfiguration);
@@ -120,11 +120,11 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistoricalDataConfigurationState first =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             HistoricalDataConfigurationState second =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(second, Is.SameAs(first),
                 "Second call must reuse the existing configuration child.");
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistoricalDataConfigurationState config =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(config, Is.Not.Null);
             // config.Stepped may be null if the generator did not create the slot, but
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistoricalDataConfigurationState config =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(config, Is.Not.Null);
         }
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(found, Is.InstanceOf<HistoricalDataConfigurationState>());
 
             // Dispose is part of the API contract.
-            await builder.DisposeAsync();
+            await builder.DisposeAsync().ConfigureAwait(false);
         }
 
         private static BaseDataVariableState CreateVariable(string name)

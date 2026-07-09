@@ -112,7 +112,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
 
             private readonly Channel<ReadOnlyMemory<byte>> m_committed =
                 Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
-            private byte[] m_lastCommittedCommand = Array.Empty<byte>();
+
+            private byte[] m_lastCommittedCommand = [];
         }
     }
 }

@@ -77,9 +77,7 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private sealed class TestTimeProvider : TimeProvider
-        {
-        }
+        private sealed class TestTimeProvider : TimeProvider;
 
         private static TestableStandardServer CreateServer()
         {

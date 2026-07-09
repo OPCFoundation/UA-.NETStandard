@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 7,
                 null!,
                 itemToCreate,
-                new Opc.Ua.Range(),
+                new Range(),
                 0,
                 false);
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 8,
                 null!,
                 itemToCreate,
-                new Opc.Ua.Range(),
+                new Range(),
                 0,
                 false);
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using SamplingGroupManager manager = CreateManager(out _);
 
-            Assert.DoesNotThrow(() => manager.Shutdown());
+            Assert.DoesNotThrow(manager.Shutdown);
         }
 
         [Test]
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using SamplingGroupManager manager = CreateManager(out _);
 
-            Assert.DoesNotThrow(() => manager.ApplyChanges());
+            Assert.DoesNotThrow(manager.ApplyChanges);
         }
     }
 }

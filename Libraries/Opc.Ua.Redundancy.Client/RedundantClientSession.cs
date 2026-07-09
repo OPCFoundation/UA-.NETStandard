@@ -142,7 +142,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <inheritdoc/>
         public bool TryGetSubscriptionManager(
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
-            out Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager)
+            out Ua.Client.Subscriptions.ISubscriptionManager? manager)
         {
             ISession? session = GetCurrentSession();
             if (session != null)
@@ -559,22 +559,32 @@ namespace Opc.Ua.Redundancy.Client
             Stream stream,
             IEnumerable<Subscription> subscriptions,
             IEnumerable<Type>? knownTypes = null
-        ) => RequireCurrentSession().Save(stream, subscriptions, knownTypes);
+        )
+        {
+            RequireCurrentSession().Save(stream, subscriptions, knownTypes);
+        }
 
         /// <inheritdoc/>
         public IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
             IEnumerable<Type>? knownTypes = null
-        ) => RequireCurrentSession().Load(stream, transferSubscriptions, knownTypes);
+        )
+        {
+            return RequireCurrentSession().Load(stream, transferSubscriptions, knownTypes);
+        }
 
         /// <inheritdoc/>
-        public SessionConfiguration SaveSessionConfiguration(Stream? stream = null) =>
-            RequireCurrentSession().SaveSessionConfiguration(stream);
+        public SessionConfiguration SaveSessionConfiguration(Stream? stream = null)
+        {
+            return RequireCurrentSession().SaveSessionConfiguration(stream);
+        }
 
         /// <inheritdoc/>
-        public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration) =>
-            RequireCurrentSession().ApplySessionConfiguration(sessionConfiguration);
+        public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
+        {
+            return RequireCurrentSession().ApplySessionConfiguration(sessionConfiguration);
+        }
 
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
@@ -639,11 +649,16 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
-        public bool AddSubscription(Subscription subscription) => RequireCurrentSession().AddSubscription(subscription);
+        public bool AddSubscription(Subscription subscription)
+        {
+            return RequireCurrentSession().AddSubscription(subscription);
+        }
 
         /// <inheritdoc/>
-        public bool RemoveTransferredSubscription(Subscription subscription) =>
-            RequireCurrentSession().RemoveTransferredSubscription(subscription);
+        public bool RemoveTransferredSubscription(Subscription subscription)
+        {
+            return RequireCurrentSession().RemoveTransferredSubscription(subscription);
+        }
 
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
@@ -685,11 +700,16 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
-        public bool BeginPublish(int timeout) => RequireCurrentSession().BeginPublish(timeout);
+        public bool BeginPublish(int timeout)
+        {
+            return RequireCurrentSession().BeginPublish(timeout);
+        }
 
         /// <inheritdoc/>
-        public void StartPublishing(int timeout, bool fullQueue) =>
+        public void StartPublishing(int timeout, bool fullQueue)
+        {
             RequireCurrentSession().StartPublishing(timeout, fullQueue);
+        }
 
         /// <inheritdoc/>
         public async Task<(bool, ServiceResult)> RepublishAsync(
@@ -706,13 +726,19 @@ namespace Opc.Ua.Redundancy.Client
         [Obsolete(
             "Channels are now managed centrally via IClientChannelManager. Use Session.CreateAsync(IClientChannelManager, ...) instead of manual AttachChannel/DetachChannel. This method remains functional for back-compat."
         )]
-        public void AttachChannel(ITransportChannel channel) => RequireCurrentSession().AttachChannel(channel);
+        public void AttachChannel(ITransportChannel channel)
+        {
+            RequireCurrentSession().AttachChannel(channel);
+        }
 
         /// <inheritdoc/>
         [Obsolete(
             "Channels are now managed centrally via IClientChannelManager. Use Session.CreateAsync(IClientChannelManager, ...) instead of manual AttachChannel/DetachChannel. This method remains functional for back-compat."
         )]
-        public void DetachChannel() => RequireCurrentSession().DetachChannel();
+        public void DetachChannel()
+        {
+            RequireCurrentSession().DetachChannel();
+        }
 
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(CancellationToken ct = default)
@@ -722,7 +748,10 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
-        public uint NewRequestHandle() => RequireCurrentSession().NewRequestHandle();
+        public uint NewRequestHandle()
+        {
+            return RequireCurrentSession().NewRequestHandle();
+        }
 
         /// <inheritdoc/>
         public async ValueTask<ReadResponse> ReadAsync(
@@ -1208,7 +1237,10 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Refreshes the cached active session from the coordinator for unit tests.
         /// </summary>
-        internal void RefreshActiveSessionForTesting() => UpdateActiveSession();
+        internal void RefreshActiveSessionForTesting()
+        {
+            UpdateActiveSession();
+        }
 
         private async ValueTask<ISession> GetActiveAsync(CancellationToken ct)
         {
@@ -1236,15 +1268,11 @@ namespace Opc.Ua.Redundancy.Client
         private ISession RequireCurrentSession()
         {
             ThrowIfDisposed();
-            ISession? s = GetCurrentSession();
-            if (s == null)
-            {
+            return GetCurrentSession() ??
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
                     "The redundant client session is not the leader or has no live session."
-                );
-            }
-            return s;
+                    );
         }
 
         private ISession? GetCurrentSession()
@@ -1267,7 +1295,7 @@ namespace Opc.Ua.Redundancy.Client
         private void UpdateActiveSession()
         {
             ISession? s = m_coordinator.IsLeader ? m_currentSessionAccessor() : null;
-            TaskCompletionSource<ISession>? release = null;
+            TaskCompletionSource<ISession>? release;
             lock (m_syncRoot)
             {
                 if (m_disposed)
@@ -1295,8 +1323,10 @@ namespace Opc.Ua.Redundancy.Client
             release.TrySetResult(s);
         }
 
-        private static TaskCompletionSource<ISession> CreateSessionCompletionSource() =>
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private static TaskCompletionSource<ISession> CreateSessionCompletionSource()
+        {
+            return new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
 
         private void ApplyRememberedValues(ISession s)
         {
@@ -1380,23 +1410,43 @@ namespace Opc.Ua.Redundancy.Client
             RoleChanged?.Invoke(isLeader);
         }
 
-        private void OnKeepAlive(ISession session, KeepAliveEventArgs e) => m_keepAlive?.Invoke(this, e);
+        private void OnKeepAlive(ISession session, KeepAliveEventArgs e)
+        {
+            m_keepAlive?.Invoke(this, e);
+        }
 
-        private void OnNotification(ISession session, NotificationEventArgs e) => m_notification?.Invoke(this, e);
+        private void OnNotification(ISession session, NotificationEventArgs e)
+        {
+            m_notification?.Invoke(this, e);
+        }
 
-        private void OnPublishError(ISession session, PublishErrorEventArgs e) => m_publishError?.Invoke(this, e);
+        private void OnPublishError(ISession session, PublishErrorEventArgs e)
+        {
+            m_publishError?.Invoke(this, e);
+        }
 
         private void OnPublishSequenceNumbersToAcknowledge(
             ISession session,
             PublishSequenceNumbersToAcknowledgeEventArgs e
-        ) => m_publishSequenceNumbersToAcknowledge?.Invoke(this, e);
+        )
+        {
+            m_publishSequenceNumbersToAcknowledge?.Invoke(this, e);
+        }
 
-        private void OnSubscriptionsChanged(object? sender, EventArgs e) => m_subscriptionsChanged?.Invoke(this, e);
+        private void OnSubscriptionsChanged(object? sender, EventArgs e)
+        {
+            m_subscriptionsChanged?.Invoke(this, e);
+        }
 
-        private void OnSessionClosing(object? sender, EventArgs e) => m_sessionClosing?.Invoke(this, e);
+        private void OnSessionClosing(object? sender, EventArgs e)
+        {
+            m_sessionClosing?.Invoke(this, e);
+        }
 
-        private void OnSessionConfigurationChanged(object? sender, EventArgs e) =>
+        private void OnSessionConfigurationChanged(object? sender, EventArgs e)
+        {
             m_sessionConfigurationChanged?.Invoke(this, e);
+        }
 
         private IUserIdentity OnRenewUserIdentity(ISession session, IUserIdentity identity)
         {
@@ -1443,7 +1493,7 @@ namespace Opc.Ua.Redundancy.Client
 
         private readonly ClientReplicaCoordinator m_coordinator;
         private readonly Func<ISession?> m_currentSessionAccessor;
-        private readonly System.Threading.Lock m_syncRoot = new();
+        private readonly Lock m_syncRoot = new();
         private TaskCompletionSource<ISession> m_activeSession;
         private ISession? m_currentSession;
         private ISession? m_attachedSession;

@@ -64,18 +64,18 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             await demo.WaitForLineAsync(
                 "FAILOVER: stopping publisher-a; publisher-b is promoted.",
                 TimeSpan.FromSeconds(60),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             await demo.WaitForLineAsync(
                 "SIMULATED: HA OK: sequence continued",
                 TimeSpan.FromSeconds(30),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             Assert.That(
                 demo.ContainsLine("SIMULATED: DATA LOSS:"),
                 Is.False,
                 "Hot mode must not report a SequenceNumber reset (data loss).");
             Assert.That(
-                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)),
+                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false),
                 Is.True,
                 "The PubSub demo should terminate on its own after the failover narrative.");
         }
@@ -98,14 +98,14 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             await demo.WaitForLineAsync(
                 "FAILOVER: stopping publisher-a; publisher-b is promoted.",
                 TimeSpan.FromSeconds(60),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             await demo.WaitForLineAsync(
                 "SIMULATED: DATA LOSS: sequence reset",
                 TimeSpan.FromSeconds(30),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             Assert.That(
-                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)),
+                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false),
                 Is.True,
                 "The PubSub demo should terminate on its own after the failover narrative.");
         }
@@ -122,7 +122,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         {
             await using RedundantServerCluster cluster = await RedundantServerCluster.StartSingleEventualAsync(
                 startupTimeout: TimeSpan.FromSeconds(60),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             await using var client = new SampleAppProcess(
                 "client",
@@ -136,7 +136,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 ],
                 SampleTestEnvironment.IndependentClient);
 
-            await client.WaitForLineAsync("Connected replica:", TimeSpan.FromSeconds(75), cancellationToken);
+            await client.WaitForLineAsync("Connected replica:", TimeSpan.FromSeconds(75), cancellationToken).ConfigureAwait(false);
         }
     }
 }

@@ -50,7 +50,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         private static List<SamplingRateGroup> SamplingRates()
         {
-            return new List<SamplingRateGroup> { new SamplingRateGroup(1000, 0, 1) };
+            return [new SamplingRateGroup(1000, 0, 1)];
         }
 
         private static OperationContext SessionlessContext()
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var identity = new Mock<IUserIdentity>();
             using SamplingGroup group = CreateGroup(identity.Object);
 
-            Assert.DoesNotThrow(() => group.Shutdown());
+            Assert.DoesNotThrow(group.Shutdown);
         }
     }
 }

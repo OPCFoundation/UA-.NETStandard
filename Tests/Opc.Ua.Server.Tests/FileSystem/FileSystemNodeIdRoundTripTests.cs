@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             var id = new FileSystemNodeId(FileSystemNodeId.File, "file.txt", 1);
 
-            NodeId nodeId = id.ToNodeId("Open");
+            var nodeId = id.ToNodeId("Open");
 
             Assert.That(FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed), Is.True);
             Assert.That(parsed.ProviderPath, Is.EqualTo("file.txt"));
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             var id = new FileSystemNodeId(FileSystemNodeId.File, "file.txt", 1, "Open");
 
-            NodeId nodeId = id.ToNodeId("InputArguments");
+            var nodeId = id.ToNodeId("InputArguments");
 
             Assert.That(FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed), Is.True);
             Assert.That(parsed.ComponentPath, Is.EqualTo("Open/InputArguments"));

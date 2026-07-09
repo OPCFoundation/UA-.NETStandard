@@ -85,6 +85,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Determines whether a failover is warranted for the current server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ServerFailoverDecision ShouldFailover(
             this IServerRedundancyHandler redundancyHandler,
             ServerRedundancyInfo redundancyInfo,

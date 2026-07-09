@@ -82,6 +82,7 @@ namespace Opc.Ua.PubSub.Redundancy
         /// <param name="fencingToken">The optional fencing token that guards against stale writes.</param>
         /// <param name="cancellationToken">A token to cancel the operation.</param>
         /// <returns>A task that completes when the value has been committed.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public static async ValueTask StoreAsync(
             ISharedKeyValueStore store,
             string key,
@@ -160,8 +161,8 @@ namespace Opc.Ua.PubSub.Redundancy
                 return false;
             }
 
-            if (BinaryPrimitives.ReadUInt32LittleEndian(span[..4]) != s_magic
-                || BinaryPrimitives.ReadInt32LittleEndian(span.Slice(4, 4)) != s_version)
+            if (BinaryPrimitives.ReadUInt32LittleEndian(span[..4]) != s_magic ||
+                BinaryPrimitives.ReadInt32LittleEndian(span.Slice(4, 4)) != s_version)
             {
                 return false;
             }

@@ -121,19 +121,19 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     {
         private RedundantServerCluster(IReadOnlyList<RedundantServerReplica> replicas, string pkiRoot)
         {
-            m_replicas = replicas;
+            Replicas = replicas;
             m_pkiRoot = pkiRoot;
         }
 
         /// <summary>
         /// Gets the replicas that make up the cluster.
         /// </summary>
-        public IReadOnlyList<RedundantServerReplica> Replicas => m_replicas;
+        public IReadOnlyList<RedundantServerReplica> Replicas { get; }
 
         /// <summary>
         /// Gets the endpoint URL of the first replica, used as the client's bootstrap server URL.
         /// </summary>
-        public string BootstrapServerUrl => m_replicas[0].ServerUrl;
+        public string BootstrapServerUrl => Replicas[0].ServerUrl;
 
         /// <summary>
         /// Finds the replica with the given node id, or <c>null</c> when none matches.
@@ -142,7 +142,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// <returns>The matching replica, or <c>null</c>.</returns>
         public RedundantServerReplica? FindByNodeId(string nodeId)
         {
-            return m_replicas.FirstOrDefault(
+            return Replicas.FirstOrDefault(
                 replica => string.Equals(replica.NodeId, nodeId, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// <returns>The live replicas.</returns>
         public IReadOnlyList<RedundantServerReplica> LiveReplicas()
         {
-            return m_replicas.Where(replica => !replica.Process.HasExited).ToList();
+            return [.. Replicas.Where(replica => !replica.Process.HasExited)];
         }
 
         /// <summary>
@@ -170,8 +170,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             int[] ports = TestPorts.GetFreePorts(count);
             int[] raftPorts = TestPorts.GetFreePorts(count);
             string pkiRoot = CreateFreshPkiRoot();
-            var nodeIds = new string[count];
-            var raftBinds = new string[count];
+            string[] nodeIds = new string[count];
+            string[] raftBinds = new string[count];
             for (int i = 0; i < count; i++)
             {
                 nodeIds[i] = "replica-" + (char)('a' + i);
@@ -287,7 +287,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            foreach (RedundantServerReplica replica in m_replicas)
+            foreach (RedundantServerReplica replica in Replicas)
             {
                 await replica.Process.DisposeAsync().ConfigureAwait(false);
             }
@@ -381,8 +381,6 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             return string.Join(",", entries);
         }
-
-        private readonly IReadOnlyList<RedundantServerReplica> m_replicas;
         private readonly string m_pkiRoot;
     }
 }

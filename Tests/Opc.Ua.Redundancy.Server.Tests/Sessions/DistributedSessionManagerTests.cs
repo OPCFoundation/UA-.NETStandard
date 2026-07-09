@@ -35,7 +35,6 @@
 
 using System;
 using System.Globalization;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -224,7 +223,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 registry,
                 sessionStore: sessionStore,
                 timeProvider: timeProvider);
-            NodeId authenticationToken = new NodeId("expired-token", 2);
+            var authenticationToken = new NodeId("expired-token", 2);
             SharedSessionEntry entry = EntryWithNonce([5, 6, 7, 8]) with
             {
                 AuthenticationToken = authenticationToken,

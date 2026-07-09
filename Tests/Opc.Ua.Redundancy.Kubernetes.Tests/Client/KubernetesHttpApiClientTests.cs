@@ -221,13 +221,13 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 var handler = new StubHandler(_ => JsonResponse(HttpStatusCode.OK, Serialize(NewLease("pod-a"))));
                 using KubernetesHttpApiClient api = NewClient(handler, tokenPath: tokenPath);
 
-                await api.GetLeaseAsync("ns", "opcua", CancellationToken.None);
+                await api.GetLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
                 Assert.That(handler.LastAuthorizationScheme, Is.EqualTo("Bearer"));
                 Assert.That(handler.LastAuthorizationParameter, Is.EqualTo("token-a"));
 
                 File.WriteAllText(tokenPath, "token-b");
 
-                await api.GetLeaseAsync("ns", "opcua", CancellationToken.None);
+                await api.GetLeaseAsync("ns", "opcua", CancellationToken.None).ConfigureAwait(false);
                 Assert.That(handler.LastAuthorizationScheme, Is.EqualTo("Bearer"));
                 Assert.That(handler.LastAuthorizationParameter, Is.EqualTo("token-b"));
             }

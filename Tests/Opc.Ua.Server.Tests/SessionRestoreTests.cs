@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeId authenticationToken = new NodeId("restored-token", 2);
+                var authenticationToken = new NodeId("restored-token", 2);
 
                 ActivateSessionResponse response = await server.ActivateSessionAsync(
                     CreateChannelContext(server),
@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeId authenticationToken = new NodeId("missing-token", 2);
+                var authenticationToken = new NodeId("missing-token", 2);
 
                 ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ActivateSessionAsync(
@@ -198,8 +198,8 @@ namespace Opc.Ua.Server.Tests
             {
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
                 TestRestoreSessionManager manager = factory.Manager!;
-                NodeId sameToken = new NodeId("shared-token", 2);
-                NodeId differentToken = new NodeId("different-token", 2);
+                var sameToken = new NodeId("shared-token", 2);
+                var differentToken = new NodeId("different-token", 2);
 
                 Task<ActivateSessionResponse> first = ActivateUnknownAsync(server, sameToken);
                 await manager.WaitForRestoreAttemptsAsync(1).ConfigureAwait(false);
@@ -464,11 +464,12 @@ namespace Opc.Ua.Server.Tests
             private readonly IServerInternal m_server;
             private readonly RestoreBehavior m_behavior;
             private readonly Certificate m_serverCertificate;
+
             private readonly TaskCompletionSource<bool> m_restoreGate =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
-        private sealed class TrackingSession : global::Opc.Ua.Server.Session
+        private sealed class TrackingSession : Server.Session
         {
             public TrackingSession(
                 OperationContext context,

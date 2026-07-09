@@ -76,13 +76,13 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             DateTime deadline = DateTime.UtcNow + duration;
             while (DateTime.UtcNow < deadline)
             {
-                await RunDemoIterationAsync("hot", cancellationToken);
+                await RunDemoIterationAsync("hot", cancellationToken).ConfigureAwait(false);
                 if (DateTime.UtcNow >= deadline)
                 {
                     break;
                 }
 
-                await RunDemoIterationAsync("cold", cancellationToken);
+                await RunDemoIterationAsync("cold", cancellationToken).ConfigureAwait(false);
                 iterations++;
                 TestContext.Progress.WriteLine($"[test] PubSub demo hot+cold iteration {iterations} completed.");
             }
@@ -104,7 +104,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             await using RedundantServerCluster cluster = await RedundantServerCluster.StartSingleEventualAsync(
                 startupTimeout: TimeSpan.FromSeconds(60),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             RedundantServerReplica server = cluster.Replicas[0];
 
             await using var client = new SampleAppProcess(
@@ -119,7 +119,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 ],
                 SampleTestEnvironment.IndependentClient);
 
-            await client.WaitForLineAsync("Connected replica:", TimeSpan.FromSeconds(90), cancellationToken);
+            await client.WaitForLineAsync("Connected replica:", TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
 
             int cycles = 0;
             DateTime deadline = DateTime.UtcNow + duration;
@@ -132,21 +132,21 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
                 TestContext.Progress.WriteLine($"[test] Restarting the server (cycle {cycles + 1}).");
                 await RedundantServerCluster.RestartReplicaAsync(
-                    server, TimeSpan.FromSeconds(60), cancellationToken);
+                    server, TimeSpan.FromSeconds(60), cancellationToken).ConfigureAwait(false);
 
                 bool detectedLoss = await client.WaitForCountAsync(
-                    "FAILOVER: connection lost", lostBefore + 1, TimeSpan.FromSeconds(60), cancellationToken);
+                    "FAILOVER: connection lost", lostBefore + 1, TimeSpan.FromSeconds(60), cancellationToken).ConfigureAwait(false);
                 Assert.That(detectedLoss, Is.True, "The client must detect the server going away.");
 
                 bool reconnected = await client.WaitForCountAsync(
                     "CONNECTED: session (re)connected",
                     reconnectBefore + 1,
                     TimeSpan.FromSeconds(120),
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
                 Assert.That(reconnected, Is.True, "The client must transparently reconnect after the server returns.");
 
                 cycles++;
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             }
 
             Assert.That(cycles, Is.GreaterThanOrEqualTo(1), "At least one restart/reconnect cycle must have run.");
@@ -165,12 +165,12 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             await demo.WaitForLineAsync(
                 "FAILOVER: stopping publisher-a; publisher-b is promoted.",
                 TimeSpan.FromSeconds(60),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             if (string.Equals(mode, "hot", StringComparison.Ordinal))
             {
                 await demo.WaitForLineAsync(
-                    "SIMULATED: HA OK: sequence continued", TimeSpan.FromSeconds(30), cancellationToken);
+                    "SIMULATED: HA OK: sequence continued", TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
                 Assert.That(
                     demo.ContainsLine("SIMULATED: DATA LOSS:"),
                     Is.False,
@@ -179,11 +179,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             else
             {
                 await demo.WaitForLineAsync(
-                    "SIMULATED: DATA LOSS: sequence reset", TimeSpan.FromSeconds(30), cancellationToken);
+                    "SIMULATED: DATA LOSS: sequence reset", TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
             }
 
             Assert.That(
-                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)),
+                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false),
                 Is.True,
                 "The PubSub demo should terminate on its own after the failover narrative.");
         }

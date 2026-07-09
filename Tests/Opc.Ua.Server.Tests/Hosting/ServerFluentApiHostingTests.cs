@@ -397,7 +397,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     services.AddSingleton(subscriptionStore.Object);
                     services.AddSingleton(monitoredItemQueueFactory.Object);
                     services.AddSingleton<IServerStartupTask>(recordingTask);
-                });
+                }).ConfigureAwait(false);
 
             Assert.That(
                 await WaitForAsync(

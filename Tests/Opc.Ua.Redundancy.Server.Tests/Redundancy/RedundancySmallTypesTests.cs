@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System;
 using NUnit.Framework;
 using Opc.Ua.Redundancy.Server;
 

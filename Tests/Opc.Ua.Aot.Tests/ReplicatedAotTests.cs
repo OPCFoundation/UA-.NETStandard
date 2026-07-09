@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Net;
-using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
 using Opc.Ua.Redundancy.Server;
@@ -58,9 +56,9 @@ namespace Opc.Ua.Aot.Tests
                 CrdtReaderOptions.Default);
 
             var value = new ByteString(new byte[] { 10, 20, 30 });
-            await store.SetAsync("session/aot", value);
+            await store.SetAsync("session/aot", value).ConfigureAwait(false);
 
-            (bool found, ByteString stored) = await store.TryGetAsync("session/aot");
+            (bool found, ByteString stored) = await store.TryGetAsync("session/aot").ConfigureAwait(false);
 
             await Assert.That(found).IsTrue();
             byte[] bytes = stored.ToArray();
@@ -79,7 +77,7 @@ namespace Opc.Ua.Aot.Tests
                 AllowUnauthenticatedGossip = true
             };
             options.AddPeer(new IPEndPoint(IPAddress.Loopback, 4999));
-            options.UseUdpGossip(System.Net.IPAddress.Loopback, 0);
+            options.UseUdpGossip(IPAddress.Loopback, 0);
 
             await Assert.That(options.TransportFactory).IsNotNull();
             await using ITransport transport = options.TransportFactory!(NullServiceProvider.Instance);

@@ -330,10 +330,9 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             Assert.That(election.IsLeader, Is.True);
 
-            Assert.That(async () =>
-            {
-                await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
-            }, Throws.TypeOf<HttpRequestException>().With.Message.EqualTo("connection lost"));
+            Assert.That(
+                async () => await election.TryAcquireOrRenewAsync().ConfigureAwait(false),
+                Throws.TypeOf<HttpRequestException>().With.Message.EqualTo("connection lost"));
             Assert.That(election.IsLeader, Is.False);
         }
 

@@ -127,6 +127,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         /// <param name="slices">The EndpointSlice list returned by Kubernetes.</param>
         /// <param name="options">The peer discovery options that control URI construction.</param>
         /// <returns>The sorted peer ServerUris discovered from ready endpoints.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="slices"/> is <c>null</c>.</exception>
         internal static ArrayOf<string> ToPeerUris(
             KubernetesEndpointSliceList slices,
             KubernetesPeerDiscoveryOptions options)

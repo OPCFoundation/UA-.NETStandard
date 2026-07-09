@@ -342,9 +342,11 @@ namespace Opc.Ua.Features.Tests
             {
             }
 
-            // A minimal method node with a valid NodeId so the On*Called
-            // handlers can populate audit events (which read method.NodeId when
-            // EventsMonitored() is true) without a NullReferenceException.
+            /// <summary>
+            /// A minimal method node with a valid NodeId so the On*Called
+            /// handlers can populate audit events (which read method.NodeId when
+            /// EventsMonitored() is true) without a NullReferenceException.
+            /// </summary>
             private static readonly MethodState s_method = new(null) { NodeId = NodeId.Null };
 
             public ServiceResult CallSilence(ISystemContext c)

@@ -46,7 +46,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
@@ -818,11 +817,11 @@ namespace Opc.Ua.Client.Redundancy.Tests
             var facade = new RedundantClientSession(coordinator, () => current);
             m_facades.Add(facade);
 
-            await facade.StartAsync(CancellationToken.None);
+            await facade.StartAsync(CancellationToken.None).ConfigureAwait(false);
             Task waitForLeadership = facade.WaitForLeadershipAsync(CancellationToken.None);
 
             election.Promote();
-            await waitForLeadership.WaitAsync(TimeSpan.FromSeconds(10));
+            await waitForLeadership.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
             Assert.That(attempts, Is.EqualTo(2));
             Assert.That(facade.IsLeader, Is.True);

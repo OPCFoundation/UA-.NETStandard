@@ -71,7 +71,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 ports.Add(GetFreePort());
             }
 
-            var result = new int[count];
+            int[] result = new int[count];
             ports.CopyTo(result);
             return result;
         }

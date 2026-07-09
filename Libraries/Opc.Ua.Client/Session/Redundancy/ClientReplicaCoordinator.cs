@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Redundancy
                 if (found && m_protector.TryUnprotect(stored, out ByteString plaintext) && !plaintext.IsNull)
                 {
                     using var stream = new System.IO.MemoryStream(plaintext.ToArray(), writable: false);
-                    SessionConfiguration? config = SessionConfiguration.Create(stream, m_telemetry);
+                    var config = SessionConfiguration.Create(stream, m_telemetry);
                     if (config == null)
                     {
                         return false;

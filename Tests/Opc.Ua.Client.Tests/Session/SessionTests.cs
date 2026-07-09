@@ -1894,8 +1894,8 @@ namespace Opc.Ua.Client.Tests
             sut.EnableTokenReuseFailover = true;
             SetServerNonce(sut, [1, 2, 3, 4]);
 
-            NodeId newSessionId = NodeId.Parse("s=recreated");
-            NodeId newAuthenticationToken = NodeId.Parse("s=new-auth");
+            var newSessionId = NodeId.Parse("s=recreated");
+            var newAuthenticationToken = NodeId.Parse("s=new-auth");
             var failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
             ConfigureOpenAsyncReadResponses(failoverChannel);
             failoverChannel

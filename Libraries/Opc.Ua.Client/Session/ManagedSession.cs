@@ -491,10 +491,7 @@ namespace Opc.Ua.Client
             set
             {
                 m_enableTokenReuseFailover = value;
-                if (m_session != null)
-                {
-                    m_session.EnableTokenReuseFailover = value;
-                }
+                m_session?.EnableTokenReuseFailover = value;
             }
         }
 

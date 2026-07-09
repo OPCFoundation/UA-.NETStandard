@@ -708,10 +708,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             private readonly INodeStateStore m_inner;
+
             private readonly TaskCompletionSource<bool> m_firstWriteStarted =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<bool> m_releaseGate =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_armed;
             private int m_stalledOnce;
         }

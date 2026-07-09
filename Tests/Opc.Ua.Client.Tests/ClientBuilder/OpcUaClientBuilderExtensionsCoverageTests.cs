@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddDiscoveryOnClientBuilderNullBuilderThrows()
         {
             Assert.That(
-                () => OpcUaClientBuilderExtensions.AddDiscovery((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddDiscovery(),
                 Throws.ArgumentNullException);
         }
 
@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddReverseConnectClient(
-                    (IOpcUaBuilder)null!,
+                    null!,
                     _ => { },
                     new Uri("urn:test")),
                 Throws.ArgumentNullException);
@@ -175,17 +175,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task ApplyManagedSessionOptionsPreferredLocalesAsync()
         {
-            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
-            {
-                services.AddOpcUa().AddClient(opts =>
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa().AddClient(opts =>
                 {
                     opts.Configuration = CreateConfig();
                     opts.Session = new ManagedSessionOptions
                     {
                         PreferredLocales = new List<string> { "en-US", "de-DE" }
                     };
-                });
-            }).ConfigureAwait(false);
+                })).ConfigureAwait(false);
 
             Assert.That(captured.PreferredLocales, Has.Count.EqualTo(2));
             Assert.That(captured.PreferredLocales[0], Is.EqualTo("en-US"));
@@ -197,17 +194,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             ISubscriptionEngineFactory engineFactory = new DefaultSubscriptionEngineFactory();
 
-            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
-            {
-                services.AddOpcUa().AddClient(opts =>
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa().AddClient(opts =>
                 {
                     opts.Configuration = CreateConfig();
                     opts.Session = new ManagedSessionOptions
                     {
                         SubscriptionEngineFactory = engineFactory
                     };
-                });
-            }).ConfigureAwait(false);
+                })).ConfigureAwait(false);
 
             Assert.That(captured.SubscriptionEngineFactory, Is.SameAs(engineFactory));
         }
@@ -215,9 +209,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task ApplyManagedSessionOptionsFlagsAsync()
         {
-            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
-            {
-                services.AddOpcUa().AddClient(opts =>
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa().AddClient(opts =>
                 {
                     opts.Configuration = CreateConfig();
                     opts.Session = new ManagedSessionOptions
@@ -228,8 +220,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                         PoolNotifications = true,
                         ModelChangeTracking = true
                     };
-                });
-            }).ConfigureAwait(false);
+                })).ConfigureAwait(false);
 
             Assert.That(captured.EnableServerRedundancy, Is.True);
             Assert.That(captured.EnableTokenReuseFailover, Is.True);
@@ -241,17 +232,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task ApplyManagedSessionOptionsTimeProviderAsync()
         {
-            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
-            {
-                services.AddOpcUa().AddClient(opts =>
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa().AddClient(opts =>
                 {
                     opts.Configuration = CreateConfig();
                     opts.Session = new ManagedSessionOptions
                     {
                         TimeProvider = TimeProvider.System
                     };
-                });
-            }).ConfigureAwait(false);
+                })).ConfigureAwait(false);
 
             Assert.That(captured.TimeProvider, Is.SameAs(TimeProvider.System));
         }
@@ -259,12 +247,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public async Task ApplyManagedSessionOptionsWithRegisteredIdentityProviderAsync()
         {
-            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
-            {
-                services.AddOpcUa()
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa()
                     .AddClient(opts => opts.Configuration = CreateConfig())
-                    .AddIdentityProvider<AnonymousIdentityProvider>();
-            }).ConfigureAwait(false);
+                    .AddIdentityProvider<AnonymousIdentityProvider>()).ConfigureAwait(false);
 
             Assert.That(captured.IdentityProvider, Is.InstanceOf<AnonymousIdentityProvider>());
         }
@@ -288,22 +273,19 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public async Task ApplyManagedSessionOptionsWithIdentityProviderInSessionOptionsAsync()
         {
             IClientIdentityProvider provider = new AnonymousIdentityProvider();
-            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services =>
-            {
-                services.AddOpcUa().AddClient(opts =>
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa().AddClient(opts =>
                 {
                     opts.Configuration = CreateConfig();
                     opts.Session = new ManagedSessionOptions
                     {
                         IdentityProvider = provider
                     };
-                });
-            }).ConfigureAwait(false);
+                })).ConfigureAwait(false);
 
             Assert.That(captured.IdentityProvider, Is.SameAs(provider));
         }
 
-        private static async Task<ManagedSessionOptions> CaptureAppliedSessionOptionsAsync(
+        private static Task<ManagedSessionOptions> CaptureAppliedSessionOptionsAsync(
             Action<ServiceCollection> configureServices)
         {
             var services = new ServiceCollection();
@@ -326,7 +308,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(ex, Is.Not.Null);
             Assert.That(captured, Is.Not.Null);
-            return captured!;
+            return Task.FromResult(captured!);
         }
 
         private static ApplicationConfiguration CreateConfig()
@@ -360,7 +342,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 CancellationToken ct = default)
             {
                 return new ValueTask<ArrayOf<ApplicationDescription>>(
-                    ArrayOf<ApplicationDescription>.Empty);
+                    []);
             }
 
             public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
@@ -369,7 +351,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 CancellationToken ct = default)
             {
                 return new ValueTask<ArrayOf<EndpointDescription>>(
-                    ArrayOf<EndpointDescription>.Empty);
+                    []);
             }
         }
     }

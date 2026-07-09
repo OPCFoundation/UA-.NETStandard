@@ -293,7 +293,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            ByteString customEventId = ByteString.From(new byte[] { 4, 3, 2, 1 });
+            var customEventId = ByteString.From(new byte[] { 4, 3, 2, 1 });
             var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,

@@ -245,8 +245,10 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
 
             private readonly ISharedKeyValueStore m_innerStore;
             private readonly string m_coordinatedKey;
+
             private readonly TaskCompletionSource<bool> m_secondReadArrived =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_coordinatedReads;
         }
     }

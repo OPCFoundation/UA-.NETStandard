@@ -182,6 +182,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <param name="configure">The delegate that configures the redundant client session.</param>
         /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IServiceCollection AddRedundantClientSession(
             this IServiceCollection services,
             Action<RedundantClientSessionOptions> configure
@@ -206,7 +207,7 @@ namespace Opc.Ua.Redundancy.Client
                 );
             }
 
-            services.TryAddSingleton<RedundantClientSession>(sp =>
+            services.TryAddSingleton(sp =>
             {
                 var replicaOptions = new ClientReplicaOptions
                 {
@@ -219,7 +220,7 @@ namespace Opc.Ua.Redundancy.Client
                         session.EnableTokenReuseFailover = options.EnableTokenReuse;
                         return session;
                     },
-                    ConfigureLeaderAsync = options.ConfigureLeaderAsync,
+                    ConfigureLeaderAsync = options.ConfigureLeaderAsync
                 };
 
                 var coordinator = new ClientReplicaCoordinator(

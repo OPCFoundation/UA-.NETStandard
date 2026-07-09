@@ -298,9 +298,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToRead = new List<ReadValueId>
             {
-                new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value }
+                new() { NodeId = variable.NodeId, AttributeId = Attributes.Value }
             };
-            var values = new List<DataValue> { new DataValue() };
+            var values = new List<DataValue> { new() };
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             DateTimeUtc beforeRead = DateTimeUtc.Now;

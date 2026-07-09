@@ -248,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await store.AddRejectedAsync(collection, maxCertificates: 3).ConfigureAwait(false);
             }
 
-            string corruptKey = StorePath + "/cert/corrupt";
+            const string corruptKey = StorePath + "/cert/corrupt";
             await backend.SetAsync(corruptKey, new ByteString(new byte[] { 1, 2, 3, 4, 5 })).ConfigureAwait(false);
 
             using (Certificate certificate = CreateCertificate("CN=KvRejectedValid3"))

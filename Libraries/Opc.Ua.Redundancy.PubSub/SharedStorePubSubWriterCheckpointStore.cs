@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Redundancy
             long? fencingToken,
             CancellationToken cancellationToken)
         {
-            var buffer = new byte[sizeof(uint)];
+            byte[] buffer = new byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32LittleEndian(buffer, sequenceNumber);
             await FencedSharedStoreValue.StoreAsync(
                 m_store,

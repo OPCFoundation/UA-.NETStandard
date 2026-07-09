@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
@@ -589,7 +588,7 @@ namespace Opc.Ua.Redundancy.Server
             // MoveNextAsync runs the iterator prefix that adds the watcher) so
             // no change published after Start() returns is missed, then consume
             // it on a background task.
-            CancellationTokenSource inboundCts = CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token);
+            var inboundCts = CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token);
             IAsyncEnumerator<NodeStateChange> inboundEnumerator = m_store
                 .SubscribeChangesAsync(inboundCts.Token)
                 .GetAsyncEnumerator();

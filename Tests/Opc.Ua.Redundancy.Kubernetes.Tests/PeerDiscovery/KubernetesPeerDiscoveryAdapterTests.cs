@@ -29,7 +29,6 @@
 
 #pragma warning disable CA2007
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -61,7 +60,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
 
             var adapter = new KubernetesPeerDiscoveryAdapter(inner.Object);
 
-            ArrayOf<DiscoveredPeer> peers = await adapter.RefreshAsync();
+            ArrayOf<DiscoveredPeer> peers = await adapter.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(peers.Count, Is.EqualTo(2));
             Assert.That(peers[0].ServerUri, Is.EqualTo("urn:a"));
@@ -83,7 +82,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             Assert.That(observed[0].ServerUri, Is.EqualTo("urn:a"));
         }
 
-        private static readonly ArrayOf<string> s_singleUri = (ArrayOf<string>)["urn:a"];
-        private static readonly ArrayOf<string> s_twoUris = (ArrayOf<string>)["urn:a", "urn:b"];
+        private static readonly ArrayOf<string> s_singleUri = ["urn:a"];
+        private static readonly ArrayOf<string> s_twoUris = ["urn:a", "urn:b"];
     }
 }

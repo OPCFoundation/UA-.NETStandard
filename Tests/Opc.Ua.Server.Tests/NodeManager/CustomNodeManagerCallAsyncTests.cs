@@ -150,8 +150,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(request.Processed, Is.True);
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(
-                (StatusCode)errors[0].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadMethodInvalid));
+                errors[0].StatusCode,
+                Is.EqualTo(StatusCodes.BadMethodInvalid));
         }
     }
 }

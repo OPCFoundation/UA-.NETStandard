@@ -38,7 +38,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.Redundancy;
 using Raft;
@@ -179,7 +178,7 @@ namespace RedundantPubSub
             EmitSimulatedSequences(
                 ownerId: "publisher-b",
                 start: demoOptions.HaMode == PubSubRedundancyMode.Hot
-                    ? (uint)simulatedPreFailoverCount + simulatedPostFailoverMargin
+                    ? simulatedPreFailoverCount + simulatedPostFailoverMargin
                     : 0,
                 count: simulatedPostFailoverCount,
                 ref simulatedLastSequence,

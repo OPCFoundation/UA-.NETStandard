@@ -332,7 +332,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     ApplicationType = ApplicationType.Server,
                     DiscoveryUrls = ["opc.tcp://localhost:4840"]
                 };
-                typeof(global::Opc.Ua.ServerBase)
+                typeof(ServerBase)
                     .GetProperty("ServerDescription", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
                     .SetValue(this, localDescription);
                 EndpointDescription[] localEndpoints =
@@ -343,7 +343,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                         Server = localDescription
                     }
                 ];
-                typeof(global::Opc.Ua.ServerBase)
+                typeof(ServerBase)
                     .GetProperty("Endpoints", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
                     .SetValue(
                         this,

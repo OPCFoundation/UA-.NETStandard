@@ -45,6 +45,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         /// <returns>
         /// An in-cluster HTTP API client when Kubernetes credentials are available; otherwise, a no-op client.
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static IKubernetesApiClient Create(KubernetesServerOptions options)
         {
             if (options == null)
@@ -79,6 +80,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         /// <param name="options">The Kubernetes server options that may specify the namespace.</param>
         /// <param name="client">The Kubernetes API client associated with the options.</param>
         /// <returns>The configured namespace, mounted namespace, or Kubernetes default namespace.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static string ResolveNamespace(KubernetesServerOptions options, IKubernetesApiClient client)
         {
             if (options == null)

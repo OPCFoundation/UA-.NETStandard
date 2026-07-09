@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -122,16 +121,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             TimeSpan timeout,
             CancellationToken cancellationToken = default)
         {
-            string? match = await WaitForLineOrDefaultAsync(substring, timeout, cancellationToken)
-                .ConfigureAwait(false);
-            if (match == null)
-            {
+            return (string?)(await WaitForLineOrDefaultAsync(substring, timeout, cancellationToken)
+                .ConfigureAwait(false) ??
                 throw new TimeoutException(
                     $"Sample process '{Name}' did not emit a line containing '{substring}' within {timeout}. " +
-                    $"Process {(HasExited ? "has exited" : "is still running")}.");
-            }
-
-            return match;
+                    $"Process {(HasExited ? "has exited" : "is still running")}."));
         }
 
         /// <summary>

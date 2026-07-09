@@ -151,12 +151,12 @@ namespace Opc.Ua.Server.Tests.Historian
             // Insert then delete to create a modified-log entry.
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant(10.0), StatusCodes.Good, t1, t1)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             await h.Provider.DeleteRawAsync(ctx, nodeId,
                 (DateTimeUtc)BaseTime,
                 (DateTimeUtc)BaseTime.AddMinutes(1),
                 isDeleteModified: false,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             var node = CreateVariable(nodeId);
             var details = new ReadRawModifiedDetails
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryModifiedData? md), Is.True);
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant(77.0), StatusCodes.Good, t, t)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             var node = CreateVariable(nodeId);
             var details = new ReadAtTimeDetails
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -263,7 +263,7 @@ namespace Opc.Ua.Server.Tests.Historian
             DateTime tAfter = BaseTime.AddSeconds(20);
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant(50.0), StatusCodes.Good, tAfter, tAfter)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             var node = CreateVariable(nodeId);
             // Requested time is before the only data point; "before" will be null.
@@ -281,7 +281,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -304,10 +304,10 @@ namespace Opc.Ua.Server.Tests.Historian
             // Insert string values — non-numeric → Convert.ToDouble throws InvalidCastException.
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant("hello"), StatusCodes.Good, t1, t1)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant("world"), StatusCodes.Good, t2, t2)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             var node = CreateVariable(nodeId);
             var details = new ReadAtTimeDetails
@@ -324,7 +324,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -336,7 +336,10 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── Helpers ─────────────────────────────────────────────────────────
 
-        private static HarnessFixture CreateHarness() => new();
+        private static HarnessFixture CreateHarness()
+        {
+            return new();
+        }
 
         // ─── DispatchRawReadAsync null systemContext guard ───────────────────
 
@@ -392,7 +395,7 @@ namespace Opc.Ua.Server.Tests.Historian
             DateTime t1 = BaseTime.AddSeconds(1);
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant(42.0), StatusCodes.Good, t1, t1)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             var node = CreateVariable(nodeId);
             var details = new ReadRawModifiedDetails
@@ -410,7 +413,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Neither,
                 result,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(err), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -433,7 +436,7 @@ namespace Opc.Ua.Server.Tests.Historian
             DateTime t1 = BaseTime.AddSeconds(1);
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant(99.0), StatusCodes.Good, t1, t1)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             var node = CreateVariable(nodeId);
             var details = new ReadRawModifiedDetails
@@ -456,7 +459,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Source,
                 result,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(err), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
