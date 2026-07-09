@@ -994,19 +994,16 @@ namespace Opc.Ua.Core.Security.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenSessionWithClientCertAsync(cert, appUri).ConfigureAwait(false));
 
-            // The reference server / client validation chain rejects
-            // these certificates with one of several status codes
-            // depending on whether the failure is detected client-side
-            // (during application instance check) or server-side
-            // (during secure channel open). Accept any of the
-            // certificate-validity status codes per Part 4 §7.39.
+            // These certificates fail the time-validity check, which the server
+            // now surfaces as the specific certificate status code (the OSC handler
+            // no longer masks it as BadSecurityChecksFailed). Per Part 4 §7.39 the
+            // expired / not-yet-valid failure must be reported as
+            // BadCertificateTimeInvalid (or the issuer variant for a chain).
             Assert.That(
                 ex.StatusCode,
                 Is.AnyOf(
                     StatusCodes.BadCertificateTimeInvalid,
-                    StatusCodes.BadCertificateIssuerTimeInvalid,
-                    StatusCodes.BadSecurityChecksFailed,
-                    StatusCodes.BadCertificateInvalid),
+                    StatusCodes.BadCertificateIssuerTimeInvalid),
                 $"Got: {ex.StatusCode}");
             return Task.CompletedTask;
         }

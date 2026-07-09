@@ -127,6 +127,269 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task RawReadWithMoreDataReturnsGoodStatusAndContinuationPointAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(100);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("PagedVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                NumValuesPerNode = 10,
+                IsReadModified = false
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                nodeToRead,
+                details,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+
+            // Per OPC UA Part 11 6.5.3.2 a paged HistoryRead reports Good (not
+            // Good_MoreData); the non-empty ContinuationPoint alone signals more data.
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.False,
+                "A read with more data available must return a ContinuationPoint.");
+        }
+
+        [Test]
+        public async Task RawReadOfEmptyIntervalReturnsGoodNoDataAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(100);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("EmptyVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+
+            // A time range strictly before any seeded sample, with no bounding values.
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime.AddDays(-1),
+                EndTime = HarnessFixture.BaseTime.AddDays(-1).AddMinutes(1),
+                NumValuesPerNode = 0,
+                ReturnBounds = false,
+                IsReadModified = false
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                nodeToRead,
+                details,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+
+            // Per OPC UA Part 11 6.5.3.2 an interval with no data (no bounds requested)
+            // is reported with Good_NoData, not plain Good.
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.GoodNoData));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task RawReadWithIndexRangeOnScalarReturnsBadIndexRangeNoDataAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(10);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("ScalarVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                NumValuesPerNode = 0,
+                IsReadModified = false
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                IndexRange = "1:3",
+                ParsedIndexRange = NumericRange.Parse("1:3"),
+                ContinuationPoint = ByteString.Empty
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                nodeToRead,
+                details,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+
+            // Per OPC UA Part 11 (CTT HA Read Raw Err-009): an IndexRange cannot select
+            // data from scalar history, so the operation result is Bad_IndexRangeNoData.
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeNoData));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task RawReadWithUnknownContinuationPointReturnsBadContinuationPointInvalidAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(10);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("CpVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                NumValuesPerNode = 1,
+                IsReadModified = false
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                // A ContinuationPoint the server never issued (e.g. from a Browse).
+                ContinuationPoint = new ByteString(new byte[] { 1, 2, 3, 4 })
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                nodeToRead,
+                details,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+
+            // Per OPC UA Part 11 (CTT HA Read Raw Err-014/Err-024): an unknown/foreign
+            // ContinuationPoint is Bad_ContinuationPointInvalid.
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadContinuationPointInvalid));
+        }
+
+        [Test]
+        public async Task PagedRawReadFinalPageHasNoContinuationPointAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(3);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("PageVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                NumValuesPerNode = 1,
+                IsReadModified = false
+            };
+
+            ByteString cp = ByteString.Empty;
+            int pages = 0;
+            int total = 0;
+            bool finalHadContinuation = true;
+
+            while (pages < 20)
+            {
+                var nodeToRead = new HistoryReadValueId { NodeId = nodeId, ContinuationPoint = cp };
+                var result = new HistoryReadResult();
+
+                ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                    h.SystemContext,
+                    h.Provider,
+                    variable,
+                    nodeToRead,
+                    details,
+                    TimestampsToReturn.Source,
+                    result,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(error), Is.True);
+                pages++;
+                if (result.HistoryData.TryGetValue(out HistoryData? hd))
+                {
+                    DataValue[]? values = hd.DataValues.ToArray();
+                    if (values != null)
+                    {
+                        total += values.Length;
+                    }
+                }
+
+                if (result.ContinuationPoint.IsEmpty)
+                {
+                    finalHadContinuation = false;
+                    break;
+                }
+                cp = result.ContinuationPoint;
+            }
+
+            // Reading one value at a time over exactly three samples yields three pages,
+            // and the final page must NOT carry a ContinuationPoint (CTT HA Read Raw 008/009).
+            Assert.That(total, Is.EqualTo(3));
+            Assert.That(pages, Is.EqualTo(3));
+            Assert.That(finalHadContinuation, Is.False,
+                "The final page of a paged raw read must not return a ContinuationPoint.");
+        }
+
+        [Test]
         public async Task AnnotationUpdateDispatchInsertsAndDeletesAsync()
         {
             HarnessFixture h = CreateHarness();

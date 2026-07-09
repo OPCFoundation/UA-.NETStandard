@@ -265,7 +265,8 @@ namespace Opc.Ua.History.Tests
                         out LocalizedText comment),
                     Is.True,
                     "Confirm event should include Comment.");
-                Assert.That(comment.Text ?? string.Empty, Is.EqualTo(string.Empty));
+                Assert.That(comment.Text, Is.EqualTo("ack before empty confirm"),
+                    "An empty Confirm comment must preserve the existing comment (OPC UA Part 9).");
             }
             catch (TimeoutException ex)
             {

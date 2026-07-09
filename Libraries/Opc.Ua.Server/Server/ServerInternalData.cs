@@ -150,6 +150,7 @@ namespace Opc.Ua.Server
                 RequestManager?.Dispose();
                 AggregateManager?.Dispose();
                 ModellingRulesManager?.Dispose();
+                ConformanceUnitsManager?.Dispose();
                 (NodeManager as IDisposable)?.Dispose();
                 SessionManager?.Dispose();
                 SubscriptionManager?.Dispose();
@@ -388,6 +389,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Stores the ConformanceUnitsManager in the datastore.
+        /// </summary>
+        /// <param name="conformanceUnitsManager">The ConformanceUnitsManager.</param>
+        [MemberNotNull(nameof(ConformanceUnitsManager))]
+        public void SetConformanceUnitsManager(ConformanceUnitsManager conformanceUnitsManager)
+        {
+            ConformanceUnitsManager = conformanceUnitsManager;
+        }
+
+        /// <summary>
         /// The endpoint addresses used by the server.
         /// </summary>
         /// <value>The endpoint addresses.</value>
@@ -487,6 +498,13 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The modelling rules manager.</value>
         public ModellingRulesManager ModellingRulesManager { get; private set; } = null!;
+
+        /// <summary>
+        /// A manager for the conformance units and server profiles the server
+        /// advertises.
+        /// </summary>
+        /// <value>The conformance units manager.</value>
+        public ConformanceUnitsManager ConformanceUnitsManager { get; private set; } = null!;
 
         /// <summary>
         /// The manager for active sessions.

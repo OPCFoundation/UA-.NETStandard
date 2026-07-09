@@ -96,6 +96,19 @@ namespace Opc.Ua
             WireCertificateRotation();
         }
 
+        /// <summary>
+        /// The process-wide default transport binding registry used by the
+        /// static channel-creation fallback when a caller does not supply an
+        /// explicit <see cref="ITransportChannelBindings"/> (the non-DI path).
+        /// Exposed so non-DI diagnostic bindings — for example the OPC UA Pcap
+        /// capture binding via <c>PcapBindings.InstallClient</c> — can install
+        /// their channel decorator into the same registry the client falls
+        /// back to. DI consumers should instead register their binding on the
+        /// <see cref="ITransportBindingRegistry"/> resolved from their own
+        /// service provider.
+        /// </summary>
+        public static ITransportBindingRegistry DefaultChannelBindings => GetDefaultBindingsLazy();
+
         /// <inheritdoc/>
         public async ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
