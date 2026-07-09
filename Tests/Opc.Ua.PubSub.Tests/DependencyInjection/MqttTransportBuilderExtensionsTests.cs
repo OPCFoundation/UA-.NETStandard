@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         {
             IPubSubBuilder? builder = null;
             IConfigurationSection section = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .AddInMemoryCollection([])
                 .Build()
                 .GetSection("X");
             Assert.That(

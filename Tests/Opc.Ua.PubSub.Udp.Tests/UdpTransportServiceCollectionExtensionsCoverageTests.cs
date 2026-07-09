@@ -149,7 +149,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         {
             var services = new ServiceCollection();
             IConfigurationRoot configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .AddInMemoryCollection([])
                 .Build();
 
             services.AddOpcUa().AddPubSub(pubsub =>
@@ -170,7 +170,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         {
             IUdpTransportBuilder? builder = null;
             IConfigurationSection section = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .AddInMemoryCollection([])
                 .Build()
                 .GetSection("Dtls");
 

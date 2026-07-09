@@ -373,7 +373,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void ConfigureRolesFromConfigurationRegistersRoleManager()
         {
             IConfiguration configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string>())
+                .AddInMemoryCollection([])
                 .Build();
 
             IServiceCollection services = new ServiceCollection();

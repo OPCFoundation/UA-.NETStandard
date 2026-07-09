@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             var source = new MemoryConfigurationSource
             {
-                InitialData = new Dictionary<string, string?>()
+                InitialData = []
             };
 
             return new ConfigurationBuilder().Add(source).Build();

@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 opts.Configuration = CreateConfig();
                 opts.Session = new ManagedSessionOptions
                 {
-                    PreferredLocales = new List<string> { "en-US", "de-DE" }
+                    PreferredLocales = ["en-US", "de-DE"]
                 };
             });
 
