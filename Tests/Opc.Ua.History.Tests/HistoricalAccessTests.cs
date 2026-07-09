@@ -78,6 +78,56 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        [TestCase("Boolean")]
+        [TestCase("SByte")]
+        [TestCase("Byte")]
+        [TestCase("Int16")]
+        [TestCase("UInt16")]
+        [TestCase("UInt32")]
+        [TestCase("Int64")]
+        [TestCase("UInt64")]
+        [TestCase("Float")]
+        [TestCase("String")]
+        [TestCase("DateTime")]
+        [TestCase("Guid")]
+        [TestCase("ByteString")]
+        [Description("Raw history read of every historized scalar type returns Good and seeded values.")]
+        [Test]
+        public async Task HistoryReadRawDataForScalarTypeReturnsSeededValuesAsync(string typeName)
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId($"Scalar_Static_{typeName}", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-4);
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() { NodeId = nodeId }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True,
+                $"Raw history read of Scalar_Static_{typeName} should return Good.");
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True,
+                "Result should carry a HistoryData payload.");
+            Assert.That(historyData!.DataValues.Count, Is.GreaterThan(0),
+                $"Scalar_Static_{typeName} should return seeded historical values.");
+        }
+
         [Test]
         public async Task HistoryReadWithTimeRangeAsync()
         {

@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     TimestampsToReturn.Source,
                     false, nodesToRead, results, errors).ConfigureAwait(false));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidTimestampArgument));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
         }
 
         [Test]

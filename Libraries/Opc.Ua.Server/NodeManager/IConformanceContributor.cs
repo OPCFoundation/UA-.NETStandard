@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,32 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using Opc.Ua.Security.Certificates;
-using Opc.Ua.Tests;
-
-namespace Opc.Ua.Core.Security.Tests
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Assembly-level setup/teardown that verifies no Certificate
-    /// instances are leaked during the test run.
+    /// Implemented by a node manager (or other server feature) that contributes
+    /// the OPC UA conformance units and server profiles it enables.
     /// </summary>
-    [SetUpFixture]
-    public class LeakDetectionSetup
+    /// <remarks>
+    /// A server can aggregate these contributions with its always-supported base
+    /// set to publish <c>Server/ServerCapabilities/ConformanceUnits</c> and the
+    /// <c>ServerProfileArray</c> derived from what is actually wired up (which
+    /// node managers were added / which features were enabled via DI) rather than
+    /// a fixed hard-coded list. See OPC UA Part 7 (Profiles) and Part 5
+    /// (ServerCapabilities). Contributors that enable nothing return empty
+    /// collections; the aggregating server de-duplicates across contributors.
+    /// </remarks>
+    public interface IConformanceContributor
     {
-        [OneTimeSetUp]
-        public void GlobalSetup()
-        {
-            Certificate.ResetLeakCounters();
-        }
+        /// <summary>
+        /// The conformance units enabled by this contributor (may be empty).
+        /// </summary>
+        ArrayOf<QualifiedName> ConformanceUnits { get; }
 
-        [OneTimeTearDown]
-        public void GlobalTeardown()
-        {
-            // Release the shared X509 user-identity signing provider/store so its
-            // private-key cache disposes the certificates it materialised.
-            X509UserIdentityHelper.DisposeSharedResources();
-            LeakDetectionHelpers.AssertNoCertificateLeaks();
-        }
+        /// <summary>
+        /// The server profile URIs enabled by this contributor (may be empty).
+        /// </summary>
+        ArrayOf<string> ServerProfiles { get; }
     }
 }

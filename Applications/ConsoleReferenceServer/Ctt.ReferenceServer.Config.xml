@@ -197,6 +197,8 @@
       <ua:String>http://opcfoundation.org/UA-Profile/Server/Methods</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/ReverseConnect</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/ClientRedundancy</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022</ua:String>
     </ServerProfileArray>
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
