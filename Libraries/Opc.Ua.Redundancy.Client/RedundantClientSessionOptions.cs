@@ -56,6 +56,12 @@ namespace Opc.Ua.Redundancy.Client
         public Func<CancellationToken, ValueTask<ManagedSession>>? CreateSessionAsync { get; set; }
 
         /// <summary>
+        /// Gets or sets whether promotions should reuse the mirrored
+        /// authentication token when possible.
+        /// </summary>
+        public bool EnableTokenReuse { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets the leader configuration callback.
         /// </summary>
         public Func<ManagedSession, bool, CancellationToken, ValueTask>? ConfigureLeaderAsync { get; set; }

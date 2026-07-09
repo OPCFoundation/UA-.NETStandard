@@ -323,6 +323,8 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             m_channel.Writer.TryComplete();
+            m_drainCts.Cancel();
+            m_drainCts.Dispose();
         }
 
         /// <inheritdoc/>
@@ -334,7 +336,15 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             m_channel.Writer.TryComplete();
-            await m_drainTask.ConfigureAwait(false);
+            m_drainCts.Cancel();
+            try
+            {
+                await m_drainTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            m_drainCts.Dispose();
         }
 
         private void SignalDrain()
@@ -353,24 +363,35 @@ namespace Opc.Ua.Redundancy.Server
 
         private async Task DrainAsync()
         {
-            await foreach (QueueMirrorCommand command in m_channel.Reader
-                .ReadAllAsync()
-                .ConfigureAwait(false))
+            try
             {
-                try
+                await foreach (QueueMirrorCommand command in m_channel.Reader
+                    .ReadAllAsync(m_drainCts.Token)
+                    .ConfigureAwait(false))
                 {
-                    await DrainPendingAsync().ConfigureAwait(false);
-                    command.Completion?.SetResult(true);
+                    try
+                    {
+                        await DrainPendingAsync(m_drainCts.Token).ConfigureAwait(false);
+                        command.Completion?.SetResult(true);
+                    }
+                    catch (OperationCanceledException) when (m_drainCts.IsCancellationRequested)
+                    {
+                        command.Completion?.SetCanceled();
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogWarning(ex, "Failed to mirror monitored-item queue state.");
+                        command.Completion?.SetException(ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    m_logger.LogWarning(ex, "Failed to mirror monitored-item queue state.");
-                    command.Completion?.SetException(ex);
-                }
+            }
+            catch (OperationCanceledException) when (m_drainCts.IsCancellationRequested)
+            {
             }
         }
 
-        private async ValueTask DrainPendingAsync()
+        private async ValueTask DrainPendingAsync(CancellationToken cancellationToken)
         {
             KeyValuePair<uint, DataChangeQueueSnapshot>[] dataChange;
             KeyValuePair<uint, EventQueueSnapshot>[] events;
@@ -389,17 +410,17 @@ namespace Opc.Ua.Redundancy.Server
             foreach (KeyValuePair<uint, DataChangeQueueSnapshot> entry in dataChange)
             {
                 ByteString payload = m_protector.Protect(EncodeDataChangeSnapshot(entry.Value));
-                operations.Add(m_store.SetAsync(DataChangeKeyFor(entry.Key), payload).AsTask());
+                operations.Add(m_store.SetAsync(DataChangeKeyFor(entry.Key), payload, cancellationToken).AsTask());
             }
             foreach (KeyValuePair<uint, EventQueueSnapshot> entry in events)
             {
                 ByteString payload = m_protector.Protect(EncodeEventSnapshot(entry.Value));
-                operations.Add(m_store.SetAsync(EventKeyFor(entry.Key), payload).AsTask());
+                operations.Add(m_store.SetAsync(EventKeyFor(entry.Key), payload, cancellationToken).AsTask());
             }
             foreach (uint id in removals)
             {
-                operations.Add(m_store.DeleteAsync(DataChangeKeyFor(id)).AsTask());
-                operations.Add(m_store.DeleteAsync(EventKeyFor(id)).AsTask());
+                operations.Add(m_store.DeleteAsync(DataChangeKeyFor(id), cancellationToken).AsTask());
+                operations.Add(m_store.DeleteAsync(EventKeyFor(id), cancellationToken).AsTask());
             }
 
             if (operations.Count == 0)
@@ -588,6 +609,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger<SharedKeyValueMonitoredItemQueueFactory> m_logger;
         private readonly Channel<QueueMirrorCommand> m_channel;
+        private readonly CancellationTokenSource m_drainCts = new();
         private readonly Task m_drainTask;
         private readonly Lock m_pendingLock = new();
         private readonly Dictionary<uint, DataChangeQueueSnapshot> m_pendingDataChange = [];
@@ -596,15 +618,32 @@ namespace Opc.Ua.Redundancy.Server
         private int m_overflowWarningWritten;
         private int m_disposed;
 
+        /// <summary>
+        /// Command enqueued to the mirror worker; carries an optional completion source used to await the mirror
+        /// operation, or acts as a wake-up signal when none is supplied.
+        /// </summary>
         private sealed class QueueMirrorCommand
         {
+            /// <summary>
+            /// Gets a shared signal-only command used to wake the mirror worker without awaiting completion.
+            /// </summary>
             public static QueueMirrorCommand Signal { get; } = new(null);
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="QueueMirrorCommand"/> class.
+            /// </summary>
+            /// <param name="completion">
+            /// The completion source signalled when the command has been processed, or <c>null</c> for a
+            /// signal-only command.
+            /// </param>
             public QueueMirrorCommand(TaskCompletionSource<bool>? completion)
             {
                 Completion = completion;
             }
 
+            /// <summary>
+            /// Gets the completion source signalled when the command has been processed, if any.
+            /// </summary>
             public TaskCompletionSource<bool>? Completion { get; }
         }
     }

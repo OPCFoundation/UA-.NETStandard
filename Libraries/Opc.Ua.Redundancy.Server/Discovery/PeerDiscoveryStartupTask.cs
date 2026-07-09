@@ -44,6 +44,13 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     internal sealed class PeerDiscoveryStartupTask : IServerStartupTask, IAsyncDisposable
     {
+        /// <summary>
+        /// Creates a startup task that refreshes discovered peers and updates the redundant server set.
+        /// </summary>
+        /// <param name="discovery">The peer discovery source to refresh.</param>
+        /// <param name="provider">The provider that publishes discovered redundant servers.</param>
+        /// <param name="options">The peer discovery refresh options.</param>
+        /// <param name="gossipSink">Optional gossip sink that receives discovered gossip endpoints.</param>
         public PeerDiscoveryStartupTask(
             IPeerDiscovery discovery,
             DiscoveredRedundantServerSetProvider provider,
@@ -56,6 +63,7 @@ namespace Opc.Ua.Redundancy.Server
             m_gossipSink = gossipSink;
         }
 
+        /// <inheritdoc/>
         public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
         {
             if (server == null)
@@ -69,6 +77,7 @@ namespace Opc.Ua.Redundancy.Server
             return default;
         }
 
+        /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             m_discovery.PeersChanged -= OnPeersChanged;

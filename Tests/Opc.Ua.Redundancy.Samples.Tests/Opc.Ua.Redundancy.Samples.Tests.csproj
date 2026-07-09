@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      These are process-level integration tests that launch the RedundantServer,
+      RedundantClient and RedundantPubSub sample applications (which target
+      net10.0 only) and assert on their high-availability log output. The tests
+      are therefore net10.0 only. For the legacy per-TFM CI matrix entries
+      (net472 / net48 / netstandard2.0 / netstandard2.1) the sample apps cannot
+      be built, so this project compiles a placeholder assembly with no test
+      code: the per-TFM test command then discovers zero tests, exits cleanly,
+      and the whole-solution build for those frameworks still succeeds.
+    -->
+    <_SamplesPlaceholder>false</_SamplesPlaceholder>
+    <_SamplesPlaceholder Condition="'$(CustomTestTarget)' == 'net472'">true</_SamplesPlaceholder>
+    <_SamplesPlaceholder Condition="'$(CustomTestTarget)' == 'net48'">true</_SamplesPlaceholder>
+    <_SamplesPlaceholder Condition="'$(CustomTestTarget)' == 'netstandard2.0'">true</_SamplesPlaceholder>
+    <_SamplesPlaceholder Condition="'$(CustomTestTarget)' == 'netstandard2.1'">true</_SamplesPlaceholder>
+    <TargetFramework Condition="'$(_SamplesPlaceholder)' != 'true'">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(_SamplesPlaceholder)' == 'true'">net8.0</TargetFramework>
+    <EnableDefaultCompileItems Condition="'$(_SamplesPlaceholder)' == 'true'">false</EnableDefaultCompileItems>
+    <RootNamespace>Opc.Ua.Redundancy.Samples.Tests</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!--
+      The placeholder assembly (legacy TFM matrix entries) has no source code;
+      suppress CA1014 (assembly-level CLSCompliant) for that build only.
+    -->
+    <NoWarn Condition="'$(_SamplesPlaceholder)' == 'true'">$(NoWarn);CA1014</NoWarn>
+    <!--
+      Common test-project suppression list (matches the rest of Tests/*/*.csproj).
+      Test code is allowed to be noisier on these analyzer rules.
+    -->
+    <NoWarn>$(NoWarn);RCS0056;RCS1166;RCS1174;RCS1229;RCS1047;RCS1077;NUnit2023;NUnit2010;NUnit2045</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_SamplesPlaceholder)' != 'true'">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!--
+    Reference the sample applications so they are built alongside these tests and
+    can be located and launched at runtime. ReferenceOutputAssembly is false
+    because the tests launch the apps as external processes rather than calling
+    into their assemblies directly.
+  -->
+  <ItemGroup Condition="'$(_SamplesPlaceholder)' != 'true'">
+    <ProjectReference Include="..\..\Applications\RedundantServer\RedundantServer.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\Applications\RedundantClient\RedundantClient.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\Applications\RedundantPubSub\RedundantPubSub.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

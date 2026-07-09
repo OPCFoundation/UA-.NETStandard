@@ -35,13 +35,21 @@ using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {
+    /// <summary>
+    /// Starts the Kubernetes readiness endpoint when the OPC UA server has started.
+    /// </summary>
     internal sealed class KubernetesReadinessStartupTask : IServerStartupTask
     {
+        /// <summary>
+        /// Creates a startup task for a Kubernetes readiness server.
+        /// </summary>
+        /// <param name="server">The readiness server to start.</param>
         public KubernetesReadinessStartupTask(KubernetesReadinessServer server)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
         }
 
+        /// <inheritdoc/>
         public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
         {
             if (server == null)

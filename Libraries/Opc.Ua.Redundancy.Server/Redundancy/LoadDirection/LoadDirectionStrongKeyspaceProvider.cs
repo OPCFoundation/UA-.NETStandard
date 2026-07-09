@@ -38,6 +38,10 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     internal sealed class LoadDirectionStrongKeyspaceProvider : IStrongKeyspaceProvider
     {
+        /// <summary>
+        /// Creates a provider for the strongly consistent load-direction eligibility key prefixes.
+        /// </summary>
+        /// <param name="options">The load-direction options that define the key prefixes.</param>
         public LoadDirectionStrongKeyspaceProvider(LoadDirectionOptions options)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));

@@ -1,16 +1,24 @@
 # RedundantPubSub — OPC UA PubSub active/standby HA sample.
 #
 # Profiles:
-#   strong  fixed 3-node Raft publisher set + one subscriber (default, real cross-container active/standby)
-#   demo    single container running two in-process publishers + subscriber over multicast loopback/bridge
+#   strong  fixed 3-node Raft publisher set + fixed 3-node Raft subscriber set
+#           (default, real cross-container active/standby on BOTH sides)
+#   demo    single container running two in-process publishers + subscriber over loopback UDP by default
 #
 # Run from the repository ROOT:
 #   docker compose -f Applications/RedundantPubSub/docker-compose.yml up --build
 #
-# Observe subscriber logs. With HA_MODE=hot, killing the active publisher should produce:
+# Publisher HA — observe the subscriber logs. With HA_MODE=hot, killing the active publisher
+# (docker kill <publisher-a|b|c>) should produce on every subscriber:
 #   HA OK: sequence continued <n> -> <m> across failover (gap, no reset)
 # With HA_MODE=cold, the promoted publisher restarts its local writer SequenceNumber and the subscriber logs:
 #   DATA LOSS: sequence reset <n> -> <k> (subscriber must reset de-duplication)
+#
+# Subscriber HA — the three subscribers form their own Raft set, so only the elected-active
+# subscriber dispatches received data sets to its sink (look for the "Subscriber ... -> Active"
+# role line and the "DataSet with N field(s) received" lines). Killing the active subscriber
+# (docker kill <subscriber-a|b|c>) promotes a standby, which resumes dispatching without
+# losing the multicast stream that every replica already receives.
 
 x-pubsub-image: &pubsub-image
   build:
@@ -26,8 +34,18 @@ x-publisher-env: &publisher-env
   HA_RAFT_BIND: tcp://0.0.0.0:6560
   HA_INSECURE: ${HA_INSECURE:-true}
   HA_RECORD_KEY: ${HA_RECORD_KEY:-}
-  PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://239.0.0.1:4840}
+  PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://127.0.0.1:4840}
   PUBLISH_INTERVAL_MS: ${PUBLISH_INTERVAL_MS:-1000}
+
+x-subscriber-env: &subscriber-env
+  ROLE: subscriber
+  HA_MODE: ${HA_MODE:-hot}
+  HA_ELECTION: leader-election
+  HA_RAFT_MEMBERS: "3"
+  HA_RAFT_BIND: tcp://0.0.0.0:6570
+  HA_INSECURE: ${HA_INSECURE:-true}
+  HA_RECORD_KEY: ${HA_RECORD_KEY:-}
+  PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://239.0.0.1:4840}
 
 services:
   publisher-a:
@@ -60,12 +78,35 @@ services:
       HA_RAFT_ID: "3"
       HA_RAFT_PEERS: tcp://publisher-a:6560,tcp://publisher-b:6560
 
-  subscriber:
+  subscriber-a:
     <<: *pubsub-image
     profiles: ["strong"]
+    hostname: subscriber-a
     environment:
-      ROLE: subscriber
-      PUBSUB_ENDPOINT: ${PUBSUB_ENDPOINT:-opc.udp://239.0.0.1:4840}
+      <<: *subscriber-env
+      OWNER_ID: subscriber-a
+      HA_RAFT_ID: "1"
+      HA_RAFT_PEERS: tcp://subscriber-b:6570,tcp://subscriber-c:6570
+
+  subscriber-b:
+    <<: *pubsub-image
+    profiles: ["strong"]
+    hostname: subscriber-b
+    environment:
+      <<: *subscriber-env
+      OWNER_ID: subscriber-b
+      HA_RAFT_ID: "2"
+      HA_RAFT_PEERS: tcp://subscriber-a:6570,tcp://subscriber-c:6570
+
+  subscriber-c:
+    <<: *pubsub-image
+    profiles: ["strong"]
+    hostname: subscriber-c
+    environment:
+      <<: *subscriber-env
+      OWNER_ID: subscriber-c
+      HA_RAFT_ID: "3"
+      HA_RAFT_PEERS: tcp://subscriber-a:6570,tcp://subscriber-b:6570
 
   demo:
     <<: *pubsub-image

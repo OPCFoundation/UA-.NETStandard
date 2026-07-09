@@ -158,6 +158,32 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task RequestUsesConfigurationNodeManagerWhenAdminValidatorIsNotConfiguredAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            RequestServerStateChangeStartupTask task = new(new RequestServerStateChangeOptions());
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method =
+                loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
+                    MethodIds.Server_RequestServerStateChange);
+            ServiceResult result = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Shutdown,
+                DateTimeUtc.Now,
+                0,
+                LocalizedText.Null,
+                restart: false);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            loaded.ConfigurationNodeManager.Verify(
+                manager => manager.HasApplicationSecureAdminAccess(It.IsAny<ISystemContext>()),
+                Times.Once);
+        }
+
+        [Test]
         public async Task RequestSuspendedPublishesMaintenanceAsync()
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
@@ -354,22 +380,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ServerObjectState serverObject = manager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
             server.Setup(s => s.ServerObject).Returns(serverObject);
             server.Setup(s => s.DiagnosticsNodeManager).Returns(manager);
-            return new LoadedDiagnosticsServer(server, manager);
+            return new LoadedDiagnosticsServer(server, manager, configurationNodeManager);
         }
 
         private sealed class LoadedDiagnosticsServer : IDisposable
         {
             public LoadedDiagnosticsServer(
                 Mock<IServerInternal> server,
-                DiagnosticsNodeManager manager)
+                DiagnosticsNodeManager manager,
+                Mock<IConfigurationNodeManager> configurationNodeManager)
             {
                 Server = server;
                 Manager = manager;
+                ConfigurationNodeManager = configurationNodeManager;
             }
 
             public Mock<IServerInternal> Server { get; }
 
             public DiagnosticsNodeManager Manager { get; }
+
+            public Mock<IConfigurationNodeManager> ConfigurationNodeManager { get; }
 
             public void Dispose()
             {

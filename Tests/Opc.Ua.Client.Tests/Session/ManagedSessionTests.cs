@@ -260,6 +260,68 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task HandleReconnectAsyncUsesAlternateNetworkEndpointAfterBadSecureChannelClosedAsync()
+        {
+#if !NETSTANDARD2_1 && !NET8_0_OR_GREATER
+            Assert.Ignore(
+                "IClientChannelManager.ReconnectAsync(channel, budget, ct) is only available on net8.0+/netstandard2.1.");
+#else
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint primaryEndpoint = CreateEndpoint();
+            ConfiguredEndpoint alternateEndpoint = CreateEndpoint();
+            alternateEndpoint.Description.EndpointUrl = "opc.tcp://alternate:4840";
+            IServiceMessageContext messageContext = configuration.CreateMessageContext();
+
+            var managedChannel = new Mock<IManagedTransportChannel>();
+            managedChannel.SetupGet(c => c.MessageContext).Returns(messageContext);
+            managedChannel.SetupGet(c => c.State).Returns(ChannelState.Closed);
+
+            ConfiguredEndpoint? capturedEndpoint = null;
+            var channelManager = new Mock<IClientChannelManager>();
+            channelManager.Setup(m => m.ReconnectAsync(
+                    managedChannel.Object,
+                    It.IsAny<IRetryBudget>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadSecureChannelClosed));
+            channelManager.Setup(m => m.GetAsync(
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
+                    It.IsAny<ITransportWaitingConnection>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>, ITransportWaitingConnection?, CancellationToken>(
+                    (endpoint, _, _, _) => capturedEndpoint = endpoint)
+                .Throws(new ServiceResultException(StatusCodes.BadUnexpectedError));
+
+            using var innerSession = new Session(
+                managedChannel.Object,
+                configuration,
+                primaryEndpoint,
+                engineFactory: DefaultSubscriptionEngineFactory.Instance);
+            innerSession.BindManagedChannel(channelManager.Object, managedChannel.Object);
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                primaryEndpoint,
+                innerSession,
+                telemetry,
+                new NetworkRedundancyOptions
+                {
+                    AlternateEndpoints = new ArrayOf<ConfiguredEndpoint>(new[] { alternateEndpoint }.AsMemory())
+                });
+            var budget = new RetryBudget(TimeSpan.FromSeconds(30));
+
+            ServiceResult result = await InvokeHandleReconnectAsync(
+                    managedSession,
+                    budget)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsBad(result), Is.True);
+            Assert.That(capturedEndpoint, Is.SameAs(alternateEndpoint));
+#endif
+        }
+
+        [Test]
         public void ConnectionStateChangedEventArgsHasCorrectProperties()
         {
             var error = new ServiceResult(StatusCodes.BadCommunicationError);
@@ -374,7 +436,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             Session innerSession,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            NetworkRedundancyOptions? networkRedundancy = null)
         {
             ILogger<Client.ManagedSession> logger = telemetry.CreateLogger<Client.ManagedSession>();
             var sessionFactory = new Mock<ISessionFactory>();
@@ -430,7 +493,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 false,
                 false,
                 false,
-                null,
+                networkRedundancy,
                 null,
                 null
             ]);

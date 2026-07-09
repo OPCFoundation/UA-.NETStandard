@@ -67,6 +67,16 @@ namespace Opc.Ua.Client.Redundancy
         }
 
         /// <summary>
+        /// Enables or disables token-reuse fast activation when a follower is
+        /// promoted on a mirrored server.
+        /// </summary>
+        public ClientReplicaSetBuilder WithTokenReuse(bool enable = true)
+        {
+            m_options = m_options with { EnableTokenReuse = enable };
+            return this;
+        }
+
+        /// <summary>
         /// Supplies the session factory used per standby mode.
         /// </summary>
         public ClientReplicaSetBuilder UseSession(Func<CancellationToken, ValueTask<ManagedSession>> factory)

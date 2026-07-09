@@ -2,7 +2,7 @@
 
 This guide maps OPC UA Part 14 §9.1.6 PubSub redundancy to the OPC UA .NET Standard stack's distributed PubSub high-availability seams. It is the PubSub counterpart to [High Availability and OPC UA Redundancy](HighAvailability.md), which covers OPC 10000-4 §6.6 server, client, subscription, session, and network redundancy. For the base publisher/subscriber runtime, transports, encodings, discovery, diagnostics, and SKS concepts, see [Part 14 PubSub](PubSub.md).
 
-PubSub redundancy is implemented by the opt-in `Opc.Ua.PubSub.Redundancy` library and package `OPCFoundation.NetStandard.Opc.Ua.PubSub.Redundancy`. A deployment that uses only the standard `OPCFoundation.NetStandard.Opc.Ua.PubSub` package runs with the default process-local stores and `AlwaysActiveCoordinator`, so every configured PubSub component is active.
+PubSub redundancy is implemented by the opt-in `Opc.Ua.Redundancy.PubSub` library and package `OPCFoundation.NetStandard.Opc.Ua.Redundancy.PubSub`. A deployment that uses only the standard `OPCFoundation.NetStandard.Opc.Ua.PubSub` package runs with the default process-local stores and `AlwaysActiveCoordinator`, so every configured PubSub component is active.
 
 ## Overview (as per Part 14 §9.1.6)
 
@@ -30,7 +30,7 @@ The core PubSub package defines the seams that a redundant deployment replaces:
 | `IPubSubRuntimeStateStore` | Persists component `PubSubState` values for Cold and Warm rebuild / resume. |
 | `IPubSubSecurityKeyStore` | Persists SKS `SecurityGroup` key material so all redundant instances can use the same current and future keys. |
 
-`IPubSubBuilder` exposes those seams through `WithActivationCoordinator`, `WithLeaseStore`, `WithRuntimeStateStore`, and `WithSecurityKeyStore`. The distributed implementations in `Opc.Ua.PubSub.Redundancy` bridge them to the reusable HA infrastructure used by the server and client redundancy packages:
+`IPubSubBuilder` exposes those seams through `WithActivationCoordinator`, `WithLeaseStore`, `WithRuntimeStateStore`, and `WithSecurityKeyStore`. The distributed implementations in `Opc.Ua.Redundancy.PubSub` bridge them to the reusable HA infrastructure used by the server and client redundancy packages:
 
 | Distributed building block | PubSub bridge |
 | --- | --- |

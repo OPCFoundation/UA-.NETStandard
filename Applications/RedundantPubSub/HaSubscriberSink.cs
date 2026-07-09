@@ -39,13 +39,28 @@ using Opc.Ua.PubSub.Encoding;
 
 namespace RedundantPubSub
 {
+    /// <summary>
+    /// Subscribed data-set sink that logs the shape of each received data set. Only the
+    /// activation-coordinator-active subscriber replica dispatches to this sink, so its log
+    /// output identifies the currently active subscriber in a high-availability reader set.
+    /// </summary>
     internal sealed class HaSubscriberSink : ISubscribedDataSetSink
     {
+        /// <summary>
+        /// Initializes a new <see cref="HaSubscriberSink"/>.
+        /// </summary>
+        /// <param name="logger">Logger used to report received data sets.</param>
         public HaSubscriberSink(ILogger<HaSubscriberSink> logger)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <summary>
+        /// Logs the field count and names of a received data set.
+        /// </summary>
+        /// <param name="fields">The decoded data-set fields.</param>
+        /// <param name="cancellationToken">Token used to observe cancellation.</param>
+        /// <returns>A completed task.</returns>
         public ValueTask WriteAsync(IReadOnlyList<DataSetField> fields, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

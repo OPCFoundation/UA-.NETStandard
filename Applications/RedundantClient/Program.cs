@@ -60,6 +60,8 @@ namespace RedundantClient
         /// <summary>
         /// Starts the sample.
         /// </summary>
+        /// <param name="args">The command-line arguments supplied to the sample.</param>
+        /// <returns>The process exit code returned by the command-line parser.</returns>
         public static Task<int> Main(string[] args)
         {
             var serverOption = new Option<string>("--server", "-s")
@@ -199,7 +201,7 @@ namespace RedundantClient
                             e, session.ConfiguredEndpoint?.EndpointUrl?.ToString());
                     session.ConnectionStateChanged += OnConnState;
 
-                    await LogRedundancyInfoAsync(session, ct).ConfigureAwait(false);
+                    await LogRedundancyInfoAsync(session, telemetry, ct).ConfigureAwait(false);
                     if (suite)
                     {
                         await RunClientSuiteAsync(session, haMonitor, ct).ConfigureAwait(false);
@@ -220,9 +222,13 @@ namespace RedundantClient
             }
         }
 
-        private static async Task LogRedundancyInfoAsync(ISession session, CancellationToken ct)
+        private static async Task LogRedundancyInfoAsync(
+            ISession session,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
         {
-            var handler = new DefaultServerRedundancyHandler();
+            var handler = new DefaultServerRedundancyHandler(
+                new DefaultRedundantServerEndpointResolver(telemetry));
             ServerRedundancyInfo info = await handler
                 .FetchRedundancyInfoAsync(session, ct)
                 .ConfigureAwait(false);
@@ -291,7 +297,7 @@ namespace RedundantClient
                         Console.WriteLine(
                             "ACTIVE CLIENT: replica '{0}' is now the active client; establishing monitoring.",
                             nodeId);
-                        await LogRedundancyInfoAsync(leaderSession, cfgCt).ConfigureAwait(false);
+                        await LogRedundancyInfoAsync(leaderSession, telemetry, cfgCt).ConfigureAwait(false);
                         if (suite)
                         {
                             await RunClientSuiteAsync(leaderSession, haMonitor, cfgCt).ConfigureAwait(false);
@@ -682,11 +688,16 @@ namespace RedundantClient
         /// </summary>
         private sealed class MonitoringHandler : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="MonitoringHandler"/> class.
+            /// </summary>
+            /// <param name="monitor">The monitor that evaluates high-availability data changes.</param>
             public MonitoringHandler(HaMonitor monitor)
             {
                 m_monitor = monitor;
             }
 
+            /// <inheritdoc/>
             public ValueTask OnDataChangeNotificationAsync(
                 Opc.Ua.Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
@@ -711,6 +722,7 @@ namespace RedundantClient
                 return default;
             }
 
+            /// <inheritdoc/>
             public ValueTask OnEventDataNotificationAsync(
                 Opc.Ua.Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
@@ -722,6 +734,7 @@ namespace RedundantClient
                 return default;
             }
 
+            /// <inheritdoc/>
             public ValueTask OnKeepAliveNotificationAsync(
                 Opc.Ua.Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
@@ -731,6 +744,7 @@ namespace RedundantClient
                 return default;
             }
 
+            /// <inheritdoc/>
             public ValueTask OnSubscriptionStateChangedAsync(
                 Opc.Ua.Client.Subscriptions.ISubscription subscription,
                 Opc.Ua.Client.Subscriptions.SubscriptionState state,
@@ -758,6 +772,8 @@ namespace RedundantClient
             /// failover context so the next data-change assessment is framed as a
             /// failover.
             /// </summary>
+            /// <param name="e">The connection-state transition reported by the managed session.</param>
+            /// <param name="endpoint">The endpoint URL associated with the connected session, if known.</param>
             public void OnConnectionStateChanged(ConnectionStateChangedEventArgs e, string? endpoint)
             {
                 Console.WriteLine("Connection state: {0} -> {1}", e.PreviousState, e.NewState);
@@ -781,6 +797,7 @@ namespace RedundantClient
             /// context so the next data-change assessment is framed as a (client-side) failover;
             /// on demotion it notes that a peer client took over.
             /// </summary>
+            /// <param name="isLeader">Whether this coordinated client replica is now the leader.</param>
             public void OnRoleChanged(bool isLeader)
             {
                 if (isLeader)
@@ -799,6 +816,8 @@ namespace RedundantClient
             /// <summary>
             /// Dispatches a monitored value to the matching per-item analysis.
             /// </summary>
+            /// <param name="name">The monitored item name associated with the value.</param>
+            /// <param name="value">The data value received from the subscription.</param>
             public void Observe(string name, DataValue value)
             {
                 switch (name)

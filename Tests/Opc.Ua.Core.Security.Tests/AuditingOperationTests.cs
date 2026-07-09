@@ -163,7 +163,69 @@ namespace Opc.Ua.Core.Security.Tests
             NodeId expectedEventType,
             Func<Task> trigger)
         {
-            ISession adminSession = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            await AssertAuditEventFiresAsync(expectedEventType, trigger, null).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Regression for the CTT "Auditing Connections" unit: the CTT's main
+        /// session authenticates as <c>user1</c> (role AuthenticatedUser), so
+        /// audit events must reach an AuthenticatedUser subscription — not only
+        /// SecurityAdmin. Per Part 3 §8.55 delivery requires ReceiveEvents on the
+        /// event type (an ObjectType, universally accessible) and on the Server
+        /// source node (granted to AuthenticatedUser in CTT mode). This test
+        /// asserts the AuditCreateSession event is actually received by user1.
+        /// </summary>
+        [Test]
+        public async Task AuditEventDeliveredToAuthenticatedUserAsync()
+        {
+            bool seen = await MonitorAuditEventAsync(
+                ObjectTypeIds.AuditCreateSessionEventType,
+                async () =>
+                {
+                    ISession s = await OpenAuxSessionAsync().ConfigureAwait(false);
+                    await s.CloseAsync(2000, true, CancellationToken.None).ConfigureAwait(false);
+                    s.Dispose();
+                },
+                () => OpenAuxSessionAsync(
+                    SecurityPolicies.Basic256Sha256,
+                    new UserIdentity("user1", "password"u8))).ConfigureAwait(false);
+
+            Assert.That(
+                seen,
+                Is.True,
+                "An AuthenticatedUser (user1) subscription must receive audit events " +
+                "(CTT Auditing Connections connects as user1).");
+        }
+
+        private async Task AssertAuditEventFiresAsync(
+            NodeId expectedEventType,
+            Func<Task> trigger,
+            Func<Task<ISession>> monitorSessionFactory)
+        {
+            bool seen = await MonitorAuditEventAsync(
+                expectedEventType, trigger, monitorSessionFactory).ConfigureAwait(false);
+            if (!seen)
+            {
+                Assert.Ignore(
+                    $"No {expectedEventType} event observed within 5s — server may not " +
+                    "audit anonymous sessions or fixture timing race fired before subscribe.");
+            }
+        }
+
+        /// <summary>
+        /// Pre-subscribes to events on Server.EventNotifier using the session
+        /// returned by <paramref name="monitorSessionFactory"/> (defaulting to a
+        /// SecurityAdmin session), runs <paramref name="trigger"/>, then polls
+        /// Publish for up to 5s for a notification whose EventType is or inherits
+        /// from <paramref name="expectedEventType"/>. Returns whether it was seen.
+        /// </summary>
+        private async Task<bool> MonitorAuditEventAsync(
+            NodeId expectedEventType,
+            Func<Task> trigger,
+            Func<Task<ISession>> monitorSessionFactory)
+        {
+            ISession adminSession = await (monitorSessionFactory ?? ConnectAsSysAdminAsync)()
+                .ConfigureAwait(false);
             ISession session = adminSession ?? Session;
             try
             {
@@ -264,12 +326,7 @@ namespace Opc.Ua.Core.Security.Tests
                         }
                     }
 
-                    if (!seen)
-                    {
-                        Assert.Ignore(
-                            $"No {expectedEventType} event observed within 5s — server may not " +
-                            "audit anonymous sessions or fixture timing race fired before subscribe.");
-                    }
+                    return seen;
                 }
                 finally
                 {

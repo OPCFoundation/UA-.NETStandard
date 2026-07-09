@@ -797,7 +797,8 @@ namespace Opc.Ua.Server
                     AddedNodeId = addedNodeId
                 };
 
-                if (ServiceResult.IsBad(result))
+                if (ServiceResult.IsBad(result) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
                     anyDiagnostics = true;
                     diagnosticInfos[ii] = new DiagnosticInfo(
@@ -838,7 +839,8 @@ namespace Opc.Ua.Server
 
                 results[ii] = result.StatusCode;
 
-                if (ServiceResult.IsBad(result))
+                if (ServiceResult.IsBad(result) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
                     anyDiagnostics = true;
                     diagnosticInfos[ii] = new DiagnosticInfo(
@@ -879,7 +881,8 @@ namespace Opc.Ua.Server
 
                 results[ii] = result.StatusCode;
 
-                if (ServiceResult.IsBad(result))
+                if (ServiceResult.IsBad(result) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
                     anyDiagnostics = true;
                     diagnosticInfos[ii] = new DiagnosticInfo(
@@ -920,7 +923,8 @@ namespace Opc.Ua.Server
 
                 results[ii] = result.StatusCode;
 
-                if (ServiceResult.IsBad(result))
+                if (ServiceResult.IsBad(result) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
                     anyDiagnostics = true;
                     diagnosticInfos[ii] = new DiagnosticInfo(

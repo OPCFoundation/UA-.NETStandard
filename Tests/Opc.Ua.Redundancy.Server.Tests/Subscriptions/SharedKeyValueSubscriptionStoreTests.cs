@@ -400,6 +400,21 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task DisposeAsyncCancelsBlockedSharedStoreWritesAsync()
+        {
+            await using var kv = new HangingWriteSharedKeyValueStore();
+            var store = new SharedKeyValueSubscriptionStore(kv, CreateContext());
+            store.StoreRetransmissionState(800, 2, [NewNotification(1)]);
+
+            await kv.WaitForWriteAsync().ConfigureAwait(false);
+            Task disposeTask = store.DisposeAsync().AsTask();
+            Task completed = await Task.WhenAny(disposeTask, Task.Delay(2000)).ConfigureAwait(false);
+
+            Assert.That(completed, Is.SameAs(disposeTask));
+            await disposeTask.ConfigureAwait(false);
+        }
+
+        [Test]
         public void DefinitionCodecRoundTripsAllSupportedFilterShapes()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -885,6 +900,70 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             private readonly ISharedKeyValueStore m_inner;
+        }
+
+        private sealed class HangingWriteSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
+        {
+            public Task<bool> WaitForWriteAsync()
+            {
+                return m_writeStarted.Task;
+            }
+
+            public ValueTask<(bool Found, ByteString Value)> TryGetAsync(
+                string key,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<(bool Found, ByteString Value)>((false, default));
+            }
+
+            public ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default)
+            {
+                m_writeStarted.TrySetResult(true);
+                return new ValueTask(Task.Delay(Timeout.Infinite, ct));
+            }
+
+            public ValueTask<bool> CompareAndSwapAsync(
+                string key,
+                ByteString expected,
+                ByteString value,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(true);
+            }
+
+            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            {
+                m_writeStarted.TrySetResult(true);
+                return WaitForDeleteCancellationAsync(ct);
+            }
+
+            public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+                string keyPrefix,
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
+                yield break;
+            }
+
+            public async IAsyncEnumerable<KeyValueChange> WatchAsync(
+                string keyPrefix,
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
+                yield break;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+
+            private static async ValueTask<bool> WaitForDeleteCancellationAsync(CancellationToken ct)
+            {
+                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                return false;
+            }
+
+            private readonly TaskCompletionSource<bool> m_writeStarted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         private sealed class BlockingRetransmissionSetStore : ISharedKeyValueStore

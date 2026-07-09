@@ -31,6 +31,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -326,7 +327,16 @@ namespace Opc.Ua.Redundancy
                     .ReadAllAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    Apply(command.Span);
+                    try
+                    {
+                        Apply(command.Span);
+                    }
+                    catch (Exception ex)
+                    {
+                        Trace.TraceWarning(
+                            "Skipping malformed RaftSharedKeyValueStore command. The applier will continue. {0}",
+                            ex);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -353,10 +363,22 @@ namespace Opc.Ua.Redundancy
 
         private void Apply(ReadOnlySpan<byte> command)
         {
-            byte op = command[0];
-            var originator = new Guid(command.Slice(1, 16).ToArray());
-            long requestId = BinaryPrimitives.ReadInt64LittleEndian(command.Slice(17, 8));
-            int offset = 25;
+            if (command.Length < s_minCommandLength)
+            {
+                throw new InvalidOperationException("Committed Raft key/value command is truncated.");
+            }
+
+            byte version = command[0];
+            if (version != s_commandEncodingVersion)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported Raft key/value command encoding version {version}.");
+            }
+
+            byte op = command[1];
+            var originator = new Guid(command.Slice(2, 16).ToArray());
+            long requestId = BinaryPrimitives.ReadInt64LittleEndian(command.Slice(18, 8));
+            int offset = 26;
 
             int keyLength = BinaryPrimitives.ReadInt32LittleEndian(command.Slice(offset, 4));
             offset += 4;
@@ -403,6 +425,8 @@ namespace Opc.Ua.Redundancy
                             result = true;
                         }
                         break;
+                    default:
+                        throw new InvalidOperationException($"Unsupported Raft key/value operation '{op}'.");
                 }
 
                 if (change != null)
@@ -442,6 +466,7 @@ namespace Opc.Ua.Redundancy
             byte[]? valueBytes = op != OpDelete && !value.IsNull ? value.ToArray() : null;
 
             int length = 1 + 16 + 8 + 4 + keyBytes.Length;
+            length++;
             if (op == OpCas)
             {
                 length += 4 + (expectedBytes?.Length ?? 0);
@@ -453,6 +478,7 @@ namespace Opc.Ua.Redundancy
 
             byte[] buffer = new byte[length];
             int offset = 0;
+            buffer[offset++] = s_commandEncodingVersion;
             buffer[offset++] = op;
             originator.ToByteArray().CopyTo(buffer, offset);
             offset += 16;
@@ -504,15 +530,28 @@ namespace Opc.Ua.Redundancy
             return new ByteString(bytes);
         }
 
+        /// <summary>
+        /// Tracks a key-prefix watcher together with the channel used to deliver matching key/value changes.
+        /// </summary>
         private sealed class Watcher
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Watcher"/> class.
+            /// </summary>
+            /// <param name="prefix">The key prefix this watcher is interested in.</param>
             public Watcher(string prefix)
             {
                 Prefix = prefix;
             }
 
+            /// <summary>
+            /// Gets the key prefix this watcher is interested in.
+            /// </summary>
             public string Prefix { get; }
 
+            /// <summary>
+            /// Gets the channel used to deliver matching key/value changes to the watcher.
+            /// </summary>
             public Channel<KeyValueChange> Channel { get; } =
                 System.Threading.Channels.Channel.CreateUnbounded<KeyValueChange>(
                     new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
@@ -521,6 +560,8 @@ namespace Opc.Ua.Redundancy
         private const byte OpSet = 0;
         private const byte OpDelete = 1;
         private const byte OpCas = 2;
+        private const byte s_commandEncodingVersion = 1;
+        private const int s_minCommandLength = 30;
 
         private readonly IRaftConsensus m_consensus;
         private readonly bool m_ownsConsensus;

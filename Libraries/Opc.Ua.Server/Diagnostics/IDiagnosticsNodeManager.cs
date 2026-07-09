@@ -57,6 +57,18 @@ namespace Opc.Ua.Server
         ValueTask AddModellingRuleAsync(NodeId modellingRuleId, string modellingRuleName, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Publishes the supported conformance units to
+        /// <c>Server/ServerCapabilities/ConformanceUnits</c> and merges the
+        /// enabled server profiles into <c>Server/ServerCapabilities/ServerProfileArray</c>
+        /// (per OPC UA Part 7). Profiles already present (e.g. from configuration)
+        /// are preserved.
+        /// </summary>
+        ValueTask PublishConformanceUnitsAsync(
+            ArrayOf<QualifiedName> conformanceUnits,
+            ArrayOf<string> serverProfiles,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Creates the diagnostics node for the server.
         /// </summary>
         ValueTask CreateServerDiagnosticsAsync(

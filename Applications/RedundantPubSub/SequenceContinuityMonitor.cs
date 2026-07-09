@@ -35,13 +35,28 @@ using Opc.Ua.PubSub.Encoding;
 
 namespace RedundantPubSub
 {
+    /// <summary>
+    /// Tracks the per-writer SequenceNumber stream and reports whether it continued across a
+    /// publisher failover (Hot/Warm) or was reset (Cold), so the sample can demonstrate data
+    /// continuity versus data loss.
+    /// </summary>
     public sealed class SequenceContinuityMonitor
     {
+        /// <summary>
+        /// Initializes a new <see cref="SequenceContinuityMonitor"/>.
+        /// </summary>
+        /// <param name="logger">Logger used to report continuity and data-loss transitions.</param>
         public SequenceContinuityMonitor(ILogger<SequenceContinuityMonitor> logger)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <summary>
+        /// Records the next observed SequenceNumber and logs whether it continued, reset
+        /// (data loss), or continued across a failover to a different publisher owner.
+        /// </summary>
+        /// <param name="sequenceNumber">The SequenceNumber of the received data-set message.</param>
+        /// <param name="fields">The received data-set fields (used to read the OwnerId).</param>
         public void OnSequence(uint sequenceNumber, ArrayOf<DataSetField> fields)
         {
             string owner = FindOwner(fields);

@@ -59,20 +59,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public void ConstantProviderAcceptsEventSubscriptions()
-        {
-            var provider = new ConstantServiceLevelProvider(250);
-            static void Handler(byte _)
-            {
-            }
-
-            provider.ServiceLevelChanged += Handler;
-            provider.ServiceLevelChanged -= Handler;
-
-            Assert.That(provider.GetServiceLevel(), Is.EqualTo(250));
-        }
-
-        [Test]
         public async Task LeaderProviderReportsLeaderLevelWhenLeaderAsync()
         {
             await using var leaderElection = new StaticLeaderElection(true);

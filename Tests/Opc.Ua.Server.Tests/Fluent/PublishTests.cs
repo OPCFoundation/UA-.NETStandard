@@ -67,6 +67,21 @@ namespace Opc.Ua.Server.Tests.Fluent
         private NamespaceTable m_namespaceTable;
         private MonitoredItemQueueFactory m_queueFactory;
 
+        private sealed class FixedEventIdProvider : IEventIdProvider
+        {
+            public FixedEventIdProvider(ByteString eventId)
+            {
+                m_eventId = eventId;
+            }
+
+            public ByteString CreateEventId(BaseObjectState notifier, ISystemContext context, BaseEventState eventState)
+            {
+                return m_eventId;
+            }
+
+            private readonly ByteString m_eventId;
+        }
+
         [SetUp]
         public void SetUp()
         {
@@ -260,6 +275,40 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Assert.That(seen.Severity.Value, Is.EqualTo((ushort)EventSeverity.Medium));
                 Assert.That(seen.Message, Is.Not.Null);
             });
+        }
+
+        [Test]
+        public async Task Publish_DispatchedEvent_UsesConfiguredEventIdProviderAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "CustomEventId");
+
+            var captured = new TaskCompletionSource<BaseEventState>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            notifier.OnReportEvent = (_, _, e) =>
+            {
+                if (e is BaseEventState evt)
+                {
+                    captured.TrySetResult(evt);
+                }
+            };
+
+            ByteString customEventId = ByteString.From(new byte[] { 4, 3, 2, 1 });
+            var channel = Channel.CreateUnbounded<BaseEventState>();
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => channel.Reader.ReadAllAsync(ct),
+                new EventPublishOptions
+                {
+                    AlwaysOn = true,
+                    EventIdProvider = new FixedEventIdProvider(customEventId)
+                });
+
+            await channel.Writer.WriteAsync(new BaseEventState(parent: null)).ConfigureAwait(false);
+
+            BaseEventState seen = await WaitForAsync(captured.Task).ConfigureAwait(false);
+            Assert.That(seen.EventId, Is.Not.Null);
+            Assert.That(seen.EventId!.Value, Is.EqualTo(customEventId));
         }
 
         [Test]

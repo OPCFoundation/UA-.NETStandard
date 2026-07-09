@@ -56,6 +56,13 @@ namespace Opc.Ua.Redundancy.Kubernetes
         {
         }
 
+        /// <summary>
+        /// Creates a Kubernetes Lease election using the specified Kubernetes API client.
+        /// </summary>
+        /// <param name="apiClient">The Kubernetes API client used to read and update Lease resources.</param>
+        /// <param name="options">The leader election options.</param>
+        /// <param name="timeProvider">Optional time provider.</param>
+        /// <param name="logger">Optional logger.</param>
         internal KubernetesLeaseLeaderElection(
             IKubernetesApiClient apiClient,
             KubernetesLeaderElectionOptions options,
@@ -93,13 +100,13 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 return false;
             }
 
-            DateTimeOffset now = m_timeProvider.GetUtcNow();
-            KubernetesLease? current = await m_apiClient
-                .GetLeaseAsync(m_namespace, m_options.LeaseName, ct)
-                .ConfigureAwait(false);
-
             try
             {
+                DateTimeOffset now = m_timeProvider.GetUtcNow();
+                KubernetesLease? current = await m_apiClient
+                    .GetLeaseAsync(m_namespace, m_options.LeaseName, ct)
+                    .ConfigureAwait(false);
+
                 if (current == null)
                 {
                     KubernetesLease created = NewLease(now);
@@ -134,6 +141,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
             {
                 SetLeader(false);
                 return false;
+            }
+            catch
+            {
+                SetLeader(false);
+                throw;
             }
         }
 
@@ -180,6 +192,12 @@ namespace Opc.Ua.Redundancy.Kubernetes
             m_cts.Dispose();
         }
 
+        /// <summary>
+        /// Determines whether an OPC UA ServiceLevel satisfies a readiness threshold.
+        /// </summary>
+        /// <param name="serviceLevel">The current OPC UA ServiceLevel value.</param>
+        /// <param name="readyMinimumServiceLevel">The minimum ServiceLevel that reports readiness.</param>
+        /// <returns><c>true</c> when <paramref name="serviceLevel"/> is high enough; otherwise, <c>false</c>.</returns>
         internal static bool IsReadyServiceLevel(byte serviceLevel, byte readyMinimumServiceLevel)
         {
             return serviceLevel >= readyMinimumServiceLevel;

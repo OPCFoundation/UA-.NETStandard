@@ -604,6 +604,54 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ReadAsync_StampsFreshServerTimestampForStaticNodeAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("StaleVar", nsIdx);
+            variable.BrowseName = new QualifiedName("StaleVar", nsIdx);
+            variable.Value = 42;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+
+            // simulate a static node whose value was produced in the past.
+            DateTimeUtc staleTimestamp = DateTimeUtc.Now - TimeSpan.FromMinutes(1);
+            variable.Timestamp = staleTimestamp;
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var readValueId = new ReadValueId
+            {
+                NodeId = variable.NodeId,
+                AttributeId = Attributes.Value
+            };
+            var nodesToRead = new List<ReadValueId> { readValueId };
+            var values = new List<DataValue> { default };
+            var errors = new List<ServiceResult> { null };
+
+            DateTimeUtc beforeRead = DateTimeUtc.Now;
+            await manager.ReadAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
+                0,
+                nodesToRead,
+                values,
+                errors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+
+            // SourceTimestamp reflects the (stale) time the value was produced.
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(staleTimestamp));
+
+            // ServerTimestamp reflects when the server verified the value: the
+            // read time, so a MaxAge read is satisfied even for a static value.
+            Assert.That(values[0].ServerTimestamp, Is.GreaterThanOrEqualTo(beforeRead));
+            Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(values[0].SourceTimestamp));
+        }
+
+        [Test]
         public async Task ReadAsync_UsesNodeStateAsyncReadCallback()
         {
             using ITestNodeManager manager = CreateManager();

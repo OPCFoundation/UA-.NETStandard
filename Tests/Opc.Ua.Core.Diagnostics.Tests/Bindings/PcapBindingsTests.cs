@@ -96,5 +96,71 @@ namespace Opc.Ua.Pcap.Tests.Bindings
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("registry"));
         }
+
+        [Test]
+        public void InstallInstallsBothClientAndServerBindings()
+        {
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            PcapBindings.Install(bindings);
+
+            Assert.That(
+                bindings.GetChannelFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportChannelBinding>());
+            Assert.That(
+                bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportListenerBinding>());
+        }
+
+        [Test]
+        public void InstallClientRegistersOnlyChannelBinding()
+        {
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            PcapBindings.InstallClient(bindings);
+
+            Assert.That(
+                bindings.GetChannelFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportChannelBinding>());
+            Assert.That(
+                bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
+                Is.Not.InstanceOf<PcapTransportListenerBinding>());
+        }
+
+        [Test]
+        public void InstallServerWrapsListenerFactory()
+        {
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            PcapBindings.InstallServer(bindings);
+
+            Assert.That(
+                bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportListenerBinding>());
+            Assert.That(
+                bindings.GetChannelFactory(Utils.UriSchemeOpcTcp),
+                Is.Not.InstanceOf<PcapTransportChannelBinding>());
+        }
+
+        [Test]
+        public void InstallServerIsIdempotent()
+        {
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var registry = new ChannelCaptureRegistry();
+            PcapBindings.InstallServer(bindings, registry);
+            ITransportListenerFactory? first = bindings.GetListenerFactory(Utils.UriSchemeOpcTcp);
+
+            PcapBindings.InstallServer(bindings, registry);
+            ITransportListenerFactory? second = bindings.GetListenerFactory(Utils.UriSchemeOpcTcp);
+
+            Assert.That(second, Is.SameAs(first),
+                "A second InstallServer must not wrap the already-installed binding again.");
+        }
+
+        [Test]
+        public void InstallServerIsNoOpWhenNoListenerFactory()
+        {
+            var bindings = new DefaultTransportBindingRegistry();
+            PcapBindings.InstallServer(bindings);
+
+            Assert.That(bindings.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.False);
+        }
     }
 }

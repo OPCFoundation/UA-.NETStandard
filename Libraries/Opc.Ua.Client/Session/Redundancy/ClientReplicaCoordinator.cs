@@ -80,6 +80,7 @@ namespace Opc.Ua.Client.Redundancy
             }
 
             m_logger = telemetry.CreateLogger<ClientReplicaCoordinator>();
+            m_telemetry = telemetry;
             m_election.LeadershipChanged += OnLeadershipChanged;
         }
 
@@ -121,13 +122,7 @@ namespace Opc.Ua.Client.Redundancy
             {
                 if (isLeader)
                 {
-                    bool fastActivated = await EnsureLeaderSessionAsync(m_cts.Token).ConfigureAwait(false);
-                    if (m_options.ConfigureLeaderAsync != null && m_session != null)
-                    {
-                        await m_options.ConfigureLeaderAsync(m_session, fastActivated, m_cts.Token)
-                            .ConfigureAwait(false);
-                    }
-                    await PublishSecretsAsync(m_cts.Token).ConfigureAwait(false);
+                    await PromoteToLeaderAsync(m_cts.Token).ConfigureAwait(false);
                 }
                 else if (m_options.Mode == ClientStandbyMode.Cold && m_session != null)
                 {
@@ -143,6 +138,37 @@ namespace Opc.Ua.Client.Redundancy
             }
         }
 
+        private async Task PromoteToLeaderAsync(CancellationToken ct)
+        {
+            int attempt = 0;
+
+            while (!ct.IsCancellationRequested && m_election.IsLeader)
+            {
+                try
+                {
+                    bool fastActivated = await EnsureLeaderSessionAsync(ct).ConfigureAwait(false);
+                    if (m_options.ConfigureLeaderAsync != null && m_session != null)
+                    {
+                        await m_options.ConfigureLeaderAsync(m_session, fastActivated, ct)
+                            .ConfigureAwait(false);
+                    }
+                    await PublishSecretsAsync(ct).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    attempt++;
+                    TimeSpan delay = GetPromotionRetryDelay(attempt);
+                    m_logger.LogWarning(
+                        ex,
+                        "Client replica promotion attempt {Attempt} failed; retrying in {Delay}.",
+                        attempt,
+                        delay);
+                    await Task.Delay(delay, ct).ConfigureAwait(false);
+                }
+            }
+        }
+
         private async ValueTask<bool> EnsureLeaderSessionAsync(CancellationToken ct)
         {
             m_session ??= await m_options.CreateSessionAsync!(ct).ConfigureAwait(false);
@@ -151,16 +177,22 @@ namespace Opc.Ua.Client.Redundancy
                 return false;
             }
 
+            bool mutatedForReuse = false;
             try
             {
                 (bool found, ByteString stored) = await m_store
                     .TryGetAsync(m_options.SessionRecordKey, ct).ConfigureAwait(false);
                 if (found && m_protector.TryUnprotect(stored, out ByteString plaintext) && !plaintext.IsNull)
                 {
-                    using var decoder = new BinaryDecoder(plaintext.ToArray(), m_session.MessageContext);
-                    SessionConfiguration config = decoder.ReadEncodeable<SessionConfiguration>(null);
+                    using var stream = new System.IO.MemoryStream(plaintext.ToArray(), writable: false);
+                    SessionConfiguration? config = SessionConfiguration.Create(stream, m_telemetry);
+                    if (config == null)
+                    {
+                        return false;
+                    }
                     if (m_session.ApplySessionConfiguration(config))
                     {
+                        mutatedForReuse = true;
                         await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
                             .ConfigureAwait(false);
                         return true;
@@ -170,8 +202,38 @@ namespace Opc.Ua.Client.Redundancy
             catch (Exception ex)
             {
                 m_logger.LogInformation(ex, "Token-reuse fast-activate failed; using a fresh session.");
+                if (mutatedForReuse)
+                {
+                    // ApplySessionConfiguration already overwrote this session's identity with
+                    // the stored (now-unreactivatable) configuration; left as-is it points at a
+                    // SessionId the server will reject on every subsequent call. Discard it and
+                    // create a genuinely fresh, activated session rather than limping on with a
+                    // session that looks like the old leader's but was never reactivated as it.
+                    ManagedSession broken = m_session;
+                    m_session = null;
+                    await DisposeQuietlyAsync(broken).ConfigureAwait(false);
+                    m_session = await m_options.CreateSessionAsync!(ct).ConfigureAwait(false);
+                }
             }
             return false;
+        }
+
+        private async ValueTask DisposeQuietlyAsync(ManagedSession session)
+        {
+            try
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogInformation(ex, "Disposing a token-reuse session that failed to reactivate threw; ignoring.");
+            }
+        }
+
+        private static TimeSpan GetPromotionRetryDelay(int attempt)
+        {
+            int cappedAttempt = Math.Min(attempt - 1, 4);
+            return TimeSpan.FromMilliseconds(250 * (1 << cappedAttempt));
         }
 
         private async ValueTask PublishSecretsAsync(CancellationToken ct)
@@ -205,6 +267,7 @@ namespace Opc.Ua.Client.Redundancy
         private readonly ISharedKeyValueStore m_store;
         private readonly IRecordProtector m_protector;
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private readonly CancellationTokenSource m_cts = new();
         private ManagedSession? m_session;
     }

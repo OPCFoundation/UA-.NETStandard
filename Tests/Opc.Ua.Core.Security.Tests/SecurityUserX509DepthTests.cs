@@ -222,8 +222,10 @@ namespace Opc.Ua.Core.Security.Tests
         {
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, securityPolicyUri).ConfigureAwait(false);
+            UserIdentity identity = await X509UserIdentityHelper
+                .CreateAsync(userCert, Telemetry).ConfigureAwait(false);
             return await ClientFixture
-                .ConnectAsync(endpoint, X509UserIdentityHelper.Create(userCert)).ConfigureAwait(false);
+                .ConnectAsync(endpoint, identity).ConfigureAwait(false);
         }
 
         private async Task<EndpointDescription> FindSecureEndpointAsync()

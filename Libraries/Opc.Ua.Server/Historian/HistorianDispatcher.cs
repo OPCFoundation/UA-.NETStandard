@@ -142,6 +142,16 @@ namespace Opc.Ua.Server.Historian
                     ? HistorianReadKind.Modified
                     : HistorianReadKind.Raw);
 
+            // A non-empty ContinuationPoint that does not resolve to a saved history
+            // continuation (unknown, released, foreign, or a Browse CP) is invalid
+            // (OPC UA Part 11; CTT HA Read Raw Err-014/Err-024).
+            if (state == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                result.ContinuationPoint = ByteString.Empty;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
             HistorianOperationContext opContext = new(
                 systemContext,
                 systemContext.OperationContext!,
@@ -587,7 +597,10 @@ namespace Opc.Ua.Server.Historian
             }
 
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
-            result.StatusCode = StatusCodes.GoodMoreData;
+            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
+            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
+            // ContinuationPoint alone signals to the client that more data can be fetched.
+            result.StatusCode = StatusCodes.Good;
             result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
         }
 
@@ -1122,7 +1135,10 @@ namespace Opc.Ua.Server.Historian
             }
 
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
-            result.StatusCode = StatusCodes.GoodMoreData;
+            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
+            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
+            // ContinuationPoint alone signals to the client that more data can be fetched.
+            result.StatusCode = StatusCodes.Good;
             result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
         }
 
@@ -1526,7 +1542,10 @@ namespace Opc.Ua.Server.Historian
             }
 
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
-            result.StatusCode = StatusCodes.GoodMoreData;
+            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
+            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
+            // ContinuationPoint alone signals to the client that more data can be fetched.
+            result.StatusCode = StatusCodes.Good;
             result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
             _ = nodeToRead;
         }
@@ -1581,6 +1600,18 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
+            // An IndexRange selects elements from an array Value; it cannot select
+            // anything from scalar history values, so report Bad_IndexRangeNoData at
+            // the operation level (OPC UA Part 11; CTT HA Read Raw Err-009).
+            if (!nodeToRead.ParsedIndexRange.IsNull &&
+                node is BaseVariableState scalarCheck &&
+                scalarCheck.ValueRank == ValueRanks.Scalar)
+            {
+                result.StatusCode = StatusCodes.BadIndexRangeNoData;
+                result.ContinuationPoint = ByteString.Empty;
+                return ServiceResult.Good;
+            }
+
             HistorianRawReadRequest request;
             HistorianResumeToken token;
             if (state is { Kind: HistorianReadKind.Raw, RawRequest: { } existingRaw })
@@ -1626,6 +1657,13 @@ namespace Opc.Ua.Server.Historian
                 timestampsToReturn: timestampsToReturn,
                 indexRange: nodeToRead.ParsedIndexRange,
                 dataEncoding: nodeToRead.DataEncoding);
+
+            // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists (and no
+            // Bounding Values were requested/returned) is reported with Good_NoData.
+            if (values.Count == 0 && page.NextToken.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.GoodNoData;
+            }
 
             return ServiceResult.Good;
         }
@@ -1693,6 +1731,13 @@ namespace Opc.Ua.Server.Historian
                 timestampsToReturn: timestampsToReturn,
                 indexRange: nodeToRead.ParsedIndexRange,
                 dataEncoding: nodeToRead.DataEncoding);
+
+            // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists is reported
+            // with Good_NoData.
+            if (values.Count == 0 && page.NextToken.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.GoodNoData;
+            }
 
             return ServiceResult.Good;
         }
@@ -1789,7 +1834,10 @@ namespace Opc.Ua.Server.Historian
             }
 
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
-            result.StatusCode = StatusCodes.GoodMoreData;
+            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
+            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
+            // ContinuationPoint alone signals to the client that more data can be fetched.
+            result.StatusCode = StatusCodes.Good;
             result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
         }
 

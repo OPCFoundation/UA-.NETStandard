@@ -953,6 +953,11 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithNetworkRedundancy(sessionOptions.NetworkRedundancy.AlternateEndpoints);
             }
+            if (sessionOptions.EnableTokenReuseFailover)
+            {
+                builder.WithTokenReuseFailover();
+            }
+            if (sessionOptions.TransferSubscriptionsOnRecreate)
             {
                 builder.WithTransferSubscriptionsOnRecreate();
             }

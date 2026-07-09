@@ -164,6 +164,15 @@ namespace Opc.Ua.Bindings
         protected ITcpChannelListener Listener { get; }
 
         /// <summary>
+        /// Optional decorator applied to the byte transport when the channel
+        /// is attached to an accepted socket. Set by the listener from
+        /// <see cref="TransportListenerSettings.AcceptedTransportDecorator"/>
+        /// so an in-process capture binding can wrap the transport. When
+        /// <c>null</c> (the default) the transport is used unchanged.
+        /// </summary>
+        internal Func<IUaSCByteTransport, IUaSCByteTransport>? TransportDecorator { get; set; }
+
+        /// <summary>
         /// Sets the callback used to receive notifications of new events.
         /// </summary>
         public void SetRequestReceivedCallback(TcpChannelRequestEventHandler callback)
@@ -221,7 +230,8 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(socket));
             }
 #pragma warning disable CA2000 // transport ownership is transferred to Attach below
-            var transport = new TcpByteTransport(socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+            IUaSCByteTransport transport = new TcpByteTransport(socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+            transport = TransportDecorator?.Invoke(transport) ?? transport;
             Attach(channelId, transport);
 #pragma warning restore CA2000
         }

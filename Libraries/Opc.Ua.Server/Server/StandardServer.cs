@@ -3580,6 +3580,11 @@ namespace Opc.Ua.Server
                 ServerInternal.SetModellingRulesManager(
                     await CreateModellingRulesManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
+                // create the manager responsible for conformance units / server profiles.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateConformanceUnitsManager.");
+                ServerInternal.SetConformanceUnitsManager(
+                    await CreateConformanceUnitsManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
+
                 // start the session manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
                 ISessionManager sessionManager = CreateSessionManager(
@@ -4156,6 +4161,45 @@ namespace Opc.Ua.Server
                 ObjectIds.ModellingRule_MandatoryPlaceholder,
                 BrowseNames.ModellingRule_MandatoryPlaceholder,
                 cancellationToken).ConfigureAwait(false);
+
+            return manager;
+        }
+
+        /// <summary>
+        /// Creates the conformance units manager used by the server.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation aggregates the conformance units and
+        /// server profiles from every registered node manager implementing
+        /// <see cref="IConformanceContributor"/> and publishes them to the
+        /// address space. Servers that advertise a fixed set may override this to
+        /// register additional units before publishing.
+        /// </remarks>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation Token</param>
+        /// <returns>The manager.</returns>
+        protected virtual async ValueTask<ConformanceUnitsManager> CreateConformanceUnitsManagerAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            var manager = new ConformanceUnitsManager(server);
+
+            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
+            {
+                // A natively-async node manager is the contributor itself; a
+                // wrapped synchronous node manager exposes it through its
+                // SyncNodeManager. Honour either shape.
+                if ((nodeManager as IConformanceContributor
+                    ?? nodeManager.SyncNodeManager as IConformanceContributor)
+                    is IConformanceContributor contributor)
+                {
+                    manager.Register(contributor);
+                }
+            }
+
+            await manager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             return manager;
         }

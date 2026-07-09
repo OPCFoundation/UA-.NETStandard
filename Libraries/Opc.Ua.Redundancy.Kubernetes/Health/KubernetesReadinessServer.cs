@@ -109,11 +109,21 @@ namespace Opc.Ua.Redundancy.Kubernetes
             m_cts.Dispose();
         }
 
+        /// <summary>
+        /// Determines whether the current OPC UA ServiceLevel satisfies the configured readiness threshold.
+        /// </summary>
+        /// <returns><c>true</c> when the service is ready for traffic; otherwise, <c>false</c>.</returns>
         internal bool IsReady()
         {
             return IsReady(m_serviceLevelProvider.GetServiceLevel(), m_options.ReadyMinimumServiceLevel);
         }
 
+        /// <summary>
+        /// Determines whether a ServiceLevel satisfies the readiness threshold.
+        /// </summary>
+        /// <param name="serviceLevel">The current OPC UA ServiceLevel value.</param>
+        /// <param name="readyMinimumServiceLevel">The minimum ServiceLevel that reports readiness.</param>
+        /// <returns><c>true</c> when <paramref name="serviceLevel"/> is high enough; otherwise, <c>false</c>.</returns>
         internal static bool IsReady(byte serviceLevel, byte readyMinimumServiceLevel)
         {
             return serviceLevel >= readyMinimumServiceLevel;

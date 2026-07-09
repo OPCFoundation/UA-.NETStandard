@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
@@ -66,15 +67,52 @@ namespace Opc.Ua.Redundancy.Server
             m_onChanged = OnLocalNodeChanged;
             m_onNodeAdded = OnLocalNodeAdded;
             m_onNodeRemoved = OnLocalNodeRemoved;
+            Volatile.Write(ref m_isWriterState, m_isWriter() ? 1 : 0);
+        }
+
+        /// <summary>
+        /// Creates a synchronizer between a local graph and a shared store
+        /// that follows a leader election's writer/reader transitions.
+        /// </summary>
+        /// <param name="store">The shared node state store.</param>
+        /// <param name="addressSpace">The local node graph.</param>
+        /// <param name="election">The leader election controlling writer role.</param>
+        /// <param name="logger">Optional logger for replication errors.</param>
+        public AddressSpaceSynchronizer(
+            INodeStateStore store,
+            ILocalAddressSpace addressSpace,
+            ILeaderElection election,
+            ILogger? logger = null)
+            : this(store, addressSpace, () => election?.IsLeader ?? false, logger)
+        {
+            m_election = election ?? throw new ArgumentNullException(nameof(election));
+            m_onLeadershipChanged = OnLeadershipChanged;
+            m_election.LeadershipChanged += m_onLeadershipChanged;
+            Volatile.Write(ref m_isWriterState, m_election.IsLeader ? 1 : 0);
         }
 
         /// <inheritdoc/>
-        public bool IsWriter => m_isWriter();
+        public bool IsWriter => Volatile.Read(ref m_isWriterState) != 0;
 
         /// <summary>
         /// Raised (for tests) after each inbound change is applied.
         /// </summary>
         internal event Action<NodeStateChange>? InboundApplied;
+
+        /// <summary>
+        /// Gets the number of node instances currently tracked for
+        /// <see cref="NodeState.StateChanged"/> notifications.
+        /// </summary>
+        internal int TrackedNodeCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_attached.Count;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public async ValueTask SeedOrHydrateAsync(CancellationToken ct = default)
@@ -118,7 +156,7 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
 
-            if (m_isWriter())
+            if (IsWriter)
             {
                 foreach (NodeState node in m_addressSpace.Nodes)
                 {
@@ -201,28 +239,18 @@ namespace Opc.Ua.Redundancy.Server
                     return;
                 }
                 m_started = true;
-
-                if (m_isWriter())
+                m_outbound = Channel.CreateUnbounded<OutboundOp>(
+                    new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+                m_addressSpace.NodeAdded += m_onNodeAdded;
+                m_addressSpace.NodeRemoved += m_onNodeRemoved;
+                foreach (NodeState node in m_addressSpace.Nodes)
                 {
-                    m_outbound = Channel.CreateUnbounded<OutboundOp>(
-                        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
-                    m_addressSpace.NodeAdded += m_onNodeAdded;
-                    m_addressSpace.NodeRemoved += m_onNodeRemoved;
-                    foreach (NodeState node in m_addressSpace.Nodes)
-                    {
-                        AttachStateChanged(node);
-                    }
-                    m_outboundTask = Task.Run(() => DrainOutboundAsync(m_cts.Token));
+                    AttachStateChanged(node);
                 }
-                else
+                m_outboundTask = Task.Run(() => DrainOutboundAsync(m_cts.Token));
+                if (!IsWriter)
                 {
-                    // Register the change-feed watcher synchronously (the
-                    // first MoveNextAsync runs the iterator prefix that adds
-                    // the watcher) so no change published after Start()
-                    // returns is missed, then consume it on a background task.
-                    m_inboundEnumerator = m_store.SubscribeChangesAsync(m_cts.Token).GetAsyncEnumerator();
-                    ValueTask<bool> firstMove = m_inboundEnumerator.MoveNextAsync();
-                    m_inboundTask = Task.Run(() => ApplyInboundLoopAsync(firstMove));
+                    StartInboundLocked();
                 }
             }
         }
@@ -241,20 +269,18 @@ namespace Opc.Ua.Redundancy.Server
 
             m_cts.Cancel();
             m_outbound?.Writer.TryComplete();
+            StopInbound();
 
             await AwaitQuietlyAsync(m_outboundTask).ConfigureAwait(false);
-            await AwaitQuietlyAsync(m_inboundTask).ConfigureAwait(false);
+            await AwaitQuietlyAsync(m_inboundCleanupTask).ConfigureAwait(false);
             await AwaitQuietlyAsync(m_snapshotTask).ConfigureAwait(false);
-
-            // The inbound loop has finished; dispose the enumerator it owned.
-            if (m_inboundEnumerator != null)
-            {
-                await m_inboundEnumerator.DisposeAsync().ConfigureAwait(false);
-                m_inboundEnumerator = null;
-            }
 
             m_addressSpace.NodeAdded -= m_onNodeAdded;
             m_addressSpace.NodeRemoved -= m_onNodeRemoved;
+            if (m_election != null && m_onLeadershipChanged != null)
+            {
+                m_election.LeadershipChanged -= m_onLeadershipChanged;
+            }
             DetachAll();
             m_cts.Dispose();
         }
@@ -262,6 +288,10 @@ namespace Opc.Ua.Redundancy.Server
         private void OnLocalNodeAdded(NodeState node)
         {
             AttachStateChanged(node);
+            if (!IsWriter)
+            {
+                return;
+            }
             Enqueue(OutboundOp.ForUpsert(
                 node.NodeId,
                 NodeStateSerializer.Serialize(m_addressSpace.Context, node)));
@@ -269,6 +299,11 @@ namespace Opc.Ua.Redundancy.Server
 
         private void OnLocalNodeRemoved(NodeId nodeId)
         {
+            DetachStateChanged(nodeId);
+            if (!IsWriter)
+            {
+                return;
+            }
             Enqueue(OutboundOp.ForDelete(nodeId));
         }
 
@@ -276,6 +311,10 @@ namespace Opc.Ua.Redundancy.Server
         {
             // Deletes are driven by ILocalAddressSpace.NodeRemoved.
             if ((changes & NodeStateChangeMasks.Deleted) != 0)
+            {
+                return;
+            }
+            if (!IsWriter)
             {
                 return;
             }
@@ -311,6 +350,11 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     try
                     {
+                        if (!IsWriter)
+                        {
+                            continue;
+                        }
+
                         switch (op.Kind)
                         {
                             case OutboundOpKind.Value:
@@ -385,17 +429,20 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private async Task ApplyInboundLoopAsync(ValueTask<bool> firstMove)
+        private async Task ApplyInboundLoopAsync(
+            IAsyncEnumerator<NodeStateChange> inboundEnumerator,
+            ValueTask<bool> firstMove,
+            CancellationToken ct)
         {
             try
             {
                 bool hasValue = await firstMove.ConfigureAwait(false);
                 while (hasValue)
                 {
-                    NodeStateChange change = m_inboundEnumerator!.Current;
+                    NodeStateChange change = inboundEnumerator.Current;
                     try
                     {
-                        await ApplyInboundAsync(change, m_cts.Token).ConfigureAwait(false);
+                        await ApplyInboundAsync(change, ct).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -403,12 +450,34 @@ namespace Opc.Ua.Redundancy.Server
                     }
 
                     InboundApplied?.Invoke(change);
-                    hasValue = await m_inboundEnumerator.MoveNextAsync().ConfigureAwait(false);
+                    hasValue = await inboundEnumerator.MoveNextAsync().ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
             {
                 // shutdown
+            }
+        }
+
+        private void OnLeadershipChanged(bool isLeader)
+        {
+            Volatile.Write(ref m_isWriterState, isLeader ? 1 : 0);
+
+            lock (m_lock)
+            {
+                if (!m_started || m_disposed)
+                {
+                    return;
+                }
+
+                if (isLeader)
+                {
+                    StopInboundLocked();
+                }
+                else
+                {
+                    StartInboundLocked();
+                }
             }
         }
 
@@ -471,9 +540,28 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                if (m_attached.Add(node))
+                if (m_attached.TryGetValue(node.NodeId, out NodeState? existing))
                 {
-                    node.StateChanged += m_onChanged;
+                    if (ReferenceEquals(existing, node))
+                    {
+                        return;
+                    }
+
+                    existing.StateChanged -= m_onChanged;
+                }
+
+                m_attached[node.NodeId] = node;
+                node.StateChanged += m_onChanged;
+            }
+        }
+
+        private void DetachStateChanged(NodeId nodeId)
+        {
+            lock (m_lock)
+            {
+                if (m_attached.TryRemove(nodeId, out NodeState? node))
+                {
+                    node.StateChanged -= m_onChanged;
                 }
             }
         }
@@ -482,11 +570,77 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                foreach (NodeState node in m_attached)
+                foreach (NodeState node in m_attached.Values)
                 {
                     node.StateChanged -= m_onChanged;
                 }
                 m_attached.Clear();
+            }
+        }
+
+        private void StartInboundLocked()
+        {
+            if (m_inboundTask != null)
+            {
+                return;
+            }
+
+            // Register the change-feed watcher synchronously (the first
+            // MoveNextAsync runs the iterator prefix that adds the watcher) so
+            // no change published after Start() returns is missed, then consume
+            // it on a background task.
+            CancellationTokenSource inboundCts = CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token);
+            IAsyncEnumerator<NodeStateChange> inboundEnumerator = m_store
+                .SubscribeChangesAsync(inboundCts.Token)
+                .GetAsyncEnumerator();
+            ValueTask<bool> firstMove = inboundEnumerator.MoveNextAsync();
+            m_inboundCts = inboundCts;
+            m_inboundEnumerator = inboundEnumerator;
+            m_inboundTask = Task.Run(() => ApplyInboundLoopAsync(inboundEnumerator, firstMove, inboundCts.Token));
+        }
+
+        private void StopInbound()
+        {
+            lock (m_lock)
+            {
+                StopInboundLocked();
+            }
+        }
+
+        private void StopInboundLocked()
+        {
+            if (m_inboundEnumerator == null || m_inboundTask == null || m_inboundCts == null)
+            {
+                return;
+            }
+
+            IAsyncEnumerator<NodeStateChange> enumerator = m_inboundEnumerator;
+            Task inboundTask = m_inboundTask;
+            CancellationTokenSource inboundCts = m_inboundCts;
+            m_inboundEnumerator = null;
+            m_inboundTask = null;
+            m_inboundCts = null;
+            inboundCts.Cancel();
+
+            Task cleanup = CleanupInboundAsync(enumerator, inboundTask, inboundCts);
+            m_inboundCleanupTask = m_inboundCleanupTask == null
+                ? cleanup
+                : Task.WhenAll(m_inboundCleanupTask, cleanup);
+        }
+
+        private static async Task CleanupInboundAsync(
+            IAsyncEnumerator<NodeStateChange> inboundEnumerator,
+            Task inboundTask,
+            CancellationTokenSource inboundCts)
+        {
+            try
+            {
+                await AwaitQuietlyAsync(inboundTask).ConfigureAwait(false);
+            }
+            finally
+            {
+                await inboundEnumerator.DisposeAsync().ConfigureAwait(false);
+                inboundCts.Dispose();
             }
         }
 
@@ -523,24 +677,53 @@ namespace Opc.Ua.Redundancy.Server
                 Payload = payload;
             }
 
+            /// <summary>
+            /// Gets the kind of operation to replicate.
+            /// </summary>
             public OutboundOpKind Kind { get; }
 
+            /// <summary>
+            /// Gets the identifier of the node the operation applies to.
+            /// </summary>
             public NodeId NodeId { get; }
 
+            /// <summary>
+            /// Gets the data value carried by a <see cref="OutboundOpKind.Value"/> operation.
+            /// </summary>
             public DataValue Value { get; }
 
+            /// <summary>
+            /// Gets the encoded node payload carried by a <see cref="OutboundOpKind.Upsert"/> operation.
+            /// </summary>
             public ByteString Payload { get; }
 
+            /// <summary>
+            /// Creates an operation that replicates a changed data value for a node.
+            /// </summary>
+            /// <param name="nodeId">The node whose value changed.</param>
+            /// <param name="value">The new data value.</param>
+            /// <returns>The outbound operation.</returns>
             public static OutboundOp ForValue(NodeId nodeId, DataValue value)
             {
                 return new OutboundOp(OutboundOpKind.Value, nodeId, value, default);
             }
 
+            /// <summary>
+            /// Creates an operation that replicates the addition or update of a node.
+            /// </summary>
+            /// <param name="nodeId">The node being added or updated.</param>
+            /// <param name="payload">The encoded node state.</param>
+            /// <returns>The outbound operation.</returns>
             public static OutboundOp ForUpsert(NodeId nodeId, ByteString payload)
             {
                 return new OutboundOp(OutboundOpKind.Upsert, nodeId, DataValue.Null, payload);
             }
 
+            /// <summary>
+            /// Creates an operation that replicates the removal of a node.
+            /// </summary>
+            /// <param name="nodeId">The node being removed.</param>
+            /// <returns>The outbound operation.</returns>
             public static OutboundOp ForDelete(NodeId nodeId)
             {
                 return new OutboundOp(OutboundOpKind.Delete, nodeId, DataValue.Null, default);
@@ -550,22 +733,27 @@ namespace Opc.Ua.Redundancy.Server
         private readonly INodeStateStore m_store;
         private readonly ILocalAddressSpace m_addressSpace;
         private readonly Func<bool> m_isWriter;
+        private readonly ILeaderElection? m_election;
         private readonly ILogger? m_logger;
         private readonly NodeStateChangedHandler m_onChanged;
         private readonly Action<NodeState> m_onNodeAdded;
         private readonly Action<NodeId> m_onNodeRemoved;
+        private readonly Action<bool>? m_onLeadershipChanged;
         private readonly CancellationTokenSource m_cts = new();
         private readonly Lock m_lock = new();
-        private readonly HashSet<NodeState> m_attached = [];
+        private readonly NodeIdDictionary<NodeState> m_attached = [];
         private readonly NodeIdDictionary<ulong> m_nodeSequence = [];
         private readonly NodeIdDictionary<ulong> m_valueSequence = [];
         private Channel<OutboundOp>? m_outbound;
+        private CancellationTokenSource? m_inboundCts;
         private IAsyncEnumerator<NodeStateChange>? m_inboundEnumerator;
         private Task? m_outboundTask;
         private Task? m_inboundTask;
+        private Task? m_inboundCleanupTask;
         private Task? m_snapshotTask;
         private long m_writesSinceSnapshot;
         private int m_snapshotInFlight;
+        private int m_isWriterState;
         private bool m_started;
         private bool m_disposed;
 

@@ -109,6 +109,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             await using SharedStoreLeaseElection a = NewElection(kv, "A", time);
             await using SharedStoreLeaseElection b = NewElection(kv, "B", time);
+            bool? demotedLeaderState = null;
+            a.LeadershipChanged += value => demotedLeaderState = value;
 
             Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             time.Advance(LeaseDuration + TimeSpan.FromSeconds(1));
@@ -117,6 +119,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False, "old leader becomes follower");
             Assert.That(b.IsLeader, Is.True);
             Assert.That(a.IsLeader, Is.False);
+            Assert.That(demotedLeaderState, Is.False);
         }
 
         [Test]

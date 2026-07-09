@@ -60,5 +60,19 @@ namespace Opc.Ua.PubSub.Configuration
             string componentId,
             PubSubState state,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Persists the state for a component using a lease fencing token to reject stale active
+        /// writers when the caller has already resolved ownership.
+        /// </summary>
+        /// <param name="componentId">Deterministic component identifier.</param>
+        /// <param name="state">PubSub state.</param>
+        /// <param name="fencingToken">Current lease fencing token.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask SetStateAsync(
+            string componentId,
+            PubSubState state,
+            long fencingToken,
+            CancellationToken cancellationToken = default);
     }
 }

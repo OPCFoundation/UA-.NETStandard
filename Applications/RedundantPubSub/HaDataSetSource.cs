@@ -37,18 +37,36 @@ using Opc.Ua.PubSub.Encoding;
 
 namespace RedundantPubSub
 {
+    /// <summary>
+    /// Published data-set source that emits a monotonically increasing counter, the source
+    /// timestamp, and the owning publisher id so subscribers can observe failover.
+    /// </summary>
     internal sealed class HaDataSetSource : IPublishedDataSetSource
     {
+        /// <summary>
+        /// Initializes a new <see cref="HaDataSetSource"/>.
+        /// </summary>
+        /// <param name="ownerId">Identifier of the publisher instance that owns this source.</param>
         public HaDataSetSource(string ownerId)
         {
             m_ownerId = ownerId ?? throw new ArgumentNullException(nameof(ownerId));
         }
 
+        /// <summary>
+        /// Returns the data-set meta data describing the published fields.
+        /// </summary>
+        /// <returns>The data-set meta data.</returns>
         public DataSetMetaDataType BuildMetaData()
         {
             return BuildMetaDataCore();
         }
 
+        /// <summary>
+        /// Samples the current counter value and returns a published data-set snapshot.
+        /// </summary>
+        /// <param name="metaData">The meta data describing the data set being sampled.</param>
+        /// <param name="cancellationToken">Token used to observe cancellation.</param>
+        /// <returns>A snapshot of the sampled fields.</returns>
         public ValueTask<PublishedDataSetSnapshot> SampleAsync(
             DataSetMetaDataType metaData,
             CancellationToken cancellationToken = default)
@@ -68,6 +86,11 @@ namespace RedundantPubSub
                 new PublishedDataSetSnapshot(version, fields, DateTimeUtc.From(now)));
         }
 
+        /// <summary>
+        /// Builds the shared data-set meta data used by both the publisher source and the raw
+        /// subscriber decoder.
+        /// </summary>
+        /// <returns>The data-set meta data.</returns>
         public static DataSetMetaDataType BuildMetaDataCore()
         {
             return new DataSetMetaDataType

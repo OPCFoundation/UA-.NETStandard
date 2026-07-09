@@ -267,6 +267,86 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
         }
 
         [Test]
+        public async Task AddPcapInstallsOnlyServerBindingForServerApplicationType()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(
+                new ApplicationConfiguration { ApplicationType = ApplicationType.Server });
+            services.AddPcap();
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            // Apply the pcap configurator to a registry that already has the
+            // default opc.tcp listener/channel so the server listener binding
+            // has something to wrap.
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            ApplyConfigurators(provider, bindings);
+
+            Assert.That(
+                bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportListenerBinding>(),
+                "A Server application must install the pcap listener binding.");
+            Assert.That(
+                bindings.GetChannelFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                Is.Not.InstanceOf<PcapTransportChannelBinding>(),
+                "A Server application must not install the client channel binding.");
+        }
+
+        [Test]
+        public async Task AddPcapInstallsOnlyClientBindingForClientApplicationType()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(
+                new ApplicationConfiguration { ApplicationType = ApplicationType.Client });
+            services.AddPcap();
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            ApplyConfigurators(provider, bindings);
+
+            Assert.That(
+                bindings.GetChannelFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportChannelBinding>(),
+                "A Client application must install the pcap channel binding.");
+            Assert.That(
+                bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                Is.Not.InstanceOf<PcapTransportListenerBinding>(),
+                "A Client application must not wrap the server listener binding.");
+        }
+
+        [Test]
+        public async Task AddPcapInstallsBothBindingsWhenApplicationTypeUnknown()
+        {
+            var services = new ServiceCollection();
+            // No ApplicationConfiguration registered -> historic default (both).
+            services.AddPcap();
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            ApplyConfigurators(provider, bindings);
+
+            Assert.That(
+                bindings.GetChannelFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportChannelBinding>());
+            Assert.That(
+                bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<PcapTransportListenerBinding>());
+        }
+
+        private static void ApplyConfigurators(
+            IServiceProvider provider,
+            ITransportBindingRegistry bindings)
+        {
+            foreach (ITransportBindingConfigurator configurator in
+                provider.GetServices<ITransportBindingConfigurator>())
+            {
+                configurator.Configure(bindings);
+            }
+        }
+
+        [Test]
         public void AddPcapFormattersThrowsOnNullServices()
         {
             IServiceCollection? services = null;

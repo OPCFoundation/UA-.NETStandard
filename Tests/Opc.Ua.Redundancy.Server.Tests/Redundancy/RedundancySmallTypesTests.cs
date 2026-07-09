@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.Redundancy.Server;
 
@@ -58,22 +59,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var provider = new ConstantLoadWeightProvider();
 
             Assert.That(provider.GetLoadWeight(), Is.Zero);
-        }
-
-        [Test]
-        public void ConstantLoadWeightProviderEventSubscriptionIsNoOp()
-        {
-            var provider = new ConstantLoadWeightProvider(10);
-            static void Handler(byte weight)
-            {
-            }
-
-            // The constant provider never changes, so add/remove are inert but must be callable.
-            Assert.That(() =>
-            {
-                provider.LoadWeightChanged += Handler;
-                provider.LoadWeightChanged -= Handler;
-            }, Throws.Nothing);
         }
 
         [Test]

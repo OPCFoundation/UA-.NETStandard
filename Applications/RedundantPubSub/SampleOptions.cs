@@ -35,6 +35,28 @@ using Opc.Ua.PubSub.Redundancy;
 
 namespace RedundantPubSub
 {
+    /// <summary>
+    /// Immutable, parsed configuration for the sample, sourced from command-line arguments and
+    /// environment variables.
+    /// </summary>
+    /// <param name="Role">The role to run (publisher, subscriber, or demo).</param>
+    /// <param name="HaMode">The PubSub redundancy mode (Cold, Warm, or Hot).</param>
+    /// <param name="Election">The activation-election strategy (leader-election or lease-store).</param>
+    /// <param name="OwnerId">Stable identifier of this instance within its redundant set.</param>
+    /// <param name="Endpoint">The PubSub UDP transport endpoint (multicast or unicast).</param>
+    /// <param name="PublisherId">The PublisherId advertised in network messages.</param>
+    /// <param name="WriterGroupId">The WriterGroup id used by the writer and reader filter.</param>
+    /// <param name="DataSetWriterId">The DataSetWriter id used by the writer and reader filter.</param>
+    /// <param name="IntervalMs">The publishing interval in milliseconds.</param>
+    /// <param name="RaftId">This instance's Raft member id.</param>
+    /// <param name="RaftMembers">The total number of Raft members in the set.</param>
+    /// <param name="RaftBind">The local Raft transport bind address.</param>
+    /// <param name="RaftPeers">The Raft transport addresses of the peer members.</param>
+    /// <param name="Insecure">When true, permits a well-known demo record-protection key.</param>
+    /// <param name="RecordKeyBase64">Optional shared base64 record-protection key.</param>
+    /// <param name="LeaseDuration">The lease duration used by lease-store election.</param>
+    /// <param name="DemoFirstActiveDuration">How long the first publisher stays active in the demo.</param>
+    /// <param name="DemoSecondActiveDuration">How long the promoted publisher runs in the demo.</param>
     public sealed record SampleOptions(
         SampleRole Role,
         PubSubRedundancyMode HaMode,
@@ -55,6 +77,13 @@ namespace RedundantPubSub
         TimeSpan DemoFirstActiveDuration,
         TimeSpan DemoSecondActiveDuration)
     {
+        /// <summary>
+        /// Parses sample options from command-line arguments (which take precedence) and
+        /// environment variables, falling back to sample defaults.
+        /// </summary>
+        /// <param name="args">The process command-line arguments.</param>
+        /// <param name="getEnvironment">Callback used to read environment variables.</param>
+        /// <returns>The parsed <see cref="SampleOptions"/>.</returns>
         public static SampleOptions Parse(string[] args, Func<string, string?> getEnvironment)
         {
             var cli = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -145,20 +174,65 @@ namespace RedundantPubSub
         }
     }
 
+    /// <summary>
+    /// The role the sample process runs as.
+    /// </summary>
     public enum SampleRole
     {
+        /// <summary>
+        /// Runs a high-availability publisher instance.
+        /// </summary>
         Publisher,
+
+        /// <summary>
+        /// Runs a subscriber instance (optionally part of a high-availability reader set).
+        /// </summary>
         Subscriber,
+
+        /// <summary>
+        /// Runs the single-process demo that hosts two publishers and a subscriber.
+        /// </summary>
         Demo
     }
 
+    /// <summary>
+    /// Shared constant values used across the sample publisher, subscriber, and demo roles.
+    /// </summary>
     internal static class SampleConstants
     {
+        /// <summary>
+        /// The published data-set name.
+        /// </summary>
         public const string DataSetName = "HaCounter";
+
+        /// <summary>
+        /// The data-set reader name.
+        /// </summary>
         public const string ReaderName = "Reader 1";
+
+        /// <summary>
+        /// The default PubSub endpoint for multi-process publisher/subscriber roles.
+        /// </summary>
         public const string DefaultEndpoint = "opc.udp://239.0.0.1:4840";
+
+        /// <summary>
+        /// The default PubSub endpoint for the single-process local demo.
+        /// </summary>
+        public const string DefaultDemoEndpoint = "opc.udp://127.0.0.1:4840";
+
+        /// <summary>
+        /// The default PublisherId.
+        /// </summary>
         public const ushort DefaultPublisherId = 1;
+
+        /// <summary>
+        /// The default WriterGroup id.
+        /// </summary>
         public const ushort DefaultWriterGroupId = 100;
+
+        /// <summary>
+        /// The default DataSetWriter id.
+        /// </summary>
         public const ushort DefaultDataSetWriterId = 1;
     }
 }

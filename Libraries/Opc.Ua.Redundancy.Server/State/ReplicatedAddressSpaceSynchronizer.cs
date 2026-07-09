@@ -94,6 +94,21 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         internal event Action? InboundApplied;
 
+        /// <summary>
+        /// Gets the number of node instances currently tracked for
+        /// <see cref="NodeState.StateChanged"/> notifications.
+        /// </summary>
+        internal int TrackedNodeCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_attached.Count;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask SeedOrHydrateAsync(CancellationToken ct = default)
         {
@@ -408,6 +423,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private void OnLocalNodeRemoved(NodeId nodeId)
         {
+            DetachStateChanged(nodeId);
             if (m_applyingInbound.Value)
             {
                 return;
@@ -563,9 +579,28 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                if (m_attached.Add(node))
+                if (m_attached.TryGetValue(node.NodeId, out NodeState? existing))
                 {
-                    node.StateChanged += m_onChanged;
+                    if (ReferenceEquals(existing, node))
+                    {
+                        return;
+                    }
+
+                    existing.StateChanged -= m_onChanged;
+                }
+
+                m_attached[node.NodeId] = node;
+                node.StateChanged += m_onChanged;
+            }
+        }
+
+        private void DetachStateChanged(NodeId nodeId)
+        {
+            lock (m_lock)
+            {
+                if (m_attached.TryRemove(nodeId, out NodeState? node))
+                {
+                    node.StateChanged -= m_onChanged;
                 }
             }
         }
@@ -574,7 +609,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                foreach (NodeState node in m_attached)
+                foreach (NodeState node in m_attached.Values)
                 {
                     node.StateChanged -= m_onChanged;
                 }
@@ -614,8 +649,18 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Represents a single replicated key/value difference: a set (when <see cref="Removed"/> is <c>false</c>) or
+        /// a removal (when <see cref="Removed"/> is <c>true</c>).
+        /// </summary>
         private readonly struct Diff
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Diff"/> struct.
+            /// </summary>
+            /// <param name="key">The replicated key.</param>
+            /// <param name="value">The replicated value; ignored when <paramref name="removed"/> is <c>true</c>.</param>
+            /// <param name="removed"><c>true</c> when the key was removed.</param>
             public Diff(string key, ByteString value, bool removed)
             {
                 Key = key;
@@ -623,10 +668,19 @@ namespace Opc.Ua.Redundancy.Server
                 Removed = removed;
             }
 
+            /// <summary>
+            /// Gets the replicated key.
+            /// </summary>
             public string Key { get; }
 
+            /// <summary>
+            /// Gets the replicated value.
+            /// </summary>
             public ByteString Value { get; }
 
+            /// <summary>
+            /// Gets a value indicating whether the key was removed.
+            /// </summary>
             public bool Removed { get; }
         }
 
@@ -648,7 +702,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly Lock m_lock = new();
         private readonly LWWMap<string, ByteString> m_map = new();
         private readonly Dictionary<string, byte[]> m_lastApplied = [];
-        private readonly HashSet<NodeState> m_attached = [];
+        private readonly NodeIdDictionary<NodeState> m_attached = [];
         private readonly AsyncLocal<bool> m_applyingInbound = new();
         private Task? m_inboundTask;
         private bool m_started;

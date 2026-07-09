@@ -179,55 +179,39 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(response.Results[0]), Is.True);
         }
 
-        [Description("Write to the Value attribute (without statusCode, sourceTimestamp, or serverTimestamp) of several nodes that has a ValueRank of array. Write the entire array. This test should be d")]
+        [Description("Read the value of a one-dimensional array node and write the entire value " +
+            "back. Expect Good.")]
         [Test]
         public async Task WriteEntireArrayValueSucceedsAsync()
         {
-            ArrayOf<WriteValue> wv = new WriteValue[]
-            {
-                new() {
-                    NodeId = ToNodeId(Constants.ScalarStaticInt32),
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                }
-            }.ToArrayOf();
-            WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(response.Results[0]), Is.True);
+            await AssertWriteBackSucceedsAsync(Constants.ScalarStaticArrayInt32).ConfigureAwait(false);
         }
 
-        [Description("Write to the Value attribute (without statusCode, sourceTimestamp, or serverTimestamp) of nodes which have a ValueRank of a multi-dimensional array. Write the entire multi-dimensio")]
+        [Description("Round-trip the value of a one-dimensional Variant array whose elements are " +
+            "themselves arrays of mixed built-in types. Regression for a BadTypeMismatch write failure.")]
+        [Test]
+        public async Task WriteVariantArrayWithNestedArraysSucceedsAsync()
+        {
+            await AssertWriteBackSucceedsAsync(Constants.ScalarStaticArrayVariant).ConfigureAwait(false);
+        }
+
+        [Description("Read the value of a multi-dimensional array node and write the entire value " +
+            "back. Expect Good.")]
         [Test]
         public async Task WriteEntireMultiDimensionalArraySucceedsAsync()
         {
-            ArrayOf<WriteValue> wv = new WriteValue[]
-            {
-                new() {
-                    NodeId = ToNodeId(Constants.ScalarStaticInt32),
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                }
-            }.ToArrayOf();
-            WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(response.Results[0]), Is.True);
+            await AssertWriteBackSucceedsAsync(Constants.ScalarStaticArrays2DInt32).ConfigureAwait(false);
         }
 
-        [Description("Write to the Value attribute (without statusCode, sourceTimestamp, or serverTimestamp) of several nodes which have aValueRank of a multi-dimensional array. Write the entire multi-d")]
+        [Description("Read and write back the value of multiple multi-dimensional array nodes. " +
+            "All should return Good.")]
         [Test]
         public async Task WriteEntireMultiDimensionalArrayToMultipleNodesSucceedsAsync()
         {
-            ArrayOf<WriteValue> wv = new WriteValue[]
+            foreach (ExpandedNodeId node in Constants.ScalarStaticArrays2DNodes)
             {
-                new() {
-                    NodeId = ToNodeId(Constants.ScalarStaticInt32),
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                }
-            }.ToArrayOf();
-            WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(response.Results[0]), Is.True);
+                await AssertWriteBackSucceedsAsync(node).ConfigureAwait(false);
+            }
         }
 
         [Description("nodesToWrite array empty; expected service result = BadNothingToDo. */")]
@@ -478,6 +462,42 @@ namespace Opc.Ua.InformationModel.Tests
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsBad(response.Results[0]), Is.True);
+        }
+
+        /// <summary>
+        /// Reads the Value attribute of a node and writes the exact same value
+        /// back, asserting both the read and the write return Good.
+        /// </summary>
+        private async Task AssertWriteBackSucceedsAsync(ExpandedNodeId node)
+        {
+            NodeId nodeId = ToNodeId(node);
+
+            ReadResponse read = await Session.ReadAsync(
+                null, 0, TimestampsToReturn.Both,
+                new ReadValueId[]
+                {
+                    new() { NodeId = nodeId, AttributeId = Attributes.Value }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(read.Results.Count, Is.EqualTo(1));
+            Assert.That(StatusCode.IsGood(read.Results[0].StatusCode), Is.True,
+                $"Read of '{node}' should return Good.");
+
+            ArrayOf<WriteValue> wv = new WriteValue[]
+            {
+                new()
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(read.Results[0].WrappedValue)
+                }
+            }.ToArrayOf();
+
+            WriteResponse write = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(write.Results.Count, Is.EqualTo(1));
+            Assert.That(StatusCode.IsGood(write.Results[0]), Is.True,
+                $"Writing the read value back to '{node}' should return Good.");
         }
     }
 }

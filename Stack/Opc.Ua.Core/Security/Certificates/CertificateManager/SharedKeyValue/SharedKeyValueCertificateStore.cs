@@ -418,6 +418,7 @@ namespace Opc.Ua
         private async Task TrimRejectedAsync(int maxCertificates, CancellationToken ct)
         {
             var entries = new List<(string Key, long Ticks)>();
+            var invalidKeys = new List<string>();
             await foreach (KeyValuePair<string, ByteString> entry in m_store
                 .ScanAsync(CertPrefix, ct)
                 .ConfigureAwait(false))
@@ -427,7 +428,15 @@ namespace Opc.Ua
                 {
                     long ticks = BinaryPrimitives.ReadInt64LittleEndian(plaintext.Span);
                     entries.Add((entry.Key, ticks));
+                    continue;
                 }
+
+                invalidKeys.Add(entry.Key);
+            }
+
+            foreach (string invalidKey in invalidKeys)
+            {
+                await m_store.DeleteAsync(invalidKey, ct).ConfigureAwait(false);
             }
 
             if (entries.Count <= maxCertificates)

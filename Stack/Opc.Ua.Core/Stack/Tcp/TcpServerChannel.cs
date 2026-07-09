@@ -152,8 +152,11 @@ namespace Opc.Ua.Bindings
             object callbackData,
             int timeout)
         {
-            var transport = new TcpByteTransport(BufferManager, ReceiveBufferSize, Telemetry);
+#pragma warning disable CA2000 // transport ownership is transferred to BeginReverseConnect below
+            IUaSCByteTransport transport = new TcpByteTransport(BufferManager, ReceiveBufferSize, Telemetry);
+            transport = TransportDecorator?.Invoke(transport) ?? transport;
             return BeginReverseConnect(channelId, endpointUrl, transport, callback, callbackData, timeout);
+#pragma warning restore CA2000
         }
 
         /// <summary>
@@ -664,8 +667,15 @@ namespace Opc.Ua.Bindings
                 clientCertificate?.Dispose();
 
                 // If the certificate structure, signature and trust list checks pass,
-                // return the other specific validation errors instead of BadSecurityChecksFailed
-                if (e.InnerException is ServiceResultException innerException)
+                // return the other specific validation errors instead of BadSecurityChecksFailed.
+                // The certificate validation failure is thrown directly as a
+                // ServiceResultException carrying the specific status code (see
+                // UaSCBinaryChannel.Asymmetric ValidateAsync path), so inspect the caught
+                // exception itself as well as any inner exception before falling back to the
+                // generic code — otherwise BadCertificateTimeInvalid / BadCertificateUseNotAllowed
+                // (Part 4 §7.39 / Part 6 §6.7.4) would always be masked as BadSecurityChecksFailed.
+                if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
+                    is ServiceResultException innerException)
                 {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||

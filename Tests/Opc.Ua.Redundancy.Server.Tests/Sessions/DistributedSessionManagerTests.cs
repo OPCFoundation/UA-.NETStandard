@@ -33,11 +33,18 @@
 
 #nullable enable
 
+using System;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -62,12 +69,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private static readonly SharedKeyValueSessionStore s_sessionStore =
             new(s_sessionKv, ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
 
-        private static DistributedSessionManager CreateManager(ISingleUseNonceRegistry nonceRegistry)
+        private static DistributedSessionManager CreateManager(
+            ISingleUseNonceRegistry nonceRegistry,
+            ISharedSessionStore? sessionStore = null,
+            IServerInternal? server = null,
+            Func<string, Certificate?>? serverCertificateProvider = null,
+            TimeProvider? timeProvider = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
 
             var configuration = new ApplicationConfiguration
             {
@@ -83,12 +96,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
 
             return new DistributedSessionManager(
-                serverMock.Object,
+                server ?? serverMock.Object,
                 configuration,
-                s_sessionStore,
+                sessionStore ?? s_sessionStore,
                 nonceRegistry,
-                _ => null,
-                new DistributedSessionOptions { EnableFastReconnect = true });
+                serverCertificateProvider ?? (_ => null),
+                new DistributedSessionOptions { EnableFastReconnect = true },
+                timeProvider);
         }
 
         private static SharedSessionEntry EntryWithNonce(byte[] nonce)
@@ -178,6 +192,160 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task AuthorizeRejectsExpiredSessionAsync()
+        {
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-07-08T12:00:00Z", CultureInfo.InvariantCulture));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry, timeProvider: timeProvider);
+            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]) with
+            {
+                LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds(-1001)),
+                SessionTimeout = 1000
+            };
+
+            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+
+            Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Expired));
+        }
+
+        [Test]
+        public async Task RestoreRejectsExpiredMirroredSessionAsync()
+        {
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-07-08T12:00:00Z", CultureInfo.InvariantCulture));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using DistributedSessionManager manager = CreateManager(
+                registry,
+                sessionStore: sessionStore,
+                timeProvider: timeProvider);
+            NodeId authenticationToken = new NodeId("expired-token", 2);
+            SharedSessionEntry entry = EntryWithNonce([5, 6, 7, 8]) with
+            {
+                AuthenticationToken = authenticationToken,
+                LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds(-1001)),
+                SessionTimeout = 1000
+            };
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+
+            ISession? session = await InvokeRestoreSessionAsync(
+                manager,
+                authenticationToken,
+                CreateContext()).ConfigureAwait(false);
+
+            Assert.That(session, Is.Null);
+        }
+
+        [Test]
+        public void SecureRestoreWithinTimeoutReconstructsClientCertificate()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
+            Mock<IServerInternal> server = CreateRestoreServerMock(true);
+            using DistributedSessionManager manager = CreateManager(
+                registry,
+                server: server.Object,
+                serverCertificateProvider: _ => serverCertificate.AddRef());
+            SharedSessionEntry entry = CreateSecureEntry(clientCertificate) with
+            {
+                LastActivatedAt = DateTimeUtc.Now,
+                SessionTimeout = 60_000
+            };
+
+            ISession? session = InvokeReconstructSession(manager, entry, entry.AuthenticationToken, CreateContext());
+
+            Assert.That(session, Is.Not.Null);
+            Assert.That(session!.ClientCertificate, Is.Not.Null);
+            Assert.That(session.ClientCertificate!.Thumbprint, Is.EqualTo(clientCertificate.Thumbprint));
+            Assert.That(session.EndpointDescription.SecurityMode, Is.EqualTo(MessageSecurityMode.Sign));
+            Assert.That(session.EndpointDescription.SecurityPolicyUri, Is.EqualTo(PolicyA));
+            session.Dispose();
+        }
+
+        [Test]
+        public void SecureRestoreWithoutClientCertificateChainIsRejected()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            Mock<IServerInternal> server = CreateRestoreServerMock(true);
+            using DistributedSessionManager manager = CreateManager(
+                registry,
+                server: server.Object,
+                serverCertificateProvider: _ => serverCertificate.AddRef());
+            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]) with
+            {
+                SecurityMode = (int)MessageSecurityMode.Sign,
+                ClientCertificateChain = ByteString.Empty,
+                SessionTimeout = 60_000
+            };
+
+            ISession? session = InvokeReconstructSession(manager, entry, entry.AuthenticationToken, CreateContext());
+
+            Assert.That(session, Is.Null);
+        }
+
+        [Test]
+        public async Task FailedSecureRestoreDisposesTemporaryCertificateHandlesAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
+            Mock<IServerInternal> server = CreateRestoreServerMock(false);
+            string serverThumbprint = serverCertificate.Thumbprint;
+            string clientThumbprint = clientCertificate.Thumbprint;
+
+            try
+            {
+                using DistributedSessionManager manager = CreateManager(
+                    registry,
+                    sessionStore: sessionStore,
+                    server: server.Object,
+                    serverCertificateProvider: _ => serverCertificate.AddRef());
+                SharedSessionEntry entry = CreateSecureEntry(clientCertificate) with
+                {
+                    SessionTimeout = 60_000
+                };
+                await sessionStore.PutAsync(entry).ConfigureAwait(false);
+                OperationContext context = CreateContext();
+                InvalidOperationException? exception = null;
+                try
+                {
+                    _ = await InvokeRestoreSessionAsync(
+                        manager,
+                        entry.AuthenticationToken,
+                        context).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    exception = ex;
+                }
+
+                Assert.That(exception, Is.Not.Null);
+            }
+            finally
+            {
+                serverCertificate.Dispose();
+                clientCertificate.Dispose();
+            }
+
+            Assert.That(GetCertificateRefCount(serverCertificate), Is.Zero, serverThumbprint);
+            Assert.That(GetCertificateRefCount(clientCertificate), Is.Zero, clientThumbprint);
+        }
+
+        [Test]
         public void ConstructorValidatesArguments()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
@@ -202,6 +370,137 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 () => new DistributedSessionManager(
                     serverMock.Object, configuration, store, registry, null!),
                 Throws.ArgumentNullException);
+        }
+
+        private static SharedSessionEntry CreateSecureEntry(Certificate clientCertificate)
+        {
+            using var clientChain = new CertificateCollection { clientCertificate };
+            return new SharedSessionEntry
+            {
+                SessionId = new NodeId(1, 1),
+                AuthenticationToken = new NodeId("secure-token", 2),
+                SessionName = "secure-session",
+                CreatedAt = DateTimeUtc.Now,
+                LastActivatedAt = DateTimeUtc.Now,
+                ServerNonce = ByteString.From(new byte[] { 1, 2, 3, 4 }),
+                ClientNonce = ByteString.From(new byte[] { 5, 6, 7, 8 }),
+                ClientCertificateChain = ByteString.From(Utils.CreateCertificateChainBlob(clientChain)),
+                SecurityPolicyUri = PolicyA,
+                SecurityMode = (int)MessageSecurityMode.Sign,
+                EndpointUrl = "opc.tcp://localhost:4840",
+                SessionTimeout = 60_000,
+                ClientDescription = new ApplicationDescription
+                {
+                    ApplicationUri = "urn:test:client",
+                    ApplicationName = new LocalizedText("DistributedSessionManagerTests"),
+                    ApplicationType = ApplicationType.Client
+                }
+            };
+        }
+
+        private static Certificate CreateCertificate(string subject)
+        {
+            return CertificateBuilder
+                .Create(subject)
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+        }
+
+        private static OperationContext CreateContext()
+        {
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost:4840",
+                SecurityPolicyUri = PolicyA,
+                SecurityMode = MessageSecurityMode.Sign
+            };
+            var channelContext = new SecureChannelContext(
+                "restore-channel",
+                endpoint,
+                RequestEncoding.Binary,
+                null,
+                null,
+                null);
+            return new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.ActivateSession,
+                RequestLifetime.None);
+        }
+
+        private static Mock<IServerInternal> CreateRestoreServerMock(bool initializeSucceeds)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.SubscriptionStore).Returns((ISubscriptionStore)null!);
+
+            var diagnosticsNodeManager = new Mock<IDiagnosticsNodeManager>();
+            if (initializeSucceeds)
+            {
+                diagnosticsNodeManager
+                    .Setup(m => m.CreateSessionDiagnosticsAsync(
+                        It.IsAny<ServerSystemContext>(),
+                        It.IsAny<SessionDiagnosticsDataType>(),
+                        It.IsAny<NodeValueSimpleEventHandler>(),
+                        It.IsAny<SessionSecurityDiagnosticsDataType>(),
+                        It.IsAny<NodeValueSimpleEventHandler>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<NodeId>(new NodeId(5001, 1)));
+            }
+            else
+            {
+                diagnosticsNodeManager
+                    .Setup(m => m.CreateSessionDiagnosticsAsync(
+                        It.IsAny<ServerSystemContext>(),
+                        It.IsAny<SessionDiagnosticsDataType>(),
+                        It.IsAny<NodeValueSimpleEventHandler>(),
+                        It.IsAny<SessionSecurityDiagnosticsDataType>(),
+                        It.IsAny<NodeValueSimpleEventHandler>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(
+                        new ValueTask<NodeId>(
+                            Task.FromException<NodeId>(
+                                new InvalidOperationException("diagnostics unavailable"))));
+            }
+
+            serverMock.Setup(s => s.DiagnosticsNodeManager).Returns(diagnosticsNodeManager.Object);
+            serverMock.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(serverMock.Object));
+            return serverMock;
+        }
+
+        private static ISession? InvokeReconstructSession(
+            DistributedSessionManager manager,
+            SharedSessionEntry entry,
+            NodeId authenticationToken,
+            OperationContext context)
+        {
+            MethodInfo method = typeof(DistributedSessionManager).GetMethod(
+                "ReconstructSession",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            return (ISession?)method.Invoke(manager, [entry, authenticationToken, context]);
+        }
+
+        private static async Task<ISession?> InvokeRestoreSessionAsync(
+            DistributedSessionManager manager,
+            NodeId authenticationToken,
+            OperationContext context)
+        {
+            MethodInfo method = typeof(DistributedSessionManager).GetMethod(
+                "RestoreSessionAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var task = (ValueTask<ISession?>)method.Invoke(manager, [authenticationToken, context, default(CancellationToken)])!;
+            return await task.ConfigureAwait(false);
+        }
+
+        private static int GetCertificateRefCount(Certificate certificate)
+        {
+            object core = typeof(Certificate)
+                .GetField("m_core", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(certificate)!;
+            return (int)core.GetType().GetProperty("RefCount", BindingFlags.Instance | BindingFlags.Public)!
+                .GetValue(core)!;
         }
     }
 }

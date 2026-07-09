@@ -365,6 +365,55 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task HostedServiceAssignsServerHooksAndRunsStartupTasksAsync()
+        {
+            StartupHookCaptureServer.Reset();
+            var sessionManagerFactory = new Mock<ISessionManagerFactory>();
+            sessionManagerFactory
+                .Setup(factory => factory.Create(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<TimeProvider>(),
+                    It.IsAny<Func<string, Certificate?>>()))
+                .Returns(
+                    (IServerInternal server, ApplicationConfiguration configuration, TimeProvider timeProvider, Func<string, Certificate?> _) =>
+                        new SessionManager(server, configuration, timeProvider));
+            var redundantServerSetProvider = new Mock<IRedundantServerSetProvider>();
+            redundantServerSetProvider.Setup(p => p.GetRedundantServerSet()).Returns([]);
+            var getEndpointsDirector = new Mock<IGetEndpointsDirector>();
+            var subscriptionStore = new Mock<ISubscriptionStore>();
+            var monitoredItemQueueFactory = new Mock<IMonitoredItemQueueFactory>();
+            var recordingTask = new RecordingStartupTask();
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddOpcUa()
+                        .AddServer<StartupHookCaptureServer>(options => ConfigureHostedOptions(options, "StartupHooks"));
+                    services.AddSingleton(sessionManagerFactory.Object);
+                    services.AddSingleton(redundantServerSetProvider.Object);
+                    services.AddSingleton(getEndpointsDirector.Object);
+                    services.AddSingleton(subscriptionStore.Object);
+                    services.AddSingleton(monitoredItemQueueFactory.Object);
+                    services.AddSingleton<IServerStartupTask>(recordingTask);
+                });
+
+            Assert.That(
+                await WaitForAsync(
+                    () => recordingTask.InvocationCount == 1 && StartupHookCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                Is.True);
+
+            Assert.That(StartupHookCaptureServer.StartedServer, Is.Not.Null);
+            Assert.That(StartupHookCaptureServer.StartedServer!.SessionManagerFactory, Is.SameAs(sessionManagerFactory.Object));
+            Assert.That(StartupHookCaptureServer.StartedServer.RedundantServerSetProvider, Is.SameAs(redundantServerSetProvider.Object));
+            Assert.That(StartupHookCaptureServer.StartedServer.GetEndpointsDirector, Is.SameAs(getEndpointsDirector.Object));
+            Assert.That(StartupHookCaptureServer.StartedServer.SubscriptionStore, Is.SameAs(subscriptionStore.Object));
+            Assert.That(StartupHookCaptureServer.StartedServer.MonitoredItemQueueFactory, Is.SameAs(monitoredItemQueueFactory.Object));
+            Assert.That(recordingTask.ObservedServer, Is.SameAs(StartupHookCaptureServer.StartedServer.CurrentInstance));
+        }
+
+        [Test]
         public void AddRoleManagerReplacesDefaultRoleManager()
         {
             using var roleManager = new RoleManager();
@@ -785,6 +834,27 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        public sealed class StartupHookCaptureServer : DependencyInjectionStandardServer
+        {
+            public StartupHookCaptureServer(
+                IServiceProvider services,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+                : base(services, telemetry, timeProvider)
+            {
+                Volatile.Write(ref s_startedServer, this);
+            }
+
+            public static StartupHookCaptureServer? StartedServer => Volatile.Read(ref s_startedServer);
+
+            public static void Reset()
+            {
+                Volatile.Write(ref s_startedServer, null);
+            }
+
+            private static StartupHookCaptureServer? s_startedServer;
+        }
+
         private sealed class StubServerFactory : IOpcUaServerFactory
         {
             public StandardServer CreateServer(ITelemetryContext telemetry, TimeProvider timeProvider)
@@ -842,6 +912,22 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             private readonly ServiceProvider m_provider;
             private readonly IHostedService m_hostedService;
+        }
+
+        private sealed class RecordingStartupTask : IServerStartupTask
+        {
+            public int InvocationCount => Volatile.Read(ref m_invocationCount);
+
+            public IServerInternal? ObservedServer { get; private set; }
+
+            public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_invocationCount);
+                ObservedServer = server;
+                return default;
+            }
+
+            private int m_invocationCount;
         }
 
         private sealed class CapturingLoggerProvider : ILoggerProvider

@@ -178,13 +178,22 @@ namespace Opc.Ua.Redundancy.Kubernetes
             return ordinal;
         }
 
+        /// <summary>
+        /// Adapts a synchronous <see cref="IDisposable"/> so it can be disposed through the
+        /// <see cref="IAsyncDisposable"/> contract.
+        /// </summary>
         private sealed class SyncDisposableAdapter : IAsyncDisposable
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="SyncDisposableAdapter"/> class.
+            /// </summary>
+            /// <param name="inner">The synchronous disposable to wrap.</param>
             public SyncDisposableAdapter(IDisposable inner)
             {
                 m_inner = inner;
             }
 
+            /// <inheritdoc/>
             public ValueTask DisposeAsync()
             {
                 m_inner.Dispose();

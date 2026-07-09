@@ -33,6 +33,7 @@ services.AddOpcUa()
         options.LeaseDuration = TimeSpan.FromSeconds(30);
         options.RenewInterval = TimeSpan.FromSeconds(10);
         options.NodeId = Environment.GetEnvironmentVariable("HOSTNAME") ?? Environment.MachineName;
+        // This wires the leader-aware IServiceLevelProvider that UseKubernetesReadiness() consumes.
     })
     .UseDistributedSessions(options =>
     {
@@ -62,6 +63,12 @@ services.AddOpcUa()
         options.ReadyMinimumServiceLevel = ServiceLevels.HealthyMinimum;
     });
 ```
+
+The example above is safe because `UseDistributedAddressSpace(... options.UseLeaderElection = true ...)`
+registers a leader-aware `IServiceLevelProvider`. If you compose `UseKubernetesLeaderElection()` and
+`UseKubernetesReadiness()` without `UseDistributedAddressSpace()`, register your own
+`IServiceLevelProvider` (for example via `AddServerServiceLevel(...)`) before `UseKubernetesReadiness()`
+so followers do not stay ready.
 
 `UseKubernetesLeaderElection` uses the in-cluster service account token, namespace, and CA mounted at `/var/run/secrets/kubernetes.io/serviceaccount`. Outside Kubernetes it falls back to `SharedStoreLeaseElection` by default (`UseSharedStoreFallback = true`) so local development can still exercise the distributed path. (`UseKubernetes()` registers the shared in-cluster Kubernetes API client that these extensions consume; the leader-election, peer-discovery, and readiness helpers add it automatically, but you can call it directly when adding your own Kubernetes-backed component.)
 

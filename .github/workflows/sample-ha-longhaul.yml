@@ -1,0 +1,85 @@
+name: Sample HA Long-Haul Test
+
+# Long-haul high-availability soak of the redundant sample applications
+# (RedundantServer / RedundantClient / RedundantPubSub). These tests are marked
+# [Explicit] so they never run on pull requests; the short-haul variants of the
+# same scenarios run automatically as part of the normal Build and Test workflow.
+#
+# Run on demand (Actions -> Sample HA Long-Haul Test -> Run workflow) and choose
+# the duration, or let the weekly schedule exercise the default one-hour soak.
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'High-availability soak duration in minutes'
+        required: false
+        default: '60'
+        type: string
+  schedule:
+    # Weekly, Sunday 04:00 UTC (after the nightly build/stress windows).
+    - cron: '0 4 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  sample-ha-longhaul:
+    name: Sample HA Long-Haul (${{ github.event.inputs.duration || '60' }} min)
+    runs-on: ubuntu-latest
+    # Allow generous head-room beyond the configured soak duration for build,
+    # startup and teardown.
+    timeout-minutes: 120
+
+    env:
+      DOTNET_VERSION: '10.0.x'
+      TARGET_FRAMEWORK: 'net10.0'
+      CONFIGURATION: 'Release'
+      TESTPROJECT: './Tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
+      SAMPLE_HA_DURATION_MINUTES: ${{ github.event.inputs.duration || '60' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Restore dependencies
+      run: dotnet restore 'UA.slnx'
+
+    - name: Build sample HA tests (and the referenced sample apps)
+      run: >
+        dotnet build ${{ env.TESTPROJECT }}
+        --framework ${{ env.TARGET_FRAMEWORK }}
+        --configuration ${{ env.CONFIGURATION }}
+        --no-restore
+        /p:CustomTestTarget=${{ env.TARGET_FRAMEWORK }}
+
+    - name: Run long-haul HA soak
+      run: |
+        echo "Running the sample HA long-haul soak for $SAMPLE_HA_DURATION_MINUTES minute(s)."
+        dotnet test ${{ env.TESTPROJECT }} \
+          --configuration ${{ env.CONFIGURATION }} \
+          --no-build \
+          --framework ${{ env.TARGET_FRAMEWORK }} \
+          /p:CustomTestTarget=${{ env.TARGET_FRAMEWORK }} \
+          --filter "Category=SampleHaLongHaul" \
+          --logger "trx;LogFileName=sample-ha-longhaul.trx" \
+          --logger "console;verbosity=detailed" \
+          --results-directory ./TestResults
+      timeout-minutes: 110
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v7
+      with:
+        name: sample-ha-longhaul-results
+        path: ./TestResults
+      if: always()

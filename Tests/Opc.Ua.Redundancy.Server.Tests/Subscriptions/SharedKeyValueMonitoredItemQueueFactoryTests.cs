@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -171,6 +173,34 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task OverwriteLastValueUpdatesMirroredSnapshotAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            IServiceMessageContext context = CreateContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry);
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 33);
+            queue.ResetQueue(1, false);
+            queue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
+            queue.OverwriteLastValue(new DataValue(new Variant(99)), ServiceResult.Good);
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv,
+                context,
+                telemetry: telemetry);
+            IDataChangeMonitoredItemQueue restored = await restoreFactory
+                .RestoreDataChangeQueueAsync(33)
+                .ConfigureAwait(false);
+
+            Assert.That(restored, Is.Not.Null);
+            Assert.That(restored.Dequeue(out DataValue restoredValue, out _), Is.True);
+            Assert.That(restoredValue.WrappedValue.TryGetValue(out int restoredInt), Is.True);
+            Assert.That(restoredInt, Is.EqualTo(99));
+        }
+
+        [Test]
         public async Task RestoreReturnsNullWhenNothingStoredAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -264,12 +294,93 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await store.RestoreEventMonitoredItemQueueAsync(1).ConfigureAwait(false), Is.Null);
         }
 
+        [Test]
+        public async Task DisposeAsyncCancelsBlockedQueueMirrorWritesAsync()
+        {
+            await using var kv = new HangingWriteSharedKeyValueStore();
+            IServiceMessageContext context = CreateContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry);
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 55);
+            queue.ResetQueue(2, false);
+            queue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
+
+            await kv.WaitForWriteAsync().ConfigureAwait(false);
+            Task disposeTask = factory.DisposeAsync().AsTask();
+            Task completed = await Task.WhenAny(disposeTask, Task.Delay(2000)).ConfigureAwait(false);
+
+            Assert.That(completed, Is.SameAs(disposeTask));
+            await disposeTask.ConfigureAwait(false);
+        }
+
         private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
             context.NamespaceUris.GetIndexOrAppend("urn:test:queues");
             return context;
+        }
+
+        private sealed class HangingWriteSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable
+        {
+            public Task<bool> WaitForWriteAsync()
+            {
+                return m_writeStarted.Task;
+            }
+
+            public ValueTask<(bool Found, ByteString Value)> TryGetAsync(string key, System.Threading.CancellationToken ct = default)
+            {
+                return new ValueTask<(bool Found, ByteString Value)>((false, default));
+            }
+
+            public ValueTask SetAsync(string key, ByteString value, System.Threading.CancellationToken ct = default)
+            {
+                m_writeStarted.TrySetResult(true);
+                return new ValueTask(Task.Delay(System.Threading.Timeout.Infinite, ct));
+            }
+
+            public ValueTask<bool> CompareAndSwapAsync(
+                string key,
+                ByteString expected,
+                ByteString value,
+                System.Threading.CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(true);
+            }
+
+            public ValueTask<bool> DeleteAsync(string key, System.Threading.CancellationToken ct = default)
+            {
+                m_writeStarted.TrySetResult(true);
+                return WaitForDeleteCancellationAsync(ct);
+            }
+
+            public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+                string keyPrefix,
+                [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default)
+            {
+                yield break;
+            }
+
+            public async IAsyncEnumerable<KeyValueChange> WatchAsync(
+                string keyPrefix,
+                [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default)
+            {
+                yield break;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+
+            private static async ValueTask<bool> WaitForDeleteCancellationAsync(System.Threading.CancellationToken ct)
+            {
+                await Task.Delay(System.Threading.Timeout.Infinite, ct).ConfigureAwait(false);
+                return false;
+            }
+
+            private readonly TaskCompletionSource<bool> m_writeStarted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
 }

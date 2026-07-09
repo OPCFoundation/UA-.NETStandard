@@ -398,6 +398,8 @@ namespace Opc.Ua.Bindings
             MaxChannelCount = settings.MaxChannelCount;
             m_listenBacklog = settings.ListenBacklog > 0 ? settings.ListenBacklog : kDefaultSocketBacklog;
             m_connectionRateLimiter = settings.ConnectionRateLimiter;
+            m_acceptedTransportDecorator = settings.AcceptedTransportDecorator;
+            m_onAcceptedChannel = settings.OnAcceptedChannel;
 
             // save the callback to the server.
             m_callback = callback;
@@ -525,6 +527,8 @@ namespace Opc.Ua.Bindings
                     m_descriptions,
                     m_telemetry);
 
+                ConfigureAcceptedChannel(channel);
+
                 uint channelId = GetNextChannelId();
                 channel.StatusChanged += Channel_StatusChanged;
                 channel.BeginReverseConnect(
@@ -540,6 +544,18 @@ namespace Opc.Ua.Bindings
                 channel?.Dispose();
             }
 #pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Applies the optional capture seam to a freshly created accepted
+        /// channel: installs the transport decorator and invokes the
+        /// accepted-channel callback. Both are no-ops when the listener was
+        /// opened without capture settings.
+        /// </summary>
+        private void ConfigureAcceptedChannel(TcpListenerChannel channel)
+        {
+            channel.TransportDecorator = m_acceptedTransportDecorator;
+            m_onAcceptedChannel?.Invoke(channel);
         }
 
         private void Channel_StatusChanged(
@@ -1115,6 +1131,8 @@ namespace Opc.Ua.Bindings
                                             OnReportAuditCertificateEvent));
                                 }
 
+                                ConfigureAcceptedChannel(channel);
+
                                 uint channelId;
                                 do
                                 {
@@ -1408,6 +1426,8 @@ namespace Opc.Ua.Bindings
         private ConcurrentDictionary<uint, TcpListenerChannel>? m_channels;
         private ITransportListenerCallback? m_callback;
         private bool m_reverseConnectListener;
+        private Func<IUaSCByteTransport, IUaSCByteTransport>? m_acceptedTransportDecorator;
+        private Action<TcpListenerChannel>? m_onAcceptedChannel;
         private int m_inactivityDetectPeriod;
         private ITimer? m_inactivityDetectionTimer;
         private ActiveClientTracker? m_activeClientTracker;

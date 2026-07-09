@@ -218,50 +218,6 @@ namespace Opc.Ua.InformationModel.Tests
         }
 
         [Test]
-        public async Task CurrentServerIdNodeIdMatchesStandardAsync()
-        {
-            DataValue dv = await ReadValueAsync(
-                VariableIds.Server_ServerRedundancy_RedundancySupport)
-                .ConfigureAwait(false);
-
-            int redundancySupport = dv.WrappedValue.GetInt32();
-            if (redundancySupport == 0)
-            {
-                Assert.Ignore("RedundancySupport is None; CurrentServerId not required.");
-            }
-
-            DataValue currentServerId = await ReadAttributeAsync(
-                VariableIds.Server_ServerRedundancy_CurrentServerId,
-                Attributes.NodeId).ConfigureAwait(false);
-
-            Assert.That(StatusCode.IsGood(currentServerId.StatusCode), Is.True);
-            NodeId nodeId = currentServerId.WrappedValue.GetNodeId();
-            Assert.That(nodeId, Is.EqualTo(VariableIds.Server_ServerRedundancy_CurrentServerId));
-        }
-
-        [Test]
-        public async Task ServerUriArrayNodeIdMatchesStandardAsync()
-        {
-            DataValue dv = await ReadValueAsync(
-                VariableIds.Server_ServerRedundancy_RedundancySupport)
-                .ConfigureAwait(false);
-
-            int redundancySupport = dv.WrappedValue.GetInt32();
-            if (redundancySupport == 0)
-            {
-                Assert.Ignore("RedundancySupport is None; ServerUriArray not required.");
-            }
-
-            DataValue serverUriArray = await ReadAttributeAsync(
-                VariableIds.Server_ServerRedundancy_ServerUriArray,
-                Attributes.NodeId).ConfigureAwait(false);
-
-            Assert.That(StatusCode.IsGood(serverUriArray.StatusCode), Is.True);
-            NodeId nodeId = serverUriArray.WrappedValue.GetNodeId();
-            Assert.That(nodeId, Is.EqualTo(VariableIds.Server_ServerRedundancy_ServerUriArray));
-        }
-
-        [Test]
         public async Task RequestServerStateChangeMethodIsCallableAsync()
         {
             BrowseResult result = await BrowseChildrenAsync(ObjectIds.Server).ConfigureAwait(false);

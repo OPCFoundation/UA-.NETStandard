@@ -28,94 +28,132 @@
  * ======================================================================*/
 
 using System;
-using System.Net;
-using System.Net.Sockets;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua;
-using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Encoding.Uadp;
-using Opc.Ua.PubSub.MetaData;
-using Opc.Ua.PubSub.Udp;
+using Opc.Ua.PubSub.Transcoding;
 
 namespace RedundantPubSub
 {
-    public sealed class RawUdpSequenceMonitor : BackgroundService
+    /// <summary>
+    /// Hosted service that registers a receive-path observer on the subscriber's real PubSub
+    /// connection and feeds each observed SequenceNumber to the
+    /// <see cref="SequenceContinuityMonitor"/>.
+    /// </summary>
+    public sealed class RawUdpSequenceMonitor : IHostedService, IReceivedNetworkMessageSink, IDisposable
     {
+        /// <summary>
+        /// Initializes a new <see cref="RawUdpSequenceMonitor"/>.
+        /// </summary>
+        /// <param name="serviceProvider">Provider used to resolve the PubSub application.</param>
+        /// <param name="options">Parsed sample options describing the endpoint and writer ids.</param>
+        /// <param name="monitor">Monitor that evaluates SequenceNumber continuity.</param>
+        /// <param name="logger">Logger used to report listening state.</param>
         public RawUdpSequenceMonitor(
+            IServiceProvider serviceProvider,
             SampleOptions options,
             SequenceContinuityMonitor monitor,
             ILogger<RawUdpSequenceMonitor> logger)
         {
+            m_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        /// <summary>
+        /// Registers the receive-path observer before the PubSub application starts receiving.
+        /// </summary>
+        /// <param name="cancellationToken">Token signaled if startup is cancelled.</param>
+        /// <returns>A completed task.</returns>
+        public Task StartAsync(CancellationToken cancellationToken)
         {
-            UdpEndpoint endpoint = UdpEndpointParser.Parse(m_options.Endpoint);
-            using UdpClient client = CreateClient(endpoint);
-            PubSubNetworkMessageContext context = CreateContext();
-            m_logger.LogInformation("Sequence monitor listening on {Endpoint}.", m_options.Endpoint);
-
-            while (!stoppingToken.IsCancellationRequested)
+            IPubSubApplication application = m_serviceProvider.GetRequiredService<IPubSubApplication>();
+            IReadOnlyList<IPubSubConnection> connections = application.Connections;
+            if (connections.Count == 0)
             {
-                UdpReceiveResult result = await client.ReceiveAsync(stoppingToken).ConfigureAwait(false);
-                PubSubNetworkMessage? message = UadpDecoder.Decode(result.Buffer, context);
-                if (message is null)
-                {
-                    continue;
-                }
+                m_logger.LogWarning("Sequence monitor found no PubSub connections to observe.");
+                return Task.CompletedTask;
+            }
 
-                for (int ii = 0; ii < message.DataSetMessages.Count; ii++)
+            m_registrations = new IDisposable[connections.Count];
+            for (int ii = 0; ii < connections.Count; ii++)
+            {
+                m_registrations[ii] = connections[ii].RegisterReceivedNetworkMessageSink(this);
+            }
+
+            m_logger.LogInformation(
+                "Sequence monitor observing {ConnectionCount} PubSub connection(s) on {Endpoint}.",
+                connections.Count,
+                m_options.Endpoint);
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Removes the receive-path observer registrations.
+        /// </summary>
+        /// <param name="cancellationToken">Token signaled if shutdown is cancelled.</param>
+        /// <returns>A completed task.</returns>
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            DisposeRegistrations();
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Observes each decoded data NetworkMessage inline on the subscriber receive path.
+        /// </summary>
+        /// <param name="received">The decoded NetworkMessage observed by the subscriber.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>A completed task.</returns>
+        public ValueTask OnReceivedAsync(ReceivedNetworkMessage received, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            for (int ii = 0; ii < received.Message.DataSetMessages.Count; ii++)
+            {
+                PubSubDataSetMessage dataSetMessage = received.Message.DataSetMessages[ii];
+                if (dataSetMessage.DataSetWriterId == m_options.DataSetWriterId)
                 {
-                    PubSubDataSetMessage dataSetMessage = message.DataSetMessages[ii];
-                    if (dataSetMessage.DataSetWriterId == m_options.DataSetWriterId)
-                    {
-                        m_monitor.OnSequence(dataSetMessage.SequenceNumber, dataSetMessage.Fields);
-                    }
+                    m_monitor.OnSequence(dataSetMessage.SequenceNumber, dataSetMessage.Fields);
                 }
             }
+
+            return ValueTask.CompletedTask;
         }
 
-        private UdpClient CreateClient(UdpEndpoint endpoint)
+        /// <summary>
+        /// Disposes the receive-path observer registrations.
+        /// </summary>
+        public void Dispose()
         {
-            var client = new UdpClient(AddressFamily.InterNetwork);
-            client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            client.ExclusiveAddressUse = false;
-            client.Client.Bind(new IPEndPoint(IPAddress.Any, endpoint.Port));
-            if (endpoint.AddressType == UdpAddressType.Multicast)
+            DisposeRegistrations();
+        }
+
+        private void DisposeRegistrations()
+        {
+            if (m_registrations is null)
             {
-                client.JoinMulticastGroup(endpoint.Address);
+                return;
             }
-            return client;
+
+            for (int ii = 0; ii < m_registrations.Length; ii++)
+            {
+                m_registrations[ii].Dispose();
+            }
+
+            m_registrations = null;
         }
 
-        private PubSubNetworkMessageContext CreateContext()
-        {
-            var registry = new DataSetMetaDataRegistry();
-            DataSetMetaDataType metaData = HaDataSetSource.BuildMetaDataCore();
-            registry.Register(
-                new DataSetMetaDataKey(
-                    PublisherId.FromUInt16(m_options.PublisherId),
-                    m_options.WriterGroupId,
-                    m_options.DataSetWriterId,
-                    Uuid.Empty,
-                    metaData.ConfigurationVersion?.MajorVersion ?? 1),
-                metaData);
-            return new PubSubNetworkMessageContext(
-                ServiceMessageContext.CreateEmpty(DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning))),
-                registry,
-                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
-                TimeProvider.System);
-        }
-
+        private readonly IServiceProvider m_serviceProvider;
         private readonly SampleOptions m_options;
         private readonly SequenceContinuityMonitor m_monitor;
         private readonly ILogger<RawUdpSequenceMonitor> m_logger;
+        private IDisposable[]? m_registrations;
     }
 }
