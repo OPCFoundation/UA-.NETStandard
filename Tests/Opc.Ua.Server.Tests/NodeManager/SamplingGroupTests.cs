@@ -232,6 +232,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.True);
             Assert.That(addedWithNullContext, Is.False);
             item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
+        }
 
         [Test]
         public void StartMonitoringRejectsMismatchedOwnerIdentitySessionless()
