@@ -213,7 +213,7 @@ namespace Opc.Ua.Di.Tests
                 .ConfigureAwait(false);
 
             IDeviceBuilder<DeviceState> wrapped =
-                m_fixture.Manager.Device<DeviceState>(created.Device);
+                m_fixture.Manager.Device(created.Device);
 
             Assert.That(wrapped.Device, Is.SameAs(created.Device));
         }

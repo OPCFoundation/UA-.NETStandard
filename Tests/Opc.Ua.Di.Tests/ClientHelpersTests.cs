@@ -143,12 +143,12 @@ namespace Opc.Ua.Di.Tests
             Assert.That(client.SoftwareUpdateNodeId, Is.EqualTo(nodeId));
         }
 
-        private static Opc.Ua.Client.ISession FakeSession()
+        private static ISession FakeSession()
         {
             // Use the SessionStub from the existing DI client tests if
             // one exists; otherwise Moq the ISession. Since this test
             // never invokes Browse/Read/Call, an empty Moq is enough.
-            var mock = new Moq.Mock<Opc.Ua.Client.ISession>();
+            var mock = new Moq.Mock<ISession>();
             var nsTable = new NamespaceTable();
             nsTable.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);

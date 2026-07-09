@@ -263,8 +263,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
             using TcpListenerChannel channel = BuildChannel(listenerMock);
 
-            ListenerChannelTokenActivatedEventHandler handler =
-                (ch, current, previous) => { };
+            void handler(TcpListenerChannel ch, ChannelToken? current, ChannelToken? previous)
+            { }
 
             Assert.That(() =>
             {
