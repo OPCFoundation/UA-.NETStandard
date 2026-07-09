@@ -269,7 +269,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// </summary>
         private sealed class StubWebApiServer : IWebApiServer
         {
-
             public StubWebApiServer(IServiceMessageContext messageContext)
             {
                 MessageContext = messageContext;

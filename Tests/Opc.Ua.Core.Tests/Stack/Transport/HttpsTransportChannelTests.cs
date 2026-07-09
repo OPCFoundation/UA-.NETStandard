@@ -512,7 +512,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         private sealed class FakeWaitingConnection : ITransportWaitingConnection
         {
-
             internal FakeWaitingConnection(Uri url)
             {
                 EndpointUrl = url;

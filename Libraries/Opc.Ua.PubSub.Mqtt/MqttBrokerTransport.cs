@@ -89,7 +89,6 @@ namespace Opc.Ua.PubSub.Mqtt
         private const string ConnectionTopicSegment = "/connection/";
 
         private readonly PubSubConnectionDataType m_connection;
-        private readonly MqttConnectionOptions m_options;
         private readonly IMqttClientFactory m_clientFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
@@ -167,14 +166,14 @@ namespace Opc.Ua.PubSub.Mqtt
             m_connection = connection;
             Endpoint = endpoint;
             Direction = direction;
-            m_options = options;
+            Options = options;
             m_clientFactory = clientFactory;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_diagnostics = diagnostics;
             m_logger = telemetry.CreateLogger<MqttBrokerTransport>();
             TransportProfileUri = DetermineTransportProfileUri(connection);
-            m_topicQos = BuildTopicQosMap(connection, m_options, TransportProfileUri);
+            m_topicQos = BuildTopicQosMap(connection, Options, TransportProfileUri);
             AddDefaultSubscriptions();
         }
 
@@ -207,7 +206,7 @@ namespace Opc.Ua.PubSub.Mqtt
         /// Resolved connection options. Exposed for diagnostics and
         /// tests; the password bytes are never serialized.
         /// </summary>
-        public MqttConnectionOptions Options => m_options;
+        public MqttConnectionOptions Options { get; }
 
         /// <summary>
         /// Topic subscriptions installed on the broker session. May be
@@ -236,7 +235,7 @@ namespace Opc.Ua.PubSub.Mqtt
                 {
                     return;
                 }
-                adapter = m_clientFactory.CreateAdapter(m_options, m_telemetry, m_timeProvider);
+                adapter = m_clientFactory.CreateAdapter(Options, m_telemetry, m_timeProvider);
                 if (HasReceiveDirection)
                 {
                     channel = Channel.CreateBounded<PubSubTransportFrame>(
@@ -256,15 +255,15 @@ namespace Opc.Ua.PubSub.Mqtt
 
             try
             {
-                await adapter.ConnectAsync(m_options, cancellationToken).ConfigureAwait(false);
+                await adapter.ConnectAsync(Options, cancellationToken).ConfigureAwait(false);
                 if (HasReceiveDirection && Subscriptions.Count > 0)
                 {
                     var topicList = new List<MqttTopicFilter>(Subscriptions);
-                    if (topicList.Count > m_options.MaxConcurrentSubscriptions)
+                    if (topicList.Count > Options.MaxConcurrentSubscriptions)
                     {
                         throw new InvalidOperationException(
                             $"Requested {topicList.Count} subscriptions exceeds " +
-                            $"MaxConcurrentSubscriptions={m_options.MaxConcurrentSubscriptions}.");
+                            $"MaxConcurrentSubscriptions={Options.MaxConcurrentSubscriptions}.");
                     }
                     foreach (MqttTopicFilter filter in topicList)
                     {
@@ -408,8 +407,8 @@ namespace Opc.Ua.PubSub.Mqtt
 
             bool isMetaData = IsMetaDataTopic(topic);
             bool isDiscovery = IsDiscoveryTopic(topic);
-            bool retain = (isMetaData && m_options.Topics.RetainMetaDataMessages) ||
-                (isDiscovery && m_options.Topics.RetainDiscoveryMessages);
+            bool retain = (isMetaData && Options.Topics.RetainMetaDataMessages) ||
+                (isDiscovery && Options.Topics.RetainDiscoveryMessages);
             string? contentType = MapContentType(TransportProfileUri);
             var message = new MqttMessage(
                 topic,
@@ -550,7 +549,7 @@ namespace Opc.Ua.PubSub.Mqtt
                 return metadataQueue;
             }
             return MqttTopicBuilder.BuildMetaDataTopic(
-                m_options.Topics.Prefix,
+                Options.Topics.Prefix,
                 encoding,
                 publisherId.ToVariant(),
                 writerGroupId,
@@ -581,7 +580,7 @@ namespace Opc.Ua.PubSub.Mqtt
                 return groupQueue;
             }
             return MqttTopicBuilder.BuildDataTopic(
-                m_options.Topics.Prefix,
+                Options.Topics.Prefix,
                 ResolveEncoding(TransportProfileUri),
                 publisherId.ToVariant(),
                 writerGroup.WriterGroupId,
@@ -592,7 +591,7 @@ namespace Opc.Ua.PubSub.Mqtt
         public string BuildDiscoveryTopic(PublisherId publisherId, string messageTypeSegment)
         {
             return MqttTopicBuilder.BuildPublisherTopic(
-                m_options.Topics.Prefix,
+                Options.Topics.Prefix,
                 ResolveEncoding(TransportProfileUri),
                 messageTypeSegment,
                 publisherId.ToVariant());
@@ -602,10 +601,10 @@ namespace Opc.Ua.PubSub.Mqtt
         public void ConfigureLastWill(string topic, ReadOnlyMemory<byte> payload, bool retain)
         {
             ValidateTopic(topic, allowWildcards: false);
-            m_options.WillTopic = topic;
-            m_options.WillPayload = payload.ToArray();
-            m_options.WillRetain = retain;
-            m_options.WillQos = m_options.Topics.DefaultQos;
+            Options.WillTopic = topic;
+            Options.WillPayload = payload.ToArray();
+            Options.WillRetain = retain;
+            Options.WillQos = Options.Topics.DefaultQos;
         }
 
         private void AddDefaultSubscriptions()
@@ -615,8 +614,8 @@ namespace Opc.Ua.PubSub.Mqtt
                 return;
             }
             MqttEncoding encoding = ResolveEncoding(TransportProfileUri);
-            string prefix = m_options.Topics.Prefix;
-            MqttQualityOfService qos = m_options.Topics.DefaultQos;
+            string prefix = Options.Topics.Prefix;
+            MqttQualityOfService qos = Options.Topics.DefaultQos;
             AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/metadata/#", qos);
             AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/application/#", qos);
             AddSubscription($"{prefix}/{encoding.ToTopicSegment()}/endpoints/#", qos);
@@ -640,7 +639,7 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             return m_topicQos.TryGetValue(topic, out MqttQualityOfService qos)
                 ? qos
-                : m_options.Topics.DefaultQos;
+                : Options.Topics.DefaultQos;
         }
 
         private bool TryFindWriter(

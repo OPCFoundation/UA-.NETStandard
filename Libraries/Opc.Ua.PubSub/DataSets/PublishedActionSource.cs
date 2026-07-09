@@ -43,7 +43,6 @@ namespace Opc.Ua.PubSub.DataSets
     /// </remarks>
     public sealed class PublishedActionSource : IPublishedDataSetSource
     {
-
         /// <summary>
         /// Initializes a new <see cref="PublishedActionSource"/>.
         /// </summary>

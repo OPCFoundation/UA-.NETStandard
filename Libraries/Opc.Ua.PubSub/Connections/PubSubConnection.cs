@@ -1184,7 +1184,6 @@ namespace Opc.Ua.PubSub.Connections
 
             PublisherId publisherId = message.PublisherId;
 
-
             DataSetMetaDataType? meta;
             ushort writerId;
             Uuid classId;

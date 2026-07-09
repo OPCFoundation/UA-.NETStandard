@@ -389,6 +389,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             uint count = m_perPartitionCount.TryGetValue(partition, out uint c) ? c : 0;
             return count < MaxItemsPerPartition;
         }
+
         private readonly Dictionary<IManagedSubscription, uint> m_perPartitionCount = [];
 
         private readonly Dictionary<string, IManagedSubscription> m_affinityIndex

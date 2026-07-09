@@ -1260,6 +1260,7 @@ namespace Opc.Ua
         private static readonly Lazy<DefaultTransportBindingRegistry> s_defaultBindings = new(
             CreateDefaultBindingsRegistry,
             LazyThreadSafetyMode.ExecutionAndPublication);
+
         private readonly ClientChannelManagerDiagnostics m_diagnostics = new();
     }
 
