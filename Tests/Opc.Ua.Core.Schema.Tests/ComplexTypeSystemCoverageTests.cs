@@ -33,6 +33,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 
 // The encodeable type registry API is experimental; the schema factory source
@@ -454,6 +456,29 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        [Test]
+        public void DataDictionaryCoversLookupAndValidationPaths()
+        {
+            NodeId enumDescriptionId = new(8801, SchemaTestData.TestNamespaceIndex);
+            NodeId structureDescriptionId = new(8802, SchemaTestData.TestNamespaceIndex);
+            DataDictionary binaryDictionary = CreateBinaryDictionary(enumDescriptionId, structureDescriptionId);
+            DataDictionary xmlDictionary = CreateDictionaryWithTypeSystem(new NodeId(Objects.XmlSchema_TypeSystem));
+
+            InvokeValidate(binaryDictionary, InvalidDictionaryBytes, throwOnError: false);
+            InvokeValidate(xmlDictionary, InvalidDictionaryBytes, throwOnError: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(binaryDictionary.Contains(enumDescriptionId), Is.True);
+                Assert.That(binaryDictionary.Contains(new NodeId(9999, SchemaTestData.TestNamespaceIndex)), Is.False);
+                Assert.That(binaryDictionary.GetSchema(new NodeId(9999, SchemaTestData.TestNamespaceIndex)), Is.Null);
+                Assert.That(binaryDictionary.GetSchema(NodeId.Null), Does.Contain("TypeDictionary"));
+                Assert.That(
+                    () => InvokeValidate(binaryDictionary, InvalidDictionaryBytes, throwOnError: true),
+                    Throws.TypeOf<System.Reflection.TargetInvocationException>());
+            });
+        }
+
         private static TestComplexTypeResolver CreateResolverWithEnumStructureAndOptionSet()
         {
             var resolver = new TestComplexTypeResolver();
@@ -609,6 +634,8 @@ namespace Opc.Ua.Schema.Tests
             return (T?)tuple?.GetType().GetField(itemName)!.GetValue(tuple);
         }
 
+        private static readonly byte[] InvalidDictionaryBytes = [1, 2, 3];
+
         private static EnumDefinition CreateEnumDefinition(params string[] names)
         {
             var fields = new EnumField[names.Length];
@@ -676,6 +703,29 @@ namespace Opc.Ua.Schema.Tests
                     ]
                 });
             return dictionary;
+        }
+
+        private static DataDictionary CreateDictionaryWithTypeSystem(NodeId typeSystemId)
+        {
+            var dictionary = (DataDictionary)Activator.CreateInstance(typeof(DataDictionary), nonPublic: true)!;
+            SetInternalProperty(dictionary, nameof(DataDictionary.TypeSystemId), typeSystemId);
+            SetInternalProperty(dictionary, nameof(DataDictionary.DataTypes), new NodeIdDictionary<QualifiedName>());
+            return dictionary;
+        }
+
+        private static void InvokeValidate(
+            DataDictionary dictionary,
+            byte[] bytes,
+            bool throwOnError)
+        {
+            typeof(DataDictionary)
+                .GetMethod(
+                    "Validate",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+                    null,
+                    [typeof(byte[]), typeof(bool), typeof(ILogger)],
+                    null)!
+                .Invoke(dictionary, [bytes, throwOnError, NullLogger.Instance]);
         }
 
         private static void SetInternalProperty<T>(
