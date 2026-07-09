@@ -381,6 +381,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             return string.Join(",", entries);
         }
+
         private readonly string m_pkiRoot;
     }
 }

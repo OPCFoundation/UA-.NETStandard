@@ -246,6 +246,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public void Close()
             {
             }
+
             public void Dispose()
             {
             }
