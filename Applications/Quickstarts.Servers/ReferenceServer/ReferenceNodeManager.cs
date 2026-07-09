@@ -324,11 +324,11 @@ namespace Quickstarts.ReferenceServer
                     // enforced once present, every role the CTT connects as
                     // must be listed or it is denied all access: the CTT main
                     // session authenticates as user1 (AuthenticatedUser), so
-                    // Anonymous AND AuthenticatedUser are granted
-                    // Browse + Read + Write + ReadHistory + ReadRolePermissions
-                    // (write/history are exercised by the WriteMask, Historical
-                    // Access and Aggregate conformance units); SecurityAdmin
-                    // gets full permissions for write-attribute scenarios.
+                    // Anonymous AND AuthenticatedUser are both granted
+                    // Browse + Read + Write + WriteAttribute + ReadHistory +
+                    // ReadRolePermissions (write/history are exercised by the
+                    // WriteMask, Historical Access and Aggregate conformance
+                    // units), while SecurityAdmin gets the full permission set.
                     // WriteAttribute is required so the Address Space WriteMask
                     // conformance unit can write the non-Value attributes the
                     // node's WriteMask advertises as writable: once explicit
