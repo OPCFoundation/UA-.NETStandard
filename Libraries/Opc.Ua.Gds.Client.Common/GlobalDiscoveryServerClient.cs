@@ -930,9 +930,14 @@ namespace Opc.Ua.Gds.Client
                     Session.Factory.Builder.AddOpcUaGds().Commit();
                 }
 
+                // Explicit type + IDE0007 suppression: ExpandedNodeId.ToNodeId is a
+                // known var-vs-explicit oscillation site (IDE0007/IDE0008 flip-flop
+                // because Roslyn's "type is apparent" heuristic is inconsistent here).
+#pragma warning disable IDE0007 // Use implicit type
                 NodeId directoryNodeId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory,
                     Session.NamespaceUris);
+#pragma warning restore IDE0007 // Use implicit type
                 m_directory = new DirectoryTypeClient(
                     Session,
                     directoryNodeId,
