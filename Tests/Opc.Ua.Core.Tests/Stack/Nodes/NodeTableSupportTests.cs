@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -141,6 +143,208 @@ namespace Opc.Ua.Core.Tests.Stack.Nodes
                 Throws.ArgumentNullException);
         }
 
+        [Test]
+        public void AsyncTypeTableAdapterForwardsSynchronousCalls()
+        {
+            var asyncTable = new RecordingAsyncTypeTable();
+            ITypeTable table = asyncTable.AsTypeTable();
+            ExpandedNodeId expandedTypeId = ObjectTypeIds.BaseObjectType;
+            NodeId typeId = VariableTypeIds.BaseVariableType;
+            QualifiedName browseName = new(BrowseNames.HasSubtype);
+
+            Assert.That(table.IsKnown(expandedTypeId), Is.True);
+            Assert.That(table.IsKnown(typeId), Is.False);
+            Assert.That(table.FindSuperType(expandedTypeId), Is.EqualTo(ObjectTypeIds.BaseObjectType));
+            Assert.That(table.FindSuperType(typeId), Is.EqualTo(VariableTypeIds.BaseVariableType));
+            Assert.That(table.FindSuperTypeAsync(expandedTypeId).GetAwaiter().GetResult(), Is.EqualTo(ObjectTypeIds.BaseObjectType));
+            Assert.That(table.FindSuperTypeAsync(typeId).GetAwaiter().GetResult(), Is.EqualTo(VariableTypeIds.BaseVariableType));
+            Assert.That(table.FindSubTypes(expandedTypeId), Is.EqualTo(new ArrayOf<NodeId>(new[] { typeId })));
+            Assert.That(table.IsTypeOf(expandedTypeId, ObjectTypeIds.BaseObjectType), Is.True);
+            Assert.That(table.IsTypeOf(typeId, ObjectTypeIds.BaseObjectType), Is.False);
+            Assert.That(table.FindReferenceTypeName(ReferenceTypeIds.HasSubtype), Is.EqualTo(browseName));
+            Assert.That(table.FindReferenceType(browseName), Is.EqualTo(ReferenceTypeIds.HasSubtype));
+            Assert.That(table.IsEncodingOf(DataTypeIds.Structure, DataTypeIds.BaseDataType), Is.True);
+            Assert.That(table.IsEncodingFor(DataTypeIds.Structure, new ExtensionObject()), Is.True);
+            Assert.That(table.IsEncodingFor(DataTypeIds.Structure, new Variant(123)), Is.True);
+            Assert.That(table.FindDataTypeId(DataTypeIds.Structure), Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(table.FindDataTypeId((NodeId)DataTypeIds.Structure), Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(asyncTable.CallCount, Is.EqualTo(16));
+        }
+
+        [Test]
+        public void AsyncNodeTableAdapterForwardsSynchronousCallsAndTables()
+        {
+            var asyncTypeTable = new RecordingAsyncTypeTable();
+            var asyncNodeTable = new RecordingAsyncNodeTable(asyncTypeTable);
+            INodeTable table = asyncNodeTable.AsNodeTable();
+            ExpandedNodeId sourceId = ObjectIds.Server;
+
+            Assert.That(table.NamespaceUris, Is.SameAs(asyncNodeTable.NamespaceUris));
+            Assert.That(table.ServerUris, Is.SameAs(asyncNodeTable.ServerUris));
+            Assert.That(table.TypeTree.IsKnown(ObjectTypeIds.BaseObjectType), Is.True);
+            Assert.That(table.Exists(sourceId), Is.True);
+            Assert.That(table.Find(sourceId), Is.Null);
+            Assert.That(
+                table.Find(sourceId, ReferenceTypeIds.HasComponent, false, true, new QualifiedName(BrowseNames.Server)),
+                Is.Null);
+            Assert.That(
+                table.Find(sourceId, ReferenceTypeIds.HasComponent, false, true),
+                Is.Empty);
+            Assert.That(asyncNodeTable.CallCount, Is.EqualTo(4));
+        }
+
         private static readonly string[] s_preferredLocales = ["en-US", "de-DE"];
+
+        private sealed class RecordingAsyncNodeTable : IAsyncNodeTable
+        {
+            public RecordingAsyncNodeTable(IAsyncTypeTable typeTree)
+            {
+                TypeTree = typeTree;
+            }
+
+            public int CallCount { get; private set; }
+
+            public NamespaceTable NamespaceUris { get; } = new();
+
+            public StringTable ServerUris { get; } = new();
+
+            public IAsyncTypeTable TypeTree { get; }
+
+            public ValueTask<bool> ExistsAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(nodeId == ObjectIds.Server);
+            }
+
+            public ValueTask<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<INode>((INode)null);
+            }
+
+            public ValueTask<INode> FindAsync(
+                ExpandedNodeId sourceId,
+                NodeId referenceTypeId,
+                bool isInverse,
+                bool includeSubtypes,
+                QualifiedName browseName,
+                CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<INode>((INode)null);
+            }
+
+            public ValueTask<ArrayOf<INode>> FindAsync(
+                ExpandedNodeId sourceId,
+                NodeId referenceTypeId,
+                bool isInverse,
+                bool includeSubtypes,
+                CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<ArrayOf<INode>>(new ArrayOf<INode>(Array.Empty<INode>()));
+            }
+        }
+
+        private sealed class RecordingAsyncTypeTable : IAsyncTypeTable
+        {
+            public int CallCount { get; private set; }
+
+            public ValueTask<bool> IsKnownAsync(ExpandedNodeId typeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(typeId == ObjectTypeIds.BaseObjectType);
+            }
+
+            public ValueTask<bool> IsKnownAsync(NodeId typeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(typeId == ObjectTypeIds.BaseObjectType);
+            }
+
+            public ValueTask<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<NodeId>(ObjectTypeIds.BaseObjectType);
+            }
+
+            public ValueTask<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<NodeId>(VariableTypeIds.BaseVariableType);
+            }
+
+            public ValueTask<ArrayOf<NodeId>> FindSubTypesAsync(ExpandedNodeId typeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<ArrayOf<NodeId>>(
+                    new ArrayOf<NodeId>(new[] { VariableTypeIds.BaseVariableType }));
+            }
+
+            public ValueTask<bool> IsTypeOfAsync(
+                ExpandedNodeId subTypeId,
+                ExpandedNodeId superTypeId,
+                CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(true);
+            }
+
+            public ValueTask<bool> IsTypeOfAsync(NodeId subTypeId, NodeId superTypeId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(false);
+            }
+
+            public ValueTask<QualifiedName> FindReferenceTypeNameAsync(
+                NodeId referenceTypeId,
+                CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<QualifiedName>(new QualifiedName(BrowseNames.HasSubtype));
+            }
+
+            public ValueTask<NodeId> FindReferenceTypeAsync(QualifiedName browseName, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<NodeId>(ReferenceTypeIds.HasSubtype);
+            }
+
+            public ValueTask<bool> IsEncodingOfAsync(
+                ExpandedNodeId encodingId,
+                ExpandedNodeId datatypeId,
+                CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(true);
+            }
+
+            public ValueTask<bool> IsEncodingForAsync(
+                NodeId expectedTypeId,
+                ExtensionObject value,
+                CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(true);
+            }
+
+            public ValueTask<bool> IsEncodingForAsync(NodeId expectedTypeId, Variant value, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<bool>(true);
+            }
+
+            public ValueTask<NodeId> FindDataTypeIdAsync(ExpandedNodeId encodingId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<NodeId>(DataTypeIds.BaseDataType);
+            }
+
+            public ValueTask<NodeId> FindDataTypeIdAsync(NodeId encodingId, CancellationToken ct = default)
+            {
+                CallCount++;
+                return new ValueTask<NodeId>(DataTypeIds.BaseDataType);
+            }
+        }
     }
 }
