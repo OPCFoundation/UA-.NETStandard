@@ -216,6 +216,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public void StartMonitoringAcceptsMatchingItemSessionlessByOwnerIdentity()
+        {
+            var identity = new Mock<IUserIdentity>();
+            using SamplingGroup group = CreateGroup(
+                identity.Object, context: SessionlessContext());
+            Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
+
+            bool added = group.StartMonitoring(
+                SessionlessContext(), item.Object, identity.Object);
+
+            bool addedWithNullContext = group.StartMonitoring(
+                null!, item.Object, identity.Object);
+
+            Assert.That(added, Is.True);
+            Assert.That(addedWithNullContext, Is.False);
+            item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
+        }
+
+        [Test]
+        public void StartMonitoringRejectsMismatchedOwnerIdentitySessionless()
+        {
+            var identity = new Mock<IUserIdentity>();
+            var otherIdentity = new Mock<IUserIdentity>();
+            using SamplingGroup group = CreateGroup(
+                identity.Object, context: SessionlessContext());
+            Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
+
+            bool added = group.StartMonitoring(
+                SessionlessContext(), item.Object, otherIdentity.Object);
+
+            Assert.That(added, Is.False);
+        }
+
+        [Test]
         public void StopMonitoringReturnsFalseForUnknownItem()
         {
             var identity = new Mock<IUserIdentity>();
