@@ -446,11 +446,31 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             IOpcUaServerBuilder builder = CreateServerBuilder();
 
-            IOpcUaServerBuilder returned = builder.AddOpcTcpTransport();
+            IOpcUaServerBuilder opcTcp = builder.AddOpcTcpTransport();
+            IOpcUaServerBuilder https = builder.AddHttpsTransport();
+            IOpcUaServerBuilder wss = builder.AddWssTransport();
+            IOpcUaServerBuilder kestrel = builder.AddKestrelOpcTcpTransport();
+            IOpcUaServerBuilder webApi = builder.AddWebApiTransport();
 
             using ServiceProvider sp = builder.Services.BuildServiceProvider();
-            Assert.That(returned, Is.SameAs(builder));
+            Assert.That(opcTcp, Is.SameAs(builder));
+            Assert.That(https, Is.SameAs(builder));
+            Assert.That(wss, Is.SameAs(builder));
+            Assert.That(kestrel, Is.SameAs(builder));
+            Assert.That(webApi, Is.SameAs(builder));
             Assert.That(sp.GetServices<ITransportBindingConfigurator>(), Is.Not.Empty);
+        }
+
+        [Test]
+        public void ServerTransportForwardersThrowForNullBuilder()
+        {
+            IOpcUaServerBuilder builder = null!;
+
+            Assert.Throws<ArgumentNullException>(() => builder.AddOpcTcpTransport());
+            Assert.Throws<ArgumentNullException>(() => builder.AddHttpsTransport());
+            Assert.Throws<ArgumentNullException>(() => builder.AddWssTransport());
+            Assert.Throws<ArgumentNullException>(() => builder.AddKestrelOpcTcpTransport());
+            Assert.Throws<ArgumentNullException>(() => builder.AddWebApiTransport());
         }
 
         [Test]
