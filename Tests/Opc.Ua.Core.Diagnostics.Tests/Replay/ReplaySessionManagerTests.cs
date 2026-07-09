@@ -178,6 +178,75 @@ namespace Opc.Ua.Pcap.Tests.Replay
             Assert.That(sink.Events[0].SessionId, Is.EqualTo("session"));
         }
 
+        [Test]
+        public async Task StartGetListStopAndDisposeAuditMockServerSession()
+        {
+            var sink = new RecordingAuditSink();
+            var manager = new ReplaySessionManager(auditSink: sink);
+            await using (manager.ConfigureAwait(false))
+            {
+                StartReplayRequest request = await CreateServerRequestAsync().ConfigureAwait(false);
+
+                ReplaySession session = await manager.StartAsync(request, CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(session.IsRunning, Is.True);
+                Assert.That(session.Mode, Is.EqualTo(ReplayMode.MockServer));
+                Assert.That(session.ListenUri, Is.Not.Null);
+                Assert.That(manager.Get(session.Id), Is.SameAs(session));
+                Assert.That(manager.List(), Has.Count.EqualTo(1));
+                Assert.That(sink.Events, Has.Count.EqualTo(1));
+                Assert.That(sink.Events[0].Kind, Is.EqualTo(PcapAuditEventKind.StartReplay));
+
+                await manager.StopAsync(session.Id, CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(session.IsRunning, Is.False);
+                Assert.That(sink.Events, Has.Count.EqualTo(2));
+                Assert.That(sink.Events[1].Kind, Is.EqualTo(PcapAuditEventKind.StopReplay));
+            }
+
+            Assert.That(sink.Events, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task StartAsyncRejectsUnsupportedModeAndMockClientWithoutTarget()
+        {
+            var manager = new ReplaySessionManager();
+            await using (manager.ConfigureAwait(false))
+            {
+                StartReplayRequest baseRequest = await CreateServerRequestAsync().ConfigureAwait(false);
+                var unsupported = new StartReplayRequest
+                {
+                    Mode = (ReplayMode)999,
+                    PcapFilePath = baseRequest.PcapFilePath,
+                    KeyLogFilePath = baseRequest.KeyLogFilePath
+                };
+                var mockClient = new StartReplayRequest
+                {
+                    Mode = ReplayMode.MockClient,
+                    PcapFilePath = baseRequest.PcapFilePath,
+                    KeyLogFilePath = baseRequest.KeyLogFilePath
+                };
+
+                Assert.That(
+                    async () => await manager.StartAsync(unsupported, CancellationToken.None).ConfigureAwait(false),
+                    Throws.TypeOf<PcapDiagnosticsException>().With.Message.Contains("Unsupported replay mode"));
+                Assert.That(
+                    async () => await manager.StartAsync(mockClient, CancellationToken.None).ConfigureAwait(false),
+                    Throws.TypeOf<PcapDiagnosticsException>().With.Message.Contains("targetEndpointUrl"));
+                Assert.That(manager.List(), Is.Empty);
+            }
+        }
+
+        [Test]
+        public void GetRejectsNullOrWhiteSpaceId()
+        {
+            var manager = new ReplaySessionManager();
+
+            Assert.That(
+                () => manager.Get(" "),
+                Throws.TypeOf<ArgumentException>().With.Property("ParamName").EqualTo("id"));
+        }
+
         private async ValueTask<StartReplayRequest> CreateServerRequestAsync()
         {
             FakeCaptureFolder capture = await ReplayTestHelpers.CreateFakeCaptureFolderAsync(
