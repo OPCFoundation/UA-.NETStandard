@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 .AddOpcUa()
                 .AddServer(opt => { });
 
-            IConfigurationRoot config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+            IConfigurationRoot config = new ConfigurationBuilder().Build();
             Assert.That(
                 () => serverBuilder.AddPubSub(config),
                 Throws.InvalidOperationException);

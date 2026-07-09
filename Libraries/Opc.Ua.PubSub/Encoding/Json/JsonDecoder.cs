@@ -134,13 +134,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     JsonNetworkMessage.MessageTypeMetaData
                         => DecodeMetaData(root, context),
                     JsonDiscoveryMessage.MessageTypeApplication
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.ApplicationInformation),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.ApplicationInformation),
                     JsonDiscoveryMessage.MessageTypeEndpoints
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.PublisherEndpoints),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.PublisherEndpoints),
                     JsonDiscoveryMessage.MessageTypeStatus
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.None),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.None),
                     JsonDiscoveryMessage.MessageTypeConnection
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.PubSubConnection),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.PubSubConnection),
                     JsonActionNetworkMessage.MessageTypeActionRequest
                         => DecodeAction(root, context),
                     JsonActionNetworkMessage.MessageTypeActionResponse
@@ -364,18 +364,18 @@ namespace Opc.Ua.PubSub.Encoding.Json
         private static JsonDiscoveryMessage? DecodeDiscovery(
             JsonElement root,
             PubSubNetworkMessageContext context,
-            Uadp.UadpDiscoveryType? forcedType = null)
+            UadpDiscoveryType? forcedType = null)
         {
             string messageId = ReadOptionalString(root, "MessageId");
             PublisherId publisherId = ReadPublisherId(root);
             uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
             uint statusCode = ReadOptionalUInt32(root, "Status");
-            UadpDiscoveryType discoveryType = forcedType ?? (Uadp.UadpDiscoveryType)typeCode;
-            if (discoveryType == Uadp.UadpDiscoveryType.None &&
+            UadpDiscoveryType discoveryType = forcedType ?? (UadpDiscoveryType)typeCode;
+            if (discoveryType == UadpDiscoveryType.None &&
                 root.TryGetProperty("WriterConfiguration", out _))
             {
-                discoveryType = Uadp.UadpDiscoveryType.DataSetWriterConfiguration;
+                discoveryType = UadpDiscoveryType.DataSetWriterConfiguration;
             }
             var msg = new JsonDiscoveryMessage
             {
@@ -387,7 +387,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             };
             switch (discoveryType)
             {
-                case Uadp.UadpDiscoveryType.ApplicationInformation:
+                case UadpDiscoveryType.ApplicationInformation:
                     if (root.TryGetProperty("ApplicationInformation",
                             out JsonElement appElement) &&
                         appElement.ValueKind == JsonValueKind.Object)
@@ -398,7 +398,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.PubSubConnection:
+                case UadpDiscoveryType.PubSubConnection:
                     if (root.TryGetProperty("Connection", out JsonElement connElement) &&
                         connElement.ValueKind == JsonValueKind.Object)
                     {
@@ -409,7 +409,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.DataSetMetaData:
+                case UadpDiscoveryType.DataSetMetaData:
                     if (root.TryGetProperty("MetaData", out JsonElement metaElement) &&
                         metaElement.ValueKind == JsonValueKind.Object)
                     {
@@ -418,7 +418,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         msg = msg with { MetaData = meta };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.DataSetWriterConfiguration:
+                case UadpDiscoveryType.DataSetWriterConfiguration:
                     msg = msg with
                     {
                         DataSetWriterIds = ReadUInt16Array(root, "DataSetWriterIds")
@@ -434,7 +434,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.PublisherEndpoints:
+                case UadpDiscoveryType.PublisherEndpoints:
                     if (root.TryGetProperty("PublisherEndpoints",
                             out JsonElement epsElement) &&
                         epsElement.ValueKind == JsonValueKind.Array)
@@ -517,7 +517,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             return [.. list];
         }
 
-        private static Uadp.UadpApplicationInformation ReadApplicationInformation(
+        private static UadpApplicationInformation ReadApplicationInformation(
             JsonElement element)
         {
             string text = ReadOptionalString(element, "ApplicationName");
@@ -525,7 +525,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             string appUri = ReadOptionalString(element, "ApplicationUri");
             string productUri = ReadOptionalString(element, "ProductUri");
             uint appType = ReadOptionalUInt32(element, "ApplicationType");
-            return new Uadp.UadpApplicationInformation
+            return new UadpApplicationInformation
             {
                 ApplicationName = new LocalizedText(locale, text),
                 ApplicationUri = appUri,
