@@ -441,10 +441,10 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdmin()
         {
-            UserTokenPolicy[] tokens = new[]
-            {
+            UserTokenPolicy[] tokens =
+            [
                 new UserTokenPolicy { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
-            };
+            ];
             EndpointDescription endpoint = CreateEndpoint(tokens: tokens);
             using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
