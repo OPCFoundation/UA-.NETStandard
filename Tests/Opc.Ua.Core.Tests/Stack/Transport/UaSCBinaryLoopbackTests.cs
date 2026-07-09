@@ -50,9 +50,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class UaSCBinaryLoopbackTests
     {
-        [Test]
-        [CancelAfter(15000)]
-        public async Task ClientAndTcpListenerExchangeRequestAndCloseAsync()
+            private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
+
+            [Test]
+            [CancelAfter(15000)]
+            public async Task ClientAndTcpListenerExchangeRequestAndCloseAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Uri endpointUrl = new($"opc.tcp://127.0.0.1:{GetFreeTcpPort()}");
@@ -114,6 +116,103 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.MessageContext, Is.Not.Null);
             Assert.That(channel.CurrentToken, Is.Not.Null);
             Assert.That(channel.SupportedFeatures, Is.Not.EqualTo(TransportChannelFeatures.None));
+
+            await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+        [Test]
+        [CancelAfter(15000)]
+        public async Task SecureClientAndTcpListenerExchangeSignedEncryptedRequestAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate serverCertificate = s_certificateFactory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = s_certificateFactory.CreateCertificate("CN=client").CreateForRSA();
+            using var serverChain = new CertificateCollection();
+            using var clientChain = new CertificateCollection();
+            Uri endpointUrl = new($"opc.tcp://127.0.0.1:{GetFreeTcpPort()}");
+            EndpointDescription endpoint = CreateEndpoint(endpointUrl);
+            endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            endpoint.ServerCertificate = serverCertificate.RawData.ToByteString();
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.OperationTimeout = 5000;
+            configuration.MaxMessageSize = 64 * 1024;
+            configuration.MaxBufferSize = 64 * 1024;
+            configuration.ChannelLifetime = 60000;
+            configuration.SecurityTokenLifetime = 60000;
+            var callback = new EchoCallback();
+            var certificateRegistry = new Mock<ICertificateRegistry>();
+            certificateRegistry.SetupGet(r => r.SendCertificateChain).Returns(false);
+            certificateRegistry
+                .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256))
+                .Returns(() => new CertificateEntry(
+                    serverCertificate,
+                    serverChain,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            var validator = new Mock<ICertificateValidatorEx>();
+            validator
+                .Setup(v => v.ValidateAsync(
+                    It.IsAny<Certificate>(),
+                    It.IsAny<TrustListIdentifier?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(CertificateValidationResult.Success));
+            validator
+                .Setup(v => v.ValidateAsync(
+                    It.IsAny<CertificateCollection>(),
+                    It.IsAny<TrustListIdentifier?>(),
+                    It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(CertificateValidationResult.Success));
+
+            await using var listener = new TcpTransportListener(telemetry);
+            await listener.OpenAsync(
+                endpointUrl,
+                new TransportListenerSettings
+                {
+                    Descriptions = new List<EndpointDescription> { endpoint },
+                    Configuration = configuration,
+                    ServerCertificates = certificateRegistry.Object,
+                    CertificateValidator = validator.Object,
+                    NamespaceUris = new NamespaceTable(),
+                    Factory = EncodeableFactory.Create(),
+                    MaxChannelCount = 10
+                },
+                callback,
+                CancellationToken.None).ConfigureAwait(false);
+
+            using var channel = new UaSCUaBinaryTransportChannel(new TcpByteTransportFactory(telemetry), telemetry)
+            {
+                OperationTimeout = 5000
+            };
+            await channel.OpenAsync(
+                endpointUrl,
+                new TransportChannelSettings
+                {
+                    Description = endpoint,
+                    Configuration = configuration,
+                    ClientCertificate = clientCertificate,
+                    ClientCertificateChain = clientChain,
+                    ServerCertificate = serverCertificate,
+                    CertificateValidator = validator.Object,
+                    NamespaceUris = new NamespaceTable(),
+                    Factory = EncodeableFactory.Create()
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            IServiceResponse response = await channel.SendRequestAsync(
+                new ReadRequest
+                {
+                    RequestHeader = new RequestHeader { TimeoutHint = 5000 },
+                    NodesToRead = new ArrayOf<ReadValueId>()
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ReadResponse>());
+            Assert.That(callback.RequestCount, Is.EqualTo(1));
+            Assert.That(channel.ClientChannelCertificate, Is.EqualTo(clientCertificate.RawData));
+            Assert.That(channel.ServerChannelCertificate, Is.EqualTo(serverCertificate.RawData));
+            Assert.That(channel.ChannelThumbprint, Is.Not.Empty);
 
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await listener.CloseAsync(CancellationToken.None).ConfigureAwait(false);
