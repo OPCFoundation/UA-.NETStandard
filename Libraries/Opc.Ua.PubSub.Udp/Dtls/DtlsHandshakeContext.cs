@@ -83,7 +83,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            using CancellationTokenSource handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(
+            using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken);
             using ITimer? handshakeTimeout = CreateHandshakeTimeoutTimer(handshakeCts);
             try
