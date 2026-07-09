@@ -246,9 +246,13 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         {
             var folderId = ExpandedNodeId.ToNodeId(ObjectIds.AuthorizationServices, m_session.NamespaceUris);
             ReferenceDescription[] children = await BrowseChildrenAsync(folderId).ConfigureAwait(false);
+            // ExpandedNodeId.ToNodeId is a known IDE0007/IDE0008 var-vs-explicit
+            // oscillation site; keep the explicit type and suppress IDE0007.
+#pragma warning disable IDE0007 // Use implicit type
             NodeId serviceTypeId = ExpandedNodeId.ToNodeId(
                 ObjectTypeIds.AuthorizationServiceType,
                 m_session.NamespaceUris);
+#pragma warning restore IDE0007 // Use implicit type
             ReferenceDescription service = children.FirstOrDefault(reference =>
                     reference.NodeClass == NodeClass.Object &&
                     ExpandedNodeId.ToNodeId(reference.TypeDefinition, m_session.NamespaceUris) == serviceTypeId) ??
