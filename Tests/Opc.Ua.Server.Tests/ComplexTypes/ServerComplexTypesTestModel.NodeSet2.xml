@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ========================================================================
+     Synthetic NodeSet2 for the server side complex type integration test
+     (issue #3961). It declares custom DataTypes that have NO compiled .NET
+     backing so the server must build dynamic stand-in encodeables from the
+     DataTypeDefinition attribute at runtime:
+       - TestColor  : an Enumeration (Red/Green/Blue)
+       - TestPoint  : a Structure (X:Int32, Y:Int32, Name:String) with a
+                      Default Binary encoding node
+     plus two instance variables (PointValue, ColorValue) that a client reads
+     and writes to exercise the round-trip. Kept intentionally minimal.
+     ======================================================================== -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/ServerComplexTypesTest/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/ServerComplexTypesTest/"
+           Version="1.0.0"
+           PublicationDate="2024-01-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2023-12-15T00:00:00Z"
+                     Version="1.05.03" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Enumeration">i=29</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+  </Aliases>
+
+  <!-- ============================== TestColor (Enumeration) ============= -->
+  <UADataType NodeId="ns=1;i=15001" BrowseName="1:TestColor">
+    <DisplayName>TestColor</DisplayName>
+    <Description>A runtime-loaded enumeration with no compiled backing type.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=15002</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="1:TestColor" BaseType="Enumeration">
+      <Field Name="Red" Value="0" />
+      <Field Name="Green" Value="1" />
+      <Field Name="Blue" Value="2" />
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=15002" BrowseName="EnumStrings" ParentNodeId="ns=1;i=15001"
+              DataType="LocalizedText" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+    <Value>
+      <uax:ListOfLocalizedText>
+        <uax:LocalizedText><uax:Text>Red</uax:Text></uax:LocalizedText>
+        <uax:LocalizedText><uax:Text>Green</uax:Text></uax:LocalizedText>
+        <uax:LocalizedText><uax:Text>Blue</uax:Text></uax:LocalizedText>
+      </uax:ListOfLocalizedText>
+    </Value>
+  </UAVariable>
+
+  <!-- ============================== TestPoint (Structure) ============== -->
+  <UADataType NodeId="ns=1;i=15010" BrowseName="1:TestPoint">
+    <DisplayName>TestPoint</DisplayName>
+    <Description>A runtime-loaded structure with no compiled backing type.</Description>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=15011</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:TestPoint" BaseType="Structure">
+      <Field Name="X" DataType="Int32" />
+      <Field Name="Y" DataType="Int32" />
+      <Field Name="Name" DataType="String" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=15011" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=15010</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+
+  <!-- ============================== Instances ========================== -->
+  <UAObject NodeId="ns=1;i=15020" BrowseName="1:ComplexTypesTestData">
+    <DisplayName>ComplexTypesTestData</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=15021</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=15022</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=15021" BrowseName="1:PointValue" ParentNodeId="ns=1;i=15020"
+              DataType="ns=1;i=15010" ValueRank="-1" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>PointValue</DisplayName>
+    <Description>A scalar value of the runtime-loaded TestPoint structure.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=15020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15022" BrowseName="1:ColorValue" ParentNodeId="ns=1;i=15020"
+              DataType="ns=1;i=15001" ValueRank="-1" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>ColorValue</DisplayName>
+    <Description>A scalar value of the runtime-loaded TestColor enumeration.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=15020</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>
