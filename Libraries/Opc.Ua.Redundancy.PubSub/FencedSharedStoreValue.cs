@@ -35,8 +35,20 @@ using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.PubSub.Redundancy
 {
+    /// <summary>
+    /// Encodes and decodes shared-store values that carry a fencing token with the payload.
+    /// </summary>
     internal static class FencedSharedStoreValue
     {
+        /// <summary>
+        /// Attempts to unwrap a stored shared-store value into its payload and fencing token.
+        /// </summary>
+        /// <param name="stored">The stored value to inspect.</param>
+        /// <param name="payload">The extracted payload, or the legacy unwrapped value.</param>
+        /// <param name="fencingToken">The extracted fencing token, or zero for legacy values.</param>
+        /// <returns>
+        /// <c>true</c> when the value contains a payload or legacy unwrapped bytes; otherwise, <c>false</c>.
+        /// </returns>
         public static bool TryExtractPayload(ByteString stored, out ByteString payload, out long fencingToken)
         {
             payload = default;
@@ -61,6 +73,15 @@ namespace Opc.Ua.PubSub.Redundancy
             return true;
         }
 
+        /// <summary>
+        /// Stores a payload in the shared store, wrapping it with a fencing token when one is supplied.
+        /// </summary>
+        /// <param name="store">The shared key/value store to update.</param>
+        /// <param name="key">The key to write.</param>
+        /// <param name="payload">The payload to store.</param>
+        /// <param name="fencingToken">The optional fencing token that guards against stale writes.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        /// <returns>A task that completes when the value has been committed.</returns>
         public static async ValueTask StoreAsync(
             ISharedKeyValueStore store,
             string key,

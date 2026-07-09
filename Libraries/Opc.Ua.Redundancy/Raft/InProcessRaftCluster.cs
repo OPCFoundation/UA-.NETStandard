@@ -53,11 +53,16 @@ namespace Opc.Ua.Redundancy
         /// <param name="nodeId">
         /// This replica's unique, non-zero identity; the lowest live id is the leader.
         /// </param>
+        /// <returns>The created in-process consensus replica.</returns>
         public InProcessRaftConsensus CreateNode(ulong nodeId)
         {
             return new InProcessRaftConsensus(this, nodeId);
         }
 
+        /// <summary>
+        /// Adds a consensus replica to the live membership used for deterministic leadership and broadcasts.
+        /// </summary>
+        /// <param name="node">The consensus replica to add to the cluster.</param>
         internal void Register(InProcessRaftConsensus node)
         {
             lock (m_lock)
@@ -70,6 +75,10 @@ namespace Opc.Ua.Redundancy
             Reelect();
         }
 
+        /// <summary>
+        /// Removes a consensus replica from the live membership and triggers deterministic re-election.
+        /// </summary>
+        /// <param name="node">The consensus replica to remove from the cluster.</param>
         internal void Unregister(InProcessRaftConsensus node)
         {
             lock (m_lock)
@@ -79,6 +88,10 @@ namespace Opc.Ua.Redundancy
             Reelect();
         }
 
+        /// <summary>
+        /// Broadcasts a committed command to every live member in one shared global order.
+        /// </summary>
+        /// <param name="command">The encoded command to deliver to each consensus replica.</param>
         internal void Propose(ReadOnlyMemory<byte> command)
         {
             // Hold the lock across the whole broadcast so every member observes

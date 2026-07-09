@@ -33,8 +33,18 @@ using System.IO;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {
+    /// <summary>
+    /// Creates Kubernetes API clients and resolves Kubernetes namespace settings.
+    /// </summary>
     internal static class KubernetesApiClientFactory
     {
+        /// <summary>
+        /// Creates the API client that matches the current Kubernetes runtime environment.
+        /// </summary>
+        /// <param name="options">The Kubernetes server options used to locate in-cluster credentials.</param>
+        /// <returns>
+        /// An in-cluster HTTP API client when Kubernetes credentials are available; otherwise, a no-op client.
+        /// </returns>
         public static IKubernetesApiClient Create(KubernetesServerOptions options)
         {
             if (options == null)
@@ -63,6 +73,12 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 options.TokenPath);
         }
 
+        /// <summary>
+        /// Resolves the Kubernetes namespace from options or the mounted namespace file.
+        /// </summary>
+        /// <param name="options">The Kubernetes server options that may specify the namespace.</param>
+        /// <param name="client">The Kubernetes API client associated with the options.</param>
+        /// <returns>The configured namespace, mounted namespace, or Kubernetes default namespace.</returns>
         public static string ResolveNamespace(KubernetesServerOptions options, IKubernetesApiClient client)
         {
             if (options == null)

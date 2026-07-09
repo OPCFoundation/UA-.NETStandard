@@ -45,11 +45,17 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Initializes a new redundant client session facade.
         /// </summary>
+        /// <param name="coordinator">The replica coordinator that supplies the active leader session.</param>
         public RedundantClientSession(ClientReplicaCoordinator coordinator)
             : this(coordinator, () => coordinator.CurrentSession)
         {
         }
 
+        /// <summary>
+        /// Initializes a new redundant client session facade with an explicit active-session accessor.
+        /// </summary>
+        /// <param name="coordinator">The replica coordinator that manages leadership for this facade.</param>
+        /// <param name="currentSessionAccessor">The accessor that returns the current leader session.</param>
         internal RedundantClientSession(ClientReplicaCoordinator coordinator, Func<ISession?> currentSessionAccessor)
         {
             m_coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
@@ -461,6 +467,8 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Starts the underlying replica coordinator and wires the initial leader session state.
         /// </summary>
+        /// <param name="ct">The token that cancels the startup operation.</param>
+        /// <returns>A task that completes when the coordinator has started.</returns>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
@@ -471,6 +479,8 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Waits until this replica is leader and has a live session.
         /// </summary>
+        /// <param name="ct">The token that cancels the wait.</param>
+        /// <returns>A task that completes when leadership and a live session are available.</returns>
         public async Task WaitForLeadershipAsync(CancellationToken ct = default)
         {
             _ = await GetActiveAsync(ct).ConfigureAwait(false);
@@ -1195,6 +1205,9 @@ namespace Opc.Ua.Redundancy.Client
             return await session.CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Refreshes the cached active session from the coordinator for unit tests.
+        /// </summary>
         internal void RefreshActiveSessionForTesting() => UpdateActiveSession();
 
         private async ValueTask<ISession> GetActiveAsync(CancellationToken ct)
@@ -1399,15 +1412,32 @@ namespace Opc.Ua.Redundancy.Client
             }
         }
 
+        /// <summary>
+        /// Immutable holder for a value read through a redundant session together with a flag indicating whether a
+        /// value has actually been captured.
+        /// </summary>
+        /// <typeparam name="T">The type of the remembered value.</typeparam>
         private readonly struct RememberedValue<T>
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="RememberedValue{T}"/> struct.
+            /// </summary>
+            /// <param name="value">The captured value.</param>
+            /// <param name="hasValue"><c>true</c> when <paramref name="value"/> holds a captured value.</param>
             public RememberedValue(T value, bool hasValue)
             {
                 Value = value;
                 HasValue = hasValue;
             }
 
+            /// <summary>
+            /// Gets the captured value.
+            /// </summary>
             public T Value { get; }
+
+            /// <summary>
+            /// Gets a value indicating whether a value has been captured.
+            /// </summary>
             public bool HasValue { get; }
         }
 

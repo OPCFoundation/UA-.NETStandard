@@ -137,11 +137,19 @@ namespace Opc.Ua.Redundancy
             return default;
         }
 
+        /// <summary>
+        /// Queues a committed log command for this replica's state-machine applier.
+        /// </summary>
+        /// <param name="command">The encoded command committed by the shared cluster.</param>
         internal void Deliver(ReadOnlyMemory<byte> command)
         {
             m_committed.Writer.TryWrite(command);
         }
 
+        /// <summary>
+        /// Updates this replica's leader state and raises the leadership notification when it changes.
+        /// </summary>
+        /// <param name="isLeader">Whether this replica is now the deterministic cluster leader.</param>
         internal void SetLeadership(bool isLeader)
         {
             if (Volatile.Read(ref m_isLeader) == isLeader)

@@ -58,6 +58,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 (options ?? throw new ArgumentNullException(nameof(options))).Kubernetes);
         }
 
+        /// <summary>
+        /// Creates a Kubernetes peer discovery service using the specified Kubernetes API client.
+        /// </summary>
+        /// <param name="apiClient">The Kubernetes API client used to list EndpointSlice resources.</param>
+        /// <param name="options">The peer discovery options.</param>
         internal KubernetesPeerDiscovery(IKubernetesApiClient apiClient, KubernetesPeerDiscoveryOptions options)
         {
             m_apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
@@ -116,6 +121,12 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
         }
 
+        /// <summary>
+        /// Converts EndpointSlice addresses into OPC UA peer ServerUris.
+        /// </summary>
+        /// <param name="slices">The EndpointSlice list returned by Kubernetes.</param>
+        /// <param name="options">The peer discovery options that control URI construction.</param>
+        /// <returns>The sorted peer ServerUris discovered from ready endpoints.</returns>
         internal static ArrayOf<string> ToPeerUris(
             KubernetesEndpointSliceList slices,
             KubernetesPeerDiscoveryOptions options)

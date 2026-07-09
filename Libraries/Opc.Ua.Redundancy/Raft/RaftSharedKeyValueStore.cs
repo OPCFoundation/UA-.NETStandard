@@ -530,15 +530,28 @@ namespace Opc.Ua.Redundancy
             return new ByteString(bytes);
         }
 
+        /// <summary>
+        /// Tracks a key-prefix watcher together with the channel used to deliver matching key/value changes.
+        /// </summary>
         private sealed class Watcher
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Watcher"/> class.
+            /// </summary>
+            /// <param name="prefix">The key prefix this watcher is interested in.</param>
             public Watcher(string prefix)
             {
                 Prefix = prefix;
             }
 
+            /// <summary>
+            /// Gets the key prefix this watcher is interested in.
+            /// </summary>
             public string Prefix { get; }
 
+            /// <summary>
+            /// Gets the channel used to deliver matching key/value changes to the watcher.
+            /// </summary>
             public Channel<KeyValueChange> Channel { get; } =
                 System.Threading.Channels.Channel.CreateUnbounded<KeyValueChange>(
                     new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });

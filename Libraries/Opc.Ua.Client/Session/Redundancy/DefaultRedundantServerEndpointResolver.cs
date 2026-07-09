@@ -47,11 +47,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultRedundantServerEndpointResolver"/> class.
         /// </summary>
+        /// <param name="telemetry">The telemetry context used when creating discovery clients.</param>
         public DefaultRedundantServerEndpointResolver(ITelemetryContext? telemetry = null)
             : this(telemetry, DefaultRedundantServerDiscovery.Instance)
         {
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultRedundantServerEndpointResolver"/> class.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context used when creating discovery clients.</param>
+        /// <param name="discovery">The discovery service used to locate redundant server endpoints.</param>
         internal DefaultRedundantServerEndpointResolver(
             ITelemetryContext? telemetry,
             IRedundantServerDiscovery discovery)
@@ -213,8 +219,20 @@ namespace Opc.Ua.Client
         private readonly IRedundantServerDiscovery m_discovery;
     }
 
+    /// <summary>
+    /// Provides discovery operations used to resolve redundant server endpoint descriptions.
+    /// </summary>
     internal interface IRedundantServerDiscovery
     {
+        /// <summary>
+        /// Finds server application descriptions through the specified discovery endpoint.
+        /// </summary>
+        /// <param name="discoveryUri">The discovery endpoint URI to query.</param>
+        /// <param name="configuration">The endpoint configuration used for the discovery request.</param>
+        /// <param name="serverUri">The application URI of the server to locate.</param>
+        /// <param name="telemetry">The telemetry context used while creating the discovery client.</param>
+        /// <param name="ct">The cancellation token for the asynchronous operation.</param>
+        /// <returns>The application descriptions returned by the discovery endpoint.</returns>
         ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
             Uri discoveryUri,
             EndpointConfiguration configuration,
@@ -222,6 +240,14 @@ namespace Opc.Ua.Client
             ITelemetryContext telemetry,
             CancellationToken ct);
 
+        /// <summary>
+        /// Gets endpoint descriptions from the specified discovery endpoint.
+        /// </summary>
+        /// <param name="discoveryUri">The discovery endpoint URI to query.</param>
+        /// <param name="configuration">The endpoint configuration used for the discovery request.</param>
+        /// <param name="telemetry">The telemetry context used while creating the discovery client.</param>
+        /// <param name="ct">The cancellation token for the asynchronous operation.</param>
+        /// <returns>The endpoint descriptions returned by the discovery endpoint.</returns>
         ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             Uri discoveryUri,
             EndpointConfiguration configuration,
@@ -229,10 +255,17 @@ namespace Opc.Ua.Client
             CancellationToken ct);
     }
 
+    /// <summary>
+    /// Default <see cref="IRedundantServerDiscovery"/> implementation backed by <see cref="DiscoveryClient"/>.
+    /// </summary>
     internal sealed class DefaultRedundantServerDiscovery : IRedundantServerDiscovery
     {
+        /// <summary>
+        /// Gets the shared default discovery implementation.
+        /// </summary>
         public static DefaultRedundantServerDiscovery Instance { get; } = new();
 
+        /// <inheritdoc/>
         public async ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
             Uri discoveryUri,
             EndpointConfiguration configuration,
@@ -251,6 +284,7 @@ namespace Opc.Ua.Client
                 .ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             Uri discoveryUri,
             EndpointConfiguration configuration,

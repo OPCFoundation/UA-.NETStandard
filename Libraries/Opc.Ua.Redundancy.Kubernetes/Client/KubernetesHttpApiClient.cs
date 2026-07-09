@@ -42,8 +42,20 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {
+    /// <summary>
+    /// Uses HTTP requests against the Kubernetes in-cluster API server.
+    /// </summary>
     internal sealed class KubernetesHttpApiClient : IKubernetesApiClient, IDisposable
     {
+        /// <summary>
+        /// Creates an HTTP Kubernetes API client from in-cluster connection settings.
+        /// </summary>
+        /// <param name="host">The Kubernetes API server host name.</param>
+        /// <param name="port">The Kubernetes API server HTTPS port.</param>
+        /// <param name="namespaceName">The default namespace used by this client.</param>
+        /// <param name="token">The bearer token used when no token path is supplied.</param>
+        /// <param name="caPath">The path to the Kubernetes certificate authority bundle.</param>
+        /// <param name="tokenPath">The optional path to a bearer token file that is refreshed per request.</param>
         public KubernetesHttpApiClient(
             string host,
             int port,
@@ -60,6 +72,14 @@ namespace Opc.Ua.Redundancy.Kubernetes
         {
         }
 
+        /// <summary>
+        /// Creates an HTTP Kubernetes API client from an existing <see cref="HttpClient"/>.
+        /// </summary>
+        /// <param name="httpClient">The HTTP client used for Kubernetes API requests.</param>
+        /// <param name="namespaceName">The default namespace used by this client.</param>
+        /// <param name="ownsClient">Whether this instance disposes <paramref name="httpClient"/>.</param>
+        /// <param name="token">The bearer token used when no token path is supplied.</param>
+        /// <param name="tokenPath">The optional path to a bearer token file that is refreshed per request.</param>
         internal KubernetesHttpApiClient(
             HttpClient httpClient,
             string namespaceName,
@@ -77,10 +97,15 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
         }
 
+        /// <inheritdoc/>
         public bool IsInCluster => true;
 
+        /// <summary>
+        /// Gets the default Kubernetes namespace used by this client.
+        /// </summary>
         public string DefaultNamespace { get; }
 
+        /// <inheritdoc/>
         public async ValueTask<KubernetesLease?> GetLeaseAsync(string namespaceName, string name, CancellationToken ct)
         {
             using HttpResponseMessage response = await SendAsync(
@@ -96,6 +121,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             return await ReadAsync(response, KubernetesJsonContext.Default.KubernetesLease, ct).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public async ValueTask<KubernetesLease> CreateLeaseAsync(
             string namespaceName,
             KubernetesLease lease,
@@ -111,6 +137,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             return await ReadAsync(response, KubernetesJsonContext.Default.KubernetesLease, ct).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public async ValueTask<KubernetesLease> ReplaceLeaseAsync(
             string namespaceName,
             string name,
@@ -127,6 +154,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             return await ReadAsync(response, KubernetesJsonContext.Default.KubernetesLease, ct).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public async ValueTask DeleteLeaseAsync(string namespaceName, string name, CancellationToken ct)
         {
             using HttpResponseMessage response = await SendAsync(
@@ -141,6 +169,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
         }
 
+        /// <inheritdoc/>
         public async ValueTask<KubernetesEndpointSliceList> ListEndpointSlicesAsync(
             string namespaceName,
             string serviceName,
@@ -159,6 +188,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 .ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             if (m_ownsClient)
@@ -221,6 +251,15 @@ namespace Opc.Ua.Redundancy.Kubernetes
             return new AuthenticationHeaderValue("Bearer", token);
         }
 
+        /// <summary>
+        /// Validates a Kubernetes API server certificate against the configured cluster root certificate.
+        /// </summary>
+        /// <param name="root">The trusted cluster root certificate.</param>
+        /// <param name="expectedHost">The expected API server host name.</param>
+        /// <param name="certificate">The server certificate presented by the API server.</param>
+        /// <param name="chain">The certificate chain supplied by the TLS stack.</param>
+        /// <param name="errors">The SSL policy errors reported by the TLS stack.</param>
+        /// <returns><c>true</c> when the certificate is valid for the expected host; otherwise, <c>false</c>.</returns>
         internal static bool ValidateServerCertificate(
             X509Certificate2 root,
             string expectedHost,

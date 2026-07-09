@@ -705,6 +705,11 @@ namespace Opc.Ua.Redundancy.Server
             return Prefix + subscriptionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        /// <summary>
+        /// Computes the shared-store key for a subscription retransmission state record.
+        /// </summary>
+        /// <param name="subscriptionId">The subscription id.</param>
+        /// <returns>The store key.</returns>
         internal static string RetransmissionStateKeyFor(uint subscriptionId)
         {
             return RetransmissionPrefix +
@@ -712,12 +717,25 @@ namespace Opc.Ua.Redundancy.Server
                 "/state";
         }
 
+        /// <summary>
+        /// Computes the shared-store key for a retransmission notification message.
+        /// </summary>
+        /// <param name="subscriptionId">The subscription id.</param>
+        /// <param name="sequenceNumber">The notification message sequence number.</param>
+        /// <returns>The store key.</returns>
         internal static string RetransmissionMessageKeyFor(uint subscriptionId, uint sequenceNumber)
         {
             return RetransmissionMessagePrefixFor(subscriptionId) +
                 sequenceNumber.ToString("D10", System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        /// <summary>
+        /// Computes the shared-store key for a continuation-point envelope.
+        /// </summary>
+        /// <param name="ownerSessionId">The session id that owns the continuation point.</param>
+        /// <param name="kind">The continuation-point kind.</param>
+        /// <param name="id">The continuation-point identifier.</param>
+        /// <returns>The store key.</returns>
         internal static string ContinuationPointKeyFor(
             NodeId ownerSessionId,
             ContinuationPointKind kind,
@@ -1184,10 +1202,19 @@ namespace Opc.Ua.Redundancy.Server
 
         private sealed class PendingRetransmissionState
         {
+            /// <summary>
+            /// Gets or sets the next sequence number to assign when retransmitting notification messages.
+            /// </summary>
             public uint NextSequenceNumber { get; set; }
 
+            /// <summary>
+            /// Gets or sets a value indicating whether the retransmission queue should be cleared.
+            /// </summary>
             public bool ClearRequested { get; set; }
 
+            /// <summary>
+            /// Gets or sets a value indicating whether the retransmission state has unsaved changes to mirror.
+            /// </summary>
             public bool StateDirty { get; set; }
 
             public HashSet<uint> KnownMessages { get; } = [];
@@ -1209,15 +1236,32 @@ namespace Opc.Ua.Redundancy.Server
             ContinuationPointEnvelope[] Stores,
             string[] Deletes);
 
+        /// <summary>
+        /// Command enqueued to the mirror worker; carries an optional completion source used to await the mirror
+        /// operation, or acts as a wake-up signal when none is supplied.
+        /// </summary>
         private sealed class MirrorCommand
         {
+            /// <summary>
+            /// Gets a shared signal-only command used to wake the mirror worker without awaiting completion.
+            /// </summary>
             public static MirrorCommand Signal { get; } = new(null);
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="MirrorCommand"/> class.
+            /// </summary>
+            /// <param name="completion">
+            /// The completion source signalled when the command has been processed, or <c>null</c> for a
+            /// signal-only command.
+            /// </param>
             public MirrorCommand(TaskCompletionSource<bool>? completion)
             {
                 Completion = completion;
             }
 
+            /// <summary>
+            /// Gets the completion source signalled when the command has been processed, if any.
+            /// </summary>
             public TaskCompletionSource<bool>? Completion { get; }
         }
     }

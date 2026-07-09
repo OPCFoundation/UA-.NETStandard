@@ -104,6 +104,11 @@ namespace RedundantPubSub
         /// </summary>
         private sealed class Node : ILeaderElection
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Node"/> class for the specified owner.
+            /// </summary>
+            /// <param name="owner">The shared leader-election coordinator.</param>
+            /// <param name="ownerId">The owner identifier represented by this node.</param>
             public Node(ManualLeaderElection owner, string ownerId)
             {
                 m_owner = owner;
@@ -111,26 +116,34 @@ namespace RedundantPubSub
                 m_owner.Add(this);
             }
 
+            /// <inheritdoc/>
             public bool IsLeader => m_owner.IsLeader(m_ownerId);
 
+            /// <inheritdoc/>
             public event Action<bool>? LeadershipChanged;
 
+            /// <inheritdoc/>
             public ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
             {
                 return new ValueTask<bool>(IsLeader);
             }
 
+            /// <inheritdoc/>
             public void Start()
             {
                 Notify();
             }
 
+            /// <inheritdoc/>
             public ValueTask DisposeAsync()
             {
                 m_owner.Remove(this);
                 return default;
             }
 
+            /// <summary>
+            /// Raises a leadership notification with the current leader state.
+            /// </summary>
             public void Notify()
             {
                 LeadershipChanged?.Invoke(IsLeader);

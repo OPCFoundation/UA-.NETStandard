@@ -54,6 +54,10 @@ namespace Opc.Ua.Redundancy.Client
         /// <see cref="ReplicatedSharedKeyValueStore"/> is used by the server side, so a
         /// single CRDT implementation backs both.
         /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="replicaId">This client's stable CRDT identity.</param>
+        /// <param name="transportFactory">The factory that creates the CRDT gossip transport.</param>
+        /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddCrdtClientSharedStore(
             this IServiceCollection services,
@@ -174,6 +178,9 @@ namespace Opc.Ua.Redundancy.Client
         /// <summary>
         /// Registers a transparent <see cref="ISession"/> facade backed by client replica coordination.
         /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configure">The delegate that configures the redundant client session.</param>
+        /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddRedundantClientSession(
             this IServiceCollection services,
@@ -260,18 +267,27 @@ namespace Opc.Ua.Redundancy.Client
 #pragma warning restore CA2000
         }
 
+        /// <summary>
+        /// Hosted service that starts the redundant client session when the host starts and disposes it on shutdown.
+        /// </summary>
         private sealed class RedundantClientSessionHostedService : IHostedService
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="RedundantClientSessionHostedService"/> class.
+            /// </summary>
+            /// <param name="session">The redundant client session managed by this hosted service.</param>
             public RedundantClientSessionHostedService(RedundantClientSession session)
             {
                 m_session = session ?? throw new ArgumentNullException(nameof(session));
             }
 
+            /// <inheritdoc/>
             public async Task StartAsync(CancellationToken cancellationToken)
             {
                 await m_session.StartAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            /// <inheritdoc/>
             public async Task StopAsync(CancellationToken cancellationToken)
             {
                 await m_session.DisposeAsync().ConfigureAwait(false);

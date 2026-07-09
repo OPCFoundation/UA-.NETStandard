@@ -649,8 +649,18 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Represents a single replicated key/value difference: a set (when <see cref="Removed"/> is <c>false</c>) or
+        /// a removal (when <see cref="Removed"/> is <c>true</c>).
+        /// </summary>
         private readonly struct Diff
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Diff"/> struct.
+            /// </summary>
+            /// <param name="key">The replicated key.</param>
+            /// <param name="value">The replicated value; ignored when <paramref name="removed"/> is <c>true</c>.</param>
+            /// <param name="removed"><c>true</c> when the key was removed.</param>
             public Diff(string key, ByteString value, bool removed)
             {
                 Key = key;
@@ -658,10 +668,19 @@ namespace Opc.Ua.Redundancy.Server
                 Removed = removed;
             }
 
+            /// <summary>
+            /// Gets the replicated key.
+            /// </summary>
             public string Key { get; }
 
+            /// <summary>
+            /// Gets the replicated value.
+            /// </summary>
             public ByteString Value { get; }
 
+            /// <summary>
+            /// Gets a value indicating whether the key was removed.
+            /// </summary>
             public bool Removed { get; }
         }
 

@@ -677,24 +677,53 @@ namespace Opc.Ua.Redundancy.Server
                 Payload = payload;
             }
 
+            /// <summary>
+            /// Gets the kind of operation to replicate.
+            /// </summary>
             public OutboundOpKind Kind { get; }
 
+            /// <summary>
+            /// Gets the identifier of the node the operation applies to.
+            /// </summary>
             public NodeId NodeId { get; }
 
+            /// <summary>
+            /// Gets the data value carried by a <see cref="OutboundOpKind.Value"/> operation.
+            /// </summary>
             public DataValue Value { get; }
 
+            /// <summary>
+            /// Gets the encoded node payload carried by a <see cref="OutboundOpKind.Upsert"/> operation.
+            /// </summary>
             public ByteString Payload { get; }
 
+            /// <summary>
+            /// Creates an operation that replicates a changed data value for a node.
+            /// </summary>
+            /// <param name="nodeId">The node whose value changed.</param>
+            /// <param name="value">The new data value.</param>
+            /// <returns>The outbound operation.</returns>
             public static OutboundOp ForValue(NodeId nodeId, DataValue value)
             {
                 return new OutboundOp(OutboundOpKind.Value, nodeId, value, default);
             }
 
+            /// <summary>
+            /// Creates an operation that replicates the addition or update of a node.
+            /// </summary>
+            /// <param name="nodeId">The node being added or updated.</param>
+            /// <param name="payload">The encoded node state.</param>
+            /// <returns>The outbound operation.</returns>
             public static OutboundOp ForUpsert(NodeId nodeId, ByteString payload)
             {
                 return new OutboundOp(OutboundOpKind.Upsert, nodeId, DataValue.Null, payload);
             }
 
+            /// <summary>
+            /// Creates an operation that replicates the removal of a node.
+            /// </summary>
+            /// <param name="nodeId">The node being removed.</param>
+            /// <returns>The outbound operation.</returns>
             public static OutboundOp ForDelete(NodeId nodeId)
             {
                 return new OutboundOp(OutboundOpKind.Delete, nodeId, DataValue.Null, default);

@@ -618,15 +618,32 @@ namespace Opc.Ua.Redundancy.Server
         private int m_overflowWarningWritten;
         private int m_disposed;
 
+        /// <summary>
+        /// Command enqueued to the mirror worker; carries an optional completion source used to await the mirror
+        /// operation, or acts as a wake-up signal when none is supplied.
+        /// </summary>
         private sealed class QueueMirrorCommand
         {
+            /// <summary>
+            /// Gets a shared signal-only command used to wake the mirror worker without awaiting completion.
+            /// </summary>
             public static QueueMirrorCommand Signal { get; } = new(null);
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="QueueMirrorCommand"/> class.
+            /// </summary>
+            /// <param name="completion">
+            /// The completion source signalled when the command has been processed, or <c>null</c> for a
+            /// signal-only command.
+            /// </param>
             public QueueMirrorCommand(TaskCompletionSource<bool>? completion)
             {
                 Completion = completion;
             }
 
+            /// <summary>
+            /// Gets the completion source signalled when the command has been processed, if any.
+            /// </summary>
             public TaskCompletionSource<bool>? Completion { get; }
         }
     }
