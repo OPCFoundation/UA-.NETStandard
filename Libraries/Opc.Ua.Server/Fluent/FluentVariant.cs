@@ -55,7 +55,11 @@ namespace Opc.Ua.Server.Fluent
         /// converted through the explicit <see cref="IVariantBuilder{T}"/>
         /// implementations on <see cref="VariantBuilder"/>; enumerations map
         /// onto their Int32 wire representation. Both paths are CS0618- and
-        /// reflection-free, so no trim/AOT suppression is required.
+        /// reflection-free, so no trim/AOT suppression is required. The
+        /// <see cref="IVariantBuilder{T}"/> resolution is cached per closed
+        /// <typeparamref name="TValue"/> in <see cref="Builder{T}"/> so the
+        /// one-time interface probe is JIT-specialized instead of repeated on
+        /// every call.
         /// </remarks>
         /// <typeparam name="TValue">
         /// CLR type of the value being wrapped.
@@ -73,11 +77,10 @@ namespace Opc.Ua.Server.Fluent
                 return Variant.Null;
             }
             // Built-in Variant-convertible types route through the statically
-            // registered IVariantBuilder<T> implementations on VariantBuilder.
-            // The struct is boxed once so the runtime type test resolves against
-            // the closed set of IVariantBuilder<T> interfaces it implements.
-            object boxedBuilder = default(VariantBuilder);
-            if (boxedBuilder is IVariantBuilder<TValue> builder)
+            // registered IVariantBuilder<T> implementations on VariantBuilder,
+            // resolved once per closed TValue by the generic cache below.
+            IVariantBuilder<TValue>? builder = Builder<TValue>.Instance;
+            if (builder != null)
             {
                 return builder.WithValue(value);
             }
@@ -92,6 +95,23 @@ namespace Opc.Ua.Server.Fluent
                 "fluent typed surface. Use a built-in OPC UA type, an enum, or " +
                 "wrap the value in an ExtensionObject.",
                 typeof(TValue).FullName ?? typeof(TValue).Name);
+        }
+
+        /// <summary>
+        /// Per-<typeparamref name="T"/> cache of the boxed
+        /// <see cref="VariantBuilder"/> viewed as <see cref="IVariantBuilder{T}"/>.
+        /// The interface probe (and the single boxing it entails) runs once per
+        /// closed generic type on first use; <see langword="null"/> means
+        /// <see cref="VariantBuilder"/> does not implement
+        /// <see cref="IVariantBuilder{T}"/> for that type.
+        /// </summary>
+        /// <typeparam name="T">
+        /// CLR type the cached builder converts.
+        /// </typeparam>
+        private static class Builder<T>
+        {
+            public static readonly IVariantBuilder<T>? Instance =
+                default(VariantBuilder) as IVariantBuilder<T>;
         }
     }
 }
