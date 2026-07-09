@@ -46,6 +46,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// </remarks>
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 158 uses both single-bit flags AND a
     // bitmask helper (PublisherIdTypeMask = 0x07); [Flags] reflects the spec semantics.
+#pragma warning disable RCS1157 // Composite enum value contains undefined flag — PublisherIdTypeMask (0x07) is a
+    // spec-defined multi-bit selector (bits 0-2), not a composite of named single-bit flags; intentional per Table 159.
     [Flags]
     public enum ExtendedFlags1EncodingMask : byte
     {
@@ -96,6 +98,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         ExtendedFlags2Enabled = 0x80
     }
+#pragma warning restore RCS1157
 #pragma warning restore CA2217
 
     /// <summary>

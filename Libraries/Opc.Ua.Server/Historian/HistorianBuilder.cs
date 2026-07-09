@@ -276,10 +276,12 @@ namespace Opc.Ua.Server.Historian
                 {
                     reg.Variable.StateChanged -= reg.Handler;
                 }
+#pragma warning disable RCS1075 // intentional best-effort swallow — variable may already be torn down
                 catch (Exception)
                 {
                     // ignore — variable may already be torn down
                 }
+#pragma warning restore RCS1075
             }
             HistorianCaptureSink? sink;
             lock (m_captureSinkLock)
@@ -317,11 +319,13 @@ namespace Opc.Ua.Server.Historian
                         .EnsureInstalledAsync(context, variable, provider, default)
                         .AsTask().GetAwaiter().GetResult();
                 }
+#pragma warning disable RCS1075 // intentional best-effort install — never break Browse on a config-install failure
                 catch (Exception)
                 {
                     // Best-effort install: never break Browse on a config-install failure.
                     // TODO(historian): plumb shared telemetry to log this.
                 }
+#pragma warning restore RCS1075
                 finally
                 {
                     // Self-detach so subsequent browses don't repeat the work.
