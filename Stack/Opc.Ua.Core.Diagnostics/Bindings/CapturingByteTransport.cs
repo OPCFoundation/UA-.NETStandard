@@ -180,7 +180,7 @@ namespace Opc.Ua.Pcap.Bindings
             {
                 observer.OnFrameReceived(
                     channelId: 0,
-                    new ReadOnlySpan<byte>(chunk.Array!, chunk.Offset, chunk.Count));
+                    new ReadOnlySpan<byte>(chunk.Array, chunk.Offset, chunk.Count));
             }
             catch (Exception ex)
             {
