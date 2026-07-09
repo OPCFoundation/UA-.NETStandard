@@ -470,7 +470,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class RecordingByteTransport : IUaSCByteTransport
         {
-            private readonly object m_lock = new();
+            private readonly Lock m_lock = new();
             private readonly List<byte[]> m_sent = [];
 
             private readonly TaskCompletionSource<bool> m_closed =

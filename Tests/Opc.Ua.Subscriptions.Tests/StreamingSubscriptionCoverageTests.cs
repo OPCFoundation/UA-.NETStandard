@@ -935,7 +935,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
         private sealed class StubMonitoredItemCollection : IMonitoredItemCollection
         {
-            private readonly object m_lock = new();
+            private readonly Lock m_lock = new();
             private readonly Dictionary<uint, StubMonitoredItem> m_items = [];
             private readonly List<StubMonitoredItem> m_added = [];
             private readonly List<uint> m_removed = [];

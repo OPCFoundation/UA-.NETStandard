@@ -1015,7 +1015,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class CountLatch
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
             private readonly List<KeyValuePair<int, TaskCompletionSource<bool>>> m_waiters = [];
             private int m_count;
 
@@ -1100,7 +1100,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             private readonly Channel<byte[]> m_inbound =
                 Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleReader = true });
 
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
             private readonly List<byte[]> m_sentPayloads = [];
             private readonly List<string> m_sentTopics = [];
             private readonly CountLatch m_sentLatch = new();
@@ -1344,7 +1344,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class CapturingEncoder : INetworkMessageEncoder
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
             private readonly List<PubSubNetworkMessage> m_messages = [];
             private readonly CountLatch m_latch = new();
 
@@ -1389,7 +1389,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class QueueDecoder : INetworkMessageDecoder
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
             private readonly Queue<PubSubNetworkMessage> m_queue = new();
 
             public QueueDecoder(string profile)
@@ -1422,7 +1422,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class ImmediateScheduler : IPubSubScheduler
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
 
             public bool ScheduleCalled { get; private set; }
 

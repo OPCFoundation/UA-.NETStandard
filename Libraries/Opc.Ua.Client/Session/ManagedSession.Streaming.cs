@@ -48,7 +48,7 @@ namespace Opc.Ua.Client
     {
         private IStreamingSubscription? m_defaultStreaming;
         private IModelChangeTracker? m_modelChangeTracker;
-        private readonly object m_streamingLock = new();
+        private readonly Lock m_streamingLock = new();
         private bool m_modelChangeTrackingEnabled;
 
         /// <summary>
@@ -75,10 +75,16 @@ namespace Opc.Ua.Client
 
                 lock (m_streamingLock)
                 {
+                    // CA1508 misreads the second half of this double-checked
+                    // locking idiom as always-null; another thread may have
+                    // assigned m_defaultStreaming between the first check and
+                    // acquiring the lock.
+#pragma warning disable CA1508
                     if (m_defaultStreaming != null)
                     {
                         return m_defaultStreaming;
                     }
+#pragma warning restore CA1508
 
                     if (!TryGetSubscriptionManager(
                             out Subscriptions.ISubscriptionManager? manager))
