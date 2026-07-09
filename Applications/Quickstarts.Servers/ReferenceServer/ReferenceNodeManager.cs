@@ -329,10 +329,19 @@ namespace Quickstarts.ReferenceServer
                     // (write/history are exercised by the WriteMask, Historical
                     // Access and Aggregate conformance units); SecurityAdmin
                     // gets full permissions for write-attribute scenarios.
+                    // WriteAttribute is required so the Address Space WriteMask
+                    // conformance unit can write the non-Value attributes the
+                    // node's WriteMask advertises as writable: once explicit
+                    // RolePermissions are present they are enforced for every
+                    // attribute, so without WriteAttribute those writes are
+                    // rejected with BadUserAccessDenied instead of letting the
+                    // per-attribute WriteMask decide Good/BadNotWritable
+                    // (OPC UA Part 3 §4.8.3 PermissionType / §5.2.10 WriteMask).
                     const uint kTestNodePermissions =
                         (uint)PermissionType.Browse |
                         (uint)PermissionType.Read |
                         (uint)PermissionType.Write |
+                        (uint)PermissionType.WriteAttribute |
                         (uint)PermissionType.ReadHistory |
                         (uint)PermissionType.ReadRolePermissions;
                     var anonPerms = new RolePermissionType

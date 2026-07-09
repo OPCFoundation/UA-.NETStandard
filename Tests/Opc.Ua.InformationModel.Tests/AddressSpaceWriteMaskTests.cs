@@ -125,6 +125,41 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
         }
 
+        [Test]
+        public async Task WriteWriteMaskWritableAttributeIsNotAccessDeniedAsync()
+        {
+            // The node advertises Description (and DisplayName) as writable via its
+            // WriteMask, and it carries explicit RolePermissions. Writing a
+            // WriteMask-writable non-Value attribute must be governed by the
+            // WriteMask (Good), not rejected with BadUserAccessDenied because the
+            // RolePermissions omit WriteAttribute (OPC UA Part 3 §4.8.3 / §5.2.10).
+            // This mirrors the CTT "Address Space WriteMask" conformance unit.
+            ArrayOf<WriteValue> wv = new WriteValue[]
+            {
+                new()
+                {
+                    NodeId = ToNodeId(Constants.ScalarStaticInt32),
+                    AttributeId = Attributes.Description,
+                    Value = new DataValue(
+                        new Variant(new LocalizedText("en", "CTT WriteMask test")))
+                }
+            }.ToArrayOf();
+
+            WriteResponse response = await Session.WriteAsync(
+                null, wv, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(
+                response.Results[0].Code,
+                Is.Not.EqualTo(StatusCodes.BadUserAccessDenied),
+                "Writing a WriteMask-writable attribute must not be BadUserAccessDenied.");
+            Assert.That(
+                StatusCode.IsGood(response.Results[0]) ||
+                response.Results[0].Code == StatusCodes.BadNotWritable,
+                Is.True,
+                $"Expected Good or BadNotWritable, got {response.Results[0]}.");
+        }
+
         private async Task<DataValue> ReadAttributeAsync(
             NodeId nodeId, uint attributeId)
         {
