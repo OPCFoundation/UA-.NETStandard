@@ -594,4 +594,58 @@ partial value with **`UncertainDataSubNormal`** while the CTT expects **`Bad`/`N
   bootstrap, not a server response, and the harness should skip (`addSkipped`) rather than `throw` so a
   single missing sub-entry does not abort the remaining aggregate cases.
 
+### Alarms & Conditions re-run (152 errors) — findings from the console log (`ctt output 1.txt`)
+
+* **`After Acknowledge Retain in invalid state` (42): server Retain logic is spec-correct; the failures
+  reflect outstanding condition *branches*.** The console log shows
+  `ValidateRetain failed retain=true, ActiveState=false, AckedState=true, ConfirmedState=Confirmed`.
+  The core `GetRetainState` chain (`AlarmConditionState.cs:338`, `AcknowledgeableConditionState.cs:548`,
+  `ConditionState.cs:329`) returns `false` for an inactive, acknowledged **and** confirmed condition
+  *when it has no retaining branches* — and `OnConfirmCalled`/`OnAcknowledgeCalled` call
+  `UpdateRetainState()` **before** `ReportStateChange`, so the reported event carries the post-transition
+  Retain. A `Retain=true` in that state therefore means an outstanding **branch** is still retained
+  (Part 9 §5.8.2 / §5.7.3: when an active alarm returns to inactive before being acknowledged, the
+  Server creates a branch to track the acknowledgement of that prior active occurrence, and the main
+  Condition retains while any branch retains). The CTT's `AlarmCollector::ValidateRetain` evaluates only
+  the current (main) event's `ActiveState`/`AckedState`/`ConfirmedState` and does not account for a
+  branch whose own event has not yet been acknowledged/confirmed, so it flags a spec-correct
+  `Retain=true` as invalid. **Recommended CTT fix:** before asserting `Retain=false`, verify there is no
+  outstanding branch (e.g. acknowledge/confirm every `ConditionBranchId != null` event first, or treat
+  `Retain=true` as valid while any branch event is unacknowledged).
+
+* **`Error validating variables for state ConditionDisabled` (60) and `Unable to read input node`
+  (42):** these need a live A&C loop to attribute conclusively; the console log shows the disabling
+  transition (`Disabling alarm … / Disabled State ConditionDisabled`) and the input-node read
+  (`Test_004.js:43`) failing at the **service** level (`readResult` falsy). Verify the reference
+  server's alarm source variable (`ns=7;s=Alarms.AnalogSource`, `Applications/Quickstarts.Servers/Alarms/
+  AlarmNodeManager.cs`) is readable and that the disabled-condition event fields match Part 9 §5.5.2.
+  Not pinned to a concrete server defect from the log alone.
+
+### AliasName re-run (12 errors) — reference server is FindAlias-only; one CTT-script defect
+
+* **The reference server serves aliases via `FindAlias` (store) but does not materialise browsable
+  `AliasNameType` instance nodes under the categories.** `ReferenceServer.ConfigureAliasNameStore`
+  registers an `InMemoryAliasNameStore` and seeds tag/topic aliases (`TICN_Setpoint`, `FICN_Flow`,
+  `ServerEvents`, `AuditEvents`, …), so `FindAlias`/`FindAliasVerbose` return them (Part 17 §6.3.2, the
+  scalable mechanism intended for large alias sets). The CTT conformance units *AliasName Category Tags
+  / Topics / Hierarchy* instead **browse** each category (recursively, via `HierarchicalReferences`) for
+  `AliasNameType` instance nodes (`GetAliasNamesFromCategories`) and then assert every `FindAlias`
+  result corresponds to a browsed instance — producing `No instance of AliasNameType found under
+  TagVariables/Topics` and `… AliasName (…) is not part of the current category`. Whether this is a
+  server gap or a CTT over-restriction depends on the claimed Part 17 profile: if the server advertises
+  only *Base/FindAlias* support, `FindAlias`-only with no per-alias instance nodes is compliant and the
+  CTT should not require browsable instances; if the *Category/Hierarchy* browse profile is claimed, the
+  reference server must additionally materialise an `AliasNameType` instance node per alias under its
+  category. **Recommended:** either (server) expose `AliasNameType` instances for the seeded aliases, or
+  (CTT) gate the "returned alias must be a browsed instance" assertion on the server advertising the
+  browsable-instance profile rather than on `FindAlias` returning results.
+
+* **CTT-script defect — `AliasName Hierarchy/002.js:80` references an undefined variable.** After the
+  per-alias loop the success branch reads `TC_Variables.ListOfNodes.length`, but `ListOfNodes` is never
+  assigned in this test (the results were stored in `TC_Variables.OutputArguments`), raising
+  `Result of expression 'TC_Variables.ListOfNodes' [undefined] is not an object`. **Recommended CTT
+  fix:** use `TC_Variables.OutputArguments.length` (the array actually populated at line 37), or track a
+  running count of returned aliases.
+
+
 
