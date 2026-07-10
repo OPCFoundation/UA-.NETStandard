@@ -448,6 +448,107 @@ namespace Opc.Ua.Core.Tests.Schema
         }
 
         [Test]
+        public void SecuredApplicationEncodingRoundTripsCertificateListsAndExtensions()
+        {
+            var xmlDocument = new XmlDocument();
+            xmlDocument.LoadXml("<custom xmlns=\"urn:test\">value</custom>");
+
+            var certificate = new SecurityNs.CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = "/certs/list",
+                SubjectName = "CN=ListCert",
+                Thumbprint = "001122",
+                RawData = [1, 2, 3],
+                ValidationOptions = 7,
+                OfflineRevocationList = [4, 5, 6],
+                OnlineRevocationList = "http://example.test/crl"
+            };
+
+            var app = new SecuredApplication
+            {
+                ApplicationName = "CompleteApp",
+                ApplicationUri = "urn:complete:app",
+                ApplicationType = SecurityNs.ApplicationType.ClientAndServer_2,
+                ProductName = "CompleteProduct",
+                ConfigurationMode = "Push",
+                LastExportTime = new DateTime(2026, 2, 3, 4, 5, 6, DateTimeKind.Utc),
+                TrustedCertificates = new SecurityNs.CertificateList
+                {
+                    Certificates = new SecurityNs.ListOfCertificateIdentifier { certificate },
+                    ValidationOptions = 11
+                },
+                IssuerCertificates = new SecurityNs.CertificateList
+                {
+                    Certificates =
+                    [
+                        new SecurityNs.CertificateIdentifier
+                        {
+                            StoreType = CertificateStoreType.Directory,
+                            StorePath = "/certs/issuer",
+                            SubjectName = "CN=Issuer",
+                            Thumbprint = "AABBCC"
+                        }
+                    ],
+                    ValidationOptions = 13
+                },
+                Extensions = new SecurityNs.ListOfExtensions { xmlDocument.DocumentElement },
+                ApplicationCertificates = new SecurityNs.CertificateList
+                {
+                    Certificates =
+                    [
+                        new SecurityNs.CertificateIdentifier
+                        {
+                            StoreType = CertificateStoreType.Directory,
+                            StorePath = "/certs/modern",
+                            SubjectName = "CN=Modern"
+                        }
+                    ],
+                    ValidationOptions = 17
+                }
+            };
+
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
+            IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(m_telemetry);
+
+            using var ms = new MemoryStream();
+            using (var writer = XmlWriter.Create(ms, Utils.DefaultXmlWriterSettings()))
+            {
+                using var encoder = new XmlEncoder(
+                    typeof(SecuredApplication), writer, ctx);
+                SecuredApplicationEncoding.EncodeContents(encoder, app);
+                encoder.Close();
+            }
+
+            ms.Position = 0;
+
+            var decoded = new SecuredApplication();
+            var parser = new XmlParser(typeof(SecuredApplication), ms, ctx);
+            SecuredApplicationEncoding.DecodeContents(parser, decoded);
+
+            Assert.That(decoded.ConfigurationMode, Is.EqualTo("Push"));
+            Assert.That(decoded.LastExportTime, Is.EqualTo(app.LastExportTime));
+            Assert.That(decoded.TrustedCertificates, Is.Not.Null);
+            Assert.That(decoded.TrustedCertificates.ValidationOptions, Is.EqualTo(11));
+            Assert.That(decoded.TrustedCertificates.Certificates, Has.Count.EqualTo(1));
+            Assert.That(decoded.TrustedCertificates.Certificates[0].RawData, Is.EqualTo(new byte[] { 1, 2, 3 }));
+            Assert.That(
+                decoded.TrustedCertificates.Certificates[0].OfflineRevocationList,
+                Is.EqualTo(new byte[] { 4, 5, 6 }));
+            Assert.That(
+                decoded.TrustedCertificates.Certificates[0].OnlineRevocationList,
+                Is.EqualTo("http://example.test/crl"));
+            Assert.That(decoded.IssuerCertificates, Is.Not.Null);
+            Assert.That(decoded.IssuerCertificates.Certificates, Has.Count.EqualTo(1));
+            Assert.That(decoded.Extensions, Is.Not.Null);
+            Assert.That(decoded.Extensions, Has.Count.EqualTo(1));
+            Assert.That(decoded.ApplicationCertificates, Is.Not.Null);
+            Assert.That(decoded.ApplicationCertificates.Certificates, Has.Count.EqualTo(1));
+            Assert.That(decoded.ApplicationCertificates.ValidationOptions, Is.EqualTo(17));
+        }
+
+        [Test]
         public void SecuredApplicationEncodingMinimalRoundTrip()
         {
             var app = new SecuredApplication

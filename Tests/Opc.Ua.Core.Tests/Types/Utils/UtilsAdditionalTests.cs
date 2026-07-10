@@ -28,10 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
+using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+
+#pragma warning disable UA_NETStandard_1 // Experimental extension helpers are covered intentionally.
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
@@ -401,6 +405,223 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var user = new UserNameIdentityToken { UserName = "admin" };
 
             Assert.That(Utils.IsEqualUserIdentity(anon, user), Is.False);
+        }
+
+        [Test]
+        public void ReplaceSpecialFolderNamesHandlesKnownEnvironmentAndFallbacks()
+        {
+            string programData = Environment.GetEnvironmentVariable("ProgramData");
+            if (programData != null)
+            {
+                Assert.That(
+                    Utils.ReplaceSpecialFolderNames("%CommonApplicationData%\\OPC"),
+                    Is.EqualTo(programData + "\\OPC"));
+            }
+
+            string originalLocalFolder = Utils.DefaultLocalFolder;
+            try
+            {
+                Utils.DefaultLocalFolder = "C:\\OpcLocal";
+                Assert.That(
+                    Utils.ReplaceSpecialFolderNames("%LocalFolder%\\pki"),
+                    Is.EqualTo("C:\\OpcLocal\\pki"));
+            }
+            finally
+            {
+                Utils.DefaultLocalFolder = originalLocalFolder;
+            }
+
+            Assert.That(Utils.ReplaceSpecialFolderNames(null), Is.Null);
+            Assert.That(Utils.ReplaceSpecialFolderNames(string.Empty), Is.Null);
+            Assert.That(Utils.ReplaceSpecialFolderNames("relative.config"), Is.EqualTo("relative.config"));
+        }
+
+        [Test]
+        public void GetAbsoluteFilePathCoversExistingAndCreatedFiles()
+        {
+            string workDirectory = TestContext.CurrentContext.WorkDirectory;
+            string existingFile = Path.Combine(workDirectory, Guid.NewGuid().ToString("N") + ".txt");
+            string createdFile = Path.Combine(workDirectory, Guid.NewGuid().ToString("N"), "created.txt");
+
+            try
+            {
+                File.WriteAllText(existingFile, "value");
+
+                Assert.That(Utils.GetAbsoluteFilePath(existingFile), Is.EqualTo(existingFile));
+                Assert.That(
+                    Utils.GetAbsoluteFilePath(createdFile, checkCurrentDirectory: false, createAlways: true),
+                    Is.EqualTo(createdFile));
+                Assert.That(File.Exists(createdFile), Is.True);
+            }
+            finally
+            {
+                File.Delete(existingFile);
+                File.Delete(createdFile);
+                string createdDirectory = Path.GetDirectoryName(createdFile);
+                if (createdDirectory != null && Directory.Exists(createdDirectory))
+                {
+                    Directory.Delete(createdDirectory);
+                }
+            }
+        }
+
+        [Test]
+        public void GetAbsoluteFilePathFindsRelativeFileInCurrentDirectory()
+        {
+            string fileName = Guid.NewGuid().ToString("N") + ".txt";
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), fileName);
+
+            try
+            {
+                File.WriteAllText(filePath, "value");
+
+                Assert.That(
+                    Utils.GetAbsoluteFilePath(fileName, checkCurrentDirectory: true, createAlways: false),
+                    Is.EqualTo(filePath));
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        [Test]
+        public void GetAbsoluteDirectoryPathCoversCreateLookupAndErrorPaths()
+        {
+            string workDirectory = TestContext.CurrentContext.WorkDirectory;
+            string absoluteDirectory = Path.Combine(workDirectory, Guid.NewGuid().ToString("N"));
+            string relativeDirectoryName = Guid.NewGuid().ToString("N");
+            string relativeDirectory = Path.Combine(Directory.GetCurrentDirectory(), relativeDirectoryName);
+            string missingDirectory = Path.Combine(workDirectory, Guid.NewGuid().ToString("N"));
+
+            try
+            {
+                Assert.That(
+                    Utils.GetAbsoluteDirectoryPath(absoluteDirectory, false, true, true),
+                    Is.EqualTo(absoluteDirectory));
+                Assert.That(Directory.Exists(absoluteDirectory), Is.True);
+
+                Directory.CreateDirectory(relativeDirectory);
+                Assert.That(
+                    Utils.GetAbsoluteDirectoryPath(relativeDirectoryName, true, true),
+                    Is.EqualTo(relativeDirectory));
+
+                ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                    () => Utils.GetAbsoluteDirectoryPath(missingDirectory, false, true, false));
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+
+                Assert.That(
+                    Utils.GetAbsoluteDirectoryPath(missingDirectory, false, false, false),
+                    Is.Null);
+            }
+            finally
+            {
+                if (Directory.Exists(absoluteDirectory))
+                {
+                    Directory.Delete(absoluteDirectory);
+                }
+
+                if (Directory.Exists(relativeDirectory))
+                {
+                    Directory.Delete(relativeDirectory);
+                }
+            }
+        }
+
+        [Test]
+        public void GetFilePathDisplayNameTruncatesLongPaths()
+        {
+            string separator = Path.DirectorySeparatorChar.ToString();
+            string longName = "abcdefghijklmnopqrstuvwxyz";
+            string path = string.Join(separator, "root", "middle", longName);
+
+            Assert.That(Utils.GetFilePathDisplayName(longName, 8), Is.EqualTo("abcdefgh..."));
+            Assert.That(
+                Utils.GetFilePathDisplayName(path, 16),
+                Is.EqualTo("root" + separator + "..." + separator + longName));
+            Assert.That(Utils.GetFilePathDisplayName(path, 0), Is.EqualTo(path));
+        }
+
+        [Test]
+        public void MiscellaneousUtilityBranchesReturnExpectedValues()
+        {
+            Assert.That(Utils.IsPathRooted(".\\local"), Is.True);
+            Assert.That(Utils.IsPathRooted("..\\parent"), Is.False);
+            Assert.That(Utils.IsUriWssScheme("opc.wss://localhost"), Is.True);
+            Assert.That(Utils.IsUriWssScheme("wss://localhost"), Is.True);
+            Assert.That(Utils.IsUriWssScheme("opc.tcp://localhost"), Is.False);
+            Assert.That(Utils.Utf8IsNullOrEmpty("   "u8), Is.True);
+            Assert.That(Utils.Utf8IsNullOrEmpty(" x "u8), Is.False);
+            Assert.That(Utils.ToString(123), Is.EqualTo("123"));
+            Assert.That(Utils.ToString(null), Is.EqualTo(string.Empty));
+            Assert.That(Utils.ParseUri(null), Is.Null);
+            Assert.That(Utils.ParseUri("not a uri"), Is.Null);
+            Assert.That(Utils.ParseUri("opc.tcp://localhost:4840"), Is.Not.Null);
+        }
+
+        [Test]
+        public void ReplaceLocalhostWrapsIpv6HostName()
+        {
+            string result = Utils.ReplaceLocalhost("opc.tcp://localhost:4840", "fe80::1");
+
+            Assert.That(result, Is.EqualTo("opc.tcp://[fe80::1]:4840"));
+        }
+
+        [Test]
+        public void ParseExtensionValidatesArgumentsAndHandlesMissingEntries()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var elementName = new XmlQualifiedName("SampleExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Assert.Throws<ArgumentNullException>(
+                () => Utils.ParseExtension<string>(extensions, elementName, telemetry, null));
+            Assert.Throws<ArgumentNullException>(
+                () => Utils.ParseExtension<string>(extensions, null, telemetry, decoder => decoder.ReadString("Value")));
+            Assert.That(
+                Utils.ParseExtension<string>(extensions, elementName, telemetry, decoder => decoder.ReadString("Value")),
+                Is.Null);
+        }
+
+        [Test]
+        public void UpdateExtensionAddsReplacesAndParsesCustomExtension()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var elementName = new XmlQualifiedName("SampleExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Utils.UpdateExtension(
+                ref extensions,
+                elementName,
+                "alpha",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("alpha"));
+
+            string parsed = Utils.ParseExtension(
+                extensions,
+                elementName,
+                telemetry,
+                decoder => decoder != null ? "decoded" : null);
+            Assert.That(parsed, Is.EqualTo("decoded"));
+
+            Utils.UpdateExtension(
+                ref extensions,
+                elementName,
+                "beta",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("beta"));
+            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Not.Contain("alpha"));
+
+            parsed = Utils.ParseExtension(
+                extensions,
+                elementName,
+                telemetry,
+                decoder => decoder != null ? "decoded" : null);
+            Assert.That(parsed, Is.EqualTo("decoded"));
         }
     }
 }
