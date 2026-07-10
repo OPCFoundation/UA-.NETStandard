@@ -47,6 +47,13 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup Condition="'$(_SamplesPlaceholder)' == 'true'">
+    <Compile Include="PlaceholderTests.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(_SamplesPlaceholder)' != 'true'">
+    <Compile Remove="PlaceholderTests.cs" />
+  </ItemGroup>
+
   <!--
     Reference the sample applications so they are built alongside these tests and
     can be located and launched at runtime. ReferenceOutputAssembly is false
