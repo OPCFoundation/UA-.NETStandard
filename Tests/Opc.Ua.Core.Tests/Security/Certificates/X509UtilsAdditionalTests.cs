@@ -32,6 +32,10 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
@@ -162,6 +166,62 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             finally
             {
                 Array.Clear(passcode, 0, passcode.Length);
+            }
+        }
+
+        [Test]
+        public async Task FindIssuerHelpersReturnMatchingCertificatesAsync()
+        {
+            using Certificate issuer = CertificateBuilder
+                .Create("CN=Issuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate other = CertificateBuilder
+                .Create("CN=Other")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            X509SubjectKeyIdentifierExtension subjectKey =
+                issuer.FindExtension<X509SubjectKeyIdentifierExtension>();
+            Assert.That(subjectKey, Is.Not.Null);
+
+            var store = new Mock<ICertificateStore>(MockBehavior.Strict);
+            store.Setup(s => s.EnumerateAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => Task.FromResult(new CertificateCollection { other, issuer }));
+
+            Certificate bySerial = await X509Utils.FindIssuerCABySerialNumberAsync(
+                store.Object,
+                issuer.SubjectName,
+                issuer.SerialNumber).ConfigureAwait(false);
+            Certificate byKey = await X509Utils.FindIssuerCAByKeyIdentifierAsync(
+                store.Object,
+                issuer.SubjectName,
+                subjectKey.SubjectKeyIdentifier).ConfigureAwait(false);
+            Certificate missingBySerial = await X509Utils.FindIssuerCABySerialNumberAsync(
+                store.Object,
+                issuer.SubjectName,
+                "missing").ConfigureAwait(false);
+            Certificate missingByKey = await X509Utils.FindIssuerCAByKeyIdentifierAsync(
+                store.Object,
+                issuer.SubjectName,
+                "missing").ConfigureAwait(false);
+
+            try
+            {
+                Assert.That(bySerial, Is.Not.Null);
+                Assert.That(bySerial.Thumbprint, Is.EqualTo(issuer.Thumbprint));
+                Assert.That(byKey, Is.Not.Null);
+                Assert.That(byKey.Thumbprint, Is.EqualTo(issuer.Thumbprint));
+                Assert.That(missingBySerial, Is.Null);
+                Assert.That(missingByKey, Is.Null);
+            }
+            finally
+            {
+                bySerial?.Dispose();
+                byKey?.Dispose();
+                missingBySerial?.Dispose();
+                missingByKey?.Dispose();
             }
         }
     }
