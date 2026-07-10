@@ -515,7 +515,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
         private static readonly TimeSpan MaxDropInterval = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan SettleAfterChaos = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan RecentNotificationWindow = TimeSpan.FromSeconds(2);
-        private static readonly TimeSpan RecentNotificationWait = TimeSpan.FromSeconds(2);
+        // Poll timeout for post-drop recovery validation (channel Ready,
+        // subscriptions re-created, notifications resumed). Recreating all
+        // SessionCount * SubscriptionsPerSession subscriptions and their
+        // monitored items on the server after a transport drop is not
+        // instantaneous - especially on a loaded CI agent - so this must be
+        // generous, while staying below MinDropInterval so recovery of one
+        // drop completes before the next drop fires (SettleAfterChaos + this
+        // wait stays under MinDropInterval).
+        private static readonly TimeSpan RecentNotificationWait = TimeSpan.FromSeconds(8);
         private long m_readIndex;
 
         private sealed record SubscriptionTracker(

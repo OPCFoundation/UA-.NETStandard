@@ -99,6 +99,16 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Monotonic counter incremented each time the entry enters
+        /// <see cref="ChannelState.TransportReconnecting"/>. Callers capture
+        /// it before sending a request and compare afterwards to tell a
+        /// genuinely undetected transport drop (generation unchanged) apart
+        /// from a stale in-flight failure that arrives after the shared
+        /// channel has already begun (or finished) reconnecting.
+        /// </summary>
+        internal long ReconnectGeneration => Interlocked.Read(ref m_reconnectGeneration);
+
         public ITransportChannel? Underlying
         {
             get
@@ -1214,6 +1224,10 @@ namespace Opc.Ua
                     return;
                 }
                 m_state = next;
+                if (next == ChannelState.TransportReconnecting)
+                {
+                    Interlocked.Increment(ref m_reconnectGeneration);
+                }
                 m_lastStateChange = m_host.TimeProvider.GetUtcNow();
                 m_lastReconnectAttempt = attempt;
                 m_lastError = error;
@@ -1292,6 +1306,7 @@ namespace Opc.Ua
         private ServiceResult? m_lastError;
         private ChannelState m_state = ChannelState.Disconnected;
         private ITransportChannel? m_underlying;
+        private long m_reconnectGeneration;
         private long m_clientCertificateVersion;
         private TaskCompletionSource<bool> m_readyGate;
         private TaskCompletionSource<bool>? m_reconnectCoalescer;

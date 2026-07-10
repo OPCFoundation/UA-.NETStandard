@@ -251,7 +251,18 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
                 connection.Abort();
                 await IgnoreExpectedAsync(Task.WhenAll(clientToServer, serverToClient)).ConfigureAwait(false);
             }
-            catch (Exception ex) when (!m_cts.IsCancellationRequested && !connection.IsClosed)
+            catch (Exception ex) when (
+                m_cts.IsCancellationRequested ||
+                connection.IsClosed ||
+                IsExpectedSocketClose(ex))
+            {
+                // Expected while the connection is being aborted
+                // (DropAllConnections), the proxy is disposed, or the
+                // peer socket is torn down - including an OperationAborted
+                // thrown by an in-flight upstream ConnectAsync. Swallow so
+                // the awaited RunTask completes instead of faulting the test.
+            }
+            catch (Exception ex)
             {
                 m_logger.LogDebug(ex, "TCP chaos proxy connection {ConnectionId} closed.", connection.Id);
             }
