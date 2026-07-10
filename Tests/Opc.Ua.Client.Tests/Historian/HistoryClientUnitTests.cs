@@ -424,5 +424,390 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(capabilities.InsertAnnotation, Is.True);
             Assert.That(capabilities.ServerTimestampSupported, Is.True);
         }
+
+        [Test]
+        public async Task ReadModifiedAsyncYieldsHistoryDataAndUsesModifiedDetailsAsync()
+        {
+            ExtensionObject? capturedDetails = null;
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ExtensionObject>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<HistoryReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ExtensionObject, TimestampsToReturn, bool, ArrayOf<HistoryReadValueId>, CancellationToken>(
+                    (_, details, _, _, _, _) => capturedDetails = details)
+                .Returns(new ValueTask<HistoryReadResponse>(new HistoryReadResponse
+                {
+                    Results = [new HistoryReadResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        ContinuationPoint = ByteString.Empty,
+                        HistoryData = new ExtensionObject(new HistoryData
+                        {
+                            DataValues =
+                            [
+                                new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow)
+                            ]
+                        })
+                    }]
+                }));
+
+            var client = new HistoryClient(mockSession.Object);
+            var values = new List<DataValue>();
+
+            await foreach (DataValue value in client.ReadModifiedAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow.AddHours(-1),
+                DateTime.UtcNow,
+                maxValuesPerNode: 10u,
+                timestampsToReturn: TimestampsToReturn.Both).ConfigureAwait(false))
+            {
+                values.Add(value);
+            }
+
+            Assert.That(values, Has.Count.EqualTo(1));
+            Assert.That(values[0].WrappedValue.TryGetValue(out int number), Is.True);
+            Assert.That(number, Is.EqualTo(42));
+            Assert.That(capturedDetails, Is.Not.Null);
+            ExtensionObject detailsObject = capturedDetails ?? throw new AssertionException("No ReadModified details captured.");
+            Assert.That(detailsObject.TryGetValue(out ReadRawModifiedDetails details), Is.True);
+            Assert.That(details.IsReadModified, Is.True);
+            Assert.That(details.NumValuesPerNode, Is.EqualTo(10u));
+        }
+
+        [Test]
+        public async Task ReadRawAsyncReleasesContinuationPointWhenEnumeratorIsDisposedAsync()
+        {
+            var releaseCalls = new List<HistoryReadValueId>();
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ExtensionObject>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<HistoryReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ExtensionObject, TimestampsToReturn, bool, ArrayOf<HistoryReadValueId>, CancellationToken>(
+                    (_, _, _, releaseContinuationPoints, nodesToRead, _) =>
+                    {
+                        if (releaseContinuationPoints)
+                        {
+                            releaseCalls.Add(nodesToRead[0]);
+                            return new ValueTask<HistoryReadResponse>(new HistoryReadResponse
+                            {
+                                Results = [new HistoryReadResult { StatusCode = StatusCodes.Good }]
+                            });
+                        }
+
+                        return new ValueTask<HistoryReadResponse>(new HistoryReadResponse
+                        {
+                            Results = [new HistoryReadResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                ContinuationPoint = (ByteString)new byte[] { 0x7a },
+                                HistoryData = new ExtensionObject(new HistoryData
+                                {
+                                    DataValues =
+                                    [
+                                        new DataValue(new Variant("first"), StatusCodes.Good, DateTime.UtcNow)
+                                    ]
+                                })
+                            }]
+                        });
+                    });
+
+            var client = new HistoryClient(mockSession.Object);
+            IAsyncEnumerator<DataValue> enumerator = client
+                .ReadRawAsync(new NodeId("TestNode", 2), DateTime.UtcNow.AddHours(-1), DateTime.UtcNow)
+                .GetAsyncEnumerator();
+
+            try
+            {
+                Assert.That(await enumerator.MoveNextAsync(), Is.True);
+                Assert.That(enumerator.Current.WrappedValue.TryGetValue(out string value), Is.True);
+                Assert.That(value, Is.EqualTo("first"));
+            }
+            finally
+            {
+                await enumerator.DisposeAsync();
+            }
+
+            Assert.That(releaseCalls, Has.Count.EqualTo(1));
+            Assert.That(releaseCalls[0].ContinuationPoint, Is.EqualTo((ByteString)new byte[] { 0x7a }));
+        }
+
+        [Test]
+        public async Task DeleteMethodsReturnOperationStatusesAsync()
+        {
+            ExtensionObject? deleteRawDetails = null;
+            ExtensionObject? deleteAtTimeDetails = null;
+            int callCount = 0;
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryUpdateAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<ExtensionObject>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<ExtensionObject>, CancellationToken>((_, details, _) =>
+                {
+                    callCount++;
+                    if (callCount == 1)
+                    {
+                        deleteRawDetails = details[0];
+                        return new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
+                        {
+                            Results = [new HistoryUpdateResult { StatusCode = StatusCodes.Good }]
+                        });
+                    }
+
+                    deleteAtTimeDetails = details[0];
+                    return new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
+                    {
+                        Results = [new HistoryUpdateResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            OperationResults =
+                            [
+                                StatusCodes.Good,
+                                StatusCodes.BadNoData
+                            ]
+                        }]
+                    });
+                });
+
+            var client = new HistoryClient(mockSession.Object);
+
+            StatusCode deleteRaw = await client.DeleteRawAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow.AddHours(-2),
+                DateTime.UtcNow,
+                isDeleteModified: true).ConfigureAwait(false);
+            IList<StatusCode> deleteAtTime = await client.DeleteAtTimeAsync(
+                new NodeId("TestNode", 2),
+                [DateTime.UtcNow.AddMinutes(-10), DateTime.UtcNow]).ConfigureAwait(false);
+
+            Assert.That(deleteRaw, Is.EqualTo(StatusCodes.Good));
+            Assert.That(deleteRawDetails, Is.Not.Null);
+            ExtensionObject rawDetailsObject = deleteRawDetails ?? throw new AssertionException("No raw delete details.");
+            Assert.That(rawDetailsObject.TryGetValue(out DeleteRawModifiedDetails rawDetails), Is.True);
+            Assert.That(rawDetails.IsDeleteModified, Is.True);
+            Assert.That(deleteAtTime, Has.Count.EqualTo(2));
+            Assert.That(deleteAtTime[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(deleteAtTime[1], Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(deleteAtTimeDetails, Is.Not.Null);
+            ExtensionObject atTimeDetailsObject = deleteAtTimeDetails ?? throw new AssertionException("No at-time delete details.");
+            Assert.That(atTimeDetailsObject.TryGetValue(out DeleteAtTimeDetails atTimeDetails), Is.True);
+            Assert.That(atTimeDetails.ReqTimes.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task ReadAnnotationsAsyncYieldsResolvedAnnotationValuesAsync()
+        {
+            var mockSession = CreateSessionWithNamespaceTable();
+            SetupBrowsePathResults(mockSession, new NodeId("Annotations", 2));
+            var expected = new Annotation
+            {
+                Message = "operator note",
+                UserName = "user",
+                AnnotationTime = DateTime.UtcNow
+            };
+            mockSession
+                .Setup(s => s.HistoryReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ExtensionObject>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<HistoryReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistoryReadResponse>(new HistoryReadResponse
+                {
+                    Results = [new HistoryReadResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        ContinuationPoint = ByteString.Empty,
+                        HistoryData = new ExtensionObject(new HistoryData
+                        {
+                            DataValues =
+                            [
+                                new DataValue(new Variant(123)),
+                                new DataValue(new Variant(new ExtensionObject(expected)))
+                            ]
+                        })
+                    }]
+                }));
+
+            var client = new HistoryClient(mockSession.Object);
+            var annotations = new List<Annotation>();
+
+            await foreach (Annotation annotation in client.ReadAnnotationsAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow.AddHours(-1),
+                DateTime.UtcNow).ConfigureAwait(false))
+            {
+                annotations.Add(annotation);
+            }
+
+            Assert.That(annotations, Has.Count.EqualTo(1));
+            Assert.That(annotations[0].Message, Is.EqualTo("operator note"));
+            Assert.That(annotations[0].UserName, Is.EqualTo("user"));
+        }
+
+        [Test]
+        public async Task WriteAnnotationAsyncUsesResolvedPropertyAndReturnsOperationResultAsync()
+        {
+            ExtensionObject? capturedDetails = null;
+            var mockSession = CreateSessionWithNamespaceTable();
+            SetupBrowsePathResults(mockSession, new NodeId("Annotations", 2));
+            mockSession
+                .Setup(s => s.HistoryUpdateAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<ExtensionObject>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<ExtensionObject>, CancellationToken>(
+                    (_, details, _) => capturedDetails = details[0])
+                .Returns(new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
+                {
+                    Results = [new HistoryUpdateResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        OperationResults = [StatusCodes.BadNoData]
+                    }]
+                }));
+
+            var client = new HistoryClient(mockSession.Object);
+
+            StatusCode result = await client.WriteAnnotationAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow,
+                "note",
+                "operator",
+                PerformUpdateType.Replace).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(capturedDetails, Is.Not.Null);
+            ExtensionObject detailsObject = capturedDetails ?? throw new AssertionException("No update details.");
+            Assert.That(detailsObject.TryGetValue(out UpdateStructureDataDetails details), Is.True);
+            Assert.That(details.NodeId, Is.EqualTo(new NodeId("Annotations", 2)));
+            Assert.That(details.PerformInsertReplace, Is.EqualTo(PerformUpdateType.Replace));
+            Assert.That(details.UpdateValues.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task GetConfigurationAsyncReadsResolvedPropertyValuesAsync()
+        {
+            DateTime startOfArchive = DateTime.UtcNow.AddDays(-10);
+            DateTime startOfOnline = DateTime.UtcNow.AddDays(-1);
+            var nodes = new Queue<NodeId>(new[]
+            {
+                new NodeId("HAConfiguration", 2),
+                new NodeId("Stepped", 2),
+                new NodeId("Definition", 2),
+                new NodeId("MaxTimeInterval", 2),
+                new NodeId("MinTimeInterval", 2),
+                new NodeId("ExceptionDeviation", 2),
+                new NodeId("StartOfArchive", 2),
+                new NodeId("StartOfOnlineArchive", 2)
+            });
+            var mockSession = CreateSessionWithNamespaceTable();
+            SetupBrowsePathResults(mockSession, nodes);
+            mockSession
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        new DataValue(new Variant(true)),
+                        new DataValue(new Variant("configured")),
+                        new DataValue(new Variant(1000d)),
+                        new DataValue(new Variant(1d)),
+                        new DataValue(new Variant(0.5d)),
+                        new DataValue(new Variant((DateTimeUtc)startOfArchive)),
+                        new DataValue(new Variant((DateTimeUtc)startOfOnline))
+                    ],
+                    DiagnosticInfos = []
+                }));
+
+            var client = new HistoryClient(mockSession.Object);
+
+            HistoricalDataConfigurationInfo configuration = await client.GetConfigurationAsync(
+                new NodeId("TestNode", 2)).ConfigureAwait(false);
+
+            Assert.That(configuration.HasConfiguration, Is.True);
+            Assert.That(configuration.Stepped, Is.True);
+            Assert.That(configuration.Definition, Is.EqualTo("configured"));
+            Assert.That(configuration.MaxTimeInterval, Is.EqualTo(1000d));
+            Assert.That(configuration.MinTimeInterval, Is.EqualTo(1d));
+            Assert.That(configuration.ExceptionDeviation, Is.EqualTo(0.5d));
+            Assert.That(configuration.StartOfArchive, Is.EqualTo(startOfArchive));
+            Assert.That(configuration.StartOfOnlineArchive, Is.EqualTo(startOfOnline));
+        }
+
+        private static Mock<ISession> CreateSessionWithNamespaceTable()
+        {
+            var mockSession = new Mock<ISession>();
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append("urn:test");
+            mockSession.SetupGet(s => s.NamespaceUris).Returns(namespaceTable);
+            return mockSession;
+        }
+
+        private static void SetupBrowsePathResults(Mock<ISession> mockSession, NodeId nodeId)
+        {
+            mockSession
+                .Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [CreateBrowsePathResult(nodeId)],
+                        DiagnosticInfos = []
+                    }));
+        }
+
+        private static void SetupBrowsePathResults(Mock<ISession> mockSession, Queue<NodeId> nodeIds)
+        {
+            mockSession
+                .Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [CreateBrowsePathResult(nodeIds.Dequeue())],
+                        DiagnosticInfos = []
+                    }));
+        }
+
+        private static BrowsePathResult CreateBrowsePathResult(NodeId nodeId)
+        {
+            return new BrowsePathResult
+            {
+                StatusCode = StatusCodes.Good,
+                Targets =
+                [
+                    new BrowsePathTarget
+                    {
+                        TargetId = nodeId,
+                        RemainingPathIndex = uint.MaxValue
+                    }
+                ]
+            };
+        }
     }
 }
