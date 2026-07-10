@@ -96,7 +96,7 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(folderType.NodeClass, Is.EqualTo(NodeClass.ObjectType));
             Assert.That(folderType.NodeId, Is.EqualTo(new NodeId(61)));
-            Assert.That(folderType.SuperTypeId, Is.EqualTo(new NodeId(61)));
+            Assert.That(folderType.SuperTypeId, Is.EqualTo(ObjectTypeIds.BaseObjectType));
             Assert.That(folderType.BrowseName.Name, Is.EqualTo("FolderType"));
             Assert.That(folderType.DisplayName.Text, Is.EqualTo("FolderType"));
             Assert.That(folderType.IsAbstract, Is.False);

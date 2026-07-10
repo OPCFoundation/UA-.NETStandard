@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -106,13 +107,28 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             NodeId typeMethodId = new(2000);
             NodeId instanceMethodId = new(3000);
             var expected = new ArrayOf<Variant>(new[] { new Variant("ok") });
-            session.SetupSequence(s => s.CallAsync(
+            var callMethodIds = new List<NodeId>();
+            session.Setup(s => s.CallAsync(
                     null,
                     It.IsAny<ArrayOf<CallMethodRequest>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<CallResponse>(CreateCallResponse(StatusCodes.BadMethodInvalid, [])))
-                .Returns(new ValueTask<CallResponse>(CreateCallResponse(StatusCodes.Good, expected)))
-                .Returns(new ValueTask<CallResponse>(CreateCallResponse(StatusCodes.Good, expected)));
+                .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>(
+                    (_, requests, _) =>
+                    {
+                        NodeId methodId = requests[0].MethodId;
+                        callMethodIds.Add(methodId);
+                        if (methodId == typeMethodId)
+                        {
+                            return new ValueTask<CallResponse>(
+                                CreateCallResponse(StatusCodes.BadMethodInvalid, []));
+                        }
+                        if (methodId == instanceMethodId)
+                        {
+                            return new ValueTask<CallResponse>(
+                                CreateCallResponse(StatusCodes.Good, expected));
+                        }
+                        throw new InvalidOperationException($"Unexpected method id {methodId}.");
+                    });
             session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
                     null,
                     It.IsAny<ArrayOf<BrowsePath>>(),
@@ -130,6 +146,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             Assert.That(first, Is.EqualTo(expected));
             Assert.That(second, Is.EqualTo(expected));
+            Assert.That(
+                callMethodIds,
+                Is.EqualTo(new[] { typeMethodId, instanceMethodId, instanceMethodId }));
             session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
                 null,
                 It.IsAny<ArrayOf<BrowsePath>>(),
@@ -248,4 +267,3 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
     }
 }
-

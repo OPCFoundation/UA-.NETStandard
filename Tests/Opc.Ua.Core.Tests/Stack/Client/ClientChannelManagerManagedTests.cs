@@ -952,7 +952,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public async Task ReconnectAsyncSwapsFaultedLeaseEntryAsync()
         {
-            var timeProvider = new FakeTimeProvider();
+            var timeProvider = new ObservableFakeTimeProvider();
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.FromMilliseconds(100),
@@ -968,22 +968,43 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
                 object originalEntry = GetLeaseEntry(ch);
                 var exhaustedBudget = new RetryBudget(TimeSpan.Zero, timeProvider);
+                var faulted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var reconnecting = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                ch.StateChanged += (_, change) =>
+                {
+                    if (change.NewState == ChannelState.Faulted)
+                    {
+                        faulted.TrySetResult(true);
+                    }
+                    else if (change.NewState == ChannelState.TransportReconnecting)
+                    {
+                        reconnecting.TrySetResult(true);
+                    }
+                };
 
                 _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await sut.ReconnectAsync(ch, exhaustedBudget, default).AsTask().ConfigureAwait(false));
+                await faulted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
 
                 Task reconnectTask = sut.ReconnectAsync(ch, default).AsTask();
-                await Task.Delay(10).ConfigureAwait(false);
-
+                await timeProvider.WaitForTimerCreatedAsync(1)
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
                 Assert.That(reconnectTask.IsCompleted, Is.False, "Swap back-off should delay the reset.");
 
-                for (int i = 0; i < 4 && !reconnectTask.IsCompleted; i++)
-                {
-                    timeProvider.Advance(TimeSpan.FromMilliseconds(100));
-                    await Task.Delay(10).ConfigureAwait(false);
-                }
+                timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+                await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await timeProvider.WaitForTimerCreatedAsync(2)
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(reconnectTask.IsCompleted, Is.False, "Reconnect back-off should delay the retry.");
+
+                timeProvider.Advance(TimeSpan.FromMilliseconds(100));
 
                 await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
@@ -1454,6 +1475,44 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     ?? ParticipantReconnectResult.Reactivated;
                 return new ValueTask<ParticipantReconnectResult>(result);
             }
+        }
+
+        private sealed class ObservableFakeTimeProvider : FakeTimeProvider
+        {
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                ITimer timer = base.CreateTimer(callback, state, dueTime, period);
+                int timerNumber = Interlocked.Increment(ref m_timerCount);
+                if (timerNumber == 1)
+                {
+                    m_firstTimerCreated.TrySetResult(true);
+                }
+                else if (timerNumber == 2)
+                {
+                    m_secondTimerCreated.TrySetResult(true);
+                }
+                return timer;
+            }
+
+            public Task<bool> WaitForTimerCreatedAsync(int timerNumber)
+            {
+                return timerNumber switch
+                {
+                    1 => m_firstTimerCreated.Task,
+                    2 => m_secondTimerCreated.Task,
+                    _ => throw new ArgumentOutOfRangeException(nameof(timerNumber))
+                };
+            }
+
+            private readonly TaskCompletionSource<bool> m_firstTimerCreated = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_secondTimerCreated = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_timerCount;
         }
     }
 }

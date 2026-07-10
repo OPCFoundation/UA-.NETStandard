@@ -87,12 +87,22 @@ namespace Opc.Ua.Core.Tests.Stack.Nodes
         }
 
         [Test]
-        public void ViewTableKnownViewOperationsThrowBadViewIdUnknown()
+        public void ViewTableRegisteredViewExcludesNodesAndReferences()
         {
             var table = new ViewTable();
             NodeId viewId = new(8000);
             var description = new ViewDescription { ViewId = viewId };
             table.Add(new ViewNode { NodeId = viewId });
+
+            Assert.That(table.IsNodeInView(description, new NodeId(1)), Is.False);
+            Assert.That(table.IsReferenceInView(description, new ReferenceDescription()), Is.False);
+        }
+
+        [Test]
+        public void ViewTableMissingViewOperationsThrowBadViewIdUnknown()
+        {
+            var table = new ViewTable();
+            var description = new ViewDescription { ViewId = new NodeId(9000) };
 
             ServiceResultException nodeEx = Assert.Throws<ServiceResultException>(
                 () => table.IsNodeInView(description, new NodeId(1)));

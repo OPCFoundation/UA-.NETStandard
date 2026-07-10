@@ -190,8 +190,13 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
-        [Test]
-        public void EnhancedSignatureDataUsesAllChannelInputsWhenPolicySupportsIt()
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public void EnhancedSignatureDataSignsEveryChannelInput(int inputIndex)
         {
             if (SecurityPolicies.GetInfo(SecurityPolicies.RSA_DH_AesGcm) == null)
             {
@@ -203,29 +208,57 @@ namespace Opc.Ua.Core.Tests.Security
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
+            byte[][] inputs =
+            [
+                [1, 11],
+                [2, 12],
+                [3, 13],
+                [4, 14],
+                [5, 15],
+                [6, 16]
+            ];
             SignatureData signature = SecurityPolicies.CreateSignatureData(
                 SecurityPolicies.RSA_DH_AesGcm,
                 certificate,
-                [1],
-                [2],
-                [3],
-                [4],
-                [5],
-                [6]);
+                inputs[0],
+                inputs[1],
+                inputs[2],
+                inputs[3],
+                inputs[4],
+                inputs[5]);
 
             Assert.That(signature.Signature.IsNull, Is.False);
             Assert.That(
-                SecurityPolicies.VerifySignatureData(
-                    signature,
-                    SecurityPolicies.RSA_DH_AesGcm,
-                    certificate,
-                    [1],
-                    [2],
-                    [3],
-                    [4],
-                    [5],
-                    [6]),
+                VerifyEnhancedSignature(signature, certificate, inputs),
                 Is.True);
+
+            byte[][] mutatedInputs = new byte[inputs.Length][];
+            for (int ii = 0; ii < inputs.Length; ii++)
+            {
+                mutatedInputs[ii] = (byte[])inputs[ii].Clone();
+            }
+            mutatedInputs[inputIndex][0]++;
+
+            Assert.That(
+                VerifyEnhancedSignature(signature, certificate, mutatedInputs),
+                Is.False);
+        }
+
+        private static bool VerifyEnhancedSignature(
+            SignatureData signature,
+            Certificate certificate,
+            byte[][] inputs)
+        {
+            return SecurityPolicies.VerifySignatureData(
+                signature,
+                SecurityPolicies.RSA_DH_AesGcm,
+                certificate,
+                inputs[0],
+                inputs[1],
+                inputs[2],
+                inputs[3],
+                inputs[4],
+                inputs[5]);
         }
     }
 }
