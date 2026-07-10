@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -143,6 +145,16 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void NodeByNodeIdTypedThrowsBadTypeMismatch()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.Node<MethodState>(v.NodeId));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
         public void NodeByNullNodeIdThrowsBadNodeIdInvalid()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
@@ -207,6 +219,91 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void OnReadAssignsFullHandlerToVariable()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            static ServiceResult handler(
+                ISystemContext c,
+                NodeState n,
+                NumericRange range,
+                QualifiedName encoding,
+                ref Variant value,
+                ref StatusCode statusCode,
+                ref DateTimeUtc timestamp) =>
+                ServiceResult.Good;
+            b.Node("Root/Var1").OnRead(handler);
+
+            Assert.That(v.OnReadValue, Is.SameAs((NodeValueEventHandler)handler));
+        }
+
+        [Test]
+        public void OnWriteAssignsHandlersToVariable()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            static ServiceResult full(
+                ISystemContext c,
+                NodeState n,
+                NumericRange range,
+                QualifiedName encoding,
+                ref Variant value,
+                ref StatusCode statusCode,
+                ref DateTimeUtc timestamp) =>
+                ServiceResult.Good;
+            static ServiceResult simple(ISystemContext c, NodeState n, ref Variant value) =>
+                ServiceResult.Good;
+
+            b.Node("Root/Var1").OnWrite(full);
+            b.Node("Root/Var1").OnWrite(simple);
+
+            Assert.That(v.OnWriteValue, Is.SameAs((NodeValueEventHandler)full));
+            Assert.That(v.OnSimpleWriteValue, Is.SameAs((NodeValueSimpleEventHandler)simple));
+        }
+
+        [Test]
+        public void OnAsyncReadAndWriteAssignHandlersToVariable()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            static ValueTask<AttributeReadResult> fullRead(
+                ISystemContext c,
+                NodeState n,
+                NumericRange range,
+                QualifiedName encoding,
+                CancellationToken ct) =>
+                new(new AttributeReadResult(ServiceResult.Good, new Variant(1), StatusCodes.Good, DateTimeUtc.Now));
+            static ValueTask<AttributeSimpleReadResult> simpleRead(
+                ISystemContext c,
+                NodeState n,
+                CancellationToken ct) =>
+                new(new AttributeSimpleReadResult(ServiceResult.Good, new Variant(2)));
+            static ValueTask<AttributeWriteResult> fullWrite(
+                ISystemContext c,
+                NodeState n,
+                NumericRange range,
+                Variant value,
+                CancellationToken ct) =>
+                new(new AttributeWriteResult(ServiceResult.Good));
+            static ValueTask<AttributeWriteResult> simpleWrite(
+                ISystemContext c,
+                NodeState n,
+                Variant value,
+                CancellationToken ct) =>
+                new(new AttributeWriteResult(ServiceResult.Good));
+
+            b.Node("Root/Var1").OnRead(fullRead);
+            b.Node("Root/Var1").OnRead(simpleRead);
+            b.Node("Root/Var1").OnWrite(fullWrite);
+            b.Node("Root/Var1").OnWrite(simpleWrite);
+
+            Assert.That(v.OnReadValueAsync, Is.SameAs((NodeValueEventHandlerAsync)fullRead));
+            Assert.That(v.OnSimpleReadValueAsync, Is.SameAs((NodeValueSimpleEventHandlerAsync)simpleRead));
+            Assert.That(v.OnWriteValueAsync, Is.SameAs((NodeValueWriteEventHandlerAsync)fullWrite));
+            Assert.That(v.OnSimpleWriteValueAsync, Is.SameAs((NodeValueSimpleWriteEventHandlerAsync)simpleWrite));
+        }
+
+        [Test]
         public void OnReadOnNonVariableThrowsBadInvalidArgument()
         {
             (NodeManagerBuilder b, _, _, MethodState m) = CreateBuilderWithGraph();
@@ -242,6 +339,24 @@ namespace Opc.Ua.Server.Tests.Fluent
             b.Node(m.NodeId).OnCall(handler);
 
             Assert.That(m.OnCallMethod2, Is.SameAs((GenericMethodCalledEventHandler2)handler));
+        }
+
+        [Test]
+        public void OnCallAsyncAssignsHandlerToMethod()
+        {
+            (NodeManagerBuilder b, _, _, MethodState m) = CreateBuilderWithGraph();
+
+            static ValueTask<ServiceResult> handler(
+                ISystemContext c,
+                MethodState mn,
+                NodeId oid,
+                ArrayOf<Variant> args,
+                List<Variant> outs,
+                CancellationToken ct) =>
+                new(ServiceResult.Good);
+            b.Node(m.NodeId).OnCall(handler);
+
+            Assert.That(m.OnCallMethod2Async, Is.SameAs((GenericMethodCalledEventHandler2Async)handler));
         }
 
         [Test]
@@ -424,6 +539,32 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void DispatcherNotifyMonitoredItemCreatedInvokesRegisteredHandler()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+            int calls = 0;
+            b.Node(v.NodeId).OnMonitoredItemCreated((c, n, item) => calls++);
+
+            b.Dispatcher.NotifyMonitoredItemCreated(
+                CreateContext(),
+                v,
+                Mock.Of<ISampledDataChangeMonitoredItem>());
+
+            Assert.That(calls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AllowMultipleEventConsumersWithNonAsyncCustomManagerThrows()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _) = CreateBuilderWithGraph();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.Node(root.NodeId).AllowMultipleEventConsumers());
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
         public void OnNodeAddedTwiceThrowsBadConfigurationError()
         {
             (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
@@ -579,6 +720,33 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void NodeFromTypeIdTypedWithBrowseNameThrowsBadTypeMismatch()
+        {
+            NodeId typeId = ObjectTypeIds.BaseObjectType;
+            BaseObjectState only = MakeObject("Caps", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.NodeFromTypeId<MethodState>(typeId, only.BrowseName));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void NodeFromTypeIdWithDuplicateBrowseNameThrowsBadBrowseNameDuplicated()
+        {
+            NodeId typeId = ObjectTypeIds.BaseObjectType;
+            BaseObjectState first = MakeObject("Duplicate", typeId);
+            BaseObjectState second = MakeObject("Duplicate", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [first, second] });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.NodeFromTypeId(typeId, first.BrowseName));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
+        }
+
+        [Test]
         public void ChildResolvesByBrowseName()
         {
             (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState v, _) = CreateBuilderWithGraph();
@@ -639,6 +807,53 @@ namespace Opc.Ua.Server.Tests.Fluent
             IVariableBuilder<int> vb = b.Node(root.NodeId).Variable<int>(v.BrowseName);
 
             Assert.That(vb.Node, Is.SameAs(v));
+        }
+
+        [Test]
+        public void VariableByPathAndNodeIdReturnTypedVariableBuilder()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            IVariableBuilder<int> byPath = b.Variable<int>("Root/Var1");
+            IVariableBuilder<int> byNodeId = b.Variable<int>(v.NodeId);
+
+            Assert.That(byPath.Node, Is.SameAs(v));
+            Assert.That(byNodeId.Node, Is.SameAs(v));
+        }
+
+        [Test]
+        public void VariableFromTypeIdResolvesVariableAndBrowseName()
+        {
+            NodeId typeId = VariableTypeIds.BaseDataVariableType;
+            var variable = new BaseDataVariableState(parent: null)
+            {
+                NodeId = new NodeId("ByType", kNs),
+                BrowseName = new QualifiedName("ByType", kNs),
+                TypeDefinitionId = typeId,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [variable] });
+
+            IVariableBuilder<int> byType = b.VariableFromTypeId<int>(typeId);
+            IVariableBuilder<int> byName = b.VariableFromTypeId<int>(typeId, variable.BrowseName);
+
+            Assert.That(byType.Node, Is.SameAs(variable));
+            Assert.That(byName.Node, Is.SameAs(variable));
+        }
+
+        [Test]
+        public void VariableFromTypeIdThrowsBadTypeMismatchForObject()
+        {
+            NodeId typeId = ObjectTypeIds.BaseObjectType;
+            BaseObjectState only = MakeObject("Object", typeId);
+            NodeManagerBuilder b = CreateBuilderWithTypeIndex(
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.VariableFromTypeId<int>(typeId));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
         }
 
         [Test]

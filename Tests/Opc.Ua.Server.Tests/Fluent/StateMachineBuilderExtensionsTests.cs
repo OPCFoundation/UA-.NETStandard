@@ -260,6 +260,127 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void FluentStateMachineBuilderRejectsInvalidCallbackArguments()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            IStateMachineBuilder<ProgramStateMachineState> sb = ResolveMachine(b);
+
+            Assert.That(() => sb.OnEnterState(0, (ctx, sm) => { }), Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(() => sb.OnEnterState(1, null!), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => sb.OnExitState(0, (ctx, sm) => { }), Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(() => sb.OnExitState(1, null!), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => sb.OnTransition(null!), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => sb.OnBeforeTransition(null!), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => sb.ConfigureStateMachine(null!), Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void WithCauseRejectsNullAndNonMethodNodes()
+        {
+            (NodeManagerBuilder b, ProgramStateMachineState m, _) = CreateBuilder();
+            IStateMachineBuilder<ProgramStateMachineState> sb = ResolveMachine(b);
+
+            Assert.That(
+                () => sb.WithCause(NodeId.Null, Methods.ProgramStateMachineType_Start),
+                Throws.TypeOf<ArgumentNullException>());
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => sb.WithCause(m.NodeId, Methods.ProgramStateMachineType_Start))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void WithTimedTransitionRejectsInvalidArgumentsAndUnavailableRegistry()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            IStateMachineBuilder<ProgramStateMachineState> sb = ResolveMachine(b);
+
+            Assert.That(
+                () => sb.WithTimedTransition(0, TimeSpan.FromSeconds(1), 1),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => sb.WithTimedTransition(1, TimeSpan.FromSeconds(1), 0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => sb.WithTimedTransition(1, TimeSpan.Zero, 1),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => sb.WithTimedTransition(1, TimeSpan.FromSeconds(1), 1),
+                Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [Test]
+        public void ExistingBeforeTransitionFailureSkipsFluentGuard()
+        {
+            (NodeManagerBuilder b, ProgramStateMachineState m, _) = CreateBuilder();
+            int fluentCalls = 0;
+            m.OnBeforeTransition = (ctx, sm, t, c, i, o) => StatusCodes.BadInvalidState;
+
+            ResolveMachine(b)
+                .WithInitialState(Objects.ProgramStateMachineType_Ready)
+                .OnBeforeTransition((ctx, sm, fromStateId) =>
+                {
+                    fluentCalls++;
+                    return ServiceResult.Good;
+                });
+
+            ServiceResult result = m.DoTransition(
+                CreateContext(),
+                Objects.ProgramStateMachineType_ReadyToRunning,
+                causeId: 0,
+                inputArguments: default,
+                outputArguments: []);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(fluentCalls, Is.Zero);
+        }
+
+        [Test]
+        public void FluentGuardExceptionCancelsTransitionWithExceptionResult()
+        {
+            (NodeManagerBuilder b, ProgramStateMachineState m, _) = CreateBuilder();
+
+            ResolveMachine(b)
+                .WithInitialState(Objects.ProgramStateMachineType_Ready)
+                .OnBeforeTransition((ctx, sm, fromStateId) => throw new InvalidOperationException("guard"));
+
+            ServiceResult result = m.DoTransition(
+                CreateContext(),
+                Objects.ProgramStateMachineType_ReadyToRunning,
+                causeId: 0,
+                inputArguments: default,
+                outputArguments: []);
+
+            Assert.That(ServiceResult.IsBad(result), Is.True);
+            Assert.That(result.AdditionalInfo, Does.Contain("guard"));
+        }
+
+        [Test]
+        public void ObserverCallbackExceptionsDoNotAbortTransition()
+        {
+            (NodeManagerBuilder b, ProgramStateMachineState m, _) = CreateBuilder();
+
+            ResolveMachine(b)
+                .WithInitialState(Objects.ProgramStateMachineType_Ready)
+                .OnExitState(Objects.ProgramStateMachineType_Ready,
+                    (ctx, sm) => throw new InvalidOperationException("exit"))
+                .OnEnterState(Objects.ProgramStateMachineType_Running,
+                    (ctx, sm) => throw new InvalidOperationException("enter"))
+                .OnTransition((ctx, sm, from, to) => throw new InvalidOperationException("transition"));
+
+            ServiceResult result = m.DoTransition(
+                CreateContext(),
+                Objects.ProgramStateMachineType_ReadyToRunning,
+                causeId: 0,
+                inputArguments: default,
+                outputArguments: []);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(ExtractCurrentStateId(m), Is.EqualTo(Objects.ProgramStateMachineType_Running));
+        }
+
+        [Test]
         public void WithCauseWiresMethodToDoCause()
         {
             (NodeManagerBuilder b, ProgramStateMachineState m, MethodState start) = CreateBuilder();

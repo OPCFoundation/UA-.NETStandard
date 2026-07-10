@@ -30,7 +30,9 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -468,6 +470,160 @@ namespace Opc.Ua.Server.Tests.FileSystem
             }
 
             Assert.That(foundParent, Is.True);
+        }
+
+        [Test]
+        public void CreateBrowserEnumeratesImmediateFilesAndDirectories()
+        {
+            Directory.CreateDirectory(Path.Combine(m_root, "folder"));
+            File.WriteAllText(Path.Combine(m_root, "a.txt"), "content");
+            DirectoryObjectState state = CreateRootDirectory();
+
+            using INodeBrowser browser = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward, QualifiedName.Null, null, false);
+
+            List<ExpandedNodeId> targets = GetTargetIds(browser);
+
+            Assert.That(targets, Does.Contain(new ExpandedNodeId(
+                FileSystemNodeId.BuildDirectory("folder", m_manager.NamespaceIndex))));
+            Assert.That(targets, Does.Contain(new ExpandedNodeId(
+                FileSystemNodeId.BuildFile("a.txt", m_manager.NamespaceIndex))));
+        }
+
+        [Test]
+        public void CreateBrowserWithBrowseNameReturnsOnlyMatchingChild()
+        {
+            Directory.CreateDirectory(Path.Combine(m_root, "folder"));
+            File.WriteAllText(Path.Combine(m_root, "a.txt"), "content");
+            DirectoryObjectState state = CreateRootDirectory();
+
+            using INodeBrowser browser = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward,
+                new QualifiedName("a.txt", state.BrowseName.NamespaceIndex), null, false);
+
+            List<ExpandedNodeId> targets = GetTargetIds(browser);
+
+            Assert.That(targets, Is.EqualTo(
+                new[] { new ExpandedNodeId(
+                    FileSystemNodeId.BuildFile("a.txt", m_manager.NamespaceIndex)) }));
+        }
+
+        [Test]
+        public void CreateBrowserWithBrowseNameNamespaceMismatchReturnsNoChildren()
+        {
+            File.WriteAllText(Path.Combine(m_root, "a.txt"), "content");
+            DirectoryObjectState state = CreateRootDirectory();
+
+            using INodeBrowser browser = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward,
+                new QualifiedName("a.txt", (ushort)(state.BrowseName.NamespaceIndex + 1)), null, false);
+
+            Assert.That(GetTargetIds(browser), Is.Empty);
+        }
+
+        [Test]
+        public void CreateBrowserSkipsProviderEnumerationForInternalOnlyAndWrongReferenceType()
+        {
+            File.WriteAllText(Path.Combine(m_root, "a.txt"), "content");
+            DirectoryObjectState state = CreateRootDirectory();
+
+            using INodeBrowser internalOnly = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward, QualifiedName.Null, null, true);
+            using INodeBrowser wrongReferenceType = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.Organizes, true,
+                BrowseDirection.Forward, QualifiedName.Null, null, false);
+
+            Assert.That(GetTargetIds(internalOnly), Is.Empty);
+            Assert.That(GetTargetIds(wrongReferenceType), Is.Empty);
+        }
+
+        [Test]
+        public void CreateBrowserReturnsNoChildrenWhenProviderEnumerationThrows()
+        {
+            UseProvider(new ThrowingEnumerateProvider());
+            DirectoryObjectState state = CreateRootDirectory();
+
+            using INodeBrowser browser = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward, QualifiedName.Null, null, false);
+
+            Assert.That(GetTargetIds(browser), Is.Empty);
+        }
+
+        private static List<ExpandedNodeId> GetTargetIds(INodeBrowser browser)
+        {
+            var targets = new List<ExpandedNodeId>();
+            for (IReference? reference = browser.Next(); reference != null; reference = browser.Next())
+            {
+                if (!reference.IsInverse)
+                {
+                    targets.Add(reference.TargetId);
+                }
+            }
+            return targets;
+        }
+
+        private sealed class ThrowingEnumerateProvider : IFileSystemProvider
+        {
+            public string MountName => "Throwing";
+
+            public bool IsWritable => false;
+
+            public ValueTask<FileSystemEntry?> GetEntryAsync(string path, CancellationToken ct)
+            {
+                return new ValueTask<FileSystemEntry?>((FileSystemEntry?)null);
+            }
+
+            public async IAsyncEnumerable<FileSystemEntry> EnumerateAsync(
+                string path,
+                [EnumeratorCancellation] CancellationToken ct)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                if (!ct.IsCancellationRequested)
+                {
+                    throw new IOException("enumeration failed");
+                }
+                yield break;
+            }
+
+            public ValueTask<Stream> OpenReadAsync(string path, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask<Stream> OpenWriteAsync(string path, FileWriteMode mode, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask CreateDirectoryAsync(string path, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask CreateFileAsync(string path, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask DeleteAsync(string path, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask MoveAsync(string source, string target, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask CopyAsync(string source, string target, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }
