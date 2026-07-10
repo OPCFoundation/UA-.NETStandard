@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -118,6 +120,33 @@ namespace Opc.Ua.Server
         /// Force out of band diagnostics update after a change of diagnostics variables.
         /// </summary>
         void ForceDiagnosticsScan();
+
+        /// <summary>
+        /// Replaces an already registered predefined instance node with a
+        /// differently-typed instance (for example a generated subtype) while
+        /// preserving the node's identity, well-known child NodeIds and values in
+        /// the address space, emitting a ModelChange for live clients.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="existingNode">The registered predefined instance to replace.</param>
+        /// <param name="newInstance">The replacement instance (typically a subtype).</param>
+        /// <param name="newChildNodeIds">
+        /// Optional well-known NodeIds, keyed by BrowseName, for children that only
+        /// exist on <paramref name="newInstance"/>.
+        /// </param>
+        /// <param name="onReplaced">
+        /// Optional callback invoked with <paramref name="newInstance"/> after it is
+        /// attached, allowing the caller to update a typed parent slot.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The registered replacement instance.</returns>
+        ValueTask<BaseInstanceState> ReplacePredefinedInstanceSubtypeAsync(
+            ISystemContext context,
+            BaseInstanceState existingNode,
+            BaseInstanceState newInstance,
+            IReadOnlyDictionary<QualifiedName, NodeId>? newChildNodeIds = null,
+            Action<BaseInstanceState>? onReplaced = null,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets the default history capabilities object.
