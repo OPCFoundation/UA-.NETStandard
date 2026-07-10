@@ -199,7 +199,27 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("configure"));
         }
 
-        private static ServiceCollection CreateManagedSessionServices()
+        [Test]
+        public void DefaultManagedSessionFactoryConnectReverseAppliesReverseConnectConfiguration()
+        {
+            var connector = new InvokesConfigureConnector();
+            using ServiceProvider provider = CreateManagedSessionServices(connector).BuildServiceProvider();
+            IManagedSessionFactory factory = provider.GetRequiredService<IManagedSessionFactory>();
+            bool configured = false;
+
+            Assert.That(
+                () => factory.ConnectReverseAsync(
+                    new ReverseConnectManager(NUnitTelemetryContext.Create()),
+                    new Uri("urn:test:server"),
+                    CreateEndpoint(),
+                    _ => configured = true),
+                Throws.InvalidOperationException.With.Message.EqualTo("Configured builder."));
+
+            Assert.That(configured, Is.True);
+            Assert.That(connector.ConfigureWasInvoked, Is.True);
+        }
+
+        private static ServiceCollection CreateManagedSessionServices(IManagedSessionConnector? connector = null)
         {
             var services = new ServiceCollection();
             services.AddSingleton(NUnitTelemetryContext.Create());
@@ -212,7 +232,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     ClientConfiguration = new ClientConfiguration()
                 }
             });
-            services.AddSingleton<IManagedSessionConnector>(new NeverConnectsConnector());
+            services.AddSingleton(connector ?? new NeverConnectsConnector());
             services.AddSingleton<IManagedSessionFactory, DefaultManagedSessionFactory>();
             return services;
         }
@@ -247,6 +267,25 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 CancellationToken ct)
             {
                 throw new InvalidOperationException("The coverage tests only validate argument guards.");
+            }
+        }
+
+        private sealed class InvokesConfigureConnector : IManagedSessionConnector
+        {
+            public bool ConfigureWasInvoked { get; private set; }
+
+            public Task<Opc.Ua.Client.ManagedSession> ConnectAsync(
+                IServiceProvider serviceProvider,
+                ManagedSessionOptions sessionOptions,
+                Action<ManagedSessionBuilder> configure,
+                CancellationToken ct)
+            {
+                var builder = new ManagedSessionBuilder(
+                    serviceProvider.GetRequiredService<OpcUaClientOptions>().Configuration!,
+                    NUnitTelemetryContext.Create());
+                configure(builder);
+                ConfigureWasInvoked = true;
+                throw new InvalidOperationException("Configured builder.");
             }
         }
     }
