@@ -187,9 +187,9 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             NodeId targetTypeDefinition = GetTypeDefinitionId(options.Mode);
-            IDiagnosticsNodeManager? manager = server.DiagnosticsNodeManager;
+            var replacer = server.DiagnosticsNodeManager as IPredefinedNodeSubtypeReplacer;
 
-            if (manager != null && !redundancy.TypeDefinitionId.Equals(targetTypeDefinition))
+            if (replacer != null && !redundancy.TypeDefinitionId.Equals(targetTypeDefinition))
             {
                 ServerRedundancyState subtype = options.Mode switch
                 {
@@ -209,7 +209,7 @@ namespace Opc.Ua.Redundancy.Server
                 // published and its well-known NodeId is preserved by the swap.
                 subtype.AddRedundantServerArray(context);
 
-                BaseInstanceState replaced = await manager
+                BaseInstanceState replaced = await replacer
                     .ReplacePredefinedInstanceSubtypeAsync(
                         context,
                         redundancy,

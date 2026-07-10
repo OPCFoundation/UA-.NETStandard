@@ -53,7 +53,8 @@ namespace Opc.Ua.Server
         IAsyncNodeManager,
         INodeIdFactory,
         IDisposable,
-        ILocalAddressSpaceSource
+        ILocalAddressSpaceSource,
+        IPredefinedNodeSubtypeReplacer
     {
         /// <summary>
         /// Initializes the node manager.
