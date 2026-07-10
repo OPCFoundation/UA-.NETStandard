@@ -189,30 +189,13 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// The reflection-based Variant(object) constructor is the only
-        /// generic entry point for an open-ended TValue. AOT users should
-        /// prefer the per-type generated walker (FluentBuilderGenerator) which
-        /// routes through the typed Variant.From overloads instead. The
-        /// suppression is scoped to this single call site so trim/AOT
-        /// analysis still tracks every other path through this assembly.
+        /// Wraps <paramref name="value"/> in a <see cref="Variant"/> via
+        /// the shared <see cref="FluentVariant.ToVariant{TValue}(TValue)"/>
+        /// helper (single AOT/trim suppression site).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
-            "Trimming",
-            "IL2026:RequiresUnreferencedCode",
-            Justification = "Generic typed-variable bridge requires the reflection-based Variant(object) constructor.")]
-        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
-            "AOT",
-            "IL3050:RequiresDynamicCode",
-            Justification = "Generic typed-variable bridge requires the reflection-based Variant(object) constructor.")]
         private static Variant ToVariant(TValue value)
         {
-            if (value is null)
-            {
-                return Variant.Null;
-            }
-#pragma warning disable CS0618 // Variant(object) is obsolete on net472
-            return new Variant(value);
-#pragma warning restore CS0618
+            return FluentVariant.ToVariant(value);
         }
     }
 }
