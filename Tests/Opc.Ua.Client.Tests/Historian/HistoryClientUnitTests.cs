@@ -920,6 +920,153 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.StartOfOnlineArchive, Is.Null);
         }
 
+        [Test]
+        public async Task ReadAtTimeAsyncReleasesContinuationPointWhenEnumeratorIsDisposedAsync()
+        {
+            var releaseCalls = new List<HistoryReadValueId>();
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ExtensionObject>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<HistoryReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ExtensionObject, TimestampsToReturn, bool, ArrayOf<HistoryReadValueId>, CancellationToken>(
+                    (_, _, _, releaseContinuationPoints, nodesToRead, _) =>
+                    {
+                        if (releaseContinuationPoints)
+                        {
+                            releaseCalls.Add(nodesToRead[0]);
+                            return new ValueTask<HistoryReadResponse>(new HistoryReadResponse
+                            {
+                                Results = [new HistoryReadResult { StatusCode = StatusCodes.Good }]
+                            });
+                        }
+
+                        return new ValueTask<HistoryReadResponse>(new HistoryReadResponse
+                        {
+                            Results = [new HistoryReadResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                ContinuationPoint = (ByteString)new byte[] { 0x22 },
+                                HistoryData = new ExtensionObject(new HistoryData
+                                {
+                                    DataValues =
+                                    [
+                                        new DataValue(new Variant(1234), StatusCodes.Good, DateTime.UtcNow)
+                                    ]
+                                })
+                            }]
+                        });
+                    });
+            var client = new HistoryClient(mockSession.Object);
+            IAsyncEnumerator<DataValue> enumerator = client
+                .ReadAtTimeAsync(new NodeId("TestNode", 2), [DateTime.UtcNow])
+                .GetAsyncEnumerator();
+
+            try
+            {
+                Assert.That(await enumerator.MoveNextAsync(), Is.True);
+            }
+            finally
+            {
+                await enumerator.DisposeAsync();
+            }
+
+            Assert.That(releaseCalls, Has.Count.EqualTo(1));
+            Assert.That(releaseCalls[0].ContinuationPoint, Is.EqualTo((ByteString)new byte[] { 0x22 }));
+        }
+
+        [Test]
+        public void ReadAtTimeAsyncWithThreeEmptyPagesAndContinuationThrowsBadInternalError()
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ExtensionObject>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<HistoryReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistoryReadResponse>(new HistoryReadResponse
+                {
+                    Results = [new HistoryReadResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        ContinuationPoint = (ByteString)new byte[] { 0x33 }
+                    }]
+                }));
+            var client = new HistoryClient(mockSession.Object);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await foreach (DataValue value in client.ReadAtTimeAsync(
+                    new NodeId("TestNode", 2),
+                    [DateTime.UtcNow]).ConfigureAwait(false))
+                {
+                    Assert.Fail($"Unexpected value {value}.");
+                }
+            })!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+        }
+
+        [Test]
+        public async Task GetConfigurationAsyncUsesDefaultValuesForBadPropertyReadsAsync()
+        {
+            var nodes = new Queue<NodeId>(new[]
+            {
+                new NodeId("HAConfiguration", 2),
+                new NodeId("Stepped", 2),
+                new NodeId("Definition", 2),
+                new NodeId("MaxTimeInterval", 2),
+                new NodeId("MinTimeInterval", 2),
+                new NodeId("ExceptionDeviation", 2),
+                new NodeId("StartOfArchive", 2),
+                new NodeId("StartOfOnlineArchive", 2)
+            });
+            var mockSession = CreateSessionWithNamespaceTable();
+            SetupBrowsePathResults(mockSession, nodes);
+            mockSession
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        DataValue.FromStatusCode(StatusCodes.BadNoData),
+                        DataValue.FromStatusCode(StatusCodes.BadNoData),
+                        DataValue.FromStatusCode(StatusCodes.BadNoData),
+                        DataValue.FromStatusCode(StatusCodes.BadNoData),
+                        DataValue.FromStatusCode(StatusCodes.BadNoData),
+                        DataValue.FromStatusCode(StatusCodes.BadNoData),
+                        DataValue.FromStatusCode(StatusCodes.BadNoData)
+                    ],
+                    DiagnosticInfos = []
+                }));
+            var client = new HistoryClient(mockSession.Object);
+
+            HistoricalDataConfigurationInfo configuration = await client.GetConfigurationAsync(
+                new NodeId("TestNode", 2)).ConfigureAwait(false);
+
+            Assert.That(configuration.HasConfiguration, Is.True);
+            Assert.That(configuration.Stepped, Is.False);
+            Assert.That(configuration.Definition, Is.Null);
+            Assert.That(configuration.MaxTimeInterval, Is.Zero);
+            Assert.That(configuration.MinTimeInterval, Is.Zero);
+            Assert.That(configuration.ExceptionDeviation, Is.Zero);
+            Assert.That(configuration.StartOfArchive, Is.EqualTo(DateTimeUtc.MinValue.ToDateTime()));
+            Assert.That(configuration.StartOfOnlineArchive, Is.EqualTo(DateTimeUtc.MinValue.ToDateTime()));
+        }
+
         private static Mock<ISession> CreateSessionWithNamespaceTable()
         {
             var mockSession = new Mock<ISession>();
