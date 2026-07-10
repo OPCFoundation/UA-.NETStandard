@@ -753,6 +753,173 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.StartOfOnlineArchive, Is.EqualTo(startOfOnline));
         }
 
+        [Test]
+        public void ReadAtTimeAsyncWithNullTimesThrowsArgumentNullException()
+        {
+            var client = new HistoryClient(new Mock<ISession>().Object);
+
+            Assert.That(
+                () => client.ReadAtTimeAsync(new NodeId("TestNode", 2), null!),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("times"));
+        }
+
+        [Test]
+        public async Task ReplaceAndUpdateAsyncReturnOperationResultsAsync()
+        {
+            var capturedUpdates = new List<UpdateDataDetails>();
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryUpdateAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<ExtensionObject>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<ExtensionObject>, CancellationToken>((_, details, _) =>
+                {
+                    Assert.That(details[0].TryGetValue(out UpdateDataDetails update), Is.True);
+                    capturedUpdates.Add(update);
+                    return new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
+                    {
+                        Results = [new HistoryUpdateResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            OperationResults = [StatusCodes.GoodClamped]
+                        }]
+                    });
+                });
+            var client = new HistoryClient(mockSession.Object);
+            var values = new List<DataValue>
+            {
+                new(new Variant(1), StatusCodes.Good, DateTime.UtcNow)
+            };
+
+            IList<StatusCode> replace = await client.ReplaceAsync(new NodeId("TestNode", 2), values).ConfigureAwait(false);
+            IList<StatusCode> update = await client.UpdateAsync(new NodeId("TestNode", 2), values).ConfigureAwait(false);
+
+            Assert.That(replace, Has.Count.EqualTo(1));
+            Assert.That(update, Has.Count.EqualTo(1));
+            Assert.That(replace[0], Is.EqualTo(StatusCodes.GoodClamped));
+            Assert.That(update[0], Is.EqualTo(StatusCodes.GoodClamped));
+            Assert.That(capturedUpdates, Has.Count.EqualTo(2));
+            Assert.That(capturedUpdates[0].PerformInsertReplace, Is.EqualTo(PerformUpdateType.Replace));
+            Assert.That(capturedUpdates[1].PerformInsertReplace, Is.EqualTo(PerformUpdateType.Update));
+        }
+
+        [Test]
+        public async Task DeleteRawAsyncReturnsBadInternalErrorForEmptyResultsAsync()
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.HistoryUpdateAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<ExtensionObject>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
+                {
+                    Results = []
+                }));
+            var client = new HistoryClient(mockSession.Object);
+
+            StatusCode result = await client.DeleteRawAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow.AddHours(-1),
+                DateTime.UtcNow).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(StatusCodes.BadInternalError));
+        }
+
+        [Test]
+        public async Task WriteAnnotationAsyncFallsBackToStatusAndBadInternalErrorAsync()
+        {
+            var mockSession = CreateSessionWithNamespaceTable();
+            SetupBrowsePathResults(mockSession, new NodeId("Annotations", 2));
+            int callCount = 0;
+            mockSession
+                .Setup(s => s.HistoryUpdateAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<ExtensionObject>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    callCount++;
+                    return new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
+                    {
+                        Results = callCount == 1
+                            ? [new HistoryUpdateResult { StatusCode = StatusCodes.BadNoData }]
+                            : []
+                    });
+                });
+            var client = new HistoryClient(mockSession.Object);
+
+            StatusCode statusFallback = await client.WriteAnnotationAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow,
+                "note").ConfigureAwait(false);
+            StatusCode emptyResults = await client.WriteAnnotationAsync(
+                new NodeId("TestNode", 2),
+                DateTime.UtcNow,
+                "note").ConfigureAwait(false);
+
+            Assert.That(statusFallback, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(emptyResults, Is.EqualTo(StatusCodes.BadInternalError));
+        }
+
+        [Test]
+        public async Task GetConfigurationAsyncReturnsEmptyWhenConfigurationNodeIsMissingAsync()
+        {
+            var mockSession = CreateSessionWithNamespaceTable();
+            SetupBrowsePathResults(mockSession, NodeId.Null);
+            var client = new HistoryClient(mockSession.Object);
+
+            HistoricalDataConfigurationInfo configuration = await client.GetConfigurationAsync(
+                new NodeId("TestNode", 2)).ConfigureAwait(false);
+
+            Assert.That(configuration.HasConfiguration, Is.False);
+        }
+
+        [Test]
+        public async Task GetConfigurationAsyncUsesNullsWhenChildPropertiesAreMissingAsync()
+        {
+            var nodes = new Queue<NodeId>(new[]
+            {
+                new NodeId("HAConfiguration", 2),
+                NodeId.Null,
+                NodeId.Null,
+                NodeId.Null,
+                NodeId.Null,
+                NodeId.Null,
+                NodeId.Null,
+                NodeId.Null
+            });
+            var mockSession = CreateSessionWithNamespaceTable();
+            SetupBrowsePathResults(mockSession, nodes);
+            mockSession
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [],
+                    DiagnosticInfos = []
+                }));
+            var client = new HistoryClient(mockSession.Object);
+
+            HistoricalDataConfigurationInfo configuration = await client.GetConfigurationAsync(
+                new NodeId("TestNode", 2)).ConfigureAwait(false);
+
+            Assert.That(configuration.HasConfiguration, Is.True);
+            Assert.That(configuration.Stepped, Is.Null);
+            Assert.That(configuration.Definition, Is.Null);
+            Assert.That(configuration.MaxTimeInterval, Is.Null);
+            Assert.That(configuration.MinTimeInterval, Is.Null);
+            Assert.That(configuration.ExceptionDeviation, Is.Null);
+            Assert.That(configuration.StartOfArchive, Is.Null);
+            Assert.That(configuration.StartOfOnlineArchive, Is.Null);
+        }
+
         private static Mock<ISession> CreateSessionWithNamespaceTable()
         {
             var mockSession = new Mock<ISession>();
