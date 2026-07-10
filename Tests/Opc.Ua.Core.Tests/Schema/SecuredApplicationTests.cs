@@ -451,7 +451,7 @@ namespace Opc.Ua.Core.Tests.Schema
         public void SecuredApplicationEncodingRoundTripsCertificateListsAndExtensions()
         {
             var xmlDocument = new XmlDocument();
-            xmlDocument.LoadXml("<custom xmlns=\"urn:test\">value</custom>");
+            xmlDocument.LoadInnerXml("<custom xmlns=\"urn:test\">value</custom>");
 
             var certificate = new SecurityNs.CertificateIdentifier
             {
