@@ -475,8 +475,8 @@ namespace Opc.Ua.SourceGeneration
                 ClassName = className,
                 LeafName = leafName,
                 ParentKey = parentKey,
-                Inputs = method.InputArguments ?? [],
-                Outputs = method.OutputArguments ?? []
+                Inputs = MethodDesignArgumentResolver.ResolveMethodInputs(method),
+                Outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(method)
             };
         }
 

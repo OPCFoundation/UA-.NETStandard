@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ * Regression fixture for issue #3973.
+ *
+ * The concrete Device instance contains an Adjust method whose
+ * MethodDeclarationId points at the shared AdjustDeclaration method. The instance
+ * method intentionally has no InputArguments property; its single Float input
+ * is only present on the method declaration node.
+ -->
+<UANodeSet xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/DeclarationBackedMethod/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/DeclarationBackedMethod/"
+           PublicationDate="2024-01-01T00:00:00Z"
+           Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" PublicationDate="2024-01-01T00:00:00Z" Version="1.05.03"/>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+  </Aliases>
+
+  <UAObjectType NodeId="ns=1;i=1000" BrowseName="1:ControllerType">
+    <DisplayName>ControllerType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1003</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAVariable NodeId="ns=1;i=1002"
+              BrowseName="InputArguments"
+              ParentNodeId="ns=1;i=1001"
+              DataType="i=296"
+              ValueRank="1"
+              ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>setpoint</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=10</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description />
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+
+  <UAMethod NodeId="ns=1;i=1001" BrowseName="1:AdjustDeclaration">
+    <DisplayName>AdjustDeclaration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+
+  <UAMethod NodeId="ns=1;i=1003"
+            BrowseName="1:Adjust"
+            ParentNodeId="ns=1;i=1000"
+            MethodDeclarationId="ns=1;i=1001">
+    <DisplayName>Adjust</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1000</Reference>
+    </References>
+  </UAMethod>
+
+  <UAObject NodeId="ns=1;i=2000" BrowseName="1:Device" ParentNodeId="i=85">
+    <DisplayName>Device</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1000</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=2001</Reference>
+    </References>
+  </UAObject>
+
+  <UAMethod NodeId="ns=1;i=2001" BrowseName="1:Adjust" ParentNodeId="ns=1;i=2000" MethodDeclarationId="ns=1;i=1001">
+    <DisplayName>Adjust</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2000</Reference>
+    </References>
+  </UAMethod>
+</UANodeSet>
