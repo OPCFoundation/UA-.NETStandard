@@ -32,7 +32,6 @@ using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -351,10 +350,14 @@ namespace Opc.Ua.Pcap.Tests.Dissection
                 Is.EqualTo("handle=10 audit=audit 1 nodes, maxAge=12.5"));
             Assert.That(
                 InvokeCreateRequestSummary(
-                    CreateBrowseRequestWithNullView(),
+                    new BrowseRequest
+                    {
+                        View = new ViewDescription(),
+                        NodesToBrowse = [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }]
+                    },
                     "BrowseRequest",
                     101),
-                Is.EqualTo("handle=0 audit= 1 nodes, view=null"));
+                Is.EqualTo("handle=0 audit= 1 nodes, view=default"));
             Assert.That(
                 InvokeCreateRequestSummary(
                     new WriteRequest { NodesToWrite = [new WriteValue()] },
@@ -397,6 +400,21 @@ namespace Opc.Ua.Pcap.Tests.Dissection
         }
 
         [Test]
+        public void PrivateRequestSummaryFormatsNonDefaultBrowseView()
+        {
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new BrowseRequest
+                    {
+                        View = new ViewDescription { ViewId = new NodeId(1234, 2) },
+                        NodesToBrowse = [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }]
+                    },
+                    "BrowseRequest",
+                    101),
+                Is.EqualTo("handle=0 audit= 1 nodes, view=ns=2;i=1234"));
+        }
+
+        [Test]
         public void PrivateFormattingHelpersHandleCollectionsAndMissingProperties()
         {
             var encodeable = new EncodeableWithCollections();
@@ -410,6 +428,9 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             Assert.That(
                 InvokeStatic<string>("FormatCount", encodeable, "Value", "items"),
                 Is.EqualTo(string.Empty));
+            Assert.That(
+                InvokeStatic<string>("FormatCount", encodeable, "ConvertibleItems", "items"),
+                Is.EqualTo("3 items"));
             Assert.That(
                 InvokeStatic<string>("FormatCountAndValue", encodeable, "Items", "items", "Value", "value"),
                 Is.EqualTo("2 items, value=42"));
@@ -510,14 +531,6 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             return InvokeStatic<string>("CreateRequestSummary", request, typeName, byteCount);
         }
 
-        private static BrowseRequest CreateBrowseRequestWithNullView()
-        {
-            var request = (BrowseRequest)RuntimeHelpers.GetUninitializedObject(typeof(BrowseRequest));
-            request.RequestHeader = new RequestHeader();
-            request.NodesToBrowse = [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }];
-            return request;
-        }
-
         private static T InvokeInstance<T>(ServiceCallReassembler reassembler, string methodName, params object?[] parameters)
         {
             MethodInfo method = typeof(ServiceCallReassembler).GetMethod(
@@ -549,6 +562,8 @@ namespace Opc.Ua.Pcap.Tests.Dissection
 
             public ICollection Items { get; } = new ArrayList { 1, 2 };
 
+            public IConvertableToArray ConvertibleItems { get; } = new ConvertableCollection();
+
             public int Value => 42;
 
             public string? NullValue => null;
@@ -569,6 +584,16 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             public object Clone()
             {
                 return new EncodeableWithCollections();
+            }
+        }
+
+        private sealed class ConvertableCollection : IConvertableToArray
+        {
+            public int Count => 3;
+
+            public Array? ToArray()
+            {
+                throw new InvalidOperationException("Collection count must not allocate an array.");
             }
         }
 
