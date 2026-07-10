@@ -32,6 +32,7 @@ using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -347,55 +348,52 @@ namespace Opc.Ua.Pcap.Tests.Dissection
                     },
                     "ReadRequest",
                     100),
-                Is.EqualTo("handle=10 audit=audit ReadRequest body=100B"));
+                Is.EqualTo("handle=10 audit=audit 1 nodes, maxAge=12.5"));
             Assert.That(
                 InvokeCreateRequestSummary(
-                    new BrowseRequest
-                    {
-                        NodesToBrowse = [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }]
-                    },
+                    CreateBrowseRequestWithNullView(),
                     "BrowseRequest",
                     101),
-                Does.Contain("BrowseRequest body=101B"));
+                Is.EqualTo("handle=0 audit= 1 nodes, view=null"));
             Assert.That(
                 InvokeCreateRequestSummary(
                     new WriteRequest { NodesToWrite = [new WriteValue()] },
                     "WriteRequest",
                     102),
-                Does.Contain("WriteRequest body=102B"));
+                Is.EqualTo("handle=0 audit= 1 nodes"));
             Assert.That(
                 InvokeCreateRequestSummary(
                     new CallRequest { MethodsToCall = [new CallMethodRequest()] },
                     "CallRequest",
                     103),
-                Does.Contain("CallRequest body=103B"));
+                Is.EqualTo("handle=0 audit= 1 methods"));
             Assert.That(
                 InvokeCreateRequestSummary(
                     new HistoryReadRequest { NodesToRead = [new HistoryReadValueId()] },
                     "HistoryReadRequest",
                     104),
-                Does.Contain("HistoryReadRequest body=104B"));
+                Is.EqualTo("handle=0 audit= 1 nodes"));
             Assert.That(
                 InvokeCreateRequestSummary(
                     new CreateMonitoredItemsRequest { ItemsToCreate = [new MonitoredItemCreateRequest()] },
                     "CreateMonitoredItemsRequest",
                     105),
-                Does.Contain("CreateMonitoredItemsRequest body=105B"));
+                Is.EqualTo("handle=0 audit= 1 items"));
             Assert.That(
                 InvokeCreateRequestSummary(
                     new DeleteMonitoredItemsRequest { MonitoredItemIds = [1U, 2U] },
                     "DeleteMonitoredItemsRequest",
                     106),
-                Does.Contain("DeleteMonitoredItemsRequest body=106B"));
+                Is.EqualTo("handle=0 audit= 2 items"));
             Assert.That(
                 InvokeCreateRequestSummary(
                     new PublishRequest { SubscriptionAcknowledgements = [new SubscriptionAcknowledgement()] },
                     "PublishRequest",
                     107),
-                Does.Contain("PublishRequest body=107B"));
+                Is.EqualTo("handle=0 audit= 1 acks"));
             Assert.That(
                 InvokeCreateRequestSummary(new RegisterNodesRequest(), "RegisterNodesRequest", 108),
-                Does.Contain("RegisterNodesRequest body=108B"));
+                Is.EqualTo("handle=0 audit= RegisterNodesRequest body=108B"));
         }
 
         [Test]
@@ -408,6 +406,9 @@ namespace Opc.Ua.Pcap.Tests.Dissection
                 Is.EqualTo("2 items"));
             Assert.That(
                 InvokeStatic<string>("FormatCount", encodeable, "Missing", "items"),
+                Is.EqualTo(string.Empty));
+            Assert.That(
+                InvokeStatic<string>("FormatCount", encodeable, "Value", "items"),
                 Is.EqualTo(string.Empty));
             Assert.That(
                 InvokeStatic<string>("FormatCountAndValue", encodeable, "Items", "items", "Value", "value"),
@@ -507,6 +508,14 @@ namespace Opc.Ua.Pcap.Tests.Dissection
         private static string InvokeCreateRequestSummary(IServiceRequest request, string typeName, int byteCount)
         {
             return InvokeStatic<string>("CreateRequestSummary", request, typeName, byteCount);
+        }
+
+        private static BrowseRequest CreateBrowseRequestWithNullView()
+        {
+            var request = (BrowseRequest)RuntimeHelpers.GetUninitializedObject(typeof(BrowseRequest));
+            request.RequestHeader = new RequestHeader();
+            request.NodesToBrowse = [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }];
+            return request;
         }
 
         private static T InvokeInstance<T>(ServiceCallReassembler reassembler, string methodName, params object?[] parameters)

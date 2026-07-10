@@ -481,6 +481,7 @@ namespace Opc.Ua.Pcap.Dissection
             return value switch
             {
                 ICollection collection => collection.Count,
+                IConvertableToArray convertible => convertible.ToArray()?.Length,
                 _ => null
             };
         }
