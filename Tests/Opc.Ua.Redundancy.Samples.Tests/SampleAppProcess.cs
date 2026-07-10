@@ -121,11 +121,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             TimeSpan timeout,
             CancellationToken cancellationToken = default)
         {
-            return (string?)(await WaitForLineOrDefaultAsync(substring, timeout, cancellationToken)
+            return await WaitForLineOrDefaultAsync(substring, timeout, cancellationToken)
                 .ConfigureAwait(false) ??
                 throw new TimeoutException(
                     $"Sample process '{Name}' did not emit a line containing '{substring}' within {timeout}. " +
-                    $"Process {(HasExited ? "has exited" : "is still running")}."));
+                    $"Process {(HasExited ? "has exited" : "is still running")}.");
         }
 
         /// <summary>
