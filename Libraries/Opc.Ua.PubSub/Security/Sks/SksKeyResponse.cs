@@ -137,9 +137,25 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <see cref="InvalidOperationException"/> when a packed key
         /// has the wrong length for the resolved policy.
         /// </remarks>
-        public ArrayOf<PubSubSecurityKey> Unpacked => m_unpacked ??= UnpackKeys();
+        public ArrayOf<PubSubSecurityKey> Unpacked =>
+            m_unpacked ??= UnpackKeys(DateTimeUtc.From(DateTime.UtcNow));
 
-        private ArrayOf<PubSubSecurityKey> UnpackKeys()
+        /// <summary>
+        /// Unpacks the response using the supplied time provider to timestamp the keys.
+        /// </summary>
+        /// <param name="timeProvider">The time source used for key issue timestamps.</param>
+        /// <returns>The unpacked security keys.</returns>
+        internal ArrayOf<PubSubSecurityKey> Unpack(TimeProvider timeProvider)
+        {
+            if (timeProvider is null)
+            {
+                throw new ArgumentNullException(nameof(timeProvider));
+            }
+
+            return UnpackKeys(DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime));
+        }
+
+        private ArrayOf<PubSubSecurityKey> UnpackKeys(DateTimeUtc issuedAt)
         {
             IPubSubSecurityPolicy? policy =
                 PubSubSecurityPolicyRegistry.GetByUri(SecurityPolicyUri);
@@ -155,7 +171,6 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return [];
             }
-            var issuedAt = DateTimeUtc.From(DateTime.UtcNow);
             var unpacked = new PubSubSecurityKey[Keys.Count];
             for (int i = 0; i < Keys.Count; i++)
             {

@@ -281,16 +281,21 @@ namespace Opc.Ua.PubSub.Security.Sks
                         "Failed to compute next SKS refresh delay; falling back to ReconnectDelay.");
                     delay = m_options.ReconnectDelay;
                 }
-                if (delay > TimeSpan.Zero)
+                if (delay <= TimeSpan.Zero)
                 {
-                    try
-                    {
-                        await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        return;
-                    }
+                    // A successful lead-time refresh does not replace the still-active key.
+                    // Throttle subsequent pulls until time advances instead of spinning.
+                    delay = m_options.ReconnectDelay > TimeSpan.Zero
+                        ? m_options.ReconnectDelay
+                        : TimeSpan.FromMilliseconds(1);
+                }
+                try
+                {
+                    await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
                 }
 
                 int failures;
@@ -408,7 +413,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private void ApplyResponse(SksKeyResponse response)
         {
-            ArrayOf<PubSubSecurityKey> keys = response.Unpacked;
+            ArrayOf<PubSubSecurityKey> keys = response.Unpack(m_timeProvider);
             if (keys.Count == 0)
             {
                 m_logger.LogDebug(

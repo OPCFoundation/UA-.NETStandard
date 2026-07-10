@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 packed,
                 timeToNextKey,
                 keyLifetime);
-            ArrayOf<PubSubSecurityKey> keys = response.Unpacked;
+            ArrayOf<PubSubSecurityKey> keys = response.Unpack(m_timeProvider);
             if (keys.Count == 0)
             {
                 throw new OpcUaSksException(
