@@ -294,6 +294,55 @@ index, so the current-subset ordering is irrelevant.
 
 ---
 
+## 6. Security User X509 — the "prevent user lockout" cleanup activation can fail an otherwise-passing negative test
+
+`ServerProjects/Standard/maintree/Security User Token/Security User X509/Test Cases/*.js` — the
+negative cases (`002`, `004`-`010`, `014`-`018`) append a second `ActivateSession` after the real
+assertion, commented `// to prevent user lockout`:
+
+```js
+// to prevent user lockout
+Test.Connect( { OpenSecureChannel: { ... }, SkipActivateSession: true } );
+ActivateSessionHelper.Execute( {
+    Session: Test.Session,
+    UserIdentityToken: UaUserIdentityToken.FromUserCredentials( { ... ctt_usrT } ),
+    UserTokenSignature: UaSignatureData.New( { ... ctt_usrT } ) } );   // no ServiceResult
+Test.Disconnect();
+```
+
+### What the test does
+
+The real assertion runs first (e.g. present an untrusted / expired / invalid user certificate and
+require a `Bad…` rejection) and passes. The suite then logs in again with the **trusted** `ctt_usrT`
+certificate purely to reset a presumed server-side account lockout, so the next negative case starts
+from a clean slate.
+
+### Why this is a CTT defect
+
+That cleanup `ActivateSessionHelper.Execute(...)` is called **without** a `ServiceResult`
+(`ExpectedAndAcceptedResults`) and **without** `SuppressErrors`. Per `library/ClassBased/UaR.js:219`,
+when no expected result is supplied and the response is `Bad`, the harness raises
+`addError("… ServiceResult is Bad: …")` and fails the enclosing test. So if that reset login returns
+anything other than `Good` — e.g. because `ctt_usrT` has not been provisioned into the server's
+trusted-user store, or because the server (correctly) does not implement lockout — the **cleanup
+step fails a test whose actual assertion already passed**. A cleanup / workaround step must never be
+able to change the verdict of the case it follows.
+
+The workaround is also questionable in principle: OPC UA does **not** require a server to implement
+authentication lockout (Part 4 ActivateSession defines only the per-token `Bad…` results), so a
+conformance test should not assume lockout exists and should not need a "reset" login at all.
+
+### Recommended CTT fix
+
+Make the cleanup non-fatal — either pass `SuppressErrors: true`, or supply
+`ServiceResult: new ExpectedAndAcceptedResults( [ StatusCode.Good, StatusCode.BadIdentityTokenRejected,
+StatusCode.BadUserAccessDenied ] )` so a non-`Good` reset does not fail the case — and gate the reset
+on the server actually advertising/implementing lockout. Better still, remove the lockout workaround
+entirely and rely on the server returning the correct per-token result for each case (lockout is not
+a conformance requirement).
+
+---
+
 ## Notes on items that are **not** CTT defects
 
 ### Security (Run2) — server-side / configuration items (not CTT script defects)
@@ -472,3 +521,38 @@ landed, so the earlier cascades are cleared and the residual clusters below are 
   reference server and capturing its live log. → **Needs the CTT loop.** (The repo's own aggregate
   tests assert only `Good`/`Uncertain` status, not exact values, so they neither confirm nor refute a
   value-level discrepancy.)
+
+### X509-only re-run (Security User X509, 17 errors) — after the lockout fix
+
+With the brute-force lockout disabled for compliance testing, the masking `BadUserAccessDenied` is
+gone and the real per-token results surface. Of the 17 residual errors:
+
+* **16 = user-certificate provisioning (environment, not a server or CTT-script defect).** The
+  reference server validates X509 **user** identity tokens against the `Users` trust list
+  (`TrustedUserCertificates` → `pki/trustedUser`); an untrusted user certificate is correctly rejected
+  with `BadIdentityTokenRejected` (Part 4 ActivateSession user-token validation). On the test host the
+  `pki/trustedUser` store did not even exist, so **every** X509 user certificate — including the ones
+  the positive cases (`001`, `011`, `013`) mark as trusted (`ctt_usrT`, `ctt_ca1T_usrT`,
+  `ctt_ca1I_usrT`), and the `ctt_usrT` login used by the `// to prevent user lockout` cleanup in the
+  negative cases (see §6) — was rejected. Fix (operator step): provision the CTT's **trusted** user
+  certificates into the server's trusted-user store before the run:
+  * copy the trusted user leaf/CA certificates into `%LocalApplicationData%/OPC Foundation/pki/trustedUser/certs`
+    (and any issuing CA into `%LocalApplicationData%/OPC Foundation/pki/issuerUser/certs`), leaving the
+    deliberately-untrusted `…usrU` certificates out;
+  * to make this easy, the reference server now writes every rejected X509 **user** certificate to a
+    dedicated `pki/rejectedUser` review store (sibling of `pki/trustedUser`), so after one failing run
+    an operator can simply move the legitimate `ctt_usrT` / `ctt_ca1T_usrT` / `ctt_ca1I_usrT`
+    certificates from `pki/rejectedUser/certs` into `pki/trustedUser/certs` and re-run. The negative
+    cases keep failing as required because their `…usrU` certificates stay untrusted.
+
+* **1 = genuine server bug (018), now fixed.** `securityx509_018` presents a valid user certificate but
+  builds the user-token signature with a **wrong algorithm**; the CTT accepts
+  `BadUserSignatureInvalid` / `BadIdentityTokenInvalid` / `BadIdentityTokenRejected`, but the server
+  returned the channel-level `BadSecurityChecksFailed`. Root cause:
+  `SecurityPolicies.VerifySignatureData` (shared with the secure-channel signature checks) throws
+  `BadSecurityChecksFailed` for an unexpected `SignatureData.Algorithm`, and
+  `X509IdentityTokenHandler.VerifyAsync` propagated it unchanged. Fixed by mapping that
+  algorithm-mismatch `BadSecurityChecksFailed` to the token-level `BadIdentityTokenInvalid` in the
+  user-token verification path (Part 4), leaving the shared channel-signature behaviour untouched.
+  Regression: `X509IdentityTokenHandlerTests.VerifyWithMismatchedSignatureAlgorithmYieldsBadIdentityTokenInvalid`.
+

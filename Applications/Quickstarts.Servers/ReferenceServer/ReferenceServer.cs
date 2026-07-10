@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -65,6 +66,7 @@ namespace Quickstarts.ReferenceServer
         public ReferenceServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
+            m_telemetry = telemetry;
             m_userDatabase = new LinqUserDatabase();
             m_userDatabase.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
             m_userDatabase.CreateUser("user1", "password"u8, [Role.AuthenticatedUser]);
@@ -509,8 +511,52 @@ namespace Quickstarts.ReferenceServer
                         // Use the CertificateManager directly and validate against
                         // the Users trust list per call.
                         m_userCertificateValidator = CertificateManager;
+
+                        // Configure a dedicated review store for rejected X509 user
+                        // certificates so an operator can inspect a rejected user
+                        // certificate and, if legitimate, move it into the
+                        // TrustedUserCertificates store (the shared rejected store
+                        // mixes application and user certificates, which is awkward
+                        // when provisioning user identities for conformance testing).
+                        ConfigureRejectedUserCertificateStore(configuration.SecurityConfiguration);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Resolves the directory used to persist rejected X509 <b>user</b>
+        /// certificates for later review. It is created as a sibling of the
+        /// configured <c>TrustedUserCertificates</c> store (e.g.
+        /// <c>pki/rejectedUser</c> next to <c>pki/trustedUser</c>). Failures are
+        /// swallowed: an unavailable review store must never affect user
+        /// authentication.
+        /// </summary>
+        private void ConfigureRejectedUserCertificateStore(SecurityConfiguration security)
+        {
+            try
+            {
+                string? trustedUserPath = Utils.ReplaceSpecialFolderNames(
+                    security.TrustedUserCertificates?.StorePath);
+                if (string.IsNullOrEmpty(trustedUserPath))
+                {
+                    return;
+                }
+
+                string? parent = Path.GetDirectoryName(
+                    trustedUserPath!.TrimEnd(
+                        Path.DirectorySeparatorChar,
+                        Path.AltDirectorySeparatorChar));
+                if (!string.IsNullOrEmpty(parent))
+                {
+                    m_rejectedUserStorePath = Path.Combine(parent!, "rejectedUser");
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.LogWarning(
+                    e,
+                    "Failed to configure the rejected user certificate review store.");
             }
         }
 
@@ -573,7 +619,9 @@ namespace Quickstarts.ReferenceServer
         /// Verifies that a certificate user token is trusted.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
+        private async ValueTask VerifyX509IdentityTokenAsync(
+            X509IdentityTokenHandler x509TokenHandler,
+            CancellationToken ct)
         {
             var wireToken = (X509IdentityToken)x509TokenHandler.Token;
             using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
@@ -581,45 +629,27 @@ namespace Quickstarts.ReferenceServer
                 : Certificate.FromRawData(wireToken.CertificateData);
             try
             {
-                if (m_userCertificateValidator != null)
-                {
-                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
-                    // using scope extends past the await.
-#pragma warning disable CA2025
-                    Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
+                Opc.Ua.CertificateValidationResult userCertResult =
+                    await (m_userCertificateValidator ?? CertificateManager!)
                         .ValidateAsync(
                             userCertificate!,
                             TrustListIdentifier.Users,
-                            default)
-                        .GetAwaiter()
-                        .GetResult();
-#pragma warning restore CA2025
-                    if (!userCertResult.IsValid)
-                    {
-                        throw new ServiceResultException(userCertResult.StatusCode);
-                    }
-                }
-                else
+                            ct)
+                        .ConfigureAwait(false);
+                if (!userCertResult.IsValid)
                 {
-                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
-                    // using scope extends past the await.
-#pragma warning disable CA2025
-                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager!
-                        .ValidateAsync(
-                            userCertificate!,
-                            TrustListIdentifier.Users,
-                            default)
-                        .GetAwaiter()
-                        .GetResult();
-#pragma warning restore CA2025
-                    if (!fallbackCertResult.IsValid)
-                    {
-                        throw new ServiceResultException(fallbackCertResult.StatusCode);
-                    }
+                    throw new ServiceResultException(userCertResult.StatusCode);
                 }
             }
             catch (Exception e)
             {
+                // Persist the rejected user certificate to a dedicated review
+                // store so an operator can inspect it and, if legitimate, move it
+                // into the TrustedUserCertificates store. Best-effort: a review
+                // store write must never change the activation result.
+                await PersistRejectedUserCertificateAsync(userCertificate, ct)
+                    .ConfigureAwait(false);
+
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
                 if (e is ServiceResultException se &&
@@ -649,6 +679,39 @@ namespace Quickstarts.ReferenceServer
                         LoadServerProperties().ProductUri,
                         new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
+            }
+        }
+
+        /// <summary>
+        /// Best-effort persistence of a rejected X509 user certificate to the
+        /// dedicated review store configured by
+        /// <see cref="ConfigureRejectedUserCertificateStore"/>. Never throws:
+        /// any failure is logged and swallowed so it cannot influence the
+        /// authentication outcome.
+        /// </summary>
+        private async ValueTask PersistRejectedUserCertificateAsync(
+            Certificate? userCertificate,
+            CancellationToken ct)
+        {
+            if (userCertificate == null || string.IsNullOrEmpty(m_rejectedUserStorePath))
+            {
+                return;
+            }
+            try
+            {
+                await userCertificate.AddToStoreAsync(
+                    CertificateStoreType.Directory,
+                    m_rejectedUserStorePath!,
+                    password: null,
+                    m_telemetry,
+                    ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogWarning(
+                    e,
+                    "Failed to persist rejected user certificate to the review store '{Path}'.",
+                    m_rejectedUserStorePath);
             }
         }
 
@@ -724,12 +787,12 @@ namespace Quickstarts.ReferenceServer
             return new ValueTask<IUserIdentity>(identity);
         }
 
-        private ValueTask<IUserIdentity> VerifyX509IdentityAsync(
+        private async ValueTask<IUserIdentity> VerifyX509IdentityAsync(
             X509IdentityTokenHandler x509Token,
             CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            VerifyX509IdentityToken(x509Token);
+            await VerifyX509IdentityTokenAsync(x509Token, ct).ConfigureAwait(false);
             var identity = new RoleBasedIdentity(
                 new UserIdentity(x509Token),
                 [Role.AuthenticatedUser],
@@ -738,7 +801,7 @@ namespace Quickstarts.ReferenceServer
                 Utils.TraceMasks.Security,
                 "X509 Token Accepted: {Identity}",
                 identity.DisplayName);
-            return new ValueTask<IUserIdentity>(identity);
+            return identity;
         }
 
         private ValueTask<IUserIdentity?> VerifyJwtIdentityAsync(
@@ -766,6 +829,8 @@ namespace Quickstarts.ReferenceServer
         }
 
         private CertificateManager? m_userCertificateValidator;
+        private string? m_rejectedUserStorePath;
+        private readonly ITelemetryContext m_telemetry;
         private readonly LinqUserDatabase m_userDatabase;
         private readonly UserManagement m_userManagement;
     }
