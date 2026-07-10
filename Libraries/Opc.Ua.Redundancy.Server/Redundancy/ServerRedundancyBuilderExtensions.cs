@@ -66,11 +66,14 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
             AddDiscoveryCapabilityConfiguration(builder, options);
             builder.Services.AddSingleton(options);
+            builder.Services.AddSingleton<ServerRedundancyController>();
+            builder.Services.TryAddSingleton<IServerRedundancyController>(
+                sp => sp.GetRequiredService<ServerRedundancyController>());
             builder.Services.TryAddSingleton<IRedundantServerSetProvider>(
                 new ConfiguredRedundantServerSetProvider(options));
             builder.Services.AddSingleton<IServerStartupTask>(sp =>
                 new ServerRedundancyStartupTask(
-                    options,
+                    sp.GetRequiredService<ServerRedundancyController>(),
                     !sp.GetServices<IServiceLevelProvider>().Any()));
             return builder;
         }

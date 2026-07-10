@@ -29,6 +29,10 @@ Server redundancy is either **transparent** or **non-transparent**. In transpare
 
 Register `AddServerRedundancy(...)` on the server builder to populate the live `Server.ServerRedundancy` nodes after the server starts. `ServerRedundancyOptions.Mode` writes `RedundancySupport`. `PeerServerUris` and `RedundantPeers` populate `RedundantServerArray`; for non-transparent modes the startup task also populates `ServerUriArray`, and for transparent mode it publishes `CurrentServerId`.
 
+`Server.ServerRedundancy` is exposed as the generated subtype for the configured mode — `TransparentRedundancyType` for `Transparent`, `NonTransparentRedundancyType` for `Cold`/`Warm`/`Hot`/`HotAndMirrored`, or the base `ServerRedundancyType` for `None` — so a client that browses the node sees the correct `HasTypeDefinition` and only the members the standard defines for that subtype (`CurrentServerId` for transparent, `ServerUriArray` for non-transparent).
+
+The mode can be changed at runtime through the injectable `IServerRedundancyController.ChangeModeAsync(mode)`: the node is re-materialized as the new subtype in place and a `ModelChange` is raised, so connected clients observe the new type definition and members without a restart.
+
 For non-transparent redundancy, set `RedundantPeers` when clients should resolve peers through `FindServers`; `ConfiguredRedundantServerSetProvider` exposes those `ApplicationDescription` entries server-side. `AdvertiseNtrsCapability` defaults to `true`, so non-transparent modes add the `NTRS` discovery capability for GDS/NTRS registration.
 
 All servers in a `RedundantServerSet` must have identical application AddressSpaces: identical NodeIds, browse paths, AddressSpace structure, and `ServiceLevel` algorithm. Only local server diagnostics may differ. `UseDistributedAddressSpace(...)` helps satisfy this by mirroring node topology and values through `INodeStateStore`/`ISharedKeyValueStore`, but application-specific method handlers and callbacks still need to be attached by each node manager.
