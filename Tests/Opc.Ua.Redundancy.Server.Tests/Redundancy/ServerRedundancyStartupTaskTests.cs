@@ -46,9 +46,9 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests.Redundancy
 {
     /// <summary>
-    /// Unit tests for <see cref="ServerRedundancyStartupTask"/> guard paths.
-    /// The live node population path is exercised by the hosted-server
-    /// end-to-end test.
+    /// Unit tests for <see cref="ServerRedundancyStartupTask"/> and
+    /// <see cref="ServerRedundancyController"/> subtype materialization of
+    /// <c>Server.ServerRedundancy</c>.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
@@ -56,9 +56,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
     public class ServerRedundancyStartupTaskTests
     {
         [Test]
-        public void ConstructorThrowsOnNullOptions()
+        public void ConstructorThrowsOnNullController()
         {
             Assert.That(() => new ServerRedundancyStartupTask(null!), Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void ControllerConstructorThrowsOnNullOptions()
+        {
+            Assert.That(() => new ServerRedundancyController(null!), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -73,17 +79,34 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public void GetTypeDefinitionIdMapsModes()
+        {
+            Assert.That(ServerRedundancyController.GetTypeDefinitionId(RedundancySupport.None),
+                Is.EqualTo(ObjectTypeIds.ServerRedundancyType));
+            Assert.That(ServerRedundancyController.GetTypeDefinitionId(RedundancySupport.Transparent),
+                Is.EqualTo(ObjectTypeIds.TransparentRedundancyType));
+            Assert.That(ServerRedundancyController.GetTypeDefinitionId(RedundancySupport.Hot),
+                Is.EqualTo(ObjectTypeIds.NonTransparentRedundancyType));
+            Assert.That(ServerRedundancyController.GetTypeDefinitionId(RedundancySupport.Cold),
+                Is.EqualTo(ObjectTypeIds.NonTransparentRedundancyType));
+        }
+
+        [Test]
         public void OnServerStartedThrowsOnNullServer()
         {
-            var task = new ServerRedundancyStartupTask(new ServerRedundancyOptions());
+            var task = new ServerRedundancyStartupTask(
+                new ServerRedundancyController(new ServerRedundancyOptions()));
 
-            Assert.That(async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
+            Assert.That(
+                async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false),
+                Throws.ArgumentNullException);
         }
 
         [Test]
         public async Task OnServerStartedNoOpsWhenServerObjectMissingAsync()
         {
-            var task = new ServerRedundancyStartupTask(new ServerRedundancyOptions());
+            var task = new ServerRedundancyStartupTask(
+                new ServerRedundancyController(new ServerRedundancyOptions()));
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.ServerObject).Returns((ServerObjectState)null!);
 
@@ -93,31 +116,25 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task OnServerStartedLeavesSubtypeMembersAbsentForNoneAsync()
+        public async Task NoneModeKeepsBaseTypeWithoutSubtypeChildrenAsync()
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
-            var task = new ServerRedundancyStartupTask(new ServerRedundancyOptions());
+            var task = new ServerRedundancyStartupTask(
+                new ServerRedundancyController(new ServerRedundancyOptions()));
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
-            PropertyState<string> currentServerId =
-                loaded.Manager.FindPredefinedNode<PropertyState<string>>(
-                    VariableIds.Server_ServerRedundancy_CurrentServerId);
-            PropertyState<ArrayOf<string>> serverUriArray =
-                loaded.Manager.FindPredefinedNode<PropertyState<ArrayOf<string>>>(
-                    VariableIds.Server_ServerRedundancy_ServerUriArray);
-            Assert.That(currentServerId, Is.Not.Null);
-            Assert.That(loaded.Server.Object.ServerObject.ServerRedundancy!.TypeDefinitionId,
-                Is.EqualTo(ServerRedundancyTypeId));
-            Assert.That(currentServerId!.NodeId, Is.EqualTo(VariableIds.Server_ServerRedundancy_CurrentServerId));
-            Assert.That(currentServerId.Value, Is.Null);
-            Assert.That(serverUriArray, Is.Not.Null);
-            Assert.That(serverUriArray!.NodeId, Is.EqualTo(VariableIds.Server_ServerRedundancy_ServerUriArray));
-            Assert.That(serverUriArray.Value, Is.Empty);
+            ServerRedundancyState redundancy = loaded.Server.Object.ServerObject.ServerRedundancy!;
+            Assert.That(redundancy.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.ServerRedundancyType));
+            Assert.That(redundancy, Is.Not.InstanceOf<TransparentRedundancyState>());
+            Assert.That(redundancy, Is.Not.InstanceOf<NonTransparentRedundancyState>());
+            Assert.That(redundancy.RedundancySupport!.Value, Is.EqualTo(RedundancySupport.None));
+            Assert.That(HasChild(loaded, redundancy, BrowseNames.CurrentServerId), Is.False);
+            Assert.That(HasChild(loaded, redundancy, BrowseNames.ServerUriArray), Is.False);
         }
 
         [Test]
-        public async Task OnServerStartedAddsCurrentServerIdForTransparentModeAsync()
+        public async Task TransparentModePromotesToTransparentSubtypeAsync()
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var options = new ServerRedundancyOptions
@@ -126,25 +143,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 CurrentServerId = "replica-a"
             };
             options.PeerServerUris.Add("urn:peer-a");
-            var task = new ServerRedundancyStartupTask(options);
+            var task = new ServerRedundancyStartupTask(new ServerRedundancyController(options));
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
-            PropertyState<string> currentServerId =
-                loaded.Manager.FindPredefinedNode<PropertyState<string>>(
-                    VariableIds.Server_ServerRedundancy_CurrentServerId);
-            PropertyState<ArrayOf<RedundantServerDataType>> redundantServerArray =
-                loaded.Manager.FindPredefinedNode<PropertyState<ArrayOf<RedundantServerDataType>>>(
-                    VariableIds.Server_ServerRedundancy_RedundantServerArray);
-            Assert.That(currentServerId!.Value, Is.EqualTo("replica-a"));
-            Assert.That(loaded.Server.Object.ServerObject.ServerRedundancy!.TypeDefinitionId,
-                Is.EqualTo(TransparentRedundancyTypeId));
-            Assert.That(currentServerId.NodeId, Is.EqualTo(VariableIds.Server_ServerRedundancy_CurrentServerId));
-            Assert.That(redundantServerArray!.Value[0].ServerId, Is.EqualTo("urn:peer-a"));
+            ServerRedundancyState redundancy = loaded.Server.Object.ServerObject.ServerRedundancy!;
+            Assert.That(redundancy.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.TransparentRedundancyType));
+            Assert.That(redundancy, Is.InstanceOf<TransparentRedundancyState>());
+
+            var transparent = (TransparentRedundancyState)redundancy;
+            Assert.That(transparent.CurrentServerId, Is.Not.Null);
+            Assert.That(transparent.CurrentServerId!.Value, Is.EqualTo("replica-a"));
+            Assert.That(transparent.CurrentServerId.NodeId,
+                Is.EqualTo(VariableIds.Server_ServerRedundancy_CurrentServerId));
+            Assert.That(transparent.RedundantServerArray!.Value[0].ServerId, Is.EqualTo("urn:peer-a"));
+            Assert.That(HasChild(loaded, redundancy, BrowseNames.CurrentServerId), Is.True);
+            Assert.That(HasChild(loaded, redundancy, BrowseNames.ServerUriArray), Is.False);
         }
 
         [Test]
-        public async Task OnServerStartedAddsServerUriArrayForNonTransparentModeAsync()
+        public async Task NonTransparentModePromotesToNonTransparentSubtypeAsync()
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var options = new ServerRedundancyOptions
@@ -153,22 +171,72 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
             options.PeerServerUris.Add("urn:peer-a");
             options.PeerServerUris.Add("urn:peer-b");
-            var task = new ServerRedundancyStartupTask(options);
+            var task = new ServerRedundancyStartupTask(new ServerRedundancyController(options));
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
-            PropertyState<ArrayOf<string>> serverUriArray =
-                loaded.Manager.FindPredefinedNode<PropertyState<ArrayOf<string>>>(
-                    VariableIds.Server_ServerRedundancy_ServerUriArray);
-            PropertyState<ArrayOf<RedundantServerDataType>> redundantServerArray =
-                loaded.Manager.FindPredefinedNode<PropertyState<ArrayOf<RedundantServerDataType>>>(
-                    VariableIds.Server_ServerRedundancy_RedundantServerArray);
-            Assert.That(serverUriArray!.Value, Is.EqualTo(["urn:peer-a", "urn:peer-b"]));
+            ServerRedundancyState redundancy = loaded.Server.Object.ServerObject.ServerRedundancy!;
+            Assert.That(redundancy.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.NonTransparentRedundancyType));
+            Assert.That(redundancy, Is.InstanceOf<NonTransparentRedundancyState>());
+
+            var nonTransparent = (NonTransparentRedundancyState)redundancy;
+            Assert.That(nonTransparent.ServerUriArray, Is.Not.Null);
+            Assert.That(nonTransparent.ServerUriArray!.Value, Is.EqualTo(["urn:peer-a", "urn:peer-b"]));
+            Assert.That(nonTransparent.ServerUriArray.NodeId,
+                Is.EqualTo(VariableIds.Server_ServerRedundancy_ServerUriArray));
+            Assert.That(nonTransparent.RedundantServerArray!.Value[0].ServerId, Is.EqualTo("urn:peer-a"));
+            Assert.That(nonTransparent.RedundantServerArray.Value[1].ServerId, Is.EqualTo("urn:peer-b"));
+            Assert.That(HasChild(loaded, redundancy, BrowseNames.ServerUriArray), Is.True);
+            Assert.That(HasChild(loaded, redundancy, BrowseNames.CurrentServerId), Is.False);
+        }
+
+        [Test]
+        public async Task ChangeModeAtRuntimeSwapsSubtypeAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var options = new ServerRedundancyOptions();
+            options.PeerServerUris.Add("urn:peer-a");
+            var controller = new ServerRedundancyController(options);
+            var task = new ServerRedundancyStartupTask(controller);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             Assert.That(loaded.Server.Object.ServerObject.ServerRedundancy!.TypeDefinitionId,
-                Is.EqualTo(NonTransparentRedundancyTypeId));
-            Assert.That(serverUriArray.NodeId, Is.EqualTo(VariableIds.Server_ServerRedundancy_ServerUriArray));
-            Assert.That(redundantServerArray!.Value[0].ServerId, Is.EqualTo("urn:peer-a"));
-            Assert.That(redundantServerArray.Value[1].ServerId, Is.EqualTo("urn:peer-b"));
+                Is.EqualTo(ObjectTypeIds.ServerRedundancyType));
+
+            // None -> Transparent
+            options.CurrentServerId = "replica-a";
+            await controller.ChangeModeAsync(RedundancySupport.Transparent).ConfigureAwait(false);
+
+            Assert.That(controller.Mode, Is.EqualTo(RedundancySupport.Transparent));
+            ServerRedundancyState afterTransparent = loaded.Server.Object.ServerObject.ServerRedundancy!;
+            Assert.That(afterTransparent, Is.InstanceOf<TransparentRedundancyState>());
+            Assert.That(((TransparentRedundancyState)afterTransparent).CurrentServerId!.Value,
+                Is.EqualTo("replica-a"));
+            Assert.That(HasChild(loaded, afterTransparent, BrowseNames.CurrentServerId), Is.True);
+
+            // Transparent -> Hot: subtype swaps, CurrentServerId child gone, ServerUriArray present
+            await controller.ChangeModeAsync(RedundancySupport.Hot).ConfigureAwait(false);
+
+            ServerRedundancyState afterHot = loaded.Server.Object.ServerObject.ServerRedundancy!;
+            Assert.That(afterHot, Is.InstanceOf<NonTransparentRedundancyState>());
+            Assert.That(((NonTransparentRedundancyState)afterHot).ServerUriArray!.Value,
+                Is.EqualTo(["urn:peer-a"]));
+            Assert.That(HasChild(loaded, afterHot, BrowseNames.ServerUriArray), Is.True);
+            Assert.That(HasChild(loaded, afterHot, BrowseNames.CurrentServerId), Is.False);
+            Assert.That(
+                loaded.Manager.FindPredefinedNode<PropertyState<string>>(
+                    VariableIds.Server_ServerRedundancy_CurrentServerId),
+                Is.Null);
+        }
+
+        private static bool HasChild(
+            LoadedDiagnosticsServer loaded,
+            ServerRedundancyState redundancy,
+            string browseName)
+        {
+            var children = new List<BaseInstanceState>();
+            redundancy.GetChildren(loaded.Server.Object.DefaultSystemContext, children);
+            return children.Exists(child => child.BrowseName.Name == browseName);
         }
 
         private static async Task<LoadedDiagnosticsServer> CreateLoadedServerAsync()
@@ -241,9 +309,5 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Manager.Dispose();
             }
         }
-
-        private static readonly NodeId ServerRedundancyTypeId = new(2034);
-        private static readonly NodeId TransparentRedundancyTypeId = new(2036);
-        private static readonly NodeId NonTransparentRedundancyTypeId = new(2039);
     }
 }

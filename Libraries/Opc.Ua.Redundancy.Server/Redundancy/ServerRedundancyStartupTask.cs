@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -38,29 +37,33 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
-    /// Server startup task that populates the live
-    /// <c>Server.ServerRedundancy</c> nodes from
-    /// <see cref="ServerRedundancyOptions"/>.
+    /// Server startup task that materializes the live
+    /// <c>Server.ServerRedundancy</c> node as the generated subtype for the
+    /// configured <see cref="ServerRedundancyOptions"/> via the
+    /// <see cref="ServerRedundancyController"/>.
     /// </summary>
     public sealed class ServerRedundancyStartupTask : IServerStartupTask
     {
         /// <summary>
         /// Creates the task.
         /// </summary>
-        /// <param name="options">The server redundancy options.</param>
+        /// <param name="controller">The redundancy controller.</param>
         /// <param name="warnIfServiceLevelProviderMissing">
         /// Whether to warn when non-transparent redundancy has no registered service-level provider.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="controller"/> is <c>null</c>.</exception>
         public ServerRedundancyStartupTask(
-            ServerRedundancyOptions options,
+            ServerRedundancyController controller,
             bool warnIfServiceLevelProviderMissing = false)
         {
-            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_controller = controller ?? throw new ArgumentNullException(nameof(controller));
             m_warnIfServiceLevelProviderMissing = warnIfServiceLevelProviderMissing;
         }
 
         /// <inheritdoc/>
-        public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+        public async ValueTask OnServerStartedAsync(
+            IServerInternal server,
+            CancellationToken cancellationToken = default)
         {
             if (server == null)
             {
@@ -69,41 +72,12 @@ namespace Opc.Ua.Redundancy.Server
 
             WarnIfServiceLevelProviderMissing(server);
 
-            ServerObjectState? serverObject = server.ServerObject;
-            ServerRedundancyState? redundancy = serverObject?.ServerRedundancy;
-            if (redundancy == null)
-            {
-                return default;
-            }
-
-            ISystemContext context = server.DefaultSystemContext;
-            if (redundancy.RedundancySupport != null)
-            {
-                redundancy.RedundancySupport.Value = m_options.Mode;
-                redundancy.RedundancySupport.ClearChangeMasks(context, false);
-            }
-            ApplyServerRedundancyTypeDefinition(redundancy);
-            redundancy.ClearChangeMasks(context, false);
-
-            if (m_options.Mode != RedundancySupport.None)
-            {
-                ApplyRedundantServerArray(server, redundancy, context);
-                if (m_options.Mode == RedundancySupport.Transparent)
-                {
-                    ApplyCurrentServerId(server, redundancy, context);
-                }
-                else
-                {
-                    ApplyServerUriArray(server, redundancy, context);
-                }
-            }
-
-            return default;
+            await m_controller.AttachAsync(server, cancellationToken).ConfigureAwait(false);
         }
 
         private void WarnIfServiceLevelProviderMissing(IServerInternal server)
         {
-            if (!m_warnIfServiceLevelProviderMissing || !m_options.IsNonTransparentMode)
+            if (!m_warnIfServiceLevelProviderMissing || !m_controller.Options.IsNonTransparentMode)
             {
                 return;
             }
@@ -113,97 +87,10 @@ namespace Opc.Ua.Redundancy.Server
                 "Non-transparent server redundancy mode {RedundancyMode} is configured without a registered " +
                 "IServiceLevelProvider. Register AddServerServiceLevel(...) or an IServiceLevelProvider so " +
                 "Server.ServiceLevel reflects failover health.",
-                m_options.Mode);
+                m_controller.Mode);
         }
 
-        private void ApplyRedundantServerArray(
-            IServerInternal server,
-            ServerRedundancyState redundancy,
-            ISystemContext context)
-        {
-            PropertyState<ArrayOf<RedundantServerDataType>>? redundantServerArray =
-                server.DiagnosticsNodeManager?.FindPredefinedNode<PropertyState<ArrayOf<RedundantServerDataType>>>(
-                    VariableIds.Server_ServerRedundancy_RedundantServerArray) ??
-                redundancy.RedundantServerArray;
-            if (redundantServerArray == null)
-            {
-                return;
-            }
-
-            ArrayOf<string> peerApplicationUris = m_options.GetPeerApplicationUris();
-            var servers = new List<RedundantServerDataType>(peerApplicationUris.Count);
-            foreach (string peerServerUri in peerApplicationUris)
-            {
-                servers.Add(new RedundantServerDataType
-                {
-                    ServerId = peerServerUri,
-                    ServiceLevel = m_options.PeerServiceLevel,
-                    ServerState = ServerState.Running
-                });
-            }
-
-            redundantServerArray.Value = new ArrayOf<RedundantServerDataType>(servers.ToArray());
-            redundantServerArray.ClearChangeMasks(context, false);
-        }
-
-        private void ApplyCurrentServerId(
-            IServerInternal server,
-            ServerRedundancyState redundancy,
-            ISystemContext context)
-        {
-            PropertyState<string>? currentServerId =
-                server.DiagnosticsNodeManager?.FindPredefinedNode<PropertyState<string>>(
-                    VariableIds.Server_ServerRedundancy_CurrentServerId) ??
-                FindProperty<string>(redundancy, context, BrowseNames.CurrentServerId);
-            if (currentServerId != null)
-            {
-                currentServerId.Value = m_options.CurrentServerId;
-                currentServerId.ClearChangeMasks(context, false);
-            }
-        }
-
-        private void ApplyServerUriArray(
-            IServerInternal server,
-            ServerRedundancyState redundancy,
-            ISystemContext context)
-        {
-            PropertyState<ArrayOf<string>>? serverUriArray =
-                server.DiagnosticsNodeManager?.FindPredefinedNode<PropertyState<ArrayOf<string>>>(
-                    VariableIds.Server_ServerRedundancy_ServerUriArray) ??
-                FindProperty<ArrayOf<string>>(redundancy, context, BrowseNames.ServerUriArray);
-            if (serverUriArray != null)
-            {
-                serverUriArray.Value = m_options.GetPeerApplicationUris();
-                serverUriArray.ClearChangeMasks(context, false);
-            }
-        }
-
-        private static PropertyState<T>? FindProperty<T>(
-            ServerRedundancyState redundancy,
-            ISystemContext context,
-            string browseName)
-        {
-            NodeState? child = redundancy.FindChild(context, new QualifiedName(browseName, 0));
-            return child as PropertyState<T>;
-        }
-
-        private static void ApplyServerRedundancyTypeDefinition(ServerRedundancyState redundancy)
-        {
-            redundancy.TypeDefinitionId = redundancy.RedundancySupport?.Value switch
-            {
-                RedundancySupport.Transparent => TransparentRedundancyTypeId,
-                RedundancySupport.Cold or
-                    RedundancySupport.Warm or
-                    RedundancySupport.Hot or
-                    RedundancySupport.HotAndMirrored => NonTransparentRedundancyTypeId,
-                _ => ServerRedundancyTypeId
-            };
-        }
-
-        private readonly ServerRedundancyOptions m_options;
+        private readonly ServerRedundancyController m_controller;
         private readonly bool m_warnIfServiceLevelProviderMissing;
-        private static readonly NodeId ServerRedundancyTypeId = new(2034);
-        private static readonly NodeId TransparentRedundancyTypeId = new(2036);
-        private static readonly NodeId NonTransparentRedundancyTypeId = new(2039);
     }
 }

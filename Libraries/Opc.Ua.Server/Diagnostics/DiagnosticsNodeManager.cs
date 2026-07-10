@@ -372,30 +372,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Applies the OPC 10000-5 subtype model for <c>Server.ServerRedundancy</c>.
-        /// </summary>
-        /// <param name="serverRedundancy">The ServerRedundancy instance.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="serverRedundancy"/> is <c>null</c>.</exception>
-        private static void ApplyServerRedundancyTypeDefinition(ServerRedundancyState serverRedundancy)
-        {
-            if (serverRedundancy == null)
-            {
-                throw new ArgumentNullException(nameof(serverRedundancy));
-            }
-
-            RedundancySupport mode = serverRedundancy.RedundancySupport?.Value ?? RedundancySupport.None;
-            serverRedundancy.TypeDefinitionId = mode switch
-            {
-                RedundancySupport.Transparent => ObjectTypeIds.TransparentRedundancyType,
-                RedundancySupport.Cold or
-                    RedundancySupport.Warm or
-                    RedundancySupport.Hot or
-                    RedundancySupport.HotAndMirrored => ObjectTypeIds.NonTransparentRedundancyType,
-                _ => ObjectTypeIds.ServerRedundancyType
-            };
-        }
-
         private void AddServerSdkOptionalChildren(
             ISystemContext context,
             ServerObjectState serverObject)
@@ -419,9 +395,15 @@ namespace Opc.Ua.Server
             }
             if (serverObject.ServerRedundancy != null)
             {
-                ApplyServerRedundancyTypeDefinition(serverObject.ServerRedundancy);
-                AddServerRedundancySdkOptionalChildren(
-                    context, serverObject.ServerRedundancy);
+                // The base ServerRedundancyType only declares the optional
+                // RedundantServerArray. The mode-specific subtype
+                // (TransparentRedundancyType / NonTransparentRedundancyType) and
+                // its generated children (CurrentServerId / ServerUriArray) are
+                // materialised from the configured RedundancySupport mode at
+                // server startup by Opc.Ua.Redundancy.Server, which promotes this
+                // node to the correct subtype while preserving the well-known
+                // RedundantServerArray NodeId assigned here.
+                serverObject.ServerRedundancy.AddRedundantServerArray(context);
             }
         }
 
@@ -457,81 +439,6 @@ namespace Opc.Ua.Server
                     .AddMaxNodesPerTranslateBrowsePathsToNodeIds(context)
                     .AddMaxNodesPerNodeManagement(context)
                     .AddMaxMonitoredItemsPerCall(context);
-        }
-
-        private static void AddServerRedundancySdkOptionalChildren(
-            ISystemContext context,
-            ServerRedundancyState serverRedundancy)
-        {
-            serverRedundancy.AddRedundantServerArray(context);
-            AddServerRedundancyStringProperty(
-                context,
-                serverRedundancy,
-                BrowseNames.CurrentServerId,
-                VariableIds.Server_ServerRedundancy_CurrentServerId,
-                ValueRanks.Scalar);
-            AddServerRedundancyStringArrayProperty(
-                context,
-                serverRedundancy,
-                BrowseNames.ServerUriArray,
-                VariableIds.Server_ServerRedundancy_ServerUriArray,
-                ValueRanks.OneDimension);
-        }
-
-        private static void AddServerRedundancyStringProperty(
-            ISystemContext context,
-            ServerRedundancyState serverRedundancy,
-            string browseName,
-            NodeId nodeId,
-            int valueRank)
-        {
-            if (serverRedundancy.FindChild(context, new QualifiedName(browseName, 0)) != null)
-            {
-                return;
-            }
-
-            var property = new PropertyState<string>.Implementation<VariantBuilder>(serverRedundancy)
-            {
-                SymbolicName = browseName,
-                NodeId = nodeId,
-                BrowseName = new QualifiedName(browseName, 0),
-                DisplayName = new LocalizedText(browseName),
-                DataType = DataTypeIds.String,
-                ValueRank = valueRank,
-                AccessLevel = AccessLevels.CurrentRead,
-                UserAccessLevel = AccessLevels.CurrentRead,
-                ReferenceTypeId = ReferenceTypeIds.HasProperty,
-                TypeDefinitionId = VariableTypeIds.PropertyType
-            };
-            serverRedundancy.AddChild(property);
-        }
-
-        private static void AddServerRedundancyStringArrayProperty(
-            ISystemContext context,
-            ServerRedundancyState serverRedundancy,
-            string browseName,
-            NodeId nodeId,
-            int valueRank)
-        {
-            if (serverRedundancy.FindChild(context, new QualifiedName(browseName, 0)) != null)
-            {
-                return;
-            }
-
-            var property = new PropertyState<ArrayOf<string>>.Implementation<VariantBuilder>(serverRedundancy)
-            {
-                SymbolicName = browseName,
-                NodeId = nodeId,
-                BrowseName = new QualifiedName(browseName, 0),
-                DisplayName = new LocalizedText(browseName),
-                DataType = DataTypeIds.String,
-                ValueRank = valueRank,
-                AccessLevel = AccessLevels.CurrentRead,
-                UserAccessLevel = AccessLevels.CurrentRead,
-                ReferenceTypeId = ReferenceTypeIds.HasProperty,
-                TypeDefinitionId = VariableTypeIds.PropertyType
-            };
-            serverRedundancy.AddChild(property);
         }
 
         private static void AddHistoryCapabilitiesSdkOptionalChildren(
