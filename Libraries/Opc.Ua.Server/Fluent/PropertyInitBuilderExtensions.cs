@@ -70,13 +70,21 @@ namespace Opc.Ua.Server.Fluent
     /// </remarks>
     public static class PropertyInitBuilderExtensions
     {
-        // ── Variant overload — universal escape hatch ────────────────
-
         /// <summary>
         /// Sets the <c>Value</c> attribute of the property child whose
         /// <see cref="NodeState.BrowseName"/> matches
-        /// <paramref name="browseName"/> (any namespace).
+        /// <paramref name="browseName"/> (any namespace), creating the
+        /// property first when it does not yet exist.
         /// </summary>
+        /// <remarks>
+        /// When no child with the given browse name is present, a new
+        /// read-only <see cref="PropertyState"/> is materialised under the
+        /// current node (data type inferred from <paramref name="value"/>)
+        /// and registered with the owning node manager. This makes the
+        /// helper usable on freshly created nodes such as custom functional
+        /// groups, not just on nodes whose properties come from a loaded
+        /// model. Use <c>Writable()</c> to grant write access afterwards.
+        /// </remarks>
         /// <param name="builder">The owning node builder.</param>
         /// <param name="browseName">
         /// Local browse name of the property child.
@@ -92,17 +100,30 @@ namespace Opc.Ua.Server.Fluent
             Variant value)
         {
             ValidateArgs(builder, browseName);
-            BaseVariableState property = ResolveVariableChildByName(
+            BaseVariableState? existing = TryFindVariableChild(
                 builder.Node, browseName, builder.Builder.Context);
-            property.WrappedValue = value;
+            if (existing != null)
+            {
+                existing.WrappedValue = value;
+                return builder;
+            }
+            CreateProperty(
+                builder,
+                new QualifiedName(browseName, builder.Node.NodeId.NamespaceIndex),
+                value);
             return builder;
         }
 
         /// <summary>
         /// Sets the <c>Value</c> attribute of the property child whose
         /// <see cref="NodeState.BrowseName"/> equals <paramref name="browseName"/>
-        /// (qualified by namespace index).
+        /// (qualified by namespace index), creating the property first when
+        /// it does not yet exist.
         /// </summary>
+        /// <remarks>
+        /// See <see cref="WithProperty(INodeBuilder, string, Variant)"/> for
+        /// the create-if-missing semantics.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public static INodeBuilder WithProperty(
@@ -118,7 +139,12 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(browseName));
             }
-            NodeState? child = builder.Node.FindChild(builder.Builder.Context, browseName) ?? throw NotFound(browseName.ToString(), builder.Node.BrowseName);
+            NodeState? child = builder.Node.FindChild(builder.Builder.Context, browseName);
+            if (child == null)
+            {
+                CreateProperty(builder, browseName, value);
+                return builder;
+            }
             if (child is not BaseVariableState variable)
             {
                 throw NotVariable(browseName.ToString(), builder.Node.BrowseName, child.GetType().Name);
@@ -127,7 +153,45 @@ namespace Opc.Ua.Server.Fluent
             return builder;
         }
 
-        // ── Typed overloads — pick the right Variant.From by overload ──
+        /// <summary>
+        /// Creates or updates the property <paramref name="browseName"/>
+        /// with <paramref name="value"/>, then invokes
+        /// <paramref name="configure"/> with a builder positioned on that
+        /// property. Use this to adjust the new property inline — for
+        /// example to grant write access:
+        /// <code>
+        /// node.WithProperty("LastError", Variant.From(""), p => p.Writable());
+        /// </code>
+        /// </summary>
+        /// <param name="builder">The owning node builder.</param>
+        /// <param name="browseName">Local browse name of the property.</param>
+        /// <param name="value">The property value as a <see cref="Variant"/>.</param>
+        /// <param name="configure">
+        /// Callback invoked with a builder focused on the property.
+        /// </param>
+        /// <returns>
+        /// The original (parent) builder, so further properties can be
+        /// chained.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public static INodeBuilder WithProperty(
+            this INodeBuilder builder,
+            string browseName,
+            Variant value,
+            Action<INodeBuilder> configure)
+        {
+            ValidateArgs(builder, browseName);
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            builder.WithProperty(browseName, value);
+            configure(builder.Child(
+                new QualifiedName(browseName, builder.Node.NodeId.NamespaceIndex)));
+            return builder;
+        }
 
         /// <summary>
         /// String value.
@@ -288,8 +352,6 @@ namespace Opc.Ua.Server.Fluent
             return builder;
         }
 
-        // ── Helpers ──────────────────────────────────────────────────
-
         private static void ValidateArgs(INodeBuilder builder, string browseName)
         {
             if (builder == null)
@@ -303,15 +365,13 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        private static BaseVariableState ResolveVariableChildByName(
+        private static BaseVariableState? TryFindVariableChild(
             NodeState parent,
             string browseName,
             ISystemContext context)
         {
             var found = new List<BaseInstanceState>();
             parent.GetChildren(context, found);
-            BaseVariableState? variable = null;
-            string? mismatchKind = null;
             foreach (BaseInstanceState child in found)
             {
                 if (!string.Equals(child.BrowseName.Name, browseName, StringComparison.Ordinal))
@@ -320,32 +380,60 @@ namespace Opc.Ua.Server.Fluent
                 }
                 if (child is BaseVariableState bvs)
                 {
-                    variable = bvs;
-                    break;
+                    return bvs;
                 }
-                mismatchKind ??= child.GetType().Name;
+                throw NotVariable(browseName, parent.BrowseName, child.GetType().Name);
             }
 
-            if (variable != null)
-
-            {
-                return variable;
-            }
-            if (mismatchKind != null)
-
-            {
-                throw NotVariable(browseName, parent.BrowseName, mismatchKind);
-            }
-            throw NotFound(browseName, parent.BrowseName);
+            return null;
         }
 
-        private static ServiceResultException NotFound(string name, QualifiedName parent)
+        private static void CreateProperty(
+            INodeBuilder builder,
+            QualifiedName browseName,
+            Variant value)
         {
-            return ServiceResultException.Create(
-                StatusCodes.BadNodeIdUnknown,
-                "Property '{0}' was not found on node '{1}'.",
-                name,
-                parent);
+            NodeState parent = builder.Node;
+            ISystemContext context = builder.Builder.Context;
+            string name = browseName.Name ?? string.Empty;
+
+            NodeId dataTypeId = TypeInfo.GetDataTypeId(value, context.NamespaceUris);
+            if (dataTypeId.IsNull)
+            {
+                dataTypeId = DataTypeIds.BaseDataType;
+            }
+
+            var property = new PropertyState(parent)
+            {
+                SymbolicName = name,
+                BrowseName = browseName,
+                DisplayName = new LocalizedText(name),
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                TypeDefinitionId = VariableTypeIds.PropertyType,
+                ModellingRuleId = NodeId.Null,
+                DataType = dataTypeId,
+                ValueRank = value.TypeInfo.ValueRank,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate,
+                Historizing = false,
+                NodeId = new NodeId(
+                    string.Concat(parent.NodeId.IdentifierAsString, "_", name),
+                    parent.NodeId.NamespaceIndex)
+            };
+
+            property.WrappedValue = value;
+            parent.AddChild(property);
+
+            // Index the freshly created node so browse / NodeId lookup work
+            // when the parent was already registered (e.g. a custom
+            // functional group built during DI post-setup). When the owning
+            // manager is not an AsyncCustomNodeManager (e.g. a unit-test
+            // double) the node remains reachable via its parent.
+            if (builder.Builder.NodeManager is AsyncCustomNodeManager manager)
+            {
+                manager.AddPredefinedNodeSynchronously(property);
+            }
         }
 
         private static ServiceResultException NotVariable(
