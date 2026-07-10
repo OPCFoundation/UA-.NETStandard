@@ -188,8 +188,12 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(configure));
             }
             builder.WithProperty(browseName, value);
-            configure(builder.Child(
-                new QualifiedName(browseName, builder.Node.NodeId.NamespaceIndex)));
+            BaseVariableState? property = TryFindVariableChild(
+                builder.Node, browseName, builder.Builder.Context);
+            if (property != null)
+            {
+                configure(builder.Child(property.BrowseName));
+            }
             return builder;
         }
 

@@ -547,6 +547,79 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.False);
         }
 
+        [Test]
+        public void AddPredefinedNodeSynchronously_RegistersNodeAndChildren()
+        {
+            using Harness h = CreateHarness();
+            ushort ns = h.Manager.NamespaceIndexes[0];
+
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("SyncParent", ns),
+                BrowseName = new QualifiedName("SyncParent", ns),
+                DisplayName = new LocalizedText("SyncParent")
+            };
+            var child = new BaseDataVariableState(parent)
+            {
+                NodeId = new NodeId("SyncParent_Child", ns),
+                BrowseName = new QualifiedName("Child", ns),
+                DisplayName = new LocalizedText("Child"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                ReferenceTypeId = ReferenceTypeIds.HasProperty
+            };
+            parent.AddChild(child);
+
+            h.Manager.AddPredefinedNodeSynchronouslyPublic(parent);
+
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(parent.NodeId), Is.True);
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(child.NodeId), Is.True);
+        }
+
+        [Test]
+        public void AddPredefinedNodeSynchronously_NullNode_ThrowsArgumentNullException()
+        {
+            using Harness h = CreateHarness();
+
+            Assert.Throws<System.ArgumentNullException>(
+                () => h.Manager.AddPredefinedNodeSynchronouslyPublic(null!));
+        }
+
+        [Test]
+        public void AddPredefinedNodeSynchronously_PropagatesTypeHierarchyAndUpdatesRootNotifier()
+        {
+            using Harness h = CreateHarness();
+            ushort ns = h.Manager.NamespaceIndexes[0];
+
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("SyncTypeParent", ns),
+                BrowseName = new QualifiedName("SyncTypeParent", ns),
+                DisplayName = new LocalizedText("SyncTypeParent"),
+                IsPartOfTypeHierarchy = true
+            };
+            var child = new BaseObjectState(parent)
+            {
+                NodeId = new NodeId("SyncTypeParent_Child", ns),
+                BrowseName = new QualifiedName("Child", ns),
+                DisplayName = new LocalizedText("Child"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            parent.AddChild(child);
+
+            // Registering the parent as a root notifier exercises the
+            // notifier-wiring branch inside IndexPredefinedNode.
+            h.Manager.SeedRootNotifier(parent.NodeId);
+
+            h.Manager.AddPredefinedNodeSynchronouslyPublic(parent);
+
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(child.NodeId), Is.True);
+            Assert.That(child.IsPartOfTypeHierarchy, Is.True);
+            Assert.That(
+                parent.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server),
+                Is.True);
+        }
+
         private static Harness CreateHarness(bool allowNodeManagement = false)
         {
             var mockServer = new Mock<IServerInternal>();
@@ -667,6 +740,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public ValueTask AddPredefinedNodeAsyncPublic(ISystemContext context, NodeState node, CancellationToken ct = default)
             {
                 return AddPredefinedNodeAsync(context, node, ct);
+            }
+
+            public void AddPredefinedNodeSynchronouslyPublic(NodeState node)
+            {
+                AddPredefinedNodeSynchronously(node);
+            }
+
+            public void SeedRootNotifier(NodeId nodeId)
+            {
+                RootNotifiers[nodeId] = null!;
             }
         }
 

@@ -239,10 +239,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, BaseObjectState root, _, _, _) = CreateBuilderWithObject();
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
-            nb.WithProperty("Writeable", Variant.From(true), p => p.Writable());
+            nb.WithProperty("Writable", Variant.From(true), p => p.Writable());
 
             var created = root.FindChild(
-                b.Context, new QualifiedName("Writeable", kNs)) as PropertyState;
+                b.Context, new QualifiedName("Writable", kNs)) as PropertyState;
             Assert.That(created, Is.Not.Null);
             Assert.That(
                 created!.AccessLevel & AccessLevels.CurrentWrite,
