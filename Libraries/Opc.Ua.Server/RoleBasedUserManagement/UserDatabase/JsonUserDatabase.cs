@@ -189,7 +189,23 @@ namespace Opc.Ua.Server.UserDatabase
                 Type typeToConvert,
                 JsonSerializerOptions options)
             {
-                return ExpandedNodeId.Parse(reader.GetString()!);
+                if (reader.TokenType == JsonTokenType.String)
+                {
+                    string value = reader.GetString()!;
+                    if (ExpandedNodeId.TryParse(value, out ExpandedNodeId expandedNodeId))
+                    {
+                        return expandedNodeId;
+                    }
+
+                    throw new JsonException("The ExpandedNodeId string is invalid.");
+                }
+
+                if (reader.TokenType == JsonTokenType.StartObject)
+                {
+                    return ReadLegacyObject(ref reader);
+                }
+
+                throw new JsonException("Expected an ExpandedNodeId string or legacy object.");
             }
 
             public override void Write(
@@ -198,6 +214,86 @@ namespace Opc.Ua.Server.UserDatabase
                 JsonSerializerOptions options)
             {
                 writer.WriteStringValue(value.ToString());
+            }
+
+            private static ExpandedNodeId ReadLegacyObject(ref Utf8JsonReader reader)
+            {
+                using JsonDocument document = JsonDocument.ParseValue(ref reader);
+                JsonElement value = document.RootElement;
+                uint serverIndex = value.GetProperty("serverIndex").GetUInt32();
+                ushort namespaceIndex = value.GetProperty("namespaceIndex").GetUInt16();
+                string? namespaceUri = value.TryGetProperty(
+                    "namespaceUri",
+                    out JsonElement namespaceUriValue)
+                    ? namespaceUriValue.GetString()
+                    : null;
+                bool isNull = value.GetProperty("isNull").GetBoolean();
+                bool isAbsolute = value.GetProperty("isAbsolute").GetBoolean();
+                bool expectedIsAbsolute = !string.IsNullOrEmpty(namespaceUri) || serverIndex > 0;
+                if (isAbsolute != expectedIsAbsolute ||
+                    (!string.IsNullOrEmpty(namespaceUri) && namespaceIndex != 0))
+                {
+                    throw new JsonException("The legacy ExpandedNodeId namespace is invalid.");
+                }
+
+                string idType = value.GetProperty("idType").GetString() ??
+                    throw new JsonException("The legacy ExpandedNodeId identifier type is invalid.");
+                if (isNull)
+                {
+                    if (serverIndex != 0 ||
+                        namespaceIndex != 0 ||
+                        namespaceUri is not null ||
+                        idType != "numeric" ||
+                        (value.TryGetProperty("identifier", out JsonElement identifier) &&
+                            identifier.ValueKind != JsonValueKind.Null))
+                    {
+                        throw new JsonException("The legacy null ExpandedNodeId is invalid.");
+                    }
+
+                    return ExpandedNodeId.Null;
+                }
+
+                JsonElement identifierValue = value.GetProperty("identifier");
+                return idType switch
+                {
+                    "numeric" => new ExpandedNodeId(
+                        identifierValue.GetUInt32(),
+                        namespaceIndex,
+                        namespaceUri,
+                        serverIndex),
+                    "string" => new ExpandedNodeId(
+                        identifierValue.GetString() ??
+                            throw new JsonException(
+                                "The legacy ExpandedNodeId identifier is invalid."),
+                        namespaceIndex,
+                        namespaceUri,
+                        serverIndex),
+                    "guid" => new ExpandedNodeId(
+                        identifierValue.GetGuid(),
+                        namespaceIndex,
+                        namespaceUri,
+                        serverIndex),
+                    "opaque" => new ExpandedNodeId(
+                        ReadByteString(identifierValue),
+                        namespaceIndex,
+                        namespaceUri,
+                        serverIndex),
+                    _ => throw new JsonException("The legacy ExpandedNodeId identifier type is invalid.")
+                };
+            }
+
+            private static ByteString ReadByteString(JsonElement value)
+            {
+                string base64 = value.GetProperty("memory").GetString() ??
+                    throw new JsonException(
+                        "The legacy ExpandedNodeId identifier is invalid.");
+                if (!ByteString.TryFromBase64(base64, out ByteString result))
+                {
+                    throw new JsonException(
+                        "The legacy ExpandedNodeId identifier is invalid.");
+                }
+
+                return result;
             }
         }
     }

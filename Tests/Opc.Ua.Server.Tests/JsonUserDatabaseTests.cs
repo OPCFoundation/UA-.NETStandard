@@ -82,6 +82,76 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void LoadLegacyObjectDatabasePreservesUsersCredentialsAndRoles()
+        {
+            const string legacyJson = """
+                {
+                  "users": [
+                    {
+                      "Id": "5ffc097e-566f-4e98-9a45-fa662826a6aa",
+                      "UserName": "alice",
+                      "Hash": "100000.fBXDf\u002BXgck10FwkXXEVetxGpOsM=.83/yGZTA1roMWqRsDO6TiuWllGOHfipTm01UaTduYJo=",
+                      "Roles": [
+                        {
+                          "Name": "AuthenticatedUser",
+                          "RoleId": {
+                            "serverIndex": 0,
+                            "isNull": false,
+                            "isAbsolute": false,
+                            "namespaceIndex": 0,
+                            "idType": "numeric",
+                            "identifier": 15656,
+                            "identifierAsString": "15656",
+                            "innerNodeId": {
+                              "namespaceIndex": 0,
+                              "idType": "numeric",
+                              "identifier": 15656,
+                              "identifierAsString": "15656",
+                              "isNull": false,
+                              "hasValue": true
+                            }
+                          }
+                        },
+                        {
+                          "Name": "Engineer",
+                          "RoleId": {
+                            "serverIndex": 0,
+                            "isNull": false,
+                            "isAbsolute": false,
+                            "namespaceIndex": 0,
+                            "idType": "numeric",
+                            "identifier": 16036,
+                            "identifierAsString": "16036",
+                            "innerNodeId": {
+                              "namespaceIndex": 0,
+                              "idType": "numeric",
+                              "identifier": 16036,
+                              "identifierAsString": "16036",
+                              "isNull": false,
+                              "hasValue": true
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """;
+            string fileName = CreateDatabasePath();
+            File.WriteAllText(fileName, legacyJson);
+
+            IUserDatabase loaded = JsonUserDatabase.Load(fileName, NUnitTelemetryContext.Create());
+
+            Assert.That(((JsonUserDatabase)loaded).FileName, Is.EqualTo(fileName));
+            Assert.That(loaded.GetUsers().Single().UserName, Is.EqualTo("alice"));
+            Assert.That(loaded.CheckCredentials("alice", "secret"u8), Is.True);
+            Assert.That(loaded.CheckCredentials("alice", "wrong"u8), Is.False);
+            Assert.That(loaded.GetUserRoles("alice"), Has.Count.EqualTo(2));
+            Assert.That(loaded.GetUserRoles("alice"), Does.Contain(Role.AuthenticatedUser));
+            Assert.That(loaded.GetUserRoles("alice"), Does.Contain(Role.Engineer));
+        }
+
+        [Test]
         public void LoadExistingEmptyJsonPreservesFileName()
         {
             string fileName = CreateDatabasePath();
