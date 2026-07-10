@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -111,19 +112,25 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void DisposeClearsCachedCredentialAndPreventsAcquire()
+        public async Task DisposeClearsCachedCredentialAndPreventsAcquireAsync()
         {
-            using var credential = new GdsIssuedKeyCredential("cred", [1, 2, 3], DateTime.UtcNow);
-            GdsIssuedKeyCredential copy = credential.Copy();
-            copy.Dispose();
-            using var provider = new GdsKeyCredentialAccessTokenProvider(
-                _ => new ValueTask<GdsIssuedKeyCredential>(credential.Copy()),
+            var provider = new GdsKeyCredentialAccessTokenProvider(
+                _ => new ValueTask<GdsIssuedKeyCredential>(
+                    new GdsIssuedKeyCredential("cred", [1, 2, 3], DateTime.UtcNow.AddMinutes(10))),
                 "urn:authority");
-            provider.Dispose();
-            provider.Dispose();
             var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority" };
 
-            Assert.That(copy.CredentialSecret, Is.EqualTo(new byte[] { 0, 0, 0 }));
+            await provider.AcquireAsync(metadata).ConfigureAwait(false);
+            FieldInfo cachedCredentialField = typeof(GdsKeyCredentialAccessTokenProvider).GetField(
+                "m_cachedCredential",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var cachedCredential = (GdsIssuedKeyCredential)cachedCredentialField.GetValue(provider)!;
+            byte[] cachedSecret = cachedCredential.CredentialSecret;
+
+            provider.Dispose();
+            provider.Dispose();
+
+            Assert.That(cachedSecret, Is.EqualTo(new byte[] { 0, 0, 0 }));
             Assert.That(
                 async () => await provider.AcquireAsync(metadata).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());

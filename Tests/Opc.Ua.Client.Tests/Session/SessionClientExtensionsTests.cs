@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -251,32 +252,67 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadBytesAsyncWithChunkedResponseConcatenatesChunksAsync()
         {
             using ISession session = CreateSession();
+            var capturedRequests = new List<ReadValueId>();
+            int responseIndex = 0;
             var readSetup = Mock.Get(session);
             readSetup
-                .SetupSequence(s => s.ReadAsync(
+                .Setup(s => s.ReadAsync(
                     It.IsAny<RequestHeader>(),
                     It.IsAny<double>(),
                     It.IsAny<TimestampsToReturn>(),
                     It.IsAny<ArrayOf<ReadValueId>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ReadResponse>(new ReadResponse
-                {
-                    ResponseHeader = new ResponseHeader(),
-                    Results = [new DataValue(new Variant(ByteString.From([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])))],
-                    DiagnosticInfos = []
-                }))
-                .Returns(new ValueTask<ReadResponse>(new ReadResponse
-                {
-                    ResponseHeader = new ResponseHeader(),
-                    Results = [new DataValue(new Variant(ByteString.From([11, 12, 13])))],
-                    DiagnosticInfos = []
-                }));
+                .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
+                    (_, _, _, requests, _) =>
+                    {
+                        capturedRequests.Add(requests[0]);
+                        ReadResponse response = responseIndex++ switch
+                        {
+                            0 => new ReadResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results =
+                                [
+                                    new DataValue(new Variant(
+                                        ByteString.From([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])))
+                                ],
+                                DiagnosticInfos = []
+                            },
+                            1 => new ReadResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [new DataValue(new Variant(ByteString.From([11, 12, 13])))],
+                                DiagnosticInfos = []
+                            },
+                            _ => throw new InvalidOperationException("Unexpected additional chunk read.")
+                        };
+                        return new ValueTask<ReadResponse>(response);
+                    });
 
-            ByteString result = await session.ReadBytesAsync(new NodeId(1, 0), 10).ConfigureAwait(false);
+            var nodeId = new NodeId(1, 0);
+            ByteString result = await session.ReadBytesAsync(nodeId, 10).ConfigureAwait(false);
 
             Assert.That(
                 result.ToArray(),
                 Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 }));
+            Assert.That(capturedRequests, Has.Count.EqualTo(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(capturedRequests[0].NodeId, Is.EqualTo(nodeId));
+                Assert.That(capturedRequests[0].AttributeId, Is.EqualTo(Attributes.Value));
+                Assert.That(capturedRequests[0].DataEncoding, Is.EqualTo(QualifiedName.Null));
+                Assert.That(capturedRequests[0].IndexRange, Is.EqualTo("0:9"));
+                Assert.That(capturedRequests[1].NodeId, Is.EqualTo(nodeId));
+                Assert.That(capturedRequests[1].AttributeId, Is.EqualTo(Attributes.Value));
+                Assert.That(capturedRequests[1].DataEncoding, Is.EqualTo(QualifiedName.Null));
+                Assert.That(capturedRequests[1].IndexRange, Is.EqualTo("10:19"));
+            });
+            readSetup.Verify(s => s.ReadAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<double>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         [Test]
@@ -344,20 +380,39 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task ResendDataAsyncReturnsStatusPerSubscriptionAsync()
         {
+            var capturedRequests = ArrayOf<CallMethodRequest>.Empty;
             using ISession session = CreateSession(
-                callResponseFactory: requests => new CallResponse
+                callResponseFactory: requests =>
                 {
-                    ResponseHeader = new ResponseHeader(),
-                    Results =
-                    [
-                        new CallMethodResult { StatusCode = StatusCodes.Good },
-                        new CallMethodResult { StatusCode = StatusCodes.BadUnexpectedError }
-                    ],
-                    DiagnosticInfos = []
+                    capturedRequests = requests;
+                    return new CallResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results =
+                        [
+                            new CallMethodResult { StatusCode = StatusCodes.Good },
+                            new CallMethodResult { StatusCode = StatusCodes.BadUnexpectedError }
+                        ],
+                        DiagnosticInfos = []
+                    };
                 });
 
             ArrayOf<ServiceResult> errors = await session.ResendDataAsync([1u, 2u]).ConfigureAwait(false);
 
+            Assert.That(capturedRequests, Has.Count.EqualTo(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(capturedRequests[0].ObjectId, Is.EqualTo(ObjectIds.Server));
+                Assert.That(capturedRequests[0].MethodId, Is.EqualTo(MethodIds.Server_ResendData));
+                Assert.That(capturedRequests[0].InputArguments, Has.Count.EqualTo(1));
+                Assert.That(capturedRequests[0].InputArguments[0].TryGetValue(out uint first), Is.True);
+                Assert.That(first, Is.EqualTo(1u));
+                Assert.That(capturedRequests[1].ObjectId, Is.EqualTo(ObjectIds.Server));
+                Assert.That(capturedRequests[1].MethodId, Is.EqualTo(MethodIds.Server_ResendData));
+                Assert.That(capturedRequests[1].InputArguments, Has.Count.EqualTo(1));
+                Assert.That(capturedRequests[1].InputArguments[0].TryGetValue(out uint second), Is.True);
+                Assert.That(second, Is.EqualTo(2u));
+            });
             Assert.That(errors.Count, Is.EqualTo(2));
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));

@@ -388,14 +388,20 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ProcessPublishResponseDispatchesKnownSubscriptionNotification()
+        public async Task ProcessPublishResponseDispatchesKnownSubscriptionNotificationAsync()
         {
             m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
-            var subscription = new Subscription(m_telemetry)
+            var session = CreateSubscriptionSession(7);
+            using var subscription = new Subscription(
+                m_telemetry,
+                new SubscriptionOptions
+                {
+                    PublishingEnabled = false
+                })
             {
-                CurrentPublishingInterval = 100,
-                CurrentLifetimeCount = 10
+                Session = session.Object
             };
+            await subscription.CreateAsync().ConfigureAwait(false);
             m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
             using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
             var dataChange = new DataChangeNotification
@@ -406,7 +412,7 @@ namespace Opc.Ua.Client.Tests
 
             engine.ProcessPublishResponse(
                 new ResponseHeader { Timestamp = DateTime.UtcNow, StringTable = ["ns"] },
-                0,
+                subscription.Id,
                 [2u],
                 true,
                 new NotificationMessage
@@ -452,12 +458,44 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void OnPublishCompleteProcessesSuccessfulResponseAndRequeues()
+        public async Task OnPublishCompleteProcessesSuccessfulResponseAndRequeuesAsync()
         {
-            m_mockContext.Setup(c => c.SessionId).Returns(new NodeId(1));
-            m_mockContext.Setup(c => c.Connected).Returns(false);
+            var sessionId = new NodeId(1);
+            m_mockContext.Setup(c => c.SessionId).Returns(sessionId);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
             m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
-            m_mockContext.Setup(c => c.Subscriptions).Returns([]);
+            var session = CreateSubscriptionSession(1);
+            using var subscription = new Subscription(
+                m_telemetry,
+                new SubscriptionOptions
+                {
+                    PublishingEnabled = false
+                })
+            {
+                Session = session.Object
+            };
+            await subscription.CreateAsync().ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements =>
+                    (new List<SubscriptionAcknowledgement>(acknowledgements), []));
+            var followUpResponse = new TaskCompletionSource<PublishResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var publishCalled = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var followUpAcknowledgements = ArrayOf<SubscriptionAcknowledgement>.Empty;
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<SubscriptionAcknowledgement>, CancellationToken>(
+                    (_, acknowledgements, _) =>
+                    {
+                        followUpAcknowledgements = acknowledgements;
+                        publishCalled.TrySetResult(true);
+                    })
+                .Returns(new ValueTask<PublishResponse>(followUpResponse.Task));
             using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
             Task<PublishResponse> task = Task.FromResult(new PublishResponse
             {
@@ -473,16 +511,45 @@ namespace Opc.Ua.Client.Tests
                 {
                     SequenceNumber = 1,
                     PublishTime = DateTime.UtcNow,
-                    NotificationData = []
+                    NotificationData =
+                    [
+                        new ExtensionObject(new DataChangeNotification
+                        {
+                            MonitoredItems = [],
+                            DiagnosticInfos = []
+                        })
+                    ]
                 },
                 Results = [StatusCodes.Good]
             });
+            var sentAcknowledgements = new List<SubscriptionAcknowledgement>
+            {
+                new() { SubscriptionId = subscription.Id, SequenceNumber = 5 }
+            };
 
-            InvokeOnPublishComplete(engine, task, new NodeId(1), null);
+            InvokeOnPublishComplete(engine, task, sessionId, sentAcknowledgements);
+            Task completed = await Task.WhenAny(
+                publishCalled.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
 
+            Assert.That(completed, Is.SameAs(publishCalled.Task));
+            Assert.That(followUpAcknowledgements, Has.Count.EqualTo(1));
+            Assert.That(followUpAcknowledgements[0].SubscriptionId, Is.EqualTo(subscription.Id));
+            Assert.That(followUpAcknowledgements[0].SequenceNumber, Is.EqualTo(1u));
+            m_mockContext.Verify(c => c.PrepareAcknowledgementsToSend(
+                It.IsAny<List<SubscriptionAcknowledgement>>()), Times.Once);
+            m_mockContext.Verify(c => c.PublishAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
             m_mockContext.Verify(c => c.AsyncRequestCompleted(
                 task,
                 99,
+                DataTypes.PublishRequest), Times.Once);
+            m_mockContext.Verify(c => c.AsyncRequestStarted(
+                followUpResponse.Task,
+                It.IsAny<System.Diagnostics.Activity>(),
+                It.IsAny<uint>(),
                 DataTypes.PublishRequest), Times.Once);
             m_mockContext.Verify(c => c.OnKeepAlive(ServerState.Running, It.IsAny<DateTime>()), Times.Once);
         }
@@ -534,6 +601,30 @@ namespace Opc.Ua.Client.Tests
                     acknowledgements,
                     new RequestHeader { RequestHandle = 99 }
                 ]);
+        }
+
+        private static Mock<ISession> CreateSubscriptionSession(uint subscriptionId)
+        {
+            var session = new Mock<ISession>(MockBehavior.Loose);
+            session.SetupGet(s => s.SessionTimeout).Returns(60000);
+            session.Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<byte>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<CreateSubscriptionResponse>(new CreateSubscriptionResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    SubscriptionId = subscriptionId,
+                    RevisedPublishingInterval = 100,
+                    RevisedMaxKeepAliveCount = 10,
+                    RevisedLifetimeCount = 30
+                }));
+            return session;
         }
     }
 }

@@ -217,6 +217,7 @@ namespace Opc.Ua.Client.Tests.StateMachines
             NodeId stateNumber = new(401u, 2);
             NodeId transitionNumber = new(402u, 2);
             NodeId subMachine = new(501u, 2);
+            var browseDescriptions = new List<BrowseDescription>();
 
             sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
                     It.IsAny<RequestHeader>(),
@@ -266,19 +267,28 @@ namespace Opc.Ua.Client.Tests.StateMachines
                     It.IsAny<ArrayOf<BrowseDescription>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
-                    (_, _, _, browse, _) => new ValueTask<BrowseResponse>(new BrowseResponse
+                    (_, _, _, browse, _) =>
                     {
-                        ResponseHeader = new ResponseHeader(),
-                        Results =
-                        [
-                            new BrowseResult
-                            {
-                                StatusCode = StatusCodes.Good,
-                                References = ReferencesFor(browse[0], runningState, startTransition, subMachine)
-                            }
-                        ],
-                        DiagnosticInfos = []
-                    }));
+                        browseDescriptions.AddRange(browse);
+                        return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results =
+                            [
+                                new BrowseResult
+                                {
+                                    StatusCode = StatusCodes.Good,
+                                    References = ReferencesFor(
+                                        browse[0],
+                                        client.ObjectId,
+                                        runningState,
+                                        startTransition,
+                                        subMachine)
+                                }
+                            ],
+                            DiagnosticInfos = []
+                        });
+                    });
 
             FiniteStateSnapshot snapshot = await client.GetCurrentFiniteStateAsync().ConfigureAwait(false);
             IReadOnlyList<FiniteStateInfo> states = await client.GetAvailableStatesAsync().ConfigureAwait(false);
@@ -300,6 +310,18 @@ namespace Opc.Ua.Client.Tests.StateMachines
             Assert.That(transitions[0].TransitionNumber, Is.EqualTo(20u));
             Assert.That(child, Is.Not.Null);
             Assert.That(child!.ObjectId, Is.EqualTo(subMachine));
+            Assert.That(browseDescriptions, Has.Count.EqualTo(3));
+            Assert.Multiple(() =>
+            {
+                Assert.That(browseDescriptions[0].NodeId, Is.EqualTo(client.ObjectId));
+                Assert.That(browseDescriptions[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+                Assert.That(browseDescriptions[1].NodeId, Is.EqualTo(client.ObjectId));
+                Assert.That(browseDescriptions[1].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+                Assert.That(browseDescriptions[2].NodeId, Is.EqualTo(runningState));
+                Assert.That(
+                    browseDescriptions[2].ReferenceTypeId,
+                    Is.EqualTo(ReferenceTypeIds.HasSubStateMachine));
+            });
         }
 
         private static void SetupTranslateAllEmpty(Mock<ISessionClient> sessionMock)
@@ -424,11 +446,13 @@ namespace Opc.Ua.Client.Tests.StateMachines
 
         private static ArrayOf<ReferenceDescription> ReferencesFor(
             BrowseDescription browse,
+            NodeId root,
             NodeId state,
             NodeId transition,
             NodeId subMachine)
         {
-            if (browse.ReferenceTypeId == ReferenceTypeIds.HasSubStateMachine)
+            if (browse.NodeId == state &&
+                browse.ReferenceTypeId == ReferenceTypeIds.HasSubStateMachine)
             {
                 return new[]
                 {
@@ -439,6 +463,12 @@ namespace Opc.Ua.Client.Tests.StateMachines
                         TypeDefinition = ObjectTypeIds.FiniteStateMachineType
                     }
                 }.ToArrayOf();
+            }
+
+            if (browse.NodeId != root ||
+                browse.ReferenceTypeId != ReferenceTypeIds.HasComponent)
+            {
+                return [];
             }
 
             return new[]
