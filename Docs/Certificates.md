@@ -669,13 +669,17 @@ The following validation errors can be suppressed by handling the `CertificateVa
 - **BadCertificateIssuerRevocationUnknown**: The revocation status of the issuer cannot be determined.
 - **BadCertificateChainIncomplete**: The certificate chain is incomplete (missing issuer certificates).
 - **BadCertificateIssuerTimeInvalid**: The issuer certificate has expired or is not yet valid.
-- **BadCertificateIssuerUseNotAllowed**: The issuer certificate is not valid for the intended use.
+- **BadCertificateIssuerUseNotAllowed**: An issuer/CA certificate in the chain is not valid for use as a CA — for example it does not assert the `keyCertSign` and `cRLSign` KeyUsage bits required for a CA (see [CA (issuer) KeyUsage validation](#ca-issuer-keyusage-validation)).
 - **BadCertificateRevocationUnknown**: The revocation status of the certificate cannot be determined.
 - **BadCertificateTimeInvalid**: The certificate has expired or is not yet valid.
 - **BadCertificatePolicyCheckFailed**: The certificate does not meet policy requirements (e.g., key size, signature algorithm).
 - **BadCertificateUseNotAllowed**: The certificate is not valid for the intended use (missing key usage flags).
 
 All other validation errors are **non-suppressible** and will always cause the validation to fail.
+
+#### CA (issuer) KeyUsage validation
+
+OPC UA requires every CA (issuer) certificate in a chain to carry a KeyUsage extension that asserts both `keyCertSign` and `cRLSign` (OPC 10000-6 §6.2.4, Table 52 — Issuer Certificate). During chain validation the stack verifies this for each issuer certificate and reports the suppressible `BadCertificateIssuerUseNotAllowed` error (OPC 10000-4 §6.1.3, Table 100 — "Certificate Usage") when a CA certificate is missing these bits, including the case where the CA has no KeyUsage extension at all. This matches the behaviour of strict third-party OPC UA stacks, which reject such CA certificates (typically with `BadCertificateInvalid`). CA certificates created by this stack's `CertificateBuilder` always include the required bits; to interoperate with a legacy CA that does not, suppress the error as described above.
 
 ### Registering a Certificate Validation Callback
 
