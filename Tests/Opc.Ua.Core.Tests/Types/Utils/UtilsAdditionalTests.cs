@@ -623,5 +623,53 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 decoder => decoder != null ? "decoded" : null);
             Assert.That(parsed, Is.EqualTo("decoded"));
         }
+
+        [Test]
+        public void UpdateEncodeableExtensionAddsReplacesAndParses()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var firstRequest = new ReadRequest
+            {
+                NodesToRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = VariableIds.Server_ServerStatus,
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+
+            Utils.UpdateExtension(ref extensions, null, firstRequest, telemetry);
+
+            Assert.That(extensions, Has.Count.EqualTo(1));
+
+            ReadRequest parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry);
+            Assert.That(parsed, Is.Not.Null);
+            Assert.That(parsed.NodesToRead, Has.Count.EqualTo(1));
+            Assert.That(parsed.NodesToRead[0].NodeId, Is.EqualTo(VariableIds.Server_ServerStatus));
+
+            var replacementRequest = new ReadRequest
+            {
+                NodesToRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+
+            Utils.UpdateExtension(ref extensions, null, replacementRequest, telemetry);
+
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry);
+            Assert.That(parsed.NodesToRead, Has.Count.EqualTo(1));
+            Assert.That(
+                parsed.NodesToRead[0].NodeId,
+                Is.EqualTo(VariableIds.Server_ServerStatus_CurrentTime));
+        }
     }
 }
