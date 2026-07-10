@@ -100,12 +100,10 @@ namespace Opc.Ua.Client.Historian
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Servers running this stack do not yet auto-install the
-    /// companion object under historizing variables, so this snapshot
-    /// is filled best-effort: properties that resolve return their
-    /// values, properties that the server has not surfaced come back
-    /// as <c>null</c>. <see cref="HasConfiguration"/> indicates whether
-    /// any property was populated.
+    /// Properties that resolve return their values; properties the server
+    /// has not surfaced come back as <c>null</c>.
+    /// <see cref="HasConfiguration"/> indicates whether the companion object
+    /// was found (linked via <c>HasHistoricalConfiguration</c>, Part 11 §5.2.3).
     /// </para>
     /// </remarks>
     public sealed record HistoricalDataConfigurationInfo
@@ -147,5 +145,16 @@ namespace Opc.Ua.Client.Historian
         /// Start of the online archive window.
         /// </summary>
         public DateTime? StartOfOnlineArchive { get; init; }
+
+        /// <summary>
+        /// The node's advertised default <see cref="Opc.Ua.AggregateConfiguration"/>
+        /// (PercentDataGood, PercentDataBad, TreatUncertainAsBad,
+        /// UseSlopedExtrapolation), read from the <c>AggregateConfiguration</c>
+        /// object of the <c>HistoricalDataConfiguration</c> companion. A client
+        /// requesting aggregates with <c>UseServerCapabilitiesDefaults=true</c>
+        /// uses these values to reproduce the server's aggregate results.
+        /// <c>null</c> when the server does not expose the object.
+        /// </summary>
+        public AggregateConfiguration? AggregateConfiguration { get; init; }
     }
 }

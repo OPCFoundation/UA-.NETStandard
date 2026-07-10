@@ -401,12 +401,23 @@ namespace Opc.Ua.History.Tests
 
             Assert.That(config, Is.Not.Null);
 
-            // The ReferenceServer's in-memory historian does not expose
-            // the HistoricalDataConfigurationType companion object, so
-            // HasConfiguration is expected to be false.
-            Assert.That(config.HasConfiguration, Is.False,
-                "The in-memory historian does not expose HAConfiguration; " +
-                "HasConfiguration should be false.");
+            // The ReferenceServer installs the HistoricalDataConfigurationType
+            // companion object (linked via HasHistoricalConfiguration), so it is
+            // discoverable.
+            Assert.That(config.HasConfiguration, Is.True,
+                "The reference server exposes the HA Configuration companion object.");
+
+            // The advertised AggregateConfiguration must carry the server's
+            // actual aggregate defaults (Part 13 v1.05.07 §4.2.1.2:
+            // PercentDataGood/Bad = 100, TreatUncertainAsBad = true) so a client
+            // reading them under UseServerCapabilitiesDefaults reproduces the
+            // server's aggregate results. A node left at the type's all-zero
+            // defaults would be an invalid, inconsistent configuration.
+            Assert.That(config.AggregateConfiguration, Is.Not.Null,
+                "The HA Configuration must expose an AggregateConfiguration object.");
+            Assert.That(config.AggregateConfiguration!.PercentDataGood, Is.EqualTo((byte)100));
+            Assert.That(config.AggregateConfiguration.PercentDataBad, Is.EqualTo((byte)100));
+            Assert.That(config.AggregateConfiguration.TreatUncertainAsBad, Is.True);
         }
 
         [Test]

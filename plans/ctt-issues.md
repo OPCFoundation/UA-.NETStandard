@@ -556,3 +556,42 @@ gone and the real per-token results surface. Of the 17 residual errors:
   user-token verification path (Part 4), leaving the shared channel-signature behaviour untouched.
   Regression: `X509IdentityTokenHandlerTests.VerifyWithMismatchedSignatureAlgorithmYieldsBadIdentityTokenInvalid`.
 
+### Aggregates-only re-run (6016 errors) — server advertised the wrong aggregate defaults (now fixed)
+
+With the CTT console log (`ctt output.txt`) the per-value divergence became visible: the CTT reads each
+aggregate from the server (`ReadProcessed`) and compares it to the aggregate it computes itself from the
+raw data it read from the same server (the reference server's all-Good ramp). SourceTimestamps match
+exactly; the disagreement is the **quality of partial intervals**. For an interval where part of the
+window has *no data* (e.g. the first interval, before the first raw sample), the server returns a
+partial value with **`UncertainDataSubNormal`** while the CTT expects **`Bad`/`Null`**. Both set the
+`Partial` bit — they agree it is partial, they disagree on severity.
+
+* **Root cause was a server bug, now fixed — not a CTT defect.** The `Aggregate - Base 001-01` unit
+  (dominant *"Query did not result in identical readings"*) uses `UseServerCapabilitiesDefaults=TRUE`, so
+  the CTT reads the server's advertised aggregate defaults from the node's
+  `HistoricalDataConfiguration` → `AggregateConfiguration` object and computes with them. The reference
+  server *computes* with `PercentDataGood=100 / PercentDataBad=100 / TreatUncertainAsBad=true`
+  (`AggregateManager` / Part 13 v1.05.07 §4.2.1.2), under which a partial interval is **Uncertain** — but
+  `HistoricalDataConfigurationInstaller.PopulateProperties` materialised the mandatory
+  `AggregateConfiguration` child **without populating it**, leaving it at the type's all-zero defaults
+  (`PercentDataGood=0 / PercentDataBad=0 / TreatUncertainAsBad=false`). Those are not only inconsistent
+  with what the server computes with, they are an invalid `AggregateConfiguration`
+  (`PercentDataGood < 100 - PercentDataBad`). A CTT reading `0/0/false` classifies every partial
+  interval as **Bad** while the server returns **Uncertain** — the exact systematic divergence seen
+  across every aggregate and node. **Fixed** by populating the `AggregateConfiguration` object from the
+  server's defaults (`HistorianNodeCapabilities.DefaultAggregateConfiguration`, defaulting to
+  `100/100/true/false`) in the installer, so a `UseServerCapabilitiesDefaults` client now reads the same
+  configuration the server computes with. A latent client-side bug was fixed alongside:
+  `HistoryClient.GetConfigurationAsync` resolved the companion object via `HasAddIn` instead of
+  `HasHistoricalConfiguration` (Part 11 §5.2.3) and never read `AggregateConfiguration`. Regression:
+  `HistoryClientIntegrationTests.GetConfigurationReturnsHistoricalDataConfigurationAsync` (now asserts
+  the advertised `PercentDataGood/PercentDataBad=100`, `TreatUncertainAsBad=true`).
+
+* **CTT-script defects still present (documented previously):** `possibleNodeId [undefined]` (100, §5)
+  and `GetRequestEntry failed due to incorrect test configuration` (74). The latter is the CTT aborting
+  a unit when a cached raw-data request sub-entry it expects (`StartEntry` / `EndEntry` / `BadDataEntry`)
+  is missing from `Test.AggregateTestData.RawDataCache`; it reflects the CTT's own test-data cache
+  bootstrap, not a server response, and the harness should skip (`addSkipped`) rather than `throw` so a
+  single missing sub-entry does not abort the remaining aggregate cases.
+
+
