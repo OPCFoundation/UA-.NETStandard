@@ -368,6 +368,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(GetQueuedEventCount(), Is.Zero);
         }
 
+        [TearDown]
+        public void TearDown()
+        {
+            ServerUtils.EventsEnabled = false;
+        }
+
         private static int GetQueuedEventCount()
         {
             FieldInfo field = typeof(ServerUtils).GetField(
