@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -201,6 +202,106 @@ namespace Opc.Ua.Client.Tests.StateMachines
         // (multi-call browse + read pipelines) is exercised by the
         // integration / conformance suites — see AlarmClientIntegrationTests.
 
+        [Test]
+        public async Task HappyPathReadsSnapshotStatesTransitionsAndSubStateMachineAsync()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);
+            FiniteStateMachineTypeClient client = CreateClient(sessionMock);
+            NodeId currentStateNode = new(101u, 2);
+            NodeId currentStateIdNode = new(102u, 2);
+            NodeId lastTransitionNode = new(103u, 2);
+            NodeId lastTransitionIdNode = new(104u, 2);
+            NodeId idleState = new(201u, 2);
+            NodeId runningState = new(202u, 2);
+            NodeId startTransition = new(301u, 2);
+            NodeId stateNumber = new(401u, 2);
+            NodeId transitionNumber = new(402u, 2);
+            NodeId subMachine = new(501u, 2);
+
+            sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, requests, _) => new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                        new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = ResolvePaths(
+                                requests,
+                                currentStateNode,
+                                currentStateIdNode,
+                                lastTransitionNode,
+                                lastTransitionIdNode,
+                                stateNumber,
+                                transitionNumber),
+                            DiagnosticInfos = []
+                        }));
+            sessionMock.Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    0,
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
+                    (_, _, _, reads, _) => new ValueTask<ReadResponse>(new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = ReadValues(
+                            reads,
+                            currentStateNode,
+                            currentStateIdNode,
+                            lastTransitionNode,
+                            lastTransitionIdNode,
+                            idleState,
+                            startTransition,
+                            stateNumber,
+                            transitionNumber),
+                        DiagnosticInfos = []
+                    }));
+            sessionMock.Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    0,
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                    (_, _, _, browse, _) => new ValueTask<BrowseResponse>(new BrowseResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results =
+                        [
+                            new BrowseResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                References = ReferencesFor(browse[0], runningState, startTransition, subMachine)
+                            }
+                        ],
+                        DiagnosticInfos = []
+                    }));
+
+            FiniteStateSnapshot snapshot = await client.GetCurrentFiniteStateAsync().ConfigureAwait(false);
+            IReadOnlyList<FiniteStateInfo> states = await client.GetAvailableStatesAsync().ConfigureAwait(false);
+            IReadOnlyList<FiniteTransitionInfo> transitions = await client
+                .GetAvailableTransitionsAsync().ConfigureAwait(false);
+            FiniteStateMachineTypeClient? child = await client
+                .GetSubStateMachineAsync(runningState, NUnitTelemetryContext.Create())
+                .ConfigureAwait(false);
+
+            Assert.That(snapshot.CurrentState.Text, Is.EqualTo("Idle"));
+            Assert.That(snapshot.CurrentStateId, Is.EqualTo(idleState));
+            Assert.That(snapshot.LastTransition.Text, Is.EqualTo("Start"));
+            Assert.That(snapshot.LastTransitionId, Is.EqualTo(startTransition));
+            Assert.That(states, Has.Count.EqualTo(1));
+            Assert.That(states[0].NodeId, Is.EqualTo(runningState));
+            Assert.That(states[0].StateNumber, Is.EqualTo(10u));
+            Assert.That(transitions, Has.Count.EqualTo(1));
+            Assert.That(transitions[0].NodeId, Is.EqualTo(startTransition));
+            Assert.That(transitions[0].TransitionNumber, Is.EqualTo(20u));
+            Assert.That(child, Is.Not.Null);
+            Assert.That(child!.ObjectId, Is.EqualTo(subMachine));
+        }
+
         private static void SetupTranslateAllEmpty(Mock<ISessionClient> sessionMock)
         {
             sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
@@ -227,6 +328,140 @@ namespace Opc.Ua.Client.Tests.StateMachines
                                 DiagnosticInfos = []
                             });
                     });
+        }
+
+        private static ArrayOf<BrowsePathResult> ResolvePaths(
+            ArrayOf<BrowsePath> requests,
+            NodeId currentStateNode,
+            NodeId currentStateIdNode,
+            NodeId lastTransitionNode,
+            NodeId lastTransitionIdNode,
+            NodeId stateNumber,
+            NodeId transitionNumber)
+        {
+            var results = new BrowsePathResult[requests.Count];
+            for (int i = 0; i < requests.Count; i++)
+            {
+                RelativePathElement last = requests[i].RelativePath.Elements[^1];
+                NodeId resolved = last.TargetName.Name switch
+                {
+                    BrowseNames.CurrentState => currentStateNode,
+                    BrowseNames.Id when requests[i].RelativePath.Elements[0].TargetName.Name == BrowseNames.CurrentState
+                        => currentStateIdNode,
+                    BrowseNames.LastTransition => lastTransitionNode,
+                    BrowseNames.Id => lastTransitionIdNode,
+                    BrowseNames.StateNumber => stateNumber,
+                    BrowseNames.TransitionNumber => transitionNumber,
+                    _ => NodeId.Null
+                };
+                results[i] = resolved.IsNull
+                    ? new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = [] }
+                    : new BrowsePathResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        Targets =
+                        [
+                            new BrowsePathTarget
+                            {
+                                TargetId = resolved,
+                                RemainingPathIndex = uint.MaxValue
+                            }
+                        ]
+                    };
+            }
+            return results.ToArrayOf();
+        }
+
+        private static ArrayOf<DataValue> ReadValues(
+            ArrayOf<ReadValueId> reads,
+            NodeId currentStateNode,
+            NodeId currentStateIdNode,
+            NodeId lastTransitionNode,
+            NodeId lastTransitionIdNode,
+            NodeId idleState,
+            NodeId startTransition,
+            NodeId stateNumber,
+            NodeId transitionNumber)
+        {
+            var values = new DataValue[reads.Count];
+            for (int i = 0; i < reads.Count; i++)
+            {
+                NodeId nodeId = reads[i].NodeId;
+                if (nodeId == currentStateNode)
+                {
+                    values[i] = new DataValue(
+                        Variant.From(new LocalizedText("Idle")),
+                        StatusCodes.Good,
+                        DateTime.UtcNow);
+                }
+                else if (nodeId == currentStateIdNode)
+                {
+                    values[i] = new DataValue(Variant.From(idleState));
+                }
+                else if (nodeId == lastTransitionNode)
+                {
+                    values[i] = new DataValue(Variant.From(new LocalizedText("Start")));
+                }
+                else if (nodeId == lastTransitionIdNode)
+                {
+                    values[i] = new DataValue(Variant.From(startTransition));
+                }
+                else if (nodeId == stateNumber)
+                {
+                    values[i] = new DataValue(Variant.From(10u));
+                }
+                else if (nodeId == transitionNumber)
+                {
+                    values[i] = new DataValue(Variant.From(20u));
+                }
+                else
+                {
+                    values[i] = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+                }
+            }
+            return values.ToArrayOf();
+        }
+
+        private static ArrayOf<ReferenceDescription> ReferencesFor(
+            BrowseDescription browse,
+            NodeId state,
+            NodeId transition,
+            NodeId subMachine)
+        {
+            if (browse.ReferenceTypeId == ReferenceTypeIds.HasSubStateMachine)
+            {
+                return new[]
+                {
+                    new ReferenceDescription
+                    {
+                        NodeId = subMachine,
+                        BrowseName = new QualifiedName("SubMachine"),
+                        TypeDefinition = ObjectTypeIds.FiniteStateMachineType
+                    }
+                }.ToArrayOf();
+            }
+
+            return new[]
+            {
+                new ReferenceDescription
+                {
+                    NodeId = state,
+                    BrowseName = new QualifiedName("Running"),
+                    TypeDefinition = ObjectTypeIds.StateType
+                },
+                new ReferenceDescription
+                {
+                    NodeId = transition,
+                    BrowseName = new QualifiedName("Start"),
+                    TypeDefinition = ObjectTypeIds.TransitionType
+                },
+                new ReferenceDescription
+                {
+                    NodeId = new NodeId(999u, 2),
+                    BrowseName = new QualifiedName("Ignored"),
+                    TypeDefinition = ObjectTypeIds.FolderType
+                }
+            }.ToArrayOf();
         }
 
         private sealed class EmptyStreamingSubscription : IStreamingSubscription

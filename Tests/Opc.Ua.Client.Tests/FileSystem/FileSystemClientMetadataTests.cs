@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.FileSystem;
@@ -119,6 +120,132 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.That(file.MimeType, Is.Null);
             Assert.That(file.MaxByteStringLength, Is.Null);
             Assert.That(file.LastModifiedTime, Is.Null);
+        }
+
+        [Test]
+        public async Task OpenAsyncRejectsEmptyModeAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            harness.RegisterFile(harness.Root, new QualifiedName("data.bin"));
+            var client = new FileSystemClient(harness.Session, harness.Root);
+            UaFileInfo file = await client.GetFileAsync("/data.bin").ConfigureAwait(false);
+
+            Assert.That(
+                async () => await file.OpenAsync(0).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
+        public async Task OpenAppendAsyncUsesServerPositionAndClosesHandleAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            var props = new FileProperties
+            {
+                Size = 12UL,
+                MaxByteStringLength = 4u
+            };
+            props.Realize();
+            harness.RegisterFile(harness.Root, new QualifiedName("log.bin"), properties: props);
+            var closedHandles = new List<uint>();
+            harness.CallHandler = req =>
+            {
+                uint methodId = GetMethodId(req);
+                if (methodId == Methods.FileType_Open)
+                {
+                    return new CallMethodResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        OutputArguments = [Variant.From(77u)]
+                    };
+                }
+                if (methodId == Methods.FileType_GetPosition)
+                {
+                    return new CallMethodResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        OutputArguments = [Variant.From(20UL)]
+                    };
+                }
+                if (methodId == Methods.FileType_Close)
+                {
+                    req.InputArguments[0].TryGetValue(out uint handle);
+                    closedHandles.Add(handle);
+                    return new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [] };
+                }
+                return new CallMethodResult { StatusCode = StatusCodes.BadNotSupported, OutputArguments = [] };
+            };
+            var client = new FileSystemClient(harness.Session, harness.Root);
+            UaFileInfo file = await client.GetFileAsync("/log.bin").ConfigureAwait(false);
+            await file.RefreshAsync().ConfigureAwait(false);
+
+            await using (UaFileStream stream = await file.OpenAppendAsync().ConfigureAwait(false))
+            {
+                Assert.That(stream.Position, Is.EqualTo(20));
+                Assert.That(stream.Length, Is.EqualTo(20));
+            }
+
+            Assert.That(closedHandles, Has.Count.EqualTo(1));
+            Assert.That(closedHandles[0], Is.EqualTo(77u));
+        }
+
+        [Test]
+        public async Task ReadAllTextAndWriteAllTextUseFileTypeMethodsAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            var props = new FileProperties
+            {
+                Size = 5UL,
+                Writable = true
+            };
+            props.Realize();
+            harness.RegisterFile(harness.Root, new QualifiedName("note.txt"), properties: props);
+            var reads = new Queue<byte[]>(new[] { new byte[] { 72, 101, 108, 108, 111 }, [] });
+            byte[] written = [];
+            harness.CallHandler = req =>
+            {
+                uint methodId = GetMethodId(req);
+                if (methodId == Methods.FileType_Open)
+                {
+                    return new CallMethodResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        OutputArguments = [Variant.From(11u)]
+                    };
+                }
+                if (methodId == Methods.FileType_Read)
+                {
+                    return new CallMethodResult
+                    {
+                        StatusCode = StatusCodes.Good,
+                        OutputArguments = [Variant.From(reads.Dequeue().ToByteString())]
+                    };
+                }
+                if (methodId == Methods.FileType_Write)
+                {
+                    req.InputArguments[1].TryGetValue(out ByteString payload);
+                    written = payload.ToArray() ?? [];
+                    return new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [] };
+                }
+                if (methodId == Methods.FileType_Close)
+                {
+                    return new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [] };
+                }
+                return new CallMethodResult { StatusCode = StatusCodes.BadNotSupported, OutputArguments = [] };
+            };
+            var client = new FileSystemClient(harness.Session, harness.Root);
+            UaFileInfo file = await client.GetFileAsync("/note.txt").ConfigureAwait(false);
+            await file.RefreshAsync().ConfigureAwait(false);
+
+            string text = await file.ReadAllTextAsync().ConfigureAwait(false);
+            await file.WriteAllTextAsync("Bye").ConfigureAwait(false);
+
+            Assert.That(text, Is.EqualTo("Hello"));
+            Assert.That(written, Is.EqualTo(new byte[] { 66, 121, 101 }));
+        }
+
+        private static uint GetMethodId(CallMethodRequest request)
+        {
+            return request.MethodId.TryGetValue(out uint methodId) ? methodId : 0;
         }
     }
 }

@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -350,6 +352,188 @@ namespace Opc.Ua.Client.Tests
 
             int dropped = engine.RemoveAcknowledgementsForSubscription(42u);
             Assert.That(dropped, Is.Zero);
+        }
+
+        [Test]
+        public void ProcessPublishResponseHandlesKeepAliveUnknownAndAcknowledgements()
+        {
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            m_mockContext.Setup(c => c.SessionId).Returns(new NodeId(1));
+            m_mockContext.Setup(c => c.Subscriptions).Returns([]);
+            m_mockContext.Setup(c => c.DeleteSubscriptionsOnClose).Returns(false);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            engine.AddPendingAcknowledgement(7, 10);
+            engine.AddPendingAcknowledgement(7, 200);
+
+            engine.ProcessPublishResponse(
+                new ResponseHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    StringTable = ["s"]
+                },
+                7,
+                [10u, 200u],
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 201,
+                    PublishTime = DateTime.UtcNow,
+                    NotificationData = []
+                });
+
+            m_mockContext.Verify(c => c.OnKeepAlive(ServerState.Running, It.IsAny<DateTime>()), Times.Once);
+            m_mockContext.Verify(c => c.OnPublishNotification(
+                It.IsAny<Subscription>(),
+                It.IsAny<NotificationEventArgs>()), Times.Never);
+        }
+
+        [Test]
+        public void ProcessPublishResponseDispatchesKnownSubscriptionNotification()
+        {
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            var subscription = new Subscription(m_telemetry)
+            {
+                CurrentPublishingInterval = 100,
+                CurrentLifetimeCount = 10
+            };
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            var dataChange = new DataChangeNotification
+            {
+                MonitoredItems = [],
+                DiagnosticInfos = []
+            };
+
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTime.UtcNow, StringTable = ["ns"] },
+                0,
+                [2u],
+                true,
+                new NotificationMessage
+                {
+                    SequenceNumber = 2,
+                    PublishTime = DateTime.UtcNow,
+                    NotificationData = [new ExtensionObject(dataChange)]
+                });
+
+            m_mockContext.Verify(c => c.OnPublishNotification(
+                subscription,
+                It.Is<NotificationEventArgs>(args => args.NotificationMessage.SequenceNumber == 2)),
+                Times.Once);
+        }
+
+        [Test]
+        public void ProcessRepublishResponseErrorClassifiesServiceResults()
+        {
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            (uint statusCode, bool expectedHandled)[] cases =
+            [
+                (StatusCodes.BadSubscriptionIdInvalid.Code, true),
+                (StatusCodes.BadMessageNotAvailable.Code, true),
+                (StatusCodes.BadEncodingLimitsExceeded.Code, true),
+                (StatusCodes.BadUnexpectedError.Code, false)
+            ];
+
+            foreach ((uint statusCode, bool expectedHandled) in cases)
+            {
+                (bool handled, ServiceResult error) = engine.ProcessRepublishResponseError(
+                    new ServiceResultException(statusCode),
+                    11,
+                    22);
+
+                Assert.That(handled, Is.EqualTo(expectedHandled));
+                Assert.That(error.StatusCode, Is.EqualTo(statusCode));
+            }
+
+            m_mockContext.Verify(c => c.OnPublishError(
+                It.IsAny<ServiceResult>(),
+                11,
+                22), Times.Exactly(cases.Length));
+        }
+
+        [Test]
+        public void OnPublishCompleteProcessesSuccessfulResponseAndRequeues()
+        {
+            m_mockContext.Setup(c => c.SessionId).Returns(new NodeId(1));
+            m_mockContext.Setup(c => c.Connected).Returns(false);
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([]);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            Task<PublishResponse> task = Task.FromResult(new PublishResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    StringTable = []
+                },
+                SubscriptionId = 1,
+                AvailableSequenceNumbers = [],
+                MoreNotifications = false,
+                NotificationMessage = new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    PublishTime = DateTime.UtcNow,
+                    NotificationData = []
+                },
+                Results = [StatusCodes.Good]
+            });
+
+            InvokeOnPublishComplete(engine, task, new NodeId(1), null);
+
+            m_mockContext.Verify(c => c.AsyncRequestCompleted(
+                task,
+                99,
+                DataTypes.PublishRequest), Times.Once);
+            m_mockContext.Verify(c => c.OnKeepAlive(ServerState.Running, It.IsAny<DateTime>()), Times.Once);
+        }
+
+        [Test]
+        public void OnPublishCompleteRaisesPublishErrorForFaultedResponse()
+        {
+            m_mockContext.Setup(c => c.SessionId).Returns(new NodeId(1));
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([
+                new Subscription(m_telemetry)
+                {
+                    CurrentPublishingInterval = 100,
+                    CurrentLifetimeCount = 10
+                }
+            ]);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            Task<PublishResponse> task = Task.FromException<PublishResponse>(
+                new ServiceResultException(StatusCodes.BadSessionIdInvalid));
+
+            InvokeOnPublishComplete(
+                engine,
+                task,
+                new NodeId(1),
+                [new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 }]);
+
+            m_mockContext.Verify(c => c.OnPublishError(
+                It.Is<ServiceResult>(result => result.StatusCode == StatusCodes.BadSessionIdInvalid),
+                0,
+                0), Times.Once);
+            m_mockContext.Verify(c => c.OnKeepAliveError(
+                It.Is<ServiceResult>(result => result.StatusCode == StatusCodes.BadSessionIdInvalid)), Times.Once);
+        }
+
+        private static void InvokeOnPublishComplete(
+            ClassicSubscriptionEngine engine,
+            Task<PublishResponse> task,
+            NodeId sessionId,
+            List<SubscriptionAcknowledgement>? acknowledgements)
+        {
+            MethodInfo method = typeof(ClassicSubscriptionEngine).GetMethod(
+                "OnPublishComplete",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            method.Invoke(
+                engine,
+                [
+                    task,
+                    sessionId,
+                    acknowledgements,
+                    new RequestHeader { RequestHandle = 99 }
+                ]);
         }
     }
 }
