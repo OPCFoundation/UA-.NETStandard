@@ -36,8 +36,6 @@ jobs:
             dockerfile: ./Applications/MinimalBoilerServer/Dockerfile
           - image: calcserver
             dockerfile: ./Applications/MinimalCalcServer/Dockerfile
-          - image: pumpserver
-            dockerfile: ./Applications/PumpDeviceIntegrationServer/Dockerfile
           - image: mcpserver
             dockerfile: ./Applications/McpServer/Dockerfile
           - image: redundantserver
