@@ -805,8 +805,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.Parameters, Has.Count.EqualTo(1));
             Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
-            Assert.That(result.Parameters[0].Value.TypeInfo, Is.Not.EqualTo(TypeInfo.Unknown));
+            Variant value = result.Parameters[0].Value;
+            Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.ExtensionObject));
+            Assert.That(
+                value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
+                Is.True);
+            Assert.That(actualKey, Is.SameAs(key));
             session.Verify(s => s.SetUserTokenSecurityPolicy(policyUri), Times.Once);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
         }
 
         [Test]
@@ -835,7 +841,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.SameAs(input));
             Assert.That(result.Parameters, Has.Count.EqualTo(2));
             Assert.That(result.Parameters[1].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
-            Assert.That(result.Parameters[1].Value.TypeInfo, Is.Not.EqualTo(TypeInfo.Unknown));
+            Variant value = result.Parameters[1].Value;
+            Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.ExtensionObject));
+            Assert.That(
+                value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
+                Is.True);
+            Assert.That(actualKey, Is.SameAs(key));
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
         }
 
         [Test]

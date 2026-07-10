@@ -268,7 +268,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AdminMethodsDelegateToUserManagementAndRefreshPropertiesAsync()
         {
-            var users = new[]
+            UserManagementDataType[] initialUsers = [];
+            var addedUsers = new[]
             {
                 new UserManagementDataType
                 {
@@ -277,7 +278,22 @@ namespace Opc.Ua.Server.Tests
                     Description = "Alice"
                 }
             };
-            m_userManagement.Setup(m => m.SnapshotUsers()).Returns(users);
+            var modifiedUsers = new[]
+            {
+                new UserManagementDataType
+                {
+                    UserName = "alice",
+                    UserConfiguration = (uint)UserConfigurationMask.Disabled,
+                    Description = "Disabled"
+                }
+            };
+            UserManagementDataType[] removedUsers = [];
+            m_userManagement
+                .SetupSequence(m => m.SnapshotUsers())
+                .Returns(initialUsers)
+                .Returns(addedUsers)
+                .Returns(modifiedUsers)
+                .Returns(removedUsers);
             m_userManagement.Setup(m => m.AddUser("alice", "password", UserConfigurationMask.None, "Alice"))
                 .Returns(ServiceResult.Good);
             m_userManagement
@@ -304,6 +320,13 @@ namespace Opc.Ua.Server.Tests
                     (uint)UserConfigurationMask.None,
                     "Alice",
                     CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(addResult.ServiceResult), Is.True);
+                Assert.That(state.Users!.Value, Has.Count.EqualTo(1));
+                Assert.That(state.Users.Value[0].UserName, Is.EqualTo("alice"));
+                Assert.That(state.Users.Value[0].UserConfiguration, Is.EqualTo((uint)UserConfigurationMask.None));
+                Assert.That(state.Users.Value[0].Description, Is.EqualTo("Alice"));
+
                 ModifyUserMethodStateResult modifyResult = await state.ModifyUser!.OnCallAsync!(
                     context,
                     state.ModifyUser,
@@ -316,6 +339,15 @@ namespace Opc.Ua.Server.Tests
                     true,
                     "Disabled",
                     CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(modifyResult.ServiceResult), Is.True);
+                Assert.That(state.Users!.Value, Has.Count.EqualTo(1));
+                Assert.That(state.Users.Value[0].UserName, Is.EqualTo("alice"));
+                Assert.That(
+                    state.Users.Value[0].UserConfiguration,
+                    Is.EqualTo((uint)UserConfigurationMask.Disabled));
+                Assert.That(state.Users.Value[0].Description, Is.EqualTo("Disabled"));
+
                 RemoveUserMethodStateResult removeResult = await state.RemoveUser!.OnCallAsync!(
                     context,
                     state.RemoveUser,
@@ -323,11 +355,26 @@ namespace Opc.Ua.Server.Tests
                     "alice",
                     CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(ServiceResult.IsGood(addResult.ServiceResult), Is.True);
-                Assert.That(ServiceResult.IsGood(modifyResult.ServiceResult), Is.True);
                 Assert.That(ServiceResult.IsGood(removeResult.ServiceResult), Is.True);
-                Assert.That(state.Users!.Value, Has.Count.EqualTo(1));
+                Assert.That(state.Users!.Value, Is.Empty);
                 Assert.That(state.PasswordLength!.Value.High, Is.EqualTo(64));
+
+                m_userManagement.Verify(
+                    m => m.AddUser("alice", "password", UserConfigurationMask.None, "Alice"),
+                    Times.Once);
+                m_userManagement.Verify(
+                    m => m.ModifyUser(
+                        "alice",
+                        true,
+                        "new",
+                        true,
+                        UserConfigurationMask.Disabled,
+                        true,
+                        "Disabled",
+                        "admin"),
+                    Times.Once);
+                m_userManagement.Verify(m => m.RemoveUser("alice", "admin"), Times.Once);
+                m_userManagement.Verify(m => m.SnapshotUsers(), Times.Exactly(4));
             }
         }
 

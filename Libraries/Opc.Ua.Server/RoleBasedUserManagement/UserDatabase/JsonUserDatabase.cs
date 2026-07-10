@@ -119,6 +119,7 @@ namespace Opc.Ua.Server.UserDatabase
             AllowTrailingCommas = true,
             Converters =
             {
+                new ExpandedNodeIdJsonConverter(),
                 new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
             },
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -144,6 +145,11 @@ namespace Opc.Ua.Server.UserDatabase
             public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
             {
                 JsonTypeInfo jsonTypeInfo = base.GetTypeInfo(type, options);
+
+                if (type == typeof(JsonUserDatabase))
+                {
+                    jsonTypeInfo.CreateObject = static () => new JsonUserDatabase(string.Empty);
+                }
 
                 if (jsonTypeInfo.Kind == JsonTypeInfoKind.Object &&
                     type.GetCustomAttribute<DataContractAttribute>() is not null)
@@ -173,6 +179,25 @@ namespace Opc.Ua.Server.UserDatabase
                 }
 
                 return jsonTypeInfo;
+            }
+        }
+
+        private sealed class ExpandedNodeIdJsonConverter : JsonConverter<ExpandedNodeId>
+        {
+            public override ExpandedNodeId Read(
+                ref Utf8JsonReader reader,
+                Type typeToConvert,
+                JsonSerializerOptions options)
+            {
+                return ExpandedNodeId.Parse(reader.GetString()!);
+            }
+
+            public override void Write(
+                Utf8JsonWriter writer,
+                ExpandedNodeId value,
+                JsonSerializerOptions options)
+            {
+                writer.WriteStringValue(value.ToString());
             }
         }
     }
