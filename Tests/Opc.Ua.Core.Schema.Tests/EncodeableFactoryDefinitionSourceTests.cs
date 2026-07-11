@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Xml;
 using Moq;
 using NUnit.Framework;
@@ -81,6 +82,55 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public void ConstructorRejectsNullArguments()
+        {
+            IEncodeableFactory factory = EncodeableFactory.Create();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => new EncodeableFactoryDefinitionSource(null!, new NamespaceTable()),
+                    Throws.ArgumentNullException.With.Property("ParamName").EqualTo("factory"));
+                Assert.That(
+                    () => new EncodeableFactoryDefinitionSource(factory, null!),
+                    Throws.ArgumentNullException.With.Property("ParamName").EqualTo("namespaceUris"));
+            });
+        }
+
+        [Test]
+        public void GetNamespaceTypesReturnsUniqueTypesFromKnownFactoryIds()
+        {
+            StructureDefinition definition = CreateDefinition();
+            var typeId = new ExpandedNodeId(new NodeId(5101, 1));
+            var encodingId = new ExpandedNodeId(new NodeId(5102, 1));
+            var standIn = new Opc.Ua.Encoders.Structure(
+                new XmlQualifiedName("NamespaceStructure", "http://test.org/standin"),
+                typeId,
+                encodingId,
+                ExpandedNodeId.Null,
+                definition,
+                new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder
+                .AddEncodeableType(typeId, standIn)
+                .AddEncodeableType(encodingId, standIn)
+                .Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, new NamespaceTable());
+
+            IReadOnlyCollection<UaTypeDescription> emptyNamespace = source.GetNamespaceTypes(string.Empty);
+            IReadOnlyCollection<UaTypeDescription> matchingNamespace = source.GetNamespaceTypes("http://test.org/standin");
+            IReadOnlyCollection<UaTypeDescription> missingNamespace = source.GetNamespaceTypes("http://missing");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(emptyNamespace, Is.Empty);
+                Assert.That(matchingNamespace, Has.Count.EqualTo(1));
+                Assert.That(matchingNamespace.Single().Name, Is.EqualTo("NamespaceStructure"));
+                Assert.That(missingNamespace, Is.Empty);
+            });
+        }
+
+        [Test]
         public void CompositeResolverFallsThroughToFactorySource()
         {
             StructureDefinition definition = CreateDefinition();
@@ -96,6 +146,37 @@ namespace Opc.Ua.Schema.Tests
             {
                 Assert.That(resolved, Is.True);
                 Assert.That(description!.Name, Is.EqualTo("CompositeType"));
+            });
+        }
+
+        [Test]
+        public void CompositeResolverCoversNullFalseNodeIdAndNamespaceMergeCases()
+        {
+            Assert.That(
+                () => new CompositeDataTypeDefinitionResolver(null!),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("resolvers"));
+
+            UaTypeDescription first = SchemaTestData.Enumeration(5201, "First", ("A", 0));
+            UaTypeDescription duplicate = SchemaTestData.Enumeration(5201, "Duplicate", ("B", 0));
+            UaTypeDescription second = SchemaTestData.Enumeration(5202, "Second", ("C", 0));
+            var firstRegistry = new DataTypeDefinitionRegistry();
+            firstRegistry.Add(first);
+            firstRegistry.Add(duplicate);
+            var secondRegistry = new DataTypeDefinitionRegistry();
+            secondRegistry.Add(second);
+            var composite = new CompositeDataTypeDefinitionResolver([firstRegistry, secondRegistry]);
+
+            bool resolved = composite.TryResolve(first.TypeId.InnerNodeId, out UaTypeDescription? description);
+            bool missing = composite.TryResolve(new NodeId(9999, SchemaTestData.TestNamespaceIndex), out _);
+            IReadOnlyCollection<UaTypeDescription> namespaceTypes = composite.GetNamespaceTypes(
+                SchemaTestData.TestNamespace);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved, Is.True);
+                Assert.That(description!.Name, Is.EqualTo("Duplicate"));
+                Assert.That(missing, Is.False);
+                Assert.That(namespaceTypes.Select(t => t.Name), Is.EqualTo(CompositeNamespaceTypeNames));
             });
         }
 
@@ -219,5 +300,7 @@ namespace Opc.Ua.Schema.Tests
                 It.IsAny<ExpandedNodeId>(), out enumeratedType)).Returns(false);
             return factoryMock.Object;
         }
+
+        private static readonly string[] CompositeNamespaceTypeNames = ["Duplicate", "Second"];
     }
 }

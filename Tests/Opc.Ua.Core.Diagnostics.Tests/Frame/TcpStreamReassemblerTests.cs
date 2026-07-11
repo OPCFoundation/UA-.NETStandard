@@ -111,6 +111,100 @@ namespace Opc.Ua.Pcap.Tests.Frame
             Assert.That(segments[0].Data.ToArray(), Is.EqualTo(payload).AsCollection);
         }
 
+        [Test]
+        public void RawIpv4PacketExtractsTcpPayload()
+        {
+            var reassembler = new TcpStreamReassembler();
+            byte[] payload = Encoding.ASCII.GetBytes("raw");
+            byte[] packet = PcapTestHelpers.BuildRawIpv4TcpPacket(payload);
+            var record = new PcapRecord(DateTimeOffset.UtcNow, PcapFileWriter.LinkTypeRaw, packet.Length, packet);
+
+            TcpFlowSegment[] segments = [.. reassembler.Process(record)];
+
+            Assert.That(segments, Has.Length.EqualTo(1));
+            Assert.That(segments[0].Data.ToArray(), Is.EqualTo(payload).AsCollection);
+        }
+
+        [Test]
+        public void OutOfOrderSegmentsAreBufferedAndDrainedWhenGapArrives()
+        {
+            var reassembler = new TcpStreamReassembler();
+            byte[] first = Encoding.ASCII.GetBytes("ab");
+            byte[] second = Encoding.ASCII.GetBytes("cd");
+            byte[] third = Encoding.ASCII.GetBytes("ef");
+
+            TcpFlowSegment[] early = [.. reassembler.Process(CreateEthernetRecord(first, 100))];
+            TcpFlowSegment[] buffered = [.. reassembler.Process(CreateEthernetRecord(third, 104))];
+            TcpFlowSegment[] drained = [.. reassembler.Process(CreateEthernetRecord(second, 102))];
+
+            Assert.That(early, Has.Length.EqualTo(1));
+            Assert.That(buffered, Is.Empty);
+            Assert.That(drained, Has.Length.EqualTo(2));
+            Assert.That(
+                drained.SelectMany(static segment => segment.Data.ToArray()).ToArray(),
+                Is.EqualTo(Encoding.ASCII.GetBytes("cdef")).AsCollection);
+        }
+
+        [Test]
+        public void DuplicateOrOlderSegmentYieldsImmediately()
+        {
+            var reassembler = new TcpStreamReassembler();
+            _ = reassembler.Process(CreateEthernetRecord([1, 2], sequenceNumber: 100)).ToArray();
+
+            TcpFlowSegment[] segments = [.. reassembler.Process(CreateEthernetRecord([9], sequenceNumber: 99))];
+
+            Assert.That(segments, Has.Length.EqualTo(1));
+            Assert.That(segments[0].SequenceNumber, Is.EqualTo(99));
+            Assert.That(segments[0].Data.ToArray(), Is.EqualTo(new byte[] { 9 }).AsCollection);
+        }
+
+        [Test]
+        public void InvalidPacketsProduceNoSegments()
+        {
+            var reassembler = new TcpStreamReassembler();
+            byte[] nonIpv4Ethernet = PcapTestHelpers.BuildEthernetTcpPacket([1]);
+            nonIpv4Ethernet[12] = 0x86;
+            nonIpv4Ethernet[13] = 0xDD;
+            byte[] udpPacket = PcapTestHelpers.BuildRawIpv4TcpPacket([2]);
+            udpPacket[9] = 17;
+            byte[] shortPacket = new byte[8];
+
+            TcpFlowSegment[] segments =
+            [
+                .. reassembler.Process(new PcapRecord(DateTimeOffset.UtcNow, 999, shortPacket.Length, shortPacket)),
+                .. reassembler.Process(
+                    new PcapRecord(
+                        DateTimeOffset.UtcNow,
+                        PcapFileWriter.LinkTypeEthernet,
+                        nonIpv4Ethernet.Length,
+                        nonIpv4Ethernet)),
+                .. reassembler.Process(
+                    new PcapRecord(DateTimeOffset.UtcNow, PcapFileWriter.LinkTypeRaw, udpPacket.Length, udpPacket))
+            ];
+
+            Assert.That(segments, Is.Empty);
+        }
+
+        [Test]
+        public void TcpFlowSegmentEqualityIncludesMetadataAndPayload()
+        {
+            var timestamp = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var left = new TcpFlowSegment("flow", "a:1", "b:2", 7, timestamp, new byte[] { 1, 2 }, true, false);
+            var same = new TcpFlowSegment("flow", "a:1", "b:2", 7, timestamp, new byte[] { 1, 2 }, true, false);
+            var different = new TcpFlowSegment("flow", "a:1", "b:2", 8, timestamp, new byte[] { 1, 2 }, true, false);
+            bool operatorEqual = left == same;
+            bool operatorDifferent = left != different;
+            bool objectEqual = left.Equals((object)same);
+            bool objectDifferent = left.Equals("not a segment");
+
+            Assert.That(left, Is.EqualTo(same));
+            Assert.That(operatorEqual, Is.True);
+            Assert.That(operatorDifferent, Is.True);
+            Assert.That(objectEqual, Is.True);
+            Assert.That(objectDifferent, Is.False);
+            Assert.That(left.GetHashCode(), Is.EqualTo(same.GetHashCode()));
+        }
+
         private static PcapRecord CreateEthernetRecord(
             byte[] payload,
             uint sequenceNumber = 1,

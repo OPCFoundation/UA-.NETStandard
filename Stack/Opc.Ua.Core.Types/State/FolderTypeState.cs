@@ -47,7 +47,7 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             SuperTypeId = NodeId.Create(
-                ObjectTypes.FolderType,
+                ObjectTypes.BaseObjectType,
                 Namespaces.OpcUa,
                 context.NamespaceUris);
             NodeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
