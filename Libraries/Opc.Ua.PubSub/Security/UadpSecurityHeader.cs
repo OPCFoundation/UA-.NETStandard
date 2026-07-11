@@ -116,6 +116,7 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="buffer">Destination span.</param>
         /// <param name="written">Bytes written.</param>
+        /// <exception cref="ArgumentException"></exception>
         public void WriteTo(Span<byte> buffer, out int written)
         {
             int size = GetEncodedSize();
@@ -132,7 +133,7 @@ namespace Opc.Ua.PubSub.Security
                 SecurityTokenId);
             offset += 4;
             buffer[offset++] = (byte)MessageNonce.Length;
-            MessageNonce.Span.CopyTo(buffer.Slice(offset));
+            MessageNonce.Span.CopyTo(buffer[offset..]);
             offset += MessageNonce.Length;
             if ((SecurityFlags & (byte)UadpSecurityFlagsEncodingMask.SecurityFooterEnabled) != 0)
             {

@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 new DataSetField
                 {
                     Value = s_incoming,
-                    StatusCode = (StatusCode)StatusCodes.BadInternalError
+                    StatusCode = StatusCodes.BadInternalError
                 },
                 new DataValue(s_lastGood));
             Assert.That(resolved.WrappedValue, Is.EqualTo(s_lastGood));
@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 new DataSetField
                 {
                     Value = s_incoming,
-                    StatusCode = (StatusCode)StatusCodes.BadInternalError
+                    StatusCode = StatusCodes.BadInternalError
                 },
                 DataValue.Null);
             Assert.That(resolved.WrappedValue, Is.EqualTo(s_override));
@@ -139,7 +139,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 new DataSetField
                 {
                     Value = s_incoming,
-                    StatusCode = (StatusCode)StatusCodes.BadInternalError
+                    StatusCode = StatusCodes.BadInternalError
                 },
                 new DataValue(s_lastGood));
             Assert.That(resolved.WrappedValue, Is.EqualTo(s_override));

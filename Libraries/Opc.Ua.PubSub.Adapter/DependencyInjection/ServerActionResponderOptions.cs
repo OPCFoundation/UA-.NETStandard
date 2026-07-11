@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
         /// (backed by <see cref="MethodMap"/>) serves every target in the list.
         /// </summary>
         public IList<PubSubActionTarget> Targets { get; set; }
-            = new List<PubSubActionTarget>();
+            = [];
 
         /// <summary>
         /// When <see langword="true"/> the responder is allowed to serve the

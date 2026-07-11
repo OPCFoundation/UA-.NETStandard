@@ -241,13 +241,13 @@ namespace Microsoft.Extensions.DependencyInjection
                     continue;
                 }
                 if (!ushort.TryParse(child.Key, NumberStyles.Integer,
-                        CultureInfo.InvariantCulture, out ushort key)
-                    || !ushort.TryParse(child.Value, NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out ushort key) ||
+                    !ushort.TryParse(child.Value, NumberStyles.Integer,
                         CultureInfo.InvariantCulture, out ushort value))
                 {
                     throw new InvalidOperationException(
-                        $"DataSetWriterIds entry '{child.Key}'='{child.Value}' is not a valid "
-                        + "ushort mapping.");
+                        $"DataSetWriterIds entry '{child.Key}'='{child.Value}' is not a valid " +
+                        "ushort mapping.");
                 }
                 map ??= [];
                 map[key] = value;
@@ -282,8 +282,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (!Enum.TryParse(child.Value, ignoreCase: true, out TEnum parsed))
                 {
                     throw new InvalidOperationException(
-                        $"Configuration value '{child.Value}' is not a valid "
-                        + $"{typeof(TEnum).Name}.");
+                        $"Configuration value '{child.Value}' is not a valid " +
+                        $"{typeof(TEnum).Name}.");
                 }
                 list ??= [];
                 list.Add(parsed);
@@ -305,8 +305,8 @@ namespace Microsoft.Extensions.DependencyInjection
             if (!Enum.TryParse(value, ignoreCase: true, out TEnum parsed))
             {
                 throw new InvalidOperationException(
-                    $"Configuration value '{value}' for '{key}' is not a valid "
-                    + $"{typeof(TEnum).Name}.");
+                    $"Configuration value '{value}' for '{key}' is not a valid " +
+                    $"{typeof(TEnum).Name}.");
             }
             assign(parsed);
         }

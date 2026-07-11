@@ -44,6 +44,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// </summary>
         /// <param name="manager">The channel manager to inspect.</param>
         /// <returns>The captured snapshot.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="manager"/> is <c>null</c>.</exception>
         public static Snapshot Capture(IClientChannelManager manager)
         {
             if (manager == null)
@@ -76,6 +77,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// <param name="after">The snapshot captured after the test scope.</param>
         /// <param name="scope">The diagnostic scope name.</param>
         /// <param name="tolerance">Allowed channel-manager entry/refcount/participant growth.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="before"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static void AssertNoLeaks(
             Snapshot before,
             Snapshot after,

@@ -49,6 +49,12 @@ namespace Opc.Ua
         Justification = "A ServerBusyException must carry a ServiceResult describing " +
             "the overload; the parameterless and message-only constructors are " +
             "intentionally omitted so callers always supply that result.")]
+    [SuppressMessage(
+        "Usage",
+        "RCS1194:Implement exception constructors",
+        Justification = "A ServerBusyException must carry a ServiceResult describing " +
+            "the overload; the parameterless and message-only constructors are " +
+            "intentionally omitted so callers always supply that result.")]
     public sealed class ServerBusyException : ServiceResultException
     {
         /// <summary>

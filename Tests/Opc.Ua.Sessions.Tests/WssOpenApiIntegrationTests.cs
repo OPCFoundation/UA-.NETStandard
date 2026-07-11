@@ -69,7 +69,6 @@ namespace Opc.Ua.Sessions.Tests
     [NonParallelizable]
     public class WssOpenApiIntegrationTests
     {
-        private const int kMaxTimeout = 30_000;
         private ITelemetryContext m_telemetry;
         private ServerFixture<ReferenceServer> m_serverFixture;
         private ClientFixture m_clientFixture;

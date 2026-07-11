@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseUdpUnicastReturnsAllFields()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "opc.udp://192.168.0.1:4840");
             Assert.Multiple(() =>
             {
@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseUdpMulticastReturnsAllFields()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "opc.udp://224.0.0.22:4840");
             Assert.That(addr.Host, Is.EqualTo("224.0.0.22"));
             Assert.That(addr.Port, Is.EqualTo(4840));
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseMqttsAcceptsTlsScheme()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "mqtts://broker.example.com:8883");
             Assert.Multiple(() =>
             {
@@ -128,7 +128,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseMqttWithPathExtractsPath()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "mqtt://broker.example.com:1883/some/topic");
             Assert.Multiple(() =>
             {
@@ -142,7 +142,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseHostNoPortYieldsZeroPort()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "opc.udp://hostname");
             Assert.Multiple(() =>
             {
@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseIpv6Literal()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "opc.udp://[::1]:4840");
             Assert.Multiple(() =>
             {
@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseIpv6LiteralWithoutPort()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "opc.udp://[fe80::1]");
             Assert.Multiple(() =>
             {
@@ -179,7 +179,7 @@ namespace Opc.Ua.PubSub.Tests.Transports
         [Test]
         public void ParseIpv6LiteralWithPathPreservesPath()
         {
-            PubSubTransportAddress addr = PubSubTransportAddress.Parse(
+            var addr = PubSubTransportAddress.Parse(
                 "mqtts://[2001:db8::1]:8883/foo");
             Assert.Multiple(() =>
             {
@@ -302,8 +302,8 @@ namespace Opc.Ua.PubSub.Tests.Transports
         public void RoundTripParseEmitsParseableString()
         {
             const string url = "mqtts://broker.example.com:8883/topic/path";
-            PubSubTransportAddress first = PubSubTransportAddress.Parse(url);
-            PubSubTransportAddress second = PubSubTransportAddress.Parse(first.ToString());
+            var first = PubSubTransportAddress.Parse(url);
+            var second = PubSubTransportAddress.Parse(first.ToString());
             Assert.That(second, Is.EqualTo(first));
         }
 

@@ -85,6 +85,11 @@ namespace Opc.Ua.Server
         public object NodeToBrowse { get; set; } = null!;
 
         /// <summary>
+        /// The NodeId from the original Browse request, when available.
+        /// </summary>
+        public NodeId RequestedNodeId { get; set; }
+
+        /// <summary>
         /// The maximum number of results to return.
         /// </summary>
         public uint MaxResultsToReturn { get; set; }

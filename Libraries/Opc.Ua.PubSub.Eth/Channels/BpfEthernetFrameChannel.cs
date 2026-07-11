@@ -63,15 +63,16 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private const uint IocIn = 0x80000000;
         private const uint IocParmMask = 0x1FFF;
 
-        // bpf_hdr field offsets on a 64-bit macOS runtime (struct timeval is 16 octets).
+        /// <summary>
+        /// bpf_hdr field offsets on a 64-bit macOS runtime (struct timeval is 16 octets).
+        /// </summary>
         private const int BpfCaplenOffset = 16;
         private const int BpfHdrlenOffset = 24;
 
         private readonly EthChannelParameters m_parameters;
         private readonly ILogger m_logger;
-        private readonly PhysicalAddress m_interfaceAddress;
         private readonly string m_interfaceName;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
 
         private int m_device = -1;
         private int m_bufferLength;
@@ -103,12 +104,12 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
             m_logger = telemetry.CreateLogger<BpfEthernetFrameChannel>();
             m_interfaceName = parameters.NetworkInterface.Name;
-            m_interfaceAddress = parameters.InterfaceAddress
+            InterfaceAddress = parameters.InterfaceAddress
                 ?? parameters.NetworkInterface.GetPhysicalAddress();
         }
 
         /// <inheritdoc/>
-        public PhysicalAddress InterfaceAddress => m_interfaceAddress;
+        public PhysicalAddress InterfaceAddress { get; }
 
         /// <inheritdoc/>
         public bool IsOpen
@@ -223,7 +224,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 // Hold the lock across the syscall so CloseAsync cannot close
                 // the descriptor (and let the OS reuse it) mid-send, which
                 // would write on an unrelated fd (fd-reuse race, ETH-SEC-03).
-                nint written = NativeMethods.write(m_device, buffer, (nint)buffer.Length);
+                nint written = NativeMethods.write(m_device, buffer, buffer.Length);
                 if (written < 0)
                 {
                     throw new InvalidOperationException(
@@ -268,7 +269,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         {
             for (int i = 0; i < 256; i++)
             {
-                string path = string.Concat("/dev/bpf", i.ToString(CultureInfo.InvariantCulture));
+                string path = $"/dev/bpf{i.ToString(CultureInfo.InvariantCulture)}";
                 int fd = NativeMethods.open(path, ORdwr);
                 if (fd >= 0)
                 {
@@ -281,14 +282,14 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private void ConfigureDevice(int fd)
         {
-            var enable = new byte[4];
+            byte[] enable = new byte[4];
             BitConverter.GetBytes(1).CopyTo(enable, 0);
 
             // BIOCSHDRCMPLT: do not let the kernel fill in the source MAC.
             Ioctl(fd, Iow('B', 117, 4), enable, "BIOCSHDRCMPLT");
 
             // BIOCSETIF: bind to the interface.
-            var ifreq = new byte[IfReqSize];
+            byte[] ifreq = new byte[IfReqSize];
             byte[] name = System.Text.Encoding.ASCII.GetBytes(m_interfaceName);
             Array.Copy(name, 0, ifreq, 0, Math.Min(name.Length, IfNameSize - 1));
             Ioctl(fd, Iow('B', 108, IfReqSize), ifreq, "BIOCSETIF");
@@ -297,14 +298,14 @@ namespace Opc.Ua.PubSub.Eth.Channels
             Ioctl(fd, Iow('B', 112, 4), enable, "BIOCIMMEDIATE");
 
             // BIOCGBLEN: read the kernel buffer length.
-            var blen = new byte[4];
+            byte[] blen = new byte[4];
             Ioctl(fd, Ior('B', 102, 4), blen, "BIOCGBLEN");
             m_bufferLength = Math.Max(BitConverter.ToInt32(blen, 0), m_parameters.MaxFrameSize);
 
             if (m_parameters.Promiscuous)
             {
                 // BIOCPROMISC (_IO, no argument).
-                Ioctl(fd, IocVoid | ((uint)'B' << 8) | 105, Array.Empty<byte>(), "BIOCPROMISC");
+                Ioctl(fd, IocVoid | ((uint)'B' << 8) | 105, [], "BIOCPROMISC");
             }
         }
 
@@ -316,10 +317,10 @@ namespace Opc.Ua.PubSub.Eth.Channels
             {
                 return;
             }
-            var buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_bufferLength)];
+            byte[] buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_bufferLength)];
             while (!cancellationToken.IsCancellationRequested)
             {
-                nint read = NativeMethods.read(fd, buffer, (nint)buffer.Length);
+                nint read = NativeMethods.read(fd, buffer, buffer.Length);
                 if (read <= 0)
                 {
                     break;
@@ -345,7 +346,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 }
                 if (caplen <= m_parameters.MaxFrameSize)
                 {
-                    var frame = new byte[caplen];
+                    byte[] frame = new byte[caplen];
                     Buffer.BlockCopy(buffer, dataStart, frame, 0, caplen);
                     if (!channel.Writer.TryWrite(frame))
                     {
@@ -380,28 +381,34 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return IocOut | ((length & IocParmMask) << 16) | ((uint)group << 8) | number;
         }
 
+        // SYSLIB1054 (source-generated LibraryImport) is unavailable on the
+        // net472/net48/netstandard2.1 targets this channel also builds for, and
+        // classic DllImport of these blittable libc calls remains NativeAOT
+        // compatible, so the interop stays on DllImport across all TFMs.
+#pragma warning disable SYSLIB1054
         private static class NativeMethods
         {
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true, CharSet = CharSet.Ansi,
-                    BestFitMapping = false, ThrowOnUnmappableChar = true)]
-                internal static extern int open(string path, int flags);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true, CharSet = CharSet.Ansi,
+                BestFitMapping = false, ThrowOnUnmappableChar = true)]
+            internal static extern int open(string path, int flags);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
             [DllImport("libc", SetLastError = true)]
-                internal static extern int close(int fd);
+            internal static extern int close(int fd);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true)]
-                internal static extern int ioctl(int fd, ulong request, byte[] argp);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true)]
+            internal static extern int ioctl(int fd, ulong request, byte[] argp);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true)]
-                internal static extern nint read(int fd, byte[] buf, nint count);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true)]
+            internal static extern nint read(int fd, byte[] buf, nint count);
 
-                [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-                [DllImport("libc", SetLastError = true)]
-                internal static extern nint write(int fd, byte[] buf, nint count);
+            [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+            [DllImport("libc", SetLastError = true)]
+            internal static extern nint write(int fd, byte[] buf, nint count);
         }
+#pragma warning restore SYSLIB1054
     }
 }

@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Callback((ArrayOf<WriteValue> writes, CancellationToken ct) =>
                     captured = writes.Count > 0 ? writes[0] : null)
                 .Returns(new ValueTask<ArrayOf<StatusCode>>(
-                    new[] { (StatusCode)StatusCodes.Good }.ToArrayOf()));
+                    new[] { StatusCodes.Good }.ToArrayOf()));
 
             ISubscribedDataSetSink sink = ServerSubscribedDataSetSink.Create(
                 TargetVariables(nodeId), session.Object, AdapterTestHelpers.Telemetry());
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             {
                 new() { Name = "field0", Value = new Variant(3.14) }
             };
-            await sink.WriteAsync(fields);
+            await sink.WriteAsync(fields).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(nodeId));

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -48,7 +47,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [Test]
         public void PlainAscii_PassesThroughUnchanged()
         {
-            string input = "TemperatureSensor_42";
+            const string input = "TemperatureSensor_42";
 
             string escaped = StringLiteralEscaper.AsCSharpStringLiteralContent(
                 input, out bool modified);
@@ -158,7 +157,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Non-ASCII letters are valid in C# regular string literals
             // and should not be escaped by this helper.
-            string input = "TempératureSenseur_Ω";
+            const string input = "TempératureSenseur_Ω";
 
             string escaped = StringLiteralEscaper.AsCSharpStringLiteralContent(
                 input, out bool modified);
@@ -207,7 +206,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 "mixed \"\\\r\n\t\u0001\u007f end",
                 "\"\\\"\\\\\\\"",
                 JsonSerializer.Serialize("a\"b\\c\u0001\u0002"),
-                JsonSerializer.Serialize(new { A = "\"\\", B = "\r\n", C = "\u007f" }),
+                JsonSerializer.Serialize(new { A = "\"\\", B = "\r\n", C = "\u007f" })
             ];
 
             foreach (string seed in seeds)
@@ -241,7 +240,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             ExpressionSyntax expr = SyntaxFactory.ParseExpression(wrapped);
             Assert.That(expr, Is.InstanceOf<LiteralExpressionSyntax>(),
                 $"Roslyn could not parse: {wrapped}");
-            LiteralExpressionSyntax literal = (LiteralExpressionSyntax)expr;
+            var literal = (LiteralExpressionSyntax)expr;
             Assert.That(literal.Kind(), Is.EqualTo(SyntaxKind.StringLiteralExpression));
 
             string parsed = (string)literal.Token.Value;

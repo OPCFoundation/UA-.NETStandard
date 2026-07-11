@@ -50,9 +50,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// </remarks>
     internal struct UadpBinaryWriter
     {
-        private readonly byte[] m_buffer;
-        private readonly int m_origin;
-        private readonly int m_length;
         private int m_position;
 
         /// <summary>
@@ -79,9 +76,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 throw new ArgumentOutOfRangeException(nameof(length));
             }
-            m_buffer = buffer;
-            m_origin = origin;
-            m_length = length;
+            Buffer = buffer;
+            Origin = origin;
+            Capacity = length;
             m_position = 0;
         }
 
@@ -89,23 +86,23 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Number of bytes written so far relative to
         /// <see cref="Origin"/>.
         /// </summary>
-        public int Position => m_position;
+        public readonly int Position => m_position;
 
         /// <summary>
         /// Origin offset of the writable region inside the backing
         /// buffer.
         /// </summary>
-        public int Origin => m_origin;
+        public readonly int Origin { get; }
 
         /// <summary>
         /// Total writable capacity of this writer instance.
         /// </summary>
-        public int Capacity => m_length;
+        public readonly int Capacity { get; }
 
         /// <summary>
         /// Bytes remaining in the writable region.
         /// </summary>
-        public int Remaining => m_length - m_position;
+        public readonly int Remaining => Capacity - m_position;
 
         /// <summary>
         /// Writable slice exposing the bytes that have already been
@@ -115,16 +112,16 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// A <see cref="ReadOnlySpan{T}"/> over the bytes already
         /// written.
         /// </returns>
-        public ReadOnlySpan<byte> WrittenSpan()
+        public readonly ReadOnlySpan<byte> WrittenSpan()
         {
-            return new(m_buffer, m_origin, m_position);
+            return new(Buffer, Origin, m_position);
         }
 
         /// <summary>
         /// Underlying backing buffer; exposed for direct integration
         /// with <see cref="BinaryEncoder"/>.
         /// </summary>
-        public byte[] Buffer => m_buffer;
+        public readonly byte[] Buffer { get; }
 
         /// <summary>
         /// Advances the cursor by <paramref name="byteCount"/> bytes
@@ -132,6 +129,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// has filled that slice in place.
         /// </summary>
         /// <param name="byteCount">Number of bytes already written.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void Advance(int byteCount)
         {
             if (byteCount < 0)
@@ -149,7 +147,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public void WriteByte(byte value)
         {
             EnsureCapacity(1);
-            m_buffer[m_origin + m_position] = value;
+            Buffer[Origin + m_position] = value;
             m_position++;
         }
 
@@ -161,7 +159,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             EnsureCapacity(2);
             BinaryPrimitives.WriteUInt16LittleEndian(
-                new Span<byte>(m_buffer, m_origin + m_position, 2),
+                new Span<byte>(Buffer, Origin + m_position, 2),
                 value);
             m_position += 2;
         }
@@ -174,7 +172,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             EnsureCapacity(4);
             BinaryPrimitives.WriteUInt32LittleEndian(
-                new Span<byte>(m_buffer, m_origin + m_position, 4),
+                new Span<byte>(Buffer, Origin + m_position, 4),
                 value);
             m_position += 4;
         }
@@ -187,7 +185,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             EnsureCapacity(8);
             BinaryPrimitives.WriteUInt64LittleEndian(
-                new Span<byte>(m_buffer, m_origin + m_position, 8),
+                new Span<byte>(Buffer, Origin + m_position, 8),
                 value);
             m_position += 8;
         }
@@ -200,7 +198,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             EnsureCapacity(8);
             BinaryPrimitives.WriteInt64LittleEndian(
-                new Span<byte>(m_buffer, m_origin + m_position, 8),
+                new Span<byte>(Buffer, Origin + m_position, 8),
                 value);
             m_position += 8;
         }
@@ -217,7 +215,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 EnsureCapacity(4);
                 BinaryPrimitives.WriteInt32LittleEndian(
-                    new Span<byte>(m_buffer, m_origin + m_position, 4),
+                    new Span<byte>(Buffer, Origin + m_position, 4),
                     -1);
                 m_position += 4;
                 return;
@@ -225,13 +223,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int byteCount = SysText.Encoding.UTF8.GetByteCount(value);
             EnsureCapacity(4 + byteCount);
             BinaryPrimitives.WriteInt32LittleEndian(
-                new Span<byte>(m_buffer, m_origin + m_position, 4),
+                new Span<byte>(Buffer, Origin + m_position, 4),
                 byteCount);
             m_position += 4;
             if (byteCount > 0)
             {
                 SysText.Encoding.UTF8.GetBytes(
-                    value, 0, value.Length, m_buffer, m_origin + m_position);
+                    value, 0, value.Length, Buffer, Origin + m_position);
                 m_position += byteCount;
             }
         }
@@ -245,10 +243,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             EnsureCapacity(16);
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-            value.TryWriteBytes(new Span<byte>(m_buffer, m_origin + m_position, 16));
+            value.TryWriteBytes(new Span<byte>(Buffer, Origin + m_position, 16));
 #else
             byte[] tmp = value.ToByteArray();
-            System.Buffer.BlockCopy(tmp, 0, m_buffer, m_origin + m_position, 16);
+            System.Buffer.BlockCopy(tmp, 0, Buffer, Origin + m_position, 16);
 #endif
             m_position += 16;
         }
@@ -265,7 +263,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return;
             }
             EnsureCapacity(source.Length);
-            source.CopyTo(new Span<byte>(m_buffer, m_origin + m_position, source.Length));
+            source.CopyTo(new Span<byte>(Buffer, Origin + m_position, source.Length));
             m_position += source.Length;
         }
 
@@ -286,7 +284,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             // skipped at write time.
             for (int i = 0; i < byteCount; i++)
             {
-                m_buffer[m_origin + m_position + i] = 0;
+                Buffer[Origin + m_position + i] = 0;
             }
             m_position += byteCount;
             return slot;
@@ -298,14 +296,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="position">Reserved slot position.</param>
         /// <param name="value">Value to patch.</param>
-        public void PatchUInt16Le(int position, ushort value)
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public readonly void PatchUInt16Le(int position, ushort value)
         {
-            if ((uint)position > (uint)(m_length - 2))
+            if ((uint)position > (uint)(Capacity - 2))
             {
                 throw new ArgumentOutOfRangeException(nameof(position));
             }
             BinaryPrimitives.WriteUInt16LittleEndian(
-                new Span<byte>(m_buffer, m_origin + position, 2),
+                new Span<byte>(Buffer, Origin + position, 2),
                 value);
         }
 
@@ -315,14 +314,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="position">Reserved slot position.</param>
         /// <param name="value">Value to patch.</param>
-        public void PatchUInt32Le(int position, uint value)
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public readonly void PatchUInt32Le(int position, uint value)
         {
-            if ((uint)position > (uint)(m_length - 4))
+            if ((uint)position > (uint)(Capacity - 4))
             {
                 throw new ArgumentOutOfRangeException(nameof(position));
             }
             BinaryPrimitives.WriteUInt32LittleEndian(
-                new Span<byte>(m_buffer, m_origin + position, 4),
+                new Span<byte>(Buffer, Origin + position, 4),
                 value);
         }
 
@@ -334,20 +334,22 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="value">Variant to encode.</param>
         /// <param name="context">Stack service message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void WriteVariant(in Variant value, IServiceMessageContext context)
         {
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            int available = m_length - m_position;
+            int available = Capacity - m_position;
             if (available <= 0)
             {
                 throw new InvalidOperationException("UADP writer buffer is full.");
             }
             int written;
             using (var encoder = new BinaryEncoder(
-                m_buffer, m_origin + m_position, available, context))
+                Buffer, Origin + m_position, available, context))
             {
                 encoder.WriteVariant(null, value);
                 written = encoder.Close();
@@ -361,20 +363,22 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="value">DataValue to encode.</param>
         /// <param name="context">Stack service message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void WriteDataValue(in DataValue value, IServiceMessageContext context)
         {
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            int available = m_length - m_position;
+            int available = Capacity - m_position;
             if (available <= 0)
             {
                 throw new InvalidOperationException("UADP writer buffer is full.");
             }
             int written;
             using (var encoder = new BinaryEncoder(
-                m_buffer, m_origin + m_position, available, context))
+                Buffer, Origin + m_position, available, context))
             {
                 encoder.WriteDataValue(null, value);
                 written = encoder.Close();
@@ -434,6 +438,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// behaviour).
         /// </param>
         /// <param name="context">Stack service message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void WriteRawScalar(
             in Variant value,
             BuiltInType builtInType,
@@ -446,7 +452,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            int available = m_length - m_position;
+            int available = Capacity - m_position;
             if (available <= 0)
             {
                 throw new InvalidOperationException("UADP writer buffer is full.");
@@ -468,7 +474,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             int written;
             using (var encoder = new BinaryEncoder(
-                m_buffer, m_origin + m_position, available, context))
+                Buffer, Origin + m_position, available, context))
             {
                 if (valueRank == ValueRanks.Scalar)
                 {
@@ -551,12 +557,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (byteCount > 0)
             {
                 SysText.Encoding.UTF8.GetBytes(
-                    value, 0, value.Length, m_buffer, m_origin + m_position);
+                    value, 0, value.Length, Buffer, Origin + m_position);
             }
             int padCount = total - byteCount;
             if (padCount > 0)
             {
-                Array.Clear(m_buffer, m_origin + m_position + byteCount, padCount);
+                Array.Clear(Buffer, Origin + m_position + byteCount, padCount);
             }
             m_position += total;
         }
@@ -564,7 +570,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private void WritePaddedBytes(ByteString value, uint maxLength)
         {
             ReadOnlySpan<byte> src = value.IsNull
-                ? ReadOnlySpan<byte>.Empty
+                ? []
                 : value.Span;
             if ((uint)src.Length > maxLength)
             {
@@ -577,12 +583,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             EnsureCapacity(total);
             if (!src.IsEmpty)
             {
-                src.CopyTo(new Span<byte>(m_buffer, m_origin + m_position, src.Length));
+                src.CopyTo(new Span<byte>(Buffer, Origin + m_position, src.Length));
             }
             int padCount = total - src.Length;
             if (padCount > 0)
             {
-                Array.Clear(m_buffer, m_origin + m_position + src.Length, padCount);
+                Array.Clear(Buffer, Origin + m_position + src.Length, padCount);
             }
             m_position += total;
         }
@@ -656,7 +662,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             for (int i = 0; i < expectedCount; i++)
             {
                 bool v = i < actual && arr[i];
-                m_buffer[m_origin + m_position++] = (byte)(v ? 1 : 0);
+                Buffer[Origin + m_position++] = (byte)(v ? 1 : 0);
             }
         }
 
@@ -669,7 +675,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             for (int i = 0; i < expectedCount; i++)
             {
                 sbyte v = i < actual ? arr[i] : (sbyte)0;
-                m_buffer[m_origin + m_position++] = (byte)v;
+                Buffer[Origin + m_position++] = (byte)v;
             }
         }
 
@@ -681,7 +687,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             EnsureCapacity(expectedCount);
             for (int i = 0; i < expectedCount; i++)
             {
-                m_buffer[m_origin + m_position++] = i < actual ? arr[i] : (byte)0;
+                Buffer[Origin + m_position++] = i < actual ? arr[i] : (byte)0;
             }
         }
 
@@ -695,7 +701,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 short v = i < actual ? arr[i] : (short)0;
                 BinaryPrimitives.WriteInt16LittleEndian(
-                    new Span<byte>(m_buffer, m_origin + m_position, 2), v);
+                    new Span<byte>(Buffer, Origin + m_position, 2), v);
                 m_position += 2;
             }
         }
@@ -710,7 +716,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 ushort v = i < actual ? arr[i] : (ushort)0;
                 BinaryPrimitives.WriteUInt16LittleEndian(
-                    new Span<byte>(m_buffer, m_origin + m_position, 2), v);
+                    new Span<byte>(Buffer, Origin + m_position, 2), v);
                 m_position += 2;
             }
         }
@@ -725,7 +731,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 int v = i < actual ? arr[i] : 0;
                 BinaryPrimitives.WriteInt32LittleEndian(
-                    new Span<byte>(m_buffer, m_origin + m_position, 4), v);
+                    new Span<byte>(Buffer, Origin + m_position, 4), v);
                 m_position += 4;
             }
         }
@@ -740,7 +746,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 uint v = i < actual ? arr[i] : 0u;
                 BinaryPrimitives.WriteUInt32LittleEndian(
-                    new Span<byte>(m_buffer, m_origin + m_position, 4), v);
+                    new Span<byte>(Buffer, Origin + m_position, 4), v);
                 m_position += 4;
             }
         }
@@ -755,7 +761,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 long v = i < actual ? arr[i] : 0L;
                 BinaryPrimitives.WriteInt64LittleEndian(
-                    new Span<byte>(m_buffer, m_origin + m_position, 8), v);
+                    new Span<byte>(Buffer, Origin + m_position, 8), v);
                 m_position += 8;
             }
         }
@@ -770,7 +776,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 ulong v = i < actual ? arr[i] : 0UL;
                 BinaryPrimitives.WriteUInt64LittleEndian(
-                    new Span<byte>(m_buffer, m_origin + m_position, 8), v);
+                    new Span<byte>(Buffer, Origin + m_position, 8), v);
                 m_position += 8;
             }
         }
@@ -784,7 +790,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             for (int i = 0; i < expectedCount; i++)
             {
                 float v = i < actual ? arr[i] : 0f;
-                WriteFloatLittleEndian(m_buffer, m_origin + m_position, v);
+                WriteFloatLittleEndian(Buffer, Origin + m_position, v);
                 m_position += 4;
             }
         }
@@ -798,7 +804,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             for (int i = 0; i < expectedCount; i++)
             {
                 double v = i < actual ? arr[i] : 0d;
-                WriteDoubleLittleEndian(m_buffer, m_origin + m_position, v);
+                WriteDoubleLittleEndian(Buffer, Origin + m_position, v);
                 m_position += 8;
             }
         }
@@ -1109,12 +1115,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
-        private void EnsureCapacity(int byteCount)
+        private readonly void EnsureCapacity(int byteCount)
         {
-            if (m_position + byteCount > m_length)
+            if (m_position + byteCount > Capacity)
             {
                 throw new InvalidOperationException(
-                    $"UADP writer needs {byteCount} bytes but only {m_length - m_position} remain.");
+                    $"UADP writer needs {byteCount} bytes but only {Capacity - m_position} remain.");
             }
         }
     }

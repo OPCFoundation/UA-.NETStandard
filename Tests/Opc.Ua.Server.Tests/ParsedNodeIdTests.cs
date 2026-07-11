@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ParseExtractsRootTypeAndRootId()
         {
-            ParsedNodeId parsed = ParsedNodeId.Parse(new NodeId("15:MyRoot", 3));
+            var parsed = ParsedNodeId.Parse(new NodeId("15:MyRoot", 3));
 
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.RootType, Is.EqualTo(15));
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ParseExtractsComponentPath()
         {
-            ParsedNodeId parsed = ParsedNodeId.Parse(new NodeId("1:Root?Child/Grandchild", 2));
+            var parsed = ParsedNodeId.Parse(new NodeId("1:Root?Child/Grandchild", 2));
 
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.RootType, Is.EqualTo(1));
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests
         public void ParseHonorsEscapedDelimiterInRootId()
         {
             // The '?' is escaped so it stays part of the root id and is not treated as a path separator.
-            ParsedNodeId parsed = ParsedNodeId.Parse(new NodeId("2:Ro&?ot?Path", 1));
+            var parsed = ParsedNodeId.Parse(new NodeId("2:Ro&?ot?Path", 1));
 
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.RootId, Is.EqualTo("Ro?ot"));
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             NodeId nodeId = parsed.Construct();
-            ParsedNodeId reparsed = ParsedNodeId.Parse(nodeId);
+            var reparsed = ParsedNodeId.Parse(nodeId);
 
             Assert.That(nodeId.NamespaceIndex, Is.EqualTo((ushort)4));
             Assert.That(reparsed, Is.Not.Null);
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             NodeId nodeId = parsed.Construct();
-            ParsedNodeId reparsed = ParsedNodeId.Parse(nodeId);
+            var reparsed = ParsedNodeId.Parse(nodeId);
 
             Assert.That(reparsed, Is.Not.Null);
             Assert.That(reparsed.RootId, Is.EqualTo("a?b"));
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             NodeId nodeId = parsed.Construct("Component");
-            ParsedNodeId reparsed = ParsedNodeId.Parse(nodeId);
+            var reparsed = ParsedNodeId.Parse(nodeId);
 
             Assert.That(reparsed, Is.Not.Null);
             Assert.That(reparsed.ComponentPath, Is.EqualTo("Component"));
@@ -189,7 +189,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             NodeId nodeId = parsed.Construct("Component");
-            ParsedNodeId reparsed = ParsedNodeId.Parse(nodeId);
+            var reparsed = ParsedNodeId.Parse(nodeId);
 
             Assert.That(reparsed, Is.Not.Null);
             Assert.That(reparsed.ComponentPath, Is.EqualTo("Existing/Component"));
@@ -199,7 +199,7 @@ namespace Opc.Ua.Server.Tests
         public void StaticConstructBuildsNodeIdFromComponentNames()
         {
             NodeId nodeId = ParsedNodeId.Construct(5, "Root", 3, "A", "B", "C");
-            ParsedNodeId reparsed = ParsedNodeId.Parse(nodeId);
+            var reparsed = ParsedNodeId.Parse(nodeId);
 
             Assert.That(nodeId.NamespaceIndex, Is.EqualTo((ushort)3));
             Assert.That(reparsed, Is.Not.Null);
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests
         public void StaticConstructWithoutComponentNamesHasNoComponentPath()
         {
             NodeId nodeId = ParsedNodeId.Construct(2, "Root", 1);
-            ParsedNodeId reparsed = ParsedNodeId.Parse(nodeId);
+            var reparsed = ParsedNodeId.Parse(nodeId);
 
             Assert.That(reparsed, Is.Not.Null);
             Assert.That(reparsed.ComponentPath, Is.Null);

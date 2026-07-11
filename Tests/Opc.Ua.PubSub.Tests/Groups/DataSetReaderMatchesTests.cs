@@ -35,10 +35,10 @@ using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.Tests;
-using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
-using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
-using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
 using JsonDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
+using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
+using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
+using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
 namespace Opc.Ua.PubSub.Tests.Groups
 {
@@ -135,5 +135,3 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
     }
 }
-
-

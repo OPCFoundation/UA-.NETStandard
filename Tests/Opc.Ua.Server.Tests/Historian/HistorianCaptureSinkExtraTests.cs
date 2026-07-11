@@ -39,7 +39,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
-using Opc.Ua.Server.Historian.InMemory;
 
 #nullable enable
 
@@ -87,7 +86,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
 
             // DisposeAsync flushes all pending samples.
-            await sink.DisposeAsync();
+            await sink.DisposeAsync().ConfigureAwait(false);
 
             int total = 0;
             foreach (int b in provider.BatchSizes)
@@ -114,7 +113,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             var sink = new HistorianCaptureSink(provider, ctx, options);
-            await sink.DisposeAsync();
+            await sink.DisposeAsync().ConfigureAwait(false);
             int countBefore = 0;
             foreach (int b in provider.BatchSizes)
             {
@@ -127,7 +126,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new NodeId("post-dispose", Ns),
                 new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow)));
 
-            await Task.Delay(30);
+            await Task.Delay(30).ConfigureAwait(false);
 
             int countAfter = 0;
             foreach (int b in provider.BatchSizes)
@@ -165,7 +164,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 nodeId,
                 new DataValue(new Variant(1.0), StatusCodes.Good, DateTime.UtcNow));
 
-            await sink.DisposeAsync();
+            await sink.DisposeAsync().ConfigureAwait(false);
 
             int total = 0;
             foreach (int b in provider.BatchSizes)
@@ -196,7 +195,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianProviderBase,
             IHistorianBulkInsertProvider
         {
-            private readonly System.Threading.Lock m_lock = new();
+            private readonly Lock m_lock = new();
 
             public List<int> BatchSizes { get; } = [];
 

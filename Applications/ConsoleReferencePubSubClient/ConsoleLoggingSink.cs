@@ -72,9 +72,10 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 {
                     builder.Append(", ");
                 }
-                builder.Append(string.IsNullOrEmpty(field.Name) ? $"f{i}" : field.Name);
-                builder.Append('=');
-                builder.Append(field.Value.IsNull ? "(null)" : field.Value.ToString());
+                builder
+                    .Append(string.IsNullOrEmpty(field.Name) ? $"f{i}" : field.Name)
+                    .Append('=')
+                    .Append(field.Value.IsNull ? "(null)" : field.Value.ToString());
             }
             m_logger.LogInformation(
                 "DataSet #{Sequence} received ({FieldCount} fields): {Fields}",

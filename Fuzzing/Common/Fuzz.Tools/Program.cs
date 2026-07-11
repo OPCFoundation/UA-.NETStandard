@@ -48,6 +48,7 @@ namespace Opc.Ua.Fuzzing
 
         public static readonly string DefaultTestcasesFolder =
             RootFolder + "../" + s_areaName + ".Fuzz.Corpus/Testcases";
+
         public static readonly string DefaultFindingsCrashFolder = RootFolder + "findings/crashes/";
         public static readonly string DefaultFindingsHangsFolder = RootFolder + "findings/hangs/";
         public static readonly string DefaultLibFuzzerCrashes = RootFolder + "crash-*";

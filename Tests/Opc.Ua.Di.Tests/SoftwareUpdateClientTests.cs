@@ -48,14 +48,13 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsValueOnSuccess()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
                 Targets = new BrowsePathTarget[]
                 {
-                    new BrowsePathTarget
-                    {
+                    new() {
                         TargetId = new ExpandedNodeId("sv-1", 2),
                         RemainingPathIndex = uint.MaxValue
                     }
@@ -67,14 +66,14 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo("1.2.3"));
         }
 
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenBrowsePathBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.BadNoMatch,
@@ -84,14 +83,14 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenNoTargets()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
@@ -101,21 +100,20 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenReadStatusBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
                 Targets = new BrowsePathTarget[]
                 {
-                    new BrowsePathTarget
-                    {
+                    new() {
                         TargetId = new ExpandedNodeId("sv-1", 2),
                         RemainingPathIndex = uint.MaxValue
                     }
@@ -127,33 +125,32 @@ namespace Opc.Ua.Di.Tests
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
         [Test]
         public async Task ReadSoftwareVersionAsyncReturnsEmptyWhenValueNotString()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(sessionMock, new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
                 Targets = new BrowsePathTarget[]
                 {
-                    new BrowsePathTarget
-                    {
+                    new() {
                         TargetId = new ExpandedNodeId("sv-1", 2),
                         RemainingPathIndex = uint.MaxValue
                     }
                 }
             });
-            SetupReadReturns(sessionMock, new DataValue(new Variant((int)42)
+            SetupReadReturns(sessionMock, new DataValue(new Variant(42)
             , StatusCodes.Good));
 
             var client = new SoftwareUpdateClient(
                 sessionMock.Object, new NodeId("update-1", 2), NullTelemetry());
 
-            string result = await client.ReadSoftwareVersionAsync();
+            string result = await client.ReadSoftwareVersionAsync().ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 

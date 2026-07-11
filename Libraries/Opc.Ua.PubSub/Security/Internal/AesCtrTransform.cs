@@ -77,6 +77,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// Destination buffer; must be at least <c>input.Length</c>
         /// bytes long.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public static void EncryptOrDecrypt(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> nonce,
@@ -121,6 +122,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// Destination buffer; must be at least <c>input.Length</c>
         /// bytes long.
         /// </param>
+        /// <exception cref="ArgumentException"></exception>
         public static void EncryptOrDecryptWithCounter(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> initialCounter16,
@@ -225,7 +227,7 @@ namespace Opc.Ua.PubSub.Security.Internal
 
         private static void ValidateKey(ReadOnlySpan<byte> key)
         {
-            if (key.Length != 16 && key.Length != 24 && key.Length != 32)
+            if (key.Length is not 16 and not 24 and not 32)
             {
                 throw new ArgumentException(
                     "AES key must be 16, 24, or 32 bytes long.",
@@ -262,6 +264,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// counter by 1 starting from the supplied integer rather than
         /// zero. Not part of the public contract.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal static void EncryptOrDecryptWithStartingBlock(
             ReadOnlySpan<byte> key,
             ReadOnlySpan<byte> nonce,
@@ -278,7 +281,7 @@ namespace Opc.Ua.PubSub.Security.Internal
             }
             Span<byte> counter = stackalloc byte[BlockSize];
             nonce.CopyTo(counter);
-            BinaryPrimitives.WriteUInt32BigEndian(counter.Slice(12), startingBlock);
+            BinaryPrimitives.WriteUInt32BigEndian(counter[12..], startingBlock);
             TransformWithCounter(key, counter, input, output);
         }
     }

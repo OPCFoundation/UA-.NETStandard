@@ -41,15 +41,13 @@ using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua.Pcap.Capture;
-using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Frame;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Pcap;
 using Opc.Ua.PubSub.Pcap.KeyLog;
-using Opc.Ua.PubSub.Transports;
-
 using OpcUaMcpServerOptions = Opc.Ua.Mcp.McpServerOptions;
 
 namespace Opc.Ua.Mcp.Tools
@@ -318,7 +316,7 @@ namespace Opc.Ua.Mcp.Tools
                 return false;
             }
 
-            int ipOffset = 14;
+            const int ipOffset = 14;
             int headerLength = (data[ipOffset] & 0x0F) * 4;
             if (headerLength < 20 || data.Length < ipOffset + headerLength + 8 || data[ipOffset + 9] != 17)
             {
@@ -360,7 +358,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static string GetPcapAllowedRoot(IServiceProvider services)
         {
-            OpcUaMcpServerOptions? mcpOptions =
+            var mcpOptions =
                 services.GetService(typeof(OpcUaMcpServerOptions)) as OpcUaMcpServerOptions;
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.PcapBaseFolder))
@@ -368,7 +366,7 @@ namespace Opc.Ua.Mcp.Tools
                 return Path.GetFullPath(mcpOptions.PcapBaseFolder!);
             }
 
-            PcapOptions? options = services.GetService(typeof(PcapOptions)) as PcapOptions;
+            var options = services.GetService(typeof(PcapOptions)) as PcapOptions;
             return options?.BaseFolder ??
                 Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -407,10 +405,3 @@ namespace Opc.Ua.Mcp.Tools
         public int KeyCount { get; init; }
     }
 }
-
-
-
-
-
-
-

@@ -31,8 +31,6 @@ using System;
 using NUnit.Framework;
 using Opc.Ua.Pcap.Bindings;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Bindings
 {
     [TestFixture]

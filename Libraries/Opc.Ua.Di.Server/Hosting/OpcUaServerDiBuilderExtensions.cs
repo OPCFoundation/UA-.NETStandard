@@ -183,9 +183,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Marker type used to detect duplicate <see cref="AddOpcUaDi"/>
         /// calls.
         /// </summary>
-        private sealed class DiNodeManagerRegistrationMarker
-        {
-        }
+        private sealed class DiNodeManagerRegistrationMarker;
 
         /// <summary>
         /// Delegate-backed configurator created by the

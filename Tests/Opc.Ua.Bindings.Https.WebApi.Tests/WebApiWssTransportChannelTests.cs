@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Linq;
@@ -45,7 +43,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
@@ -103,11 +100,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts =>
-                    {
-                        opts.Listen(IPAddress.Loopback, 0);
-                    });
-                    webHost.ConfigureServices(s => { });
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0))
+                        .ConfigureServices(s => { });
                     webHost.Configure(app =>
                     {
                         app.UseWebSockets();
@@ -333,10 +327,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         {
             // Replace the responder with one that closes the socket
             // before sending a response.
-            m_responder = req =>
-            {
-                throw new CloseConnectionSentinel();
-            };
+            m_responder = req => throw new CloseConnectionSentinel();
 
             using WebApiWssTransportChannel channel = await OpenChannelAsync()
                 .ConfigureAwait(false);
@@ -355,6 +346,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 "When the server closes the WebSocket while a request is " +
                 "in flight, the channel surfaces BadConnectionClosed.");
         }
+
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(
             WebApiClientOptions? options = null)
         {
@@ -391,7 +383,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .FirstOrDefault();
             if (subProtocol == null ||
                 (!string.Equals(subProtocol, Profiles.OpcUaWsSubProtocolOpenApi, StringComparison.Ordinal) &&
-                 !subProtocol.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal)))
+                    !subProtocol.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal)))
             {
                 context.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest;
                 return;
@@ -451,7 +443,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         JsonEncoderOptions.Compact))
                     {
                         encoder.EncodeMessage(response, response.TypeId);
-                        encoder.Close();
                     }
                     responseBytes = stream.ToArray();
                 }

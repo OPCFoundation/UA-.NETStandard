@@ -33,8 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>
@@ -43,8 +41,10 @@ namespace Opc.Ua.Pcap.Audit
     public sealed class LoggerPcapAuditSink : IPcapAuditSink
     {
         private static readonly TimeSpan s_frameCapturedInterval = TimeSpan.FromMinutes(1);
+
         private static readonly ConcurrentDictionary<string, DateTimeOffset> s_lastFrameCapturedAudit = new(
             StringComparer.OrdinalIgnoreCase);
+
         private static readonly Lock s_frameCapturedRateLimitLock = new();
 
         private readonly ILogger<LoggerPcapAuditSink> m_logger;

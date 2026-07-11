@@ -141,12 +141,16 @@ namespace Opc.Ua.PubSub.Pcap
         /// Equality comparison.
         /// </summary>
         public static bool operator ==(PubSubCaptureFrame left, PubSubCaptureFrame right)
-            => left.Equals(right);
+        {
+            return left.Equals(right);
+        }
 
         /// <summary>
         /// Inequality comparison.
         /// </summary>
         public static bool operator !=(PubSubCaptureFrame left, PubSubCaptureFrame right)
-            => !left.Equals(right);
+        {
+            return !left.Equals(right);
+        }
     }
 }

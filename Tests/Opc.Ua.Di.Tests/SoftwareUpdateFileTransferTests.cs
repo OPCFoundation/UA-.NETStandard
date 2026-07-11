@@ -394,7 +394,7 @@ namespace Opc.Ua.Di.Tests
 
         private static byte[] MakeSequentialPayload(int length)
         {
-            var bytes = new byte[length];
+            byte[] bytes = new byte[length];
             for (int i = 0; i < bytes.Length; i++)
             {
                 bytes[i] = (byte)(i & 0xFF);

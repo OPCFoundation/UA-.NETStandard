@@ -107,7 +107,7 @@ namespace Opc.Ua.Schema.Tests
 
             Assert.That(validator.Dictionary, Is.Not.Null);
             TypeDictionary dictionary = validator.Dictionary!;
-            TypeDictionary[] loaded = validator.LoadedTypeDictionaries.ToArray();
+            TypeDictionary[] loaded = [.. validator.LoadedTypeDictionaries];
             Assert.Multiple(() =>
             {
                 Assert.That(dictionary.TargetNamespace, Is.EqualTo(TestNamespace));

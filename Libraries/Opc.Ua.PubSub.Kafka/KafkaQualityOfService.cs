@@ -169,7 +169,7 @@ namespace Opc.Ua.PubSub.Kafka
         /// </param>
         /// <returns>The mapped delivery guarantee.</returns>
         public static KafkaQualityOfService FromBrokerGuarantee(
-            BrokerTransportQualityOfService guarantee,
+            this BrokerTransportQualityOfService guarantee,
             KafkaQualityOfService fallback)
         {
             return guarantee switch

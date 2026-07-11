@@ -220,10 +220,12 @@ namespace Opc.Ua.Server.Historian
                     {
                         disposable.Dispose();
                     }
+#pragma warning disable RCS1075 // intentional best-effort swallow during teardown (see comment)
                     catch (Exception)
                     {
                         // swallow during teardown — TODO(historian): log via shared telemetry once wired.
                     }
+#pragma warning restore RCS1075
                 }
             }
         }

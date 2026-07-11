@@ -371,18 +371,24 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             CancellationToken cancellationToken = default)
         {
-            ByteString serverNonce = default;
-
             ISession? session = null;
+            ISession? restoredSession = null;
             IUserIdentityTokenHandler? newIdentity = null;
-            UserTokenPolicy? userTokenPolicy = null;
             string? clientKey = null;
 
             // fast path no lock
-            if (!m_sessions.TryGetValue(authenticationToken, out _))
+            if (!m_sessions.TryGetValue(authenticationToken, out _) && !SupportsSessionRestore)
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
+            if (!m_sessions.TryGetValue(authenticationToken, out _) && SupportsSessionRestore)
+            {
+                restoredSession = await RestoreSessionAsync(
+                    authenticationToken,
+                    context,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             Nonce? serverNonceObject = null;
             try
             {
@@ -399,7 +405,26 @@ namespace Opc.Ua.Server
                     // find session.
                     if (!m_sessions.TryGetValue(authenticationToken, out session))
                     {
-                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                        if (restoredSession == null)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                        }
+
+                        // Restore completed outside the global lock. Re-check
+                        // under the lock in case another concurrent activation
+                        // already admitted the same mirrored session.
+                        if (!m_sessions.TryAdd(authenticationToken, restoredSession) &&
+                            !m_sessions.TryGetValue(authenticationToken, out session))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                        }
+
+                        session ??= restoredSession;
+                        if (!ReferenceEquals(session, restoredSession))
+                        {
+                            restoredSession.Dispose();
+                        }
+                        restoredSession = null;
                     }
 
                     // get client lockout key.
@@ -434,6 +459,8 @@ namespace Opc.Ua.Server
                     m_semaphoreSlim.Release();
                 }
 
+                ByteString serverNonce;
+                UserTokenPolicy? userTokenPolicy;
                 // Note: session lookup, lockout and expiry failures above are not
                 // authentication failures and deliberately do NOT record a
                 // brute-force attempt - only a failed client-signature or user
@@ -562,6 +589,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                restoredSession?.Dispose();
                 serverNonceObject?.Dispose();
             }
         }
@@ -1054,6 +1082,44 @@ namespace Opc.Ua.Server
 
             previous?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
             current?.RoleConfigurationChanged += OnRoleConfigurationChanged;
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether this manager can restore sessions
+        /// that are not present in the local session table (e.g. a mirrored
+        /// session after a failover). When <c>false</c> (the default), an
+        /// <c>ActivateSession</c> for an unknown token fails fast with
+        /// <see cref="StatusCodes.BadSessionIdInvalid"/> exactly as before.
+        /// </summary>
+        protected virtual bool SupportsSessionRestore => false;
+
+        /// <summary>
+        /// Restores a session that is not present in the local session table.
+        /// </summary>
+        /// <remarks>
+        /// Called by <see cref="ActivateSessionAsync"/> when the supplied
+        /// <paramref name="authenticationToken"/> is unknown locally. The
+        /// default returns <c>null</c> so the activation is rejected. A
+        /// distributed manager overrides this to reconstruct a mirrored session
+        /// (e.g. from a shared store), after which the normal activation path
+        /// performs the full client-certificate signature validation — the
+        /// token is never an authenticator on its own. The returned session
+        /// must be fully initialized (its diagnostics node registered, i.e.
+        /// <see cref="ISession.InitializeAsync"/> awaited).
+        /// </remarks>
+        /// <param name="authenticationToken">The unknown authentication token.</param>
+        /// <param name="context">The operation context of the activation.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>
+        /// The restored session to admit to the local table, or <c>null</c> to
+        /// reject the activation.
+        /// </returns>
+        protected virtual ValueTask<ISession?> RestoreSessionAsync(
+            NodeId authenticationToken,
+            OperationContext context,
+            CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<ISession?>((ISession?)null);
         }
 
         /// <summary>

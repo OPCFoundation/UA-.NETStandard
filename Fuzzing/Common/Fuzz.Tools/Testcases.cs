@@ -68,7 +68,7 @@ namespace Opc.Ua.Fuzzing
             return
             [
                 .. directories
-                    .Select(path => Path.GetFileName(path))
+                    .Select(Path.GetFileName)
                     .Where(name => name.StartsWith(rootName + ".", StringComparison.OrdinalIgnoreCase))
                     .Select(name => name[rootName.Length..])
                     .Distinct(StringComparer.OrdinalIgnoreCase)

@@ -44,19 +44,29 @@ namespace Opc.Ua.PubSub.Security
     [Flags]
     public enum UadpSecurityFlagsEncodingMask : byte
     {
-        /// <summary>No flags set.</summary>
+        /// <summary>
+        /// No flags set.
+        /// </summary>
         None = 0x00,
 
-        /// <summary>NetworkMessage Signed.</summary>
+        /// <summary>
+        /// NetworkMessage Signed.
+        /// </summary>
         NetworkMessageSigned = 0x01,
 
-        /// <summary>NetworkMessage Encrypted.</summary>
+        /// <summary>
+        /// NetworkMessage Encrypted.
+        /// </summary>
         NetworkMessageEncrypted = 0x02,
 
-        /// <summary>SecurityFooter present.</summary>
+        /// <summary>
+        /// SecurityFooter present.
+        /// </summary>
         SecurityFooterEnabled = 0x04,
 
-        /// <summary>Force key reset.</summary>
-        ForceKeyReset = 0x08,
+        /// <summary>
+        /// Force key reset.
+        /// </summary>
+        ForceKeyReset = 0x08
     }
 }

@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Scheduling
             private readonly Func<CancellationToken, ValueTask> m_action;
             private readonly ILogger m_logger;
             private readonly CancellationTokenSource m_cts = new();
-            private readonly System.Threading.Lock m_gate = new();
+            private readonly Lock m_gate = new();
             private ITimer? m_timer;
             private Task m_currentRun = Task.CompletedTask;
             private bool m_disposed;

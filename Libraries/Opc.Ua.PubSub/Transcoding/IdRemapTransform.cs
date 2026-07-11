@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub.Transcoding
             PubSubNetworkMessage result = message
                 ?? throw new System.ArgumentNullException(nameof(message));
 
-            if (!m_publisherId.IsNull && !m_publisherId.Equals(default(PublisherId)))
+            if (!m_publisherId.IsNull && !m_publisherId.Equals(default))
             {
                 result = result with { PublisherId = m_publisherId };
             }

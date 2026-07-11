@@ -165,10 +165,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         }
 
         private readonly Lock m_lock = new();
+
         private readonly TaskCompletionSource<bool> m_arrival = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly TaskCompletionSource<bool> m_release = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly int m_expectedParticipants;
         private int m_arrivedCount;
     }

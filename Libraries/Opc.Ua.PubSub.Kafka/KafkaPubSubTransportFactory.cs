@@ -67,7 +67,6 @@ namespace Opc.Ua.PubSub.Kafka
         private readonly KafkaConnectionOptions m_defaultOptions;
         private readonly ISecretRegistry? m_secretRegistry;
         private readonly IPubSubDiagnostics? m_diagnostics;
-        private readonly string m_transportProfileUri;
 
         /// <summary>
         /// Initializes a new <see cref="KafkaPubSubTransportFactory"/>.
@@ -112,8 +111,8 @@ namespace Opc.Ua.PubSub.Kafka
             if (!string.Equals(
                     transportProfileUri,
                     KafkaProfiles.PubSubKafkaJsonTransport,
-                    StringComparison.Ordinal)
-                && !string.Equals(
+                    StringComparison.Ordinal) &&
+                !string.Equals(
                     transportProfileUri,
                     KafkaProfiles.PubSubKafkaUadpTransport,
                     StringComparison.Ordinal))
@@ -130,7 +129,7 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 throw new ArgumentNullException(nameof(defaultOptions));
             }
-            m_transportProfileUri = transportProfileUri;
+            TransportProfileUri = transportProfileUri;
             m_clientFactory = clientFactory;
             m_defaultOptions = defaultOptions.Value ?? new KafkaConnectionOptions();
             m_secretRegistry = secretRegistry;
@@ -138,7 +137,7 @@ namespace Opc.Ua.PubSub.Kafka
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => m_transportProfileUri;
+        public string TransportProfileUri { get; }
 
         /// <inheritdoc/>
         public IPubSubTransport Create(
@@ -163,8 +162,8 @@ namespace Opc.Ua.PubSub.Kafka
                 throw new NotSupportedException(
                     "PubSubConnection.Address is required for Kafka transport.");
             }
-            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress)
-                || networkAddress is null)
+            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress) ||
+                networkAddress is null)
             {
                 throw new NotSupportedException(
                     "Kafka transport requires a NetworkAddressUrlDataType address payload.");
@@ -252,14 +251,13 @@ namespace Opc.Ua.PubSub.Kafka
             foreach (WriterGroupDataType group in connection.WriterGroups)
             {
                 if (group.TransportSettings.TryGetValue(
-                        out BrokerWriterGroupTransportDataType? broker)
-                    && broker is not null
-                    && broker.RequestedDeliveryGuarantee
-                        != BrokerTransportQualityOfService.NotSpecified)
+                        out BrokerWriterGroupTransportDataType? broker) &&
+                    broker is not null &&
+                    broker.RequestedDeliveryGuarantee !=
+                        BrokerTransportQualityOfService.NotSpecified)
                 {
                     options.DeliveryGuarantee =
-                        KafkaQualityOfServiceExtensions.FromBrokerGuarantee(
-                            broker.RequestedDeliveryGuarantee,
+                        broker.RequestedDeliveryGuarantee.FromBrokerGuarantee(
                             options.DeliveryGuarantee);
                     return;
                 }
@@ -361,13 +359,10 @@ namespace Opc.Ua.PubSub.Kafka
                     "ISecretRegistry was registered with the transport factory.");
             }
             SecretIdentifier id = ParseSecretIdentifier(options.PasswordSecretId);
-            ISecret? secret = m_secretRegistry.TryGet(id);
-            if (secret is null)
-            {
+            ISecret? secret = m_secretRegistry.TryGet(id) ??
                 throw new InvalidOperationException(
                     $"Password secret '{options.PasswordSecretId}' could not be " +
                     "resolved from the registered secret stores.");
-            }
             try
             {
                 options.PasswordBytes = secret.Bytes.ToArray();
@@ -385,8 +380,8 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 return new SecretIdentifier(secretId, DefaultSecretStoreType);
             }
-            string storeType = secretId.Substring(0, separator);
-            string name = secretId.Substring(separator + 1);
+            string storeType = secretId[..separator];
+            string name = secretId[(separator + 1)..];
             return new SecretIdentifier(name, storeType);
         }
 

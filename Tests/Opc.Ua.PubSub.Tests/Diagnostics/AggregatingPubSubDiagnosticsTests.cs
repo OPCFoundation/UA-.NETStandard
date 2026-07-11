@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Diagnostics;
 
 namespace Opc.Ua.PubSub.Tests.Diagnostics
@@ -143,7 +142,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             Assert.That(root.RecentErrors, Has.Count.EqualTo(1));
             Assert.That(
                 root.RecentErrors[0].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(root.RecentErrors[0].Message, Is.EqualTo("boom"));
         }
 
@@ -189,7 +188,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             var root = new PubSubDiagnostics(PubSubDiagnosticsLevel.Low);
             var agg = new AggregatingPubSubDiagnostics(
                 root,
-                () => Array.Empty<IPubSubDiagnostics>());
+                () => []);
 
             root.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages, 4);
 

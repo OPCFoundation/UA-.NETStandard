@@ -98,6 +98,7 @@ namespace Opc.Ua.Features.Tests
 
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_serverFixture.StartAsync().ConfigureAwait(false);
+            Assert.That(m_server, Is.Not.Null);
 
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);

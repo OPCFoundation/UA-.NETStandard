@@ -62,7 +62,9 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
-            => new KestrelTcpTransportListener(telemetry);
+        {
+            return new KestrelTcpTransportListener(telemetry);
+        }
     }
 
     /// <summary>
@@ -95,8 +97,10 @@ namespace Opc.Ua.Bindings
 
         internal ITelemetryContext Telemetry { get; }
         internal ILogger Logger { get; }
+
         internal BufferManager BufferManager => m_bufferManager
             ?? throw new InvalidOperationException("KestrelTcpTransportListener is not opened.");
+
         internal ChannelQuotas Quotas => m_quotas
             ?? throw new InvalidOperationException("KestrelTcpTransportListener is not opened.");
 
@@ -127,18 +131,14 @@ namespace Opc.Ua.Bindings
             ITransportListenerCallback callback,
             CancellationToken ct = default)
         {
-            if (baseAddress == null)
-            {
-                throw new ArgumentNullException(nameof(baseAddress));
-            }
             if (settings == null)
             {
                 throw new ArgumentNullException(nameof(settings));
             }
 
             ListenerId = Guid.NewGuid().ToString();
-            EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions ?? new List<EndpointDescription>();
+            EndpointUrl = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
+            m_descriptions = settings.Descriptions ?? [];
 
             EndpointConfiguration? configuration = settings.Configuration;
             var messageContext = new ServiceMessageContext(Telemetry, settings.Factory!)
@@ -173,7 +173,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public ValueTask CloseAsync(CancellationToken ct = default) => StopAsync(ct);
+        public ValueTask CloseAsync(CancellationToken ct = default)
+        {
+            return StopAsync(ct);
+        }
 
         /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct = default)
@@ -214,8 +217,10 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
-            => throw new NotImplementedException(
-                "Reverse connect is not implemented for KestrelTcpTransportListener; use the raw-socket TcpTransportListener.");
+        {
+            throw new NotImplementedException(
+                        "Reverse connect is not implemented for KestrelTcpTransportListener; use the raw-socket TcpTransportListener.");
+        }
 
         /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
@@ -234,16 +239,13 @@ namespace Opc.Ua.Bindings
             // renegotiation. The Kestrel listener has no TLS bind to
             // rotate (opc.tcp is plaintext), so the only listener-side
             // state to update is the references we hold.
-            if (m_quotas != null)
-            {
-                m_quotas.CertificateValidator = validator;
-            }
+            m_quotas?.CertificateValidator = validator;
             m_serverCertificates = serverCertificates;
         }
 
         /// <inheritdoc/>
         public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
-            Opc.Ua.Security.Certificates.Certificate oldCertificate,
+            Security.Certificates.Certificate oldCertificate,
             CancellationToken ct = default)
         {
             if (oldCertificate == null)
@@ -254,26 +256,27 @@ namespace Opc.Ua.Bindings
             string oldThumbprint = oldCertificate.Thumbprint;
             if (string.IsNullOrEmpty(oldThumbprint))
             {
-                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             // Snapshot the channel map so we can iterate without holding
             // any lock the per-channel close paths might also need.
             (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries =
                 m_channels?.Values.ToArray()
-                ?? Array.Empty<(TcpListenerChannel, TaskCompletionSource<bool>)>();
+                ?? [];
 
             if (entries.Length == 0)
             {
-                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             var closed = new List<string>(entries.Length);
-            foreach (var entry in entries)
+
+            foreach ((TcpListenerChannel Channel, _) in entries)
             {
                 try
                 {
-                    if (entry.Channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId) &&
+                    if (Channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId) &&
                         !string.IsNullOrEmpty(globalChannelId))
                     {
                         closed.Add(globalChannelId!);
@@ -303,7 +306,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            Opc.Ua.Security.Certificates.Certificate clientCertificate,
+            Security.Certificates.Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -315,17 +318,27 @@ namespace Opc.Ua.Bindings
 #pragma warning disable CS0618 // Obsolete: keep for interface compat
         /// <inheritdoc/>
         public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
-            => TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+        {
+            return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+        }
 #pragma warning restore CS0618
 
         /// <inheritdoc/>
         public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
-            => TransferReverseConnectChannelAsync(channelId, serverUri, endpointUrl);
+        {
+            return TransferReverseConnectChannelAsync(channelId, serverUri, endpointUrl);
+        }
 
         /// <inheritdoc/>
-        public void ChannelClosed(uint channelId) => UnregisterChannel(channelId);
+        public void ChannelClosed(uint channelId)
+        {
+            UnregisterChannel(channelId);
+        }
 
-        internal uint NextChannelId() => (uint)Interlocked.Increment(ref m_nextChannelId);
+        internal uint NextChannelId()
+        {
+            return (uint)Interlocked.Increment(ref m_nextChannelId);
+        }
 
         /// <summary>
         /// True when <see cref="OpenAsync"/> was called with
@@ -381,7 +394,7 @@ namespace Opc.Ua.Bindings
 
         internal void UnregisterChannel(uint channelId)
         {
-            if (m_channels != null && m_channels.TryRemove(channelId, out var entry))
+            if (m_channels != null && m_channels.TryRemove(channelId, out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry))
             {
                 entry.Done.TrySetResult(true);
             }
@@ -389,7 +402,7 @@ namespace Opc.Ua.Bindings
 
         internal Task WaitForConnectionAsync(uint channelId, CancellationToken ct)
         {
-            if (m_channels != null && m_channels.TryGetValue(channelId, out var entry))
+            if (m_channels != null && m_channels.TryGetValue(channelId, out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry))
             {
                 return Task.WhenAny(entry.Done.Task, ct.AsTask()).ContinueWith(_ => { }, TaskScheduler.Default);
             }
@@ -405,6 +418,7 @@ namespace Opc.Ua.Bindings
         /// application can take ownership of the connection, and
         /// (if accepted) tears down the channel state.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async Task<bool> TransferReverseConnectChannelAsync(
             uint channelId,
             string serverUri,
@@ -413,7 +427,7 @@ namespace Opc.Ua.Bindings
             bool accepted = false;
 
             if (m_channels == null ||
-                !m_channels.TryRemove(channelId, out var entry))
+                !m_channels.TryRemove(channelId, out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
@@ -473,13 +487,20 @@ namespace Opc.Ua.Bindings
             return accepted;
         }
 
-        // Synchronous bridge to the async handler (the
-        // TcpChannelRequestEventHandler delegate returns void).
+        /// <summary>
+        /// Synchronous bridge to the async handler (the
+        /// TcpChannelRequestEventHandler delegate returns void).
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="requestId"></param>
+        /// <param name="request"></param>
         private void OnRequestReceived(
             TcpListenerChannel channel,
             uint requestId,
             IServiceRequest request)
-            => _ = DispatchRequestAsync(channel, requestId, request);
+        {
+            _ = DispatchRequestAsync(channel, requestId, request);
+        }
 
         private async Task DispatchRequestAsync(
             TcpListenerChannel channel,
@@ -538,8 +559,8 @@ namespace Opc.Ua.Bindings
                             options.Listen(ip, baseAddress.Port,
                                 listenOptions => listenOptions.UseConnectionHandler<KestrelTcpConnectionHandler>());
                         }
-                    });
-                    builder.ConfigureServices(services =>
+                    })
+                        .ConfigureServices(services =>
                     {
                         services.AddSingleton(this);
                         services.AddSingleton<KestrelTcpConnectionHandler>();

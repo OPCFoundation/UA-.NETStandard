@@ -43,7 +43,6 @@ namespace Opc.Ua.PubSub.Transcoding
     /// </summary>
     public sealed class NetworkMessageTranscoder : INetworkMessageTranscoder
     {
-        private readonly TranscodeSpec m_spec;
         private readonly INetworkMessageProfileProjector m_projector;
 
         /// <summary>
@@ -61,14 +60,14 @@ namespace Opc.Ua.PubSub.Transcoding
             TranscodeSpec spec,
             INetworkMessageProfileProjector? projector = null)
         {
-            m_spec = spec ?? throw new ArgumentNullException(nameof(spec));
+            Spec = spec ?? throw new ArgumentNullException(nameof(spec));
             m_projector = projector ?? NetworkMessageProfileProjector.Instance;
         }
 
         /// <summary>
         /// The specification this transcoder applies.
         /// </summary>
-        public TranscodeSpec Spec => m_spec;
+        public TranscodeSpec Spec { get; }
 
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<PubSubNetworkMessage>> TranscodeAsync(
@@ -86,7 +85,7 @@ namespace Opc.Ua.PubSub.Transcoding
             }
 
             PubSubNetworkMessage? current = source;
-            ArrayOf<IPubSubMessageTransform> transforms = m_spec.Transforms;
+            ArrayOf<IPubSubMessageTransform> transforms = Spec.Transforms;
             for (int i = 0; i < transforms.Count; i++)
             {
                 current = await transforms[i]
@@ -99,7 +98,7 @@ namespace Opc.Ua.PubSub.Transcoding
             }
 
             PubSubNetworkMessage projected = m_projector.Project(
-                current, m_spec.TargetEncoding, m_spec.TargetOptions, context);
+                current, Spec.TargetEncoding, Spec.TargetOptions, context);
             return [projected];
         }
     }

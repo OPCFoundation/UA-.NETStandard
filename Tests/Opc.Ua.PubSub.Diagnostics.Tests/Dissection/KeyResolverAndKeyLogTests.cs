@@ -167,9 +167,12 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
         {
             string jsonLines = Environment.NewLine +
                 "{\"securityGroupId\":\"hex-group\",\"tokenId\":7," +
-                "\"securityPolicyUri\":\"" + PubSubAes128CtrPolicy.Instance.PolicyUri + "\"," +
+                "\"securityPolicyUri\":\"" +
+                PubSubAes128CtrPolicy.Instance.PolicyUri +
+                "\"," +
                 "\"encoding\":\"hex\",\"signingKey\":\"01020304\",\"encryptingKey\":\"05060708\"," +
-                "\"keyNonce\":\"090A\"}" + Environment.NewLine +
+                "\"keyNonce\":\"090A\"}" +
+                Environment.NewLine +
                 Environment.NewLine;
             using var stream = new MemoryStream(TextEncoding.UTF8.GetBytes(jsonLines));
 
@@ -182,7 +185,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                 Assert.That(materials[0].SecurityGroupId, Is.EqualTo("hex-group"));
                 Assert.That(materials[0].SigningKey.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
                 Assert.That(materials[0].EncryptingKey.ToArray(), Is.EqualTo(new byte[] { 5, 6, 7, 8 }));
-                Assert.That(materials[0].KeyNonce.ToArray(), Is.EqualTo(new byte[] { 9, 10 }));
+                Assert.That(materials[0].KeyNonce.ToArray(), Is.EqualTo("\t\n"u8.ToArray()));
             });
             DisposeAll(materials);
         }
@@ -236,8 +239,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
             return new PubSubSecurityKey(
                 tokenId,
                 ByteString.Create(CreateSigning(tokenId)),
-                ByteString.Create(new byte[] { 5, 6, 7, 8 }),
-                ByteString.Create(new byte[] { 9, 10, 11, 12 }),
+                ByteString.Create([5, 6, 7, 8]),
+                ByteString.Create([9, 10, 11, 12]),
                 DateTimeUtc.From(DateTime.UtcNow),
                 TimeSpan.FromMinutes(10));
         }

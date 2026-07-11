@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
                     m_logger.LogInformation(
                         "Write of node {NodeId} returned no status; treating as Bad.",
                         nodeId);
-                    return (StatusCode)StatusCodes.BadCommunicationError;
+                    return StatusCodes.BadCommunicationError;
                 }
                 m_metrics?.RecordWrite(StatusCode.IsGood(results[0]));
                 return results[0];
@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
                     ex,
                     "Write of node {NodeId} failed; returning Bad status for this field.",
                     nodeId);
-                return (StatusCode)StatusCodes.BadCommunicationError;
+                return StatusCodes.BadCommunicationError;
             }
         }
     }

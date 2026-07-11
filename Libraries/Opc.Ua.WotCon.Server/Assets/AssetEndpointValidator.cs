@@ -63,6 +63,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         ///   * <c>Bad_SecurityChecksFailed</c> when the URI is well
         ///     formed but a policy gate rejects it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ServiceResult Validate(
             string? endpoint,
             AssetEndpointPolicy policy,
@@ -199,16 +200,15 @@ namespace Opc.Ua.WotCon.Server.Assets
                 {
                     return true;
                 }
-                return false;
             }
             return false;
         }
 
         private static bool IsLocalHostName(string host)
         {
-            return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(host, "ip6-localhost", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(host, "ip6-loopback", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(host, "ip6-localhost", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(host, "ip6-loopback", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

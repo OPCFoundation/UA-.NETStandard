@@ -35,7 +35,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Assets;
@@ -98,7 +97,7 @@ namespace Opc.Ua.WotCon.Tests
             const string assetName = "asset-001";
             WriteValidTd(assetName);
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
 
@@ -125,7 +124,7 @@ namespace Opc.Ua.WotCon.Tests
             WriteValidTd(goodName);
             WriteOversizeJson(oversizeName, sizeLimit * 2);
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxThingDescriptionSize = sizeLimit;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -133,7 +132,7 @@ namespace Opc.Ua.WotCon.Tests
             List<(string Name, ThingDescription _)> results =
                 await EnumerateAsync(registry).ConfigureAwait(false);
 
-            Assert.That(results.Select(r => r.Name), Is.EquivalentTo(new[] { goodName }));
+            Assert.That(results.Select(r => r.Name), Is.EquivalentTo([goodName]));
 
             LogEntry? warning = entries.FirstOrDefault(e =>
                 e.Level == LogLevel.Warning &&
@@ -154,7 +153,7 @@ namespace Opc.Ua.WotCon.Tests
                 WriteValidTd($"asset-{i:D3}");
             }
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxPersistedThingDescriptionFiles = limit;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -177,7 +176,7 @@ namespace Opc.Ua.WotCon.Tests
             // directory-load behaviour without removing the folder.
             WriteValidTd("asset-001");
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxPersistedThingDescriptionFiles = 0;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -200,7 +199,7 @@ namespace Opc.Ua.WotCon.Tests
             WriteValidTd(okName);
             WriteOverDeepJson(overDeepName, depthLimit + 16);
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             options.MaxThingDescriptionJsonDepth = depthLimit;
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
@@ -209,7 +208,7 @@ namespace Opc.Ua.WotCon.Tests
                 await EnumerateAsync(registry).ConfigureAwait(false);
 
             // The well-formed TD survives; the deep one is skipped.
-            Assert.That(results.Select(r => r.Name), Is.EquivalentTo(new[] { okName }));
+            Assert.That(results.Select(r => r.Name), Is.EquivalentTo([okName]));
 
             LogEntry? warning = entries.FirstOrDefault(e =>
                 e.Level == LogLevel.Warning &&
@@ -231,14 +230,14 @@ namespace Opc.Ua.WotCon.Tests
                 Path.Combine(_tempFolder, badName + ".jsonld"),
                 "{ \"this is\": not-valid-json");
 
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
 
             List<(string Name, ThingDescription _)> results =
                 await EnumerateAsync(registry).ConfigureAwait(false);
 
-            Assert.That(results.Select(r => r.Name), Is.EquivalentTo(new[] { okName }));
+            Assert.That(results.Select(r => r.Name), Is.EquivalentTo([okName]));
             Assert.That(entries.Any(e =>
                 e.Level == LogLevel.Warning &&
                 e.Message.Contains(badName, StringComparison.Ordinal)), Is.True);
@@ -250,7 +249,7 @@ namespace Opc.Ua.WotCon.Tests
             // OperationCanceledException must escape unmodified — the
             // catch filter in EnumeratePersistedAsync explicitly
             // rethrows on cancellation per the task spec.
-            var options = MakeOptions();
+            WotConnectivityServerOptions options = MakeOptions();
             var entries = new List<LogEntry>();
             await using AssetRegistry registry = MakeRegistry(options, entries);
 
@@ -262,7 +261,7 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.ThrowsAsync<OperationCanceledException>(async () =>
             {
-                await foreach (var _ in registry.EnumeratePersistedAsync(cts.Token)
+                await foreach ((string Name, ThingDescription Description) in registry.EnumeratePersistedAsync(cts.Token)
                     .ConfigureAwait(false))
                 {
                     // unreachable — cancellation must fire on first iteration.
@@ -275,10 +274,12 @@ namespace Opc.Ua.WotCon.Tests
         // ----------------------------------------------------------------
 
         private WotConnectivityServerOptions MakeOptions()
-            => new()
+        {
+            return new()
             {
                 ThingDescriptionStorageFolder = _tempFolder
             };
+        }
 
         private AssetRegistry MakeRegistry(
             WotConnectivityServerOptions options,
@@ -319,8 +320,8 @@ namespace Opc.Ua.WotCon.Tests
                 .Append(assetName)
                 .Append("\", \"description\": \"");
             int payloadLen = bytes - builder.Length - 8;
-            builder.Append('A', Math.Max(payloadLen, 0));
-            builder.Append("\" }");
+            builder.Append('A', Math.Max(payloadLen, 0))
+                .Append("\" }");
             string path = Path.Combine(_tempFolder, assetName + ".jsonld");
             File.WriteAllText(path, builder.ToString());
         }
@@ -331,7 +332,7 @@ namespace Opc.Ua.WotCon.Tests
             // JsonSerializer treats each nested object as one level, so
             // a depth of MaxDepth+1 triggers JsonException via the
             // bounded JsonSerializerOptions.MaxDepth.
-            var builder = new StringBuilder(depth * 6 + 16);
+            var builder = new StringBuilder((depth * 6) + 16);
             for (int i = 0; i < depth; i++)
             {
                 builder.Append("{\"a\":");
@@ -349,7 +350,7 @@ namespace Opc.Ua.WotCon.Tests
             AssetRegistry registry)
         {
             var results = new List<(string, ThingDescription)>();
-            await foreach (var entry in registry.EnumeratePersistedAsync(CancellationToken.None)
+            await foreach ((string Name, ThingDescription Description) entry in registry.EnumeratePersistedAsync(CancellationToken.None)
                 .ConfigureAwait(false))
             {
                 results.Add(entry);
@@ -367,9 +368,14 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             public IDisposable BeginScope<TState>(TState state) where TState : notnull
-                => NullScope.Instance;
+            {
+                return NullScope.Instance;
+            }
 
-            public bool IsEnabled(LogLevel logLevel) => true;
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
 
             public void Log<TState>(
                 LogLevel logLevel,
@@ -387,7 +393,10 @@ namespace Opc.Ua.WotCon.Tests
             private sealed class NullScope : IDisposable
             {
                 public static readonly NullScope Instance = new();
-                public void Dispose() { }
+
+                public void Dispose()
+                {
+                }
             }
         }
     }

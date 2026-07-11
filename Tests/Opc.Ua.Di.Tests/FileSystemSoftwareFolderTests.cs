@@ -35,7 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 using Opc.Ua.Server.FileSystem;
 
-#nullable enable
 #pragma warning disable CA1305
 
 namespace Opc.Ua.Di.Tests
@@ -103,12 +102,12 @@ namespace Opc.Ua.Di.Tests
             byte[] payload = [1, 2, 3, 4];
 
             SoftwarePackage stored = await folder.AddVersionAsync(
-                MakePackage("1.0.0"), new MemoryStream(payload));
+                MakePackage("1.0.0"), new MemoryStream(payload)).ConfigureAwait(false);
 
             Assert.That(stored.Version, Is.EqualTo("1.0.0"));
             Assert.That(stored.SizeBytes, Is.EqualTo((long)payload.Length));
 
-            SoftwarePackage? fetched = await folder.GetVersionAsync("1.0.0");
+            SoftwarePackage? fetched = await folder.GetVersionAsync("1.0.0").ConfigureAwait(false);
             Assert.That(fetched, Is.Not.Null);
             Assert.That(fetched!.Version, Is.EqualTo("1.0.0"));
         }
@@ -119,11 +118,11 @@ namespace Opc.Ua.Di.Tests
             FileSystemSoftwareFolder folder = CreateFolder();
             byte[] payload = [9, 8, 7, 6];
             await folder.AddVersionAsync(
-                MakePackage("1.0.0"), new MemoryStream(payload));
+                MakePackage("1.0.0"), new MemoryStream(payload)).ConfigureAwait(false);
 
-            using Stream stream = await folder.OpenVersionAsync("1.0.0");
+            using Stream stream = await folder.OpenVersionAsync("1.0.0").ConfigureAwait(false);
             using var copy = new MemoryStream();
-            await stream.CopyToAsync(copy);
+            await stream.CopyToAsync(copy).ConfigureAwait(false);
 
             Assert.That(copy.ToArray(), Is.EqualTo(payload));
         }
@@ -132,9 +131,9 @@ namespace Opc.Ua.Di.Tests
         public async Task ListVersionsEnumeratesPersistedVersions()
         {
             FileSystemSoftwareFolder folder = CreateFolder();
-            await folder.AddVersionAsync(MakePackage("1.0.0"), new MemoryStream([1]));
-            await folder.AddVersionAsync(MakePackage("1.0.1"), new MemoryStream([2]));
-            await folder.AddVersionAsync(MakePackage("1.0.2"), new MemoryStream([3]));
+            await folder.AddVersionAsync(MakePackage("1.0.0"), new MemoryStream([1])).ConfigureAwait(false);
+            await folder.AddVersionAsync(MakePackage("1.0.1"), new MemoryStream([2])).ConfigureAwait(false);
+            await folder.AddVersionAsync(MakePackage("1.0.2"), new MemoryStream([3])).ConfigureAwait(false);
 
             var seen = new List<string>();
             await foreach (SoftwarePackage pkg in folder.ListVersionsAsync())
@@ -150,7 +149,7 @@ namespace Opc.Ua.Di.Tests
         public async Task GetVersionReturnsNullForUnknown()
         {
             FileSystemSoftwareFolder folder = CreateFolder();
-            SoftwarePackage? r = await folder.GetVersionAsync("never");
+            SoftwarePackage? r = await folder.GetVersionAsync("never").ConfigureAwait(false);
             Assert.That(r, Is.Null);
         }
 
@@ -159,11 +158,11 @@ namespace Opc.Ua.Di.Tests
         {
             FileSystemSoftwareFolder folder = CreateFolder();
             await folder.AddVersionAsync(
-                MakePackage("1.0.0"), new MemoryStream([1]));
+                MakePackage("1.0.0"), new MemoryStream([1])).ConfigureAwait(false);
 
-            Assert.That(await folder.RemoveVersionAsync("1.0.0"), Is.True);
-            Assert.That(await folder.RemoveVersionAsync("1.0.0"), Is.False);
-            Assert.That(await folder.GetVersionAsync("1.0.0"), Is.Null);
+            Assert.That(await folder.RemoveVersionAsync("1.0.0").ConfigureAwait(false), Is.True);
+            Assert.That(await folder.RemoveVersionAsync("1.0.0").ConfigureAwait(false), Is.False);
+            Assert.That(await folder.GetVersionAsync("1.0.0").ConfigureAwait(false), Is.Null);
         }
 
         [Test]
@@ -171,13 +170,13 @@ namespace Opc.Ua.Di.Tests
         {
             FileSystemSoftwareFolder folder = CreateFolder();
             await folder.AddVersionAsync(
-                MakePackage("1.0.0"), new MemoryStream([1]));
+                MakePackage("1.0.0"), new MemoryStream([1])).ConfigureAwait(false);
             await folder.AddVersionAsync(
-                MakePackage("1.0.1"), new MemoryStream([2]));
+                MakePackage("1.0.1"), new MemoryStream([2])).ConfigureAwait(false);
 
-            await folder.SetCurrentVersionAsync("1.0.1");
+            await folder.SetCurrentVersionAsync("1.0.1").ConfigureAwait(false);
 
-            SoftwarePackage? current = await folder.GetCurrentVersionAsync();
+            SoftwarePackage? current = await folder.GetCurrentVersionAsync().ConfigureAwait(false);
             Assert.That(current, Is.Not.Null);
             Assert.That(current!.Version, Is.EqualTo("1.0.1"));
         }
@@ -187,7 +186,7 @@ namespace Opc.Ua.Di.Tests
         {
             FileSystemSoftwareFolder folder = CreateFolder();
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await folder.SetCurrentVersionAsync("missing"));
+                async () => await folder.SetCurrentVersionAsync("missing").ConfigureAwait(false));
         }
 
         [Test]
@@ -195,12 +194,12 @@ namespace Opc.Ua.Di.Tests
         {
             FileSystemSoftwareFolder folder = CreateFolder();
             await folder.AddVersionAsync(
-                MakePackage("1.0.0"), new MemoryStream([1]));
-            await folder.SetCurrentVersionAsync("1.0.0");
+                MakePackage("1.0.0"), new MemoryStream([1])).ConfigureAwait(false);
+            await folder.SetCurrentVersionAsync("1.0.0").ConfigureAwait(false);
 
-            Assert.That(await folder.GetCurrentVersionAsync(), Is.Not.Null);
-            await folder.RemoveVersionAsync("1.0.0");
-            Assert.That(await folder.GetCurrentVersionAsync(), Is.Null);
+            Assert.That(await folder.GetCurrentVersionAsync().ConfigureAwait(false), Is.Not.Null);
+            await folder.RemoveVersionAsync("1.0.0").ConfigureAwait(false);
+            Assert.That(await folder.GetCurrentVersionAsync().ConfigureAwait(false), Is.Null);
         }
 
         [Test]
@@ -209,7 +208,7 @@ namespace Opc.Ua.Di.Tests
             FileSystemSoftwareFolder folder = CreateFolder();
             Assert.ThrowsAsync<ArgumentException>(
                 async () => await folder.AddVersionAsync(
-                    MakePackage("bad/version"), new MemoryStream([1])));
+                    MakePackage("bad/version"), new MemoryStream([1])).ConfigureAwait(false));
         }
 
         [Test]
@@ -218,7 +217,7 @@ namespace Opc.Ua.Di.Tests
             FileSystemSoftwareFolder folder = CreateFolder(writable: false);
             Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await folder.AddVersionAsync(
-                    MakePackage("1.0.0"), new MemoryStream([1])));
+                    MakePackage("1.0.0"), new MemoryStream([1])).ConfigureAwait(false));
         }
     }
 }

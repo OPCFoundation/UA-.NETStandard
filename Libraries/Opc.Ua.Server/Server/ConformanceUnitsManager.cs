@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
         public ConformanceUnitsManager(IServerInternal server)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
-            m_conformanceUnits = new HashSet<QualifiedName>();
+            m_conformanceUnits = [];
             m_serverProfiles = new HashSet<string>(StringComparer.Ordinal);
         }
 
@@ -107,6 +107,7 @@ namespace Opc.Ua.Server
         /// <param name="contributor">
         /// The contributor whose supported units and profiles are added.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="contributor"/> is <c>null</c>.</exception>
         public void Register(IConformanceContributor contributor)
         {
             if (contributor == null)

@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         [Test]
         public void Builder_BuildSpec_CarriesEncodingAndTransforms()
         {
-            var builder = new PubSubTranscoderBuilder()
+            PubSubTranscoderBuilder builder = new PubSubTranscoderBuilder()
                 .From("in")
                 .To("out", TranscodeEncoding.Json)
                 .RenameField("a", "alpha")

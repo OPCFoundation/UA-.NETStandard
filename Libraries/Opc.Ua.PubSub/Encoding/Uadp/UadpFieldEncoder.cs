@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
@@ -64,6 +63,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <see cref="PubSubFieldEncoding.DataValue"/>. Defaults to
         /// <see cref="DataSetFieldContentMask.None"/> for backward
         /// compatibility (all members emitted).</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static void EncodeFields(
             ref UadpBinaryWriter writer,
             ArrayOf<DataSetField> fields,
@@ -82,14 +83,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return;
             }
-            if (messageType == PubSubDataSetMessageType.Event
-                && encoding != PubSubFieldEncoding.Variant)
+            if (messageType == PubSubDataSetMessageType.Event &&
+                encoding != PubSubFieldEncoding.Variant)
             {
                 throw new InvalidOperationException(
                     "Event DataSetMessages shall use Variant field encoding with DataSetFlags1 field-encoding bits false.");
             }
-            if (messageType == PubSubDataSetMessageType.DeltaFrame
-                && encoding == PubSubFieldEncoding.RawData)
+            if (messageType == PubSubDataSetMessageType.DeltaFrame &&
+                encoding == PubSubFieldEncoding.RawData)
             {
                 throw new InvalidOperationException(
                     "RawData field encoding shall only be applied to Data Key Frame DataSetMessages.");
@@ -254,7 +255,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     {
         /// <summary>
         /// Converts a metadata <c>BuiltInType</c> byte to
-        /// <see cref="Opc.Ua.BuiltInType"/>.
+        /// <see cref="BuiltInType"/>.
         /// </summary>
         /// <param name="value">Metadata byte value.</param>
         public static BuiltInType ToBuiltInType(this byte value)
@@ -268,6 +269,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="field">Source field.</param>
         /// <param name="index">Iterator index used as the wire index.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static ushort DeltaFrameFieldIndex(this DataSetField field, int index)
         {
             if (field.FieldIndex >= 0)
@@ -278,7 +280,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 return (ushort)field.FieldIndex;
             }
-            if (index < 0 || index > ushort.MaxValue)
+            if (index is < 0 or > ushort.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }

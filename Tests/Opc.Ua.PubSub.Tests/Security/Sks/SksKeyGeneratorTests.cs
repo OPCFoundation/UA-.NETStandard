@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             IPubSubSecurityPolicy policy =
                 PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes256Ctr)!;
-            DateTimeUtc now = DateTimeUtc.From(DateTime.UtcNow);
+            var now = DateTimeUtc.From(DateTime.UtcNow);
             PubSubSecurityKey key = SksKeyGenerator.Generate(
                 policy,
                 7U,
@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             IPubSubSecurityPolicy policy =
                 PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
-            DateTimeUtc now = DateTimeUtc.From(DateTime.UtcNow);
+            var now = DateTimeUtc.From(DateTime.UtcNow);
             PubSubSecurityKey first = SksKeyGenerator.Generate(policy, 1U, now, TimeSpan.FromMinutes(1));
             PubSubSecurityKey second = SksKeyGenerator.Generate(policy, 2U, now, TimeSpan.FromMinutes(1));
             Assert.That(
@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             IPubSubSecurityPolicy policy =
                 PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
-            DateTimeUtc now = DateTimeUtc.From(DateTime.UtcNow);
+            var now = DateTimeUtc.From(DateTime.UtcNow);
             PubSubSecurityKey key = SksKeyGenerator.Generate(policy, 1U, now, TimeSpan.FromMinutes(1));
             byte[] packed = SksKeyGenerator.Pack(key);
             int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;

@@ -287,6 +287,7 @@ namespace Opc.Ua
         /// the operation status is Bad.
         /// </summary>
         /// <param name="response">The validated Call response.</param>
+        /// <exception cref="ServiceResultException"></exception>
         private static ArrayOf<Variant> ThrowOrGetOutputArguments(CallResponse response)
         {
             CallMethodResult result = response.Results[0];

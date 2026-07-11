@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void AcceptedTransportDecoratorRoundTrips()
         {
             var settings = new TransportListenerSettings();
-            Func<IUaSCByteTransport, IUaSCByteTransport> decorator = transport => transport;
+            static IUaSCByteTransport decorator(IUaSCByteTransport transport) => transport;
 
             settings.AcceptedTransportDecorator = decorator;
 
@@ -70,7 +70,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void OnAcceptedChannelRoundTrips()
         {
             var settings = new TransportListenerSettings();
-            Action<TcpListenerChannel> callback = _ => { };
+            static void callback(TcpListenerChannel _)
+            {
+            }
 
             settings.OnAcceptedChannel = callback;
 

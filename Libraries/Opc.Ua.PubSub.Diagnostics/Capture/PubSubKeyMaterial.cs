@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Pcap
             {
                 return [];
             }
-            var copy = new byte[source.Length];
+            byte[] copy = new byte[source.Length];
             Buffer.BlockCopy(source, 0, copy, 0, source.Length);
             return copy;
         }

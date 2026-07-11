@@ -40,6 +40,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Adds a received handshake fragment and returns the reassembled message when complete.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public bool TryAdd(DtlsHandshakeFrame frame, out byte[]? message)
         {
             // Defense-in-depth (SA-DTLS-HS-07): the MessageLength is an
@@ -91,6 +92,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Splits a handshake message body into wire fragments no larger than the limit.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static IReadOnlyList<byte[]> Fragment(
             DtlsHandshakeType messageType,
             ushort messageSequence,
@@ -156,6 +158,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             /// <summary>
             /// Copies a fragment into the buffer and tracks the bytes received.
             /// </summary>
+            /// <exception cref="DtlsHandshakeException"></exception>
             public void Add(int offset, byte[] fragment)
             {
                 if (offset < 0 || offset + fragment.Length > Buffer.Length)

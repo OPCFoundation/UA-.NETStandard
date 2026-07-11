@@ -174,13 +174,13 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task DispatchUpdateDataAsyncThrowsWhenSystemContextIsNullAsync()
         {
             var provider = new InMemoryHistorianProvider();
-            var node = CreateVariable(new NodeId("n", 1));
+            BaseDataVariableState node = CreateVariable(new NodeId("n", 1));
             var details = new UpdateDataDetails { PerformInsertReplace = PerformUpdateType.Insert };
             var result = new HistoryUpdateResult();
 
             await AssertThrowsArgNullAsync(() =>
                 HistorianDispatcher.DispatchUpdateDataAsync(
-                    null!, provider, node, details, result, CancellationToken.None).AsTask());
+                    null!, provider, node, details, result, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None);
+                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.OperationResults, Has.Count.EqualTo(1));
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests.Historian
             DateTime ts = BaseTime.AddSeconds(5);
             await h.Provider.InsertAsync(ctx, nodeId,
                 [new DataValue(new Variant(10.0), StatusCodes.Good, ts, ts)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             var details = new UpdateDataDetails
             {
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
         }
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
         }
@@ -312,7 +312,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True,
                 "Dispatcher returns Good; per-entry status in OperationResults carries the error.");
@@ -341,7 +341,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchEventReadAsync(
                 h.SystemContext, mockProvider.Object, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
@@ -360,7 +360,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     (DateTimeUtc)BaseTime.AddSeconds(1),
                     new Dictionary<string, Variant> { ["Message"] = new Variant("hello") })
             };
-            await h.Provider.InsertEventsAsync(ctx, nodeId, events, CancellationToken.None);
+            await h.Provider.InsertEventsAsync(ctx, nodeId, events, CancellationToken.None).ConfigureAwait(false);
 
             BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadEventDetails
@@ -374,7 +374,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchEventReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryEvent? he), Is.True);
@@ -401,7 +401,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var result = new HistoryUpdateResult();
 
             ServiceResult error = await HistorianDispatcher.DispatchUpdateEventAsync(
-                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None);
+                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
@@ -443,7 +443,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var insertResult = new HistoryUpdateResult();
             ServiceResult insertError = await HistorianDispatcher.DispatchUpdateEventAsync(
-                h.SystemContext, h.Provider, node, insertDetails, insertResult, CancellationToken.None);
+                h.SystemContext, h.Provider, node, insertDetails, insertResult, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(insertError), Is.True);
             Assert.That(insertResult.OperationResults, Has.Count.EqualTo(1));
@@ -483,7 +483,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchUpdateEventAsync(
-                h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.OperationResults, Has.Count.EqualTo(1));
@@ -508,7 +508,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var result = new HistoryUpdateResult();
 
             ServiceResult error = await HistorianDispatcher.DispatchDeleteEventsAsync(
-                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None);
+                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
@@ -521,14 +521,14 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState node = CreateVariable(nodeId);
             HistorianOperationContext ctx = CreateContext(h.SystemContext);
 
-            var evtId = (ByteString)new byte[] { 0xDE, 0xAD };
+            var evtId = (ByteString)"ޭ"u8.ToArray();
             await h.Provider.InsertEventsAsync(ctx, nodeId,
             [
                 new HistorianEventRecord(
                     evtId, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(1),
                     new Dictionary<string, Variant>())
-            ], CancellationToken.None);
+            ], CancellationToken.None).ConfigureAwait(false);
 
             var deleteDetails = new DeleteEventDetails
             {
@@ -538,7 +538,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var result = new HistoryUpdateResult();
 
             ServiceResult error = await HistorianDispatcher.DispatchDeleteEventsAsync(
-                h.SystemContext, h.Provider, node, deleteDetails, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, deleteDetails, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.OperationResults, Has.Count.EqualTo(1));
@@ -604,7 +604,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void ProjectEventFieldsResolvesNodeIdAttributeFromEmptyBrowsePath()
         {
-            var eventType = ObjectTypeIds.AuditEventType;
+            NodeId eventType = ObjectTypeIds.AuditEventType;
             var record = new HistorianEventRecord(
                 ByteString.Empty, eventType,
                 (DateTimeUtc)BaseTime,
@@ -691,7 +691,10 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── Helpers ─────────────────────────────────────────────────────────
 
-        private static Fixture CreateFixture() => new();
+        private static Fixture CreateFixture()
+        {
+            return new();
+        }
 
         private static BaseDataVariableState CreateVariable(NodeId nodeId)
         {

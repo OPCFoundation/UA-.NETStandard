@@ -59,7 +59,9 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private readonly Func<CancellationToken, ValueTask<ISession>> m_sessionFactory;
         private readonly ILogger m_logger;
+#pragma warning disable IDE0052 // Kept for the injected SKS clock; reconnect pacing is implemented by the caller today.
         private readonly TimeProvider m_timeProvider;
+#pragma warning restore IDE0052
         private readonly SemaphoreSlim m_sessionGate = new(1, 1);
         private readonly Lock m_stateLock = new();
         private ISession? m_session;
@@ -274,9 +276,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                     m_session = null;
                 }
                 ISession session = await m_sessionFactory(ct).ConfigureAwait(false);
-                m_session = session ?? throw new OpcUaSksException(
-                    StatusCodes.BadCommunicationError,
-                    "SKS session factory returned null.");
+                m_session = session ??
+                    throw new OpcUaSksException(
+                        StatusCodes.BadCommunicationError,
+                        "SKS session factory returned null.");
                 return m_session;
             }
             finally
@@ -347,7 +350,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 ByteString key = keys[i];
                 packed[i] = key.IsNull
-                    ? Array.Empty<byte>()
+                    ? []
                     : key.Span.ToArray();
             }
 
@@ -364,8 +367,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                     $"GetSecurityKeys TimeToNextKey is malformed ({timeToNextKeyMs} ms); expected a non-negative Duration.");
             }
 
-            TimeSpan keyLifetime = TimeSpan.FromMilliseconds(keyLifetimeMs);
-            TimeSpan timeToNextKey = TimeSpan.FromMilliseconds(timeToNextKeyMs);
+            var keyLifetime = TimeSpan.FromMilliseconds(keyLifetimeMs);
+            var timeToNextKey = TimeSpan.FromMilliseconds(timeToNextKeyMs);
             return new SksKeyResponse(
                 securityPolicyUri,
                 firstTokenId,
@@ -406,14 +409,13 @@ namespace Opc.Ua.PubSub.Security.Sks
                     null,
                     endpoint,
                     EndpointConfiguration.Create(applicationConfiguration));
-                ManagedSession session = await new ManagedSessionBuilder(
+                return await new ManagedSessionBuilder(
                         applicationConfiguration,
                         telemetry)
                     .UseEndpoint(configuredEndpoint)
                     .WithSessionName("Opc.Ua.PubSub.Sks")
                     .ConnectAsync(ct)
                     .ConfigureAwait(false);
-                return session;
             };
         }
 

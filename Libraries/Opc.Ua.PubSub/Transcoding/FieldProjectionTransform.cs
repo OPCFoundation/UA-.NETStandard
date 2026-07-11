@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 throw new ArgumentNullException(nameof(fieldNames));
             }
-            m_fieldNames = new List<string>(fieldNames);
+            m_fieldNames = [.. fieldNames];
             m_exclude = exclude;
             m_excludeSet = exclude
                 ? new HashSet<string>(m_fieldNames, StringComparer.Ordinal)

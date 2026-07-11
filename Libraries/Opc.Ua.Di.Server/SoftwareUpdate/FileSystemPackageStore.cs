@@ -329,7 +329,5 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
     [JsonSerializable(typeof(SoftwarePackage))]
-    internal sealed partial class SoftwarePackageJsonContext : JsonSerializerContext
-    {
-    }
+    internal sealed partial class SoftwarePackageJsonContext : JsonSerializerContext;
 }

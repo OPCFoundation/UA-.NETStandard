@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -38,11 +36,9 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
@@ -251,7 +247,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
             finally
             {
-                m_bufferManager.ReturnBuffer(received.Array!, nameof(ReceiveChunkAsyncReturnsCompleteChunkAsync));
+                m_bufferManager.ReturnBuffer(received.Array, nameof(ReceiveChunkAsyncReturnsCompleteChunkAsync));
             }
         }
 
@@ -426,8 +422,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// </summary>
         private sealed class TestConnectionContext : ConnectionContext, IDisposable
         {
-            private readonly Pipe m_inputPipe = new Pipe();
-            private readonly Pipe m_outputPipe = new Pipe();
+            private readonly Pipe m_inputPipe = new();
+            private readonly Pipe m_outputPipe = new();
 
             public TestConnectionContext()
             {
@@ -451,10 +447,34 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             public void Dispose()
             {
-                try { m_inputPipe.Writer.Complete(); } catch { }
-                try { m_inputPipe.Reader.Complete(); } catch { }
-                try { m_outputPipe.Writer.Complete(); } catch { }
-                try { m_outputPipe.Reader.Complete(); } catch { }
+                try
+                {
+                    m_inputPipe.Writer.Complete();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    m_inputPipe.Reader.Complete();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    m_outputPipe.Writer.Complete();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    m_outputPipe.Reader.Complete();
+                }
+                catch
+                {
+                }
             }
         }
 

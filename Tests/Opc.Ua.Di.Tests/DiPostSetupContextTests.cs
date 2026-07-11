@@ -133,7 +133,7 @@ namespace Opc.Ua.Di.Tests
 
             InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
                 () => context.GetRequiredService<MarkerService>())!;
-            Assert.That(ex.Message, Does.Contain(typeof(MarkerService).FullName!));
+            Assert.That(ex.Message, Does.Contain(typeof(MarkerService).FullName));
         }
 
         [Test]
@@ -156,8 +156,6 @@ namespace Opc.Ua.Di.Tests
             Assert.That(lookup.Device, Is.SameAs(builder.Device));
         }
 
-        private sealed class MarkerService
-        {
-        }
+        private sealed class MarkerService;
     }
 }

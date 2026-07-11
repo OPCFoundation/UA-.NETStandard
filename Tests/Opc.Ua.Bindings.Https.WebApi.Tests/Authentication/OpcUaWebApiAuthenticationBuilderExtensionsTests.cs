@@ -27,16 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Bindings.WebApi.Authentication;
 using Opc.Ua.Bindings.WebApi;
+using Opc.Ua.Bindings.WebApi.Authentication;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {

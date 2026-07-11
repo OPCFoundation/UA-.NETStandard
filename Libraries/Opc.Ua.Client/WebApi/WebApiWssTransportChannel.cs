@@ -153,14 +153,11 @@ namespace Opc.Ua.Client.WebApi
             {
                 throw new ArgumentNullException(nameof(url));
             }
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+
             ThrowIfDisposed();
 
             m_url = NormalizeUrl(url);
-            m_settings = settings;
+            m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             OperationTimeout = settings.Configuration?.OperationTimeout ?? 60000;
 
             m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)
@@ -277,7 +274,7 @@ namespace Opc.Ua.Client.WebApi
             {
                 RequestHeader = new RequestHeader
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = m_timeProvider.GetUtcNow().UtcDateTime,
                     RequestHandle = 1,
                     TimeoutHint = (uint)OperationTimeout
                 },
@@ -363,7 +360,7 @@ namespace Opc.Ua.Client.WebApi
 
             try
             {
-                if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                 {
                     await ws.CloseAsync(
                         WebSocketCloseStatus.NormalClosure,
@@ -420,7 +417,6 @@ namespace Opc.Ua.Client.WebApi
                 using (var encoder = new JsonEncoder(memory, quotas.MessageContext, JsonEncoderOptions.Compact))
                 {
                     encoder.EncodeMessage(request, request.TypeId);
-                    encoder.Close();
                 }
                 requestBytes = memory.ToArray();
             }
@@ -443,19 +439,20 @@ namespace Opc.Ua.Client.WebApi
                 m_sendLock.Release();
             }
 
-            IServiceResponse response = DecodeServiceResponse(
+            return DecodeServiceResponse(
                 responseBytes,
                 quotas.MessageContext);
-            return response;
         }
 
-        // Decoder options applied to every inbound response. Clients
-        // typically don't know all server namespace URIs up front, so
-        // UpdateNamespaceTable=true lets the codec append unknown URIs
-        // to the message context's NamespaceTable on the fly. Without
-        // this, NodeIds whose namespace URI isn't already registered
-        // would decode as NodeId.Null (e.g. CreateSession's SessionId
-        // and AuthenticationToken would be lost).
+        /// <summary>
+        /// Decoder options applied to every inbound response. Clients
+        /// typically don't know all server namespace URIs up front, so
+        /// UpdateNamespaceTable=true lets the codec append unknown URIs
+        /// to the message context's NamespaceTable on the fly. Without
+        /// this, NodeIds whose namespace URI isn't already registered
+        /// would decode as NodeId.Null (e.g. CreateSession's SessionId
+        /// and AuthenticationToken would be lost).
+        /// </summary>
         private static readonly JsonDecoderOptions s_decoderOptions = new()
         {
             UpdateNamespaceTable = true
@@ -531,6 +528,7 @@ namespace Opc.Ua.Client.WebApi
             }
         }
 
+#if NET7_0_OR_GREATER
         private bool ValidateServerCertificate(
             object sender,
             X509Certificate? certificate,
@@ -607,11 +605,16 @@ namespace Opc.Ua.Client.WebApi
                 return false;
             }
         }
+#endif
 
-        // WSS-bearer requires TLS so the token cannot be observed by
-        // network intermediaries. The sub-protocol still appears in
-        // the server's access log on the wss path; that's why short
-        // token TTLs (<= 60s) and log redaction are still recommended.
+        /// <summary>
+        /// WSS-bearer requires TLS so the token cannot be observed by
+        /// network intermediaries. The sub-protocol still appears in
+        /// the server's access log on the wss path; that's why short
+        /// token TTLs (&lt;= 60s) and log redaction are still recommended.
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
         private static bool IsSecureScheme(Uri? url)
         {
             if (url == null)

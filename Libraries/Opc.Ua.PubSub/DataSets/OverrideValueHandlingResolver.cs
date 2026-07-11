@@ -90,8 +90,8 @@ namespace Opc.Ua.PubSub.DataSets
             DataValue lastGood)
         {
             bool hasIncoming = incoming is not null;
-            bool incomingIsBad = hasIncoming
-                && StatusCode.IsBad(incoming!.StatusCode);
+            bool incomingIsBad = hasIncoming &&
+                StatusCode.IsBad(incoming!.StatusCode);
 
             switch (handling)
             {

@@ -27,14 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
@@ -149,7 +146,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 string globalChannelId,
                 EndpointDescription endpointDescription,
                 OpenSecureChannelRequest request,
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }
@@ -159,7 +156,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             public void ReportAuditCertificateEvent(
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }

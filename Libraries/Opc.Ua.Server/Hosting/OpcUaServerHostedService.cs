@@ -40,7 +40,6 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
-using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
 
@@ -246,6 +245,11 @@ namespace Opc.Ua.Server.Hosting
                 m_server.LoadComplexTypes = complexTypeOptions.Enabled;
             }
 
+            m_server.SessionManagerFactory = m_services.GetService<ISessionManagerFactory>();
+            m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
+            m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
+            m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
+            m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
                 m_server.TransportBindings = transportBindings;
@@ -284,6 +288,30 @@ namespace Opc.Ua.Server.Hosting
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+
+            // Run post-start tasks (e.g. distributed address-space wiring)
+            // now that the server is fully initialized and CurrentInstance is
+            // available. Features register these without subclassing the server.
+            foreach (IServerStartupTask startupTask in m_services.GetServices<IServerStartupTask>())
+            {
+                try
+                {
+                    await startupTask
+                        .OnServerStartedAsync(m_server.CurrentInstance, stoppingToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(
+                        ex,
+                        "Server startup task {StartupTask} failed after server start.",
+                        startupTask.GetType().FullName);
+                }
+            }
 
             foreach (string url in urls)
             {
@@ -328,12 +356,9 @@ namespace Opc.Ua.Server.Hosting
             var authenticators = new List<IUserTokenAuthenticator>();
             foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
             {
-                foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
+                authenticators.AddRange(registration.CreateAuthenticators(
                     m_services,
-                    certificateValidator))
-                {
-                    authenticators.Add(authenticator);
-                }
+                    certificateValidator));
             }
 
             if (authenticators.Count == 0)

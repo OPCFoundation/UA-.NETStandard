@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IO;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
@@ -44,7 +42,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     /// <see cref="ClientCertificateMode.AllowCertificate"/>, so cert-less
     /// clients are rejected at the TLS handshake (the documented
     /// behaviour of
-    /// <see cref="Opc.Ua.TransportListenerSettings.HttpsMutualTls"/>).
+    /// <see cref="TransportListenerSettings.HttpsMutualTls"/>).
     /// </summary>
     /// <remarks>
     /// Spinning up a real Kestrel host with mTLS to test the runtime

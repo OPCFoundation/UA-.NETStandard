@@ -184,6 +184,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Appends a byte sequence prefixed with an 8-bit length.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void WriteOpaque8(ReadOnlySpan<byte> value)
         {
             if (value.Length > byte.MaxValue)
@@ -198,6 +199,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Appends a byte sequence prefixed with a big-endian 16-bit length.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void WriteOpaque16(ReadOnlySpan<byte> value)
         {
             if (value.Length > ushort.MaxValue)
