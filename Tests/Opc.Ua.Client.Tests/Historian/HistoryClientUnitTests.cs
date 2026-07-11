@@ -711,10 +711,16 @@ namespace Opc.Ua.Client.Tests.Historian
                 new NodeId("MinTimeInterval", 2),
                 new NodeId("ExceptionDeviation", 2),
                 new NodeId("StartOfArchive", 2),
-                new NodeId("StartOfOnlineArchive", 2)
+                new NodeId("StartOfOnlineArchive", 2),
+                new NodeId("AggregateConfiguration", 2),
+                new NodeId("PercentDataGood", 2),
+                new NodeId("PercentDataBad", 2),
+                new NodeId("TreatUncertainAsBad", 2),
+                new NodeId("UseSlopedExtrapolation", 2)
             });
             var mockSession = CreateSessionWithNamespaceTable();
             SetupBrowsePathResults(mockSession, nodes);
+            int readCall = 0;
             mockSession
                 .Setup(s => s.ReadAsync(
                     It.IsAny<RequestHeader>(),
@@ -722,10 +728,10 @@ namespace Opc.Ua.Client.Tests.Historian
                     It.IsAny<TimestampsToReturn>(),
                     It.IsAny<ArrayOf<ReadValueId>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ReadResponse>(new ReadResponse
+                .Returns(() =>
                 {
-                    ResponseHeader = new ResponseHeader(),
-                    Results =
+                    DataValue[] results = readCall++ == 0
+                        ?
                     [
                         new DataValue(new Variant(true)),
                         new DataValue(new Variant("configured")),
@@ -734,9 +740,21 @@ namespace Opc.Ua.Client.Tests.Historian
                         new DataValue(new Variant(0.5d)),
                         new DataValue(new Variant((DateTimeUtc)startOfArchive)),
                         new DataValue(new Variant((DateTimeUtc)startOfOnline))
-                    ],
-                    DiagnosticInfos = []
-                }));
+                    ]
+                        :
+                    [
+                        new DataValue(new Variant((byte)100)),
+                        new DataValue(new Variant((byte)100)),
+                        new DataValue(new Variant(true)),
+                        new DataValue(new Variant(false))
+                    ];
+                    return new ValueTask<ReadResponse>(new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = results,
+                        DiagnosticInfos = []
+                    });
+                });
 
             var client = new HistoryClient(mockSession.Object);
 
@@ -751,6 +769,11 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.ExceptionDeviation, Is.EqualTo(0.5d));
             Assert.That(configuration.StartOfArchive, Is.EqualTo(startOfArchive));
             Assert.That(configuration.StartOfOnlineArchive, Is.EqualTo(startOfOnline));
+            Assert.That(configuration.AggregateConfiguration, Is.Not.Null);
+            Assert.That(configuration.AggregateConfiguration!.PercentDataGood, Is.EqualTo((byte)100));
+            Assert.That(configuration.AggregateConfiguration.PercentDataBad, Is.EqualTo((byte)100));
+            Assert.That(configuration.AggregateConfiguration.TreatUncertainAsBad, Is.True);
+            Assert.That(configuration.AggregateConfiguration.UseSlopedExtrapolation, Is.False);
         }
 
         [Test]
@@ -888,6 +911,7 @@ namespace Opc.Ua.Client.Tests.Historian
                 NodeId.Null,
                 NodeId.Null,
                 NodeId.Null,
+                NodeId.Null,
                 NodeId.Null
             });
             var mockSession = CreateSessionWithNamespaceTable();
@@ -918,6 +942,7 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.ExceptionDeviation, Is.Null);
             Assert.That(configuration.StartOfArchive, Is.Null);
             Assert.That(configuration.StartOfOnlineArchive, Is.Null);
+            Assert.That(configuration.AggregateConfiguration, Is.Null);
         }
 
         [Test]
@@ -1026,7 +1051,12 @@ namespace Opc.Ua.Client.Tests.Historian
                 new NodeId("MinTimeInterval", 2),
                 new NodeId("ExceptionDeviation", 2),
                 new NodeId("StartOfArchive", 2),
-                new NodeId("StartOfOnlineArchive", 2)
+                new NodeId("StartOfOnlineArchive", 2),
+                new NodeId("AggregateConfiguration", 2),
+                new NodeId("PercentDataGood", 2),
+                new NodeId("PercentDataBad", 2),
+                new NodeId("TreatUncertainAsBad", 2),
+                new NodeId("UseSlopedExtrapolation", 2)
             });
             var mockSession = CreateSessionWithNamespaceTable();
             SetupBrowsePathResults(mockSession, nodes);
@@ -1065,6 +1095,11 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(configuration.ExceptionDeviation, Is.Zero);
             Assert.That(configuration.StartOfArchive, Is.EqualTo(DateTimeUtc.MinValue.ToDateTime()));
             Assert.That(configuration.StartOfOnlineArchive, Is.EqualTo(DateTimeUtc.MinValue.ToDateTime()));
+            Assert.That(configuration.AggregateConfiguration, Is.Not.Null);
+            Assert.That(configuration.AggregateConfiguration!.PercentDataGood, Is.Zero);
+            Assert.That(configuration.AggregateConfiguration.PercentDataBad, Is.Zero);
+            Assert.That(configuration.AggregateConfiguration.TreatUncertainAsBad, Is.False);
+            Assert.That(configuration.AggregateConfiguration.UseSlopedExtrapolation, Is.False);
         }
 
         private static Mock<ISession> CreateSessionWithNamespaceTable()
