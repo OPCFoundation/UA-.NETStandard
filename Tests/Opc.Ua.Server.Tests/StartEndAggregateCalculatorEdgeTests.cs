@@ -318,7 +318,11 @@ namespace Opc.Ua.Server.Tests
             var values = new List<DataValue>
             {
                 new DataValue(new Variant("not-a-number"), StatusCodes.Good, t0, t0),
-                new DataValue(new Variant("also-bad"), StatusCodes.Good, t0.AddMilliseconds(2000), t0.AddMilliseconds(2000))
+                new DataValue(
+                    new Variant("also-bad"),
+                    StatusCodes.Good,
+                    t0.AddMilliseconds(2000),
+                    t0.AddMilliseconds(2000))
             };
 
             DataValue result = ComputeStandard(

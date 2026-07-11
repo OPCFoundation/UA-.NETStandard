@@ -1171,6 +1171,7 @@ namespace Opc.Ua.Server
         /// stores it, and returns the DER-encoded public certificate.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+#pragma warning disable RCS1229 // Synchronous certificate creation; TODO: remove when the handler performs async I/O.
         private ValueTask<CreateSelfSignedCertificateMethodStateResult>
             CreateSelfSignedCertificateAsync(
             ISystemContext context,
@@ -1226,14 +1227,15 @@ namespace Opc.Ua.Server
                 }
             }
 
+            DateTime utcToday = m_timeProvider.GetUtcNow().UtcDateTime.Date;
             ICertificateBuilder builder = s_certificateFactory
                 .CreateApplicationCertificate(
                     m_configuration.ApplicationUri!,
                     m_configuration.ApplicationName!,
                     subjectName,
                     [.. domainNames])
-                .SetNotBefore(DateTime.Today.AddDays(-1))
-                .SetNotAfter(DateTime.Today.AddDays(lifetimeInDays));
+                .SetNotBefore(utcToday.AddDays(-1))
+                .SetNotAfter(utcToday.AddDays(lifetimeInDays));
 
             Certificate certificate;
             if (certificateTypeId.IsNull ||
@@ -1256,30 +1258,38 @@ namespace Opc.Ua.Server
                 certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
             }
 
-            // persist the new self-signed certificate into the group's
-            // configured store so it survives restarts and becomes the
-            // active application certificate.
-            CertificateIdentifier? existingIdent = certificateGroup!.ApplicationCertificates
-                .ToList()
-                .FirstOrDefault(c => c.CertificateType == certificateTypeId);
+            try
+            {
+                // persist the new self-signed certificate into the group's
+                // configured store so it survives restarts and becomes the
+                // active application certificate.
+                CertificateIdentifier? existingIdent = certificateGroup!.ApplicationCertificates
+                    .ToList()
+                    .FirstOrDefault(c => c.CertificateType == certificateTypeId);
 
-            existingIdent?.RawData = certificate.RawData;
+                existingIdent?.RawData = certificate.RawData;
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Created self-signed certificate {Subject} for {Group}/{Type}.",
-                certificate.Subject,
-                certificateGroupId,
-                certificateTypeId);
+                m_logger.LogInformation(
+                    Utils.TraceMasks.Security,
+                    "Created self-signed certificate {Subject} for {Group}/{Type}.",
+                    certificate.Subject,
+                    certificateGroupId,
+                    certificateTypeId);
 
-            ByteString certBytes = certificate.RawData.ToByteString();
-            return new ValueTask<CreateSelfSignedCertificateMethodStateResult>(
-                new CreateSelfSignedCertificateMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Good,
-                    Certificate = certBytes
-                });
+                ByteString certBytes = certificate.RawData.ToByteString();
+                return new ValueTask<CreateSelfSignedCertificateMethodStateResult>(
+                    new CreateSelfSignedCertificateMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Certificate = certBytes
+                    });
+            }
+            finally
+            {
+                certificate.Dispose();
+            }
         }
+#pragma warning restore RCS1229
 
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
             ISystemContext context,
@@ -1383,10 +1393,15 @@ namespace Opc.Ua.Server
         {
             Certificate certificate;
 
+            DateTime utcToday = m_timeProvider.GetUtcNow().UtcDateTime.Date;
             ICertificateBuilder certificateBuilder = s_certificateFactory
-                .CreateApplicationCertificate(m_configuration.ApplicationUri!, m_configuration.ApplicationName!, subjectName, domainNames.ToArray())
-                .SetNotBefore(DateTime.Today.AddDays(-1))
-                .SetNotAfter(DateTime.Today.AddDays(14));
+                .CreateApplicationCertificate(
+                    m_configuration.ApplicationUri!,
+                    m_configuration.ApplicationName!,
+                    subjectName,
+                    domainNames.ToArray())
+                .SetNotBefore(utcToday.AddDays(-1))
+                .SetNotAfter(utcToday.AddDays(14));
 
             if (certificateTypeId.IsNull ||
                 certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
@@ -1656,14 +1671,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases the pre-transaction certificate captured during
-        /// <c>UpdateCertificate</c> staging and clears the staging slot.
+        /// Releases temporary and pre-transaction certificates captured
+        /// during certificate rotation and clears the staging slot.
         /// Called by <see cref="ApplyChanges"/> when a group has no
         /// pending update (stale capture from a failed transaction) and
         /// by the manager's <see cref="Dispose"/>.
         /// </summary>
         private static void DisposePendingRotationState(ServerCertificateGroup certificateGroup)
         {
+            certificateGroup.TemporaryApplicationCertificate?.Dispose();
+            certificateGroup.TemporaryApplicationCertificate = null!;
             certificateGroup.OriginalCertificate?.Dispose();
             certificateGroup.OriginalCertificate = null;
             certificateGroup.OriginalCertificateType = NodeId.Null;

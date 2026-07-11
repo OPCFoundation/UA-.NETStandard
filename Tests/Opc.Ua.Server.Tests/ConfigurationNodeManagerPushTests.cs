@@ -60,7 +60,6 @@ namespace Opc.Ua.Server.Tests
         private StandardServer m_server;
         private ConfigurationNodeManager m_configManager;
         private ServerConfigurationState m_configNode;
-        private bool m_resetLeakCountersAfterSelfSignedCertificateTest;
 
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
@@ -85,11 +84,6 @@ namespace Opc.Ua.Server.Tests
             if (m_fixture != null)
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
-            }
-
-            if (m_resetLeakCountersAfterSelfSignedCertificateTest)
-            {
-                Certificate.ResetLeakCounters();
             }
         }
 
@@ -204,20 +198,6 @@ namespace Opc.Ua.Server.Tests
 
 
 
-        // NOTE: A success-path test that reaches the certificate creation
-        // itself (builder.CreateForRSA()/CreateForECDsa()) is intentionally
-        // NOT included here. ConfigurationNodeManager.CreateSelfSignedCertificateAsync
-        // creates a local Opc.Ua.Security.Certificates.Certificate instance
-        // and only ever extracts its RawData bytes -- it never calls
-        // Dispose() on it. That pre-existing production-code resource leak
-        // trips the assembly-wide Opc.Ua.Server.Tests.LeakDetectionSetup
-        // certificate-leak assertion (Tests/Opc.Ua.Test.Common/LeakDetectionHelpers.cs)
-        // as soon as the success path is exercised, and fixing it would
-        // require editing ConfigurationNodeManager.cs, which is out of
-        // scope for this test-only change. The validation/guard branches
-        // below (which all throw before a Certificate is ever constructed)
-        // are still fully covered.
-
         [Test]
         public void CreateSelfSignedCertificateWithEmptySubjectNameThrowsBadInvalidArgument()
         {
@@ -306,7 +286,6 @@ namespace Opc.Ua.Server.Tests
                     2048,
                     CancellationToken.None)
                 .ConfigureAwait(false);
-            m_resetLeakCountersAfterSelfSignedCertificateTest = true;
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.Certificate.IsEmpty, Is.False);
@@ -338,23 +317,48 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
         }
 
-        // NOTE: Tests exercising regeneratePrivateKey=true (RSA and ECC) are
-        // intentionally NOT included. That branch calls
-        // GenerateTemporaryApplicationCertificate, which stores the newly
-        // created Certificate on
-        // ServerCertificateGroup.TemporaryApplicationCertificate for later
-        // use by a matching UpdateCertificate call. ConfigurationNodeManager
-        // .Dispose(bool) disposes every other pending-rotation field on each
-        // certificate group (see DisposePendingRotationState) but never
-        // disposes TemporaryApplicationCertificate, so it is never released
-        // unless a subsequent UpdateCertificate call for the same group
-        // consumes and disposes it. That is a genuine, pre-existing resource
-        // leak in ConfigurationNodeManager itself, but fixing it (adding the
-        // missing Dispose call) is a production-code change outside the
-        // scope of this test-only change. It deterministically trips the
-        // assembly-wide Opc.Ua.Server.Tests.LeakDetectionSetup
-        // certificate-leak assertion. The regeneratePrivateKey=false path
-        // (below) and all guard/validation branches are still covered.
+        [Test]
+        public async Task CreateSigningRequestWithRegeneratedPrivateKeyDisposesOnShutdownAsync()
+        {
+            long leakedBefore = Certificate.InstancesLeaked;
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            StandardServer server = null;
+
+            try
+            {
+                server = await fixture.StartAsync().ConfigureAwait(false);
+                NodeState node = await server.CurrentInstance.NodeManager
+                    .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
+                    .ConfigureAwait(false);
+                var configNode = node as ServerConfigurationState;
+                Assert.That(configNode, Is.Not.Null);
+
+                CreateSigningRequestMethodStateResult result = await configNode
+                    .CreateSigningRequest.OnCallAsync(
+                        CreateAdminContext(),
+                        configNode.CreateSigningRequest,
+                        configNode.NodeId,
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        string.Empty,
+                        true,
+                        ByteString.From([1, 2, 3, 4]),
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
+            }
+            finally
+            {
+                if (server != null)
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(Certificate.InstancesLeaked, Is.LessThanOrEqualTo(leakedBefore));
+        }
 
         [Test]
         public void CreateSigningRequestNonAdminThrowsBadUserAccessDenied()
@@ -786,7 +790,7 @@ namespace Opc.Ua.Server.Tests
                 .AddExtension(new global::Opc.Ua.Security.Certificates.X509SubjectAltNameExtension(
                     m_fixture.Config.ApplicationUri,
                     domainNames))
-                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotBefore(DateTime.UtcNow.Date.AddDays(-1))
                 .SetLifeTime(12)
                 .SetIssuer(issuer)
                 .SetRSAPublicKey(request.SubjectPublicKeyInfo)
@@ -996,7 +1000,6 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
             // Second call must hit the early-return branch (timer already running).
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
-            Thread.Sleep(150);
             Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
             // Stopping again must be a no-op.
             Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());

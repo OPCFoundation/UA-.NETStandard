@@ -202,7 +202,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             adapter.DeleteAddressSpace();
             Assert.That(adapter.GetManagerHandle(nodeId), Is.SameAs(handle));
             adapter.AddReferences(references);
-            Assert.That(adapter.DeleteReference(sourceHandle, referenceTypeId, true, targetId, true), Is.SameAs(deleteReferenceResult));
+            Assert.That(
+                adapter.DeleteReference(sourceHandle, referenceTypeId, true, targetId, true),
+                Is.SameAs(deleteReferenceResult));
             Assert.That(adapter.GetNodeMetadata(context, handle, BrowseResultMask.All), Is.SameAs(metadata));
             adapter.Browse(context, ref continuationPoint, referenceDescriptions);
             Assert.That(continuationPoint, Is.SameAs(returnedContinuationPoint));
@@ -217,9 +219,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 historyReadResults,
                 historyReadErrors);
             adapter.Write(context, writeValues, writeErrors);
-            adapter.HistoryUpdate(context, typeof(UpdateDataDetails), historyUpdates, historyUpdateResults, historyUpdateErrors);
+            adapter.HistoryUpdate(
+                context,
+                typeof(UpdateDataDetails),
+                historyUpdates,
+                historyUpdateResults,
+                historyUpdateErrors);
             adapter.Call(context, methodsToCall, callResults, callErrors);
-            Assert.That(adapter.SubscribeToEvents(context, sourceHandle, 1, monitoredItem, false), Is.SameAs(eventResult));
+            Assert.That(
+                adapter.SubscribeToEvents(context, sourceHandle, 1, monitoredItem, false),
+                Is.SameAs(eventResult));
             Assert.That(adapter.SubscribeToAllEvents(context, 2, monitoredItem, true), Is.SameAs(allEventsResult));
             Assert.That(ServiceResult.IsGood(adapter.ConditionRefresh(context, eventItems)), Is.True);
             adapter.CreateMonitoredItems(
@@ -243,7 +252,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 filterErrors);
             adapter.DeleteMonitoredItems(context, monitoredItems, deleteProcessed, deleteErrors);
             adapter.TransferMonitoredItems(context, true, monitoredItems, transferProcessed, transferErrors);
-            adapter.SetMonitoringMode(context, MonitoringMode.Reporting, monitoredItems, monitoringProcessed, monitoringErrors);
+            adapter.SetMonitoringMode(
+                context,
+                MonitoringMode.Reporting,
+                monitoredItems,
+                monitoringProcessed,
+                monitoringErrors);
             adapter.SessionClosing(context, sessionId, true);
             adapter.SessionActivated(context, sessionId);
             Assert.That(adapter.IsNodeInView(context, nodeId, handle), Is.True);
@@ -344,7 +358,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     true,
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(deleteReferenceResult));
-            manager.Setup(m => m.GetNodeMetadataAsync(context, handle, BrowseResultMask.All, It.IsAny<CancellationToken>()))
+            manager.Setup(m => m.GetNodeMetadataAsync(
+                    context,
+                    handle,
+                    BrowseResultMask.All,
+                    It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<NodeMetadata>(metadata));
             manager.Setup(m => m.BrowseAsync(
                     context,
@@ -382,7 +400,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     historyUpdateErrors,
                     It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
-            manager.Setup(m => m.CallAsync(context, methodsToCall, callResults, callErrors, It.IsAny<CancellationToken>()))
+            manager.Setup(m => m.CallAsync(
+                    context,
+                    methodsToCall,
+                    callResults,
+                    callErrors,
+                    It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.SubscribeToEventsAsync(
                     context,
