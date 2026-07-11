@@ -388,6 +388,16 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(result));
             }
 
+            // Part 11 v1.05.07 §6.5.4.2: the request domain is defined by StartTime, EndTime and
+            // ProcessingInterval, all of which shall be specified. If StartTime equals EndTime there
+            // is no meaningful way to interpret the (zero-width) time domain, so the Server shall
+            // return Bad_InvalidArgument.
+            if (details.StartTime == details.EndTime)
+            {
+                result.StatusCode = StatusCodes.BadInvalidArgument;
+                return StatusCodes.BadInvalidArgument;
+            }
+
             HistorianContinuationState? cont = TryRestoreContinuation(
                 systemContext, nodeToRead, HistorianReadKind.Processed);
 
