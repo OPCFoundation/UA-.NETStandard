@@ -113,12 +113,16 @@ namespace Opc.Ua.Server
 
                 if (isBad)
                 {
-                    if (StatusCode.IsBad(regions[ii].StatusCode))
+                    if (StatusCode.IsBad(regions[ii].StatusCode) ||
+                        (Configuration.TreatUncertainAsBad &&
+                            StatusCode.IsUncertain(regions[ii].StatusCode)))
                     {
                         duration += regions[ii].Duration;
                     }
                 }
-                else if (StatusCode.IsGood(regions[ii].StatusCode))
+                else if (StatusCode.IsGood(regions[ii].StatusCode) ||
+                    (!Configuration.TreatUncertainAsBad &&
+                        StatusCode.IsUncertain(regions[ii].StatusCode)))
                 {
                     duration += regions[ii].Duration;
                 }
@@ -168,6 +172,7 @@ namespace Opc.Ua.Server
             StatusCode worstQuality = StatusCodes.Good;
             int badQualityCount = 0;
             int uncertainQualityCount = 0;
+            int goodQualityCount = 0;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -194,6 +199,10 @@ namespace Opc.Ua.Server
                         worstQuality = quality.CodeBits;
                     }
                 }
+                else
+                {
+                    goodQualityCount++;
+                }
             }
 
             // set the timestamp and status.
@@ -205,7 +214,8 @@ namespace Opc.Ua.Server
             value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
-                (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))
+                (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1) ||
+                (StatusCode.IsGood(worstQuality) && goodQualityCount > 1))
             {
                 value = value.WithStatus(value.StatusCode.WithAggregateBits(
                     value.StatusCode.AggregateBits | AggregateBits.MultipleValues));

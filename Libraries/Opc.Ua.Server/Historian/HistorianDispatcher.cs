@@ -525,7 +525,7 @@ namespace Opc.Ua.Server.Historian
                 StartTime = details.StartTime <= details.EndTime ? details.StartTime : details.EndTime,
                 EndTime = details.StartTime <= details.EndTime ? details.EndTime : details.StartTime,
                 MaxValues = 0,
-                IsForward = true,
+                IsForward = details.StartTime < details.EndTime,
                 ReturnBounds = true
             };
 
