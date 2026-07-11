@@ -808,7 +808,7 @@ namespace Opc.Ua.Server
                 int comparison = CompareTimestamps(timestamp, ii);
                 if (comparison == 0)
                 {
-                    if (IsGood(ii.Value))
+                    if (StatusCode.IsNotBad(ii.Value.StatusCode))
                     {
                         return ii.Value;
                     }
