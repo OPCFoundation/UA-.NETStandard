@@ -1889,6 +1889,141 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies whole-matrix writes and valid multi-dimensional NumericRange reads and writes.
+        /// </summary>
+        [Test]
+        public async Task MatrixReadWriteAndNumericRangeAsync()
+        {
+            var nodeId = new NodeId("Scalar_Static_Arrays2D_Int32", 2);
+            ArrayOf<ReadValueId> wholeMatrixRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                }
+            ];
+
+            ReadResponse originalRead = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                wholeMatrixRead,
+                RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(originalRead.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Variant originalValue = originalRead.Results[0].WrappedValue;
+
+            try
+            {
+                MatrixOf<int> matrix = new int[3, 3]
+                {
+                    { 1, 2, 3 },
+                    { 4, 5, 6 },
+                    { 7, 8, 9 }
+                };
+                ArrayOf<WriteValue> wholeMatrixWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(matrix))
+                    }
+                ];
+
+                WriteResponse wholeWriteResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    wholeMatrixWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(wholeWriteResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+
+                ArrayOf<ReadValueId> rowRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = "1,0:2"
+                    }
+                ];
+                ReadResponse rowReadResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Both,
+                    rowRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+                DataValue rowValue = rowReadResponse.Results[0];
+                Assert.That(rowValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(rowValue.SourceTimestamp.IsNull, Is.False);
+                MatrixOf<int> row = rowValue.WrappedValue.GetInt32Matrix();
+                Assert.That(row.Dimensions, Has.Length.EqualTo(2));
+                Assert.That(row.Dimensions[0], Is.EqualTo(1));
+                Assert.That(row.Dimensions[1], Is.EqualTo(3));
+                Assert.That(row.Count, Is.EqualTo(3));
+                Assert.That(row.Span[0], Is.EqualTo(4));
+                Assert.That(row.Span[1], Is.EqualTo(5));
+                Assert.That(row.Span[2], Is.EqualTo(6));
+
+                MatrixOf<int> replacement = new int[1, 2] { { 40, 50 } };
+                ArrayOf<WriteValue> rangeWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = "1,1:2",
+                        Value = new DataValue(Variant.From(replacement))
+                    }
+                ];
+                WriteResponse rangeWriteResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    rangeWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(rangeWriteResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+
+                ReadResponse updatedRowReadResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Both,
+                    rowRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+                DataValue updatedRowValue = updatedRowReadResponse.Results[0];
+                Assert.That(updatedRowValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                MatrixOf<int> updatedRow = updatedRowValue.WrappedValue.GetInt32Matrix();
+                Assert.That(updatedRow.Dimensions, Has.Length.EqualTo(2));
+                Assert.That(updatedRow.Dimensions[0], Is.EqualTo(1));
+                Assert.That(updatedRow.Dimensions[1], Is.EqualTo(3));
+                Assert.That(updatedRow.Count, Is.EqualTo(3));
+                Assert.That(updatedRow.Span[0], Is.EqualTo(4));
+                Assert.That(updatedRow.Span[1], Is.EqualTo(40));
+                Assert.That(updatedRow.Span[2], Is.EqualTo(50));
+            }
+            finally
+            {
+                ArrayOf<WriteValue> restoreWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(originalValue)
+                    }
+                ];
+                WriteResponse restoreResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    restoreWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(restoreResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+            }
+        }
+
+        /// <summary>
         /// Test that Enumeration and Image type scalar nodes are accessible.
         /// </summary>
         [Test]

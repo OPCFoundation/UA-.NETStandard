@@ -10355,6 +10355,34 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Is.Not.Zero, "ArrayDimensions bit should be set");
         }
 
+        [Test]
+        public void WriteVariantWithInt32MatrixMatchesPart6Table26()
+        {
+            MatrixOf<int> matrix = new int[2, 3]
+            {
+                { 1, 2, 3 },
+                { 4, 5, 6 }
+            };
+            byte[] expected =
+            [
+                0xC6,
+                0x06, 0x00, 0x00, 0x00,
+                0x01, 0x00, 0x00, 0x00,
+                0x02, 0x00, 0x00, 0x00,
+                0x03, 0x00, 0x00, 0x00,
+                0x04, 0x00, 0x00, 0x00,
+                0x05, 0x00, 0x00, 0x00,
+                0x06, 0x00, 0x00, 0x00,
+                0x02, 0x00, 0x00, 0x00,
+                0x02, 0x00, 0x00, 0x00,
+                0x03, 0x00, 0x00, 0x00
+            ];
+
+            byte[] encoded = EncodeVariantValue(Variant.From(matrix));
+
+            Assert.That(encoded, Is.EqualTo(expected));
+        }
+
         [Theory]
         public void WriteVariantValueWithInt32MatrixRoundTripsCorrectly(bool raw)
         {
