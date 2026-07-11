@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -52,8 +51,6 @@ namespace Opc.Ua.Types.Tests.Schema
         private const string TestNamespace = "urn:type-dictionary-test";
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateResolvesDeclarationsComplexTypesServicesAndEnums()
         {
             var integer = new UaDataType { Name = "UInt32", Category = "Numeric" };
@@ -98,7 +95,7 @@ namespace Opc.Ua.Types.Tests.Schema
             };
             var validator = new TypeDictionaryValidator(NullFileSystem.Instance);
 
-            validator.Validate(ToStream(CreateDictionary(integer, alias, baseStruct, childStruct, mode, service)));
+            Validate(validator, CreateDictionary(integer, alias, baseStruct, childStruct, mode, service));
 
             Assert.That(validator.Dictionary, Is.Not.Null);
             UaDataType resolvedInteger = validator.FindType(QName("UInt32"));
@@ -121,8 +118,6 @@ namespace Opc.Ua.Types.Tests.Schema
         }
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateRejectsInvalidDataTypesAndDeclarations()
         {
             AssertValidationFails(
@@ -145,8 +140,6 @@ namespace Opc.Ua.Types.Tests.Schema
         }
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateRejectsInvalidFieldsAndEnums()
         {
             AssertValidationFails(
@@ -206,9 +199,18 @@ namespace Opc.Ua.Types.Tests.Schema
             var validator = new TypeDictionaryValidator(NullFileSystem.Instance);
 
             InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
-                validator.Validate(ToStream(dictionary)));
+                Validate(validator, dictionary));
 
             Assert.That(exception.Message, Does.Contain(expectedMessage));
+        }
+
+        private static void Validate(TypeDictionaryValidator validator, UaTypeDictionary dictionary)
+        {
+#pragma warning disable IL2026 // Test intentionally exercises design-time schema validation.
+#pragma warning disable IL3050 // Test intentionally exercises design-time schema validation.
+            validator.Validate(ToStream(dictionary));
+#pragma warning restore IL3050
+#pragma warning restore IL2026
         }
 
         private static UaTypeDictionary CreateDictionary(params UaDataType[] dataTypes)
@@ -225,13 +227,15 @@ namespace Opc.Ua.Types.Tests.Schema
             return new XmlQualifiedName(name, TestNamespace);
         }
 
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         private static MemoryStream ToStream(UaTypeDictionary dictionary)
         {
+#pragma warning disable IL2026 // Test intentionally serializes a schema model through XmlSerializer.
+#pragma warning disable IL3050 // Test intentionally serializes a schema model through XmlSerializer.
             var serializer = new XmlSerializer(typeof(UaTypeDictionary));
             using var writer = new StringWriter();
             serializer.Serialize(writer, dictionary);
+#pragma warning restore IL3050
+#pragma warning restore IL2026
             return new MemoryStream(Encoding.UTF8.GetBytes(writer.ToString()));
         }
     }

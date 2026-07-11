@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -48,8 +47,6 @@ namespace Opc.Ua.Types.Tests.Schema
         private const string TestNamespace = Namespaces.OpcUa;
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateAcceptsStructuredOpaqueAndEnumeratedTypes()
         {
             TypeDictionary dictionary = CreateDictionary(
@@ -80,7 +77,7 @@ namespace Opc.Ua.Types.Tests.Schema
                 });
             var validator = new BinarySchemaValidator();
 
-            validator.Validate(ToStream(dictionary));
+            Validate(validator, dictionary);
 
             Assert.That(validator.Dictionary, Is.Not.Null);
             Assert.That(validator.ValidatedDescriptions, Has.Count.EqualTo(3));
@@ -91,21 +88,17 @@ namespace Opc.Ua.Types.Tests.Schema
         }
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateWarnsForOpaqueTypeWithoutLengthOrDocumentation()
         {
             var validator = new BinarySchemaValidator();
 
-            validator.Validate(ToStream(CreateDictionary(new OpaqueType { Name = "Blob" })));
+            Validate(validator, CreateDictionary(new OpaqueType { Name = "Blob" }));
 
             Assert.That(validator.Warnings, Has.Some.Contains("does not have a length specified"));
             Assert.That(validator.Warnings, Has.Some.Contains("does not have any documentation"));
         }
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateRejectsEnumeratedTypeWithoutLength()
         {
             var validator = new BinarySchemaValidator();
@@ -117,8 +110,6 @@ namespace Opc.Ua.Types.Tests.Schema
         }
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateRejectsInvalidStructuredFields()
         {
             AssertValidationFails(
@@ -152,8 +143,6 @@ namespace Opc.Ua.Types.Tests.Schema
         }
 
         [Test]
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         public void ValidateRejectsInvalidLengthSwitchAndAlignment()
         {
             AssertValidationFails(
@@ -205,9 +194,18 @@ namespace Opc.Ua.Types.Tests.Schema
             var validator = new BinarySchemaValidator();
 
             InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
-                validator.Validate(ToStream(dictionary)));
+                Validate(validator, dictionary));
 
             Assert.That(exception.Message, Does.Contain(expectedMessage));
+        }
+
+        private static void Validate(BinarySchemaValidator validator, TypeDictionary dictionary)
+        {
+#pragma warning disable IL2026 // Test intentionally exercises design-time schema validation.
+#pragma warning disable IL3050 // Test intentionally exercises design-time schema validation.
+            validator.Validate(ToStream(dictionary));
+#pragma warning restore IL3050
+#pragma warning restore IL2026
         }
 
         private static TypeDictionary CreateDictionary(params TypeDescription[] descriptions)
@@ -253,13 +251,15 @@ namespace Opc.Ua.Types.Tests.Schema
             return new XmlQualifiedName(name, TestNamespace);
         }
 
-        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Tests exercise design-time schema validation.")]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Tests exercise design-time schema validation.")]
         private static MemoryStream ToStream(TypeDictionary dictionary)
         {
+#pragma warning disable IL2026 // Test intentionally serializes a schema model through XmlSerializer.
+#pragma warning disable IL3050 // Test intentionally serializes a schema model through XmlSerializer.
             var serializer = new XmlSerializer(typeof(TypeDictionary));
             using var writer = new StringWriter();
             serializer.Serialize(writer, dictionary);
+#pragma warning restore IL3050
+#pragma warning restore IL2026
             return new MemoryStream(Encoding.UTF8.GetBytes(writer.ToString()));
         }
     }
