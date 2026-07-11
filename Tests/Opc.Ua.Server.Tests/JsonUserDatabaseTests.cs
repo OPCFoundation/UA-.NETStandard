@@ -179,8 +179,7 @@ namespace Opc.Ua.Server.Tests
                   "isNull": true,
                   "isAbsolute": false,
                   "namespaceIndex": 0,
-                  "idType": "numeric",
-                  "identifier": null
+                  "idType": "numeric"
                 }
                 """;
 
