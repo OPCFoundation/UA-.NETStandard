@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var scheduler = new PubSubScheduler(NUnitTelemetryContext.Create(), clock);
             int callCount = 0;
 
-            await using var handle = await scheduler.ScheduleAsync(
+            await using IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 ct =>
                 {
@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var scheduler = new PubSubScheduler(NUnitTelemetryContext.Create(), clock);
             int callCount = 0;
 
-            await using var handle = await scheduler.ScheduleAsync(
+            await using IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 ct =>
                 {
@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
                 publishingOffset: TimeSpan.FromMilliseconds(50),
                 receiveOffset: TimeSpan.Zero);
 
-            await using var handle = await scheduler.ScheduleAsync(
+            await using IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 scheduleWithOffset,
                 ct =>
                 {
@@ -196,7 +196,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var gate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-            var handle = await scheduler.ScheduleAsync(
+            IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 async ct =>
                 {
@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var scheduler = new PubSubScheduler(NUnitTelemetryContext.Create(), clock);
             bool actionRan = false;
 
-            await using var handle = await scheduler.ScheduleAsync(
+            await using IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 ct =>
                 {
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var scheduler = new PubSubScheduler(NUnitTelemetryContext.Create(), clock);
             int callCount = 0;
 
-            var handle = await scheduler.ScheduleAsync(
+            IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 ct =>
                 {
@@ -279,7 +279,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var gate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-            var handle = await scheduler.ScheduleAsync(
+            IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 async ct =>
                 {
@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             await actionStarted.WaitAsync().ConfigureAwait(false);
 
             // Begin dispose (cancels CTS, awaits the running task).
-            var disposeTask = handle.DisposeAsync().AsTask();
+            Task disposeTask = handle.DisposeAsync().AsTask();
 
             // Unblock the action so dispose can drain.
             gate.SetResult(true);
@@ -312,7 +312,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var clock = new FakeTimeProvider();
             var scheduler = new PubSubScheduler(NUnitTelemetryContext.Create(), clock);
 
-            var handle = await scheduler.ScheduleAsync(
+            IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 _ => default).ConfigureAwait(false);
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.PubSub.Tests.Scheduling
             var actionStarted = new SemaphoreSlim(0, 1);
             bool oceCaught = false;
 
-            var handle = await scheduler.ScheduleAsync(
+            IAsyncDisposable handle = await scheduler.ScheduleAsync(
                 s_period100ms,
                 async ct =>
                 {

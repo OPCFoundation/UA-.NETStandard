@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendChunkAsyncEmitsSingleBinaryFrame()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReceiveChunkAsyncReassemblesAcrossFrames()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -156,14 +156,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             finally
             {
-                m_bufferManager.ReturnBuffer(chunk.Array!, nameof(ReceiveChunkAsyncReassemblesAcrossFrames));
+                m_bufferManager.ReturnBuffer(chunk.Array, nameof(ReceiveChunkAsyncReassemblesAcrossFrames));
             }
         }
 
         [Test]
         public async Task ReceiveChunkAsyncRejectsTextFrame()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -188,7 +188,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReceiveChunkAsyncRejectsMessageExceedingBufferSize()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -217,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task ReceiveChunkAsyncReportsCloseFrameAsBadConnectionClosed()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -240,7 +240,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task SendChunkAsyncBufferCollectionConcatenatesIntoSingleFrame()
         {
-            using var pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
                 localEndpoint: null,
@@ -310,8 +310,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ServerTransportEndpointPropertiesReturnConstructorValues()
         {
             using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
-            var local = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 4840);
-            var remote = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345);
+            var local = new IPEndPoint(IPAddress.Loopback, 4840);
+            var remote = new IPEndPoint(IPAddress.Loopback, 12345);
 
             using var transport = new WebSocketServerByteTransport(
                 pair.Server,
@@ -468,12 +468,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 TcpClient serverTcp = await acceptTask.ConfigureAwait(false);
 
                 var keepAlive = TimeSpan.FromSeconds(30);
-                WebSocket server = WebSocket.CreateFromStream(
+                var server = WebSocket.CreateFromStream(
                     serverTcp.GetStream(),
                     isServer: true,
                     subProtocol: Profiles.OpcUaWsSubProtocolUacp,
                     keepAliveInterval: keepAlive);
-                WebSocket client = WebSocket.CreateFromStream(
+                var client = WebSocket.CreateFromStream(
                     clientTcp.GetStream(),
                     isServer: false,
                     subProtocol: Profiles.OpcUaWsSubProtocolUacp,
@@ -502,10 +502,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public void Dispose()
             {
-                try { Server.Dispose(); } catch { }
-                try { Client.Dispose(); } catch { }
-                try { m_serverTcp.Dispose(); } catch { }
-                try { m_clientTcp.Dispose(); } catch { }
+                try
+                {
+                    Server.Dispose();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    Client.Dispose();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    m_serverTcp.Dispose();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    m_clientTcp.Dispose();
+                }
+                catch
+                {
+                }
             }
 
             private readonly TcpClient m_serverTcp;

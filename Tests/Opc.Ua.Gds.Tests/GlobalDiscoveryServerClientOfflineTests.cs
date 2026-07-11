@@ -117,14 +117,14 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void MessageContextExposesOpcUaBaseNamespace()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.MessageContext.NamespaceUris.GetString(0), Is.EqualTo(OpcUaNamespaceUri));
         }
 
         [Test]
         public void AdminCredentialsDefaultsToNull()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.AdminCredentials, Is.Null);
         }
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.Gds.Tests
         public void AdminCredentialsRoundTrips()
         {
             var identity = new UserIdentity();
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             client.AdminCredentials = identity;
             Assert.That(client.AdminCredentials, Is.SameAs(identity));
         }
@@ -149,14 +149,14 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void PreferredLocalesDefaultsToNull()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.PreferredLocales.IsNull, Is.True);
         }
 
         [Test]
         public void PreferredLocalesRoundTrips()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             client.PreferredLocales = new[] { "en-US", "de-DE" };
             Assert.Multiple(() =>
             {
@@ -169,42 +169,42 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void IsConnectedDefaultsToFalse()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.IsConnected, Is.False);
         }
 
         [Test]
         public void SessionDefaultsToNull()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.Session, Is.Null);
         }
 
         [Test]
         public void DirectoryDefaultsToNull()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.Directory, Is.Null);
         }
 
         [Test]
         public void CertificateDirectoryDefaultsToNull()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.CertificateDirectory, Is.Null);
         }
 
         [Test]
         public void EndpointIsNullWhenNotConfigured()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.Endpoint, Is.Null);
         }
 
         [Test]
         public void EndpointUrlIsNullWhenNotConfigured()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             Assert.That(client.EndpointUrl, Is.Null);
         }
 
@@ -289,7 +289,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithNullEndpointUrlThrows()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync((string)null!).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithEmptyEndpointUrlThrows()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync(string.Empty).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
@@ -307,7 +307,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithMalformedEndpointUrlThrows()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
                 () => client.ConnectAsync("not a valid url").AsTask());
             Assert.Multiple(() =>
@@ -320,7 +320,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithoutEndpointThrows()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             ConfiguredEndpoint nullEndpoint = null!;
             AssertThrowsEndpointNull(() => client.ConnectAsync(nullEndpoint).AsTask());
         }
@@ -328,14 +328,14 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConnectAsyncWithCancellationTokenAndNoEndpointThrows()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             AssertThrowsEndpointNull(() => client.ConnectAsync().AsTask());
         }
 
         [Test]
         public void DirectoryOperationsWithoutEndpointThrow()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             AssertThrowsEndpointNull(() => client.FindApplicationAsync(string.Empty).AsTask());
             AssertThrowsEndpointNull(
                 () => client.QueryServersAsync(0u, string.Empty, string.Empty, string.Empty, default).AsTask());
@@ -347,16 +347,16 @@ namespace Opc.Ua.Gds.Tests
                     0u, 0u, string.Empty, string.Empty, 0u, string.Empty, default).AsTask());
             AssertThrowsEndpointNull(() => client.GetApplicationAsync(NodeId.Null).AsTask());
             AssertThrowsEndpointNull(
-                () => client.RegisterApplicationAsync((ApplicationRecordDataType)null!).AsTask());
+                () => client.RegisterApplicationAsync(null!).AsTask());
             AssertThrowsEndpointNull(
-                () => client.UpdateApplicationAsync((ApplicationRecordDataType)null!).AsTask());
+                () => client.UpdateApplicationAsync(null!).AsTask());
             AssertThrowsEndpointNull(() => client.UnregisterApplicationAsync(NodeId.Null).AsTask());
         }
 
         [Test]
         public void CertificateDirectoryOperationsWithoutEndpointThrow()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             AssertThrowsEndpointNull(() => client.GetCertificatesAsync(NodeId.Null, NodeId.Null).AsTask());
             AssertThrowsEndpointNull(() => client.CheckRevocationStatusAsync(default).AsTask());
             AssertThrowsEndpointNull(() => client.RevokeCertificateAsync(NodeId.Null, default).AsTask());
@@ -368,7 +368,7 @@ namespace Opc.Ua.Gds.Tests
                     string.Empty,
                     default,
                     string.Empty,
-                    Array.Empty<char>()).AsTask());
+                    []).AsTask());
             AssertThrowsEndpointNull(
                 () => client.StartSigningRequestAsync(
                     NodeId.Null, NodeId.Null, NodeId.Null, default).AsTask());
@@ -384,7 +384,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task DisconnectWhenNotConnectedCompletesAsync()
         {
-            using var client = CreateClient();
+            using GlobalDiscoveryServerClient client = CreateClient();
             await client.DisconnectAsync().ConfigureAwait(false);
             Assert.That(client.IsConnected, Is.False);
         }
@@ -392,7 +392,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void DisposeTwiceDoesNotThrow()
         {
-            var client = CreateClient();
+            GlobalDiscoveryServerClient client = CreateClient();
             client.Dispose();
             Assert.DoesNotThrow(client.Dispose);
             Assert.That(client.IsConnected, Is.False);
@@ -401,7 +401,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task DisposeAsyncTwiceDoesNotThrowAsync()
         {
-            var client = CreateClient();
+            GlobalDiscoveryServerClient client = CreateClient();
             await client.DisposeAsync().ConfigureAwait(false);
             await client.DisposeAsync().ConfigureAwait(false);
             Assert.That(client.IsConnected, Is.False);

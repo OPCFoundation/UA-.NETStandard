@@ -34,7 +34,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Application;
@@ -42,7 +41,6 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
-using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
 
 namespace Opc.Ua.Mcp
@@ -50,7 +48,7 @@ namespace Opc.Ua.Mcp
     /// <summary>
     /// Manages one in-process OPC UA PubSub publisher or subscriber for MCP tools.
     /// </summary>
-    public sealed partial class PubSubRuntimeManager : IAsyncDisposable
+    public sealed class PubSubRuntimeManager : IAsyncDisposable
     {
         private const string DataSetName = "McpDataSet";
         private const string WriterName = "Writer 1";
@@ -150,6 +148,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Updates the active publisher's next sampled DataSet fields.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubRuntimePublishResult> PublishAsync(
             string fieldValues,
             CancellationToken ct = default)
@@ -226,6 +225,7 @@ namespace Opc.Ua.Mcp
         /// <param name="timeout">How long to collect responses.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The collected discovery result.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
             PubSubDiscoveryRequest request,
             TimeSpan timeout,
@@ -235,8 +235,9 @@ namespace Opc.Ua.Mcp
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                app = m_application ?? throw new InvalidOperationException(
-                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+                app = m_application ??
+                    throw new InvalidOperationException(
+                        "No PubSub runtime is active. Start a publisher or subscriber first.");
             }
             finally
             {
@@ -252,6 +253,7 @@ namespace Opc.Ua.Mcp
         /// <param name="timeout">How long to wait for the response.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The correlated Action response.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubActionResponse> InvokeActionAsync(
             PubSubActionRequest request,
             TimeSpan timeout,
@@ -261,8 +263,9 @@ namespace Opc.Ua.Mcp
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                app = m_application ?? throw new InvalidOperationException(
-                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+                app = m_application ??
+                    throw new InvalidOperationException(
+                        "No PubSub runtime is active. Start a publisher or subscriber first.");
             }
             finally
             {
@@ -280,6 +283,7 @@ namespace Opc.Ua.Mcp
         /// <param name="details">The JSON-friendly responder details.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The registered responder information.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubActionResponderRegistration> RegisterActionResponderAsync(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
@@ -302,8 +306,9 @@ namespace Opc.Ua.Mcp
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                IPubSubApplication app = m_application ?? throw new InvalidOperationException(
-                    "No PubSub runtime is active. Start a publisher or subscriber first.");
+                IPubSubApplication app = m_application ??
+                    throw new InvalidOperationException(
+                        "No PubSub runtime is active. Start a publisher or subscriber first.");
                 // The MCP runtime is a local diagnostic surface that binds Action
                 // responders onto connections that are typically unsecured, so it
                 // opts in explicitly (SA-ACT-01). This makes serving Action requests
@@ -496,8 +501,8 @@ namespace Opc.Ua.Mcp
             {
                 foreach (PublishedDataSetDataType publishedDataSet in configuration.PublishedDataSets)
                 {
-                    if (publishedDataSet is not null
-                        && TryGetPublishedAction(publishedDataSet, out PublishedActionDataType? action))
+                    if (publishedDataSet is not null &&
+                        TryGetPublishedAction(publishedDataSet, out PublishedActionDataType? action))
                     {
                         actionDataSets[publishedDataSet.Name ?? string.Empty] = action!;
                     }
@@ -526,9 +531,9 @@ namespace Opc.Ua.Mcp
                     foreach (DataSetWriterDataType writer in writerGroup.DataSetWriters)
                     {
                         string dataSetName = writer?.DataSetName ?? string.Empty;
-                        if (writer is null
-                            || !actionDataSets.TryGetValue(dataSetName, out PublishedActionDataType? action)
-                            || action.ActionTargets.IsNull)
+                        if (writer is null ||
+                            !actionDataSets.TryGetValue(dataSetName, out PublishedActionDataType? action) ||
+                            action.ActionTargets.IsNull)
                         {
                             continue;
                         }
@@ -596,9 +601,7 @@ namespace Opc.Ua.Mcp
                         ds.AddField(field.Name, field.BuiltInType, field.DataTypeId);
                     }
                 })
-                .AddConnection("MCP Publisher Connection", connection =>
-                {
-                    connection
+                .AddConnection("MCP Publisher Connection", connection => connection
                         .WithPublisherId(new Variant(publisherId))
                         .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
                         .WithAddress(endpoint)
@@ -612,8 +615,7 @@ namespace Opc.Ua.Mcp
                                 .WithDataSetName(DataSetName)
                                 .WithKeyFrameCount(1)
                                 .WithFieldContentMask(DataSetFieldContentMask.RawData)
-                                .WithMessageSettings(CreateWriterMessageSettings())));
-                })
+                                .WithMessageSettings(CreateWriterMessageSettings()))))
                 .Build();
         }
 
@@ -624,17 +626,13 @@ namespace Opc.Ua.Mcp
             List<RuntimeFieldDefinition> fields)
         {
             return PubSubConfigurationBuilder.Create()
-                .AddConnection("MCP Subscriber Connection", connection =>
-                {
-                    connection
+                .AddConnection("MCP Subscriber Connection", connection => connection
                         .WithPublisherId(new Variant(publisherId))
                         .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
                         .WithAddress(endpoint)
                         .AddReaderGroup("ReaderGroup 1", group => group
                             .WithMaxNetworkMessageSize(1500)
-                            .AddDataSetReader(ReaderName, reader =>
-                            {
-                                reader
+                            .AddDataSetReader(ReaderName, reader => reader
                                     .WithFilter(new Variant(publisherId), writerGroupId, DataSetWriterId)
                                     .WithFieldContentMask(DataSetFieldContentMask.RawData)
                                     .WithMessageReceiveTimeout(5000)
@@ -647,9 +645,7 @@ namespace Opc.Ua.Mcp
                                         {
                                             metaData.AddField(field.Name, field.BuiltInType, field.DataTypeId);
                                         }
-                                    });
-                            }));
-                })
+                                    }))))
                 .Build();
         }
 
@@ -659,12 +655,12 @@ namespace Opc.Ua.Mcp
             {
                 DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber)
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber)
             };
         }
 
@@ -673,8 +669,8 @@ namespace Opc.Ua.Mcp
             return new UadpDataSetWriterMessageDataType
             {
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
 
@@ -683,15 +679,15 @@ namespace Opc.Ua.Mcp
             return new UadpDataSetReaderMessageDataType
             {
                 NetworkMessageContentMask = (uint)(
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber),
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(
-                    UadpDataSetMessageContentMask.Status
-                    | UadpDataSetMessageContentMask.SequenceNumber)
+                    UadpDataSetMessageContentMask.Status |
+                    UadpDataSetMessageContentMask.SequenceNumber)
             };
         }
 
@@ -846,7 +842,7 @@ namespace Opc.Ua.Mcp
                 string trimmed = fieldValues.Trim();
                 if (trimmed.StartsWith('{'))
                 {
-                    using JsonDocument document = JsonDocument.Parse(trimmed);
+                    using var document = JsonDocument.Parse(trimmed);
                     var values = new Dictionary<string, string>(StringComparer.Ordinal);
                     foreach (JsonProperty property in document.RootElement.EnumerateObject())
                     {
@@ -1204,10 +1200,10 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public bool MatchesTarget(PubSubActionTargetInfo target)
         {
-            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal)
-                && DataSetWriterId == target.DataSetWriterId
-                && ActionTargetId == target.ActionTargetId
-                && string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
+            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal) &&
+                DataSetWriterId == target.DataSetWriterId &&
+                ActionTargetId == target.ActionTargetId &&
+                string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -1215,10 +1211,10 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public bool MatchesTarget(PubSubActionResponderRegistration target)
         {
-            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal)
-                && DataSetWriterId == target.DataSetWriterId
-                && ActionTargetId == target.ActionTargetId
-                && string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
+            return string.Equals(ConnectionName, target.ConnectionName, StringComparison.Ordinal) &&
+                DataSetWriterId == target.DataSetWriterId &&
+                ActionTargetId == target.ActionTargetId &&
+                string.Equals(ActionName, target.ActionName, StringComparison.Ordinal);
         }
 
         /// <summary>

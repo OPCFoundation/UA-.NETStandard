@@ -38,8 +38,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>
@@ -180,6 +178,7 @@ namespace Opc.Ua.Pcap.Audit
         /// <summary>
         /// Verifies every line in a tamper-evident audit ledger.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public static AuditChainVerification VerifyChain(string filePath, byte[] hmacKey)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -224,9 +223,10 @@ namespace Opc.Ua.Pcap.Audit
                     return Corrupt(linesVerified, lineNumber, error);
                 }
 
-                if (expectedPreviousHmac is not null && !CryptographicOperations.FixedTimeEquals(
-                    previousHmac,
-                    expectedPreviousHmac))
+                if (expectedPreviousHmac is not null &&
+                    !CryptographicOperations.FixedTimeEquals(
+                        previousHmac,
+                        expectedPreviousHmac))
                 {
                     return Corrupt(linesVerified, lineNumber, "Previous HMAC does not match the prior line HMAC.");
                 }

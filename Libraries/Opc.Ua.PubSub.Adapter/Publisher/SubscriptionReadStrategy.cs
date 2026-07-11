@@ -82,8 +82,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             for (int i = 0; i < count; i++)
             {
                 ReadValueId nodeToRead = nodesToRead[i];
-                if (nodeToRead?.NodeId is { IsNull: false } nodeId
-                    && m_cache.TryGetValue(
+                if (nodeToRead?.NodeId is { IsNull: false } nodeId &&
+                    m_cache.TryGetValue(
                         new NodeAttributeKey(nodeId, NormalizeAttribute(nodeToRead.AttributeId)),
                         out DataValue value))
                 {
@@ -105,6 +105,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <param name="subscription">
         /// The data-change subscription feeding this cache.
         /// </param>
+        /// <exception cref="ArgumentNullException"></exception>
         internal void Attach(IDataChangeSubscription subscription)
         {
             if (subscription is null)
@@ -113,10 +114,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             ThrowIfDisposed();
 
-            if (m_subscription is not null)
-            {
-                m_subscription.DataChanged -= OnDataChanged;
-            }
+            m_subscription?.DataChanged -= OnDataChanged;
             m_subscription = subscription;
             subscription.DataChanged += OnDataChanged;
         }
@@ -187,11 +185,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 return;
             }
             m_disposed = true;
-            if (m_subscription is not null)
-            {
-                m_subscription.DataChanged -= OnDataChanged;
-                m_subscription = null;
-            }
+            m_subscription?.DataChanged -= OnDataChanged;
+            m_subscription = null;
             m_cache.Clear();
             m_handleToKey.Clear();
         }
@@ -235,8 +230,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             if (Interlocked.Exchange(ref m_cacheFullLogged, 1) == 0)
             {
                 m_logger.LogWarning(
-                    "External subscription latest-value cache reached its bound of "
-                    + "{MaxEntries} entries; new node/attribute keys are dropped.",
+                    "External subscription latest-value cache reached its bound of " +
+                    "{MaxEntries} entries; new node/attribute keys are dropped.",
                     m_maxCacheEntries);
             }
         }
@@ -267,8 +262,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
             public bool Equals(NodeAttributeKey other)
             {
-                return m_attributeId == other.m_attributeId
-                    && m_nodeId.Equals(other.m_nodeId);
+                return m_attributeId == other.m_attributeId &&
+                    m_nodeId.Equals(other.m_nodeId);
             }
 
             public override bool Equals(object? obj)

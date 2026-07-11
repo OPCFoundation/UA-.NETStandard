@@ -166,7 +166,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationChangedEventArgs? observed = null;
             store.Changed += (_, args) => observed = args;
 
-            var config = NewMinimalConfig();
+            PubSubConfigurationDataType config = NewMinimalConfig();
             await store.SaveAsync(config).ConfigureAwait(false);
 
             Assert.That(observed, Is.Not.Null);

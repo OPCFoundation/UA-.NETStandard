@@ -41,7 +41,9 @@ using Opc.Ua.Client.Subscriptions.Streaming;
 
 namespace Opc.Ua.Client.Tests.Streaming
 {
-    [TestFixture, Category("StreamingExtensions"), Parallelizable]
+    [TestFixture]
+    [Category("StreamingExtensions")]
+    [Parallelizable]
     public class StreamingSubscriptionExtensionsTests
     {
         [Test]
@@ -69,7 +71,7 @@ namespace Opc.Ua.Client.Tests.Streaming
         [Test]
         public async Task BufferedAsyncCollectsN()
         {
-            IReadOnlyList<int> buffer = await Range(10).BufferedAsync(3);
+            IReadOnlyList<int> buffer = await Range(10).BufferedAsync(3).ConfigureAwait(false);
             Assert.That(buffer, Is.EqualTo([0, 1, 2]));
         }
 
@@ -107,7 +109,7 @@ namespace Opc.Ua.Client.Tests.Streaming
         public void BufferedAsyncWithNullSourceThrowsArgumentNullException()
         {
             Assert.That(async () =>
-                await StreamingSubscriptionExtensions.BufferedAsync<int>(null!, 5),
+                await StreamingSubscriptionExtensions.BufferedAsync<int>(null!, 5).ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
@@ -115,14 +117,14 @@ namespace Opc.Ua.Client.Tests.Streaming
         [TestCase(-1)]
         public void BufferedAsyncWithNonPositiveCountThrowsArgumentOutOfRangeException(int count)
         {
-            Assert.That(async () => await Range(3).BufferedAsync(count),
+            Assert.That(async () => await Range(3).BufferedAsync(count).ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
         public async Task BufferedAsyncReturnsShorterBatchWhenSourceEndsEarly()
         {
-            IReadOnlyList<int> buffer = await Range(3).BufferedAsync(10);
+            IReadOnlyList<int> buffer = await Range(3).BufferedAsync(10).ConfigureAwait(false);
 
             Assert.That(buffer, Is.EqualTo([0, 1, 2]));
             Assert.That(buffer, Has.Count.EqualTo(3));

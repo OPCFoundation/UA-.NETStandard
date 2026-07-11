@@ -45,6 +45,10 @@ namespace Opc.Ua.PubSub.Configuration
         "Design",
         "CA1032:Implement standard exception constructors",
         Justification = "Configuration exceptions always carry the issue list; a default or message-only constructor would discard required diagnostic context.")]
+    [SuppressMessage(
+        "Usage",
+        "RCS1194:Implement exception constructors",
+        Justification = "Configuration exceptions always carry the issue list; a default or message-only constructor would discard required diagnostic context.")]
     public sealed class PubSubConfigurationException : Exception
     {
         /// <summary>
@@ -77,10 +81,9 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 return "PubSub configuration is invalid.";
             }
-            PubSubConfigurationIssue[] errors = issues
+            PubSubConfigurationIssue[] errors = [.. issues
                 .Where(static i => i.Severity == PubSubConfigurationIssueSeverity.Error)
-                .Take(MaxErrorsInMessage + 1)
-                .ToArray();
+                .Take(MaxErrorsInMessage + 1)];
             if (errors.Length == 0)
             {
                 return "PubSub configuration is invalid.";
@@ -89,8 +92,14 @@ namespace Opc.Ua.PubSub.Configuration
             for (int i = 0; i < errors.Length && i < MaxErrorsInMessage; i++)
             {
                 PubSubConfigurationIssue issue = errors[i];
-                builder.Append(' ').Append('[').Append(issue.Code).Append("] ");
-                builder.Append(issue.Path).Append(": ").Append(issue.Message);
+                builder
+                    .Append(' ')
+                    .Append('[')
+                    .Append(issue.Code)
+                    .Append("] ")
+                    .Append(issue.Path)
+                    .Append(": ")
+                    .Append(issue.Message);
                 if (i < errors.Length - 1 && i < MaxErrorsInMessage - 1)
                 {
                     builder.Append(';');

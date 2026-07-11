@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly IMqttTrustedIssuerResolver? m_trustedIssuerResolver;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private X509Certificate2Collection? m_trustChain;
         private bool m_disposed;
 
@@ -116,8 +116,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             ThrowIfDisposed();
 
-            var endpoint = MqttEndpointParser.Parse(options.Endpoint);
-            var builder = ConfigureBrokerTransport(new MqttClientOptionsBuilder(), endpoint)
+            MqttEndpoint endpoint = MqttEndpointParser.Parse(options.Endpoint);
+            MqttClientOptionsBuilder builder = ConfigureBrokerTransport(new MqttClientOptionsBuilder(), endpoint)
                 .WithKeepAlivePeriod(options.KeepAlivePeriod)
                 .WithCleanSession(options.CleanSession)
                 .WithProtocolVersion(MapProtocolVersion(options.ProtocolVersion))
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             ValidateCredentialTransport(options.UserName, useTls, options.AllowCredentialsOverPlaintext);
             if (!string.IsNullOrEmpty(options.UserName))
             {
-                byte[] passwordBytes = options.PasswordBytes ?? Array.Empty<byte>();
+                byte[] passwordBytes = options.PasswordBytes ?? [];
                 builder = builder.WithCredentials(options.UserName, passwordBytes);
             }
             X509Certificate2Collection? trustChain = useTls
@@ -143,12 +143,12 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 builder = ConfigureTls(builder, options.Tls, trustChain);
             }
 
-            var mqttOptions = builder.Build();
+            MqttClientOptions mqttOptions = builder.Build();
             ApplyEnhancedAuthentication(mqttOptions, options);
             if (!string.IsNullOrEmpty(options.WillTopic))
             {
                 mqttOptions.WillTopic = options.WillTopic;
-                mqttOptions.WillPayload = options.WillPayload ?? Array.Empty<byte>();
+                mqttOptions.WillPayload = options.WillPayload ?? [];
                 mqttOptions.WillQualityOfServiceLevel = MapQos(options.WillQos);
                 mqttOptions.WillRetain = options.WillRetain;
             }
@@ -306,7 +306,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             ThrowIfDisposed();
 
-            var builder = new MqttApplicationMessageBuilder()
+            MqttApplicationMessageBuilder builder = new MqttApplicationMessageBuilder()
                 .WithTopic(message.Topic)
                 .WithQualityOfServiceLevel(MapQos(message.Qos))
                 .WithRetainFlag(message.Retain);
@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 byte[] payloadCopy;
                 if (sequence.IsEmpty)
                 {
-                    payloadCopy = Array.Empty<byte>();
+                    payloadCopy = [];
                 }
                 else
                 {
@@ -554,8 +554,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             bool allowUntrusted = tls is not null && !tls.ValidateServerCertificate;
             return builder.WithTlsOptions(o =>
             {
-                o.UseTls();
-                o.WithAllowUntrustedCertificates(allowUntrusted);
+                o.UseTls()
+                    .WithAllowUntrustedCertificates(allowUntrusted);
                 if (trustChain is not null && trustChain.Count > 0)
                 {
 #if NET8_0_OR_GREATER

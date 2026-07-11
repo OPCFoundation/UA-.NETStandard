@@ -154,6 +154,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <c>AddManagedClient</c>) to set option flags without depending
         /// on how the options are later resolved.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal static IOpcUaClientBuilder AddClient(
             this IOpcUaBuilder builder,
             IConfigurationSection section,
@@ -183,6 +184,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers injectable OPC UA discovery operations.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddDiscovery(this IOpcUaBuilder builder)
         {
             if (builder is null)
@@ -198,6 +200,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers injectable OPC UA discovery operations.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddDiscovery(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -344,10 +347,10 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
-
         /// <summary>
         /// Registers container-default subscription and monitored-item options.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddSubscriptions(
             this IOpcUaClientBuilder builder,
             Action<Opc.Ua.Client.Subscriptions.SubscriptionOptions>? configure = null)
@@ -370,6 +373,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a keyed managed-session pool backed by <see cref="IManagedSessionFactory"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddManagedClientPool(this IOpcUaClientBuilder builder)
         {
             if (builder is null)
@@ -384,6 +388,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a one-shot reverse-connect managed-client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddReverseConnectClient(
             this IOpcUaBuilder builder,
             Action<OpcUaClientOptions> configure,
@@ -418,6 +423,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a discovery-then-connect one-shot managed-client factory.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddDiscoveryAndConnect(
             this IOpcUaClientBuilder builder,
             Action<DiscoveryConnectOptions> configure)
@@ -819,6 +825,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 sp => new ManagedSessionAccessor(sp).ConnectAsync);
+            services.TryAddSingleton<IClientFailoverCoordinator, ClientFailoverCoordinator>();
 
             services.TryAddSingleton(sp =>
             {
@@ -831,7 +838,7 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         internal static async Task<ManagedSession> ConnectManagedSessionAsync(
-            IServiceProvider sp,
+            this IServiceProvider sp,
             ManagedSessionOptions sessionOptions,
             Action<ManagedSessionBuilder> configure,
             CancellationToken ct)
@@ -941,6 +948,14 @@ namespace Microsoft.Extensions.DependencyInjection
             if (sessionOptions.EnableServerRedundancy)
             {
                 builder.WithServerRedundancy();
+            }
+            if (!sessionOptions.NetworkRedundancy.AlternateEndpoints.IsEmpty)
+            {
+                builder.WithNetworkRedundancy(sessionOptions.NetworkRedundancy.AlternateEndpoints);
+            }
+            if (sessionOptions.EnableTokenReuseFailover)
+            {
+                builder.WithTokenReuseFailover();
             }
             if (sessionOptions.TransferSubscriptionsOnRecreate)
             {
@@ -1111,7 +1126,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 OpcUaClientOptions options =
                     m_sp.GetRequiredService<OpcUaClientOptions>();
-                return ConnectManagedSessionAsync(m_sp, options.Session, _ => { }, ct);
+                return m_sp.ConnectManagedSessionAsync(options.Session, _ => { }, ct);
             }
 
             private readonly IServiceProvider m_sp;

@@ -87,14 +87,14 @@ namespace Opc.Ua.Server.TestFramework
         public ActivityListener ActivityListener { get; private set; }
 
         /// <summary>
-        /// Optional <see cref="Opc.Ua.Bindings.ITransportBindingRegistry"/>
+        /// Optional <see cref="Bindings.ITransportBindingRegistry"/>
         /// assigned to the server immediately after construction (before
         /// <c>StartAsync</c>). Used by integration tests that swap a
         /// listener / channel factory for a binding under test - e.g. the
         /// Kestrel-TCP listener fixture - without touching the
         /// process-wide static state.
         /// </summary>
-        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
 
         public ServerFixture(
             Func<ITelemetryContext, T> factory,
@@ -554,10 +554,10 @@ namespace Opc.Ua.Server.TestFramework
 
         private void DisposeCertificateManagers()
         {
-            IDisposable applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable;
+            var applicationManager = Application?.ApplicationConfiguration?.CertificateManager as IDisposable;
             applicationManager?.Dispose();
 
-            IDisposable configManager = Config?.CertificateManager as IDisposable;
+            var configManager = Config?.CertificateManager as IDisposable;
             if (configManager != null &&
                 !ReferenceEquals(configManager, applicationManager))
             {

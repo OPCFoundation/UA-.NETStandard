@@ -61,10 +61,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             {
                 var msg = new UadpNetworkMessage
                 {
-                    ContentMask = UadpNetworkMessageContentMask.PublisherId
-                        | UadpNetworkMessageContentMask.GroupHeader
-                        | UadpNetworkMessageContentMask.WriterGroupId
-                        | UadpNetworkMessageContentMask.SequenceNumber,
+                    ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                        UadpNetworkMessageContentMask.GroupHeader |
+                        UadpNetworkMessageContentMask.WriterGroupId |
+                        UadpNetworkMessageContentMask.SequenceNumber,
                     PublisherId = PublisherId.FromByte(1),
                     WriterGroupId = 100,
                     SequenceNumber = order[i],
@@ -88,8 +88,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decoded[2]!.SequenceNumber, Is.EqualTo((ushort)4));
             // The decoder makes the raw order observable to a higher
             // layer that can then flag the regression.
-            Assert.That(decoded[1]!.SequenceNumber < decoded[0]!.SequenceNumber,
-                Is.True, "Out-of-order sequence is observable post-decode.");
+            Assert.That(decoded[1]!.SequenceNumber, Is.LessThan(decoded[0]!.SequenceNumber),
+                "Out-of-order sequence is observable post-decode.");
         }
 
         [Test]
@@ -100,8 +100,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -130,8 +130,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(2),
                 DataSetMessages =
                 [
@@ -190,10 +190,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var encoder = new UadpEncoder();
             var matchingMsg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 WriterGroupId = 7,
                 DataSetMessages =
@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             // Now construct a frame whose announced MajorVersion = 2
             // (no registered metadata for that version).
-            var mismatchMsg = matchingMsg with
+            UadpNetworkMessage mismatchMsg = matchingMsg with
             {
                 DataSetMessages =
                 [
@@ -352,8 +352,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [

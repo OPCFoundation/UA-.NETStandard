@@ -40,7 +40,6 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 using Opc.Ua.Identity;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {
@@ -69,14 +68,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             IOpcUaBuilder builder = services.AddOpcUa();
 
             Assert.That(
-                () => OpcUaClientBuilderExtensions.AddClient(builder, (IConfiguration)null!),
+                () => builder.AddClient((IConfiguration)null!),
                 Throws.ArgumentNullException);
         }
 
         [Test]
         public void AddClientWithIConfiguration_NullBuilder_Throws()
         {
-            IConfiguration cfg = BuildConfig(new Dictionary<string, string?>());
+            IConfiguration cfg = BuildConfig([]);
 
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddClient(null!, cfg),
@@ -109,7 +108,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public void AddClientWithSection_NullBuilder_Throws()
         {
-            IConfiguration cfg = BuildConfig(new Dictionary<string, string?>());
+            IConfiguration cfg = BuildConfig([]);
             IConfigurationSection section = cfg.GetSection("OpcUa:Client");
 
             Assert.That(
@@ -144,7 +143,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(clientBuilder, Is.Not.Null);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetRequiredService<OpcUaClientOptions>();
+            OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
 
             // OpcUaClientOptions itself is successfully resolved.
             Assert.That(options, Is.Not.Null);
@@ -186,7 +185,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddIdentityProvider(
                     null!,
-                    (Action<CompositeClientIdentityProviderBuilder>)(_ => { })),
+                    _ => { }),
                 Throws.ArgumentNullException);
         }
 
@@ -262,7 +261,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 () => OpcUaClientBuilderExtensions.AddAccessTokenProvider(
                     null!,
-                    (Func<IServiceProvider, IAccessTokenProvider>)(_ => null!)),
+                    _ => null!),
                 Throws.ArgumentNullException);
         }
 
@@ -300,7 +299,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddWebApiTransportChannel_NullBuilder_Throws()
         {
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddWebApiTransportChannel(),
                 Throws.ArgumentNullException);
         }
 
@@ -311,7 +310,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddWebApiTransportChannel();
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetService<WebApiClientOptions>();
+            WebApiClientOptions? options = sp.GetService<WebApiClientOptions>();
 
             Assert.That(options, Is.Not.Null);
         }
@@ -330,7 +329,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using ServiceProvider sp = services.BuildServiceProvider();
 
             // Resolve the options to trigger the lazy factory.
-            var options = sp.GetRequiredService<WebApiClientOptions>();
+            WebApiClientOptions options = sp.GetRequiredService<WebApiClientOptions>();
 
             Assert.That(actionRan, Is.True);
             Assert.That(options.Encoding, Is.EqualTo(WebApiEncoding.Verbose));
@@ -343,7 +342,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddWebApiTransportChannel(configure: null);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetRequiredService<WebApiClientOptions>();
+            WebApiClientOptions options = sp.GetRequiredService<WebApiClientOptions>();
 
             Assert.That(options, Is.Not.Null);
             Assert.That(options.Encoding, Is.EqualTo(WebApiEncoding.Compact));

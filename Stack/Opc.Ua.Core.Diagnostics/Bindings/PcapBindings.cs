@@ -90,7 +90,7 @@ namespace Opc.Ua.Pcap.Bindings
         /// the supplied <paramref name="bindingRegistry"/> so every OPC UA
         /// client channel created through <c>ClientChannelManager</c> becomes
         /// capture-aware. Use this against
-        /// <see cref="Opc.Ua.ClientChannelManager.DefaultChannelBindings"/>
+        /// <see cref="ClientChannelManager.DefaultChannelBindings"/>
         /// (the non-DI client default) or a DI-resolved registry.
         /// </summary>
         public static IChannelCaptureRegistry InstallClient(ITransportBindingRegistry bindingRegistry)
@@ -156,4 +156,3 @@ namespace Opc.Ua.Pcap.Bindings
         }
     }
 }
-

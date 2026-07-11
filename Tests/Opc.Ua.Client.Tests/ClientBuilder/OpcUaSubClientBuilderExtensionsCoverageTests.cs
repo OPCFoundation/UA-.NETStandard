@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddHistorianOnBuilderNullBuilderThrows()
         {
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddHistorian((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddHistorian(),
                 Throws.ArgumentNullException);
         }
 
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddRoleManagementOnBuilderNullBuilderThrows()
         {
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddRoleManagement((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddRoleManagement(),
                 Throws.ArgumentNullException);
         }
 
@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddFileTransferOnBuilderNullBuilderThrows()
         {
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddFileTransfer((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddFileTransfer(),
                 Throws.ArgumentNullException);
         }
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void AddAliasNamesOnBuilderNullBuilderThrows()
         {
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddAliasNames((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddAliasNames(),
                 Throws.ArgumentNullException);
         }
 

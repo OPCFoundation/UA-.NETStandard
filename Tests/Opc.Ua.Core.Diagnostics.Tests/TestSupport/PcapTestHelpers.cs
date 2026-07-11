@@ -39,8 +39,6 @@ using NUnit.Framework;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests
 {
     public abstract class TempDirectoryFixture

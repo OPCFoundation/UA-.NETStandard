@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -56,7 +55,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            NodeId id = await app.AddConnectionAsync(connCfg);
+            NodeId id = await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             Assert.That(id.IsNull, Is.False);
             Assert.That(app.Connections, Has.Count.EqualTo(1));
         }
@@ -74,7 +73,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            await app.AddConnectionAsync(connCfg);
+            await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             Assert.That(
                 app.ConfigurationVersion.MajorVersion,
                 Is.GreaterThanOrEqualTo(before.MajorVersion));
@@ -94,7 +93,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            await app.AddConnectionAsync(connCfg);
+            await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             Assert.That(raised, Is.True);
         }
 
@@ -110,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            NodeId id = await app.AddConnectionAsync(connCfg);
+            NodeId id = await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             Assert.That(id.IsNull, Is.False);
         }
 
@@ -126,8 +125,8 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            NodeId id = await app.AddConnectionAsync(connCfg);
-            await app.RemoveConnectionAsync(id);
+            NodeId id = await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
+            await app.RemoveConnectionAsync(id).ConfigureAwait(false);
             Assert.That(app.Connections, Is.Empty);
         }
 
@@ -143,10 +142,10 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            NodeId id = await app.AddConnectionAsync(connCfg);
+            NodeId id = await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             ConfigurationVersionDataType vBefore = app.ConfigurationVersion;
-            await Task.Delay(1100);
-            await app.RemoveConnectionAsync(id);
+            await Task.Delay(1100).ConfigureAwait(false);
+            await app.RemoveConnectionAsync(id).ConfigureAwait(false);
             Assert.That(
                 app.ConfigurationVersion.MajorVersion,
                 Is.GreaterThanOrEqualTo(vBefore.MajorVersion));
@@ -172,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 }),
                 PublishedDataSets = []
             };
-            ArrayOf<StatusCode> results = await app.ReplaceConfigurationAsync(newCfg);
+            ArrayOf<StatusCode> results = await app.ReplaceConfigurationAsync(newCfg).ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty);
             Assert.That(app.Connections, Has.Count.EqualTo(1));
         }
@@ -197,7 +196,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedDataSets = []
             };
             Assert.That(
-                async () => await app.ReplaceConfigurationAsync(badCfg),
+                async () => await app.ReplaceConfigurationAsync(badCfg).ConfigureAwait(false),
                 Throws.TypeOf<PubSubConfigurationException>());
         }
 
@@ -213,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            await app.AddConnectionAsync(connCfg);
+            await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             PubSubConfigurationDataType a = app.GetConfiguration();
             PubSubConfigurationDataType b = app.GetConfiguration();
             Assert.That(ReferenceEquals(a, b), Is.False);
@@ -232,14 +231,14 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            NodeId connId = await app.AddConnectionAsync(connCfg);
+            NodeId connId = await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             var wgCfg = new WriterGroupDataType
             {
                 Name = "wg-1",
                 WriterGroupId = 1,
                 PublishingInterval = 1000
             };
-            NodeId wgId = await app.AddWriterGroupAsync(connId, wgCfg);
+            NodeId wgId = await app.AddWriterGroupAsync(connId, wgCfg).ConfigureAwait(false);
             Assert.That(wgId.IsNull, Is.False);
             Assert.That(app.Connections[0].WriterGroups.Count, Is.EqualTo(1));
         }
@@ -249,21 +248,21 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddDataSetWriterAsyncAttachesToWriterGroup()
         {
             await using IPubSubApplication app = BuildAppWithPds();
-            NodeId connId = await AddConnectionAsync(app);
+            NodeId connId = await AddConnectionAsync(app).ConfigureAwait(false);
             var wgCfg = new WriterGroupDataType
             {
                 Name = "wg-w",
                 WriterGroupId = 1,
                 PublishingInterval = 1000
             };
-            NodeId wgId = await app.AddWriterGroupAsync(connId, wgCfg);
+            NodeId wgId = await app.AddWriterGroupAsync(connId, wgCfg).ConfigureAwait(false);
             var dwCfg = new DataSetWriterDataType
             {
                 Name = "writer-1",
                 DataSetWriterId = 1,
                 DataSetName = "pds-1"
             };
-            NodeId dwId = await app.AddDataSetWriterAsync(wgId, dwCfg);
+            NodeId dwId = await app.AddDataSetWriterAsync(wgId, dwCfg).ConfigureAwait(false);
             Assert.That(dwId.IsNull, Is.False);
         }
 
@@ -272,9 +271,9 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddReaderGroupAsyncAttachesToConnection()
         {
             await using IPubSubApplication app = BuildApp();
-            NodeId connId = await AddConnectionAsync(app);
+            NodeId connId = await AddConnectionAsync(app).ConfigureAwait(false);
             var rgCfg = new ReaderGroupDataType { Name = "rg-1" };
-            NodeId rgId = await app.AddReaderGroupAsync(connId, rgCfg);
+            NodeId rgId = await app.AddReaderGroupAsync(connId, rgCfg).ConfigureAwait(false);
             Assert.That(rgId.IsNull, Is.False);
             Assert.That(app.Connections[0].ReaderGroups.Count, Is.EqualTo(1));
         }
@@ -284,9 +283,9 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task AddDataSetReaderAsyncAttachesToReaderGroup()
         {
             await using IPubSubApplication app = BuildApp();
-            NodeId connId = await AddConnectionAsync(app);
+            NodeId connId = await AddConnectionAsync(app).ConfigureAwait(false);
             var rgCfg = new ReaderGroupDataType { Name = "rg-r" };
-            NodeId rgId = await app.AddReaderGroupAsync(connId, rgCfg);
+            NodeId rgId = await app.AddReaderGroupAsync(connId, rgCfg).ConfigureAwait(false);
             var drCfg = new DataSetReaderDataType
             {
                 Name = "reader-1",
@@ -295,7 +294,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 SubscribedDataSet = new ExtensionObject(
                     new TargetVariablesDataType())
             };
-            NodeId drId = await app.AddDataSetReaderAsync(rgId, drCfg);
+            NodeId drId = await app.AddDataSetReaderAsync(rgId, drCfg).ConfigureAwait(false);
             Assert.That(drId.IsNull, Is.False);
         }
 
@@ -304,7 +303,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task MutationDisablesThenReEnablesIfStarted()
         {
             await using IPubSubApplication app = BuildApp();
-            await app.StartAsync();
+            await app.StartAsync().ConfigureAwait(false);
             var connCfg = new PubSubConnectionDataType
             {
                 Name = "runtime-conn",
@@ -312,7 +311,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            NodeId id = await app.AddConnectionAsync(connCfg);
+            NodeId id = await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
             Assert.That(id.IsNull, Is.False);
             Assert.That(app.Connections, Has.Count.EqualTo(1));
         }
@@ -357,7 +356,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            return await app.AddConnectionAsync(connCfg);
+            return await app.AddConnectionAsync(connCfg).ConfigureAwait(false);
         }
 
         private sealed class StubTransportFactory : IPubSubTransportFactory

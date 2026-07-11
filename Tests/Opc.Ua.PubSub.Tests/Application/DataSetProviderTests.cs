@@ -34,9 +34,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
-using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
@@ -65,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public void MutableDataSetSinkProviderReturnsRegisteredSinkByName()
         {
             var provider = new MutableDataSetSinkProvider();
-            var sink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink sink = new Mock<ISubscribedDataSetSink>().Object;
 
             provider.Register("reader", sink);
 
@@ -84,9 +82,9 @@ namespace Opc.Ua.PubSub.Tests.Application
                 null);
 
             provider.Register("dynamic", source);
-            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic"));
+            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic")).ConfigureAwait(false);
 
-            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app);
+            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app).ConfigureAwait(false);
             Assert.That(snapshot.MetaDataVersion.MajorVersion, Is.EqualTo(21));
         }
 
@@ -101,9 +99,9 @@ namespace Opc.Ua.PubSub.Tests.Application
                 null);
 
             Assert.That(provider.Remove("dynamic"), Is.True);
-            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic"));
+            await app.ReplaceConfigurationAsync(CreateConfiguration("dynamic")).ConfigureAwait(false);
 
-            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app);
+            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app).ConfigureAwait(false);
             Assert.That(snapshot.MetaDataVersion.MajorVersion, Is.Zero);
         }
 
@@ -122,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 .AddDataSetSource("pds", buildTimeSource)
                 .Build();
 
-            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app);
+            PublishedDataSetSnapshot snapshot = await SampleFirstWriterAsync(app).ConfigureAwait(false);
             Assert.That(snapshot.MetaDataVersion.MajorVersion, Is.EqualTo(42));
         }
 
@@ -130,7 +128,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task DataSetReaderUsesSinkRegisteredInProvider()
         {
             var provider = new MutableDataSetSinkProvider();
-            var sink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink sink = new Mock<ISubscribedDataSetSink>().Object;
             provider.Register("reader", sink);
             await using IPubSubApplication app = CreateApplication(
                 CreateSubscriberConfiguration("reader"),
@@ -146,8 +144,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task BuildTimeDictionarySinkTakesPrecedenceOverProviderSink()
         {
             var provider = new MutableDataSetSinkProvider();
-            var providerSink = new Mock<ISubscribedDataSetSink>().Object;
-            var buildTimeSink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink providerSink = new Mock<ISubscribedDataSetSink>().Object;
+            ISubscribedDataSetSink buildTimeSink = new Mock<ISubscribedDataSetSink>().Object;
             provider.Register("reader", providerSink);
             await using IPubSubApplication app = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("provider-tests")
@@ -168,7 +166,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             IDataSetSourceProvider? sourceProvider,
             IDataSetSinkProvider? sinkProvider)
         {
-            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("provider-tests")
                 .UseConfiguration(configuration)
                 .UseAllStandardEncoders()

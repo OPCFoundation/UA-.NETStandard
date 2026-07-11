@@ -113,12 +113,9 @@ namespace Opc.Ua.Di.Tests
                 .ConfigureAwait(false);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () =>
-                {
-                    await m_fixture.Manager
+                async () => await m_fixture.Manager
                         .CreateDeviceAsync(new QualifiedName("DeviceDup", ns))
-                        .ConfigureAwait(false);
-                })!;
+                        .ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
@@ -160,11 +157,7 @@ namespace Opc.Ua.Di.Tests
                     m_fixture.Manager.DiNamespaceIndex))
                 .ConfigureAwait(false);
 
-            builder.WithIdentification(id =>
-            {
-                id.Manufacturer = new LocalizedText("Only Manufacturer Set");
-                // Other fields stay default - should not be written.
-            });
+            builder.WithIdentification(id => id.Manufacturer = new LocalizedText("Only Manufacturer Set"));
 
             Assert.That(builder.Device.Manufacturer, Is.Not.Null);
             Assert.That(builder.Device.Manufacturer!.Value.Text,
@@ -203,8 +196,8 @@ namespace Opc.Ua.Di.Tests
 
             FunctionalGroupState? first = null;
             FunctionalGroupState? second = null;
-            builder.WithMaintenanceGroup(fg => first = fg.Group);
-            builder.WithMaintenanceGroup(fg => second = fg.Group);
+            builder.WithMaintenanceGroup(fg => first = fg.Group)
+                .WithMaintenanceGroup(fg => second = fg.Group);
 
             Assert.That(second, Is.SameAs(first),
                 "Calling WithMaintenanceGroup twice should reuse the existing group.");
@@ -220,7 +213,7 @@ namespace Opc.Ua.Di.Tests
                 .ConfigureAwait(false);
 
             IDeviceBuilder<DeviceState> wrapped =
-                m_fixture.Manager.Device<DeviceState>(created.Device);
+                m_fixture.Manager.Device(created.Device);
 
             Assert.That(wrapped.Device, Is.SameAs(created.Device));
         }
@@ -267,7 +260,7 @@ namespace Opc.Ua.Di.Tests
 
             a.ConnectsTo(b.Device.NodeId);
 
-            NodeId connectsToRefType = NodeId.Create(
+            var connectsToRefType = NodeId.Create(
                 global::Opc.Ua.Di.ReferenceTypes.ConnectsTo,
                 DiNodeManager.DiNamespaceUri,
                 m_fixture.Server.CurrentInstance.NamespaceUris);

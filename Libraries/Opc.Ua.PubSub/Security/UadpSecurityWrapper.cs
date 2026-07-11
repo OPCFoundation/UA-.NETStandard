@@ -68,7 +68,6 @@ namespace Opc.Ua.PubSub.Security
     /// </remarks>
     public sealed class UadpSecurityWrapper
     {
-        private readonly IPubSubSecurityPolicy m_policy;
         private readonly IPubSubSecurityKeyProvider m_keyProvider;
         private readonly INonceProvider m_nonceProvider;
         private readonly ISecurityTokenWindow m_tokenWindow;
@@ -112,7 +111,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-            m_policy = policy;
+            Policy = policy;
             m_keyProvider = keyProvider;
             m_nonceProvider = nonceProvider;
             m_tokenWindow = tokenWindow;
@@ -123,7 +122,7 @@ namespace Opc.Ua.PubSub.Security
         /// <summary>
         /// The active policy bundle.
         /// </summary>
-        public IPubSubSecurityPolicy Policy => m_policy;
+        public IPubSubSecurityPolicy Policy { get; }
 
         /// <summary>
         /// Wraps an unsecured NetworkMessage. Caller supplies the
@@ -141,6 +140,7 @@ namespace Opc.Ua.PubSub.Security
         /// The wrapped message bytes:
         /// <c>[outerPrefix || SecurityHeader || ciphertext || signature]</c>.
         /// </returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<ReadOnlyMemory<byte>> WrapAsync(
             ReadOnlyMemory<byte> outerPrefix,
             ReadOnlyMemory<byte> innerPayload,
@@ -156,10 +156,10 @@ namespace Opc.Ua.PubSub.Security
             bool encrypt = options is UadpSecurityWrapOptions.EncryptOnly
                 or UadpSecurityWrapOptions.SignAndEncrypt;
 
-            byte[] nonceBytes = m_policy.NonceLength == 0
+            byte[] nonceBytes = Policy.NonceLength == 0
                 ? []
-                : new byte[m_policy.NonceLength];
-            if (m_policy.NonceLength != 0)
+                : new byte[Policy.NonceLength];
+            if (Policy.NonceLength != 0)
             {
                 m_nonceProvider.GetNext(key.TokenId, key.KeyNonce.Span, nonceBytes);
             }
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Security
                 nonceBytes);
 
             int headerSize = header.GetEncodedSize();
-            int signatureLength = sign ? m_policy.SignatureLength : 0;
+            int signatureLength = sign ? Policy.SignatureLength : 0;
             int totalSize = outerPrefix.Length + headerSize + innerPayload.Length + signatureLength;
             byte[] result = new byte[totalSize];
 
@@ -194,9 +194,9 @@ namespace Opc.Ua.PubSub.Security
             }
 
             int payloadOffset = outerPrefix.Length + headerSize;
-            if (encrypt && m_policy.EncryptingKeyLength > 0)
+            if (encrypt && Policy.EncryptingKeyLength > 0)
             {
-                m_policy.Encrypt(
+                Policy.Encrypt(
                     innerPayload.Span,
                     key.EncryptingKey.Span,
                     nonceBytes,
@@ -210,7 +210,7 @@ namespace Opc.Ua.PubSub.Security
             int signedLength = outerPrefix.Length + headerSize + innerPayload.Length;
             if (sign && signatureLength > 0)
             {
-                m_policy.Sign(
+                Policy.Sign(
                     result.AsSpan(0, signedLength),
                     key.SigningKey.Span,
                     result.AsSpan(signedLength, signatureLength));
@@ -258,7 +258,7 @@ namespace Opc.Ua.PubSub.Security
             bool encrypted = (flagsMask & UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) != 0;
             bool signed = (flagsMask & UadpSecurityFlagsEncodingMask.NetworkMessageSigned) != 0;
 
-            int signatureLength = signed ? m_policy.SignatureLength : 0;
+            int signatureLength = signed ? Policy.SignatureLength : 0;
             int payloadAndFooterLength = securityAndPayload.Length - headerLength - signatureLength;
             if (payloadAndFooterLength < 0)
             {
@@ -290,7 +290,7 @@ namespace Opc.Ua.PubSub.Security
                 outerPrefix.Span.CopyTo(signedBuffer.AsSpan(0, outerPrefix.Length));
                 securityAndPayload
                     .Span
-                    .Slice(0, headerLength + payloadAndFooterLength)
+[..(headerLength + payloadAndFooterLength)]
                     .CopyTo(signedBuffer.AsSpan(outerPrefix.Length, headerLength + payloadAndFooterLength));
 
                 if (signed && signatureLength > 0)
@@ -298,7 +298,7 @@ namespace Opc.Ua.PubSub.Security
                     ReadOnlySpan<byte> signature = securityAndPayload
                         .Span
                         .Slice(headerLength + payloadAndFooterLength, signatureLength);
-                    bool valid = m_policy.Verify(
+                    bool valid = Policy.Verify(
                         signedBuffer.AsSpan(0, signedLength),
                         signature,
                         key.SigningKey.Span);
@@ -339,8 +339,8 @@ namespace Opc.Ua.PubSub.Security
                     nonceSpan))
                 {
                     m_logger.LogWarning(
-                        "UadpSecurityWrapper rejected replay or nonce reuse "
-                        + "tokenId={TokenId} sequenceNumber={SequenceNumber}",
+                        "UadpSecurityWrapper rejected replay or nonce reuse " +
+                        "tokenId={TokenId} sequenceNumber={SequenceNumber}",
                         header.SecurityTokenId,
                         sequenceNumber);
                     EmitSecurityEvent(new PubSubSecurityEvent(
@@ -354,9 +354,9 @@ namespace Opc.Ua.PubSub.Security
                 }
 
                 byte[] plaintext = new byte[payloadAndFooterLength];
-                if (encrypted && m_policy.EncryptingKeyLength > 0)
+                if (encrypted && Policy.EncryptingKeyLength > 0)
                 {
-                    m_policy.Decrypt(
+                    Policy.Decrypt(
                         securityAndPayload.Span.Slice(headerLength, payloadAndFooterLength),
                         key.EncryptingKey.Span,
                         header.MessageNonce.Span,
@@ -441,6 +441,7 @@ namespace Opc.Ua.PubSub.Security
             /// <summary>
             /// Builds a failure result.
             /// </summary>
+            /// <exception cref="ArgumentException"></exception>
             public static UnwrapResult Failure(StatusCode status, string reason)
             {
                 if (string.IsNullOrEmpty(reason))

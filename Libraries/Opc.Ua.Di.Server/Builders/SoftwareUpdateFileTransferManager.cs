@@ -94,7 +94,7 @@ namespace Opc.Ua.Di.Server.Builders
         private readonly DiNodeManager m_manager;
         private readonly ISoftwarePackageStore m_packageStore;
         private readonly ILogger m_logger;
-        private readonly object m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<uint, UploadSlot> m_slots = [];
         private uint m_nextHandle;
         private bool m_disposed;

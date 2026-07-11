@@ -27,25 +27,22 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET8_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-#if NET8_0_OR_GREATER
 using Microsoft.Extensions.Time.Testing;
-#endif
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using V2Options = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
-#pragma warning disable CA2007
-#pragma warning disable CA2000
+#pragma warning disable CA2007, CA2000
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
-#if NET8_0_OR_GREATER
     /// <summary>
     /// Tests for the secondary-partition idle-delete path on
     /// <see cref="CompositeMonitoredItemCollection"/>. Uses
@@ -78,7 +75,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => throw new InvalidOperationException("no secondary expected"),
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                _ => { disposeCalls++; return default; });
+                _ =>
+                {
+                    disposeCalls++;
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -110,7 +111,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                p => { disposeSignal.TrySetResult(p); return default; });
+                p =>
+                {
+                    disposeSignal.TrySetResult(p);
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -152,7 +157,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 TimeSpan.FromSeconds(10),
-                _ => { disposeCalls++; return default; });
+                _ =>
+                {
+                    disposeCalls++;
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out IMonitoredItem? a), Is.True);
@@ -194,7 +203,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 () => secondary,
                 timeProvider,
                 Timeout.InfiniteTimeSpan,
-                _ => { disposeCalls++; return default; });
+                _ =>
+                {
+                    disposeCalls++;
+                    return default;
+                });
 
             Assert.That(composite.TryAdd("a",
                 Make(new V2Options()), out _), Is.True);
@@ -216,13 +229,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             return new OptionsMonitor<V2Options>(opts);
         }
 
-        // Re-uses the same minimal in-memory collection helper as
-        // CompositeMonitoredItemCollectionTests; kept local so this
-        // file is independent.
+        /// <summary>
+        /// Re-uses the same minimal in-memory collection helper as
+        /// CompositeMonitoredItemCollectionTests; kept local so this
+        /// file is independent.
+        /// </summary>
         private sealed class InMemoryCollection : IMonitoredItemCollection
         {
             private readonly Dictionary<string, FakeMonitoredItem> m_byName
                 = new(StringComparer.Ordinal);
+
             private readonly Dictionary<uint, FakeMonitoredItem> m_byHandle = [];
 
             public uint Count => (uint)m_byHandle.Count;
@@ -232,10 +248,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 get
                 {
                     var snapshot = new List<IMonitoredItem>(m_byHandle.Count);
-                    foreach (FakeMonitoredItem v in m_byHandle.Values)
-                    {
-                        snapshot.Add(v);
-                    }
+                    snapshot.AddRange(m_byHandle.Values);
                     return snapshot;
                 }
             }
@@ -320,11 +333,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public uint ClientHandle { get; }
             public IEnumerable<IMonitoredItem> TriggeringItems => [];
             public IEnumerable<IMonitoredItem> TriggeredItems => [];
+
             public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
             {
                 return default;
             }
         }
     }
-#endif
 }
+#endif

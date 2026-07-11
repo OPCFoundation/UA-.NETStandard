@@ -70,8 +70,10 @@ namespace Opc.Ua.PubSub.Security
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly INonceProvider? m_nonceProvider;
+
         private readonly Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>
             m_policySelector;
+
         private readonly int m_replayWindowSize;
 
         /// <summary>
@@ -162,23 +164,23 @@ namespace Opc.Ua.PubSub.Security
                 out IPubSubSecurityKeyProvider? keyProvider))
             {
                 m_logger.LogWarning(
-                    "No key provider registered for SecurityGroupId '{SecurityGroupId}' "
-                    + "required by secured connection '{Connection}'.",
+                    "No key provider registered for SecurityGroupId '{SecurityGroupId}' " +
+                    "required by secured connection '{Connection}'.",
                     securityGroupId,
                     connection.Name);
                 return null;
             }
 
             IPubSubSecurityPolicy? policy = m_policySelector(connection, securityGroupId);
-            if (policy is null
-                || string.Equals(
+            if (policy is null ||
+                string.Equals(
                     policy.PolicyUri,
                     PubSubSecurityPolicyUri.None,
                     StringComparison.Ordinal))
             {
                 m_logger.LogWarning(
-                    "No usable security policy for SecurityGroupId '{SecurityGroupId}' "
-                    + "required by secured connection '{Connection}'.",
+                    "No usable security policy for SecurityGroupId '{SecurityGroupId}' " +
+                    "required by secured connection '{Connection}'.",
                     securityGroupId,
                     connection.Name);
                 return null;
@@ -231,6 +233,7 @@ namespace Opc.Ua.PubSub.Security
         /// <see cref="MessageSecurityMode.SignAndEncrypt"/>; otherwise
         /// <see langword="false"/>.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static bool TryResolveConnectionSecurity(
             PubSubConnectionDataType connection,
             out MessageSecurityMode mode,

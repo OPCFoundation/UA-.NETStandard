@@ -57,7 +57,7 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// <see cref="LinqApplicationsDatabase"/> for applications and
         /// certificate requests, <see cref="CertificateGroup"/> for
         /// certificate groups, and
-        /// <see cref="Opc.Ua.Server.UserDatabase.LinqUserDatabase"/> for
+        /// <see cref="LinqUserDatabase"/> for
         /// users.
         /// </summary>
         IGdsServerBuilder AddInMemoryStores();

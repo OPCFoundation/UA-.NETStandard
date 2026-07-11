@@ -55,11 +55,11 @@ namespace Opc.Ua.Pcap.KeyLog
     /// </para>
     /// <para>
     /// Token activations are pushed through a bounded
-    /// <see cref="System.Threading.Channels.Channel{T}"/> to a single
+    /// <see cref="Channel{T}"/> to a single
     /// background writer task; the
     /// <see cref="IFrameCaptureSink.OnTokenActivated"/> callback never
     /// blocks on disk I/O. Overflow uses
-    /// <see cref="System.Threading.Channels.BoundedChannelFullMode.DropOldest"/>
+    /// <see cref="BoundedChannelFullMode.DropOldest"/>
     /// so the observer degrades gracefully under sustained load.
     /// </para>
     /// </remarks>

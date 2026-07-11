@@ -2357,8 +2357,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 bool sawIssuerUseError = false;
                 certValidator.AcceptError = (cert, error) =>
                 {
-                    if (error.StatusCode.Code
-                        == StatusCodes.BadCertificateIssuerUseNotAllowed.Code)
+                    if (error.StatusCode.Code ==
+                        StatusCodes.BadCertificateIssuerUseNotAllowed.Code)
                     {
                         sawIssuerUseError = true;
                     }
@@ -2467,7 +2467,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     $"urn:opcfoundation.org:{slug}:app",
                     $"Issuer KeyUsage {slug} App",
                     $"CN=Issuer KeyUsage {slug} App, O=OPC Foundation",
-                    new List<string> { "localhost" })
+                    ["localhost"])
                 .SetIssuer(rootCa)
                 .CreateForRSA();
             return (rootCa, rootCrl, appCert);

@@ -188,7 +188,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp => new ServiceProviderTelemetryContext(sp));
             services.TryAddSingleton<IRegisteredServerStore>(sp =>
                 new RegisteredServerStore(
-                    sp.GetService<Microsoft.Extensions.Logging.ILogger<RegisteredServerStore>>(),
+                    sp.GetService<Logging.ILogger<RegisteredServerStore>>(),
                     sp.GetService<TimeProvider>()));
             services.AddHostedService<LdsServerHostedService>();
             IOpcUaBuilder opcUa = services.AddOpcUa();
@@ -198,6 +198,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the built-in OPC TCP transport and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddOpcTcpTransport(this ILdsServerBuilder builder)
         {
             if (builder is null)
@@ -212,6 +213,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables HTTPS transport and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddHttpsTransport(this ILdsServerBuilder builder)
         {
             if (builder is null)
@@ -226,6 +228,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables HTTPS transport with one-shot options and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddHttpsTransport(
             this ILdsServerBuilder builder,
             Action<OpcUaHttpsTransportOptions> configure)
@@ -242,6 +245,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables WSS transport and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddWssTransport(this ILdsServerBuilder builder)
         {
             if (builder is null)
@@ -256,6 +260,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables WSS transport with one-shot options and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddWssTransport(
             this ILdsServerBuilder builder,
             Action<OpcUaWssTransportOptions> configure)
@@ -273,6 +278,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the Kestrel OPC TCP listener and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddKestrelOpcTcpTransport(this ILdsServerBuilder builder)
         {
             if (builder is null)
@@ -287,6 +293,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the OPC UA REST Web API transport and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddWebApiTransport(this ILdsServerBuilder builder)
         {
             if (builder is null)
@@ -301,6 +308,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the OPC UA REST Web API transport and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddWebApiTransport(
             this ILdsServerBuilder builder,
             Action<Opc.Ua.Bindings.WebApi.WebApiTransportOptions> configure)
@@ -318,6 +326,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Configures server-side reverse connect and returns the same LDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ILdsServerBuilder AddReverseConnect(
             this ILdsServerBuilder builder,
             Action<ReverseConnectServerConfiguration> configure)

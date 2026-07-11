@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua.Server.Alarms
 {
@@ -50,7 +51,7 @@ namespace Opc.Ua.Server.Alarms
     /// </remarks>
     public sealed class AlarmRateTracker
     {
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly Queue<DateTime> m_activations = new();
         private readonly TimeProvider m_timeProvider;
         private long m_maximumRate;

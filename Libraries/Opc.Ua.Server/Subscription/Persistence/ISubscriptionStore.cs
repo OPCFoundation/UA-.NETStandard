@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -37,17 +39,22 @@ namespace Opc.Ua.Server
     public interface ISubscriptionStore
     {
         /// <summary>
-        /// Restore subscriptions from storage, called on server startup
+        /// Restore subscriptions from storage, called on server startup.
         /// </summary>
+        /// <param name="cancellationToken">a token to cancel the operation</param>
         /// <returns>the result of the restore operation</returns>
-        RestoreSubscriptionResult RestoreSubscriptions();
+        ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
+            CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Store subscriptions in storage, called on server shutdown
+        /// Store subscriptions in storage, called on server shutdown.
         /// </summary>
         /// <param name="subscriptions">the subscription templates to store</param>
+        /// <param name="cancellationToken">a token to cancel the operation</param>
         /// <returns>true if storing was successful</returns>
-        bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions);
+        ValueTask<bool> StoreSubscriptionsAsync(
+            IEnumerable<IStoredSubscription> subscriptions,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Restore a DataChangeMonitoredItemQueue from storage
@@ -64,11 +71,50 @@ namespace Opc.Ua.Server
         IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId);
 
         /// <summary>
+        /// Restore a DataChangeMonitoredItemQueue from storage asynchronously.
+        /// </summary>
+        /// <remarks>
+        /// Enables a networked or otherwise asynchronous store to re-hydrate a monitored-item queue without
+        /// blocking the synchronous monitored-item creation path. The queue is pre-hydrated ahead of the
+        /// <see cref="MonitoredItem"/> construction; a store that keeps queues locally may simply delegate to
+        /// <see cref="RestoreDataChangeMonitoredItemQueue"/>.
+        /// </remarks>
+        /// <param name="monitoredItemId">Id of the MonitoredItem owning the queue.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        /// <returns>
+        /// The restored queue, or <c>null</c> when the store has no queue to restore for the monitored item.
+        /// </returns>
+        ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(
+            uint monitoredItemId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Restore an EventMonitoredItemQueue from storage asynchronously.
+        /// </summary>
+        /// <remarks>
+        /// Enables a networked or otherwise asynchronous store to re-hydrate a monitored-item queue without
+        /// blocking the synchronous monitored-item creation path. The queue is pre-hydrated ahead of the
+        /// <see cref="MonitoredItem"/> construction; a store that keeps queues locally may simply delegate to
+        /// <see cref="RestoreEventMonitoredItemQueue"/>.
+        /// </remarks>
+        /// <param name="monitoredItemId">Id of the MonitoredItem owning the queue.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        /// <returns>
+        /// The restored queue, or <c>null</c> when the store has no queue to restore for the monitored item.
+        /// </returns>
+        ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(
+            uint monitoredItemId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Signals created Subscription ids incl. MonitoredItem ids to the SubscriptionStore instance, to signal cleanup can take place
         /// The store shall clean all stored subscriptions, monitoredItems, and only keep the persitent queues for the monitoredItem ids provided
         /// <param name="createdSubscriptions"> key = subscription id, value = monitoredItem ids </param>
+        /// <param name="cancellationToken">a token to cancel the operation</param>
         /// </summary>
-        void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions);
+        ValueTask OnSubscriptionRestoreCompleteAsync(
+            Dictionary<uint, ArrayOf<uint>> createdSubscriptions,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>

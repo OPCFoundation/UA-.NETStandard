@@ -48,6 +48,7 @@ namespace Opc.Ua.PubSub.Adapter.Actions
     {
         private readonly Dictionary<(ushort, ushort), ActionMethodBinding> m_byTargetId
             = [];
+
         private readonly Dictionary<string, ActionMethodBinding> m_byActionName
             = new(StringComparer.Ordinal);
 
@@ -105,6 +106,7 @@ namespace Opc.Ua.PubSub.Adapter.Actions
         /// <returns>
         /// This instance, to allow fluent registration of multiple targets.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public ActionMethodMap Add(
             string actionName,
             NodeId objectId,
@@ -185,8 +187,8 @@ namespace Opc.Ua.PubSub.Adapter.Actions
                 {
                     return true;
                 }
-                if (!string.IsNullOrEmpty(target.ActionName)
-                    && m_byActionName.TryGetValue(target.ActionName, out binding))
+                if (!string.IsNullOrEmpty(target.ActionName) &&
+                    m_byActionName.TryGetValue(target.ActionName, out binding))
                 {
                     return true;
                 }

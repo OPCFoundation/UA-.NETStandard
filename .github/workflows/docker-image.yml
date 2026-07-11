@@ -1,4 +1,4 @@
-name: Docker Reference Server CI
+name: Docker Sample Images CI
 
 on:
   push:
@@ -18,13 +18,38 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: refserver
   DOCKERSIGN: false
 
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Sample servers
+          - image: refserver
+            dockerfile: ./Applications/ConsoleReferenceServer/Dockerfile
+          - image: ldsserver
+            dockerfile: ./Applications/ConsoleLdsServer/Dockerfile
+          - image: boilerserver
+            dockerfile: ./Applications/MinimalBoilerServer/Dockerfile
+          - image: calcserver
+            dockerfile: ./Applications/MinimalCalcServer/Dockerfile
+          - image: mcpserver
+            dockerfile: ./Applications/McpServer/Dockerfile
+          - image: redundantserver
+            dockerfile: ./Applications/RedundantServer/Dockerfile
+          # Redundant client
+          - image: redundantclient
+            dockerfile: ./Applications/RedundantClient/Dockerfile
+          # PubSub samples
+          - image: redundantpubsub
+            dockerfile: ./Applications/RedundantPubSub/Dockerfile
+          - image: pubsubclient
+            dockerfile: ./Applications/ConsoleReferencePubSubClient/Dockerfile
     env:
+      IMAGE_NAME: ${{ matrix.image }}
       IS_NOT_PR: ${{ !github.head_ref && true }}
     permissions:
       contents: read
@@ -114,11 +139,11 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
         platforms: linux/amd64,linux/arm64/v8
-        file: ./Applications/ConsoleReferenceServer/Dockerfile
+        file: ${{ matrix.dockerfile }}
         labels: ${{ steps.meta.outputs.labels }}
         provenance: false
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=${{ matrix.image }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
     # Sign the resulting Docker image digest except on PRs.
     # https://github.com/sigstore/cosign
@@ -131,4 +156,3 @@ jobs:
       run: |
         echo Signing ${{ env.IMAGE_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}
         echo "${{ env.IMAGE_REPOSITORY }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
-

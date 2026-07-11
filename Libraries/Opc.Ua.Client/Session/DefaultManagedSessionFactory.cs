@@ -77,7 +77,6 @@ namespace Opc.Ua.Client
             return connector.ConnectAsync(m_serviceProvider, sessionOptions, configure, ct);
         }
 
-
         /// <inheritdoc/>
         public Task<ManagedSession> ConnectReverseAsync(
             ReverseConnectManager manager,

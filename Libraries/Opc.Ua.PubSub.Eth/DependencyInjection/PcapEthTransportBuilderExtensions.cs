@@ -50,6 +50,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">Ethernet transport builder.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IEthTransportBuilder WithPcap(this IEthTransportBuilder builder)
         {
             if (builder is null)

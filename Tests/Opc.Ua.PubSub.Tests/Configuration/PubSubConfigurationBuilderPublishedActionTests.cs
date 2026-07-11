@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddPublishedActionWithNullRequestMetadataThrowsArgumentNullException()
         {
-            PubSubConfigurationBuilder builder = PubSubConfigurationBuilder.Create();
+            var builder = PubSubConfigurationBuilder.Create();
 
             Assert.That(
                 () => builder.AddPublishedAction("ActionDataSet", null!, CreateTargets()),

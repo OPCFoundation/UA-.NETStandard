@@ -155,7 +155,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
 
         private static byte[] CreatePayload(int length)
         {
-            var payload = new byte[length];
+            byte[] payload = new byte[length];
             for (int ii = 0; ii < payload.Length; ii++)
             {
                 payload[ii] = (byte)ii;
@@ -214,7 +214,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
 
         private static async Task<Exception?> ReadFailureAsync(NetworkStream stream)
         {
-            var buffer = new byte[1];
+            byte[] buffer = new byte[1];
             Task<int> readTask = ReadAsync(
                 stream,
                 buffer,
@@ -290,7 +290,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 {
                     using TcpClient client = await m_listener.AcceptTcpClientAsync().ConfigureAwait(false);
                     NetworkStream stream = client.GetStream();
-                    var buffer = new byte[1024];
+                    byte[] buffer = new byte[1024];
                     while (true)
                     {
                         int bytesRead = await ReadAsync(

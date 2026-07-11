@@ -55,9 +55,8 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
 
         private static FakeTimeProvider NewClock(DateTime? start = null)
         {
-            var clock = new FakeTimeProvider(
+            return new FakeTimeProvider(
                 new DateTimeOffset(start ?? new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc), TimeSpan.Zero));
-            return clock;
         }
 
         [Test]
@@ -171,7 +170,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.Medium, NewClock());
             Assert.That(
-                () => sut.RecordError((StatusCode)StatusCodes.BadInvalidArgument, null!),
+                () => sut.RecordError(StatusCodes.BadInvalidArgument, null!),
                 Throws.ArgumentNullException);
         }
 
@@ -180,7 +179,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.Low, clock);
-            sut.RecordError((StatusCode)StatusCodes.BadCommunicationError, "first error");
+            sut.RecordError(StatusCodes.BadCommunicationError, "first error");
             Assert.Multiple(() =>
             {
                 Assert.That(sut.LastError, Is.Null);
@@ -193,12 +192,12 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.Medium, clock);
-            sut.RecordError((StatusCode)StatusCodes.BadCommunicationError, "comms");
+            sut.RecordError(StatusCodes.BadCommunicationError, "comms");
             PubSubErrorEntry? last = sut.LastError;
             Assert.Multiple(() =>
             {
                 Assert.That(last, Is.Not.Null);
-                Assert.That(last!.Value.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadCommunicationError));
+                Assert.That(last!.Value.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
                 Assert.That(last!.Value.Message, Is.EqualTo("comms"));
                 Assert.That(sut.RecentErrors, Is.Empty);
             });
@@ -209,9 +208,9 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.High, clock);
-            sut.RecordError((StatusCode)StatusCodes.BadCommunicationError, "first");
+            sut.RecordError(StatusCodes.BadCommunicationError, "first");
             clock.Advance(TimeSpan.FromMilliseconds(1));
-            sut.RecordError((StatusCode)StatusCodes.BadTimeout, "second");
+            sut.RecordError(StatusCodes.BadTimeout, "second");
 
             ArrayOf<PubSubErrorEntry> recent = sut.RecentErrors;
             Assert.Multiple(() =>
@@ -228,11 +227,11 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.High, clock);
-            int extra = 5;
-            int total = PubSubDiagnostics.ErrorHistoryCapacity + extra;
+            const int extra = 5;
+            const int total = PubSubDiagnostics.ErrorHistoryCapacity + extra;
             for (int i = 0; i < total; i++)
             {
-                sut.RecordError((StatusCode)StatusCodes.BadInternalError, $"err-{i}");
+                sut.RecordError(StatusCodes.BadInternalError, $"err-{i}");
                 clock.Advance(TimeSpan.FromMilliseconds(1));
             }
 
@@ -250,7 +249,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.Medium, clock);
-            sut.RecordError((StatusCode)StatusCodes.BadCommunicationError, "x");
+            sut.RecordError(StatusCodes.BadCommunicationError, "x");
             Assert.That(sut.RecentErrors, Is.Empty);
         }
 
@@ -265,7 +264,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         public void LastError_AtLowLevelAlwaysNull()
         {
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.Low, NewClock());
-            sut.RecordError((StatusCode)StatusCodes.BadInternalError, "boom");
+            sut.RecordError(StatusCodes.BadInternalError, "boom");
             Assert.That(sut.LastError, Is.Null);
         }
 
@@ -283,7 +282,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.High, clock);
 
             DateTime expected = clock.GetUtcNow().UtcDateTime;
-            sut.RecordError((StatusCode)StatusCodes.BadInternalError, "boom");
+            sut.RecordError(StatusCodes.BadInternalError, "boom");
 
             PubSubErrorEntry? last = sut.LastError;
             Assert.That(last!.Value.Timestamp.ToDateTime(), Is.EqualTo(expected));
@@ -312,8 +311,8 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.High, clock);
-            sut.RecordError((StatusCode)StatusCodes.BadCommunicationError, "x");
-            sut.RecordError((StatusCode)StatusCodes.BadTimeout, "y");
+            sut.RecordError(StatusCodes.BadCommunicationError, "x");
+            sut.RecordError(StatusCodes.BadTimeout, "y");
 
             sut.Reset();
 
@@ -329,7 +328,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
         {
             FakeTimeProvider clock = NewClock();
             var sut = new PubSubDiagnostics(PubSubDiagnosticsLevel.Medium, clock);
-            sut.RecordError((StatusCode)StatusCodes.BadCommunicationError, "x");
+            sut.RecordError(StatusCodes.BadCommunicationError, "x");
             sut.Reset();
             Assert.That(sut.LastError, Is.Null);
         }
@@ -380,7 +379,7 @@ namespace Opc.Ua.PubSub.Tests.Diagnostics
                     start.Wait();
                     for (int i = 0; i < iterations; i++)
                     {
-                        sut.RecordError((StatusCode)StatusCodes.BadInternalError, $"w{local}-{i}");
+                        sut.RecordError(StatusCodes.BadInternalError, $"w{local}-{i}");
                     }
                 });
             }

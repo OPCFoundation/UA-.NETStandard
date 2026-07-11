@@ -105,11 +105,11 @@ namespace Opc.Ua.Di.Tests
                 install, su.NodeId, "urn:acme", "1.0.0").ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
-            Assert.That(phases, Is.EqualTo(new[]
-            {
+            Assert.That(phases, Is.EqualTo(
+            [
                 SoftwareUpdatePhase.Started,
                 SoftwareUpdatePhase.Completed
-            }));
+            ]));
             Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Idle"),
                 "Installation FSM must return to Idle on success.");
             Assert.That(install.LastTransition, Is.Not.Null,
@@ -140,11 +140,11 @@ namespace Opc.Ua.Di.Tests
                 install, su.NodeId, "urn:acme", "1.0.0").ConfigureAwait(false);
 
             Assert.That(result, Is.Not.EqualTo(ServiceResult.Good));
-            Assert.That(phases, Is.EqualTo(new[]
-            {
+            Assert.That(phases, Is.EqualTo(
+            [
                 SoftwareUpdatePhase.Started,
                 SoftwareUpdatePhase.Failed
-            }));
+            ]));
             Assert.That(messages[0], Is.EqualTo(string.Empty),
                 "Started phase has no message.");
             Assert.That(messages[1], Is.EqualTo("flash failed"),
@@ -174,11 +174,11 @@ namespace Opc.Ua.Di.Tests
                 global::Opc.Ua.ArrayOf.Empty<Variant>()).ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
-            Assert.That(phases, Is.EqualTo(new[]
-            {
+            Assert.That(phases, Is.EqualTo(
+            [
                 SoftwareUpdatePhase.Started,
                 SoftwareUpdatePhase.Completed
-            }));
+            ]));
             Assert.That(prep.CurrentState!.Value.Text, Is.EqualTo("PreparedForUpdate"));
             Assert.That(prep.LastTransition!.Value.Text,
                 Is.EqualTo("PreparingToPreparedForUpdate"));

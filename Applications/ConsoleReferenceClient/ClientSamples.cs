@@ -40,7 +40,6 @@ using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
-using Opc.Ua.Client.ComplexTypes;
 
 namespace Quickstarts
 {

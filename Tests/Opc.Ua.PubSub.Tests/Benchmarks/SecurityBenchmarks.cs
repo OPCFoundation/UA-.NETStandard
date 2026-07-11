@@ -79,15 +79,15 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
             byte[] keyNonce = new byte[policy.NonceLength];
             for (int i = 0; i < signing.Length; i++)
             {
-                signing[i] = (byte)((tokenId * 31u + (uint)i) & 0xFF);
+                signing[i] = (byte)(((tokenId * 31u) + (uint)i) & 0xFF);
             }
             for (int i = 0; i < encrypting.Length; i++)
             {
-                encrypting[i] = (byte)((tokenId * 17u + (uint)i + 1u) & 0xFF);
+                encrypting[i] = (byte)(((tokenId * 17u) + (uint)i + 1u) & 0xFF);
             }
             for (int i = 0; i < keyNonce.Length; i++)
             {
-                keyNonce[i] = (byte)((tokenId * 7u + (uint)i + 2u) & 0xFF);
+                keyNonce[i] = (byte)(((tokenId * 7u) + (uint)i + 2u) & 0xFF);
             }
             var key = new PubSubSecurityKey(
                 tokenId,
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
         {
             return m_receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                m_wrapped.Slice(s_outerPrefix.Length));
+                m_wrapped[s_outerPrefix.Length..]);
         }
 
         private sealed class NullTelemetryContext : TelemetryContextBase

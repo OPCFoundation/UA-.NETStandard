@@ -489,7 +489,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var advanced = new AdvancedCoverageFilterTarget
             {
                 IsRelatedToResult = true,
-                RelatedNodes = new List<NodeId> { new NodeId(100) }
+                RelatedNodes = [new NodeId(100)]
             };
             ContentFilterElement root = Element(
                 FilterOperator.RelatedTo,
@@ -629,7 +629,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             public bool ThrowOnIsInView { get; set; }
             public bool ThrowOnIsRelatedTo { get; set; }
             public Variant RelatedAttributeValue { get; set; } = Variant.Null;
-            public IList<NodeId> RelatedNodes { get; set; } = new List<NodeId>();
+            public IList<NodeId> RelatedNodes { get; set; } = [];
 
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {

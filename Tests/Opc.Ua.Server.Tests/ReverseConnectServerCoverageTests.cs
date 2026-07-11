@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(property.Enabled, Is.False);
                 Assert.That(property.RejectTime, Is.EqualTo(rejectTime));
                 Assert.That(property.ServiceResult, Is.Not.Null);
-                Assert.That(property.ServiceResult!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
+                Assert.That(property.ServiceResult!.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
             });
         }
 

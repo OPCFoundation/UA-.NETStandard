@@ -27,16 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 #if NET8_0_OR_GREATER
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
@@ -241,7 +237,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
         private static void AssertHttpsFactoryHasWebApiContributor(ITransportBindingRegistry registry)
         {
-            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
+            var factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
 
             Assert.That(
                 factory.StartupContributors,

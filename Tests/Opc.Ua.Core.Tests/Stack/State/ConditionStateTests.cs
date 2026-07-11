@@ -351,7 +351,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             using var cts = new System.Threading.CancellationTokenSource();
 
             // Writer: continuously creates and clears branches.
-            System.Threading.Tasks.Task writer = System.Threading.Tasks.Task.Run(() =>
+            var writer = System.Threading.Tasks.Task.Run(() =>
             {
                 for (int i = 0; i < iterations; i++)
                 {
@@ -364,7 +364,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             });
 
             // Reader: continuously enumerates and counts branches.
-            System.Threading.Tasks.Task reader = System.Threading.Tasks.Task.Run(() =>
+            var reader = System.Threading.Tasks.Task.Run(() =>
             {
                 while (!cts.Token.IsCancellationRequested)
                 {

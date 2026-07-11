@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Pcap
         /// <summary>
         /// Registers the shared <see cref="IPubSubCaptureRegistry"/> and a
         /// <see cref="PubSubCaptureSessionManager"/>, and decorates every
-        /// already-registered <see cref="Opc.Ua.PubSub.Transports.IPubSubTransportFactory"/>
+        /// already-registered <see cref="IPubSubTransportFactory"/>
         /// with a <see cref="CapturingPubSubTransportFactory"/> so capture is
         /// injected only when this method is called. The decorator also applies
         /// to transport factories registered later, so registration order does
@@ -75,6 +75,7 @@ namespace Opc.Ua.PubSub.Pcap
         /// </summary>
         /// <param name="builder">The PubSub builder.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddPcapCapture(this IPubSubBuilder builder)
         {
             if (builder is null)

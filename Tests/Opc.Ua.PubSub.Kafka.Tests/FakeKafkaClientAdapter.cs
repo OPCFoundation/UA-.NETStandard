@@ -45,9 +45,9 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         private readonly FakeKafkaBus m_bus;
         private readonly TimeProvider m_timeProvider;
         private readonly ConcurrentQueue<KafkaMessage> m_produced = new();
-        private readonly System.Threading.Lock m_sync = new();
-        private readonly List<string> m_subscriptions = new();
-        private readonly List<string> m_unsubscriptions = new();
+        private readonly Lock m_sync = new();
+        private readonly List<string> m_subscriptions = [];
+        private readonly List<string> m_unsubscriptions = [];
         private bool m_isConnected;
         private bool m_disposed;
 
@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             {
                 lock (m_sync)
                 {
-                    return m_subscriptions.ToArray();
+                    return [.. m_subscriptions];
                 }
             }
         }
@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             {
                 lock (m_sync)
                 {
-                    return m_unsubscriptions.ToArray();
+                    return [.. m_unsubscriptions];
                 }
             }
         }
@@ -224,9 +224,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
 
         private static KafkaMessage Copy(KafkaMessage message)
         {
-            IReadOnlyDictionary<string, string>? headers = message.Headers is null
-                ? null
-                : message.Headers.ToDictionary(
+            IReadOnlyDictionary<string, string>? headers = message.Headers?.ToDictionary(
                     static header => header.Key,
                     static header => header.Value,
                     StringComparer.Ordinal);
@@ -244,7 +242,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
     /// </summary>
     internal sealed class FakeKafkaBus
     {
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private readonly Dictionary<string, List<FakeKafkaClientAdapter>> m_subscribers = new(StringComparer.Ordinal);
 
         public static FakeKafkaBus Shared { get; } = new FakeKafkaBus();
@@ -257,7 +255,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 {
                     if (!m_subscribers.TryGetValue(topic, out List<FakeKafkaClientAdapter>? subscribers))
                     {
-                        subscribers = new List<FakeKafkaClientAdapter>();
+                        subscribers = [];
                         m_subscribers[topic] = subscribers;
                     }
                     if (!subscribers.Contains(adapter))
@@ -293,8 +291,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             lock (m_sync)
             {
                 subscribers = m_subscribers.TryGetValue(message.Topic, out List<FakeKafkaClientAdapter>? targets)
-                    ? targets.ToArray()
-                    : Array.Empty<FakeKafkaClientAdapter>();
+                    ? [.. targets]
+                    : [];
             }
             foreach (FakeKafkaClientAdapter subscriber in subscribers)
             {

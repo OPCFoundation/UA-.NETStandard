@@ -62,6 +62,18 @@ namespace Opc.Ua.PubSub.Security.Sks
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Saves a SecurityGroup using a lease fencing token to reject stale active writers when
+        /// the caller has already resolved ownership.
+        /// </summary>
+        /// <param name="group">SecurityGroup to save.</param>
+        /// <param name="fencingToken">Current lease fencing token.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask SaveSecurityGroupAsync(
+            SksSecurityGroup group,
+            long fencingToken,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes a SecurityGroup.
         /// </summary>
         /// <param name="securityGroupId">SecurityGroup identifier.</param>

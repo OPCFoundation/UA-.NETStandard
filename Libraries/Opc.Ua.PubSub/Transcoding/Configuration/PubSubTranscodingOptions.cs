@@ -45,6 +45,6 @@ namespace Opc.Ua.PubSub.Transcoding
         /// <see cref="TranscodeRouteOptions.Name"/>.
         /// </summary>
         public IList<TranscodeRouteOptions> Routes { get; init; }
-            = new List<TranscodeRouteOptions>();
+            = [];
     }
 }

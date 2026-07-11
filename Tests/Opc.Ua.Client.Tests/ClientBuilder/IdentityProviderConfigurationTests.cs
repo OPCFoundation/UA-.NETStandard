@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             };
             return new IdentitySelectionContext(
                 endpoint,
-                ArrayOf<UserTokenPolicy>.Empty,
+                [],
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 

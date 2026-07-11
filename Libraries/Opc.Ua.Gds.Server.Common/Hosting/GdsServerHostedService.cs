@@ -176,10 +176,11 @@ namespace Opc.Ua.Gds.Server.Hosting
                 throw new ArgumentNullException(nameof(services));
             }
 
-            return services.GetService<T>() ?? throw new InvalidOperationException(
-                $"AddGdsServer requires a {serviceName} registration. " +
-                "Call AddInMemoryStores() for the built-in in-memory stores or register a custom store with the " +
-                "matching AddApplicationsDatabase, AddCertificateRequest, AddCertificateGroup, or AddUserDatabase method.");
+            return services.GetService<T>() ??
+                throw new InvalidOperationException(
+                    $"AddGdsServer requires a {serviceName} registration. " +
+                    "Call AddInMemoryStores() for the built-in in-memory stores or register a custom store with the " +
+                    "matching AddApplicationsDatabase, AddCertificateRequest, AddCertificateGroup, or AddUserDatabase method.");
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)

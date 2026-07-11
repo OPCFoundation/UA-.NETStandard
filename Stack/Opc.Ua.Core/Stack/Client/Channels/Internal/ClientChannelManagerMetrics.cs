@@ -225,7 +225,9 @@ namespace Opc.Ua
         private readonly Histogram<double> m_gateWait;
         private readonly Counter<long> m_participantTimeout;
         private readonly Counter<long> m_participantRecreate;
+#pragma warning disable IDE0052 // Observable instruments must be kept alive for Meter callbacks to remain registered.
         private readonly ObservableGauge<long> m_refCountGauge;
         private readonly ObservableGauge<long> m_participantGauge;
+#pragma warning restore IDE0052
     }
 }

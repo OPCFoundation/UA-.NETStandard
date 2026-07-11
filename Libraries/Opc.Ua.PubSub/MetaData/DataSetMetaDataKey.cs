@@ -111,10 +111,10 @@ namespace Opc.Ua.PubSub.MetaData
         /// <see langword="true"/> when no PublisherId, WriterGroupId, or
         /// DataSetWriterId is set — the key is effectively unbound.
         /// </summary>
-        public bool IsNull => PublisherId.IsNull
-            && WriterGroupId == 0
-            && DataSetWriterId == 0
-            && DataSetClassId == Uuid.Empty
-            && MajorVersion == 0;
+        public bool IsNull => PublisherId.IsNull &&
+            WriterGroupId == 0 &&
+            DataSetWriterId == 0 &&
+            DataSetClassId == Uuid.Empty &&
+            MajorVersion == 0;
     }
 }

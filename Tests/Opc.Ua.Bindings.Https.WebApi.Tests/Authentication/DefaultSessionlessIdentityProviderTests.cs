@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;

@@ -340,5 +340,202 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.SourceTimestamp, Is.GreaterThanOrEqualTo(startTime));
             Assert.That(result.SourceTimestamp, Is.LessThanOrEqualTo(endTime));
         }
+
+        // Regression tests for the timestamp provenance of ComputeMinMax and ComputeMinMax2.
+        // Commit a711c4b28 removed the `else` clauses that returned the region timestamp,
+        // relying only on the `if (returnActualTime)` branch returning early. The following
+        // tests pin down both sides of that control flow so a future control-flow cleanup
+        // cannot silently swap which timestamp is reported: the *ActualTime variants must
+        // keep reporting the timestamp of the raw sample that was selected as the minimum or
+        // maximum, while the plain variants must keep reporting the processing region's own
+        // timestamp, never the raw sample's timestamp.
+
+        [Test]
+        public void MinimumActualTimeSourceTimestampMatchesSelectedMinimumValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 5, 20, 3, 15, 3];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc expectedMinimumTimestamp = firstValueTime.AddMilliseconds(3 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_MinimumActualTime,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(3.0).Within(0.0001));
+            // The timestamp must come from the raw sample that produced the minimum,
+            // not from the processing region's own start/end timestamp.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expectedMinimumTimestamp));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(expectedMinimumTimestamp));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(endTime));
+        }
+
+        [Test]
+        public void MaximumActualTimeSourceTimestampMatchesSelectedMaximumValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 50, 20, 30, 15, 50];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc expectedMaximumTimestamp = firstValueTime.AddMilliseconds(1 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_MaximumActualTime,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(50.0).Within(0.0001));
+            // The timestamp must come from the raw sample that produced the maximum,
+            // not from the processing region's own start/end timestamp.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expectedMaximumTimestamp));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(expectedMaximumTimestamp));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(endTime));
+        }
+
+        [Test]
+        public void MinimumSourceTimestampMatchesSliceStartNotSelectedValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 5, 20, 3, 15, 3];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc rawMinimumTimestamp = firstValueTime.AddMilliseconds(3 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Minimum,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(3.0).Within(0.0001));
+            // The plain Minimum aggregate reports the processing region's own timestamp
+            // (the slice start), never the timestamp of the raw sample that was selected.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(rawMinimumTimestamp));
+        }
+
+        [Test]
+        public void MaximumSourceTimestampMatchesSliceStartNotSelectedValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 50, 20, 30, 15, 50];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc rawMaximumTimestamp = firstValueTime.AddMilliseconds(1 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Maximum,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(50.0).Within(0.0001));
+            // The plain Maximum aggregate reports the processing region's own timestamp
+            // (the slice start), never the timestamp of the raw sample that was selected.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(rawMaximumTimestamp));
+        }
+
+        [Test]
+        public void MinimumActualTime2SourceTimestampMatchesSelectedMinimumValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 5, 20, 3, 15, 3];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc expectedMinimumTimestamp = firstValueTime.AddMilliseconds(3 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_MinimumActualTime2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(3.0).Within(0.0001));
+            // Same provenance guarantee as MinimumActualTime, but exercised through
+            // ComputeMinMax2's simple-bounds code path.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expectedMinimumTimestamp));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(expectedMinimumTimestamp));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(endTime));
+        }
+
+        [Test]
+        public void MaximumActualTime2SourceTimestampMatchesSelectedMaximumValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 50, 20, 30, 15, 50];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc expectedMaximumTimestamp = firstValueTime.AddMilliseconds(1 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_MaximumActualTime2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(50.0).Within(0.0001));
+            // Same provenance guarantee as MaximumActualTime, but exercised through
+            // ComputeMinMax2's simple-bounds code path.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expectedMaximumTimestamp));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(expectedMaximumTimestamp));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(endTime));
+        }
+
+        [Test]
+        public void Minimum2SourceTimestampMatchesSliceStartNotSelectedValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 5, 20, 3, 15, 3];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc rawMinimumTimestamp = firstValueTime.AddMilliseconds(3 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Minimum2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(3.0).Within(0.0001));
+            // The plain Minimum2 aggregate reports the processing region's own timestamp
+            // (the slice start), never the timestamp of the raw sample that was selected.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(rawMinimumTimestamp));
+        }
+
+        [Test]
+        public void Maximum2SourceTimestampMatchesSliceStartNotSelectedValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
+            double[] values = [10, 50, 20, 30, 15, 50];
+            List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            DateTimeUtc rawMaximumTimestamp = firstValueTime.AddMilliseconds(1 * 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Maximum2,
+                dataValues, startTime, endTime, 12000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(50.0).Within(0.0001));
+            // The plain Maximum2 aggregate reports the processing region's own timestamp
+            // (the slice start), never the timestamp of the raw sample that was selected.
+            Assert.That(result.SourceTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.SourceTimestamp, Is.Not.EqualTo(rawMaximumTimestamp));
+        }
     }
 }

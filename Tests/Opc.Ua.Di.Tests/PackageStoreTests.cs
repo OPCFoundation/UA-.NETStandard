@@ -59,18 +59,18 @@ namespace Opc.Ua.Di.Tests
             byte[] payload = [1, 2, 3, 4, 5];
             SoftwarePackage stored = await store.AddAsync(
                 NewMetadata("fw-1"),
-                new MemoryStream(payload));
+                new MemoryStream(payload)).ConfigureAwait(false);
 
             Assert.That(stored.SizeBytes, Is.EqualTo(payload.LongLength));
             Assert.That(stored.Id, Is.EqualTo("fw-1"));
 
-            SoftwarePackage? roundTrip = await store.GetAsync("fw-1");
+            SoftwarePackage? roundTrip = await store.GetAsync("fw-1").ConfigureAwait(false);
             Assert.That(roundTrip, Is.Not.Null);
             Assert.That(roundTrip!.Vendor, Is.EqualTo("Acme"));
 
-            using Stream stream = await store.OpenReadAsync("fw-1");
+            using Stream stream = await store.OpenReadAsync("fw-1").ConfigureAwait(false);
             using MemoryStream copy = new();
-            await stream.CopyToAsync(copy);
+            await stream.CopyToAsync(copy).ConfigureAwait(false);
             Assert.That(copy.ToArray(), Is.EqualTo(payload));
         }
 
@@ -78,9 +78,9 @@ namespace Opc.Ua.Di.Tests
         public async Task MemoryStoreListEnumeratesAllPackages()
         {
             var store = new MemoryPackageStore();
-            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream([1]));
-            await store.AddAsync(NewMetadata("fw-2"), new MemoryStream([2, 3]));
-            await store.AddAsync(NewMetadata("fw-3"), new MemoryStream([4, 5, 6]));
+            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream([1])).ConfigureAwait(false);
+            await store.AddAsync(NewMetadata("fw-2"), new MemoryStream([2, 3])).ConfigureAwait(false);
+            await store.AddAsync(NewMetadata("fw-3"), new MemoryStream([4, 5, 6])).ConfigureAwait(false);
 
             var seen = new HashSet<string>();
             await foreach (SoftwarePackage p in store.ListAsync())
@@ -88,22 +88,22 @@ namespace Opc.Ua.Di.Tests
                 seen.Add(p.Id);
             }
 
-            Assert.That(seen, Is.EquivalentTo(new[] { "fw-1", "fw-2", "fw-3" }));
+            Assert.That(seen, Is.EquivalentTo(["fw-1", "fw-2", "fw-3"]));
         }
 
         [Test]
         public async Task MemoryStoreExistsAndDelete()
         {
             var store = new MemoryPackageStore();
-            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream([1]));
+            await store.AddAsync(NewMetadata("fw-1"), new MemoryStream([1])).ConfigureAwait(false);
 
-            Assert.That(await store.ExistsAsync("fw-1"), Is.True);
-            Assert.That(await store.ExistsAsync("fw-missing"), Is.False);
+            Assert.That(await store.ExistsAsync("fw-1").ConfigureAwait(false), Is.True);
+            Assert.That(await store.ExistsAsync("fw-missing").ConfigureAwait(false), Is.False);
 
-            Assert.That(await store.DeleteAsync("fw-1"), Is.True);
-            Assert.That(await store.DeleteAsync("fw-1"), Is.False,
+            Assert.That(await store.DeleteAsync("fw-1").ConfigureAwait(false), Is.True);
+            Assert.That(await store.DeleteAsync("fw-1").ConfigureAwait(false), Is.False,
                 "Second delete must return false.");
-            Assert.That(await store.ExistsAsync("fw-1"), Is.False);
+            Assert.That(await store.ExistsAsync("fw-1").ConfigureAwait(false), Is.False);
         }
 
         [Test]
@@ -111,7 +111,7 @@ namespace Opc.Ua.Di.Tests
         {
             var store = new MemoryPackageStore();
             Assert.ThrowsAsync<FileNotFoundException>(
-                async () => await store.OpenReadAsync("nope"));
+                async () => await store.OpenReadAsync("nope").ConfigureAwait(false));
         }
 
         [Test]
@@ -119,9 +119,9 @@ namespace Opc.Ua.Di.Tests
         {
             var store = new MemoryPackageStore();
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await store.GetAsync(string.Empty));
+                async () => await store.GetAsync(string.Empty).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await store.ExistsAsync("   "));
+                async () => await store.ExistsAsync("   ").ConfigureAwait(false));
         }
 
         [Test]
@@ -142,19 +142,19 @@ namespace Opc.Ua.Di.Tests
                 byte[] payload = [10, 20, 30, 40, 50];
                 SoftwarePackage stored = await store.AddAsync(
                     NewMetadata("fw-x"),
-                    new MemoryStream(payload));
+                    new MemoryStream(payload)).ConfigureAwait(false);
 
                 Assert.That(stored.SizeBytes, Is.EqualTo(payload.LongLength));
 
-                SoftwarePackage? roundTrip = await store.GetAsync("fw-x");
+                SoftwarePackage? roundTrip = await store.GetAsync("fw-x").ConfigureAwait(false);
                 Assert.That(roundTrip, Is.Not.Null);
                 Assert.That(roundTrip!.Id, Is.EqualTo("fw-x"));
                 Assert.That(roundTrip.Vendor, Is.EqualTo("Acme"));
                 Assert.That(roundTrip.SizeBytes, Is.EqualTo(payload.LongLength));
 
-                using Stream stream = await store.OpenReadAsync("fw-x");
+                using Stream stream = await store.OpenReadAsync("fw-x").ConfigureAwait(false);
                 using MemoryStream copy = new();
-                await stream.CopyToAsync(copy);
+                await stream.CopyToAsync(copy).ConfigureAwait(false);
                 Assert.That(copy.ToArray(), Is.EqualTo(payload));
             }
             finally
@@ -181,8 +181,8 @@ namespace Opc.Ua.Di.Tests
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
 
-                await store.AddAsync(NewMetadata("a"), new MemoryStream([1]));
-                await store.AddAsync(NewMetadata("b"), new MemoryStream([2, 3]));
+                await store.AddAsync(NewMetadata("a"), new MemoryStream([1])).ConfigureAwait(false);
+                await store.AddAsync(NewMetadata("b"), new MemoryStream([2, 3])).ConfigureAwait(false);
 
                 var seen = new HashSet<string>();
                 await foreach (SoftwarePackage p in store.ListAsync())
@@ -190,7 +190,7 @@ namespace Opc.Ua.Di.Tests
                     seen.Add(p.Id);
                 }
 
-                Assert.That(seen, Is.EquivalentTo(new[] { "a", "b" }));
+                Assert.That(seen, Is.EquivalentTo(["a", "b"]));
             }
             finally
             {
@@ -215,11 +215,11 @@ namespace Opc.Ua.Di.Tests
                     mountName: "Packages",
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
-                await store.AddAsync(NewMetadata("doomed"), new MemoryStream([0]));
+                await store.AddAsync(NewMetadata("doomed"), new MemoryStream([0])).ConfigureAwait(false);
 
-                Assert.That(await store.DeleteAsync("doomed"), Is.True);
-                Assert.That(await store.ExistsAsync("doomed"), Is.False);
-                Assert.That(await store.DeleteAsync("doomed"), Is.False);
+                Assert.That(await store.DeleteAsync("doomed").ConfigureAwait(false), Is.True);
+                Assert.That(await store.ExistsAsync("doomed").ConfigureAwait(false), Is.False);
+                Assert.That(await store.DeleteAsync("doomed").ConfigureAwait(false), Is.False);
             }
             finally
             {
@@ -245,9 +245,9 @@ namespace Opc.Ua.Di.Tests
                     isWritable: true);
                 var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
                 Assert.ThrowsAsync<ArgumentException>(
-                    async () => await store.GetAsync("bad/id"));
+                    async () => await store.GetAsync("bad/id").ConfigureAwait(false));
                 Assert.ThrowsAsync<ArgumentException>(
-                    async () => await store.GetAsync("bad\\id"));
+                    async () => await store.GetAsync("bad\\id").ConfigureAwait(false));
             }
             finally
             {

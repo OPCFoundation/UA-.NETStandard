@@ -30,8 +30,7 @@
 // DataStoreBackedPublishedDataSetSource is an internal shim that adapts the
 // legacy IUaPubSubDataStore (UA0023) to the new IPublishedDataSetSource
 // contract. Suppress the obsolete diagnostic throughout this test file.
-#pragma warning disable UA0023
-#pragma warning disable CS0618
+#pragma warning disable UA0023, CS0618
 
 using System;
 using System.Threading;
@@ -65,7 +64,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public void Constructor_NullConfiguration_ThrowsArgumentNullException()
         {
-            var store = new Mock<IUaPubSubDataStore>().Object;
+            IUaPubSubDataStore store = new Mock<IUaPubSubDataStore>().Object;
             Assert.That(
                 () => new DataStoreBackedPublishedDataSetSource(store, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("configuration"));
@@ -80,7 +79,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Name = "ds",
                 DataSetMetaData = meta
             };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             DataSetMetaDataType result = source.BuildMetaData();
 
@@ -95,7 +94,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Name = "ds"
                 // DataSetMetaData left as null (default)
             };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             DataSetMetaDataType result = source.BuildMetaData();
 
@@ -106,7 +105,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task SampleAsync_WithCancelledToken_ThrowsOperationCanceledExceptionAsync()
         {
             var config = new PublishedDataSetDataType { Name = "ds" };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
@@ -121,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task SampleAsync_WithNullDataSetSource_ReturnsEmptyFieldsAsync()
         {
             var config = new PublishedDataSetDataType { Name = "ds" };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(new DataSetMetaDataType()).ConfigureAwait(false);
@@ -138,7 +137,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Name = "ds",
                 DataSetSource = new ExtensionObject()
             };
-            var source = NewSource(config);
+            DataStoreBackedPublishedDataSetSource source = NewSource(config);
 
             PublishedDataSetSnapshot snapshot =
                 await source.SampleAsync(null!).ConfigureAwait(false);
@@ -150,7 +149,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         public async Task SampleAsync_WithItemsAndMetaData_MapsFieldNamesFromMetaDataAsync()
         {
             var nodeId = new NodeId(1u);
-            DataValue returnValue = new DataValue(new Variant(99.0));
+            var returnValue = new DataValue(new Variant(99.0));
             var storeMock = new Mock<IUaPubSubDataStore>();
             storeMock
                 .Setup(m => m.TryReadPublishedDataItem(
@@ -164,8 +163,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType
-                        {
+                        new() {
                             PublishedVariable = nodeId,
                             AttributeId = Attributes.Value
                         }
@@ -182,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             var metaData = new DataSetMetaDataType
             {
                 Fields = new ArrayOf<FieldMetaData>(
-                    new FieldMetaData[] { new FieldMetaData { Name = "Temperature" } })
+                    new FieldMetaData[] { new() { Name = "Temperature" } })
             };
 
             PublishedDataSetSnapshot snapshot =
@@ -209,8 +207,8 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(1u) },
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(2u) }
+                        new() { PublishedVariable = new NodeId(1u) },
+                        new() { PublishedVariable = new NodeId(2u) }
                     })
             };
 
@@ -225,7 +223,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             var metaData = new DataSetMetaDataType
             {
                 Fields = new ArrayOf<FieldMetaData>(
-                    new FieldMetaData[] { new FieldMetaData { Name = "OnlyOne" } })
+                    new FieldMetaData[] { new() { Name = "OnlyOne" } })
             };
 
             PublishedDataSetSnapshot snapshot =
@@ -256,8 +254,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                     new PublishedVariableDataType[]
                     {
                         // NodeId is a readonly struct; use NodeId.Null (zero NodeId)
-                        new PublishedVariableDataType
-                        {
+                        new() {
                             PublishedVariable = NodeId.Null,
                             AttributeId = Attributes.Value
                         }
@@ -288,7 +285,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         {
             // The default DataValue constructor sets SourceTimestamp = DateTimeUtc.MinValue.
             // The production code maps DateTimeUtc.MinValue → default(DateTimeUtc).
-            DataValue returnValue = new DataValue(new Variant(1.0));
+            var returnValue = new DataValue(new Variant(1.0));
             var storeMock = new Mock<IUaPubSubDataStore>();
             storeMock
                 .Setup(m => m.TryReadPublishedDataItem(
@@ -302,7 +299,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(1u) }
+                        new() { PublishedVariable = new NodeId(1u) }
                     })
             };
 
@@ -324,8 +321,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public async Task SampleAsync_WithValidSourceTimestamp_PreservesTimestampAsync()
         {
-            DateTime ts = new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-            DataValue returnValue = new DataValue(
+            var ts = new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+            var returnValue = new DataValue(
                 new Variant(7.0),
                 StatusCodes.Good,
                 DateTimeUtc.From(ts));
@@ -342,7 +339,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(1u) }
+                        new() { PublishedVariable = new NodeId(1u) }
                     })
             };
 
@@ -377,7 +374,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                 PublishedData = new ArrayOf<PublishedVariableDataType>(
                     new PublishedVariableDataType[]
                     {
-                        new PublishedVariableDataType { PublishedVariable = new NodeId(5u) }
+                        new() { PublishedVariable = new NodeId(5u) }
                     })
             };
 
