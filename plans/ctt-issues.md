@@ -686,6 +686,58 @@ partial value with **`UncertainDataSubNormal`** while the CTT expects **`Bad`/`N
   bootstrap, not a server response, and the harness should skip (`addSkipped`) rather than `throw` so a
   single missing sub-entry does not abort the remaining aggregate cases.
 
+### Aggregates-only re-run 11 (5576 errors) — additional server bugs now fixed
+
+The aggregate-default advertisement fix reduced the total from 6016 to 5576 and changed several
+families materially (for example Count 180 → 60 and Average 90 → 36), but the new console log
+(`ctt output 2.txt`) exposed additional independent calculator and HistoryRead routing defects.
+These are **server fixes**, not CTT issues:
+
+* **Equal StartTime and EndTime returned Good instead of `BadInvalidArgument`.** The CTT Base
+  `001-01` (single node) and `002-01` (multiple nodes) cases use `StartTime == EndTime`. Part 11
+  §6.5.4.2 states that the Server shall return `Bad_InvalidArgument` because there is no meaningful
+  interpretation of the request. The server previously calculated and returned per-node Good results.
+  `HistorianDispatcher.DispatchProcessedReadAsync` now returns per-node `BadInvalidArgument` while the
+  HistoryRead service call itself succeeds, matching the CTT and Part 11. Regression coverage includes
+  multi-node routing and ensures reverse ranges are not accidentally rejected.
+
+* **Reverse processed reads fed raw values in forward order.** The dispatcher normalised the requested
+  time range but always set `HistorianReadRequest.IsForward = true`. For `StartTime > EndTime`, Part 11
+  §6.5.4.2 requires data in reverse order; the backward calculator consequently saw the wrong stream
+  order and produced `BadNoData`, 1 ms durations, and incorrect bounds. `IsForward` now follows the
+  request direction.
+
+* **Exact reverse interpolation bounds were replaced by synthesized values.** When a raw value landed
+  exactly on an interpolated boundary, the reverse slice could miss it and interpolate/extrapolate
+  instead. `AggregateCalculator.Interpolate` now preserves an exact **non-Bad** raw point (Good or
+  Uncertain) regardless of `TreatUncertainAsBad`; an exact Bad point remains excluded from interpolation
+  as required. Forward/reverse Good, Uncertain, and Bad boundary tests assert exact value, StatusCode,
+  aggregate bits, and timestamp.
+
+* **PercentGood/PercentBad ignored `TreatUncertainAsBad`.** Part 13 §5.4.3.2.1 requires Uncertain
+  regions to contribute to Good when `TreatUncertainAsBad=false`, and to Bad when it is true. The status
+  aggregate calculator previously counted only native Good/Bad regions, producing the inverted 100/0
+  versus 0/100 comparisons visible in the log. It now applies the explicit configuration.
+
+* **WorstQuality/WorstQuality2 mishandled eligible values and StatusCodes.** WorstQuality now preserves
+  the first StatusCode at the worst severity (for example `GoodClamped`, rather than collapsing it to
+  plain Good) and sets `MultipleValues` for repeated Good worst-quality values. WorstQuality2 now uses
+  the request start bound plus in-domain raw values and excludes the end bound, per Part 13
+  §5.4.3.35-.36; the excluded end bound can no longer spuriously set `MultipleValues`.
+
+* **Reverse Minimum/Maximum used the chronological lower bound to decide Raw versus Calculated.** For a
+  reverse interval the request-direction start is the later timestamp. Min/Max and Min/Max2 now compare
+  the selected raw sample to `GetTimestamp(slice)` (the returned interval timestamp), so a value at the
+  reverse interval start is marked Raw as required by Part 13 §5.4.3.10-.11. ActualTime variants retain
+  the selected sample timestamp.
+
+The fixes are covered by direct calculator and live in-memory historian Part 11/13 oracle tests for
+forward/reverse ten-interval requests, one-interval ranges, Start/End/StartBound/EndBound,
+PercentGood/Bad, WorstQuality/2, DurationInState, Min/Max/Range/TimeAverage, and equal-time multi-node
+validation. Residual CTT comparisons involving string-status aggregates, integer EndBound conversion,
+or Boolean duration calculations require the next focused CTT run before either side is classified;
+no speculative compatibility changes were made.
+
 ### Alarms & Conditions re-run (152 errors) — findings from the console log (`ctt output 1.txt`)
 
 * **`After Acknowledge Retain in invalid state` (42): server Retain logic is spec-correct; the failures
@@ -738,6 +790,5 @@ partial value with **`UncertainDataSubNormal`** while the CTT expects **`Bad`/`N
   `Result of expression 'TC_Variables.ListOfNodes' [undefined] is not an object`. **Recommended CTT
   fix:** use `TC_Variables.OutputArguments.length` (the array actually populated at line 37), or track a
   running count of returned aliases.
-
 
 
