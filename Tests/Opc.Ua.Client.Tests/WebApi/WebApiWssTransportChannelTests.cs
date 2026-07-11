@@ -150,6 +150,7 @@ namespace Opc.Ua.Client.Tests.WebApi
             Assert.That((bool)secure.Invoke(null, [new Uri("https://localhost")])!, Is.True);
         }
 
+#if NET7_0_OR_GREATER
         [Test]
         public void ValidateServerCertificateFallsBackToTlsPolicyErrors()
         {
@@ -166,5 +167,6 @@ namespace Opc.Ua.Client.Tests.WebApi
             Assert.That(accepted, Is.True);
             Assert.That(rejected, Is.False);
         }
+#endif
     }
 }
