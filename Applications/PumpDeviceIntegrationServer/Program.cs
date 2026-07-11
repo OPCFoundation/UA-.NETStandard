@@ -45,6 +45,11 @@ builder.Logging.AddConsole();
 
 int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
 
+// Bind host for the OPC UA endpoint. Defaults to 0.0.0.0 so the server is
+// reachable from outside a container; override with --host / host env var
+// (e.g. "localhost" for local-only development).
+string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
+
 // In-memory store backing the OPC 10000-100 software-update facet
 // attached to Pump #2 below. Production deployments swap this for
 // FileSystemPackageStore over an IFileSystemProvider.
@@ -58,7 +63,7 @@ builder.Services
         o.ApplicationUri = "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
         o.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
         o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/PumpDeviceIntegrationServer");
+        o.EndpointUrls.Add($"opc.tcp://{host}:{port}/PumpDeviceIntegrationServer");
     })
     .AddNodeManager<PumpNodeManagerFactory>()
     // Materialise a second pump declaratively at server startup. The
@@ -102,15 +107,19 @@ builder.Services
         // builder for ad-hoc groups not covered by the 8 well-known
         // DI typed extensions (WithMaintenanceGroup, WithOperationalGroup,
         // ...). Pump #2 exposes a custom "Diagnostics" group that
-        // surfaces the supervision flags as plain properties so clients
-        // get a single browsable folder of operational signals without
-        // having to chase the supervision alarm tree.
+        // surfaces a few operational signals as plain properties so
+        // clients get a single browsable folder without having to chase
+        // the supervision alarm tree.
+        //
+        // WithProperty creates each property on the freshly built group
+        // (read-only by default); LastError is made writable via the
+        // fluent Writable() helper.
         pump.WithFunctionalGroup(
             new QualifiedName("Diagnostics", ctx.Manager.DiNamespaceIndex),
             fg => fg.Configure(node =>
-                node.WithProperty("LastError", string.Empty)
+                node.WithProperty("LastError", Variant.From(string.Empty), p => p.Writable())
                     .WithProperty("ErrorCount", 0)
-                    .WithProperty("LastSelfTest", DateTime.UtcNow)));
+                    .WithProperty("LastSelfTest", (DateTimeUtc)DateTime.UtcNow)));
 
         // Materialise the OPC 10000-100 §10.3 SoftwareUpdateType facet
         // under Pump #2. The default PackageLoading + library-supplied
