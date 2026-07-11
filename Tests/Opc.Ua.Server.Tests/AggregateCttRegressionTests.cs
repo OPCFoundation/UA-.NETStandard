@@ -332,8 +332,12 @@ namespace Opc.Ua.Server.Tests
                 DateTimeUtc timestamp = reverse
                     ? AtSeconds(100 - (index * 10))
                     : AtSeconds(index * 10);
+                // Part 13 §5.4.3.11: Maximum reports Good, Raw when the maximum sample sits on
+                // the interval start. In this dataset the maximum is always at the interval
+                // start for both forward (earlier bound) and reverse (later bound) reads, so it
+                // is Raw in both directions; every other aggregate here is Calculated.
                 AggregateBits expectedBits =
-                    aggregateName == "Maximum" && !reverse
+                    aggregateName == "Maximum"
                         ? AggregateBits.Raw
                         : AggregateBits.Calculated;
 
