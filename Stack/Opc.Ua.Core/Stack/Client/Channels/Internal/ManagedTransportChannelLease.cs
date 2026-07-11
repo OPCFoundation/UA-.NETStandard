@@ -278,8 +278,19 @@ namespace Opc.Ua
                     // reconnect policy / budget; if the channel terminally
                     // faults the original transport error is surfaced.
                     attempt++;
+                    ChannelState state = entry.State;
+                    if (state is ChannelState.Closed or ChannelState.Faulted)
+                    {
+                        // The entry is already terminal (e.g. the reconnect
+                        // policy / budget was exhausted by a concurrent cycle).
+                        // Surface the ORIGINAL transport error rather than
+                        // looping back into WaitForReadyAsync, which would throw
+                        // a generic BadSecureChannelClosed and mask the real
+                        // failure signal.
+                        throw;
+                    }
                     if (entry.ReconnectGeneration == generation &&
-                        entry.State == ChannelState.Ready)
+                        state == ChannelState.Ready)
                     {
                         bool recovered;
                         try

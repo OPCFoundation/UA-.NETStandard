@@ -309,8 +309,19 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 int reconnectCompleted = collector.CountEvents("ReconnectCompleted");
                 int reconnectFailed = collector.CountEvents("ReconnectFailed");
                 string failureMessage = CreateFailureMessage(
-                    FormattableString.Invariant(
-                        $"FailureRate={runner.FailureRate}, p50={p50}, p95={p95}, p99={p99}, started={reconnectStarted}, completed={reconnectCompleted}, failed={reconnectFailed}, reactivations={reactivationNotifications}, drops={expectedReconnectCycles}."),
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "FailureRate={0}, p50={1}, p95={2}, p99={3}, started={4}, " +
+                        "completed={5}, failed={6}, reactivations={7}, drops={8}.",
+                        runner.FailureRate,
+                        p50,
+                        p95,
+                        p99,
+                        reconnectStarted,
+                        reconnectCompleted,
+                        reconnectFailed,
+                        reactivationNotifications,
+                        expectedReconnectCycles),
                     seed,
                     eventLog,
                     collector,
