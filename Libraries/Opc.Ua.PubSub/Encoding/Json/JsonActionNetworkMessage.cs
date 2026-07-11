@@ -34,9 +34,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// response, metadata or responder payloads over JSON-on-MQTT.
     /// </summary>
     /// <remarks>
-    /// Carries the source-generated <see cref="Opc.Ua.JsonActionNetworkMessage"/>,
-    /// <see cref="Opc.Ua.JsonActionMetaDataMessage"/> and
-    /// <see cref="Opc.Ua.JsonActionResponderMessage"/> models while keeping
+    /// Carries the source-generated <see cref="Ua.JsonActionNetworkMessage"/>,
+    /// <see cref="JsonActionMetaDataMessage"/> and
+    /// <see cref="JsonActionResponderMessage"/> models while keeping
     /// the PubSub pipeline's <see cref="PubSubNetworkMessage"/> contract.
     /// Implements
     /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.6">
@@ -69,17 +69,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <summary>
         /// Source-generated Part 14 action NetworkMessage envelope.
         /// </summary>
-        public Opc.Ua.JsonActionNetworkMessage? NetworkMessage { get; init; }
+        public Ua.JsonActionNetworkMessage? NetworkMessage { get; init; }
 
         /// <summary>
         /// Source-generated Part 14 action metadata message.
         /// </summary>
-        public Opc.Ua.JsonActionMetaDataMessage? MetaDataMessage { get; init; }
+        public JsonActionMetaDataMessage? MetaDataMessage { get; init; }
 
         /// <summary>
         /// Source-generated Part 14 action responder message.
         /// </summary>
-        public Opc.Ua.JsonActionResponderMessage? ResponderMessage { get; init; }
+        public JsonActionResponderMessage? ResponderMessage { get; init; }
 
         /// <summary>
         /// MessageId per Part 14 §7.2.5.3. Kept as a convenience mirror

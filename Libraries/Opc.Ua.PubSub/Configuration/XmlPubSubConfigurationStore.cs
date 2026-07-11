@@ -88,9 +88,9 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-            m_filePath = filePath;
+            FilePath = filePath;
             m_telemetry = telemetry;
-            m_timeProvider = timeProvider ?? TimeProvider.System;
+            TimeProvider = timeProvider ?? TimeProvider.System;
             m_logger = telemetry.CreateLogger<XmlPubSubConfigurationStore>();
             if (watchForChanges)
             {
@@ -104,25 +104,25 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Backing file path.
         /// </summary>
-        public string FilePath => m_filePath;
+        public string FilePath { get; }
 
         /// <summary>
         /// Clock used by helpers; exposed for diagnostics and tests.
         /// </summary>
-        public TimeProvider TimeProvider => m_timeProvider;
+        public TimeProvider TimeProvider { get; }
 
         /// <inheritdoc/>
         public async ValueTask<PubSubConfigurationDataType> LoadAsync(
             CancellationToken cancellationToken = default)
         {
-            if (!File.Exists(m_filePath))
+            if (!File.Exists(FilePath))
             {
                 throw new FileNotFoundException(
-                    $"PubSub configuration file '{m_filePath}' does not exist.",
-                    m_filePath);
+                    $"PubSub configuration file '{FilePath}' does not exist.",
+                    FilePath);
             }
             byte[] payload = await ReadAllBytesAsync(
-                m_filePath,
+                FilePath,
                 cancellationToken)
                 .ConfigureAwait(false);
             return DecodePayload(payload);
@@ -141,13 +141,13 @@ namespace Opc.Ua.PubSub.Configuration
                 cancellationToken)
                 .ConfigureAwait(false);
             byte[] payload = EncodePayload(configuration);
-            string tempPath = m_filePath + TempSuffix;
+            string tempPath = FilePath + TempSuffix;
             try
             {
                 await WriteAllBytesAsync(tempPath, payload, cancellationToken)
                     .ConfigureAwait(false);
                 RecordSelfWrite(payload, configuration);
-                ReplaceFile(tempPath, m_filePath);
+                ReplaceFile(tempPath, FilePath);
             }
             catch
             {
@@ -227,14 +227,14 @@ namespace Opc.Ua.PubSub.Configuration
         private async ValueTask<PubSubConfigurationDataType?> TryLoadPreviousAsync(
             CancellationToken cancellationToken)
         {
-            if (!File.Exists(m_filePath))
+            if (!File.Exists(FilePath))
             {
                 return null;
             }
             try
             {
                 byte[] payload = await ReadAllBytesAsync(
-                    m_filePath,
+                    FilePath,
                     cancellationToken)
                     .ConfigureAwait(false);
                 return DecodePayload(payload);
@@ -376,25 +376,25 @@ namespace Opc.Ua.PubSub.Configuration
 
         private void SetupFileWatch()
         {
-            string? directory = Path.GetDirectoryName(m_filePath);
+            string? directory = Path.GetDirectoryName(FilePath);
             if (string.IsNullOrEmpty(directory))
             {
                 directory = ".";
             }
-            string fileName = Path.GetFileName(m_filePath);
+            string fileName = Path.GetFileName(FilePath);
             try
             {
-                m_debounceTimer = m_timeProvider.CreateTimer(
+                m_debounceTimer = TimeProvider.CreateTimer(
                     _ => OnDebounceElapsed(),
                     null,
                     Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
                 var watcher = new FileSystemWatcher(directory!, fileName)
                 {
-                    NotifyFilter = NotifyFilters.LastWrite
-                        | NotifyFilters.Size
-                        | NotifyFilters.FileName
-                        | NotifyFilters.CreationTime
+                    NotifyFilter = NotifyFilters.LastWrite |
+                        NotifyFilters.Size |
+                        NotifyFilters.FileName |
+                        NotifyFilters.CreationTime
                 };
                 watcher.Changed += OnFileSystemChange;
                 watcher.Created += OnFileSystemChange;
@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Configuration
                     ex,
                     "PubSub configuration file watch could not be started for '{Path}'; " +
                     "external changes will not raise Changed.",
-                    m_filePath);
+                    FilePath);
             }
         }
 
@@ -437,11 +437,11 @@ namespace Opc.Ua.PubSub.Configuration
             byte[] payload;
             try
             {
-                if (!File.Exists(m_filePath))
+                if (!File.Exists(FilePath))
                 {
                     return;
                 }
-                payload = await ReadAllBytesAsync(m_filePath, CancellationToken.None)
+                payload = await ReadAllBytesAsync(FilePath, CancellationToken.None)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -449,7 +449,7 @@ namespace Opc.Ua.PubSub.Configuration
                 m_logger.LogInformation(
                     ex,
                     "PubSub configuration reload after a file change failed to read '{Path}'.",
-                    m_filePath);
+                    FilePath);
                 return;
             }
 
@@ -461,8 +461,8 @@ namespace Opc.Ua.PubSub.Configuration
                     return;
                 }
                 // Ignore the file event our own SaveAsync produced.
-                if (m_lastWrittenPayload is not null
-                    && payload.AsSpan().SequenceEqual(m_lastWrittenPayload))
+                if (m_lastWrittenPayload is not null &&
+                    payload.AsSpan().SequenceEqual(m_lastWrittenPayload))
                 {
                     return;
                 }
@@ -480,7 +480,7 @@ namespace Opc.Ua.PubSub.Configuration
                     ex,
                     "PubSub configuration reload after a file change could not decode '{Path}'; " +
                     "keeping the previous configuration.",
-                    m_filePath);
+                    FilePath);
                 return;
             }
 
@@ -496,7 +496,7 @@ namespace Opc.Ua.PubSub.Configuration
 
             m_logger.LogInformation(
                 "PubSub configuration file '{Path}' changed externally; raising Changed.",
-                m_filePath);
+                FilePath);
             Changed?.Invoke(
                 this,
                 new PubSubConfigurationChangedEventArgs(previous, configuration));
@@ -544,13 +544,10 @@ namespace Opc.Ua.PubSub.Configuration
         private const int FileBufferSize = 4096;
         private const string TempSuffix = ".tmp";
         private const int WatchDebounceMs = 250;
-
-        private readonly string m_filePath;
         private readonly ITelemetryContext m_telemetry;
-        private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
-        private readonly System.Threading.Lock m_versionGate = new();
-        private readonly System.Threading.Lock m_watchGate = new();
+        private readonly Lock m_versionGate = new();
+        private readonly Lock m_watchGate = new();
         private ConfigurationVersionDataType? m_configurationVersion;
         private FileSystemWatcher? m_watcher;
         private ITimer? m_debounceTimer;

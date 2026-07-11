@@ -141,7 +141,7 @@ namespace Opc.Ua.Server
 
                 foreach (IReference reference in references)
                 {
-                    NodeId encodingNodeId = ExpandedNodeId.ToNodeId(
+                    var encodingNodeId = ExpandedNodeId.ToNodeId(
                         reference.TargetId,
                         NamespaceUris);
                     if (encodingNodeId.IsNull)
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    ExpandedNodeId expandedEncodingId = NodeId.ToExpandedNodeId(
+                    var expandedEncodingId = NodeId.ToExpandedNodeId(
                         encodingNodeId,
                         NamespaceUris);
                     if (browseName == BrowseNames.DefaultBinary)
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
                     for (int i = 0; i < subTypes.Count; i++)
                     {
                         NodeId subType = subTypes[i];
-                        ExpandedNodeId subTypeId = NodeId.ToExpandedNodeId(subType, NamespaceUris);
+                        var subTypeId = NodeId.ToExpandedNodeId(subType, NamespaceUris);
                         if (nestedSubTypes)
                         {
                             nextNodesToBrowse.Add(subTypeId);
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
             var properties = new List<BaseVariableState>();
             foreach (IReference reference in references)
             {
-                NodeId propertyId = ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris);
+                var propertyId = ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris);
                 if (propertyId.IsNull)
                 {
                     continue;
@@ -317,7 +317,7 @@ namespace Opc.Ua.Server
             ExpandedNodeId nodeId,
             CancellationToken ct)
         {
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
             if (localId.IsNull)
             {
                 return null;

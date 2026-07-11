@@ -61,10 +61,9 @@ namespace Opc.Ua.PubSub.Eth.Channels
 
         private readonly EthChannelParameters m_parameters;
         private readonly ILogger m_logger;
-        private readonly PhysicalAddress m_interfaceAddress;
         private readonly uint m_interfaceIndex;
         private readonly ushort m_protocol;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
 
         private int m_socket = -1;
         private Channel<byte[]>? m_channel;
@@ -94,7 +93,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                     nameof(parameters));
             }
             m_logger = telemetry.CreateLogger<AfPacketEthernetFrameChannel>();
-            m_interfaceAddress = parameters.InterfaceAddress
+            InterfaceAddress = parameters.InterfaceAddress
                 ?? parameters.NetworkInterface.GetPhysicalAddress();
             m_protocol = HostToNetwork(parameters.EtherType);
             m_interfaceIndex = NativeMethods.if_nametoindex(parameters.NetworkInterface.Name);
@@ -106,7 +105,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         }
 
         /// <inheritdoc/>
-        public PhysicalAddress InterfaceAddress => m_interfaceAddress;
+        public PhysicalAddress InterfaceAddress { get; }
 
         /// <inheritdoc/>
         public bool IsOpen
@@ -232,7 +231,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 // the descriptor (and let the OS reuse it) mid-send, which
                 // would send on an unrelated fd (fd-reuse race, ETH-SEC-03).
                 nint sent = NativeMethods.sendto(
-                    m_socket, buffer, (nint)buffer.Length, 0, destination, destination.Length);
+                    m_socket, buffer, buffer.Length, 0, destination, destination.Length);
                 if (sent < 0)
                 {
                     throw new InvalidOperationException(
@@ -281,11 +280,11 @@ namespace Opc.Ua.PubSub.Eth.Channels
             {
                 return;
             }
-            var buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_parameters.MaxFrameSize)];
+            byte[] buffer = new byte[Math.Max(EthernetFrameCodec.MinFrameLength, m_parameters.MaxFrameSize)];
             while (!cancellationToken.IsCancellationRequested)
             {
                 nint received = NativeMethods.recvfrom(
-                    fd, buffer, (nint)buffer.Length, 0, IntPtr.Zero, IntPtr.Zero);
+                    fd, buffer, buffer.Length, 0, IntPtr.Zero, IntPtr.Zero);
                 if (received <= 0)
                 {
                     // Socket closed or interrupted: terminate the loop.
@@ -296,7 +295,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 {
                     continue;
                 }
-                var frame = new byte[length];
+                byte[] frame = new byte[length];
                 Buffer.BlockCopy(buffer, 0, frame, 0, length);
                 if (!channel.Writer.TryWrite(frame))
                 {
@@ -330,7 +329,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private void AddMembership(int fd, ushort type, byte[]? address)
         {
             // struct packet_mreq { int mr_ifindex; ushort mr_type; ushort mr_alen; byte[8] mr_address; }
-            var mreq = new byte[16];
+            byte[] mreq = new byte[16];
             BitConverter.GetBytes((int)m_interfaceIndex).CopyTo(mreq, 0);
             BitConverter.GetBytes(type).CopyTo(mreq, 4);
             if (address is not null && address.Length == EthernetFrameCodec.MacAddressLength)
@@ -350,21 +349,21 @@ namespace Opc.Ua.PubSub.Eth.Channels
         private byte[] BuildSockAddr(byte[]? macAddress)
         {
             // struct sockaddr_ll (20 bytes).
-            var address = new byte[20];
+            byte[] address = new byte[20];
             BitConverter.GetBytes((ushort)AfPacket).CopyTo(address, 0);
             BitConverter.GetBytes(m_protocol).CopyTo(address, 2);
             BitConverter.GetBytes((int)m_interfaceIndex).CopyTo(address, 4);
             byte[] mac = macAddress is { Length: EthernetFrameCodec.MacAddressLength }
                 ? macAddress
                 : ExtractDestinationMac(macAddress);
-            address[11] = (byte)EthernetFrameCodec.MacAddressLength;
+            address[11] = EthernetFrameCodec.MacAddressLength;
             Array.Copy(mac, 0, address, 12, EthernetFrameCodec.MacAddressLength);
             return address;
         }
 
         private static byte[] ExtractDestinationMac(byte[]? frame)
         {
-            var mac = new byte[EthernetFrameCodec.MacAddressLength];
+            byte[] mac = new byte[EthernetFrameCodec.MacAddressLength];
             if (frame is not null && frame.Length >= EthernetFrameCodec.MacAddressLength)
             {
                 Array.Copy(frame, 0, mac, 0, EthernetFrameCodec.MacAddressLength);
@@ -379,6 +378,11 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 : value;
         }
 
+        // SYSLIB1054 (source-generated LibraryImport) is unavailable on the
+        // net472/net48/netstandard2.1 targets this channel also builds for, and
+        // classic DllImport of these blittable libc calls remains NativeAOT
+        // compatible, so the interop stays on DllImport across all TFMs.
+#pragma warning disable SYSLIB1054
         private static class NativeMethods
         {
             [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
@@ -413,5 +417,6 @@ namespace Opc.Ua.PubSub.Eth.Channels
             internal static extern nint recvfrom(
                 int sockfd, byte[] buf, nint len, int flags, IntPtr srcAddr, IntPtr addrlen);
         }
+#pragma warning restore SYSLIB1054
     }
 }

@@ -146,6 +146,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the Web API transport channel factory and keeps the
         /// client builder chain flowing.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddWebApiTransportChannel(
             this IOpcUaClientBuilder builder,
             Action<WebApiClientOptions>? configure)

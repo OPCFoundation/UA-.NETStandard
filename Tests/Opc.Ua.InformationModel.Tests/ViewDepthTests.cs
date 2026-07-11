@@ -510,8 +510,12 @@ namespace Opc.Ua.InformationModel.Tests
         {
             BrowseResult result = await BrowseAsync(
                 ObjectIds.ObjectsFolder, BrowseDirection.Forward, 0,
+                // BrowseResultMask is a spec-defined OPC UA bit mask generated
+                // without [Flags]; bitwise-or of its members is sanctioned.
+#pragma warning disable RCS1130
                 (uint)(BrowseResultMask.BrowseName |
                     BrowseResultMask.DisplayName))
+#pragma warning restore RCS1130
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             Assert.That(result.References.Count, Is.GreaterThan(0));

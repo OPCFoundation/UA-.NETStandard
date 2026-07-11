@@ -47,7 +47,7 @@ namespace Opc.Ua
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? reverseConnection)
         {
-            m_host = host;
+            OwnerManager = host;
             Key = key;
             Endpoint = endpoint;
             ReverseConnection = reverseConnection;
@@ -60,7 +60,7 @@ namespace Opc.Ua
         public ConfiguredEndpoint Endpoint { get; }
         public ITransportWaitingConnection? ReverseConnection { get; }
 
-        public IChannelEntryHost OwnerManager => m_host;
+        public IChannelEntryHost OwnerManager { get; }
 
         public string EndpointUrl => Key.EndpointUrl;
 
@@ -135,7 +135,7 @@ namespace Opc.Ua
                     m_clientCertificateVersion = clientCertificateVersion;
                     m_activeMetricRecorded = true;
                 }
-                m_host.RecordChannelActiveChanged(this, 1);
+                OwnerManager.RecordChannelActiveChanged(this, 1);
                 TransitionTo(ChannelState.Ready, error: null, attempt: 0);
                 SignalReady();
             }
@@ -155,6 +155,7 @@ namespace Opc.Ua
         /// caller is responsible for disposing the returned
         /// lease.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="participant"/> is <c>null</c>.</exception>
         public ManagedTransportChannelLease AcquireLease(IReconnectParticipant participant)
         {
             if (participant == null)
@@ -169,6 +170,8 @@ namespace Opc.Ua
         /// Acquire a new lease and atomically bind the participant
         /// returned by <paramref name="participantFactory"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="participantFactory"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public ManagedTransportChannelLease AcquireLease(
             Func<IManagedTransportChannel, IReconnectParticipant> participantFactory)
         {
@@ -199,7 +202,7 @@ namespace Opc.Ua
                 participantId = lease.Participant.Id;
             }
 
-            m_host.OnEntryParticipantAttached(this, participantId, refCount, participantCount);
+            OwnerManager.OnEntryParticipantAttached(this, participantId, refCount, participantCount);
             return lease;
         }
 
@@ -251,7 +254,7 @@ namespace Opc.Ua
 
             if (attached)
             {
-                m_host.OnEntryParticipantAttached(this, participant.Id, refCount, participantCount);
+                OwnerManager.OnEntryParticipantAttached(this, participant.Id, refCount, participantCount);
             }
         }
 
@@ -289,7 +292,7 @@ namespace Opc.Ua
                 return;
             }
 
-            m_host.OnEntryParticipantDetached(this, participantId, refCount, participantCount);
+            OwnerManager.OnEntryParticipantDetached(this, participantId, refCount, participantCount);
             if (teardown)
             {
                 await TearDownAsync(reason).ConfigureAwait(false);
@@ -326,7 +329,7 @@ namespace Opc.Ua
                 }
             }
 
-            m_host.OnEntryParticipantDetached(this, participantId, refCount, participantCount);
+            OwnerManager.OnEntryParticipantDetached(this, participantId, refCount, participantCount);
             if (teardown)
             {
                 await TearDownAsync(reason).ConfigureAwait(false);
@@ -520,23 +523,23 @@ namespace Opc.Ua
             foreach (ManagedTransportChannelLease lease in leases)
             {
                 lease.MarkReleased();
-                m_host.OnEntryParticipantDetached(this, lease.Participant.Id, 0, 0);
+                OwnerManager.OnEntryParticipantDetached(this, lease.Participant.Id, 0, 0);
             }
             await TearDownAsync(reason).ConfigureAwait(false);
         }
 
         private async Task WaitForReadyCoreAsync(Task readyTask, CancellationToken ct)
         {
-            long startingTimestamp = m_host.TimeProvider.GetTimestamp();
+            long startingTimestamp = OwnerManager.TimeProvider.GetTimestamp();
             try
             {
                 await readyTask.WaitAsync(ct).ConfigureAwait(false);
             }
             finally
             {
-                m_host.RecordGateWait(
+                OwnerManager.RecordGateWait(
                     this,
-                    m_host.TimeProvider.GetElapsedTime(startingTimestamp));
+                    OwnerManager.TimeProvider.GetElapsedTime(startingTimestamp));
             }
         }
 
@@ -548,7 +551,7 @@ namespace Opc.Ua
             }
 
 #if NET8_0_OR_GREATER
-            return Task.Delay(delay, m_host.TimeProvider, ct);
+            return Task.Delay(delay, OwnerManager.TimeProvider, ct);
 #else
             if (ct.IsCancellationRequested)
             {
@@ -556,7 +559,7 @@ namespace Opc.Ua
             }
 
             var state = new DelayState();
-            state.Initialize(m_host.TimeProvider, delay, ct);
+            state.Initialize(OwnerManager.TimeProvider, delay, ct);
 
             return state.Task;
 #endif
@@ -591,39 +594,39 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger?.LogDebug(
+                    OwnerManager.Logger?.LogDebug(
                         ex, "ClientChannelManager: underlying CloseAsync failed.");
                 }
                 try
                 {
-                    m_host.CloseChannel(underlying);
+                    OwnerManager.CloseChannel(underlying);
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger?.LogDebug(
+                    OwnerManager.Logger?.LogDebug(
                         ex, "ClientChannelManager: CloseChannel failed.");
                 }
-                m_host.OnEntryClosed(this, reason);
+                OwnerManager.OnEntryClosed(this, reason);
             }
 
             if (activeMetricRecorded)
             {
-                m_host.RecordChannelActiveChanged(this, -1);
+                OwnerManager.RecordChannelActiveChanged(this, -1);
             }
 
-            m_host.RemoveEntryIfPresent(Key, this);
+            OwnerManager.RemoveEntryIfPresent(Key, this);
         }
 
         private async Task RunReconnectCycleAsync(
             TaskCompletionSource<bool> tcs)
         {
-            using Activity? activity = m_host.StartReconnectActivity(this);
-            long startingTimestamp = m_host.TimeProvider.GetTimestamp();
+            using Activity? activity = OwnerManager.StartReconnectActivity(this);
+            long startingTimestamp = OwnerManager.TimeProvider.GetTimestamp();
             string finalOutcome = kReconnectOutcomeTransientFailure;
             ServiceResult? finalError = null;
             int attemptsStarted = 0;
 
-            CancellationToken shutdownToken = m_host.ShutdownToken;
+            CancellationToken shutdownToken = OwnerManager.ShutdownToken;
 
             async Task StopWithFaultAsync(
                 ServiceResult error,
@@ -640,7 +643,7 @@ namespace Opc.Ua
                     message));
                 await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                 finalOutcome = kReconnectOutcomePolicyExhausted;
-                m_host.RecordReconnectAttempt(this, finalOutcome);
+                OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                 tcs.TrySetResult(false);
             }
 
@@ -668,16 +671,16 @@ namespace Opc.Ua
                     }
 
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
-                    TimeSpan delay = m_host.ReconnectPolicy.GetDelay(attempt, budget);
+                    TimeSpan delay = OwnerManager.ReconnectPolicy.GetDelay(attempt, budget);
 #else
                     TimeSpan delay = ChannelReconnectPolicyBudget.GetDelay(
-                        m_host.ReconnectPolicy,
+                        OwnerManager.ReconnectPolicy,
                         attempt,
                         budget);
 #endif
                     TimeSpan? serverRetryAfter = ConsumeServerRetryAfterHint();
                     delay = RetryAfterHint.ApplyReconnectDelayLowerBound(
-                        m_host.ReconnectPolicy,
+                        OwnerManager.ReconnectPolicy,
                         delay,
                         serverRetryAfter);
                     delay = ChannelReconnectPolicyBudget.ClampDelayToBudget(delay, budget);
@@ -744,11 +747,11 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         ServiceResult error = new(ex);
-                        m_host.Logger?.LogWarning(
+                        OwnerManager.Logger?.LogWarning(
                             ex,
                             "ClientChannelManager: transport reconnect attempt {Attempt} failed.",
                             attempt);
-                        m_host.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
+                        OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         attempt++;
                         continue;
                     }
@@ -771,11 +774,11 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         ServiceResult error = new(ex);
-                        m_host.Logger?.LogWarning(
+                        OwnerManager.Logger?.LogWarning(
                             ex,
                             "ClientChannelManager: participant notification attempt {Attempt} failed.",
                             attempt);
-                        m_host.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
+                        OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         attempt++;
                         continue;
                     }
@@ -794,7 +797,7 @@ namespace Opc.Ua
                             "Participant signaled fatal channel error."));
                         await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                         finalOutcome = kReconnectOutcomeFatalChannel;
-                        m_host.RecordReconnectAttempt(this, finalOutcome);
+                        OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                         tcs.TrySetResult(false);
                         return;
                     }
@@ -804,7 +807,7 @@ namespace Opc.Ua
                         var error = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Participant signaled transient channel reconnect failure.");
-                        m_host.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
+                        OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         attempt++;
                         continue;
                     }
@@ -812,7 +815,7 @@ namespace Opc.Ua
                     TransitionTo(ChannelState.Ready, error: null, attempt);
                     SignalReady();
                     finalOutcome = kReconnectOutcomeSuccess;
-                    m_host.RecordReconnectAttempt(this, finalOutcome);
+                    OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                     tcs.TrySetResult(true);
                     return;
                 }
@@ -824,10 +827,10 @@ namespace Opc.Ua
             }
             finally
             {
-                m_host.CompleteReconnectActivity(activity, this, attemptsStarted, finalOutcome, finalError);
-                m_host.RecordReconnectDuration(
+                OwnerManager.CompleteReconnectActivity(activity, this, attemptsStarted, finalOutcome, finalError);
+                OwnerManager.RecordReconnectDuration(
                     this,
-                    m_host.TimeProvider.GetElapsedTime(startingTimestamp),
+                    OwnerManager.TimeProvider.GetElapsedTime(startingTimestamp),
                     finalOutcome);
 
                 bool teardown = false;
@@ -839,9 +842,9 @@ namespace Opc.Ua
                     // starts unconstrained until its own callers tighten it.
                     m_effectiveBudget = null;
                     m_operationRef--;
-                    teardown = m_refcount == 0
-                        && m_operationRef == 0
-                        && m_state != ChannelState.Closed;
+                    teardown = m_refcount == 0 &&
+                        m_operationRef == 0 &&
+                        m_state != ChannelState.Closed;
                     if (teardown && m_state == ChannelState.Faulted)
                     {
                         teardownReason = ChannelCloseReason.Faulted;
@@ -857,7 +860,7 @@ namespace Opc.Ua
         private async Task EnsureTransportConnectedAsync(CancellationToken ct)
         {
             (Certificate? clientCert, CertificateCollection? clientChain, long certVersion) =
-                m_host.SnapshotClientCertificate();
+                OwnerManager.SnapshotClientCertificate();
             ITransportChannel? underlying;
             bool certificateChanged;
             lock (m_lock)
@@ -882,7 +885,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger?.LogDebug(
+                    OwnerManager.Logger?.LogDebug(
                         ex,
                         "ClientChannelManager: channel.ReconnectAsync failed; recreating.");
                 }
@@ -910,13 +913,13 @@ namespace Opc.Ua
                 }
                 try
                 {
-                    m_host.CloseChannel(old);
+                    OwnerManager.CloseChannel(old);
                 }
                 catch
                 {
                     // best-effort
                 }
-                m_host.OnEntryClosed(this, ChannelCloseReason.Faulted);
+                OwnerManager.OnEntryClosed(this, ChannelCloseReason.Faulted);
             }
         }
 
@@ -966,6 +969,7 @@ namespace Opc.Ua
 
             private readonly TaskCompletionSource<bool> m_taskSource = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+
             private CancellationTokenRegistration m_registration;
             private ITimer? m_timer;
         }
@@ -976,14 +980,14 @@ namespace Opc.Ua
             CertificateCollection? clientCertificateChain,
             CancellationToken ct)
         {
-            ITransportChannel channel = await m_host.CreateChannelAsync(
+            ITransportChannel channel = await OwnerManager.CreateChannelAsync(
                 Endpoint,
                 clientCertificate,
                 clientCertificateChain,
                 ReverseConnection,
                 ct).ConfigureAwait(false);
             MarkOpened();
-            m_host.OnEntryOpened(this);
+            OwnerManager.OnEntryOpened(this);
             return channel;
         }
 
@@ -991,7 +995,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                m_openedAt = m_host.TimeProvider.GetUtcNow();
+                m_openedAt = OwnerManager.TimeProvider.GetUtcNow();
             }
         }
 
@@ -1009,7 +1013,7 @@ namespace Opc.Ua
                 return new AggregatedReactivationOutcome();
             }
 
-            TimeSpan participantTimeout = ResolveParticipantTimeout(m_host.ReconnectPolicy);
+            TimeSpan participantTimeout = ResolveParticipantTimeout(OwnerManager.ReconnectPolicy);
             Task<ParticipantReconnectResult>[] tasks = [.. snapshot.Select(lease => Task.Run(
                 async () =>
                 {
@@ -1029,17 +1033,17 @@ namespace Opc.Ua
                     }
                     catch (TimeoutException)
                     {
-                        m_host.Logger?.LogWarning(
+                        OwnerManager.Logger?.LogWarning(
                             "ClientChannelManager: participant {Participant} OnReconnect timed out after {Timeout}; " +
                             "treating as TransientFailure.",
                             lease.Participant.Id,
                             participantTimeout);
-                        m_host.RecordParticipantTimeout(this, lease.Participant.Id);
+                        OwnerManager.RecordParticipantTimeout(this, lease.Participant.Id);
                         return ParticipantReconnectResult.TransientFailure;
                     }
                     catch (Exception ex)
                     {
-                        m_host.Logger?.LogWarning(
+                        OwnerManager.Logger?.LogWarning(
                             ex,
                             "ClientChannelManager: participant {Participant} OnReconnect failed.",
                             lease.Participant.Id);
@@ -1078,7 +1082,7 @@ namespace Opc.Ua
                         }
                         if (detached)
                         {
-                            m_host.OnEntryParticipantDetached(
+                            OwnerManager.OnEntryParticipantDetached(
                                 this,
                                 snapshot[i].Participant.Id,
                                 refCount,
@@ -1088,9 +1092,6 @@ namespace Opc.Ua
                     case ParticipantReconnectResult.RequiresSessionRecreate:
                         DispatchRecreate(snapshot[i].Participant);
                         break;
-                    case ParticipantReconnectResult.Reactivated:
-                    default:
-                        break;
                 }
             }
             return outcome;
@@ -1098,14 +1099,14 @@ namespace Opc.Ua
 
         private void DispatchRecreate(IReconnectParticipant participant)
         {
-            CancellationToken shutdownToken = m_host.ShutdownToken;
+            CancellationToken shutdownToken = OwnerManager.ShutdownToken;
             _ = Task.Run(async () =>
             {
                 try
                 {
                     ValueTask work = ResolveRecreateInvocation(participant, shutdownToken);
                     await work.ConfigureAwait(false);
-                    m_host.RecordParticipantRecreate(this, participant.Id, success: true);
+                    OwnerManager.RecordParticipantRecreate(this, participant.Id, success: true);
                 }
                 catch (OperationCanceledException)
                 {
@@ -1113,11 +1114,11 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger?.LogWarning(
+                    OwnerManager.Logger?.LogWarning(
                         ex,
                         "ClientChannelManager: participant {Participant} RecreateAsync failed.",
                         participant.Id);
-                    m_host.RecordParticipantRecreate(this, participant.Id, success: false);
+                    OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
                 }
             });
         }
@@ -1214,7 +1215,7 @@ namespace Opc.Ua
                     return;
                 }
                 m_state = next;
-                m_lastStateChange = m_host.TimeProvider.GetUtcNow();
+                m_lastStateChange = OwnerManager.TimeProvider.GetUtcNow();
                 m_lastReconnectAttempt = attempt;
                 m_lastError = error;
                 subjects = [.. m_leases];
@@ -1238,7 +1239,7 @@ namespace Opc.Ua
                 }
             }
 
-            m_host.OnEntryStateChanged(this, change);
+            OwnerManager.OnEntryStateChanged(this, change);
         }
 
         private void SignalReady()
@@ -1279,8 +1280,6 @@ namespace Opc.Ua
         private const string kReconnectOutcomeTransientFailure = "transient-failure";
         private const string kReconnectOutcomeFatalChannel = "fatal-channel";
         private const string kReconnectOutcomePolicyExhausted = "policy-exhausted";
-
-        private readonly IChannelEntryHost m_host;
         private readonly Lock m_lock = new();
         private readonly List<ManagedTransportChannelLease> m_leases = [];
         private int m_refcount;

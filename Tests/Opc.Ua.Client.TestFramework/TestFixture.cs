@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     using var sessionCloseCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     Task<StatusCode> closeTask = Session.CloseAsync(5000, true, sessionCloseCts.Token);
-                    Task hardTimeoutTask = Task.Delay(TimeSpan.FromSeconds(15));
+                    var hardTimeoutTask = Task.Delay(TimeSpan.FromSeconds(15));
                     if (await Task.WhenAny(closeTask, hardTimeoutTask).ConfigureAwait(false) == hardTimeoutTask)
                     {
                         // CloseAsync is still running after 15 s (stuck in Dispose/socket

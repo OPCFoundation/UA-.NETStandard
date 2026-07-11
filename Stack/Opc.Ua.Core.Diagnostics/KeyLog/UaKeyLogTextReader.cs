@@ -36,8 +36,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Pcap.Capture;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
@@ -78,6 +76,7 @@ namespace Opc.Ua.Pcap.KeyLog
         /// <summary>
         /// Reads all key material from the bound file path.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public IAsyncEnumerable<ChannelKeyMaterial> ReadAllAsync(CancellationToken ct)
         {
             if (FilePath is null)

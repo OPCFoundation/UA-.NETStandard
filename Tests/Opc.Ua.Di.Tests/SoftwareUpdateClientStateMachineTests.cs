@@ -53,10 +53,10 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task GetInstallationStateAsyncReturnsNullWhenChildAbsent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             FiniteStateSnapshot? snapshot = await client
                 .GetInstallationStateAsync().ConfigureAwait(false);
@@ -67,10 +67,10 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task GetPrepareForUpdateStateAsyncReturnsNullWhenChildAbsent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             FiniteStateSnapshot? snapshot = await client
                 .GetPrepareForUpdateStateAsync().ConfigureAwait(false);
@@ -81,10 +81,10 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task GetConfirmationStateAsyncReturnsNullWhenChildAbsent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             FiniteStateSnapshot? snapshot = await client
                 .GetConfirmationStateAsync().ConfigureAwait(false);
@@ -95,10 +95,10 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task GetPowerCycleStateAsyncReturnsNullWhenChildAbsent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             FiniteStateSnapshot? snapshot = await client
                 .GetPowerCycleStateAsync().ConfigureAwait(false);
@@ -109,10 +109,10 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void InstallSoftwarePackageAsyncThrowsBadNotFoundWhenChildAbsent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.InstallSoftwarePackageAsync(
@@ -124,10 +124,10 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void PrepareAsyncThrowsBadNotFoundWhenChildAbsent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.PrepareAsync().ConfigureAwait(false))!;
@@ -138,10 +138,10 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ConfirmAsyncThrowsBadNotFoundWhenChildAbsent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateAllEmpty(sessionMock);
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ConfirmAsync().ConfigureAwait(false))!;
@@ -153,7 +153,7 @@ namespace Opc.Ua.Di.Tests
         public async Task GetInstallationStateAsyncCachesChildResolution()
         {
             int childResolutionCalls = 0;
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslate(sessionMock, paths =>
             {
                 // The child-resolution call sends exactly ONE BrowsePath
@@ -171,7 +171,7 @@ namespace Opc.Ua.Di.Tests
                 return BadAll(paths.Count);
             });
 
-            var client = NewClient(sessionMock);
+            SoftwareUpdateClient client = NewClient(sessionMock);
 
             await client.GetInstallationStateAsync().ConfigureAwait(false);
             await client.GetInstallationStateAsync().ConfigureAwait(false);
@@ -202,7 +202,7 @@ namespace Opc.Ua.Di.Tests
             nsTable.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
 
-            ServiceMessageContext ctx = ServiceMessageContext.Create(NullTelemetry());
+            var ctx = ServiceMessageContext.Create(NullTelemetry());
             ctx.NamespaceUris = nsTable;
             mock.SetupGet(s => s.MessageContext).Returns(ctx);
             return mock;

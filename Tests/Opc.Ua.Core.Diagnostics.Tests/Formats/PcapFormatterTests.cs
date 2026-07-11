@@ -37,8 +37,6 @@ using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Formats
 {
     [TestFixture]
@@ -71,8 +69,8 @@ namespace Opc.Ua.Pcap.Tests.Formats
             }
 
             await using var source = new InMemoryCaptureSource(
-                pcapFilePath: pcapPath,
-                supportedFormats: new[] { FormatKind.Pcap });
+                supportedFormats: [FormatKind.Pcap],
+                pcapFilePath: pcapPath);
             var formatter = new PcapFormatter();
 
             FormatResult result = await formatter.FormatAsync(source, maxFrames: null, CancellationToken.None)

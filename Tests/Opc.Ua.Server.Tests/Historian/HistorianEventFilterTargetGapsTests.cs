@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void IsTypeOfReturnsTrueWhenTypeDefinitionIdIsNull()
         {
-            var record = MakeRecord(ObjectTypeIds.BaseEventType);
+            HistorianEventRecord record = MakeRecord(ObjectTypeIds.BaseEventType);
             var target = new HistorianEventFilterTarget(record);
 
             // NodeId.Null branch (line 67-69): always returns true.
@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests.Historian
             // AuditEventType does NOT equal BaseEventType, and the context
             // either has no TypeTree or has TypeTree == null, so the
             // degraded path (lines 80-92) fires and returns false.
-            var record = MakeRecord(ObjectTypeIds.AuditEventType);
+            HistorianEventRecord record = MakeRecord(ObjectTypeIds.AuditEventType);
             var target = new HistorianEventFilterTarget(record);
 
             // Build a context whose TypeTree is null so the fallback fires.
@@ -88,7 +88,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void GetAttributeValueReturnsEventTypeForEmptyPathAndNodeIdAttribute()
         {
             NodeId eventType = ObjectTypeIds.AuditEventType;
-            var record = MakeRecord(eventType);
+            HistorianEventRecord record = MakeRecord(eventType);
             var target = new HistorianEventFilterTarget(record);
 
             // relativePath.Count == 0 && attributeId == Attributes.NodeId
@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void GetAttributeValueReturnsDefaultForEmptyPathAndNonNodeIdAttribute()
         {
-            var record = MakeRecord(ObjectTypeIds.BaseEventType);
+            HistorianEventRecord record = MakeRecord(ObjectTypeIds.BaseEventType);
             var target = new HistorianEventFilterTarget(record);
 
             // relativePath.Count == 0 && attributeId != NodeId → default (line 113)
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void GetAttributeValueReturnsDefaultForUnresolvedMultiSegmentPath()
         {
-            var record = MakeRecord(ObjectTypeIds.BaseEventType);
+            HistorianEventRecord record = MakeRecord(ObjectTypeIds.BaseEventType);
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new("A"), new("B"), new("C") };
 

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -69,9 +68,9 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             ServerSession session = CreateSessionWithoutManager();
 
             Assert.That(
-                async () => await session.CreateDataChangeSubscriptionAsync(1000),
+                async () => await session.CreateDataChangeSubscriptionAsync(1000).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
-                    .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                    .With.Property("StatusCode").EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -82,7 +81,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             // Model-change monitoring is optional/best-effort: a session without a
             // V2 manager must skip it silently rather than fault.
             Assert.That(
-                async () => await session.StartModelChangeMonitoringAsync(),
+                async () => await session.StartModelChangeMonitoringAsync().ConfigureAwait(false),
                 Throws.Nothing);
         }
     }

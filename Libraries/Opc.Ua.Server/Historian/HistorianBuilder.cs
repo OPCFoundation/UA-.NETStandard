@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server.Historian.InMemory;
 
@@ -244,7 +245,13 @@ namespace Opc.Ua.Server.Historian
             }
             lock (m_captureSinkLock)
             {
+                // CA1508 misreads the second half of this double-checked
+                // locking idiom as always-null; another thread may have
+                // assigned m_captureSink between the first check and acquiring
+                // the lock.
+#pragma warning disable CA1508
                 m_captureSink ??= new HistorianCaptureSink(Provider!, serverContext, options);
+#pragma warning restore CA1508
                 return m_captureSink;
             }
         }
@@ -269,10 +276,12 @@ namespace Opc.Ua.Server.Historian
                 {
                     reg.Variable.StateChanged -= reg.Handler;
                 }
+#pragma warning disable RCS1075 // intentional best-effort swallow — variable may already be torn down
                 catch (Exception)
                 {
                     // ignore — variable may already be torn down
                 }
+#pragma warning restore RCS1075
             }
             HistorianCaptureSink? sink;
             lock (m_captureSinkLock)
@@ -289,7 +298,7 @@ namespace Opc.Ua.Server.Historian
         private readonly record struct CaptureHandlerRegistration(BaseVariableState Variable, NodeStateChangedHandler Handler);
         private readonly List<CaptureHandlerRegistration> m_captureHandlers = [];
         private HistorianCaptureSink? m_captureSink;
-        private readonly object m_captureSinkLock = new();
+        private readonly Lock m_captureSinkLock = new();
 
         /// <summary>
         /// Hooks <see cref="NodeState.OnPopulateBrowser"/> on
@@ -310,11 +319,13 @@ namespace Opc.Ua.Server.Historian
                         .EnsureInstalledAsync(context, variable, provider, default)
                         .AsTask().GetAwaiter().GetResult();
                 }
+#pragma warning disable RCS1075 // intentional best-effort install — never break Browse on a config-install failure
                 catch (Exception)
                 {
                     // Best-effort install: never break Browse on a config-install failure.
                     // TODO(historian): plumb shared telemetry to log this.
                 }
+#pragma warning restore RCS1075
                 finally
                 {
                     // Self-detach so subsequent browses don't repeat the work.

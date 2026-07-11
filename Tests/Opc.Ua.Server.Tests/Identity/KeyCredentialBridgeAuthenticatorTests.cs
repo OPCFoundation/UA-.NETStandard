@@ -138,6 +138,44 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
+        public void ConstructorAndMetadataExposeConfiguredIssuedTokenProfile()
+        {
+            using var store = new InMemoryKeyCredentialStore();
+            var options = new KeyCredentialBridgeOptions
+            {
+                ProfileUri = "urn:test:profile"
+            };
+
+            var authenticator = new KeyCredentialBridgeAuthenticator(store, options);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(authenticator.TokenType, Is.EqualTo(UserTokenType.IssuedToken));
+                Assert.That(authenticator.IssuedTokenProfileUri, Is.EqualTo("urn:test:profile"));
+                Assert.Throws<ArgumentNullException>(() => new KeyCredentialBridgeAuthenticator(null));
+            });
+        }
+
+        [Test]
+        public void CreateProofValidatesSecretAndReturnsBase64UrlProof()
+        {
+            string proof = KeyCredentialBridgeAuthenticator.CreateProof(
+                s_secret,
+                CredentialId,
+                "nonce",
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(proof, Is.Not.Empty);
+                Assert.That(proof, Does.Not.Contain("+"));
+                Assert.That(proof, Does.Not.Contain("/"));
+                Assert.Throws<ArgumentNullException>(() =>
+                    KeyCredentialBridgeAuthenticator.CreateProof(null, CredentialId, "nonce", 1));
+            });
+        }
+
+        [Test]
         public void ExperimentalAttributeIsPresent()
         {
 #if NET8_0_OR_GREATER

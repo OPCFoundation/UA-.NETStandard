@@ -111,10 +111,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Is.EquivalentTo(["tgt1", "tgt2"]));
             Assert.That(capturedRemove, Is.Null);
 
-            string? GetCapturedTriggerName()
-            {
-                return capturedTrig?.Name;
-            }
+            string? GetCapturedTriggerName() => capturedTrig?.Name;
         }
 
         [Test]

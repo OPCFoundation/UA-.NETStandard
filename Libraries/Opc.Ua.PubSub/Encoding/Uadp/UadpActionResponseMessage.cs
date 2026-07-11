@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <summary>
         /// Operation status for the Action response.
         /// </summary>
-        public StatusCode Status { get; init; } = (StatusCode)StatusCodes.Good;
+        public StatusCode Status { get; init; } = StatusCodes.Good;
 
         /// <summary>
         /// Optional correlation data copied from the request.

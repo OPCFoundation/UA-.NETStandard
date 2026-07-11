@@ -30,15 +30,9 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Http.Resilience;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Opc.Ua.Client.WebApi;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 
@@ -293,6 +287,44 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(opts.TransferSubscriptionsOnRecreate, Is.False);
         }
 
+        [Test]
+        public void WithTokenReuseFailover_DefaultsToTrue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ManagedSessionOptions opts = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
+                .WithTokenReuseFailover()
+                .Build();
+
+            Assert.That(opts.EnableTokenReuseFailover, Is.True);
+        }
+
+        [Test]
+        public void WithTokenReuseFailover_CanBeSetFalse()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ManagedSessionOptions opts = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
+                .WithTokenReuseFailover(false)
+                .Build();
+
+            Assert.That(opts.EnableTokenReuseFailover, Is.False);
+        }
+
+        [Test]
+        public void WithNetworkRedundancy_SetsAlternateEndpoints()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var alternateEndpoint = new ConfiguredEndpoint(
+                null!,
+                new EndpointDescription("opc.tcp://alternate:4840"));
+            ManagedSessionOptions opts = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
+                .WithNetworkRedundancy(new ArrayOf<ConfiguredEndpoint>(new[] { alternateEndpoint }.AsMemory()))
+                .Build();
+
+            Assert.That(opts.NetworkRedundancy, Is.Not.Null);
+            Assert.That(opts.NetworkRedundancy!.AlternateEndpoints.Count, Is.EqualTo(1));
+            Assert.That(opts.NetworkRedundancy.AlternateEndpoints[0], Is.SameAs(alternateEndpoint));
+        }
+
         // ----------------------------------------------------------------
         // WithPoolNotifications
         // ----------------------------------------------------------------
@@ -464,7 +496,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry);
 
             Assert.That(
-                () => builder.WithServerRedundancy((IServerRedundancyHandler)null!),
+                () => builder.WithServerRedundancy(null!),
                 Throws.ArgumentNullException);
         }
 

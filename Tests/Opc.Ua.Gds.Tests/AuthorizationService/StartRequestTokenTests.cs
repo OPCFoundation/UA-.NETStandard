@@ -206,8 +206,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .ConfigureAwait(false);
 
             Assert.That(claims.Subject, Is.EqualTo("authenticated-user"),
-                "The subject must be bound to the identity authenticated on the session, "
-                + "not to the client-supplied request token.");
+                "The subject must be bound to the identity authenticated on the session, " +
+                "not to the client-supplied request token.");
         }
 
         [Test]
@@ -234,8 +234,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
             IIdentityClaims claims = await AuthenticateAsync(certificate, jwt).ConfigureAwait(false);
             Assert.That(claims.Subject, Is.EqualTo("anonymous"),
-                "The obsolete single-call RequestAccessToken must not trust the client-supplied "
-                + "token for the subject.");
+                "The obsolete single-call RequestAccessToken must not trust the client-supplied " +
+                "token for the subject.");
             Assert.That(claims.Roles, Is.Empty,
                 "The obsolete single-call RequestAccessToken must not grant roles.");
         }
@@ -280,8 +280,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .ConfigureAwait(false);
             Assert.That(claims.Roles, Does.Contain("operator"));
             Assert.That(claims.Roles, Does.Not.Contain("SecurityAdmin"),
-                "A role the caller did not request must never be granted, even if the "
-                + "authorization callback returns it.");
+                "A role the caller did not request must never be granted, even if the " +
+                "authorization callback returns it.");
         }
 
         [Test]

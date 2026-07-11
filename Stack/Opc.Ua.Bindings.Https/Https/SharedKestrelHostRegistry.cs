@@ -31,12 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -73,13 +69,20 @@ namespace Opc.Ua.Bindings
                 string.Equals(Host, other.Host, StringComparison.OrdinalIgnoreCase);
         }
 
-        public override bool Equals(object? obj) => obj is SharedHostKey other && Equals(other);
+        public override bool Equals(object? obj)
+        {
+            return obj is SharedHostKey other && Equals(other);
+        }
+
         public override int GetHashCode()
         {
             return HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(Host), Port);
         }
 
-        public override string ToString() => $"{Host}:{Port}";
+        public override string ToString()
+        {
+            return $"{Host}:{Port}";
+        }
     }
 
     /// <summary>
@@ -129,10 +132,12 @@ namespace Opc.Ua.Bindings
         {
         }
 
-        // Async-aware critical section because Acquire awaits AttachAndStartAsync
-        // and Release awaits StopAsync inside the registry-wide barrier.
+        /// <summary>
+        /// Async-aware critical section because Acquire awaits AttachAndStartAsync
+        /// and Release awaits StopAsync inside the registry-wide barrier.
+        /// </summary>
         private readonly SemaphoreSlim m_lock = new(1, 1);
-        private readonly Dictionary<SharedHostKey, SharedKestrelHost> m_hosts = new();
+        private readonly Dictionary<SharedHostKey, SharedKestrelHost> m_hosts = [];
 
         /// <summary>
         /// Acquires (or creates) the shared host for <paramref name="key"/>
@@ -165,6 +170,9 @@ namespace Opc.Ua.Bindings
         /// a mismatch throws <see cref="InvalidOperationException"/>.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="hostFactory"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<SharedHostLease> AcquireAsync(
             SharedHostKey key,
             HttpsTransportListener listener,
@@ -350,6 +358,7 @@ namespace Opc.Ua.Bindings
 
         internal SharedHostKey Key { get; }
         internal string ServerCertificateThumbprint { get; }
+
         internal int ListenerCount
         {
             get
@@ -368,6 +377,7 @@ namespace Opc.Ua.Bindings
         /// the request pipeline can resolve this instance on first
         /// request.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         internal async ValueTask AttachAndStartAsync(IHost host, CancellationToken ct = default)
         {
             if (m_host != null)
@@ -509,9 +519,11 @@ namespace Opc.Ua.Bindings
         }
 
         private IHost? m_host;
-        private readonly System.Threading.Lock m_lock = new();
+        private readonly Lock m_lock = new();
+
         private readonly Dictionary<string, HttpsTransportListener> m_listeners =
             new(StringComparer.OrdinalIgnoreCase);
-        private IReadOnlyList<string> m_routeOrder = Array.Empty<string>();
+
+        private IReadOnlyList<string> m_routeOrder = [];
     }
 }

@@ -486,6 +486,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the built-in OPC TCP transport and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddOpcTcpTransport(this IGdsServerBuilder builder)
         {
             if (builder is null)
@@ -500,6 +501,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables HTTPS transport and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddHttpsTransport(this IGdsServerBuilder builder)
         {
             if (builder is null)
@@ -514,6 +516,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables HTTPS transport with one-shot options and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddHttpsTransport(
             this IGdsServerBuilder builder,
             Action<OpcUaHttpsTransportOptions> configure)
@@ -530,6 +533,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables WSS transport and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddWssTransport(this IGdsServerBuilder builder)
         {
             if (builder is null)
@@ -544,6 +548,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables WSS transport with one-shot options and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddWssTransport(
             this IGdsServerBuilder builder,
             Action<OpcUaWssTransportOptions> configure)
@@ -561,6 +566,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the Kestrel OPC TCP listener and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddKestrelOpcTcpTransport(this IGdsServerBuilder builder)
         {
             if (builder is null)
@@ -575,6 +581,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the OPC UA REST Web API transport and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddWebApiTransport(this IGdsServerBuilder builder)
         {
             if (builder is null)
@@ -589,6 +596,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the OPC UA REST Web API transport and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddWebApiTransport(
             this IGdsServerBuilder builder,
             Action<Opc.Ua.Bindings.WebApi.WebApiTransportOptions>? configure)
@@ -607,6 +615,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Configures server-side reverse connect and returns the same GDS builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IGdsServerBuilder AddReverseConnect(
             this IGdsServerBuilder builder,
             Action<ServerReverseConnectOptions> configure)

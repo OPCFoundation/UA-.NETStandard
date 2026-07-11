@@ -103,7 +103,7 @@ namespace Opc.Ua.Di.Server.Topology
 
         private BaseObjectState? ResolveWellKnown(uint id)
         {
-            NodeId nodeId = NodeId.Create(
+            var nodeId = NodeId.Create(
                 id,
                 DiNodeManager.DiNamespaceUri,
                 m_manager.Server.NamespaceUris);

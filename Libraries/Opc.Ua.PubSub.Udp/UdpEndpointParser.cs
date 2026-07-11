@@ -30,8 +30,8 @@
 using System;
 using System.Globalization;
 using System.Net;
-using Opc.Ua.PubSub.Udp.Dtls;
 using System.Net.Sockets;
+using Opc.Ua.PubSub.Udp.Dtls;
 
 namespace Opc.Ua.PubSub.Udp
 {
@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub.Udp
             if (address.AddressFamily == AddressFamily.InterNetwork)
             {
                 byte[] octets = address.GetAddressBytes();
-                if (octets[0] >= 224 && octets[0] <= 239)
+                if (octets[0] is >= 224 and <= 239)
                 {
                     return UdpAddressType.Multicast;
                 }
@@ -232,9 +232,9 @@ namespace Opc.Ua.PubSub.Udp
             {
                 throw new FormatException("PubSub UDP URL is missing the port component.");
             }
-            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int port)
-                || port < 1
-                || port > 65535)
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int port) ||
+                port < 1 ||
+                port > 65535)
             {
                 throw new FormatException(
                     $"PubSub UDP URL has an invalid port component '{text}' (must be 1-65535).");

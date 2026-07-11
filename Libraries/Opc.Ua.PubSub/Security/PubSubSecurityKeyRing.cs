@@ -140,6 +140,7 @@ namespace Opc.Ua.PubSub.Security
         /// previous active token into the past list.
         /// </summary>
         /// <param name="key">New active key.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public void SetCurrent(PubSubSecurityKey key)
         {
             if (key is null)
@@ -167,6 +168,7 @@ namespace Opc.Ua.PubSub.Security
         /// <see cref="RotateToNextFuture"/>.
         /// </summary>
         /// <param name="key">Future key.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public void AddFuture(PubSubSecurityKey key)
         {
             if (key is null)
@@ -294,7 +296,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 return;
             }
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             handler.Invoke(this, new PubSubKeyRotatedEventArgs(newTokenId, previousTokenId, now));
         }
 

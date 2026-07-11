@@ -120,6 +120,17 @@ canonical URI string before claiming a facet):
 - **Async server NodeManagers** — TAP-based `AsyncCustomNodeManager` is the
   recommended base for new NodeManagers, and every NodeManager shipped with
   the stack has migrated to it. See [Async Server Support](AsyncServerSupport.md).
+- **Server redundancy (Part 4 §6.6)** — `AddServerRedundancy(...)` publishes
+  the `Server.ServerRedundancy` object, drives `Server.ServiceLevel`, and
+  supports every `RedundancySupport` mode (None / Cold / Warm / Hot /
+  HotAndMirrored / Transparent). Non-transparent modes advertise the **`NTRS`**
+  discovery capability and return the peer set from `FindServers`;
+  `RequestServerStateChange` supports administrator-driven Maintenance / NoData
+  failover. Opt-in distributed high availability — address-space, session, and
+  subscription mirroring over an in-package CRDT (eventual) or Raft (strong)
+  shared store, plus a Kubernetes deployment — is provided by the
+  `Opc.Ua.Redundancy`, `.Server`, `.Client`, and `.Kubernetes` packages. See
+  [High Availability](HighAvailability.md).
 
 ## Client Profiles
 
@@ -431,6 +442,12 @@ server-defined types.
   compliance through an OPC Foundation Certification Test Lab.
 - **Testing:** All releases are verified for compliance using the latest
   Compliance Test Tool (CTT).
+- **Redundancy (Part 4 §6.6):** Server and client redundancy are implemented
+  (opt-in) — `RedundancySupport`, `Server.ServiceLevel`, non-transparent
+  (`ServerUriArray` / `RedundantServerArray`) and transparent (`CurrentServerId`)
+  modes, `RequestServerStateChange`, and client-side transparent failover via
+  `ManagedSession.WithServerRedundancy()`; see
+  [High Availability](HighAvailability.md).
 
 ## Configuration
 

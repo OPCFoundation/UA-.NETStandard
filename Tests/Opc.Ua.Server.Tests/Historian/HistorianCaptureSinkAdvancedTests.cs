@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianProviderBase,
             IHistorianBulkInsertProvider
         {
-            private readonly object m_lock = new();
+            private readonly Lock m_lock = new();
 
             public List<(NodeId NodeId, IList<DataValue> Values)> Inserts { get; } = [];
             public List<int> BatchSizes { get; } = [];

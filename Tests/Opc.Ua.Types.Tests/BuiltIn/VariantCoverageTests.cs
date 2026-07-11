@@ -114,7 +114,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConvertToByteStringReturnsSelfForByteString()
         {
-            ByteString bytes = ByteString.From(1, 2, 3);
+            var bytes = ByteString.From(1, 2, 3);
             Variant result = new Variant(bytes).ConvertToByteString();
             bool matches = result == new Variant(bytes);
             Assert.That(matches, Is.True);
@@ -462,7 +462,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CopyClonesExtensionObjectMatrix()
         {
             var body = new Argument();
-            var matrix = Matrix(new ExtensionObject(body), new ExtensionObject(new Argument()));
+            MatrixOf<ExtensionObject> matrix = Matrix(new ExtensionObject(body), new ExtensionObject(new Argument()));
             Variant copy = new Variant(matrix).Copy();
             bool ok = copy.Expand().Span[0].GetExtensionObject().TryGetValue(out Argument copiedBody);
             bool sameInstance = ReferenceEquals(copiedBody, body);
@@ -476,7 +476,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void CopyClonesDataValueMatrix()
         {
-            var matrix = Matrix(new DataValue(1), new DataValue(2));
+            MatrixOf<DataValue> matrix = Matrix(new DataValue(1), new DataValue(2));
             Variant copy = new Variant(matrix).Copy();
             ArrayOf<Variant> expanded = copy.Expand();
             Assert.Multiple(() =>
@@ -653,7 +653,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             DateTimeUtc dateTime = Dt(1);
             Uuid uid = Uid(1);
-            ByteString bytes = ByteString.From(1, 2);
+            var bytes = ByteString.From(1, 2);
             XmlElement xml = Xml("1");
             var nodeId = new NodeId(10, 1);
             ExpandedNodeId expanded = ENId("Node");
@@ -705,33 +705,33 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var extension = new ExtensionObject(new Argument());
             var dataValue = new DataValue(1);
 
-            ArrayOf<bool> boolArray = ArrayOf.Wrapped(true, false);
-            ArrayOf<sbyte> sbyteArray = ArrayOf.Wrapped((sbyte)-1, (sbyte)1);
-            ArrayOf<byte> byteArray = ArrayOf.Wrapped((byte)1, (byte)2);
-            ArrayOf<short> shortArray = ArrayOf.Wrapped((short)-2, (short)2);
-            ArrayOf<ushort> ushortArray = ArrayOf.Wrapped((ushort)2, (ushort)3);
-            ArrayOf<int> intArray = ArrayOf.Wrapped(-3, 3);
-            ArrayOf<uint> uintArray = ArrayOf.Wrapped(3u, 4u);
-            ArrayOf<long> longArray = ArrayOf.Wrapped(-4L, 4L);
-            ArrayOf<ulong> ulongArray = ArrayOf.Wrapped(4UL, 5UL);
-            ArrayOf<float> floatArray = ArrayOf.Wrapped(1.0f, 2.0f);
-            ArrayOf<double> doubleArray = ArrayOf.Wrapped(1.0d, 2.0d);
-            ArrayOf<string> stringArray = ArrayOf.Wrapped("a", "b");
-            ArrayOf<EnumValue> enumArray = ArrayOf.Wrapped(new EnumValue(1), new EnumValue(2));
-            ArrayOf<DateTimeUtc> dateTimeArray = ArrayOf.Wrapped(Dt(1), Dt(2));
-            ArrayOf<Uuid> guidArray = ArrayOf.Wrapped(Uid(1), Uid(2));
-            ArrayOf<ByteString> byteStringArray = ArrayOf.Wrapped(ByteString.From(1), ByteString.From(2));
-            ArrayOf<XmlElement> xmlArray = ArrayOf.Wrapped(xml, xml);
-            ArrayOf<NodeId> nodeIdArray = ArrayOf.Wrapped(new NodeId(1), new NodeId(2));
-            ArrayOf<ExpandedNodeId> expandedArray = ArrayOf.Wrapped(ENId("A"), ENId("B"));
-            ArrayOf<StatusCode> statusArray = ArrayOf.Wrapped(new StatusCode(1u), new StatusCode(2u));
-            ArrayOf<QualifiedName> qualifiedArray =
+            var boolArray = ArrayOf.Wrapped(true, false);
+            var sbyteArray = ArrayOf.Wrapped((sbyte)-1, (sbyte)1);
+            var byteArray = ArrayOf.Wrapped((byte)1, (byte)2);
+            var shortArray = ArrayOf.Wrapped((short)-2, (short)2);
+            var ushortArray = ArrayOf.Wrapped((ushort)2, (ushort)3);
+            var intArray = ArrayOf.Wrapped(-3, 3);
+            var uintArray = ArrayOf.Wrapped(3u, 4u);
+            var longArray = ArrayOf.Wrapped(-4L, 4L);
+            var ulongArray = ArrayOf.Wrapped(4UL, 5UL);
+            var floatArray = ArrayOf.Wrapped(1.0f, 2.0f);
+            var doubleArray = ArrayOf.Wrapped(1.0d, 2.0d);
+            var stringArray = ArrayOf.Wrapped("a", "b");
+            var enumArray = ArrayOf.Wrapped(new EnumValue(1), new EnumValue(2));
+            var dateTimeArray = ArrayOf.Wrapped(Dt(1), Dt(2));
+            var guidArray = ArrayOf.Wrapped(Uid(1), Uid(2));
+            var byteStringArray = ArrayOf.Wrapped(ByteString.From(1), ByteString.From(2));
+            var xmlArray = ArrayOf.Wrapped(xml, xml);
+            var nodeIdArray = ArrayOf.Wrapped(new NodeId(1), new NodeId(2));
+            var expandedArray = ArrayOf.Wrapped(ENId("A"), ENId("B"));
+            var statusArray = ArrayOf.Wrapped(new StatusCode(1u), new StatusCode(2u));
+            var qualifiedArray =
                 ArrayOf.Wrapped(new QualifiedName("a", 1), new QualifiedName("b", 1));
-            ArrayOf<LocalizedText> localizedArray =
+            var localizedArray =
                 ArrayOf.Wrapped(new LocalizedText("en", "a"), new LocalizedText("en", "b"));
-            ArrayOf<ExtensionObject> extensionArray = ArrayOf.Wrapped(extension, extension);
-            ArrayOf<DataValue> dataValueArray = ArrayOf.Wrapped(dataValue, dataValue);
-            ArrayOf<Variant> variantArray = ArrayOf.Wrapped(new Variant(1), new Variant(2));
+            var extensionArray = ArrayOf.Wrapped(extension, extension);
+            var dataValueArray = ArrayOf.Wrapped(dataValue, dataValue);
+            var variantArray = ArrayOf.Wrapped(new Variant(1), new Variant(2));
 
             Assert.Multiple(() =>
             {
@@ -861,7 +861,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<Variant> expanded = original.Expand();
             Assert.That(expanded.Count, Is.EqualTo(expectedCount));
-            Variant collapsed = Variant.Collapse(expanded);
+            var collapsed = Variant.Collapse(expanded);
             bool matches = collapsed == original;
             Assert.That(matches, Is.True);
         }
@@ -877,7 +877,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CollapseEmptyReturnsNullVariant()
         {
             ArrayOf<Variant> items = [];
-            Variant result = Variant.Collapse(items);
+            var result = Variant.Collapse(items);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -885,7 +885,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CollapseSingleReturnsElement()
         {
             ArrayOf<Variant> items = [new Variant(42)];
-            Variant result = Variant.Collapse(items);
+            var result = Variant.Collapse(items);
             Assert.That(result.GetInt32(), Is.EqualTo(42));
         }
 
@@ -893,7 +893,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CollapseMixedTypesReturnsVariantArray()
         {
             ArrayOf<Variant> items = [new Variant(1), new Variant("two")];
-            Variant result = Variant.Collapse(items);
+            var result = Variant.Collapse(items);
             Assert.Multiple(() =>
             {
                 Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
@@ -909,219 +909,219 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 var extension = new ExtensionObject(new Argument());
                 var dataValue = new DataValue(1);
 
-                yield return new TestCaseData(new Variant(true), (object)true, true)
+                yield return new TestCaseData(new Variant(true), true, true)
                     .SetName("EqualsObjectScalarBoolean");
-                yield return new TestCaseData(new Variant((sbyte)-5), (object)(sbyte)-5, true)
+                yield return new TestCaseData(new Variant((sbyte)-5), (sbyte)-5, true)
                     .SetName("EqualsObjectScalarSByte");
-                yield return new TestCaseData(new Variant((byte)5), (object)(byte)5, true)
+                yield return new TestCaseData(new Variant((byte)5), (byte)5, true)
                     .SetName("EqualsObjectScalarByte");
-                yield return new TestCaseData(new Variant((short)-6), (object)(short)-6, true)
+                yield return new TestCaseData(new Variant((short)-6), (short)-6, true)
                     .SetName("EqualsObjectScalarInt16");
-                yield return new TestCaseData(new Variant((ushort)6), (object)(ushort)6, true)
+                yield return new TestCaseData(new Variant((ushort)6), (ushort)6, true)
                     .SetName("EqualsObjectScalarUInt16");
-                yield return new TestCaseData(new Variant(-7), (object)-7, true)
+                yield return new TestCaseData(new Variant(-7), -7, true)
                     .SetName("EqualsObjectScalarInt32");
-                yield return new TestCaseData(new Variant(7u), (object)7u, true)
+                yield return new TestCaseData(new Variant(7u), 7u, true)
                     .SetName("EqualsObjectScalarUInt32");
-                yield return new TestCaseData(new Variant(-8L), (object)-8L, true)
+                yield return new TestCaseData(new Variant(-8L), -8L, true)
                     .SetName("EqualsObjectScalarInt64");
-                yield return new TestCaseData(new Variant(8UL), (object)8UL, true)
+                yield return new TestCaseData(new Variant(8UL), 8UL, true)
                     .SetName("EqualsObjectScalarUInt64");
-                yield return new TestCaseData(new Variant(1.5f), (object)1.5f, true)
+                yield return new TestCaseData(new Variant(1.5f), 1.5f, true)
                     .SetName("EqualsObjectScalarFloat");
-                yield return new TestCaseData(new Variant(2.5d), (object)2.5d, true)
+                yield return new TestCaseData(new Variant(2.5d), 2.5d, true)
                     .SetName("EqualsObjectScalarDouble");
-                yield return new TestCaseData(new Variant("opc"), (object)"opc", true)
+                yield return new TestCaseData(new Variant("opc"), "opc", true)
                     .SetName("EqualsObjectScalarString");
-                yield return new TestCaseData(new Variant(new EnumValue(9)), (object)new EnumValue(9), true)
+                yield return new TestCaseData(new Variant(new EnumValue(9)), new EnumValue(9), true)
                     .SetName("EqualsObjectScalarEnumeration");
-                yield return new TestCaseData(new Variant(Dt(1)), (object)Dt(1), true)
+                yield return new TestCaseData(new Variant(Dt(1)), Dt(1), true)
                     .SetName("EqualsObjectScalarDateTime");
-                yield return new TestCaseData(new Variant(Uid(1)), (object)Uid(1), true)
+                yield return new TestCaseData(new Variant(Uid(1)), Uid(1), true)
                     .SetName("EqualsObjectScalarGuid");
-                yield return new TestCaseData(new Variant(ByteString.From(1, 2)), (object)ByteString.From(1, 2), true)
+                yield return new TestCaseData(new Variant(ByteString.From(1, 2)), ByteString.From(1, 2), true)
                     .SetName("EqualsObjectScalarByteString");
-                yield return new TestCaseData(new Variant(xml), (object)xml, true)
+                yield return new TestCaseData(new Variant(xml), xml, true)
                     .SetName("EqualsObjectScalarXmlElement");
-                yield return new TestCaseData(new Variant(new NodeId(10, 1)), (object)new NodeId(10, 1), true)
+                yield return new TestCaseData(new Variant(new NodeId(10, 1)), new NodeId(10, 1), true)
                     .SetName("EqualsObjectScalarNodeId");
-                yield return new TestCaseData(new Variant(ENId("Node")), (object)ENId("Node"), true)
+                yield return new TestCaseData(new Variant(ENId("Node")), ENId("Node"), true)
                     .SetName("EqualsObjectScalarExpandedNodeId");
-                yield return new TestCaseData(new Variant(new StatusCode(3u)), (object)new StatusCode(3u), true)
+                yield return new TestCaseData(new Variant(new StatusCode(3u)), new StatusCode(3u), true)
                     .SetName("EqualsObjectScalarStatusCode");
                 yield return new TestCaseData(
-                    new Variant(new QualifiedName("name", 1)), (object)new QualifiedName("name", 1), true)
+                    new Variant(new QualifiedName("name", 1)), new QualifiedName("name", 1), true)
                     .SetName("EqualsObjectScalarQualifiedName");
                 yield return new TestCaseData(
-                    new Variant(new LocalizedText("en", "value")), (object)new LocalizedText("en", "value"), true)
+                    new Variant(new LocalizedText("en", "value")), new LocalizedText("en", "value"), true)
                     .SetName("EqualsObjectScalarLocalizedText");
-                yield return new TestCaseData(new Variant(extension), (object)extension, true)
+                yield return new TestCaseData(new Variant(extension), extension, true)
                     .SetName("EqualsObjectScalarExtensionObject");
-                yield return new TestCaseData(new Variant(dataValue), (object)dataValue, true)
+                yield return new TestCaseData(new Variant(dataValue), dataValue, true)
                     .SetName("EqualsObjectScalarDataValue");
 
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(true, false)), (object)ArrayOf.Wrapped(true, false), true)
+                    new Variant(ArrayOf.Wrapped(true, false)), ArrayOf.Wrapped(true, false), true)
                     .SetName("EqualsObjectArrayBoolean");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped((sbyte)-1, (sbyte)1)),
-                    (object)ArrayOf.Wrapped((sbyte)-1, (sbyte)1), true)
+                    ArrayOf.Wrapped((sbyte)-1, (sbyte)1), true)
                     .SetName("EqualsObjectArraySByte");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped((byte)1, (byte)2)), (object)ArrayOf.Wrapped((byte)1, (byte)2), true)
+                    new Variant(ArrayOf.Wrapped((byte)1, (byte)2)), ArrayOf.Wrapped((byte)1, (byte)2), true)
                     .SetName("EqualsObjectArrayByte");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped((short)-2, (short)2)),
-                    (object)ArrayOf.Wrapped((short)-2, (short)2), true)
+                    ArrayOf.Wrapped((short)-2, (short)2), true)
                     .SetName("EqualsObjectArrayInt16");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped((ushort)2, (ushort)3)),
-                    (object)ArrayOf.Wrapped((ushort)2, (ushort)3), true)
+                    ArrayOf.Wrapped((ushort)2, (ushort)3), true)
                     .SetName("EqualsObjectArrayUInt16");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(-3, 3)), (object)ArrayOf.Wrapped(-3, 3), true)
+                    new Variant(ArrayOf.Wrapped(-3, 3)), ArrayOf.Wrapped(-3, 3), true)
                     .SetName("EqualsObjectArrayInt32");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(3u, 4u)), (object)ArrayOf.Wrapped(3u, 4u), true)
+                    new Variant(ArrayOf.Wrapped(3u, 4u)), ArrayOf.Wrapped(3u, 4u), true)
                     .SetName("EqualsObjectArrayUInt32");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(-4L, 4L)), (object)ArrayOf.Wrapped(-4L, 4L), true)
+                    new Variant(ArrayOf.Wrapped(-4L, 4L)), ArrayOf.Wrapped(-4L, 4L), true)
                     .SetName("EqualsObjectArrayInt64");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(4UL, 5UL)), (object)ArrayOf.Wrapped(4UL, 5UL), true)
+                    new Variant(ArrayOf.Wrapped(4UL, 5UL)), ArrayOf.Wrapped(4UL, 5UL), true)
                     .SetName("EqualsObjectArrayUInt64");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(1.0f, 2.0f)), (object)ArrayOf.Wrapped(1.0f, 2.0f), true)
+                    new Variant(ArrayOf.Wrapped(1.0f, 2.0f)), ArrayOf.Wrapped(1.0f, 2.0f), true)
                     .SetName("EqualsObjectArrayFloat");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(1.0d, 2.0d)), (object)ArrayOf.Wrapped(1.0d, 2.0d), true)
+                    new Variant(ArrayOf.Wrapped(1.0d, 2.0d)), ArrayOf.Wrapped(1.0d, 2.0d), true)
                     .SetName("EqualsObjectArrayDouble");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped("a", "b")), (object)ArrayOf.Wrapped("a", "b"), true)
+                    new Variant(ArrayOf.Wrapped("a", "b")), ArrayOf.Wrapped("a", "b"), true)
                     .SetName("EqualsObjectArrayString");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(new EnumValue(1), new EnumValue(2))),
-                    (object)ArrayOf.Wrapped(new EnumValue(1), new EnumValue(2)), true)
+                    ArrayOf.Wrapped(new EnumValue(1), new EnumValue(2)), true)
                     .SetName("EqualsObjectArrayEnumeration");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(Dt(1), Dt(2))), (object)ArrayOf.Wrapped(Dt(1), Dt(2)), true)
+                    new Variant(ArrayOf.Wrapped(Dt(1), Dt(2))), ArrayOf.Wrapped(Dt(1), Dt(2)), true)
                     .SetName("EqualsObjectArrayDateTime");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(Uid(1), Uid(2))), (object)ArrayOf.Wrapped(Uid(1), Uid(2)), true)
+                    new Variant(ArrayOf.Wrapped(Uid(1), Uid(2))), ArrayOf.Wrapped(Uid(1), Uid(2)), true)
                     .SetName("EqualsObjectArrayGuid");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(ByteString.From(1), ByteString.From(2))),
-                    (object)ArrayOf.Wrapped(ByteString.From(1), ByteString.From(2)), true)
+                    ArrayOf.Wrapped(ByteString.From(1), ByteString.From(2)), true)
                     .SetName("EqualsObjectArrayByteString");
                 yield return new TestCaseData(
-                    new Variant(ArrayOf.Wrapped(xml, xml)), (object)ArrayOf.Wrapped(xml, xml), true)
+                    new Variant(ArrayOf.Wrapped(xml, xml)), ArrayOf.Wrapped(xml, xml), true)
                     .SetName("EqualsObjectArrayXmlElement");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(new NodeId(1), new NodeId(2))),
-                    (object)ArrayOf.Wrapped(new NodeId(1), new NodeId(2)), true)
+                    ArrayOf.Wrapped(new NodeId(1), new NodeId(2)), true)
                     .SetName("EqualsObjectArrayNodeId");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(ENId("A"), ENId("B"))),
-                    (object)ArrayOf.Wrapped(ENId("A"), ENId("B")), true)
+                    ArrayOf.Wrapped(ENId("A"), ENId("B")), true)
                     .SetName("EqualsObjectArrayExpandedNodeId");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(new StatusCode(1u), new StatusCode(2u))),
-                    (object)ArrayOf.Wrapped(new StatusCode(1u), new StatusCode(2u)), true)
+                    ArrayOf.Wrapped(new StatusCode(1u), new StatusCode(2u)), true)
                     .SetName("EqualsObjectArrayStatusCode");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(new QualifiedName("a", 1), new QualifiedName("b", 1))),
-                    (object)ArrayOf.Wrapped(new QualifiedName("a", 1), new QualifiedName("b", 1)), true)
+                    ArrayOf.Wrapped(new QualifiedName("a", 1), new QualifiedName("b", 1)), true)
                     .SetName("EqualsObjectArrayQualifiedName");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(new LocalizedText("en", "a"), new LocalizedText("en", "b"))),
-                    (object)ArrayOf.Wrapped(new LocalizedText("en", "a"), new LocalizedText("en", "b")), true)
+                    ArrayOf.Wrapped(new LocalizedText("en", "a"), new LocalizedText("en", "b")), true)
                     .SetName("EqualsObjectArrayLocalizedText");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(extension, extension)),
-                    (object)ArrayOf.Wrapped(extension, extension), true)
+                    ArrayOf.Wrapped(extension, extension), true)
                     .SetName("EqualsObjectArrayExtensionObject");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(dataValue, dataValue)),
-                    (object)ArrayOf.Wrapped(dataValue, dataValue), true)
+                    ArrayOf.Wrapped(dataValue, dataValue), true)
                     .SetName("EqualsObjectArrayDataValue");
                 yield return new TestCaseData(
                     new Variant(ArrayOf.Wrapped(new Variant(1), new Variant(2))),
-                    (object)ArrayOf.Wrapped(new Variant(1), new Variant(2)), true)
+                    ArrayOf.Wrapped(new Variant(1), new Variant(2)), true)
                     .SetName("EqualsObjectArrayVariant");
 
-                yield return new TestCaseData(new Variant(Matrix(true, false)), (object)Matrix(true, false), true)
+                yield return new TestCaseData(new Variant(Matrix(true, false)), Matrix(true, false), true)
                     .SetName("EqualsObjectMatrixBoolean");
                 yield return new TestCaseData(
-                    new Variant(Matrix((sbyte)-1, (sbyte)1)), (object)Matrix((sbyte)-1, (sbyte)1), true)
+                    new Variant(Matrix((sbyte)-1, (sbyte)1)), Matrix((sbyte)-1, (sbyte)1), true)
                     .SetName("EqualsObjectMatrixSByte");
                 yield return new TestCaseData(
-                    new Variant(Matrix((byte)1, (byte)2)), (object)Matrix((byte)1, (byte)2), true)
+                    new Variant(Matrix((byte)1, (byte)2)), Matrix((byte)1, (byte)2), true)
                     .SetName("EqualsObjectMatrixByte");
                 yield return new TestCaseData(
-                    new Variant(Matrix((short)-2, (short)2)), (object)Matrix((short)-2, (short)2), true)
+                    new Variant(Matrix((short)-2, (short)2)), Matrix((short)-2, (short)2), true)
                     .SetName("EqualsObjectMatrixInt16");
                 yield return new TestCaseData(
-                    new Variant(Matrix((ushort)2, (ushort)3)), (object)Matrix((ushort)2, (ushort)3), true)
+                    new Variant(Matrix((ushort)2, (ushort)3)), Matrix((ushort)2, (ushort)3), true)
                     .SetName("EqualsObjectMatrixUInt16");
-                yield return new TestCaseData(new Variant(Matrix(-3, 3)), (object)Matrix(-3, 3), true)
+                yield return new TestCaseData(new Variant(Matrix(-3, 3)), Matrix(-3, 3), true)
                     .SetName("EqualsObjectMatrixInt32");
-                yield return new TestCaseData(new Variant(Matrix(3u, 4u)), (object)Matrix(3u, 4u), true)
+                yield return new TestCaseData(new Variant(Matrix(3u, 4u)), Matrix(3u, 4u), true)
                     .SetName("EqualsObjectMatrixUInt32");
-                yield return new TestCaseData(new Variant(Matrix(-4L, 4L)), (object)Matrix(-4L, 4L), true)
+                yield return new TestCaseData(new Variant(Matrix(-4L, 4L)), Matrix(-4L, 4L), true)
                     .SetName("EqualsObjectMatrixInt64");
-                yield return new TestCaseData(new Variant(Matrix(4UL, 5UL)), (object)Matrix(4UL, 5UL), true)
+                yield return new TestCaseData(new Variant(Matrix(4UL, 5UL)), Matrix(4UL, 5UL), true)
                     .SetName("EqualsObjectMatrixUInt64");
-                yield return new TestCaseData(new Variant(Matrix(1.0f, 2.0f)), (object)Matrix(1.0f, 2.0f), true)
+                yield return new TestCaseData(new Variant(Matrix(1.0f, 2.0f)), Matrix(1.0f, 2.0f), true)
                     .SetName("EqualsObjectMatrixFloat");
-                yield return new TestCaseData(new Variant(Matrix(1.0d, 2.0d)), (object)Matrix(1.0d, 2.0d), true)
+                yield return new TestCaseData(new Variant(Matrix(1.0d, 2.0d)), Matrix(1.0d, 2.0d), true)
                     .SetName("EqualsObjectMatrixDouble");
-                yield return new TestCaseData(new Variant(Matrix("a", "b")), (object)Matrix("a", "b"), true)
+                yield return new TestCaseData(new Variant(Matrix("a", "b")), Matrix("a", "b"), true)
                     .SetName("EqualsObjectMatrixString");
                 yield return new TestCaseData(
                     new Variant(Matrix(new EnumValue(1), new EnumValue(2))),
-                    (object)Matrix(new EnumValue(1), new EnumValue(2)), true)
+                    Matrix(new EnumValue(1), new EnumValue(2)), true)
                     .SetName("EqualsObjectMatrixEnumeration");
-                yield return new TestCaseData(new Variant(Matrix(Dt(1), Dt(2))), (object)Matrix(Dt(1), Dt(2)), true)
+                yield return new TestCaseData(new Variant(Matrix(Dt(1), Dt(2))), Matrix(Dt(1), Dt(2)), true)
                     .SetName("EqualsObjectMatrixDateTime");
-                yield return new TestCaseData(new Variant(Matrix(Uid(1), Uid(2))), (object)Matrix(Uid(1), Uid(2)), true)
+                yield return new TestCaseData(new Variant(Matrix(Uid(1), Uid(2))), Matrix(Uid(1), Uid(2)), true)
                     .SetName("EqualsObjectMatrixGuid");
                 yield return new TestCaseData(
                     new Variant(Matrix(ByteString.From(1), ByteString.From(2))),
-                    (object)Matrix(ByteString.From(1), ByteString.From(2)), true)
+                    Matrix(ByteString.From(1), ByteString.From(2)), true)
                     .SetName("EqualsObjectMatrixByteString");
-                yield return new TestCaseData(new Variant(Matrix(xml, xml)), (object)Matrix(xml, xml), true)
+                yield return new TestCaseData(new Variant(Matrix(xml, xml)), Matrix(xml, xml), true)
                     .SetName("EqualsObjectMatrixXmlElement");
                 yield return new TestCaseData(
                     new Variant(Matrix(new NodeId(1), new NodeId(2))),
-                    (object)Matrix(new NodeId(1), new NodeId(2)), true)
+                    Matrix(new NodeId(1), new NodeId(2)), true)
                     .SetName("EqualsObjectMatrixNodeId");
                 yield return new TestCaseData(
-                    new Variant(Matrix(ENId("A"), ENId("B"))), (object)Matrix(ENId("A"), ENId("B")), true)
+                    new Variant(Matrix(ENId("A"), ENId("B"))), Matrix(ENId("A"), ENId("B")), true)
                     .SetName("EqualsObjectMatrixExpandedNodeId");
                 yield return new TestCaseData(
                     new Variant(Matrix(new StatusCode(1u), new StatusCode(2u))),
-                    (object)Matrix(new StatusCode(1u), new StatusCode(2u)), true)
+                    Matrix(new StatusCode(1u), new StatusCode(2u)), true)
                     .SetName("EqualsObjectMatrixStatusCode");
                 yield return new TestCaseData(
                     new Variant(Matrix(new QualifiedName("a", 1), new QualifiedName("b", 1))),
-                    (object)Matrix(new QualifiedName("a", 1), new QualifiedName("b", 1)), true)
+                    Matrix(new QualifiedName("a", 1), new QualifiedName("b", 1)), true)
                     .SetName("EqualsObjectMatrixQualifiedName");
                 yield return new TestCaseData(
                     new Variant(Matrix(new LocalizedText("en", "a"), new LocalizedText("en", "b"))),
-                    (object)Matrix(new LocalizedText("en", "a"), new LocalizedText("en", "b")), true)
+                    Matrix(new LocalizedText("en", "a"), new LocalizedText("en", "b")), true)
                     .SetName("EqualsObjectMatrixLocalizedText");
                 yield return new TestCaseData(
-                    new Variant(Matrix(extension, extension)), (object)Matrix(extension, extension), true)
+                    new Variant(Matrix(extension, extension)), Matrix(extension, extension), true)
                     .SetName("EqualsObjectMatrixExtensionObject");
                 yield return new TestCaseData(
-                    new Variant(Matrix(dataValue, dataValue)), (object)Matrix(dataValue, dataValue), true)
+                    new Variant(Matrix(dataValue, dataValue)), Matrix(dataValue, dataValue), true)
                     .SetName("EqualsObjectMatrixDataValue");
 
-                yield return new TestCaseData(new Variant(5), (object)"5", false)
+                yield return new TestCaseData(new Variant(5), "5", false)
                     .SetName("EqualsObjectMismatchedTypeIsFalse");
-                yield return new TestCaseData(new Variant(), (object)null, true)
+                yield return new TestCaseData(new Variant(), null, true)
                     .SetName("EqualsObjectNullMatchesNullVariant");
-                yield return new TestCaseData(new Variant(5), (object)null, false)
+                yield return new TestCaseData(new Variant(5), null, false)
                     .SetName("EqualsObjectNullDoesNotMatchValue");
                 yield return new TestCaseData(new Variant(5), new object(), false)
                     .SetName("EqualsObjectUnrelatedTypeIsFalse");

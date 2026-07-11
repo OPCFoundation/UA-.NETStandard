@@ -529,10 +529,11 @@ namespace Opc.Ua.Gds.Server
             // are created automatically by the source-generated AuthorizationServiceState.
             // The Optional method children must be added explicitly using the generated
             // Add* helpers before ConfigureAuthorizationServiceNode wires the OnCall handlers.
-            service.AddRequestAccessToken(context);
-            service.AddStartRequestToken(context);
-            service.AddFinishRequestToken(context);
-            service.AddRefreshToken(context);
+            service
+                .AddRequestAccessToken(context)
+                .AddStartRequestToken(context)
+                .AddFinishRequestToken(context)
+                .AddRefreshToken(context);
 
             service.ServiceUri!.Value = m_configuration.ApplicationUri ?? string.Empty;
             service.ServiceCertificate!.Value = ByteString.Empty;

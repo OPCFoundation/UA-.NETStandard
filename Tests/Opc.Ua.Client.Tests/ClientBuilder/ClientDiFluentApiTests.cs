@@ -41,8 +41,8 @@ using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Opc.Ua.Client.AliasNames;
 using Opc.Ua.Client.Alarms;
+using Opc.Ua.Client.AliasNames;
 using Opc.Ua.Client.Discovery;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Historian;
@@ -82,22 +82,22 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void ClientBuilderFeatureExtensionsRejectNullBuilders()
         {
             Assert.That(
-                () => OpcUaAlarmsBuilderExtensions.AddAlarms((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddAlarms(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddWebApiTransportChannel(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddHistorian((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddHistorian(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddRoleManagement((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddRoleManagement(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddFileTransfer((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddFileTransfer(),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaSubClientBuilderExtensions.AddAliasNames((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddAliasNames(),
                 Throws.ArgumentNullException);
         }
 
@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var services = new ServiceCollection();
 
             Assert.That(
-                () => OpcUaClientBuilderExtensions.AddDiscovery((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddDiscovery(),
                 Throws.ArgumentNullException);
 
             services.AddOpcUa()
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(sp.GetService<IManagedSessionFactory>(), Is.InstanceOf<DefaultManagedSessionFactory>());
             Assert.That(sp.GetService<IOpcUaDiscoveryService>(), Is.InstanceOf<OpcUaDiscoveryService>());
-            Assert.That(sp.GetService<Func<CancellationToken, Task<Opc.Ua.Client.ManagedSession>>>(), Is.Not.Null);
+            Assert.That(sp.GetService<Func<CancellationToken, Task<Client.ManagedSession>>>(), Is.Not.Null);
         }
 
         [Test]
@@ -220,8 +220,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             ConfiguredEndpoint firstEndpoint = CreateEndpoint("opc.tcp://first:4840");
             ConfiguredEndpoint secondEndpoint = CreateEndpoint("opc.tcp://second:4840");
 
-            Opc.Ua.Client.ManagedSession first = await factory.ConnectAsync(firstEndpoint).ConfigureAwait(false);
-            Opc.Ua.Client.ManagedSession second = await factory.ConnectAsync(secondEndpoint).ConfigureAwait(false);
+            Client.ManagedSession first = await factory.ConnectAsync(firstEndpoint).ConfigureAwait(false);
+            Client.ManagedSession second = await factory.ConnectAsync(secondEndpoint).ConfigureAwait(false);
 
             Assert.That(first, Is.Not.SameAs(second));
             Assert.That(connector.Options, Has.Count.EqualTo(2));
@@ -259,7 +259,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddClient(options => options.Configuration = CreateConfig());
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var factory = sp.GetRequiredService<Func<CancellationToken, Task<Opc.Ua.Client.ManagedSession>>>();
+            Func<CancellationToken, Task<Client.ManagedSession>> factory = sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
 
             OptionsValidationException ex = Assert.ThrowsAsync<OptionsValidationException>(
                 () => factory(CancellationToken.None))!;
@@ -401,10 +401,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 optionsException.Failures.Contains("A session endpoint is required.");
         }
 
-        private static Opc.Ua.Client.ManagedSession CreateManagedSession(ConfiguredEndpoint endpoint)
+        private static Client.ManagedSession CreateManagedSession(ConfiguredEndpoint endpoint)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ConstructorInfo constructor = typeof(Opc.Ua.Client.ManagedSession).GetConstructor(
+            ConstructorInfo constructor = typeof(Client.ManagedSession).GetConstructor(
                 BindingFlags.Instance | BindingFlags.NonPublic,
                 null,
                 [
@@ -423,18 +423,20 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     typeof(bool),
                     typeof(bool),
                     typeof(bool),
+                    typeof(bool),
+                    typeof(NetworkRedundancyOptions),
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
                 null)!;
-            return (Opc.Ua.Client.ManagedSession)constructor.Invoke(
+            return (Client.ManagedSession)constructor.Invoke(
             [
                 CreateConfig(),
                 endpoint,
                 new DefaultSessionFactory(telemetry),
                 new ReconnectPolicy(new ReconnectPolicyOptions()),
                 null,
-                telemetry.CreateLogger<Opc.Ua.Client.ManagedSession>(),
+                telemetry.CreateLogger<Client.ManagedSession>(),
                 null,
                 null,
                 TimeProvider.System,
@@ -444,6 +446,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 false,
                 false,
                 false,
+                false,
+                null,
                 null,
                 null
             ]);
@@ -453,7 +457,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             public List<ManagedSessionOptions> Options { get; } = [];
 
-            public Task<Opc.Ua.Client.ManagedSession> ConnectAsync(
+            public Task<Client.ManagedSession> ConnectAsync(
                 IServiceProvider serviceProvider,
                 ManagedSessionOptions sessionOptions,
                 Action<ManagedSessionBuilder> configure,

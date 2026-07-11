@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             KafkaBrokerTransport transport = KafkaTestHelper.NewTransport(factory);
 
             Assert.That(
-                async () => await transport.SendAsync(new byte[] { 0x01 }, KafkaTestHelper.JsonTopic),
+                async () => await transport.SendAsync(new byte[] { 0x01 }, KafkaTestHelper.JsonTopic).ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -89,9 +89,9 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             await using KafkaBrokerTransport transport = KafkaTestHelper.NewTransport(factory);
             await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(async () => await transport.SendAsync(new byte[] { 0x01 }, string.Empty),
+            Assert.That(async () => await transport.SendAsync(new byte[] { 0x01 }, string.Empty).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
-            Assert.That(async () => await transport.SendAsync(new byte[] { 0x01 }, "bad\0topic"),
+            Assert.That(async () => await transport.SendAsync(new byte[] { 0x01 }, "bad\0topic").ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -107,13 +107,13 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             Assert.That(async () => await transport.SendAsync(
                     new byte[] { 0x01 },
                     KafkaTestHelper.JsonTopic,
-                    cts.Token),
+                    cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
 
             await transport.DisposeAsync().ConfigureAwait(false);
-            Assert.That(async () => await transport.SendAsync(new byte[] { 0x01 }, KafkaTestHelper.JsonTopic),
+            Assert.That(async () => await transport.SendAsync(new byte[] { 0x01 }, KafkaTestHelper.JsonTopic).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
-            Assert.That(async () => await transport.OpenAsync(CancellationToken.None),
+            Assert.That(async () => await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -204,7 +204,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             var factory = new FakeKafkaClientFactory();
             KafkaBrokerTransport transport = KafkaTestHelper.NewTransport(factory, connection: connection);
             WriterGroupDataType writerGroup = connection.WriterGroups[0];
-            PublisherId publisherId = PublisherId.From(new Variant((uint)42));
+            var publisherId = PublisherId.From(new Variant((uint)42));
 
             Assert.That(transport.BuildDataTopic(publisherId, writerGroup, 3), Is.EqualTo("custom.data"));
             Assert.That(transport.BuildMetaDataTopic(publisherId, 1, 3), Is.EqualTo("custom.metadata"));

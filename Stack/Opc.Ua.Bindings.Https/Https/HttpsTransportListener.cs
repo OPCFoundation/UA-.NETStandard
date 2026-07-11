@@ -267,6 +267,7 @@ namespace Opc.Ua.Bindings
         /// Set by <see cref="SharedKestrelHostRegistry.AcquireAsync"/> before
         /// the host is started.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="accessor"/> is <c>null</c>.</exception>
         public void Configure(IApplicationBuilder appBuilder, SharedHostAccessor accessor)
         {
             if (accessor == null)
@@ -447,7 +448,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// The transport callback wired in by
-        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
         /// Exposed to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations so they can forward requests through the same
         /// dispatcher used by the binary / JSON paths.
@@ -457,7 +458,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The encoding context (namespace / server tables, quotas,
         /// telemetry) populated by
-        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
         /// Available to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations after the listener is opened.
         /// </summary>
@@ -466,7 +467,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The endpoint descriptions advertised by this listener,
         /// populated by
-        /// <see cref="OpenAsync(System.Uri, TransportListenerSettings, ITransportListenerCallback, System.Threading.CancellationToken)"/>.
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
         /// Available to <see cref="IHttpsListenerStartupContributor"/>
         /// implementations so they can pick a default endpoint
         /// (typically the first <see cref="MessageSecurityMode.None"/>
@@ -509,7 +510,7 @@ namespace Opc.Ua.Bindings
             ListenerId = Guid.NewGuid().ToString();
 
             EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions ?? new List<EndpointDescription>();
+            m_descriptions = settings.Descriptions ?? [];
             EndpointConfiguration configuration = settings.Configuration ?? EndpointConfiguration.Create();
             IEncodeableFactory factory = settings.Factory ?? ServiceMessageContext.Create(m_telemetry).Factory;
             NamespaceTable namespaceUris = settings.NamespaceUris ?? new NamespaceTable();
@@ -857,11 +858,28 @@ namespace Opc.Ua.Bindings
         private sealed class WebHostAsIHost : IHost
         {
             private readonly IWebHost m_webHost;
-            public WebHostAsIHost(IWebHost webHost) { m_webHost = webHost; }
+
+            public WebHostAsIHost(IWebHost webHost)
+            {
+                m_webHost = webHost;
+            }
+
             public IServiceProvider Services => m_webHost.Services;
-            public Task StartAsync(CancellationToken ct = default) => m_webHost.StartAsync(ct);
-            public Task StopAsync(CancellationToken ct = default) => m_webHost.StopAsync(ct);
-            public void Dispose() => m_webHost.Dispose();
+
+            public Task StartAsync(CancellationToken ct = default)
+            {
+                return m_webHost.StartAsync(ct);
+            }
+
+            public Task StopAsync(CancellationToken ct = default)
+            {
+                return m_webHost.StopAsync(ct);
+            }
+
+            public void Dispose()
+            {
+                m_webHost.Dispose();
+            }
         }
 #endif
 
@@ -917,8 +935,8 @@ namespace Opc.Ua.Bindings
                         listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
 
-            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
-            webHostBuilder.ConfigureServices(services =>
+            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory())
+                .ConfigureServices(services =>
             {
                 services.AddSingleton(accessor);
                 ConfigureContributorServices(services);
@@ -1265,7 +1283,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Backward-compatible alias for <see cref="SendBinaryAsync"/>.
         /// </summary>
-        public Task SendAsync(HttpContext context) => SendBinaryAsync(context);
+        public Task SendAsync(HttpContext context)
+        {
+            return SendBinaryAsync(context);
+        }
 
         /// <summary>
         /// Handles HTTPS POST requests carrying an OPC UA JSON message
@@ -1325,7 +1346,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 input.RequestHeader ??= new RequestHeader();
-                if (input.RequestHeader.AuthenticationToken.IsNull && !authenticationToken.IsNull &&
+                if (input.RequestHeader.AuthenticationToken.IsNull &&
+                    !authenticationToken.IsNull &&
                     input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
                     input.RequestHeader.AuthenticationToken = authenticationToken;
@@ -1607,12 +1629,14 @@ namespace Opc.Ua.Bindings
             }
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept for the Task-returning request callback path used by alternate listeners.
         private async Task<IServiceResponse> OnRequestReceivedAsyncShim(
             SecureChannelContext channelContext,
             IServiceRequest request)
         {
             return await m_callback!.ProcessRequestAsync(channelContext, request).ConfigureAwait(false);
         }
+#pragma warning restore IDE0051, RCS1213
 
         private async void OnRequestReceivedAsync(
             TcpListenerChannel channel,
@@ -1625,8 +1649,7 @@ namespace Opc.Ua.Bindings
                 {
                     return;
                 }
-                var serverChannel = channel as TcpServerChannel;
-                if (serverChannel == null)
+                if (channel is not TcpServerChannel serverChannel)
                 {
                     return;
                 }
@@ -1883,7 +1906,7 @@ namespace Opc.Ua.Bindings
                 }
                 try
                 {
-                    if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                    if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                     {
                         await ws.CloseAsync(
                             WebSocketCloseStatus.NormalClosure,
@@ -2081,7 +2104,7 @@ namespace Opc.Ua.Bindings
                 }
                 try
                 {
-                    if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived)
+                    if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                     {
                         await ws.CloseAsync(
                             WebSocketCloseStatus.NormalClosure,
@@ -2139,7 +2162,9 @@ namespace Opc.Ua.Bindings
 
             [Obsolete("Use TransferListenerChannelAsync instead.")]
             public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
-                => TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+            {
+                return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+            }
 
             public async Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
             {
@@ -2392,13 +2417,15 @@ namespace Opc.Ua.Bindings
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
         private bool m_reverseConnectListener;
-        // Tracks outbound reverse-connect TcpServerChannels owned by this
-        // listener. CreateReverseConnection registers each new channel;
-        // OnHttpsReverseHelloComplete + DisposeAsync drain the set so any
-        // ServerCertificateChain loaded during SetEndpointUrl is released
-        // deterministically — these channels live on outbound WS transports
-        // that are not bound to the Kestrel host lifecycle, so listener
-        // teardown must close them explicitly.
+        /// <summary>
+        /// Tracks outbound reverse-connect TcpServerChannels owned by this
+        /// listener. CreateReverseConnection registers each new channel;
+        /// OnHttpsReverseHelloComplete + DisposeAsync drain the set so any
+        /// ServerCertificateChain loaded during SetEndpointUrl is released
+        /// deterministically — these channels live on outbound WS transports
+        /// that are not bound to the Kestrel host lifecycle, so listener
+        /// teardown must close them explicitly.
+        /// </summary>
         private readonly ConcurrentDictionary<TcpServerChannel, byte> m_reverseConnectChannels = new();
         private int m_nextChannelId;
         private readonly ILogger m_logger;

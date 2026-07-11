@@ -29,13 +29,11 @@
 
 using System;
 using System.Buffers.Binary;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Pcap.Frame;
-
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Frame;
 
 namespace Opc.Ua.Pcap.Tests.Frame
 {

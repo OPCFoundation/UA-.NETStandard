@@ -113,8 +113,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await conn.DisableAsync().ConfigureAwait(false);
 
             Assert.That(decoder.CallCount, Is.Zero,
-                "A non-UADP (JSON) frame must be dropped by the inbound security "
-                + "gate on a secured reader before decode.");
+                "A non-UADP (JSON) frame must be dropped by the inbound security " +
+                "gate on a secured reader before decode.");
         }
 
         [Test]
@@ -191,8 +191,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await conn.DisableAsync().ConfigureAwait(false);
 
             Assert.That(decoder.CallCount, Is.Zero,
-                "Forged plaintext delivered as UADP chunks must be dropped by the "
-                + "security gate after reassembly (SA-REGR-01).");
+                "Forged plaintext delivered as UADP chunks must be dropped by the " +
+                "security gate after reassembly (SA-REGR-01).");
         }
 
         [Test]
@@ -218,17 +218,17 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await conn.DisableAsync().ConfigureAwait(false);
 
             Assert.That(decoder.CallCount, Is.GreaterThanOrEqualTo(1),
-                "A correctly secured message split into chunks must reassemble, "
-                + "unwrap and decode (SA-REGR-01 legit secured+chunked path).");
+                "A correctly secured message split into chunks must reassemble, " +
+                "unwrap and decode (SA-REGR-01 legit secured+chunked path).");
         }
 
         private static byte[][] ChunkFrames(byte[] message)
         {
-            int maxFrameSize = UadpChunker.ChunkHeaderSize
-                + Math.Max(8, (message.Length + 1) / 2);
+            int maxFrameSize = UadpChunker.ChunkHeaderSize +
+                Math.Max(8, (message.Length + 1) / 2);
             IReadOnlyList<byte[]> chunks = new UadpChunker().Split(
                 message, messageSequenceNumber: 1, maxFrameSize);
-            var frames = new byte[chunks.Count][];
+            byte[][] frames = new byte[chunks.Count][];
             for (int i = 0; i < chunks.Count; i++)
             {
                 frames[i] = UadpEncoder.WriteChunkEnvelope(
@@ -278,8 +278,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
         {
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -301,8 +301,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
         {
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -317,8 +317,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             PubSubNetworkMessageContext context = NewContext();
             ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
                 msg, context, out int payloadOffset);
-            ReadOnlyMemory<byte> prefix = encoded.Slice(0, payloadOffset);
-            ReadOnlyMemory<byte> inner = encoded.Slice(payloadOffset);
+            ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
+            ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
             ReadOnlyMemory<byte> wrapped = await publisher
                 .WrapAsync(prefix, inner, UadpSecurityWrapOptions.SignAndEncrypt)
                 .ConfigureAwait(false);
@@ -385,15 +385,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
             byte[] keyNonce = new byte[keyNonceLength];
             for (int i = 0; i < signing.Length; i++)
             {
-                signing[i] = (byte)((tokenId * 31u + (uint)i) & 0xFF);
+                signing[i] = (byte)(((tokenId * 31u) + (uint)i) & 0xFF);
             }
             for (int i = 0; i < encrypting.Length; i++)
             {
-                encrypting[i] = (byte)((tokenId * 17u + (uint)i + 1u) & 0xFF);
+                encrypting[i] = (byte)(((tokenId * 17u) + (uint)i + 1u) & 0xFF);
             }
             for (int i = 0; i < keyNonce.Length; i++)
             {
-                keyNonce[i] = (byte)((tokenId * 7u + (uint)i + 2u) & 0xFF);
+                keyNonce[i] = (byte)(((tokenId * 7u) + (uint)i + 2u) & 0xFF);
             }
 
             return new PubSubSecurityKey(
@@ -437,14 +437,19 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => m_transport;
+                TimeProvider timeProvider)
+            {
+                return m_transport;
+            }
         }
 
         private sealed class ProgrammableTransport : IPubSubTransport
         {
             private readonly IReadOnlyList<byte[]> m_frames;
+
             private readonly TaskCompletionSource<bool> m_drained =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private bool m_isConnected;
 
             public ProgrammableTransport(IReadOnlyList<byte[]> frames)
@@ -479,7 +484,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
                 string? topic = null,
-                CancellationToken cancellationToken = default) => default;
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)

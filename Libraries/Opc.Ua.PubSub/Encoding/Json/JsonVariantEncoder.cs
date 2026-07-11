@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -36,8 +35,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// <summary>
     /// Internal helpers translating a <see cref="JsonEncodingMode"/>
     /// into the Stack-level <see cref="JsonEncoderOptions"/> that the
-    /// Stack <see cref="Opc.Ua.JsonEncoder"/> consumes, plus a tiny
-    /// utility that takes an <see cref="Opc.Ua.JsonEncoder"/>
+    /// Stack <see cref="Ua.JsonEncoder"/> consumes, plus a tiny
+    /// utility that takes an <see cref="Ua.JsonEncoder"/>
     /// invocation that wrote one named property and splices the
     /// property's value (verbatim JSON) into a destination
     /// <see cref="Utf8JsonWriter"/>.
@@ -46,7 +45,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// Implements the Part 6 §5.4.1 mode selector mapped through
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5">
     /// Part 14 §7.2.5</see>. The splice helper is required because the
-    /// Stack <see cref="Opc.Ua.JsonEncoder"/> always wraps its output
+    /// Stack <see cref="Ua.JsonEncoder"/> always wraps its output
     /// in an outer object; embedding a Variant or DataValue inside the
     /// PubSub envelope therefore requires an intermediate buffer.
     /// </remarks>
@@ -98,6 +97,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="value">Variant payload.</param>
         /// <param name="mode">Selected encoding mode.</param>
         /// <param name="context">Stack message context for encoders.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void WriteVariantProperty(
             Utf8JsonWriter destination,
             string propertyName,
@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             JsonEncoderOptions options = ToEncoderOptions(mode);
             using JsonBufferWriter buffer = new(256);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context, options))
+            using (Ua.JsonEncoder encoder = new(buffer, context, options))
             {
                 if (WrapsInVariantEnvelope(mode))
                 {
@@ -151,6 +151,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="value">DataValue payload.</param>
         /// <param name="mode">Selected encoding mode.</param>
         /// <param name="context">Stack message context for encoders.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void WriteDataValueProperty(
             Utf8JsonWriter destination,
             string propertyName,
@@ -177,7 +178,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             JsonEncoderOptions options = ToEncoderOptions(mode);
             using JsonBufferWriter buffer = new(384);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context, options))
+            using (Ua.JsonEncoder encoder = new(buffer, context, options))
             {
                 encoder.WriteDataValue(SpliceFieldName, value);
             }
@@ -188,7 +189,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <summary>
         /// Parses the single-property object encoded into
         /// <paramref name="encoded"/> by the Stack
-        /// <see cref="Opc.Ua.JsonEncoder"/> and writes the value of the
+        /// <see cref="Ua.JsonEncoder"/> and writes the value of the
         /// (only) property to <paramref name="destination"/> under
         /// <paramref name="propertyName"/>. The intermediate buffer is
         /// always of the form
@@ -210,7 +211,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ReadOnlySpan<byte> encoded,
             bool remapVariantKeys)
         {
-            using JsonDocument document = JsonDocument.Parse(encoded.ToArray());
+            using var document = JsonDocument.Parse(encoded.ToArray());
             JsonElement root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
@@ -223,14 +224,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return;
             }
             destination.WritePropertyName(propertyName);
-            if (valueElement.ValueKind == JsonValueKind.Null
-                || valueElement.ValueKind == JsonValueKind.Undefined)
+            if (valueElement.ValueKind is JsonValueKind.Null or
+                JsonValueKind.Undefined)
             {
                 destination.WriteNullValue();
                 return;
             }
-            if (remapVariantKeys
-                && valueElement.ValueKind == JsonValueKind.Object)
+            if (remapVariantKeys &&
+                valueElement.ValueKind == JsonValueKind.Object)
             {
                 WriteRemappedVariant(destination, valueElement);
                 return;

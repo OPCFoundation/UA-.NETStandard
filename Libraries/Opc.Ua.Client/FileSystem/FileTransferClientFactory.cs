@@ -47,6 +47,7 @@ namespace Opc.Ua.Client.FileSystem
         /// <summary>
         /// Creates a file-system client rooted at <paramref name="rootDirectoryId"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public FileSystemClient CreateFileSystem(
             ISession session,
             NodeId rootDirectoryId,
@@ -63,6 +64,7 @@ namespace Opc.Ua.Client.FileSystem
         /// <summary>
         /// Creates a file-system client rooted at the standard server file-system object.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public FileSystemClient OpenServerFileSystem(
             ISession session,
             FileSystemClientOptions? options = null)
@@ -79,6 +81,7 @@ namespace Opc.Ua.Client.FileSystem
         /// Creates a temporary-file-transfer client rooted at
         /// <paramref name="temporaryFileTransferObjectId"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public TemporaryFileTransferClient CreateTemporaryFileTransfer(
             ISession session,
             NodeId temporaryFileTransferObjectId,

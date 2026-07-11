@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub.Pcap
         /// <summary>
         /// Field-level status code.
         /// </summary>
-        public StatusCode StatusCode { get; init; } = (StatusCode)StatusCodes.Good;
+        public StatusCode StatusCode { get; init; } = StatusCodes.Good;
 
         /// <summary>
         /// Field encoding used by the producer.

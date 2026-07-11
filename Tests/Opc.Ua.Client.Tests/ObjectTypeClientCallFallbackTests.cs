@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests
         public void SetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(telemetry);
+            var messageContext = ServiceMessageContext.Create(telemetry);
             ushort nsIndex = messageContext.NamespaceUris.GetIndexOrAppend(kMethodNamespaceUri);
 
             m_objectId = new NodeId(100u, nsIndex);
@@ -167,7 +167,7 @@ namespace Opc.Ua.Client.Tests
                         return new ValueTask<CallResponse>(new CallResponse
                         {
                             ResponseHeader = new ResponseHeader(),
-                            Results = ArrayOf.Wrapped(new[] { result }),
+                            Results = ArrayOf.Wrapped([result]),
                             DiagnosticInfos = default
                         });
                     });
@@ -180,14 +180,14 @@ namespace Opc.Ua.Client.Tests
                 : new BrowsePathResult
                 {
                     StatusCode = StatusCodes.Good,
-                    Targets = ArrayOf.Wrapped(new[]
-                    {
+                    Targets = ArrayOf.Wrapped(
+                    [
                         new BrowsePathTarget
                         {
                             TargetId = new ExpandedNodeId(resolved),
                             RemainingPathIndex = uint.MaxValue
                         }
-                    })
+                    ])
                 };
 
             m_sessionMock
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[] { result }),
+                        Results = ArrayOf.Wrapped([result]),
                         DiagnosticInfos = default
                     }));
         }

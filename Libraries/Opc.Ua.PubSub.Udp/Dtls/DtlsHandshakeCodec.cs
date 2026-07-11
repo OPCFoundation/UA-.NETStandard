@@ -62,6 +62,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Decodes a DTLS handshake frame header and fragment payload.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static DtlsHandshakeFrame DecodeFrame(ReadOnlySpan<byte> frame)
         {
             if (frame.Length < HandshakeHeaderLength)
@@ -88,6 +89,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Encodes a TLS 1.3 ClientHello message body.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static byte[] EncodeClientHello(DtlsClientHello hello)
         {
             if (hello is null)
@@ -114,6 +116,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Decodes a TLS 1.3 ClientHello message body.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static DtlsClientHello DecodeClientHello(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
@@ -151,6 +154,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Encodes a TLS 1.3 ServerHello message body.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static byte[] EncodeServerHello(DtlsServerHello hello)
         {
             if (hello is null)
@@ -171,6 +175,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Decodes a TLS 1.3 ServerHello message body.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static DtlsServerHello DecodeServerHello(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
@@ -204,6 +209,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Validates that an EncryptedExtensions message body carries no unsupported extensions.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static void DecodeEncryptedExtensions(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
@@ -251,6 +257,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Validates a TLS 1.3 CertificateRequest message body, requiring an empty
         /// certificate_request_context and a signature_algorithms extension (RFC 8446 §4.3.2).
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static void DecodeCertificateRequest(ReadOnlySpan<byte> body)
         {
             var reader = new DtlsHandshakeReader(body);
@@ -284,6 +291,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Maps a named curve to its TLS wire code point, rejecting unsupported curves.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static ushort ToWireNamedGroup(DtlsNamedCurve curve)
         {
             return curve switch
@@ -303,6 +311,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Maps a TLS wire code point to its named curve, rejecting unsupported curves.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static DtlsNamedCurve FromWireNamedGroup(ushort wireGroup)
         {
             return wireGroup switch
@@ -322,6 +331,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Maps a cipher suite to its TLS wire code point.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static ushort ToWireCipherSuite(DtlsCipherSuite cipherSuite)
         {
             return cipherSuite switch
@@ -338,6 +348,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Maps a TLS wire code point to its cipher suite.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static DtlsCipherSuite FromWireCipherSuite(ushort cipherSuite)
         {
             return cipherSuite switch

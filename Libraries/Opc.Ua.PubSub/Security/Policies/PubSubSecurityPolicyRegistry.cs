@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Security.Policies
         [
             PubSubNonePolicy.Instance,
             PubSubAes128CtrPolicy.Instance,
-            PubSubAes256CtrPolicy.Instance,
+            PubSubAes256CtrPolicy.Instance
         ];
 
         /// <summary>

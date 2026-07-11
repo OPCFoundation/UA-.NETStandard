@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests
             await using var decorator = new CapturingPubSubTransport(inner, registry);
 
             byte[] payload = [0xB1, 0x01, 0x02, 0x03];
-            await decorator.SendAsync(payload, topic: "t/1");
+            await decorator.SendAsync(payload, topic: "t/1").ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests
             var registry = new PubSubCaptureRegistry();
             await using var decorator = new CapturingPubSubTransport(inner, registry);
 
-            await decorator.SendAsync(new byte[] { 1 });
+            await decorator.SendAsync(new byte[] { 1 }).ConfigureAwait(false);
 
             Assert.That(inner.Sent, Has.Count.EqualTo(1));
         }
@@ -113,8 +113,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests
             var registry = new PubSubCaptureRegistry();
             await using var decorator = new CapturingPubSubTransport(inner, registry);
 
-            await decorator.OpenAsync();
-            await decorator.CloseAsync();
+            await decorator.OpenAsync().ConfigureAwait(false);
+            await decorator.CloseAsync().ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {

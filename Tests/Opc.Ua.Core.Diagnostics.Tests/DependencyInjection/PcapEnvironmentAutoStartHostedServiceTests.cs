@@ -42,8 +42,6 @@ using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {
     /// <summary>
@@ -57,7 +55,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapEnvironmentAutoStartHostedServiceTests : TempDirectoryFixture
     {
-
         [Test]
         public async Task EmptySnapshotDoesNothing()
         {
@@ -280,13 +277,13 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             services.AddPcapFromEnvironment();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            IHostedService[] hostedServices = provider.GetServices<IHostedService>().ToArray();
+            IHostedService[] hostedServices = [.. provider.GetServices<IHostedService>()];
             IHostedService autoStart = hostedServices.Single(static s
                 => s is PcapEnvironmentAutoStartHostedService);
 
             await autoStart.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-            var registry = provider.GetRequiredService<IChannelCaptureRegistry>();
+            IChannelCaptureRegistry registry = provider.GetRequiredService<IChannelCaptureRegistry>();
             Assert.That(registry.CurrentObserver, Is.Null);
 
             await autoStart.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -309,7 +306,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             await autoStart.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-            var registry = provider.GetRequiredService<IChannelCaptureRegistry>();
+            IChannelCaptureRegistry registry = provider.GetRequiredService<IChannelCaptureRegistry>();
             Assert.That(registry.CurrentObserver, Is.InstanceOf<StandaloneKeyLogObserver>());
 
             await autoStart.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -329,15 +326,13 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             var services = new ServiceCollection();
             services.AddPcapFromEnvironment(options =>
-            {
                 // The user's BaseFolder is intentionally set to a path
                 // that does not contain pcapPath; the env-var override
                 // must win so the auto-start succeeds.
-                options.BaseFolder = CreateTempPath("user-base");
-            });
+                options.BaseFolder = CreateTempPath("user-base"));
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
             Assert.That(
                 options.BaseFolder,
                 Is.EqualTo(Path.GetFullPath(sessionFolder)).IgnoreCase);
@@ -354,7 +349,7 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
                 => options.BaseFolder = userBase);
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            var options = provider.GetRequiredService<PcapOptions>();
+            PcapOptions options = provider.GetRequiredService<PcapOptions>();
             Assert.That(options.BaseFolder, Is.EqualTo(userBase));
         }
     }

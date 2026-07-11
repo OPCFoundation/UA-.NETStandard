@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
         public void AddComplexTypesRejectsNullClientBuilder()
         {
             Assert.That(
-                () => OpcUaComplexTypesBuilderExtensions.AddComplexTypes((IOpcUaClientBuilder)null!),
+                () => ((IOpcUaClientBuilder)null!).AddComplexTypes(),
                 Throws.ArgumentNullException);
         }
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
                 .AddManagedClient(ConfigureValidClient);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetRequiredService<OpcUaClientOptions>();
+            OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
 
             Assert.That(builder.Services, Is.SameAs(services));
             Assert.That(options.Session.LoadComplexTypes, Is.True);
@@ -94,7 +94,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
             Assert.That(sp.GetService<IComplexTypeSystemFactory>(), Is.Not.Null);
         }
 
-
         [Test]
         public void AddManagedClientConfigurationOverloadEnablesComplexTypes()
         {
@@ -105,7 +104,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
                 .AddManagedClient(configuration);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var options = sp.GetRequiredService<OpcUaClientOptions>();
+            OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
 
             Assert.That(builder.Services, Is.SameAs(services));
             Assert.That(options.Session.LoadComplexTypes, Is.True);

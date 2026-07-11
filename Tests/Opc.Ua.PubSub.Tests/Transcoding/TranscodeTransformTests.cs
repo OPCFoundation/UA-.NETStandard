@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         [Test]
         public async Task MetaDataTransform_RewritesMetaDataAndPassesThroughDataMessages()
         {
-            var withMeta = SampleMessage() with
+            UadpNetworkMessageV2 withMeta = SampleMessage() with
             {
                 MetaData = new DataSetMetaDataType { Name = "old" }
             };

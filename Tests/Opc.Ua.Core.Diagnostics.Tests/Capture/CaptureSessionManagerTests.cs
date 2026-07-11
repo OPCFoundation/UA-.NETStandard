@@ -40,8 +40,6 @@ using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Capture
 {
     [TestFixture]
@@ -310,15 +308,19 @@ namespace Opc.Ua.Pcap.Tests.Capture
 
         // ----- helpers -----
 
-        // Wraps a manager so it can be disposed synchronously inside a sync test
-        // body that uses async lambdas (a tiny convenience for null-argument tests).
+        /// <summary>
+        /// Wraps a manager so it can be disposed synchronously inside a sync test
+        /// body that uses async lambdas (a tiny convenience for null-argument tests).
+        /// </summary>
         private sealed class ManagerScope : IDisposable
         {
             public CaptureSessionManager Manager { get; }
+
             public ManagerScope(ICaptureSourceFactory factory, string baseFolder)
             {
                 Manager = new CaptureSessionManager(factory, baseFolder);
             }
+
             public void Dispose()
             {
                 Manager.DisposeAsync().AsTask().GetAwaiter().GetResult();

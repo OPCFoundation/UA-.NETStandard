@@ -72,7 +72,7 @@ namespace Opc.Ua.Server
         public int ItemsInQueue => m_events.Count;
 
         /// <inheritdoc/>
-        public bool Dequeue(out EventFieldList value)
+        public virtual bool Dequeue(out EventFieldList value)
         {
             value = null!;
             if (m_events.Count != 0)
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void Enqueue(EventFieldList value)
+        public virtual void Enqueue(EventFieldList value)
         {
             if (QueueSize == 0)
             {
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void SetQueueSize(uint queueSize, bool discardOldest)
+        public virtual void SetQueueSize(uint queueSize, bool discardOldest)
         {
             QueueSize = queueSize;
 

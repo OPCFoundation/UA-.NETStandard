@@ -56,7 +56,11 @@ namespace Opc.Ua
         /// <summary>
         /// Default upper bound on pooled instances per activator.
         /// </summary>
+        // RCS1158: static member in generic type — DefaultMaximumRetained is public API and its value is independent of
+        // the type parameter; relocating it would be a breaking change, so it intentionally stays on the generic type.
+#pragma warning disable RCS1158
         public const int DefaultMaximumRetained = 1024;
+#pragma warning restore RCS1158
 
         private readonly BoundedObjectPool<T> m_pool;
 

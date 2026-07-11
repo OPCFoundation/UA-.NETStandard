@@ -58,8 +58,8 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
-        private readonly System.Threading.Lock m_sync = new();
-        private readonly List<string> m_subscribedTopics = new();
+        private readonly Lock m_sync = new();
+        private readonly List<string> m_subscribedTopics = [];
 
         private KafkaConnectionOptions? m_options;
         private IProducer<byte[], byte[]>? m_producer;
@@ -256,7 +256,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             var record = new Message<byte[], byte[]>
             {
                 Key = message.Key.IsEmpty ? null! : message.Key.ToArray(),
-                Value = message.Value.IsEmpty ? Array.Empty<byte>() : message.Value.ToArray(),
+                Value = message.Value.IsEmpty ? [] : message.Value.ToArray(),
                 Headers = headers
             };
             await producer.ProduceAsync(message.Topic, record, ct).ConfigureAwait(false);
@@ -454,8 +454,8 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     extraHeaders[header.Key] = value;
                 }
             }
-            byte[] key = result.Message.Key ?? Array.Empty<byte>();
-            byte[] value2 = result.Message.Value ?? Array.Empty<byte>();
+            byte[] key = result.Message.Key ?? [];
+            byte[] value2 = result.Message.Value ?? [];
             var message = new KafkaMessage(result.Topic, key, value2, contentType, extraHeaders);
             var args = new KafkaIncomingMessageEventArgs(
                 message,
@@ -559,15 +559,15 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private static void ValidateCredentialTransport(KafkaConnectionOptions options)
         {
-            if (options.SaslMechanism == KafkaSaslMechanism.None
-                || string.IsNullOrEmpty(options.UserName))
+            if (options.SaslMechanism == KafkaSaslMechanism.None ||
+                string.IsNullOrEmpty(options.UserName))
             {
                 return;
             }
             bool useTls = options.SecurityProtocol
                     is KafkaSecurityProtocol.Ssl
-                    or KafkaSecurityProtocol.SaslSsl
-                || (options.Tls?.UseTls ?? false);
+                    or KafkaSecurityProtocol.SaslSsl ||
+                (options.Tls?.UseTls ?? false);
             if (!useTls && !options.AllowCredentialsOverPlaintext)
             {
                 throw new InvalidOperationException(
@@ -593,10 +593,10 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         {
             return acks switch
             {
-                KafkaAcks.None => Confluent.Kafka.Acks.None,
-                KafkaAcks.Leader => Confluent.Kafka.Acks.Leader,
-                KafkaAcks.All => Confluent.Kafka.Acks.All,
-                _ => Confluent.Kafka.Acks.All
+                KafkaAcks.None => Acks.None,
+                KafkaAcks.Leader => Acks.Leader,
+                KafkaAcks.All => Acks.All,
+                _ => Acks.All
             };
         }
 

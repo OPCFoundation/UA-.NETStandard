@@ -33,7 +33,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
-using Opc.Ua.PubSub.StateMachine;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {

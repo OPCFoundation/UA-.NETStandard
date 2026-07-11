@@ -47,6 +47,7 @@ namespace Opc.Ua.Client.AliasNames
         /// <summary>
         /// Creates a client rooted at <paramref name="categoryId"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public AliasNameClient Create(
             ISession session,
             NodeId categoryId,
@@ -63,6 +64,7 @@ namespace Opc.Ua.Client.AliasNames
         /// <summary>
         /// Opens the standard Aliases category.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public AliasNameClient OpenStandardAliases(
             ISession session,
             AliasNameClientOptions? options = null)

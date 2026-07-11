@@ -165,7 +165,7 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(message, ctx).ConfigureAwait(false);
             Assert.That(bytes.IsEmpty, Is.False);
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             JsonElement root = document.RootElement;
             Assert.That(root.ValueKind, Is.EqualTo(JsonValueKind.Object));
             Assert.That(root.GetProperty("MessageId").GetString(), Is.EqualTo("msg-1"));
@@ -214,14 +214,13 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(message, ctx).ConfigureAwait(false);
 
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             JsonElement root = document.RootElement;
             Assert.That(root.TryGetProperty("MessageId", out _), Is.False);
             Assert.That(root.TryGetProperty("MessageType", out _), Is.False);
             Assert.That(root.TryGetProperty("Payload", out _), Is.False);
             Assert.That(root.TryGetProperty("BoolField", out _), Is.True);
         }
-
 
         [Test]
         [TestSpec("7.2.5.3")]
@@ -244,19 +243,19 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(message, ctx).ConfigureAwait(false);
 
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             Assert.That(document.RootElement.GetProperty("PublisherId").ValueKind,
                 Is.EqualTo(JsonValueKind.String));
             Assert.That(document.RootElement.GetProperty("PublisherId").GetString(), Is.EqualTo("5"));
             var dataSetOnly = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
             {
-                ContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
-                    | JsonNetworkMessageContentMask.SingleDataSetMessage,
+                ContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader |
+                    JsonNetworkMessageContentMask.SingleDataSetMessage,
                 SingleMessageMode = true,
                 DataSetMessages = [dsm]
             };
             bytes = await encoder.EncodeAsync(dataSetOnly, ctx).ConfigureAwait(false);
-            using JsonDocument nestedDocument = JsonDocument.Parse(bytes);
+            using var nestedDocument = JsonDocument.Parse(bytes);
             JsonElement nested = nestedDocument.RootElement;
             Assert.That(nested.GetProperty("PublisherId").ValueKind, Is.EqualTo(JsonValueKind.String));
             Assert.That(nested.GetProperty("PublisherId").GetString(), Is.EqualTo("5"));
@@ -270,10 +269,10 @@ namespace OpcUaPubSubJsonTests
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
             {
-                ContentMask = JsonDataSetMessageContentMask.DataSetWriterName
-                    | JsonDataSetMessageContentMask.PublisherId
-                    | JsonDataSetMessageContentMask.WriterGroupName
-                    | JsonDataSetMessageContentMask.MessageType,
+                ContentMask = JsonDataSetMessageContentMask.DataSetWriterName |
+                    JsonDataSetMessageContentMask.PublisherId |
+                    JsonDataSetMessageContentMask.WriterGroupName |
+                    JsonDataSetMessageContentMask.MessageType,
                 DataSetWriterName = "WriterA",
                 PublisherId = PublisherId.FromString("publisher-dsm"),
                 WriterGroupName = "GroupA",
@@ -281,9 +280,9 @@ namespace OpcUaPubSubJsonTests
             };
             var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
             {
-                ContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
-                    | JsonNetworkMessageContentMask.SingleDataSetMessage
-                    | JsonNetworkMessageContentMask.WriterGroupName,
+                ContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader |
+                    JsonNetworkMessageContentMask.SingleDataSetMessage |
+                    JsonNetworkMessageContentMask.WriterGroupName,
                 WriterGroupName = string.Empty,
                 DataSetMessages = [dsm]
             };
@@ -291,7 +290,7 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(message, ctx).ConfigureAwait(false);
 
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             JsonElement dsmJson = document.RootElement;
             Assert.That(dsmJson.GetProperty("DataSetWriterName").GetString(), Is.EqualTo("WriterA"));
             Assert.That(dsmJson.GetProperty("PublisherId").GetString(), Is.EqualTo("publisher-dsm"));

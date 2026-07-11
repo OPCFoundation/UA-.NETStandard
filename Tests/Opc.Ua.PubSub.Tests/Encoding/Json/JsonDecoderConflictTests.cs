@@ -28,11 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Tests;
@@ -57,7 +55,7 @@ namespace OpcUaPubSubJsonTests
             // matched MetaData record does not exist so the decoder
             // returns null with no metadata available.
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            string conflicting = """
+            const string conflicting = """
 {
   "MessageId": "conflict",
   "MessageType": "ua-data",
@@ -87,7 +85,7 @@ namespace OpcUaPubSubJsonTests
             // Envelope DataSetClassId set but DataSetMessage carries
             // a conflicting MetaDataVersion — decoder must reject or
             // accept gracefully without throwing.
-            string text = """
+            const string text = """
 {
   "MessageId": "conflict-2",
   "MessageType": "ua-data",

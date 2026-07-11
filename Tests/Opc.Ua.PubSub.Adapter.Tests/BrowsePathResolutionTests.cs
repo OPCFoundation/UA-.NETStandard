@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public async Task CyclicReadStrategyReadsResolvedBrowsePathNodeId()
         {
-            NodeId browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
+            var browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
             NodeId resolvedNodeId = new(42u);
             ArrayOf<ReadValueId> captured = ArrayOf<ReadValueId>.Null;
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
             await strategy.ReadAsync([
                 new ReadValueId { NodeId = browsePath, AttributeId = Attributes.Value }
-            ]);
+            ]).ConfigureAwait(false);
 
             Assert.That(captured.Count, Is.EqualTo(1));
             Assert.That(captured[0].NodeId, Is.EqualTo(resolvedNodeId));
@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
 
             await strategy.ReadAsync([
                 new ReadValueId { NodeId = numericNodeId, AttributeId = Attributes.Value }
-            ]);
+            ]).ConfigureAwait(false);
 
             Assert.That(captured.Count, Is.EqualTo(1));
             Assert.That(captured[0].NodeId, Is.EqualTo(numericNodeId));
@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public async Task ServerTargetVariableWriterWritesResolvedBrowsePathNodeId()
         {
-            NodeId browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
+            var browsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:X");
             NodeId resolvedNodeId = new(42u);
             ArrayOf<WriteValue> captured = ArrayOf<WriteValue>.Null;
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
                 .Callback<ArrayOf<WriteValue>, CancellationToken>((nodes, _) => captured = nodes)
                 .Returns(new ValueTask<ArrayOf<StatusCode>>([
-                    (StatusCode)StatusCodes.Good
+                    StatusCodes.Good
                 ]));
             var writer = new ServerTargetVariableWriter(session.Object, AdapterTestHelpers.Telemetry());
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 browsePath,
                 Attributes.Value,
                 null,
-                new DataValue(new Variant(123)));
+                new DataValue(new Variant(123))).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(status), Is.True);
             Assert.That(captured.Count, Is.EqualTo(1));
@@ -125,8 +125,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public async Task ServerActionHandlerCallsResolvedBrowsePathObjectAndMethodIds()
         {
-            NodeId objectBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo");
-            NodeId methodBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:Reset");
+            var objectBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo");
+            var methodBrowsePath = NodeBrowsePath.ToNodeId("/2:Demo/2:Reset");
             NodeId resolvedObjectId = new(1001u);
             NodeId resolvedMethodId = new(1002u);
             NodeId capturedObjectId = NodeId.Null;
@@ -147,8 +147,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     capturedMethodId = methodId;
                 })
                 .Returns(new ValueTask<RemoteCallResult>(
-                    new RemoteCallResult((StatusCode)StatusCodes.Good, [])));
-            var map = new ActionMethodMap().Add(
+                    new RemoteCallResult(StatusCodes.Good, [])));
+            ActionMethodMap map = new ActionMethodMap().Add(
                 "Reset",
                 objectBrowsePath,
                 methodBrowsePath);
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             {
                 Target = new PubSubActionTarget { ActionName = "Reset" },
                 InputFields = [new DataSetField { Name = "Input", Value = new Variant(1) }]
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             Assert.That(capturedObjectId, Is.EqualTo(resolvedObjectId));

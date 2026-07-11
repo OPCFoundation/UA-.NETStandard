@@ -195,7 +195,7 @@ namespace Opc.Ua.Fuzzing
                 ["localhost", "127.0.0.1"]).RawData;
             WriteTestcase(workPath, "ASN1", "subject-alt-name.der", subjectAltName);
 
-            byte[] authorityKeyIdentifier = new Security.Certificates.X509AuthorityKeyIdentifierExtension(
+            byte[] authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
                 [0x01, 0x02, 0x03, 0x04]).RawData;
             WriteTestcase(workPath, "ASN1", "authority-key-identifier.der", authorityKeyIdentifier);
 

@@ -50,7 +50,6 @@ using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpDecoderV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder;
 using UadpEncoderV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder;
-using UadpNetworkMessageContentMask = Opc.Ua.UadpNetworkMessageContentMask;
 using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
 namespace Opc.Ua.PubSub.Tests.Transcoding
@@ -89,10 +88,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         {
             return new UadpNetworkMessageV2
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetMessages =
@@ -173,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 .Returns(new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddSingleton(TimeProvider.System);
             services.AddSingleton<INetworkMessageEncoder>(new UadpEncoderV2());
             services.AddSingleton<INetworkMessageEncoder>(new JsonEncoderV2());
@@ -188,7 +187,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => new NullTransport();
+                TimeProvider timeProvider)
+            {
+                return new NullTransport();
+            }
         }
 
         private sealed class NullTransport : IPubSubTransport
@@ -205,14 +207,23 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 remove { }
             }
 
-            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
-            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
                 string? topic = null,
-                CancellationToken cancellationToken = default) => default;
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
 #pragma warning disable CS1998 // async method lacks awaits — empty async sequence by design
             public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
@@ -223,7 +234,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             }
 #pragma warning restore CS1998
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

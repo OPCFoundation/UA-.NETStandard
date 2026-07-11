@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // Per OPC UA Part 11 6.5.3.2 a paged HistoryRead reports Good (not
             // Good_MoreData); the non-empty ContinuationPoint alone signals more data.
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.ContinuationPoint.IsEmpty, Is.False,
                 "A read with more data available must return a ContinuationPoint.");
         }
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // Per OPC UA Part 11 6.5.3.2 an interval with no data (no bounds requested)
             // is reported with Good_NoData, not plain Good.
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.GoodNoData));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.GoodNoData));
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // Per OPC UA Part 11 (CTT HA Read Raw Err-009): an IndexRange cannot select
             // data from scalar history, so the operation result is Bad_IndexRangeNoData.
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeNoData));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
@@ -317,7 +317,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // Per OPC UA Part 11 (CTT HA Read Raw Err-014/Err-024): an unknown/foreign
             // ContinuationPoint is Bad_ContinuationPointInvalid.
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadContinuationPointInvalid));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
         [Test]

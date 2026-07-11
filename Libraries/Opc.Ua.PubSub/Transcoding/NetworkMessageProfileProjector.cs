@@ -56,11 +56,11 @@ namespace Opc.Ua.PubSub.Transcoding
     public sealed class NetworkMessageProfileProjector : INetworkMessageProfileProjector
     {
         private const UadpDataSetMessageContentMask k_uadpDataSetMask
-            = UadpDataSetMessageContentMask.SequenceNumber
-            | UadpDataSetMessageContentMask.Status
-            | UadpDataSetMessageContentMask.Timestamp
-            | UadpDataSetMessageContentMask.MajorVersion
-            | UadpDataSetMessageContentMask.MinorVersion;
+            = UadpDataSetMessageContentMask.SequenceNumber |
+                UadpDataSetMessageContentMask.Status |
+                UadpDataSetMessageContentMask.Timestamp |
+                UadpDataSetMessageContentMask.MajorVersion |
+                UadpDataSetMessageContentMask.MinorVersion;
 
         /// <summary>
         /// Shared stateless instance.
@@ -83,7 +83,7 @@ namespace Opc.Ua.PubSub.Transcoding
                 throw new ArgumentNullException(nameof(options));
             }
 
-            TranscodeEncoding sourceEncoding = TranscodeEncodingExtensions.EncodingOf(source);
+            TranscodeEncoding sourceEncoding = source.EncodingOf();
             if (sourceEncoding == targetEncoding)
             {
                 return ApplySameEncodingOptions(source, targetEncoding, options);
@@ -149,8 +149,8 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             if (source.WriterGroupId is ushort groupId && groupId != 0)
             {
-                mask |= UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId;
+                mask |= UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId;
             }
             if (classId != Uuid.Empty)
             {
@@ -177,8 +177,8 @@ namespace Opc.Ua.PubSub.Transcoding
         {
             Uuid classId = ExtractDataSetClassId(source);
             bool single = options.JsonSingleMessageMode && source.DataSetMessages.Count == 1;
-            JsonNetworkMessageContentMask mask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetMessageHeader;
+            JsonNetworkMessageContentMask mask = JsonNetworkMessageContentMask.NetworkMessageHeader |
+                JsonNetworkMessageContentMask.DataSetMessageHeader;
             if (!source.PublisherId.IsNull)
             {
                 mask |= JsonNetworkMessageContentMask.PublisherId;
@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Transcoding
             PubSubDataSetMessage source,
             TranscodeTargetOptions options)
         {
-            UadpDataSetMessageV2? existing = source as UadpDataSetMessageV2;
+            var existing = source as UadpDataSetMessageV2;
             PubSubFieldEncoding fieldEncoding = options.FieldEncoding
                 ?? existing?.FieldEncoding
                 ?? PubSubFieldEncoding.Variant;
@@ -224,8 +224,8 @@ namespace Opc.Ua.PubSub.Transcoding
             UadpDataSetMessageContentMask contentMask = existing?.ContentMask ?? k_uadpDataSetMask;
             if (!options.PreserveMetaDataVersion)
             {
-                contentMask &= ~(UadpDataSetMessageContentMask.MajorVersion
-                    | UadpDataSetMessageContentMask.MinorVersion);
+                contentMask &= ~(UadpDataSetMessageContentMask.MajorVersion |
+                    UadpDataSetMessageContentMask.MinorVersion);
             }
 
             return new UadpDataSetMessageV2

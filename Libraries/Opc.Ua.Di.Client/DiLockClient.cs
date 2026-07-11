@@ -97,14 +97,8 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ITelemetryContext Telemetry { get; }
 
-        private LockingServicesTypeClient Proxy
-        {
-            get
-            {
-                return m_proxy ??= new LockingServicesTypeClient(
+        private LockingServicesTypeClient Proxy => m_proxy ??= new LockingServicesTypeClient(
                     Session, LockNodeId, Telemetry);
-            }
-        }
 
         /// <summary>
         /// Calls <c>InitLock</c> on the server. Returns the status code

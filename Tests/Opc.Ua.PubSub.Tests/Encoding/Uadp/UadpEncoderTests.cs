@@ -29,7 +29,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
@@ -81,12 +80,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.GroupVersion
-                    | UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.SequenceNumber,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.GroupVersion |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber,
                 PublisherId = PublisherId.FromUInt16(1234),
                 WriterGroupId = 5,
                 GroupVersion = 0x12345678,
@@ -117,8 +116,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
@@ -159,10 +158,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.DataSetClassId
-                    | UadpNetworkMessageContentMask.Timestamp
-                    | UadpNetworkMessageContentMask.PicoSeconds,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.DataSetClassId |
+                    UadpNetworkMessageContentMask.Timestamp |
+                    UadpNetworkMessageContentMask.PicoSeconds,
                 PublisherId = PublisherId.FromByte(2),
                 DataSetClassId = classId,
                 Timestamp = ts,
@@ -191,8 +190,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PromotedFields,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PromotedFields,
                 PublisherId = PublisherId.FromByte(3),
                 PromotedFields =
                 [
@@ -253,7 +252,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                         new DataSetField
                         {
                             Value = new Variant(99u),
-                            StatusCode = (StatusCode)StatusCodes.Good,
+                            StatusCode = StatusCodes.Good,
                             SourceTimestamp = src
                         }
                     ]
@@ -267,8 +266,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             // RawData requires DataSetMetaData; register one for the writer.
             var publisherId = PublisherId.FromByte(8);
-            ushort writerGroupId = 1;
-            ushort dataSetWriterId = 50;
+            const ushort writerGroupId = 1;
+            const ushort dataSetWriterId = 50;
             var classId = new Uuid("11223344-5566-7788-99AA-BBCCDDEEFF00");
             var version = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 };
             var meta = new DataSetMetaDataType
@@ -300,11 +299,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var msg = new UadpNetworkMessage
             {
                 ContentMask =
-                    UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader
-                    | UadpNetworkMessageContentMask.DataSetClassId,
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader |
+                    UadpNetworkMessageContentMask.DataSetClassId,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetClassId = classId,
@@ -356,12 +355,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                         DataSetWriterId = 1,
                         FieldEncoding = PubSubFieldEncoding.Variant,
                         ContentMask =
-                            UadpDataSetMessageContentMask.SequenceNumber
-                            | UadpDataSetMessageContentMask.Timestamp
-                            | UadpDataSetMessageContentMask.PicoSeconds
-                            | UadpDataSetMessageContentMask.Status
-                            | UadpDataSetMessageContentMask.MajorVersion
-                            | UadpDataSetMessageContentMask.MinorVersion,
+                            UadpDataSetMessageContentMask.SequenceNumber |
+                            UadpDataSetMessageContentMask.Timestamp |
+                            UadpDataSetMessageContentMask.PicoSeconds |
+                            UadpDataSetMessageContentMask.Status |
+                            UadpDataSetMessageContentMask.MajorVersion |
+                            UadpDataSetMessageContentMask.MinorVersion,
                         SequenceNumber = 0xDEAD,
                         Timestamp = ts,
                         PicoSeconds = 0xBEEF,
@@ -397,7 +396,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     DataSetWriterId = 1,
                     FieldEncoding = PubSubFieldEncoding.Variant,
                     MessageType = PubSubDataSetMessageType.DeltaFrame,
-                    Fields = [ new DataSetField { FieldIndex = 7, Value = new Variant(42) } ]
+                    Fields = [new DataSetField { FieldIndex = 7, Value = new Variant(42) }]
                 }).ConfigureAwait(false);
 
             Assert.That(decoded.MessageType, Is.EqualTo(PubSubDataSetMessageType.DeltaFrame));
@@ -538,7 +537,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 DataSetWriterId = 1,
                 FieldEncoding = PubSubFieldEncoding.Variant,
                 ConfiguredSize = 128,
-                Fields = [ new DataSetField { Value = new Variant(1) } ]
+                Fields = [new DataSetField { Value = new Variant(1) }]
             };
 
             // Padding only changes encoded length; sanity check via raw encode.
@@ -546,7 +545,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             {
                 ContentMask = UadpNetworkMessageContentMask.PublisherId,
                 PublisherId = PublisherId.FromByte(0),
-                DataSetMessages = [ dataSetMessage ]
+                DataSetMessages = [dataSetMessage]
             };
             var encoder = new UadpEncoder();
             PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
@@ -578,7 +577,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             {
                 ContentMask = UadpNetworkMessageContentMask.PublisherId,
                 PublisherId = PublisherId.FromByte(1),
-                DataSetMessages = [ ds ]
+                DataSetMessages = [ds]
             };
             UadpNetworkMessage decoded = await RoundTripAsync(msg).ConfigureAwait(false);
             return (UadpDataSetMessage)decoded.DataSetMessages[0];

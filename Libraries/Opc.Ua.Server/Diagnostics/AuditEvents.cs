@@ -1236,6 +1236,60 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports an audit event when a session is restored (materialized) from
+        /// a shared store on a standby replica during a high-availability
+        /// failover. This is a security-relevant provenance event distinct from
+        /// the regular activate-session audit.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="auditEntryId">
+        /// The audit entry id (a one-way token digest is used for provenance so
+        /// the raw authentication token is not exposed).
+        /// </param>
+        /// <param name="session">The restored session.</param>
+        /// <param name="logger">A contextual logger to log to.</param>
+        /// <param name="sourceName">The source name of the audit event.</param>
+        public static void ReportAuditSessionRestoredEvent(
+            this IAuditEventServer? server,
+            string auditEntryId,
+            ISession session,
+            ILogger logger,
+            string sourceName = "Session/RestoredFromSharedStore")
+        {
+            if (server?.Auditing != true)
+            {
+                // current server does not support auditing
+                return;
+            }
+
+            try
+            {
+                ISystemContext systemContext = server.DefaultAuditContext;
+
+                // raise an audit event.
+                var e = new AuditSessionEventState(null);
+
+                var message = new TranslationInfo(
+                    "AuditSessionRestoredEvent",
+                    "en-US",
+                    $"Session with ID:{session?.Id} was restored from the shared store on this replica.");
+
+                InitializeAuditSessionEvent(systemContext, e, message, true, session!, auditEntryId);
+
+                e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
+
+                server.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Error while reporting AuditSessionEventState restored event for SessionId {SessionId}.",
+                    session?.Id);
+            }
+        }
+
+        /// <summary>
         /// Reports an audit session event for the transfer subscription.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>

@@ -34,7 +34,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Alarms
 {
-    [TestFixture, Category("AlarmSuppressionEngine"), Parallelizable]
+    [TestFixture]
+    [Category("AlarmSuppressionEngine")]
+    [Parallelizable]
     public class AlarmSuppressionEngineTests
     {
         private ISystemContext m_context = null!;
@@ -340,7 +342,9 @@ namespace Opc.Ua.Server.Tests.Alarms
         }
     }
 
-    [TestFixture, Category("AlarmGroup"), Parallelizable]
+    [TestFixture]
+    [Category("AlarmGroup")]
+    [Parallelizable]
     public class AlarmGroupTests
     {
         private ISystemContext m_context = null!;

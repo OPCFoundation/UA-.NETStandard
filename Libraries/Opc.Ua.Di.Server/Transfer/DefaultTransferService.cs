@@ -137,7 +137,7 @@ namespace Opc.Ua.Di.Server.Transfer
             int transferId = Interlocked.Increment(ref m_nextTransferId);
 
             ParameterEntry[] resultEntries;
-            if (m_importers.TryGetValue(elementId, out var importer))
+            if (m_importers.TryGetValue(elementId, out Func<ISystemContext, ParameterSet, CancellationToken, ValueTask<StatusCode[]>>? importer))
             {
                 StatusCode[] statuses;
                 try
@@ -197,7 +197,7 @@ namespace Opc.Ua.Di.Server.Transfer
             ParameterEntry[] entries;
             StatusCode error = StatusCodes.Good;
 
-            if (m_exporters.TryGetValue(elementId, out var exporter))
+            if (m_exporters.TryGetValue(elementId, out Func<ISystemContext, CancellationToken, ValueTask<ParameterSet>>? exporter))
             {
                 try
                 {

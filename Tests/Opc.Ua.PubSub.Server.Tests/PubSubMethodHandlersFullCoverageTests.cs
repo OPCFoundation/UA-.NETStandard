@@ -29,12 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
@@ -87,13 +85,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddConnectionExtensionObjectIsNotPubSubConnectionDataTypeReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(
                 new ExtensionObject(new WriterGroupDataType { Name = "wg" })));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -101,12 +99,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddConnectionArgumentNotExtensionObjectReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From("not-an-extension-object"));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From("not-an-extension-object"));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -121,12 +119,12 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            var inputs = NewInputs(Variant.From(new ExtensionObject(bad)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new ExtensionObject(bad)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
@@ -141,7 +139,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            var inputs = NewInputs(Variant.From(new ExtensionObject(bad)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new ExtensionObject(bad)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddConnection(
                 NewContext(), null!, inputs, outputs);
@@ -153,12 +151,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveConnectionUnknownIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(new NodeId("pubsub:connection:nope", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("pubsub:connection:nope", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -166,12 +164,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveConnectionNullNodeIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(NodeId.Null));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(NodeId.Null));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -180,12 +178,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(Variant.From(new NodeId("foo", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("foo", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveConnection(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -199,12 +197,12 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Connections = [],
                 PublishedDataSets = []
             };
-            var inputs = NewInputs(Variant.From(new ExtensionObject(cfg)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new ExtensionObject(cfg)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -212,12 +210,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnSetConfigurationMissingArgumentReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs();
+            ArrayOf<Variant> inputs = NewInputs();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -225,12 +223,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnSetConfigurationArgumentNotExtensionObjectReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(123));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(123));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -238,13 +236,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnSetConfigurationBodyNotPubSubConfigurationReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(
                 new ExtensionObject(new WriterGroupDataType { Name = "wg" })));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -266,12 +264,12 @@ namespace Opc.Ua.PubSub.Server.Tests
                 }),
                 PublishedDataSets = []
             };
-            var inputs = NewInputs(Variant.From(new ExtensionObject(bad)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new ExtensionObject(bad)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnSetConfiguration(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
@@ -284,7 +282,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnGetConfiguration(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -296,7 +294,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddPublishedEvents(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -309,7 +307,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddPublishedDataItems(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -322,7 +320,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddPublishedEvents(
                 NewContext(), null!, default, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -331,12 +329,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(Variant.From(new NodeId("foo", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("foo", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -344,12 +342,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemovePublishedDataSetMissingArgumentReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs();
+            ArrayOf<Variant> inputs = NewInputs();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -357,12 +355,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemovePublishedDataSetNullNodeIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(NodeId.Null));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(NodeId.Null));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -370,13 +368,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemovePublishedDataSetUnknownIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:published-data-set:nope", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemovePublishedDataSet(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -385,12 +383,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(Variant.From("folder"));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From("folder"));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -398,12 +396,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetFolderMissingArgumentReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs();
+            ArrayOf<Variant> inputs = NewInputs();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -411,12 +409,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetFolderEmptyNameReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(string.Empty));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(string.Empty));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -425,12 +423,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(Variant.From(new NodeId("pubsub:folder:foo", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("pubsub:folder:foo", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -438,12 +436,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetFolderMissingArgumentReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs();
+            ArrayOf<Variant> inputs = NewInputs();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetFolder(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -451,7 +449,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetFolderWithArgumentReturnsGoodNoOp()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(new NodeId("pubsub:folder:foo", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("pubsub:folder:foo", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetFolder(
                 NewContext(), null!, inputs, outputs);
@@ -469,7 +467,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 WriterGroupId = 1,
                 PublishingInterval = 1000
             };
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(connId), Variant.From(new ExtensionObject(wg)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddWriterGroup(
@@ -488,14 +486,14 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("foo", 0)),
                 Variant.From(new ExtensionObject(new WriterGroupDataType { Name = "x" })));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -503,12 +501,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddWriterGroupMissingArgsReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(new NodeId("x", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("x", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -516,14 +514,14 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddWriterGroupNullConnectionIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(NodeId.Null),
                 Variant.From(new ExtensionObject(new WriterGroupDataType { Name = "wg" })));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -531,14 +529,14 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddWriterGroupSecondArgNotExtensionObjectReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From("not-an-extension-object"));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -546,7 +544,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddWriterGroupSecondArgWrongTypeReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From(
                     new ExtensionObject(new ReaderGroupDataType { Name = "rg" })));
@@ -554,7 +552,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -562,7 +560,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddWriterGroupUnknownConnectionIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:connection:unknown", 0)),
                 Variant.From(
                     new ExtensionObject(new WriterGroupDataType { Name = "wg" })));
@@ -570,7 +568,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddWriterGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -579,7 +577,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlersWithConnection(out NodeId connId);
             var rg = new ReaderGroupDataType { Name = "rg-1" };
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(connId), Variant.From(new ExtensionObject(rg)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddReaderGroup(
@@ -598,14 +596,14 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("foo", 0)),
                 Variant.From(new ExtensionObject(new ReaderGroupDataType { Name = "x" })));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -613,12 +611,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddReaderGroupMissingArgReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(new NodeId("x", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("x", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -626,7 +624,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddReaderGroupSecondArgWrongBodyReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From(
                     new ExtensionObject(new WriterGroupDataType { Name = "wg" })));
@@ -634,7 +632,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -642,14 +640,14 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddReaderGroupSecondArgNotExtensionObjectReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From("string-value"));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -657,14 +655,14 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddReaderGroupNullConnectionIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(NodeId.Null),
                 Variant.From(new ExtensionObject(new ReaderGroupDataType { Name = "rg" })));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -672,14 +670,14 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddReaderGroupUnknownConnectionIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:connection:unknown", 0)),
                 Variant.From(new ExtensionObject(new ReaderGroupDataType { Name = "rg" })));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddReaderGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -693,13 +691,13 @@ namespace Opc.Ua.PubSub.Server.Tests
                 WriterGroupId = 1,
                 PublishingInterval = 1000
             };
-            var addInputs = NewInputs(
+            ArrayOf<Variant> addInputs = NewInputs(
                 Variant.From(connId), Variant.From(new ExtensionObject(wg)));
             var addOutputs = new List<Variant>();
             handlers.OnAddWriterGroup(NewContext(), null!, addInputs, addOutputs);
             addOutputs[0].TryGetValue(out NodeId wgId);
 
-            var inputs = NewInputs(Variant.From(wgId));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(wgId));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
@@ -712,12 +710,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(Variant.From(new NodeId("foo", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("foo", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -725,12 +723,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveGroupMissingArgReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs();
+            ArrayOf<Variant> inputs = NewInputs();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -738,12 +736,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveGroupNullIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(NodeId.Null));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(NodeId.Null));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -751,13 +749,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveGroupUnknownIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:writer-group:foo:bar", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveGroup(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -772,7 +770,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 DataSetWriterId = 1,
                 DataSetName = "pds-1"
             };
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(wgId), Variant.From(new ExtensionObject(writer)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetWriter(
@@ -791,7 +789,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From(
                     new ExtensionObject(new DataSetWriterDataType { Name = "w" })));
@@ -799,7 +797,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -807,12 +805,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetWriterMissingArgReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(new NodeId("x", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("x", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -820,7 +818,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetWriterNullWriterGroupIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(NodeId.Null),
                 Variant.From(
                     new ExtensionObject(new DataSetWriterDataType { Name = "w" })));
@@ -828,7 +826,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -836,13 +834,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetWriterSecondArgNotExtensionObjectReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)), Variant.From("not-eo"));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -850,7 +848,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetWriterSecondArgWrongTypeReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From(
                     new ExtensionObject(new ReaderGroupDataType { Name = "rg" })));
@@ -858,7 +856,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -866,7 +864,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetWriterUnknownGroupIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:writer-group:foo:bar", 0)),
                 Variant.From(new ExtensionObject(
                     new DataSetWriterDataType
@@ -878,7 +876,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -893,13 +891,13 @@ namespace Opc.Ua.PubSub.Server.Tests
                 DataSetWriterId = 1,
                 DataSetName = "pds-1"
             };
-            var addInputs = NewInputs(
+            ArrayOf<Variant> addInputs = NewInputs(
                 Variant.From(wgId), Variant.From(new ExtensionObject(writer)));
             var addOutputs = new List<Variant>();
             handlers.OnAddDataSetWriter(NewContext(), null!, addInputs, addOutputs);
             addOutputs[0].TryGetValue(out NodeId writerId);
 
-            var inputs = NewInputs(Variant.From(writerId));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(writerId));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
@@ -912,12 +910,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(Variant.From(new NodeId("x", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("x", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -925,12 +923,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetWriterMissingArgReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs();
+            ArrayOf<Variant> inputs = NewInputs();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -938,12 +936,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetWriterNullIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(NodeId.Null));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(NodeId.Null));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -951,13 +949,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetWriterUnknownIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:writer:foo:bar:baz", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetWriter(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -973,7 +971,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 MessageReceiveTimeout = 5000,
                 SubscribedDataSet = new ExtensionObject(new TargetVariablesDataType())
             };
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(rgId), Variant.From(new ExtensionObject(reader)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetReader(
@@ -992,7 +990,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From(new ExtensionObject(
                     new DataSetReaderDataType { Name = "r" })));
@@ -1000,7 +998,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -1008,12 +1006,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetReaderMissingArgReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(new NodeId("x", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("x", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1021,7 +1019,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetReaderNullReaderGroupIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(NodeId.Null),
                 Variant.From(new ExtensionObject(
                     new DataSetReaderDataType { Name = "r" })));
@@ -1029,7 +1027,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1037,13 +1035,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetReaderSecondArgNotExtensionObjectReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)), Variant.From("not-eo"));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1051,7 +1049,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetReaderSecondArgWrongTypeReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("x", 0)),
                 Variant.From(new ExtensionObject(
                     new WriterGroupDataType { Name = "wg" })));
@@ -1059,7 +1057,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1067,7 +1065,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnAddDataSetReaderUnknownReaderGroupIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:reader-group:foo:bar", 0)),
                 Variant.From(new ExtensionObject(
                     new DataSetReaderDataType { Name = "r" })));
@@ -1075,7 +1073,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -1091,13 +1089,13 @@ namespace Opc.Ua.PubSub.Server.Tests
                 MessageReceiveTimeout = 5000,
                 SubscribedDataSet = new ExtensionObject(new TargetVariablesDataType())
             };
-            var addInputs = NewInputs(
+            ArrayOf<Variant> addInputs = NewInputs(
                 Variant.From(rgId), Variant.From(new ExtensionObject(reader)));
             var addOutputs = new List<Variant>();
             handlers.OnAddDataSetReader(NewContext(), null!, addInputs, addOutputs);
             addOutputs[0].TryGetValue(out NodeId readerId);
 
-            var inputs = NewInputs(Variant.From(readerId));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(readerId));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
@@ -1110,12 +1108,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlers(
                 opts => opts.ExposeConfigurationMethods = false);
-            var inputs = NewInputs(Variant.From(new NodeId("x", 0)));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(new NodeId("x", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -1123,12 +1121,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetReaderMissingArgReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs();
+            ArrayOf<Variant> inputs = NewInputs();
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1136,12 +1134,12 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetReaderNullIdReturnsBadInvalidArgument()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(Variant.From(NodeId.Null));
+            ArrayOf<Variant> inputs = NewInputs(Variant.From(NodeId.Null));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1149,13 +1147,13 @@ namespace Opc.Ua.PubSub.Server.Tests
         public void OnRemoveDataSetReaderUnknownIdReturnsBadNodeIdUnknown()
         {
             PubSubMethodHandlers handlers = NewHandlers();
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(new NodeId("pubsub:reader:foo:bar:baz", 0)));
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnRemoveDataSetReader(
                 NewContext(), null!, inputs, outputs);
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         private static PubSubMethodHandlers NewHandlers(
@@ -1181,7 +1179,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Address = new ExtensionObject(
                     new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
             };
-            var addInputs = NewInputs(Variant.From(new ExtensionObject(conn)));
+            ArrayOf<Variant> addInputs = NewInputs(Variant.From(new ExtensionObject(conn)));
             var addOutputs = new List<Variant>();
             handlers.OnAddConnection(NewContext(), null!, addInputs, addOutputs);
             addOutputs[0].TryGetValue(out NodeId id);
@@ -1199,7 +1197,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 WriterGroupId = 1,
                 PublishingInterval = 1000
             };
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(connectionId), Variant.From(new ExtensionObject(wg)));
             var outputs = new List<Variant>();
             handlers.OnAddWriterGroup(NewContext(), null!, inputs, outputs);
@@ -1213,7 +1211,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             PubSubMethodHandlers handlers = NewHandlersWithConnection(out connectionId);
             var rg = new ReaderGroupDataType { Name = "rg-h" };
-            var inputs = NewInputs(
+            ArrayOf<Variant> inputs = NewInputs(
                 Variant.From(connectionId), Variant.From(new ExtensionObject(rg)));
             var outputs = new List<Variant>();
             handlers.OnAddReaderGroup(NewContext(), null!, inputs, outputs);

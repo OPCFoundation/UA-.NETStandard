@@ -27,11 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -213,7 +210,7 @@ namespace Opc.Ua.Client.WebApi
                     DisposeHandler = false
                 };
 
-                using (WebApiClient client = WebApiClient.Create(s_baseAddress, options))
+                using (var client = WebApiClient.Create(s_baseAddress, options))
                 {
                     // Dispose the client — handler is borrowed, must NOT be disposed.
                 }
@@ -492,7 +489,8 @@ namespace Opc.Ua.Client.WebApi
                     .SetName("CreateSessionAsync");
             }
 
-            [Test, TestCaseSource(nameof(ServiceMethodTestCases))]
+            [Test]
+            [TestCaseSource(nameof(ServiceMethodTestCases))]
             public async Task ServiceMethodDispatchesViaInvokeAsyncAsync(
                 IServiceRequest request,
                 IServiceResponse expectedResponse)
@@ -503,12 +501,12 @@ namespace Opc.Ua.Client.WebApi
 
                 IServiceResponse? actual = request switch
                 {
-                    ReadRequest r => await client.ReadAsync((ReadRequest)r).ConfigureAwait(false),
-                    WriteRequest r => await client.WriteAsync((WriteRequest)r).ConfigureAwait(false),
-                    BrowseRequest r => await client.BrowseAsync((BrowseRequest)r).ConfigureAwait(false),
-                    CallRequest r => await client.CallAsync((CallRequest)r).ConfigureAwait(false),
-                    GetEndpointsRequest r => await client.GetEndpointsAsync((GetEndpointsRequest)r).ConfigureAwait(false),
-                    CreateSessionRequest r => await client.CreateSessionAsync((CreateSessionRequest)r).ConfigureAwait(false),
+                    ReadRequest r => await client.ReadAsync(r).ConfigureAwait(false),
+                    WriteRequest r => await client.WriteAsync(r).ConfigureAwait(false),
+                    BrowseRequest r => await client.BrowseAsync(r).ConfigureAwait(false),
+                    CallRequest r => await client.CallAsync(r).ConfigureAwait(false),
+                    GetEndpointsRequest r => await client.GetEndpointsAsync(r).ConfigureAwait(false),
+                    CreateSessionRequest r => await client.CreateSessionAsync(r).ConfigureAwait(false),
                     _ => null
                 };
 

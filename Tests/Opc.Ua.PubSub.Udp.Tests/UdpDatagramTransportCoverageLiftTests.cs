@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {

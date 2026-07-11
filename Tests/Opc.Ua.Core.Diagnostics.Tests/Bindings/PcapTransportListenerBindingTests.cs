@@ -76,7 +76,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         {
             var inner = new FakeListenerFactory();
             var binding = new PcapTransportListenerBinding(inner, new ChannelCaptureRegistry());
-            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
 
             ITransportListener listener = binding.Create(telemetry);
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             var registry = new ChannelCaptureRegistry();
             var inner = new FakeListenerFactory();
             var binding = new PcapTransportListenerBinding(inner, registry);
-            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
             ITransportListener listener = binding.Create(telemetry);
 
             var settings = new TransportListenerSettings();
@@ -124,7 +124,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         {
             var inner = new FakeListenerFactory();
             var binding = new PcapTransportListenerBinding(inner, new ChannelCaptureRegistry());
-            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
             ITransportListener listener = binding.Create(telemetry);
 
             listener.UpdateChannelLastActiveTime("global-1");
@@ -142,7 +142,10 @@ namespace Opc.Ua.Pcap.Tests.Bindings
 
             public string UriScheme => Utils.UriSchemeOpcTcp;
 
-            public ITransportListener Create(ITelemetryContext telemetry) => Listener;
+            public ITransportListener Create(ITelemetryContext telemetry)
+            {
+                return Listener;
+            }
 
             public ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
                 ServerBase serverBase,
@@ -154,7 +157,9 @@ namespace Opc.Ua.Pcap.Tests.Bindings
                 ICertificateRegistry serverCertificates,
                 ICertificateValidatorEx clientCertificateValidator,
                 CancellationToken ct = default)
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
         }
 
 #pragma warning disable CS0067 // events are part of the ITransportListener surface but unused by the tests
@@ -217,13 +222,34 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
-            public ValueTask ConnectAsync(Uri url, CancellationToken ct) => default;
-            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct) => default;
-            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct) => default;
+
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return default;
+            }
+
+            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            {
+                return default;
+            }
+
+            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+            {
+                return default;
+            }
+
             public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
-                => new(new ArraySegment<byte>([]));
-            public void Close() { }
-            public void Dispose() { }
+            {
+                return new(new ArraySegment<byte>([]));
+            }
+
+            public void Close()
+            {
+            }
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

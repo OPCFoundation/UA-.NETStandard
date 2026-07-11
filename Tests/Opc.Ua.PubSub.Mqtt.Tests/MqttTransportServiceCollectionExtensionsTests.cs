@@ -38,7 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Mqtt.Tests
 {
@@ -88,10 +87,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             MqttConnectionOptions options =
                 serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
-            MqttPubSubTransportFactory[] factories = serviceProvider
+            MqttPubSubTransportFactory[] factories = [.. serviceProvider
                 .GetServices<IPubSubTransportFactory>()
-                .OfType<MqttPubSubTransportFactory>()
-                .ToArray();
+                .OfType<MqttPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {
@@ -117,11 +115,11 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 Assert.That(factories, Has.Length.EqualTo(2));
                 Assert.That(
                     factories.Select(static f => f.TransportProfileUri),
-                    Is.EquivalentTo(new[]
-                    {
+                    Is.EquivalentTo(
+                    [
                         Profiles.PubSubMqttJsonTransport,
                         Profiles.PubSubMqttUadpTransport
-                    }));
+                    ]));
             });
         }
 
@@ -163,8 +161,10 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 mqttBuilder.WithConnectionOptions(options =>
                 {
                     options.Endpoint = "mqtts://broker.example.com:8883";
-                    options.Tls = new MqttTlsOptions();
-                    options.Tls.UseTls = true;
+                    options.Tls = new MqttTlsOptions
+                    {
+                        UseTls = true
+                    };
                 });
             });
 
@@ -223,10 +223,9 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             MqttConnectionOptions options =
                 serviceProvider.GetRequiredService<IOptions<MqttConnectionOptions>>().Value;
-            MqttPubSubTransportFactory[] factories = serviceProvider
+            MqttPubSubTransportFactory[] factories = [.. serviceProvider
                 .GetServices<IPubSubTransportFactory>()
-                .OfType<MqttPubSubTransportFactory>()
-                .ToArray();
+                .OfType<MqttPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {

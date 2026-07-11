@@ -192,6 +192,79 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        [Test]
+        [Order(250)]
+        [CancelAfter(60_000)]
+        public async Task SubscriptionWithMonitoredItemDeliversDataChanges(
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+
+            ManagedSessionType session = await new ManagedSessionBuilder(
+                    ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(nameof(SubscriptionWithMonitoredItemDeliversDataChanges))
+                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+
+            var handler = new RecordingHandler();
+            try
+            {
+                // Regression: a V2 subscription must have PublishingEnabled set
+                // AND a monitored item added through the subscription for
+                // data-change notifications to reach the handler. The
+                // RedundantClient sample previously used the classic
+                // Subscription.FastDataChangeCallback (ignored by the V2 engine)
+                // and left PublishingEnabled at its false default, so it received
+                // no notifications at all.
+                ISubscription subscription = session.AddSubscription(
+                    handler,
+                    new Client.Subscriptions.SubscriptionOptions
+                    {
+                        PublishingInterval = TimeSpan.FromMilliseconds(500),
+                        PublishingEnabled = true,
+                        KeepAliveCount = 10,
+                        LifetimeCount = 100
+                    });
+
+                Assert.That(
+                    subscription.TryAddMonitoredItem(
+                        "CurrentTime",
+                        VariableIds.Server_ServerStatus_CurrentTime,
+                        o => o with
+                        {
+                            SamplingInterval = TimeSpan.FromMilliseconds(500),
+                            QueueSize = 10
+                        },
+                        out _),
+                    Is.True);
+
+                bool created = await WaitForAsync(
+                    () => subscription.Created,
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                Assert.That(created, Is.True, "Subscription should be created on the server");
+
+                bool gotData = await handler
+                    .WaitForDataAsync(TimeSpan.FromSeconds(20), ct)
+                    .ConfigureAwait(false);
+                Assert.That(
+                    gotData,
+                    Is.True,
+                    "A data-change notification should be delivered to the handler");
+                Assert.That(handler.DataChangeCount, Is.GreaterThan(0));
+
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         private static async Task<bool> WaitForAsync(
             Func<bool> predicate,
             TimeSpan timeout,

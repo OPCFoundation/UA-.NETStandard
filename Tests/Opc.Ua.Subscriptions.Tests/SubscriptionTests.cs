@@ -628,8 +628,8 @@ namespace Opc.Ua.Subscriptions.Tests
                 // TriggeringItems projection (reverse "what does this
                 // item trigger" lookup is on demand via the
                 // subscription's items, no eager list).
-                Assert.That(triggered1!.TriggeringItems, Contains.Item(triggering!));
-                Assert.That(triggered2!.TriggeringItems, Contains.Item(triggering!));
+                Assert.That(triggered1!.TriggeringItems, Contains.Item(triggering));
+                Assert.That(triggered2!.TriggeringItems, Contains.Item(triggering));
 
                 // Remove one of the links
                 SetTriggeringResult removeResponse = await subscription
@@ -639,8 +639,8 @@ namespace Opc.Ua.Subscriptions.Tests
                         ct).ConfigureAwait(false);
                 Assert.That(removeResponse.RemoveResults, Has.Count.EqualTo(1));
                 Assert.That(StatusCode.IsGood(removeResponse.RemoveResults[0].Status), Is.True);
-                Assert.That(triggered1.TriggeringItems, Does.Not.Contain(triggering!));
-                Assert.That(triggered2.TriggeringItems, Contains.Item(triggering!));
+                Assert.That(triggered1.TriggeringItems, Does.Not.Contain(triggering));
+                Assert.That(triggered2.TriggeringItems, Contains.Item(triggering));
 
                 await subscription.DisposeAsync().ConfigureAwait(false);
             }
@@ -698,8 +698,8 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // The desired-state projection is populated
                 // immediately from the options at TryAdd time.
-                Assert.That(tgt!.TriggeringItems, Contains.Item(trig!));
-                Assert.That(trig!.TriggeredItems, Contains.Item(tgt!));
+                Assert.That(tgt!.TriggeringItems, Contains.Item(trig));
+                Assert.That(trig!.TriggeredItems, Contains.Item(tgt));
 
                 await subscription.DisposeAsync().ConfigureAwait(false);
             }
@@ -760,11 +760,11 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(StatusCode.IsGood(rB.AddResults[0].Status), Is.True);
 
                 // shared.TriggeringItems reflects both relationships.
-                Assert.That(shared!.TriggeringItems, Contains.Item(trigA!));
-                Assert.That(shared!.TriggeringItems, Contains.Item(trigB!));
+                Assert.That(shared!.TriggeringItems, Contains.Item(trigA));
+                Assert.That(shared!.TriggeringItems, Contains.Item(trigB));
                 // Reverse: each triggering item knows about shared.
-                Assert.That(trigA!.TriggeredItems, Contains.Item(shared!));
-                Assert.That(trigB!.TriggeredItems, Contains.Item(shared!));
+                Assert.That(trigA!.TriggeredItems, Contains.Item(shared));
+                Assert.That(trigB!.TriggeredItems, Contains.Item(shared));
 
                 // Remove only the link from trigA — trigB's link
                 // survives, demonstrating that N:M is preserved
@@ -773,7 +773,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     trigA, null, [shared], ct).ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(rRemove.RemoveResults[0].Status), Is.True);
                 Assert.That(shared.TriggeringItems, Does.Not.Contain(trigA));
-                Assert.That(shared.TriggeringItems, Contains.Item(trigB!));
+                Assert.That(shared.TriggeringItems, Contains.Item(trigB));
 
                 await subscription.DisposeAsync().ConfigureAwait(false);
             }

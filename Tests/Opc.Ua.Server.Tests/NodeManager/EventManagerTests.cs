@@ -216,7 +216,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<uint>(),
                     It.IsAny<MonitoringFilter>(),
                     It.IsAny<MonitoringFilter>(),
-                    It.IsAny<Opc.Ua.Range>(),
+                    It.IsAny<Range>(),
                     It.IsAny<double>(),
                     It.IsAny<uint>(),
                     It.IsAny<bool>()),
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
 #pragma warning disable CS0618 // testing the obsolete overload deliberately
             Assert.That(
-                () => EventManager.ReportEvent(null!, new List<IEventMonitoredItem>()),
+                () => EventManager.ReportEvent(null!, []),
                 Throws.TypeOf<ArgumentNullException>());
 #pragma warning restore CS0618
         }
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 #pragma warning disable CS0618 // testing the obsolete overload deliberately
             EventManager.ReportEvent(
                 filterTarget.Object,
-                new List<IEventMonitoredItem> { item1.Object, item2.Object });
+                [item1.Object, item2.Object]);
 #pragma warning restore CS0618
 
             item1.Verify(m => m.QueueEvent(filterTarget.Object), Times.Once);

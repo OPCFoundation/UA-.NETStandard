@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
@@ -68,7 +69,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 .AddOpcUa()
                 .AddServer(opt => { });
 
-            var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+            IConfigurationRoot config = new ConfigurationBuilder().Build();
             Assert.That(
                 () => serverBuilder.AddPubSub(config),
                 Throws.InvalidOperationException);

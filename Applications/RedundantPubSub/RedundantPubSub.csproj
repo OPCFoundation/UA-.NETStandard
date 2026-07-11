@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework Condition="'$(CustomTestTarget)' == ''">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>RedundantPubSub</AssemblyName>
+    <PackageId>RedundantPubSub</PackageId>
+    <Company>OPC Foundation</Company>
+    <Description>OPC UA PubSub active/standby high-availability sample with SequenceNumber continuity.</Description>
+    <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
+    <RootNamespace>RedundantPubSub</RootNamespace>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="RaftCs.Transport.NanoMsg" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.PubSub\Opc.Ua.Redundancy.PubSub.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
+  </ItemGroup>
+</Project>

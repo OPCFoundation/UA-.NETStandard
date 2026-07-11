@@ -42,8 +42,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.4">
     /// Part 14 §7.2.4.4.4 ChunkedNetworkMessage</see>. Each emitted
     /// chunk frame carries a 10-byte chunk header
-    /// <c>(MessageSequenceNumber UInt16 + ChunkOffset UInt32 +
-    /// TotalSize UInt32)</c> followed by the chunk payload.
+    /// <code>(MessageSequenceNumber UInt16 + ChunkOffset UInt32 +
+    /// TotalSize UInt32)</code> followed by the chunk payload.
     /// </remarks>
     public sealed class UadpChunker
     {
@@ -69,6 +69,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// the full message. When the message fits within
         /// <paramref name="maxFrameSize"/> minus the chunk header the
         /// list contains exactly one element.</returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public IReadOnlyList<byte[]> Split(
             ReadOnlyMemory<byte> encodedMessage,
             ushort messageSequenceNumber,
