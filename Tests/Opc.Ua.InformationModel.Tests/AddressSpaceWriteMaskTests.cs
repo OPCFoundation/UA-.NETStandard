@@ -154,10 +154,9 @@ namespace Opc.Ua.InformationModel.Tests
                 Is.Not.EqualTo(StatusCodes.BadUserAccessDenied),
                 "Writing a WriteMask-writable attribute must not be BadUserAccessDenied.");
             Assert.That(
-                StatusCode.IsGood(response.Results[0]) ||
-                response.Results[0].Code == StatusCodes.BadNotWritable,
+                StatusCode.IsGood(response.Results[0]),
                 Is.True,
-                $"Expected Good or BadNotWritable, got {response.Results[0]}.");
+                $"Expected Good for the Description attribute advertised as writable, got {response.Results[0]}.");
         }
 
         private async Task<DataValue> ReadAttributeAsync(
