@@ -334,7 +334,7 @@ namespace Opc.Ua.Server.UserDatabase
             byte[] keyToCheck = Rfc2898DeriveBytes.Pbkdf2(
                 password,
                 salt,
-                kIterations,
+                iterations,
                 HashAlgorithmName.SHA512,
                 key.Length);
             return keyToCheck.SequenceEqual(key);

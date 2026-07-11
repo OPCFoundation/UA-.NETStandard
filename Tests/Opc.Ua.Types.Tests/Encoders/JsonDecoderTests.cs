@@ -1416,6 +1416,79 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadQualifiedNameWithMalformedNamespaceUri()
+        {
+            // "nsu=urn:test" is missing the mandatory ';' separator before the name.
+            using JsonDecoder reader = NewDecoder(Body(@"""nsu=urn:test"""));
+            QualifiedName result = reader.ReadQualifiedName(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(QualifiedName.Null));
+        }
+
+        [Test]
+        public void ReadQualifiedNameWithMalformedNamespaceUriThrowsWhenStrict()
+        {
+            using JsonDecoder reader = NewDecoder(Body(@"""nsu=urn:test"""), true);
+            try
+            {
+                reader.ReadQualifiedName(JsonProperties.Value);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void ReadQualifiedNameArrayWithMalformedNamespaceUri()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """[ "nsu=urn:test" ]"""));
+            ArrayOf<QualifiedName> result = reader.ReadQualifiedNameArray(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(ArrayOf.Null<QualifiedName>()));
+        }
+
+        [Test]
+        public void ReadQualifiedNameArrayWithMalformedNamespaceUriThrowsWhenStrict()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """[ "nsu=urn:test" ]"""), true);
+            try
+            {
+                reader.ReadQualifiedNameArray(JsonProperties.Value);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void ReadVariantWithQualifiedNameMalformedNamespaceUri()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":20, "Value":"nsu=urn:test"}"""));
+            Variant result = reader.ReadVariant(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(Variant.Null));
+        }
+
+        [Test]
+        public void ReadVariantWithQualifiedNameMalformedNamespaceUriThrowsWhenStrict()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaType":20, "Value":"nsu=urn:test"}"""), true);
+            try
+            {
+                reader.ReadVariant(JsonProperties.Value);
+            }
+            catch (ServiceResultException sre)
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                return;
+            }
+            Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
         public void ReadSByteArrayWithBadStringValue()
         {
             using JsonDecoder reader = NewDecoder(Body(@"""ääää"""));
