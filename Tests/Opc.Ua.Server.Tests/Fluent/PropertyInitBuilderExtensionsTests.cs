@@ -184,14 +184,82 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void WithPropertyUnknownNameThrowsBadNodeIdUnknown()
+        public void WithPropertyUnknownNameCreatesReadOnlyProperty()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _, _) = CreateBuilderWithObject();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder chain = nb.WithProperty("NewCount", 7);
+
+            Assert.That(chain, Is.SameAs(nb));
+            var created = root.FindChild(
+                b.Context, new QualifiedName("NewCount", kNs)) as PropertyState;
+            Assert.That(created, Is.Not.Null);
+            Assert.That(created!.WrappedValue.AsBoxedObject(), Is.EqualTo(7));
+            Assert.That(created.DataType, Is.EqualTo(DataTypeIds.Int32));
+            Assert.That(created.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            Assert.That(created.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(created.TypeDefinitionId, Is.EqualTo(VariableTypeIds.PropertyType));
+            Assert.That(created.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasProperty));
+        }
+
+        [Test]
+        public void WithPropertyCreatesThenUpdatesSameProperty()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _, _) = CreateBuilderWithObject();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            nb.WithProperty("Dynamic", 1)
+              .WithProperty("Dynamic", 2);
+
+            var created = root.FindChild(
+                b.Context, new QualifiedName("Dynamic", kNs)) as PropertyState;
+            Assert.That(created, Is.Not.Null);
+            Assert.That(created!.WrappedValue.AsBoxedObject(), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void WithPropertyQualifiedNameUnknownCreatesProperty()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _, _) = CreateBuilderWithObject();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            nb.WithProperty(new QualifiedName("QnProp", kNs), Variant.From("v"));
+
+            var created = root.FindChild(
+                b.Context, new QualifiedName("QnProp", kNs)) as PropertyState;
+            Assert.That(created, Is.Not.Null);
+            Assert.That(created!.WrappedValue.AsBoxedObject(), Is.EqualTo("v"));
+            Assert.That(created.DataType, Is.EqualTo(DataTypeIds.String));
+        }
+
+        [Test]
+        public void WithPropertyConfigureCallbackCanMakePropertyWritable()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _, _) = CreateBuilderWithObject();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            nb.WithProperty("Writable", Variant.From(true), p => p.Writable());
+
+            var created = root.FindChild(
+                b.Context, new QualifiedName("Writable", kNs)) as PropertyState;
+            Assert.That(created, Is.Not.Null);
+            Assert.That(
+                created!.AccessLevel & AccessLevels.CurrentWrite,
+                Is.EqualTo(AccessLevels.CurrentWrite));
+            Assert.That(
+                created.UserAccessLevel & AccessLevels.CurrentWrite,
+                Is.EqualTo(AccessLevels.CurrentWrite));
+        }
+
+        [Test]
+        public void WithPropertyConfigureCallbackNullThrowsArgumentNullException()
         {
             (NodeManagerBuilder b, _, _, _, _) = CreateBuilderWithObject();
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => nb.WithProperty("DoesNotExist", "x"))!;
-            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+            Assert.Throws<ArgumentNullException>(
+                () => nb.WithProperty("X", Variant.From(1), null!));
         }
 
         [Test]

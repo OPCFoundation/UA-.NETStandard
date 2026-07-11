@@ -157,6 +157,29 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
+        [Test]
+        public void JwtUserIdentityExposesTokenAndClaimProperties()
+        {
+            var tokenHandler = new IssuedIdentityTokenHandler(
+                Profiles.JwtUserToken,
+                Encoding.UTF8.GetBytes("token"));
+            var identity = new JwtUserIdentity(
+                tokenHandler,
+                new Dictionary<string, object> { ["sub"] = "subject-1" },
+                ["engineering"],
+                ["operator"],
+                Issuer,
+                "subject-1");
+
+            Assert.That(identity.DisplayName, Is.EqualTo("subject-1"));
+            Assert.That(identity.PolicyId, Is.EqualTo(tokenHandler.Token.PolicyId ?? string.Empty));
+            Assert.That(identity.TokenType, Is.EqualTo(UserTokenType.IssuedToken));
+            Assert.That(identity.IssuedTokenType.Namespace, Is.EqualTo(Profiles.JwtUserToken));
+            Assert.That(identity.SupportsSignatures, Is.False);
+            Assert.That(identity.GrantedRoleIds, Is.Empty);
+            Assert.That(((IUserIdentity)identity).TokenHandler, Is.SameAs(tokenHandler));
+        }
+
         private static async Task<AuthenticationResult> AuthenticateAsync(
             string jwt,
             IssuerVerificationKey key)

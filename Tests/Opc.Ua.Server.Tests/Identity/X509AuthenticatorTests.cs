@@ -96,6 +96,86 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(claims.Claims["x509.subject"], Is.EqualTo(certificate.Subject));
         }
 
+        [Test]
+        public async Task AuthenticateAsyncNonX509TokenIsNotHandled()
+        {
+            var authenticator = new X509Authenticator(
+                new TestCertificateValidator(CertificateValidationResult.Success));
+            var context = new AuthenticationContext(
+                new AnonymousIdentityTokenHandler(),
+                new UserTokenPolicy { TokenType = UserTokenType.Anonymous },
+                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(context)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.NotHandled));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncEmptyCertificateRejectedAsInvalid()
+        {
+            var authenticator = new X509Authenticator(
+                new TestCertificateValidator(CertificateValidationResult.Success));
+            var handler = new X509IdentityTokenHandler(new X509IdentityToken
+            {
+                PolicyId = "x509",
+                CertificateData = ByteString.Empty
+            });
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(CreateContext(handler))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncUseNotAllowedMapsToInvalidIdentityToken()
+        {
+            using Certificate certificate = CreateCertificate("CN=WrongUse");
+            var validationResult = new CertificateValidationResult(
+                false,
+                StatusCodes.BadCertificateUseNotAllowed,
+                [],
+                false);
+            var authenticator = new X509Authenticator(new TestCertificateValidator(validationResult));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(CreateHandler(certificate)))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncDelegateVerifierAcceptsRejectsAndMapsServiceResultException()
+        {
+            using Certificate certificate = CreateCertificate("CN=DelegateUser");
+            X509IdentityTokenHandler handler = CreateHandler(certificate);
+            var acceptedIdentity = new UserIdentity("delegate", []);
+            var accepting = new X509Authenticator(
+                (h, ct) => new ValueTask<IUserIdentity>(acceptedIdentity));
+            var nullVerifier = new X509Authenticator(
+                (h, ct) => new ValueTask<IUserIdentity>((IUserIdentity)null!));
+            var throwing = new X509Authenticator(
+                (h, ct) => throw new ServiceResultException(StatusCodes.BadIdentityTokenInvalid));
+
+            AuthenticationResult accepted = await accepting.AuthenticateAsync(CreateContext(handler))
+                .ConfigureAwait(false);
+            AuthenticationResult rejected = await nullVerifier.AuthenticateAsync(CreateContext(handler))
+                .ConfigureAwait(false);
+            AuthenticationResult mapped = await throwing.AuthenticateAsync(CreateContext(handler))
+                .ConfigureAwait(false);
+
+            Assert.That(accepted.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(accepted.Identity, Is.SameAs(acceptedIdentity));
+            Assert.That(rejected.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(mapped.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+        }
+
         private static Certificate CreateCertificate(string subject)
         {
             return CertificateBuilder.Create(subject)

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,6 +36,7 @@ using NUnit.Framework;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
 namespace Opc.Ua.Pcap.Tests.Capture
@@ -234,6 +236,117 @@ namespace Opc.Ua.Pcap.Tests.Capture
             Assert.That(source.SupportedFormats, Contains.Item(FormatKind.ServiceTimeline));
         }
 
+        [Test]
+        public async Task ReadCapturedFramesBeforeStartReturnsNoFrames()
+        {
+            await using var source = new ReplayCaptureSource();
+
+            List<CaptureFrame> frames = await PcapTestHelpers.ToListAsync(
+                source.ReadCapturedFramesAsync(maxFrames: null, CancellationToken.None)).ConfigureAwait(false);
+
+            Assert.That(frames, Is.Empty);
+            Assert.That(source.FrameCount, Is.Zero);
+            Assert.That(source.ByteCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task StartAsyncIgnoresMissingOptionalKeyLogFile()
+        {
+            string pcapPath = await WriteOneFramePcapAsync().ConfigureAwait(false);
+            string missingKeyLogPath = Path.Combine(TempDirectory, "missing.uakeys.json");
+            await using var source = new ReplayCaptureSource();
+
+            await source.StartAsync(
+                new StartCaptureRequest
+                {
+                    Source = CaptureSourceKind.Replay,
+                    PcapFilePath = pcapPath,
+                    KeyLogFilePath = missingKeyLogPath
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(source.GetRawPcapFilePath(), Is.EqualTo(pcapPath));
+            Assert.That(source.GetKeyLogFilePath(), Is.Null);
+            Assert.That(
+                await PcapTestHelpers.ToListAsync(source.ReadKeyMaterialAsync(CancellationToken.None))
+                    .ConfigureAwait(false),
+                Is.Empty);
+        }
+
+        [Test]
+        public async Task ReadKeyMaterialAsyncReadsJsonKeyLog()
+        {
+            ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
+                SecurityPolicies.None,
+                MessageSecurityMode.None);
+            string keyLogPath = await WriteJsonKeyLogAsync(material, "capture.uakeys.json").ConfigureAwait(false);
+            ReplayCaptureSource source = await StartWithKeyLogAsync(keyLogPath).ConfigureAwait(false);
+            await using (source.ConfigureAwait(false))
+            {
+                List<ChannelKeyMaterial> records = await PcapTestHelpers.ToListAsync(
+                    source.ReadKeyMaterialAsync(CancellationToken.None)).ConfigureAwait(false);
+
+                Assert.That(records, Has.Count.EqualTo(1));
+                PcapTestHelpers.AssertMaterialEqual(records[0], material, includeJsonOnlyFields: true);
+            }
+        }
+
+        [Test]
+        public async Task ReadKeyMaterialAsyncReadsTextKeyLog()
+        {
+            ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
+                SecurityPolicies.None,
+                MessageSecurityMode.None);
+            string keyLogPath = await WriteTextKeyLogAsync(material, "capture.uakeys.txt").ConfigureAwait(false);
+            ReplayCaptureSource source = await StartWithKeyLogAsync(keyLogPath).ConfigureAwait(false);
+            await using (source.ConfigureAwait(false))
+            {
+                List<ChannelKeyMaterial> records = await PcapTestHelpers.ToListAsync(
+                    source.ReadKeyMaterialAsync(CancellationToken.None)).ConfigureAwait(false);
+
+                Assert.That(records, Has.Count.EqualTo(1));
+                PcapTestHelpers.AssertMaterialEqual(records[0], material, includeJsonOnlyFields: false);
+            }
+        }
+
+        [Test]
+        public async Task ReadKeyMaterialAsyncFallbackReaderTriesJsonBeforeText()
+        {
+            ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
+                SecurityPolicies.None,
+                MessageSecurityMode.None);
+            string keyLogPath = await WriteJsonKeyLogAsync(material, "capture.keys").ConfigureAwait(false);
+            ReplayCaptureSource source = await StartWithKeyLogAsync(keyLogPath).ConfigureAwait(false);
+            await using (source.ConfigureAwait(false))
+            {
+                List<ChannelKeyMaterial> records = await PcapTestHelpers.ToListAsync(
+                    source.ReadKeyMaterialAsync(CancellationToken.None)).ConfigureAwait(false);
+
+                Assert.That(records, Has.Count.EqualTo(1));
+                PcapTestHelpers.AssertMaterialEqual(records[0], material, includeJsonOnlyFields: true);
+            }
+        }
+
+        [Test]
+        public async Task StopAsyncHonorsCancellation()
+        {
+            string pcapPath = await WriteOneFramePcapAsync().ConfigureAwait(false);
+            await using var source = new ReplayCaptureSource();
+            await source.StartAsync(
+                new StartCaptureRequest
+                {
+                    Source = CaptureSourceKind.Replay,
+                    PcapFilePath = pcapPath
+                },
+                CancellationToken.None).ConfigureAwait(false);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(
+                async () => await source.StopAsync(cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
         // ----- helpers -----
 
         private Task<string> WriteOneFramePcapAsync()
@@ -263,6 +376,41 @@ namespace Opc.Ua.Pcap.Tests.Capture
             finally
             {
                 await writer.DisposeAsync().ConfigureAwait(false);
+            }
+            return path;
+        }
+
+        private async Task<ReplayCaptureSource> StartWithKeyLogAsync(string keyLogPath)
+        {
+            string pcapPath = await WriteOneFramePcapAsync().ConfigureAwait(false);
+            var source = new ReplayCaptureSource();
+            await source.StartAsync(
+                new StartCaptureRequest
+                {
+                    Source = CaptureSourceKind.Replay,
+                    PcapFilePath = pcapPath,
+                    KeyLogFilePath = keyLogPath
+                },
+                CancellationToken.None).ConfigureAwait(false);
+            return source;
+        }
+
+        private async Task<string> WriteJsonKeyLogAsync(ChannelKeyMaterial material, string fileName)
+        {
+            string path = CreateTempPath(fileName);
+            await using (var writer = new UaKeyLogJsonWriter(path))
+            {
+                await writer.AppendAsync(material, CancellationToken.None).ConfigureAwait(false);
+            }
+            return path;
+        }
+
+        private async Task<string> WriteTextKeyLogAsync(ChannelKeyMaterial material, string fileName)
+        {
+            string path = CreateTempPath(fileName);
+            await using (var writer = new UaKeyLogTextWriter(path))
+            {
+                await writer.AppendAsync(material, CancellationToken.None).ConfigureAwait(false);
             }
             return path;
         }
