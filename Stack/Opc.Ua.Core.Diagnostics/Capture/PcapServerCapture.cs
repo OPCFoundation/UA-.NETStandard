@@ -136,7 +136,7 @@ namespace Opc.Ua.Pcap.Capture
                     PcapEnvironmentVariableNames.OpcuaKeyLogFile,
                     keyLogPath);
 
-                StandaloneKeyLogObserver observer =
+                var observer =
 #pragma warning disable CA2000 // ownership transferred to the returned ServerCaptureHandle (disposed on host shutdown)
                     StandaloneKeyLogObserver.Create(
                         keyLogPath,

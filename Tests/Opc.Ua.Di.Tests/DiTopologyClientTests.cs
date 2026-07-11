@@ -53,7 +53,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateDevicesAsyncBrowsesDeviceSet()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             BrowseDescription? captured = null;
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
@@ -66,7 +66,7 @@ namespace Opc.Ua.Di.Tests
             }, d => captured = d);
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(client.DeviceSetId));
@@ -78,7 +78,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateNetworksAsyncBrowsesNetworkSet()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             BrowseDescription? captured = null;
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
@@ -90,7 +90,7 @@ namespace Opc.Ua.Di.Tests
             }, d => captured = d);
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateNetworksAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateNetworksAsync()).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(client.NetworkSetId));
@@ -100,7 +100,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void EnumerateChildrenAsyncThrowsOnNullParent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
 
             System.ArgumentException ex = Assert.Throws<System.ArgumentException>(
@@ -111,7 +111,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateChildrenAsyncBrowsesParent()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             BrowseDescription? captured = null;
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
@@ -124,7 +124,7 @@ namespace Opc.Ua.Di.Tests
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
             var parent = new NodeId("parent-1", 2);
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateChildrenAsync(parent));
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateChildrenAsync(parent)).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(parent));
@@ -136,7 +136,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateReturnsEmptyListWhenBrowseStatusBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
                 StatusCode = StatusCodes.BadNodeIdUnknown,
@@ -147,7 +147,7 @@ namespace Opc.Ua.Di.Tests
             });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -155,7 +155,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateReturnsEmptyListWhenNoReferences()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupBrowseReturns(sessionMock, new BrowseResult
             {
                 StatusCode = StatusCodes.Good,
@@ -163,7 +163,7 @@ namespace Opc.Ua.Di.Tests
             });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -171,7 +171,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task EnumerateReturnsEmptyListWhenResponseHasNoResults()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             sessionMock
                 .Setup(s => s.BrowseAsync(
                     It.IsAny<RequestHeader?>(),
@@ -185,7 +185,7 @@ namespace Opc.Ua.Di.Tests
                 });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }

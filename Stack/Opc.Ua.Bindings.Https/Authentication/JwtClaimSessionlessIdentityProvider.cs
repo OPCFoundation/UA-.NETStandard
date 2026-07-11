@@ -124,10 +124,12 @@ namespace Opc.Ua.Bindings.WebApi
         private const string ScopeSeparator = " ";
         private static readonly char[] s_roleSeparators = [',', ';', ' '];
 
-        // Diagnostic context keys used to stash the projected scopes /
-        // roles / subject on the returned UserIdentity. Surfaced via the
-        // static GetScopes/GetRoles/GetSubject helpers so downstream code
-        // doesn't need to know the storage shape.
+        /// <summary>
+        /// Diagnostic context keys used to stash the projected scopes /
+        /// roles / subject on the returned UserIdentity. Surfaced via the
+        /// static GetScopes/GetRoles/GetSubject helpers so downstream code
+        /// doesn't need to know the storage shape.
+        /// </summary>
         internal const string SubjectKey = "JwtSubject";
         internal const string ScopesKey = "JwtScopes";
         internal const string RolesKey = "JwtRoles";
@@ -279,12 +281,9 @@ namespace Opc.Ua.Bindings.WebApi
                 }
                 if (claim.Value.Contains(' ', StringComparison.Ordinal))
                 {
-                    foreach (string piece in claim.Value.Split(
+                    values.AddRange(claim.Value.Split(
                         ScopeSeparator,
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    {
-                        values.Add(piece);
-                    }
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
                 }
                 else
                 {
@@ -305,12 +304,9 @@ namespace Opc.Ua.Bindings.WebApi
                 }
                 if (claim.Value.IndexOfAny(s_roleSeparators) >= 0)
                 {
-                    foreach (string piece in claim.Value.Split(
+                    values.AddRange(claim.Value.Split(
                         s_roleSeparators,
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    {
-                        values.Add(piece);
-                    }
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
                 }
                 else
                 {
@@ -341,7 +337,7 @@ namespace Opc.Ua.Bindings.WebApi
         private static class ProjectionContext
         {
             private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IUserIdentity, Projection> s_table
-                = new();
+                = [];
 
             public static void Attach(
                 IUserIdentity identity,
@@ -363,14 +359,14 @@ namespace Opc.Ua.Bindings.WebApi
             {
                 return identity != null && s_table.TryGetValue(identity, out Projection? p)
                     ? p.Scopes
-                    : Array.Empty<string>();
+                    : [];
             }
 
             public static IReadOnlyList<string> GetRoles(IUserIdentity? identity)
             {
                 return identity != null && s_table.TryGetValue(identity, out Projection? p)
                     ? p.Roles
-                    : Array.Empty<string>();
+                    : [];
             }
 
             private sealed record Projection(

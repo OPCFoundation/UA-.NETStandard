@@ -73,7 +73,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// (<c>application/opcua+uabinary</c>) and HTTPS-JSON
         /// (<c>application/opcua+uajson</c>) requests via content-type
         /// negotiation, so a single
-        /// <see cref="OpcUaHttpsBuilderExtensions.AddHttpsTransport(IOpcUaBuilder)"/>
+        /// <see cref="AddHttpsTransport(IOpcUaBuilder)"/>
         /// call enables both sub-profiles.
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>

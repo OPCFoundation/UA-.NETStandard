@@ -94,6 +94,7 @@ namespace Opc.Ua.PubSub.Eth
         /// The required buffer length, never less than
         /// <see cref="MinFrameLength"/>.
         /// </returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static int GetRequiredLength(int payloadLength, bool vlanTagged)
         {
             if (payloadLength < 0)
@@ -127,6 +128,8 @@ namespace Opc.Ua.PubSub.Eth
         /// </param>
         /// <param name="payload">The NetworkMessage payload.</param>
         /// <returns>The number of octets written.</returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static int Build(
             Span<byte> destination,
             ReadOnlySpan<byte> destinationMac,

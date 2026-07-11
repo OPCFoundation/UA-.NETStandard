@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
         public int CallCount => Volatile.Read(ref m_callCount);
 
-        public IList<SksKeyRequest> Requests { get; } = new List<SksKeyRequest>();
+        public IList<SksKeyRequest> Requests { get; } = [];
 
         public void FailOnce(OpcUaSksException exception)
         {
@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             uint count = Math.Max(1u, request.RequestedKeyCount);
             uint startToken = request.StartingTokenId == 0u ? m_nextTokenId : request.StartingTokenId;
             var packed = new List<byte[]>((int)count);
-            DateTimeUtc now = DateTimeUtc.From(DateTime.UtcNow);
+            var now = DateTimeUtc.From(DateTime.UtcNow);
             for (uint i = 0; i < count; i++)
             {
                 PubSubSecurityKey key = SksKeyGenerator.Generate(

@@ -76,7 +76,7 @@ namespace OpcUaPubSubJsonTests
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
-            using (JsonDocument document = JsonDocument.Parse(bytes))
+            using (var document = JsonDocument.Parse(bytes))
             {
                 Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
                     Is.EqualTo(JsonDiscoveryMessage.MessageTypeApplication));
@@ -124,7 +124,7 @@ namespace OpcUaPubSubJsonTests
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
-            using (JsonDocument document = JsonDocument.Parse(bytes))
+            using (var document = JsonDocument.Parse(bytes))
             {
                 Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
                     Is.EqualTo(JsonDiscoveryMessage.MessageTypeConnection));
@@ -162,7 +162,7 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
 
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
                 Is.EqualTo(Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage.MessageTypeMetaData));
 
@@ -193,13 +193,13 @@ namespace OpcUaPubSubJsonTests
                 MessageId = "disc-wcfg",
                 PublisherId = PublisherId.FromUInt16(0x300),
                 DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
-                DataSetWriterIds = new ushort[] { 1, 2, 3 },
+                DataSetWriterIds = [1, 2, 3],
                 WriterConfiguration = writerGroup
             };
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
-            using (JsonDocument document = JsonDocument.Parse(bytes))
+            using (var document = JsonDocument.Parse(bytes))
             {
                 Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
                     Is.EqualTo(JsonDiscoveryMessage.MessageTypeStatus));
@@ -247,7 +247,7 @@ namespace OpcUaPubSubJsonTests
             var encoder = new JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
-            using (JsonDocument document = JsonDocument.Parse(bytes))
+            using (var document = JsonDocument.Parse(bytes))
             {
                 Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
                     Is.EqualTo(JsonDiscoveryMessage.MessageTypeEndpoints));

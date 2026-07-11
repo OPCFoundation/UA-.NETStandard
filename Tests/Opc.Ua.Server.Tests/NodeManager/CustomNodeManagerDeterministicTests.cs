@@ -88,8 +88,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using Harness h = CreateHarness();
             ushort ns = h.NamespaceIndex;
-            var child = new BaseObjectState(null);
-            child.NodeId = new NodeId("OrphanChild", ns);
+            var child = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("OrphanChild", ns)
+            };
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => h.Manager.CreateNode(
@@ -267,10 +269,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToRead = new List<ReadValueId>
             {
-                new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
-                new ReadValueId { NodeId = ObjectIds.Server, AttributeId = Attributes.Value }
+                new() { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                new() { NodeId = ObjectIds.Server, AttributeId = Attributes.Value }
             };
-            var values = new List<DataValue> { new DataValue() };
+            var values = new List<DataValue> { new() };
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             h.Manager.Read(h.NewContext(RequestType.Read), 0, nodesToRead, values, errors);
@@ -296,9 +298,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToRead = new List<ReadValueId>
             {
-                new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value }
+                new() { NodeId = variable.NodeId, AttributeId = Attributes.Value }
             };
-            var values = new List<DataValue> { new DataValue() };
+            var values = new List<DataValue> { new() };
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             DateTimeUtc beforeRead = DateTimeUtc.Now;
@@ -324,9 +326,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToRead = new List<ReadValueId>
             {
-                new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.BrowseName }
+                new() { NodeId = variable.NodeId, AttributeId = Attributes.BrowseName }
             };
-            var values = new List<DataValue> { new DataValue() };
+            var values = new List<DataValue> { new() };
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             h.Manager.Read(h.NewContext(RequestType.Read), 0, nodesToRead, values, errors);
@@ -347,9 +349,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var nodesToRead = new List<ReadValueId>
             {
                 // Value is not a valid attribute of an Object node.
-                new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value }
+                new() { NodeId = node.NodeId, AttributeId = Attributes.Value }
             };
-            var values = new List<DataValue> { new DataValue() };
+            var values = new List<DataValue> { new() };
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             h.Manager.Read(h.NewContext(RequestType.Read), 0, nodesToRead, values, errors);
@@ -366,9 +368,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToRead = new List<ReadValueId>
             {
-                new ReadValueId { NodeId = manager.PlaceholderNodeId, AttributeId = Attributes.Value }
+                new() { NodeId = manager.PlaceholderNodeId, AttributeId = Attributes.Value }
             };
-            var values = new List<DataValue> { new DataValue() };
+            var values = new List<DataValue> { new() };
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             manager.Read(h.NewContext(RequestType.Read), 0, nodesToRead, values, errors);
@@ -386,14 +388,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToWrite = new List<WriteValue>
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = variable.NodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(99))
                 },
-                new WriteValue
-                {
+                new() {
                     NodeId = ObjectIds.Server,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(99))
@@ -418,8 +418,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToWrite = new List<WriteValue>
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = variable.NodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(5))
@@ -441,8 +440,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToWrite = new List<WriteValue>
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = variable.NodeId,
                     AttributeId = Attributes.DisplayName,
                     IndexRange = "0",
@@ -466,8 +464,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToWrite = new List<WriteValue>
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = variable.NodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant("not-an-int"))
@@ -488,8 +485,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodesToWrite = new List<WriteValue>
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = manager.PlaceholderNodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(1))
@@ -787,25 +783,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var references = new Dictionary<NodeId, IList<IReference>>
             {
-                [node.NodeId] = new List<IReference>
-                {
+                [node.NodeId] =
+                [
                     new ReferenceNode
                     {
                         ReferenceTypeId = ReferenceTypeIds.HasComponent,
                         IsInverse = false,
                         TargetId = targetId
                     }
-                },
+                ],
                 // Unknown source node is silently skipped.
-                [new NodeId("Missing", h.NamespaceIndex)] = new List<IReference>
-                {
+                [new NodeId("Missing", h.NamespaceIndex)] =
+                [
                     new ReferenceNode
                     {
                         ReferenceTypeId = ReferenceTypeIds.HasComponent,
                         IsInverse = false,
                         TargetId = targetId
                     }
-                }
+                ]
             };
 
             h.Manager.AddReferences(references);
@@ -921,7 +917,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using Harness h = CreateHarness();
             var errors = new List<ServiceResult> { ServiceResult.Good };
             var filterErrors = new List<MonitoringFilterResult> { null! };
-            var itemsToModify = new List<MonitoredItemModifyRequest> { new MonitoredItemModifyRequest() };
+            var itemsToModify = new List<MonitoredItemModifyRequest> { new() };
             var monitoredItems = new List<IMonitoredItem> { null! };
 
             h.Manager.ModifyMonitoredItems(
@@ -940,7 +936,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             mockItem.Setup(m => m.ManagerHandle).Returns(new NodeHandle { NodeId = new NodeId("x", 0) });
             var errors = new List<ServiceResult> { ServiceResult.Good };
             var filterErrors = new List<MonitoringFilterResult> { null! };
-            var itemsToModify = new List<MonitoredItemModifyRequest> { new MonitoredItemModifyRequest() };
+            var itemsToModify = new List<MonitoredItemModifyRequest> { new() };
             var monitoredItems = new List<IMonitoredItem> { mockItem.Object };
 
             h.Manager.ModifyMonitoredItems(

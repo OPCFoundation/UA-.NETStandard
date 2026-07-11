@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Redundancy</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Redundancy</AssemblyName>
+    <RootNamespace>Opc.Ua.Redundancy</RootNamespace>
+    <Description>OPC UA Redundancy shared CRDT building blocks (serializer + gossip key/value store)</Description>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Client.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Aot.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Crdt" />
+    <PackageReference Include="Crdt.Transport" />
+    <PackageReference Include="RaftCs" />
+    <PackageReference Include="RaftCs.Transport" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -55,7 +55,6 @@ namespace Opc.Ua.Mcp
         private readonly ILogger<OpcUaSessionManager> m_logger;
         private readonly IServiceProvider m_serviceProvider;
         private readonly OpcUaClientOptions m_clientOptions;
-        private readonly ITelemetryContext m_telemetry;
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ConcurrentDictionary<string, SessionInfo> m_sessions = new(StringComparer.OrdinalIgnoreCase);
         private ApplicationConfiguration? m_configuration;
@@ -70,7 +69,7 @@ namespace Opc.Ua.Mcp
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             m_clientOptions = clientOptions ?? throw new ArgumentNullException(nameof(clientOptions));
-            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
         /// <summary>
@@ -94,7 +93,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets the telemetry context used by this session manager.
         /// </summary>
-        public ITelemetryContext Telemetry => m_telemetry;
+        public ITelemetryContext Telemetry { get; }
 
         /// <summary>
         /// Gets the loaded application configuration, or null if not yet loaded.
@@ -289,7 +288,7 @@ namespace Opc.Ua.Mcp
                 session.ConnectionStateChanged += (_, e) => SessionConnectionStateChanged(name, e);
                 session.ChannelStateChanged += (_, e) => SessionChannelStateChanged(name, e);
 
-                var sessionInfo = new SessionInfo
+                m_sessions[name] = new SessionInfo
                 {
                     Name = name,
                     Session = session,
@@ -297,8 +296,6 @@ namespace Opc.Ua.Mcp
                     AuthType = authType,
                     ConnectedAt = DateTime.UtcNow
                 };
-
-                m_sessions[name] = sessionInfo;
 
                 m_logger.LogInformation(
                     "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}",
@@ -676,6 +673,5 @@ namespace Opc.Ua.Mcp
         {
             return true;
         }
-
     }
 }

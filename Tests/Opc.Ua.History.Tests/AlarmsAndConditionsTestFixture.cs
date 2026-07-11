@@ -192,11 +192,11 @@ namespace Opc.Ua.History.Tests
         {
             TimeSpan budget = timeout ?? TimeSpan.FromSeconds(5);
             TimeSpan interval = pollInterval ?? TimeSpan.FromMilliseconds(100);
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            DataValue last = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+            var stopwatch = Stopwatch.StartNew();
+            _ = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
             while (true)
             {
-                last = await ReadStateIdAsync(conditionId, stateName)
+                DataValue last = await ReadStateIdAsync(conditionId, stateName)
                     .ConfigureAwait(false);
                 if (StatusCode.IsGood(last.StatusCode) &&
                     last.WrappedValue.TryGetValue(out bool current) &&
@@ -261,7 +261,7 @@ namespace Opc.Ua.History.Tests
         {
             TimeSpan budget = timeout ?? DefaultEventWaitTimeout;
             TimeSpan interval = pollInterval ?? TimeSpan.FromMilliseconds(100);
-            Stopwatch stopwatch = Stopwatch.StartNew();
+            var stopwatch = Stopwatch.StartNew();
             ByteString eventId = await ReadEventIdAsync(conditionId)
                 .ConfigureAwait(false);
             while (eventId.IsNull && stopwatch.Elapsed < budget)

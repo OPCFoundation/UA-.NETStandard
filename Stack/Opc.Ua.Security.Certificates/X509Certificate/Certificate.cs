@@ -787,11 +787,15 @@ namespace Opc.Ua.Security.Certificates
             private int m_refCount = 1;
         }
 
-        // The shared reference-counted core. Many handles may point at one core.
+        /// <summary>
+        /// The shared reference-counted core. Many handles may point at one core.
+        /// </summary>
         private readonly CertificateCore m_core;
 
-        // 0 while this handle is live, 1 once this handle has been disposed.
-        // Makes Dispose idempotent per handle (SA-CERT-01).
+        /// <summary>
+        /// 0 while this handle is live, 1 once this handle has been disposed.
+        /// Makes Dispose idempotent per handle (SA-CERT-01).
+        /// </summary>
         private int m_disposed;
     }
 }

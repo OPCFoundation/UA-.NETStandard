@@ -50,19 +50,19 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task InitLockAsyncCallsInitLockMethodWithContext()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant((int)0) }
+                OutputArguments = new Variant[] { new(0) }
             }, r => captured = r);
 
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.InitLockAsync("tag");
+            int status = await client.InitLockAsync("tag").ConfigureAwait(false);
 
             Assert.That(status, Is.Zero);
             Assert.That(captured, Is.Not.Null);
@@ -82,19 +82,19 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task RenewLockAsyncCallsRenewLockMethodWithoutInputs()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant((int)1) }
+                OutputArguments = new Variant[] { new(1) }
             }, r => captured = r);
 
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.RenewLockAsync();
+            int status = await client.RenewLockAsync().ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(1));
             Assert.That(captured, Is.Not.Null);
@@ -110,19 +110,19 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ExitLockAsyncCallsExitLockMethod()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant((int)0) }
+                OutputArguments = new Variant[] { new(0) }
             }, r => captured = r);
 
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.ExitLockAsync();
+            int status = await client.ExitLockAsync().ConfigureAwait(false);
 
             Assert.That(status, Is.Zero);
             Assert.That(
@@ -137,19 +137,19 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task BreakLockAsyncCallsBreakLockMethod()
         {
-            var nsTable = CreateNamespaceTable();
-            var sessionMock = CreateSessionMock(nsTable);
+            NamespaceTable nsTable = CreateNamespaceTable();
+            Mock<ISession> sessionMock = CreateSessionMock(nsTable);
             CallMethodRequest? captured = null;
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant((int)0) }
+                OutputArguments = new Variant[] { new(0) }
             }, r => captured = r);
 
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            int status = await client.BreakLockAsync();
+            int status = await client.BreakLockAsync().ConfigureAwait(false);
 
             Assert.That(status, Is.Zero);
             Assert.That(
@@ -163,25 +163,25 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void CallThrowsServiceResultExceptionWhenStatusBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.BadUserAccessDenied,
-                OutputArguments = new Variant[] { new Variant((int)0) }
+                OutputArguments = new Variant[] { new(0) }
             });
 
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.InitLockAsync("tag"))!;
+                async () => await client.InitLockAsync("tag").ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
         public void CallThrowsBadUnexpectedErrorWhenOutputEmpty()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
@@ -192,18 +192,18 @@ namespace Opc.Ua.Di.Tests
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RenewLockAsync())!;
+                async () => await client.RenewLockAsync().ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
 
         [Test]
         public void CallThrowsBadUnexpectedErrorWhenOutputIsNotInt32()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = new Variant[] { new Variant("not-an-int") }
+                OutputArguments = new Variant[] { new("not-an-int") }
             });
 
             var client = new DiLockClient(
@@ -215,7 +215,7 @@ namespace Opc.Ua.Di.Tests
             // helper raised BadTypeMismatch. The proxy's wire-form
             // contract is now canonical for this client.
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ExitLockAsync())!;
+                async () => await client.ExitLockAsync().ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
 

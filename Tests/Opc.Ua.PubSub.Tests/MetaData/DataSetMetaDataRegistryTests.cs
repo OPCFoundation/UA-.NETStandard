@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;

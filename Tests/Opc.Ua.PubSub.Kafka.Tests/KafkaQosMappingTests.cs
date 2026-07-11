@@ -66,8 +66,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             BrokerTransportQualityOfService brokerGuarantee,
             KafkaQualityOfService expected)
         {
-            KafkaQualityOfService actual = KafkaQualityOfServiceExtensions.FromBrokerGuarantee(
-                brokerGuarantee,
+            KafkaQualityOfService actual = brokerGuarantee.FromBrokerGuarantee(
                 KafkaQualityOfService.AtLeastOnce);
 
             Assert.That(actual, Is.EqualTo(expected));

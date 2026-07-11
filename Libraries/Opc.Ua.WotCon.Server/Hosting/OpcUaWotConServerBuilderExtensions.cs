@@ -71,6 +71,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a regular OPC UA server and the WoT Connectivity node manager in one call.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddWotConnectivityServer(
             this IOpcUaBuilder builder,
             Action<OpcUaServerOptions> configureServer,
@@ -275,12 +276,14 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOpcUa();
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept for the optional hosted-service duplicate-registration guard.
         private static bool HasOpcUaServerHostedService(IServiceCollection services)
         {
             return services.Any(d =>
                 d.ServiceType == typeof(IHostedService) &&
                 d.ImplementationType?.Name == "OpcUaServerHostedService");
         }
+#pragma warning restore IDE0051, RCS1213
 
         private sealed class WotConServerBuilder : IWotConServerBuilder
         {
@@ -324,6 +327,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the built-in OPC TCP transport and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddOpcTcpTransport(this IWotConServerBuilder builder)
         {
             if (builder is null)
@@ -338,6 +342,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables HTTPS transport and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddHttpsTransport(this IWotConServerBuilder builder)
         {
             if (builder is null)
@@ -352,6 +357,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables HTTPS transport with one-shot options and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddHttpsTransport(
             this IWotConServerBuilder builder,
             Action<OpcUaHttpsTransportOptions> configure)
@@ -368,6 +374,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables WSS transport and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddWssTransport(this IWotConServerBuilder builder)
         {
             if (builder is null)
@@ -382,6 +389,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables WSS transport with one-shot options and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddWssTransport(
             this IWotConServerBuilder builder,
             Action<OpcUaWssTransportOptions> configure)
@@ -399,6 +407,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the Kestrel OPC TCP listener and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddKestrelOpcTcpTransport(this IWotConServerBuilder builder)
         {
             if (builder is null)
@@ -413,6 +422,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the OPC UA REST Web API transport and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddWebApiTransport(this IWotConServerBuilder builder)
         {
             if (builder is null)
@@ -427,6 +437,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Enables the OPC UA REST Web API transport and returns the same WoT Connectivity builder.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddWebApiTransport(
             this IWotConServerBuilder builder,
             Action<Opc.Ua.Bindings.WebApi.WebApiTransportOptions>? configure)
@@ -444,6 +455,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Configures server-side reverse connect on the paired OPC UA server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IWotConServerBuilder AddReverseConnect(
             this IWotConServerBuilder builder,
             Action<ServerReverseConnectOptions> configure)

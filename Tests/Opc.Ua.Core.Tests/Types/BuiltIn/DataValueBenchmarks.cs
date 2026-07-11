@@ -314,7 +314,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             return value.StatusCode.Code;
         }
 
+#pragma warning disable IDE0052 // Benchmark setup roots the telemetry context for message-context construction.
         private ITelemetryContext? m_telemetry;
+#pragma warning restore IDE0052
         private IServiceMessageContext? m_context;
         private DataValue[]? m_values;
         private ArrayOf<DataValue> m_arrayOfValues;

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Net;
@@ -40,8 +38,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings.WebApi.Endpoints;
 using Opc.Ua.Bindings.WebApi;
+using Opc.Ua.Bindings.WebApi.Endpoints;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
 {
@@ -169,7 +167,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
             var server = new StubServer();
             DefaultHttpContext context = BuildContext("/read", server);
             WriteJsonBody(context.Request, "{}");
-            context.Request.Headers["Accept"] =
+            context.Request.Headers.Accept =
                 WebApiMediaType.FormatContentType(WebApiEncoding.Compact);
 
             await WebApiEndpointDispatcher
@@ -188,7 +186,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
             var server = new StubServer();
             DefaultHttpContext context = BuildContext("/read", server);
             WriteJsonBody(context.Request, "{}");
-            context.Request.Headers["Accept"] =
+            context.Request.Headers.Accept =
                 WebApiMediaType.FormatContentType(WebApiEncoding.Verbose);
 
             await WebApiEndpointDispatcher
@@ -270,6 +268,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Endpoints
                     .ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentNullException>());
         }
+
         private static DefaultHttpContext BuildContext(
             string path,
             StubServer server,

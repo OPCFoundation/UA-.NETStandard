@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
         public void AddComplexTypesThrowsForNullBuilder()
         {
             Assert.That(
-                () => OpcUaComplexTypesBuilderExtensions.AddComplexTypes((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddComplexTypes(),
                 Throws.ArgumentNullException);
         }
 

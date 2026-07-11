@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -313,7 +311,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         [Test]
         public void L1Key8ManagedChannelKeyEqualityIsValueBased()
         {
-            var reverseIdentity = new object();
+            object reverseIdentity = new();
             ManagedChannelKey firstKey = CreateManagedChannelKey(reverseIdentity);
             ManagedChannelKey equivalentKey = CreateManagedChannelKey(reverseIdentity);
             var differentKey = new ManagedChannelKey(
@@ -347,4 +345,3 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         }
     }
 }
-

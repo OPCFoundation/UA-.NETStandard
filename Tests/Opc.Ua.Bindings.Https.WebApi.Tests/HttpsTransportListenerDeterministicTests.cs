@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {

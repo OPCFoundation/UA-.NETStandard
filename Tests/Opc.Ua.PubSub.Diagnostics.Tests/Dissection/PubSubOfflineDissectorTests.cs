@@ -37,7 +37,6 @@ using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
-using Opc.Ua.PubSub.Transports;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
@@ -170,14 +169,14 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                         DataSetWriterId = 1,
                         SequenceNumber = 2,
                         MessageType = PubSubDataSetMessageType.KeyFrame,
-                        Status = (StatusCode)StatusCodes.Good,
+                        Status = StatusCodes.Good,
                         Fields =
                         [
                             new PubSubDissectedField
                             {
                                 Name = "Field",
                                 Value = new Variant("value"),
-                                StatusCode = (StatusCode)StatusCodes.Good,
+                                StatusCode = StatusCodes.Good,
                                 Encoding = PubSubFieldEncoding.Variant
                             }
                         ]
@@ -222,13 +221,13 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
 
         private static async Task<ReadOnlyMemory<byte>> EncodeJsonAsync()
         {
-            var message = new global::Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            var message = new Encoding.Json.JsonNetworkMessage
             {
                 MessageId = "diagnostics-json",
                 PublisherId = PublisherId.FromUInt16(701),
                 DataSetMessages =
                 [
-                    new global::Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+                    new Encoding.Json.JsonDataSetMessage
                     {
                         DataSetWriterId = 101,
                         SequenceNumber = 10,
@@ -245,8 +244,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                     }
                 ]
             };
-            var encoder = new global::Opc.Ua.PubSub.Encoding.Json.JsonEncoder(
-                global::Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose);
+            var encoder = new Encoding.Json.JsonEncoder(
+                Encoding.Json.JsonEncodingMode.Verbose);
             return await encoder.EncodeAsync(message, NewContext()).ConfigureAwait(false);
         }
 
@@ -301,8 +300,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                 NewContext(),
                 out int payloadOffset);
             ReadOnlyMemory<byte> secured = await wrapper.WrapAsync(
-                encoded.Slice(0, payloadOffset),
-                encoded.Slice(payloadOffset),
+                encoded[..payloadOffset],
+                encoded[payloadOffset..],
                 UadpSecurityWrapOptions.SignAndEncrypt).ConfigureAwait(false);
             return new SecuredFrame(secured.ToArray(), material);
         }
@@ -326,7 +325,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
             byte[] bytes = new byte[length];
             for (int i = 0; i < bytes.Length; i++)
             {
-                bytes[i] = (byte)((tokenId * multiplier + (uint)i + 1u) & 0xFF);
+                bytes[i] = (byte)(((tokenId * multiplier) + (uint)i + 1u) & 0xFF);
             }
             return bytes;
         }

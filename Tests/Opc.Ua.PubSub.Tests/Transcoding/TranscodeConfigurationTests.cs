@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,13 +66,13 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 AllowInsecureCrossEncoding = true,
                 DropKeepAlive = true,
                 RenameFields = new Dictionary<string, string> { ["a"] = "b" },
-                SelectFields = new List<string> { "b" },
-                PromoteFields = new List<string> { "b" },
+                SelectFields = ["b"],
+                PromoteFields = ["b"],
                 PromotedFieldPrefix = "p_",
-                KeepMessageTypes = new List<PubSubDataSetMessageType>
-                {
+                KeepMessageTypes =
+                [
                     PubSubDataSetMessageType.KeyFrame
-                },
+                ],
                 RemapIds = new TranscodeIdRemapOptions
                 {
                     PublisherIdNumber = 7,
@@ -166,7 +165,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             services.AddOpcUa().AddPubSub(pubsub => pubsub.AddTranscoding(configuration));
             using ServiceProvider provider = services.BuildServiceProvider();
@@ -197,7 +196,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         {
             IConfiguration configuration = new ConfigurationBuilder().Build();
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IPubSubBuilder? captured = null;
             services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
@@ -311,7 +310,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
 
         private static PubSubTranscodingOptions Options(params TranscodeRouteOptions[] routes)
         {
-            return new PubSubTranscodingOptions { Routes = new List<TranscodeRouteOptions>(routes) };
+            return new PubSubTranscodingOptions { Routes = [.. routes] };
         }
 
         private static TranscodeRouteOptions Route(string name, TranscodeEncoding encoding)
@@ -350,7 +349,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
 
             public T CurrentValue => m_current;
 
-            public T Get(string? name) => m_current;
+            public T Get(string? name)
+            {
+                return m_current;
+            }
 
             public IDisposable OnChange(Action<T, string?> listener)
             {
@@ -378,7 +380,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                     m_listener = listener;
                 }
 
-                public void Dispose() => m_list.Remove(m_listener);
+                public void Dispose()
+                {
+                    m_list.Remove(m_listener);
+                }
             }
         }
     }

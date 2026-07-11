@@ -197,8 +197,8 @@ namespace Opc.Ua.Client.StateMachines
             MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            NodeId currentStateIdNodeId = await StateMachineTypeClientExtensions
-                .ResolveChildNodeIdAsync(client, BrowseNames.CurrentState,
+            NodeId currentStateIdNodeId = await client
+                .ResolveChildNodeIdAsync(BrowseNames.CurrentState,
                     BrowseNames.Id, ct).ConfigureAwait(false);
             if (currentStateIdNodeId.IsNull)
             {

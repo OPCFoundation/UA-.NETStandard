@@ -32,7 +32,7 @@ namespace Opc.Ua.PubSub.Server
     /// <summary>
     /// Controls how much of the standard <c>PubSubDiagnosticsType</c>
     /// node-set (Part 14 §9.1.11) is bound to the runtime
-    /// <see cref="Opc.Ua.PubSub.Diagnostics.IPubSubDiagnostics"/>
+    /// <see cref="Diagnostics.IPubSubDiagnostics"/>
     /// instance.
     /// </summary>
     /// <remarks>
@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Server
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.11">
     /// Part 14 §9.1.11 PubSubDiagnosticsType</see>. The default
     /// (<see cref="Counters"/>) wires every cumulative counter from
-    /// <see cref="Opc.Ua.PubSub.Diagnostics.PubSubDiagnosticsCounterKind"/>
+    /// <see cref="Diagnostics.PubSubDiagnosticsCounterKind"/>
     /// onto the corresponding <c>Counters_*</c> Variable in the
     /// address space.
     /// </remarks>
@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Server
         /// <summary>
         /// Bind the cumulative counters and the <c>TotalError</c>
         /// summary Variable, surfacing the most recent error captured
-        /// by <see cref="Opc.Ua.PubSub.Diagnostics.IPubSubDiagnostics"/>.
+        /// by <see cref="Diagnostics.IPubSubDiagnostics"/>.
         /// </summary>
         Errors,
 

@@ -31,10 +31,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.StateMachine;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Application
 {

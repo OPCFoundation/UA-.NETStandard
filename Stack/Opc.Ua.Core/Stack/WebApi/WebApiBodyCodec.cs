@@ -151,11 +151,20 @@ namespace Opc.Ua.Bindings
             return DecodeBody<T>(payload, context, options);
         }
 
-        // Mirrors JsonRequestMapper.ReadAllBoundedAsync: caps the buffered
-        // body length at MaxMessageSize. A non-positive maxLength disables
-        // the cap. When contentLengthHint >= 0 the read path skips the
-        // ArrayPool rent-and-grow loop and reads directly into an exact-
-        // sized buffer.
+        /// <summary>
+        /// Mirrors JsonRequestMapper.ReadAllBoundedAsync: caps the buffered
+        /// body length at MaxMessageSize. A non-positive maxLength disables
+        /// the cap. When contentLengthHint >= 0 the read path skips the
+        /// ArrayPool rent-and-grow loop and reads directly into an exact-
+        /// sized buffer.
+        /// </summary>
+        /// <param name="body"></param>
+        /// <param name="maxLength"></param>
+        /// <param name="contentLengthHint"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"><paramref name="body"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal static async ValueTask<byte[]> ReadAllBoundedAsync(
             Stream body,
             int maxLength,
@@ -183,9 +192,9 @@ namespace Opc.Ua.Bindings
             {
                 if (contentLengthHint == 0)
                 {
-                    return Array.Empty<byte>();
+                    return [];
                 }
-                var exact = new byte[contentLengthHint];
+                byte[] exact = new byte[contentLengthHint];
                 int total = 0;
                 while (total < exact.Length)
                 {
@@ -210,7 +219,7 @@ namespace Opc.Ua.Bindings
                 }
                 // Truncated body — return the actually-read prefix so callers
                 // surface a decoding error rather than a length mismatch.
-                var truncated = new byte[total];
+                byte[] truncated = new byte[total];
                 Buffer.BlockCopy(exact, 0, truncated, 0, total);
                 return truncated;
             }
@@ -219,7 +228,7 @@ namespace Opc.Ua.Bindings
             // MemoryStream, capping at MaxMessageSize as soon as the cap is
             // exceeded.
             using var buffer = new MemoryStream();
-            byte[] rented = System.Buffers.ArrayPool<byte>.Shared.Rent(81920);
+            byte[] rented = ArrayPool<byte>.Shared.Rent(81920);
             try
             {
                 int read;
@@ -247,7 +256,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                System.Buffers.ArrayPool<byte>.Shared.Return(rented);
+                ArrayPool<byte>.Shared.Return(rented);
             }
             return buffer.ToArray();
         }
@@ -498,6 +507,7 @@ namespace Opc.Ua.Bindings
         /// <see cref="IEncodeable"/> or has no public parameterless
         /// constructor.
         /// </exception>
+        /// <exception cref="ServiceResultException"></exception>
         [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
             "Constructs an instance of bodyType via Activator.CreateInstance which is not " +
             "NativeAOT-safe when the type is not statically rooted. Callers that need AOT " +
@@ -593,7 +603,7 @@ namespace Opc.Ua.Bindings
             IServiceMessageContext context,
             JsonEncoderOptions? options = null) where T : IEncodeable
         {
-            if (value == null)
+            if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(value, default))
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -606,7 +616,6 @@ namespace Opc.Ua.Bindings
             using (var encoder = new JsonEncoder(memory, context, options))
             {
                 value.Encode(encoder);
-                encoder.Close();
             }
             return memory.ToArray();
         }
@@ -688,7 +697,7 @@ namespace Opc.Ua.Bindings
             IServiceMessageContext context,
             JsonEncoderOptions? options = null) where T : IEncodeable
         {
-            if (value == null)
+            if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(value, default))
             {
                 throw new ArgumentNullException(nameof(value));
             }

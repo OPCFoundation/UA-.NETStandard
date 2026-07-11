@@ -132,7 +132,7 @@ namespace Opc.Ua.Di.Client
             NodeId parentId,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            BrowseDescription description = new BrowseDescription
+            var description = new BrowseDescription
             {
                 NodeId = parentId,
                 BrowseDirection = BrowseDirection.Forward,
@@ -165,13 +165,13 @@ namespace Opc.Ua.Di.Client
             for (int i = 0; i < result.References.Count; i++)
             {
                 ReferenceDescription reference = result.References[i];
-                NodeId targetId = ExpandedNodeId.ToNodeId(
+                var targetId = ExpandedNodeId.ToNodeId(
                     reference.NodeId, Session.NamespaceUris);
                 if (targetId.IsNull)
                 {
                     continue;
                 }
-                NodeId typeDefinitionId = ExpandedNodeId.ToNodeId(
+                var typeDefinitionId = ExpandedNodeId.ToNodeId(
                     reference.TypeDefinition, Session.NamespaceUris);
                 yield return new TopologyEntry(
                     targetId,

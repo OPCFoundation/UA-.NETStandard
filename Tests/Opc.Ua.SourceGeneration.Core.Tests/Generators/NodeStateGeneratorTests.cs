@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -433,9 +432,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string path = Path.Combine(
                 Directory.GetCurrentDirectory(), "Resources", nodeSetResource);
 
-            var nodesets = new global::Opc.Ua.SourceGeneration.NodesetFileCollection(
-                ImmutableArray.Create(
-                    (path, new global::Opc.Ua.SourceGeneration.NodesetFileOptions())),
+            var nodesets = new NodesetFileCollection(
+                [(path, new NodesetFileOptions())],
                 fileSystem,
                 telemetry);
 
@@ -483,7 +481,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     end = idx;
                 }
             }
-            return code.Substring(start, end - start);
+            return code[start..end];
         }
 
         private Mock<IFileSystem> m_mockFileSystem;

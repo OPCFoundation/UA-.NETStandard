@@ -85,8 +85,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 UadpActionResponseMessage response =>
                     EncodeResponse(response, context, securityEnabled, out payloadOffset),
                 _ => throw new InvalidOperationException(
-                    "Action encoding requires a UadpActionRequestMessage "
-                    + "or UadpActionResponseMessage instance.")
+                    "Action encoding requires a UadpActionRequestMessage " +
+                    "or UadpActionResponseMessage instance.")
             };
         }
 
@@ -434,7 +434,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return false;
             }
             int byteCount = checked((int)length);
-            var bytes = new byte[byteCount];
+            byte[] bytes = new byte[byteCount];
             Buffer.BlockCopy(
                 reader.Buffer, reader.Origin + reader.Position, bytes, 0, byteCount);
             reader.Advance(byteCount);
@@ -444,7 +444,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static byte[] TrimToWritten(byte[] buffer, int written)
         {
-            var result = new byte[written];
+            byte[] result = new byte[written];
             Buffer.BlockCopy(buffer, 0, result, 0, written);
             return result;
         }

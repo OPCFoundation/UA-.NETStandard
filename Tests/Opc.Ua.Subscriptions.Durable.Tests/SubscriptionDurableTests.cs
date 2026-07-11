@@ -400,12 +400,13 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 // (DeleteSubscriptionsOnClose == false). The strict end-to-end proof
                 // is the load + transfer + data flow on the fresh target session
                 // below, which is left unchanged.
-                bool closeAcceptable = ServiceResult.IsGood(close)
-                    || close.Code == (uint)StatusCodes.BadRequestInterrupted
-                    || close.Code == (uint)StatusCodes.BadConnectionClosed
-                    || close.Code == (uint)StatusCodes.BadSecureChannelClosed
-                    || close.Code == (uint)StatusCodes.BadServerHalted
-                    || close.Code == (uint)StatusCodes.BadSessionIdInvalid;
+                bool closeAcceptable = ServiceResult.IsGood(close) ||
+                    close.Code == (uint)StatusCodes.BadSessionIdInvalid ||
+                    close.Code == (uint)StatusCodes.BadRequestInterrupted ||
+                    close.Code == (uint)StatusCodes.BadConnectionClosed ||
+                    close.Code == (uint)StatusCodes.BadSecureChannelClosed ||
+                    close.Code == (uint)StatusCodes.BadServerHalted ||
+                    close.Code == (uint)StatusCodes.BadSessionIdInvalid;
                 Assert.That(closeAcceptable, Is.True,
                     "Unexpected origin close status: " + close.ToString());
 

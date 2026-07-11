@@ -85,13 +85,14 @@ namespace Opc.Ua.Client.Discovery
         {
             ApplicationConfiguration configuration = m_options.Configuration ??
                 throw new InvalidOperationException("OpcUaClientOptions.Configuration is required.");
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
+            var endpointConfiguration = EndpointConfiguration.Create(configuration);
             return DiscoveryClient.CreateAsync(
                 new Uri(discoveryUrl),
                 endpointConfiguration,
                 configuration,
                 ct: ct);
         }
+
         private readonly OpcUaClientOptions m_options;
     }
 }

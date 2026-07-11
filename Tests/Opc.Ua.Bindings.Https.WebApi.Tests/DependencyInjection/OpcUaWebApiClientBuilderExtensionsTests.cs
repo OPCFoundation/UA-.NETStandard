@@ -27,13 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
@@ -53,7 +49,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         public void AddWebApiTransportChannelThrowsForNullBuilder()
         {
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel((IOpcUaBuilder)null!),
+                () => ((IOpcUaBuilder)null!).AddWebApiTransportChannel(),
                 Throws.ArgumentNullException);
         }
 
@@ -61,8 +57,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
         public void AddWebApiTransportChannelWithConfigureThrowsForNullBuilder()
         {
             Assert.That(
-                () => OpcUaWebApiClientBuilderExtensions.AddWebApiTransportChannel(
-                    (IOpcUaBuilder)null!,
+                () => ((IOpcUaBuilder)null!).AddWebApiTransportChannel(
                     configure: null),
                 Throws.ArgumentNullException);
         }

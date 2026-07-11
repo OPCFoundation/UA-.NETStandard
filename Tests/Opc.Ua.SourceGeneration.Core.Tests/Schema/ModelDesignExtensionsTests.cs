@@ -5930,7 +5930,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act & Assert
             Assert.That(
-                () => nullDataType.SupportsMatrixOf(),
+                nullDataType.SupportsMatrixOf,
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -9577,7 +9577,6 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
             bool result = dataType.IsTemplateParameterRequired(ValueRank.Array);
-
 
             // Assert
             Assert.That(result, Is.True);

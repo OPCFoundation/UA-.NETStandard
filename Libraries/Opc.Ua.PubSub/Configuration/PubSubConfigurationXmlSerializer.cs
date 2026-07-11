@@ -51,6 +51,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="configuration">Configuration to encode.</param>
         /// <param name="context">Service message context.</param>
         /// <returns>UTF-8 XML bytes.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static byte[] EncodeXml(
             PubSubConfigurationDataType configuration,
             IServiceMessageContext context)
@@ -85,6 +86,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="xml">UTF-8 XML bytes.</param>
         /// <param name="context">Service message context.</param>
         /// <returns>Decoded configuration.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static PubSubConfigurationDataType DecodeXml(
             ReadOnlySpan<byte> xml,
             IServiceMessageContext context)
@@ -106,6 +108,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="stream">Source stream.</param>
         /// <param name="context">Service message context.</param>
         /// <returns>Decoded configuration.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static PubSubConfigurationDataType DecodeXml(
             Stream stream,
             IServiceMessageContext context)

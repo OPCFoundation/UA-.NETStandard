@@ -29,12 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests;
@@ -90,7 +88,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddConnection(
                 BuildContext(), method: null!, inputArguments: default, outputArguments: outputs);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -105,7 +103,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnAddConnection(
                 BuildContext(), method: null!, inputArguments: default, outputArguments: outputs);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -117,7 +115,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveConnection(
                 BuildContext(), method: null!, inputArguments: default, outputArguments: outputs);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -132,7 +130,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             ServiceResult result = handlers.OnRemoveConnection(
                 BuildContext(), method: null!, inputArguments: default, outputArguments: outputs);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -142,7 +140,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 out _,
                 out InMemoryPubSubKeyServiceServer sks,
                 opt => opt.ExposeSecurityKeyService = true);
-            var inputs = BuildArray(
+            ArrayOf<Variant> inputs = BuildArray(
                 Variant.From("group-a"),
                 Variant.From(60_000.0),
                 Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
@@ -173,8 +171,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildContext(),
                 method: null!,
                 inputArguments: BuildArray(Variant.From("g")),
-                outputArguments: new List<Variant>());
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
+                outputArguments: []);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
@@ -189,9 +187,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildContext(),
                 method: null!,
                 inputArguments: BuildArray(Variant.From("g")),
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [TestCase("", 60_000.0, PubSubSecurityPolicyUri.PubSubAes128Ctr, 4U, 2U)]
@@ -214,9 +212,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                     Variant.From(policy),
                     Variant.From(maxFuture),
                     Variant.From(maxPast)),
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -232,7 +230,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 TimeSpan.FromMinutes(1),
                 2,
                 2,
-                Array.Empty<PubSubSecurityKey>()));
+                Array.Empty<PubSubSecurityKey>())).ConfigureAwait(false);
 
             ServiceResult result = handlers.OnAddSecurityGroup(
                 BuildContext(),
@@ -243,9 +241,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                     Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
                     Variant.From(2U),
                     Variant.From(2U)),
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -264,7 +262,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
                     Variant.From(2U),
                     Variant.From(2U)),
-                outputArguments: new List<Variant>());
+                outputArguments: []);
             Assert.That(StatusCode.IsGood(addResult.StatusCode), Is.True);
             NodeId? nodeId = handlers.TryGetSecurityGroupNodeId("g-x");
             Assert.That(nodeId, Is.Not.Null);
@@ -274,7 +272,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildContext(),
                 method: null!,
                 inputArguments: BuildArray(Variant.From(resolved)),
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             Assert.That(((string[]?)sks.SecurityGroupIds) ?? [], Does.Not.Contain("g-x"));
@@ -294,9 +292,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildContext(),
                 method: null!,
                 inputArguments: BuildArray(Variant.From(new NodeId(424242u))),
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -307,8 +305,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildContext(),
                 method: null!,
                 inputArguments: BuildArray(Variant.From(new NodeId("x", 0))),
-                outputArguments: new List<Variant>());
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
+                outputArguments: []);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
@@ -317,8 +315,8 @@ namespace Opc.Ua.PubSub.Server.Tests
             PubSubMethodHandlers handlers = CreateHandlers(
                 out _, out _, opt => opt.ExposeSecurityKeyService = true);
             ServiceResult result = handlers.OnRemoveSecurityGroup(
-                BuildContext(), method: null!, inputArguments: default, outputArguments: new List<Variant>());
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                BuildContext(), method: null!, inputArguments: default, outputArguments: []);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -330,8 +328,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildContext(),
                 method: null!,
                 inputArguments: BuildArray(Variant.From(NodeId.Null)),
-                outputArguments: new List<Variant>());
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                outputArguments: []);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -348,7 +346,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 3,
                 1,
                 Array.Empty<PubSubSecurityKey>(),
-                ["user"]));
+                ["user"])).ConfigureAwait(false);
 
             var outputs = new List<Variant>();
             ServiceResult result = handlers.OnGetSecurityKeys(
@@ -376,9 +374,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 objectId: ObjectIds.PublishSubscribe,
                 inputArguments: BuildArray(Variant.From("grp"), Variant.From(0U), Variant.From(1U)),
                 outputArguments: outputs);
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServiceUnsupported));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
-
 
         [Test]
         [TestSpec("9.1.3.3", Part = 14, Summary = "SetSecurityKeys push target")]
@@ -396,10 +393,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                     Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
                     Variant.From(42U),
                     Variant.From(currentKey),
-                    Variant.From((ArrayOf<ByteString>)Array.Empty<ByteString>()),
+                    Variant.From((ArrayOf<ByteString>)[]),
                     Variant.From(1_000.0),
                     Variant.From(60_000.0)),
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             PubSubSecurityKey pushed = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);

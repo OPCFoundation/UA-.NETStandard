@@ -329,7 +329,9 @@ namespace Opc.Ua.Mcp.Tools
             }
         }
 
+#pragma warning disable RCS1174 // Remove redundant async/await
         private static async ValueTask<IReadOnlyList<DecodedServiceCall>> DecodeServiceCallsAsync(
+#pragma warning restore RCS1174 // Remove redundant async/await
             ICaptureSource source,
             long? maxFrames,
             CancellationToken ct)
@@ -342,10 +344,9 @@ namespace Opc.Ua.Mcp.Tools
                 reassembler.LoadKeyMaterial(material);
             }
 
-            IReadOnlyList<DecodedServiceCall> calls = await reassembler
+            return await reassembler
                 .ProcessAllAsync(source.ReadCapturedFramesAsync(maxFrames, ct), ct)
                 .ConfigureAwait(false);
-            return calls;
         }
 
         private static ServiceCallSummary CreateSummary(IReadOnlyList<DecodedServiceCall> calls)
@@ -402,7 +403,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static FormatKind ParseDecodeFormat(string format)
         {
-            if (!FormatKindExtensions.TryParse(format, out FormatKind kind) ||
+            if (!format.TryParse(out FormatKind kind) ||
                 kind is not (FormatKind.ServiceTimeline or FormatKind.Json or FormatKind.Text))
             {
                 throw new PcapDiagnosticsException(
@@ -428,8 +429,9 @@ namespace Opc.Ua.Mcp.Tools
             string normalized = format.Trim().ToLowerInvariant();
             if (normalized == "json")
             {
-                return session.Source.GetKeyLogFilePath() ?? throw new PcapDiagnosticsException(
-                    $"Capture session '{session.Id}' does not have a JSON keylog file.");
+                return session.Source.GetKeyLogFilePath() ??
+                    throw new PcapDiagnosticsException(
+                        $"Capture session '{session.Id}' does not have a JSON keylog file.");
             }
 
             if (normalized == "text")

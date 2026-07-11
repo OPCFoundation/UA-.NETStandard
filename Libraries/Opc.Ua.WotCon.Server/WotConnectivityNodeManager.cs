@@ -552,6 +552,7 @@ namespace Opc.Ua.WotCon.Server
         /// an operation context) are exempt so node-manager start-up
         /// and persisted-asset restoration continue to work.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         internal void EnforceManagementAccess(ISystemContext context, string operation)
         {
             if (context is not SessionSystemContext
@@ -564,8 +565,9 @@ namespace Opc.Ua.WotCon.Server
 
             WotManagementAccessPolicy policy = m_options.ManagementAccess;
 
-            MessageSecurityMode securityMode = operationContext.ChannelContext
-                ?.EndpointDescription?.SecurityMode ?? MessageSecurityMode.None;
+            MessageSecurityMode securityMode = operationContext.ChannelContext?
+                .EndpointDescription?.SecurityMode ??
+                MessageSecurityMode.None;
             if (securityMode != policy.MinimumSecurityMode)
             {
                 m_logger.LogWarning(

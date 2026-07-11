@@ -138,15 +138,15 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 return false;
             }
 
-            return StringComparer.Ordinal.Equals(EndpointUrl, other.EndpointUrl)
-                && SecurityMode == other.SecurityMode
-                && StringComparer.Ordinal.Equals(SecurityPolicyUri, other.SecurityPolicyUri)
-                && StringComparer.Ordinal.Equals(UserName, other.UserName)
-                && StringComparer.Ordinal.Equals(Password, other.Password)
-                && EqualityComparer<IUserIdentity?>.Default.Equals(UserIdentity, other.UserIdentity)
-                && StringComparer.Ordinal.Equals(SessionName, other.SessionName)
-                && SessionTimeout == other.SessionTimeout
-                && StringComparer.Ordinal.Equals(ApplicationName, other.ApplicationName);
+            return StringComparer.Ordinal.Equals(EndpointUrl, other.EndpointUrl) &&
+                SecurityMode == other.SecurityMode &&
+                StringComparer.Ordinal.Equals(SecurityPolicyUri, other.SecurityPolicyUri) &&
+                StringComparer.Ordinal.Equals(UserName, other.UserName) &&
+                StringComparer.Ordinal.Equals(Password, other.Password) &&
+                EqualityComparer<IUserIdentity?>.Default.Equals(UserIdentity, other.UserIdentity) &&
+                StringComparer.Ordinal.Equals(SessionName, other.SessionName) &&
+                SessionTimeout == other.SessionTimeout &&
+                StringComparer.Ordinal.Equals(ApplicationName, other.ApplicationName);
         }
 
         /// <summary>

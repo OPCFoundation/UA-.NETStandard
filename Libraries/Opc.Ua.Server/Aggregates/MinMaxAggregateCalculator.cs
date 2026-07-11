@@ -269,13 +269,11 @@ namespace Opc.Ua.Server
                     .WithSourceTimestamp(minMaxStamp)
                     .WithServerTimestamp(minMaxStamp);
             }
-            else
-            {
-                DateTimeUtc sliceStamp = GetTimestamp(slice);
-                return value
-                    .WithSourceTimestamp(sliceStamp)
-                    .WithServerTimestamp(sliceStamp);
-            }
+            DateTimeUtc sliceStamp = GetTimestamp(slice);
+
+            return value
+                .WithSourceTimestamp(sliceStamp)
+                .WithServerTimestamp(sliceStamp);
         }
 
         /// <summary>
@@ -471,13 +469,11 @@ namespace Opc.Ua.Server
                     .WithSourceTimestamp(processedTimestamp)
                     .WithServerTimestamp(processedTimestamp);
             }
-            else
-            {
-                DateTimeUtc sliceStamp = GetTimestamp(slice);
-                return value
-                    .WithSourceTimestamp(sliceStamp)
-                    .WithServerTimestamp(sliceStamp);
-            }
+            DateTimeUtc sliceStamp = GetTimestamp(slice);
+
+            return value
+                .WithSourceTimestamp(sliceStamp)
+                .WithServerTimestamp(sliceStamp);
         }
     }
 }

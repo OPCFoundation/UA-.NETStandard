@@ -133,6 +133,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Opens the UDP socket and runs the publisher-side DTLS 1.3 handshake.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public ValueTask ConnectAsync(CancellationToken cancellationToken = default)
         {
             if ((Direction & PubSubTransportDirection.Send) != PubSubTransportDirection.Send)
@@ -146,6 +147,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Opens the UDP socket and runs the subscriber-side DTLS 1.3 handshake.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public ValueTask AcceptAsync(CancellationToken cancellationToken = default)
         {
             if ((Direction & PubSubTransportDirection.Receive) != PubSubTransportDirection.Receive)

@@ -153,5 +153,17 @@ namespace Opc.Ua.Server
         /// The type mask
         /// </summary>
         int TypeMask { get; set; }
+
+        /// <summary>
+        /// An optional data-change queue pre-hydrated by an asynchronous
+        /// <see cref="ISubscriptionStore"/> during restore. Runtime-only; never persisted.
+        /// </summary>
+        IDataChangeMonitoredItemQueue? RestoredDataChangeQueue { get; set; }
+
+        /// <summary>
+        /// An optional event queue pre-hydrated by an asynchronous
+        /// <see cref="ISubscriptionStore"/> during restore. Runtime-only; never persisted.
+        /// </summary>
+        IEventMonitoredItemQueue? RestoredEventQueue { get; set; }
     }
 }

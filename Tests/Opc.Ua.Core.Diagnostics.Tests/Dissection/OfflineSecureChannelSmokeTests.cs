@@ -31,10 +31,9 @@ using System;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Dissection;
 using Opc.Ua.Pcap.KeyLog;
-
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Dissection
 {

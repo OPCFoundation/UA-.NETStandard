@@ -249,7 +249,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
         private sealed class TestAssetProviderFactory : IWotAssetProviderFactory
         {
-            public IReadOnlyCollection<string> SupportedBindings { get; } = new[] { "sim" };
+            public IReadOnlyCollection<string> SupportedBindings { get; } = ["sim"];
 
             public bool CanHandle(ThingDescription thingDescription)
             {

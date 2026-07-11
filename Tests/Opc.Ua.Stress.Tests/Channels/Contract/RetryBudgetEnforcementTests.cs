@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -164,7 +162,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 // Transports created during the first two reconnect attempts
                 // fail; the transport allocated for the third attempt is
                 // healthy and completes the cycle.
-                if (sequence == 2 || sequence == 3)
+                if (sequence is 2 or 3)
                 {
                     transport.ConfigureFault(FaultMode.OpenFails);
                 }
@@ -239,7 +237,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         public async Task BudgetReferenceIsForwardedToChannelManagerAsync()
         {
             var managerMock = new Mock<IClientChannelManager>(MockBehavior.Strict);
-            var channelMock = new Mock<IManagedTransportChannel>(MockBehavior.Loose).Object;
+            IManagedTransportChannel channelMock = new Mock<IManagedTransportChannel>(MockBehavior.Loose).Object;
 
             IRetryBudget? capturedBudget = null;
             managerMock

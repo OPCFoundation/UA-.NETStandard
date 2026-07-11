@@ -65,6 +65,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// Configures the next open-capable operation to block on the supplied barrier.
         /// </summary>
         /// <param name="barrier">The barrier that releases the transport operation.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="barrier"/> is <c>null</c>.</exception>
         public void ConfigureNextOpenToBlockOn(ChaosBarrier barrier)
         {
             if (barrier == null)

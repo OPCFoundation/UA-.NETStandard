@@ -30,15 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
 
@@ -78,10 +76,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [Test]
         public async Task CreateAddressSpaceAsync_WhenSksExposed_BindsSecurityKeyMethods()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeSecurityKeyService = true;
-            }, includeSks: true);
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
 
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
@@ -98,10 +93,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [Test]
         public async Task CreateAddressSpaceAsync_WhenConfigMethodsDisabled_SkipsAddRemove()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeConfigurationMethods = false;
-            });
+            using var harness = new Harness(opt => opt.ExposeConfigurationMethods = false);
 
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
@@ -157,10 +149,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [TestSpec("8.4.3", Summary = "SecurityGroupType ForceKeyRotation is callable")]
         public async Task AddSecurityGroupMaterializesRoutableNodeAndKeyMethods()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeSecurityKeyService = true;
-            }, includeSks: true);
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             var outputs = new List<Variant>();
@@ -186,10 +175,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 outputs);
             Assert.That(outputs[1].TryGetValue(out NodeId groupNodeId), Is.True);
             BaseObjectState groupNode = harness.Manager.FindPredefinedNode<BaseObjectState>(groupNodeId);
-            MethodState invalidate = (MethodState)groupNode.FindChild(
+            var invalidate = (MethodState)groupNode.FindChild(
                 harness.Context,
                 new QualifiedName("InvalidateKeys", harness.Manager.AddressSpaceNamespaceIndex))!;
-            MethodState rotate = (MethodState)groupNode.FindChild(
+            var rotate = (MethodState)groupNode.FindChild(
                 harness.Context,
                 new QualifiedName("ForceKeyRotation", harness.Manager.AddressSpaceNamespaceIndex))!;
             SksKeyResponse before = await harness.SksServer.GetSecurityKeysAsync(
@@ -231,10 +220,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public async Task KeyPushTargetCanBeAddedConnectedTriggeredAndRemoved()
         {
             var pushProvider = new PushSecurityKeyProvider("push-endpoint", NUnitTelemetryContext.Create());
-            using var harness = new Harness(opt =>
-            {
-                opt.ExposeSecurityKeyService = true;
-            }, includeSks: true, pushProvider: pushProvider);
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true, pushProvider: pushProvider);
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             await harness.SksServer.AddSecurityGroupAsync(new SksSecurityGroup(
@@ -269,10 +255,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 addOutputs);
             Assert.That(addOutputs[0].TryGetValue(out NodeId targetNodeId), Is.True);
             BaseObjectState targetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(targetNodeId);
-            MethodState connect = (MethodState)targetNode.FindChild(
+            var connect = (MethodState)targetNode.FindChild(
                 harness.Context,
                 new QualifiedName("ConnectSecurityGroups", harness.Manager.AddressSpaceNamespaceIndex))!;
-            MethodState trigger = (MethodState)targetNode.FindChild(
+            var trigger = (MethodState)targetNode.FindChild(
                 harness.Context,
                 new QualifiedName("TriggerKeyUpdate", harness.Manager.AddressSpaceNamespaceIndex))!;
             MethodState remove = harness.RemovePushTargetMethod;
@@ -306,10 +292,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         [Test]
         public async Task CreateAddressSpaceAsync_WithDiagnosticsExposureNone_SkipsBinding()
         {
-            using var harness = new Harness(opt =>
-            {
-                opt.DiagnosticsExposure = PubSubDiagnosticsExposure.None;
-            });
+            using var harness = new Harness(opt => opt.DiagnosticsExposure = PubSubDiagnosticsExposure.None);
 
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
@@ -563,8 +546,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 m_queueFactory = new MonitoredItemQueueFactory(telemetry);
                 MockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
 
-                m_serverSystemContext = new ServerSystemContext(MockServer.Object);
-                MockServer.Setup(s => s.DefaultSystemContext).Returns(m_serverSystemContext);
+                Context = new ServerSystemContext(MockServer.Object);
+                MockServer.Setup(s => s.DefaultSystemContext).Returns(Context);
 
                 Configuration = new ApplicationConfiguration
                 {
@@ -692,7 +675,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             public BaseObjectState PublishedDataSetsObject { get; }
             public BaseObjectState SecurityGroupsObject { get; }
             public BaseObjectState KeyPushTargetsObject { get; }
-            public ServerSystemContext Context => m_serverSystemContext;
+            public ServerSystemContext Context { get; }
 
             public void Dispose()
             {
@@ -712,7 +695,6 @@ namespace Opc.Ua.PubSub.Server.Tests
             }
 
             private readonly MonitoredItemQueueFactory m_queueFactory;
-            private readonly ServerSystemContext m_serverSystemContext;
 
             private sealed class StubTransportFactory : IPubSubTransportFactory
             {

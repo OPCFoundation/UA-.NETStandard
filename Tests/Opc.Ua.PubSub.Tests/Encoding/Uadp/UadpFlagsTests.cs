@@ -49,18 +49,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
     {
         [Test]
         [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled)]
-        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled
-            | UadpHeaderFlags.GroupHeaderEnabled)]
-        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled
-            | UadpHeaderFlags.GroupHeaderEnabled
-            | UadpHeaderFlags.PayloadHeaderEnabled
-            | UadpHeaderFlags.ExtendedFlags1Enabled)]
+        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled |
+            UadpHeaderFlags.GroupHeaderEnabled)]
+        [TestCase((byte)1, UadpHeaderFlags.PublisherIdEnabled |
+            UadpHeaderFlags.GroupHeaderEnabled |
+            UadpHeaderFlags.PayloadHeaderEnabled |
+            UadpHeaderFlags.ExtendedFlags1Enabled)]
         public void UadpFlags_CombineSplit_RoundTrips(
             byte version, UadpHeaderFlags flags)
         {
-            byte combined = UadpFlagsEncodingMaskExtensions.Combine(version, flags);
+            byte combined = version.Combine(flags);
             (byte v, UadpHeaderFlags f) =
-                UadpFlagsEncodingMaskExtensions.Split(combined);
+                combined.Split();
             Assert.That(v, Is.EqualTo(version));
             Assert.That(f, Is.EqualTo(flags));
         }
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void UadpFlags_Combine_TruncatesInvalidVersion()
         {
             byte combined = UadpFlagsEncodingMaskExtensions.Combine(0x10, 0);
-            (byte v, _) = UadpFlagsEncodingMaskExtensions.Split(combined);
+            (byte v, _) = combined.Split();
             Assert.That(v, Is.Zero);
         }
 
@@ -81,9 +81,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestCase(PublisherIdType.String)]
         public void ExtendedFlags1_PublisherIdType_RoundTrips(PublisherIdType type)
         {
-            byte raw = ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(type);
-            bool ok = ExtendedFlags1EncodingMaskExtensions
-                .TryGetPublisherIdType(raw, out PublisherIdType decoded);
+            byte raw = type.EncodePublisherIdType();
+            bool ok = raw
+                .TryGetPublisherIdType(out PublisherIdType decoded);
             Assert.That(ok, Is.True);
             Assert.That(decoded, Is.EqualTo(type));
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void ExtendedFlags1PublisherIdTypeGuidThrows()
         {
             Assert.That(
-                () => ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(PublisherIdType.Guid),
+                () => PublisherIdType.Guid.EncodePublisherIdType(),
                 Throws.InvalidOperationException);
         }
 
@@ -111,9 +111,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void DataSetFlags1_FieldEncoding_RoundTrips(
             PubSubFieldEncoding encoding)
         {
-            byte raw = DataSetFlags1EncodingMaskExtensions.EncodeFieldEncoding(encoding);
-            bool ok = DataSetFlags1EncodingMaskExtensions
-                .TryGetFieldEncoding(raw, out PubSubFieldEncoding decoded);
+            byte raw = encoding.EncodeFieldEncoding();
+            bool ok = raw
+                .TryGetFieldEncoding(out PubSubFieldEncoding decoded);
             Assert.That(ok, Is.True);
             Assert.That(decoded, Is.EqualTo(encoding));
         }
@@ -122,8 +122,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void DataSetFlags1_FieldEncoding_RejectsReservedValue()
         {
             const byte reservedBits = 0x06;
-            bool ok = DataSetFlags1EncodingMaskExtensions
-                .TryGetFieldEncoding(reservedBits, out _);
+            bool ok = reservedBits
+                .TryGetFieldEncoding(out _);
             Assert.That(ok, Is.False);
         }
 
@@ -135,9 +135,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void DataSetFlags2_MessageType_RoundTrips(
             PubSubDataSetMessageType type)
         {
-            byte raw = DataSetFlags2EncodingMaskExtensions.EncodeMessageType(type);
-            bool ok = DataSetFlags2EncodingMaskExtensions
-                .TryGetMessageType(raw, out PubSubDataSetMessageType decoded);
+            byte raw = type.EncodeMessageType();
+            bool ok = raw
+                .TryGetMessageType(out PubSubDataSetMessageType decoded);
             Assert.That(ok, Is.True);
             Assert.That(decoded, Is.EqualTo(type));
         }
@@ -154,10 +154,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void GroupFlags_AllBitsHonoured()
         {
             const UadpGroupFlags combined =
-                UadpGroupFlags.WriterGroupIdEnabled
-                | UadpGroupFlags.GroupVersionEnabled
-                | UadpGroupFlags.NetworkMessageNumberEnabled
-                | UadpGroupFlags.SequenceNumberEnabled;
+                UadpGroupFlags.WriterGroupIdEnabled |
+                UadpGroupFlags.GroupVersionEnabled |
+                UadpGroupFlags.NetworkMessageNumberEnabled |
+                UadpGroupFlags.SequenceNumberEnabled;
             Assert.That((byte)combined, Is.EqualTo(0x0F));
         }
 

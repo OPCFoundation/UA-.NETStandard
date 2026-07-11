@@ -64,11 +64,11 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
+                .AddServer(o => o.ApplicationName = "test")
                 .AddOpcUaDi();
 
             ServiceProvider provider = services.BuildServiceProvider();
-            var factory = provider.GetService<DiNodeManagerFactory>();
+            DiNodeManagerFactory? factory = provider.GetService<DiNodeManagerFactory>();
             Assert.That(factory, Is.Not.Null);
         }
 
@@ -77,11 +77,11 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
+                .AddServer(o => o.ApplicationName = "test")
                 .AddOpcUaDi();
 
             ServiceProvider provider = services.BuildServiceProvider();
-            var runner = provider.GetService<IDiPostSetupRunner>();
+            IDiPostSetupRunner? runner = provider.GetService<IDiPostSetupRunner>();
             Assert.That(runner, Is.Not.Null);
             Assert.That(runner, Is.InstanceOf<DiPostSetupRunner>());
         }
@@ -91,7 +91,7 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; });
+                .AddServer(o => o.ApplicationName = "test");
 
             serverBuilder.AddOpcUaDi();
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
+                .AddServer(o => o.ApplicationName = "test")
                 .ConfigureDevicesFor<DiNodeManager>(_ => { });
 
             ServiceProvider provider = services.BuildServiceProvider();
@@ -123,7 +123,7 @@ namespace Opc.Ua.Di.Tests
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa()
-                .AddServer(o => { o.ApplicationName = "test"; })
+                .AddServer(o => o.ApplicationName = "test")
                 .ConfigureDevicesFor<DiNodeManager>(_ => { })
                 .ConfigureDevicesFor<DiNodeManager>(_ => { });
 
@@ -141,21 +141,27 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task RunnerInvokesMatchingConfiguratorsInOrder()
         {
-            DiServerFixture fixture = new DiServerFixture();
+            var fixture = new DiServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             try
             {
                 var calls = new List<int>();
                 DiPostSetupRunner runner = BuildRunner(
-                    Configurator(typeof(DiNodeManager), _ => {
-                    calls.Add(1);
-                    return default; }),
-                    Configurator(typeof(DiNodeManager), _ => {
-                    calls.Add(2);
-                    return default; }),
-                    Configurator(typeof(DiNodeManager), _ => {
-                    calls.Add(3);
-                    return default; }));
+                    Configurator(typeof(DiNodeManager), _ =>
+                    {
+                        calls.Add(1);
+                        return default;
+                    }),
+                    Configurator(typeof(DiNodeManager), _ =>
+                    {
+                        calls.Add(2);
+                        return default;
+                    }),
+                    Configurator(typeof(DiNodeManager), _ =>
+                    {
+                        calls.Add(3);
+                        return default;
+                    }));
 
                 await runner.RunAsync(fixture.Manager, CancellationToken.None)
                     .ConfigureAwait(false);
@@ -171,21 +177,25 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task RunnerFiltersByTargetManagerType()
         {
-            DiServerFixture fixture = new DiServerFixture();
+            var fixture = new DiServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             try
             {
                 bool diRan = false;
                 bool unrelatedRan = false;
                 DiPostSetupRunner runner = BuildRunner(
-                    Configurator(typeof(DiNodeManager), _ => {
-                    diRan = true;
-                    return default; }),
+                    Configurator(typeof(DiNodeManager), _ =>
+                    {
+                        diRan = true;
+                        return default;
+                    }),
                     Configurator(
                         typeof(UnrelatedSubclass),
-                        _ => {
-                        unrelatedRan = true;
-                        return default; }));
+                        _ =>
+                        {
+                            unrelatedRan = true;
+                            return default;
+                        }));
 
                 await runner.RunAsync(fixture.Manager, CancellationToken.None)
                     .ConfigureAwait(false);
@@ -203,7 +213,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task RunnerPropagatesConfiguratorException()
         {
-            DiServerFixture fixture = new DiServerFixture();
+            var fixture = new DiServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             try
             {
@@ -228,14 +238,14 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ConfigureDevicesForRunsConfiguratorOnDiNodeManager()
         {
-            DiServerFixture fixture = new DiServerFixture();
+            var fixture = new DiServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             try
             {
                 IServiceCollection services = new ServiceCollection();
                 bool wasCalled = false;
                 services.AddOpcUa()
-                    .AddServer(o => { o.ApplicationName = "test"; })
+                    .AddServer(o => o.ApplicationName = "test")
                     .ConfigureDevicesFor<DiNodeManager>(ctx =>
                     {
                         wasCalled = true;
@@ -260,14 +270,14 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ContextExposesNarrowGetRequiredService()
         {
-            DiServerFixture fixture = new DiServerFixture();
+            var fixture = new DiServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             try
             {
                 IServiceCollection services = new ServiceCollection();
                 services.AddSingleton<SomeApplicationService>();
                 services.AddOpcUa()
-                    .AddServer(o => { o.ApplicationName = "test"; })
+                    .AddServer(o => o.ApplicationName = "test")
                     .ConfigureDevicesFor<DiNodeManager>(ctx =>
                     {
                         SomeApplicationService svc = ctx.GetRequiredService<SomeApplicationService>();
@@ -309,7 +319,9 @@ namespace Opc.Ua.Di.Tests
         private static InlineConfigurator Configurator(
             Type target,
             Func<IDiPostSetupContext, ValueTask> run)
-            => new InlineConfigurator(target, run);
+        {
+            return new InlineConfigurator(target, run);
+        }
 
         private sealed class InlineConfigurator : IDiPostSetupConfigurator
         {
@@ -323,7 +335,10 @@ namespace Opc.Ua.Di.Tests
 
             public Type TargetManagerType { get; }
 
-            public ValueTask RunAsync(IDiPostSetupContext context) => m_run(context);
+            public ValueTask RunAsync(IDiPostSetupContext context)
+            {
+                return m_run(context);
+            }
         }
 
         // Dummy subclass used to verify TargetManagerType filtering.
@@ -331,10 +346,12 @@ namespace Opc.Ua.Di.Tests
 #pragma warning disable CA1812
         private sealed class UnrelatedSubclass : DiNodeManager
         {
+#pragma warning disable IDE0051 // Reflection-only negative test type; constructor is intentionally never called.
             private UnrelatedSubclass(IServerInternal s, ApplicationConfiguration c)
                 : base(s, c)
             {
             }
+#pragma warning restore IDE0051
         }
 
         /// <summary>

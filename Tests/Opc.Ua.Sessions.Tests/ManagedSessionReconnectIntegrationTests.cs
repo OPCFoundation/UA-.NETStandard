@@ -1343,7 +1343,7 @@ namespace Opc.Ua.Sessions.Tests
                 return new ValueTask<ServerRedundancyInfo>(
                     new ServerRedundancyInfo
                     {
-                        Mode = RedundancyMode.Cold,
+                        Mode = RedundancySupport.Cold,
                         ServiceLevel = 200,
                         RedundantServers =
                         [
@@ -1355,6 +1355,18 @@ namespace Opc.Ua.Sessions.Tests
                             }
                         ]
                     });
+            }
+
+            public ServerFailoverDecision ShouldFailover(
+                ServerRedundancyInfo redundancyInfo,
+                ConfiguredEndpoint currentEndpoint)
+            {
+                return new ServerFailoverDecision(
+                    isFailoverWarranted: m_target != null,
+                    DateTime.MinValue,
+                    m_target != null
+                        ? "Test handler warrants failover to the configured standby."
+                        : "No failover target configured.");
             }
 
             public ConfiguredEndpoint? SelectFailoverTarget(

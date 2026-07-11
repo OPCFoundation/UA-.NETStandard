@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 {
     /// <summary>
     /// Post-handshake DTLS record throughput benchmark for Part 14 §7.3.2.4.
-    /// The <see cref="BenchmarkDotNet.Attributes.BenchmarkAttribute"/> methods
+    /// The <see cref="BenchmarkAttribute"/> methods
     /// measure the seal/open hot path; the NUnit tests keep them exercised in CI.
     /// </summary>
     [TestFixture]
@@ -91,11 +91,11 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             m_reader?.Dispose();
             if (m_trafficSecret is not null)
             {
-                System.Security.Cryptography.CryptographicOperations.ZeroMemory(m_trafficSecret);
+                CryptographicOperations.ZeroMemory(m_trafficSecret);
             }
             if (m_payload is not null)
             {
-                System.Security.Cryptography.CryptographicOperations.ZeroMemory(m_payload);
+                CryptographicOperations.ZeroMemory(m_payload);
             }
         }
 

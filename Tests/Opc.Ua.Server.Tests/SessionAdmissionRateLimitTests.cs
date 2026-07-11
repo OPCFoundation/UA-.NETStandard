@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.DefaultMaxResponseMessageSize,
                     RequestLifetime.None).ConfigureAwait(false));
 
-            Assert.That(exception.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServerTooBusy));
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
             // The retry-after hint is encoded in the fault's AdditionalInfo.
             Assert.That(exception.AdditionalInfo, Does.Contain("RetryAfterMs=2000"));
             // It is also carried explicitly so the fault builder can surface it on
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests
                     null,
                     RequestLifetime.None).ConfigureAwait(false));
 
-            Assert.That(exception.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServerTooBusy));
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
         }
 
         [Test]

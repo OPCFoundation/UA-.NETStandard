@@ -41,6 +41,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Encodes a list of record numbers into a DTLS 1.3 ACK message body.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static byte[] Encode(IReadOnlyList<DtlsRecordNumber> records)
         {
             if (records is null)
@@ -64,6 +65,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Decodes a DTLS 1.3 ACK message body into the acknowledged record numbers.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static IReadOnlyList<DtlsRecordNumber> Decode(ReadOnlySpan<byte> body)
         {
             if (body.Length < 2)

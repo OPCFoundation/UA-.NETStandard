@@ -38,7 +38,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Assets;
-using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -188,9 +187,9 @@ namespace Opc.Ua.WotCon.Tests
             else
             {
                 Assert.Inconclusive(
-                    $"CreateAssetAsync failed before the discovery path was exercised " +
+                    "CreateAssetAsync failed before the discovery path was exercised " +
                     $"(status={status}). Sanitisation contract is covered by the dedicated " +
-                    $"DiscoverAssets / ConnectionTest tests above.");
+                    "DiscoverAssets / ConnectionTest tests above.");
             }
         }
 
@@ -288,9 +287,14 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             public IDisposable BeginScope<TState>(TState state) where TState : notnull
-                => NullScope.Instance;
+            {
+                return NullScope.Instance;
+            }
 
-            public bool IsEnabled(LogLevel logLevel) => true;
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
 
             public void Log<TState>(
                 LogLevel logLevel,
@@ -308,7 +312,10 @@ namespace Opc.Ua.WotCon.Tests
             private sealed class NullScope : IDisposable
             {
                 public static readonly NullScope Instance = new();
-                public void Dispose() { }
+
+                public void Dispose()
+                {
+                }
             }
         }
     }

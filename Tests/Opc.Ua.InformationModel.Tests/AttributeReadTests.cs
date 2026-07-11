@@ -1734,7 +1734,7 @@ namespace Opc.Ua.InformationModel.Tests
         [Test]
         public async Task AttributeRead031ReadMultipleMultiDimensionalArraysAsync()
         {
-            ArrayOf<ReadValueId> readValueIds = Constants.ScalarStaticArrays2DNodes
+            var readValueIds = Constants.ScalarStaticArrays2DNodes
                 .Select(n => new ReadValueId { NodeId = ToNodeId(n), AttributeId = Attributes.Value })
                 .ToArrayOf();
 

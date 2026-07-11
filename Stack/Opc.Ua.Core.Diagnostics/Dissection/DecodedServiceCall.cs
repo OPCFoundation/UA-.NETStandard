@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Dissection
 {
     /// <summary>

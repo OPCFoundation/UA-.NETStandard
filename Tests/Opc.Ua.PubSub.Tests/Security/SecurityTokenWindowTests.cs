@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Tests.Security
     [TestSpec("7.2.4.4.3.1", Summary = "PubSub replay-window")]
     public class SecurityTokenWindowTests
     {
-        private static readonly uint[] s_expectedTokenIds = new uint[] { 1U, 7U };
+        private static readonly uint[] s_expectedTokenIds = [1U, 7U];
 
         private static byte[] MakeNonce(byte seed)
         {
@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         [Test]
         public void Properties_ReflectConfiguration()
         {
-            var clock = TimeProvider.System;
+            TimeProvider clock = TimeProvider.System;
             var window = new SecurityTokenWindow(historySize: 16, timeProvider: clock);
             Assert.Multiple(() =>
             {
@@ -276,7 +276,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             const int parallelism = 8;
             const int perTask = 500;
             var accepted = new ConcurrentBag<ulong>();
-            Task[] workers = new Task[parallelism];
+            var workers = new Task[parallelism];
             for (int t = 0; t < parallelism; t++)
             {
                 int taskIndex = t;
@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 {
                     for (int i = 0; i < perTask; i++)
                     {
-                        ulong sequenceNumber = (ulong)(taskIndex * perTask + i + 1);
+                        ulong sequenceNumber = (ulong)((taskIndex * perTask) + i + 1);
                         byte[] nonce = new byte[12];
                         // Distinct nonce per (task, i) pair.
                         nonce[0] = (byte)taskIndex;
@@ -297,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                     }
                 });
             }
-            await Task.WhenAll(workers);
+            await Task.WhenAll(workers).ConfigureAwait(false);
             Assert.That(accepted, Has.Count.EqualTo(parallelism * perTask));
         }
     }

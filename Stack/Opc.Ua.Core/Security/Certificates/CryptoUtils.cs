@@ -167,7 +167,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            using System.Security.Cryptography.RSA? rsa = certificate.GetRSAPublicKey();
+            using RSA? rsa = certificate.GetRSAPublicKey();
             return rsa?.KeySize ?? 0;
         }
 
@@ -1142,7 +1142,7 @@ namespace Opc.Ua
         public static void ZeroMemory(Span<byte> buffer)
         {
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-            System.Security.Cryptography.CryptographicOperations.ZeroMemory(buffer);
+            CryptographicOperations.ZeroMemory(buffer);
 #else
             buffer.Clear();
 #endif
@@ -1164,7 +1164,7 @@ namespace Opc.Ua
         public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
         {
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-            return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(left, right);
+            return CryptographicOperations.FixedTimeEquals(left, right);
 #else
             if (left.Length != right.Length)
             {

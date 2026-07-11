@@ -41,7 +41,7 @@ namespace Opc.Ua.WotCon.Server
     /// must be using a <see cref="MessageSecurityMode.SignAndEncrypt"/>
     /// channel, present a non-anonymous user identity, and have been
     /// granted the
-    /// <see cref="Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin"/>
+    /// <see cref="Ua.ObjectIds.WellKnownRole_SecurityAdmin"/>
     /// role by the OPC UA server's role-mapping layer.
     /// </para>
     /// <para>
@@ -57,10 +57,10 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// The role a caller must hold to invoke management methods.
         /// Defaults to
-        /// <see cref="Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin"/>.
+        /// <see cref="Ua.ObjectIds.WellKnownRole_SecurityAdmin"/>.
         /// </summary>
         public NodeId RequiredRoleId { get; init; } =
-            global::Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin;
+            Ua.ObjectIds.WellKnownRole_SecurityAdmin;
 
         /// <summary>
         /// The minimum acceptable channel security mode. Defaults to

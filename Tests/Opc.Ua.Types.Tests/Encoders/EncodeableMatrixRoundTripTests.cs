@@ -67,7 +67,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static ServiceMessageContext CreateContext()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext ctx = ServiceMessageContext.CreateEmpty(telemetry);
+            var ctx = ServiceMessageContext.CreateEmpty(telemetry);
             ctx.Factory.AddEncodeableType(typeof(MatrixSample));
             return ctx;
         }

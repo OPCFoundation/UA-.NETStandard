@@ -53,6 +53,7 @@ namespace Opc.Ua
         /// <see cref="TimeProvider.GetTimestamp"/> and the provider's
         /// <see cref="TimeProvider.TimestampFrequency"/>.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="timeProvider"/> is <c>null</c>.</exception>
         public static long GetTimestampMilliseconds(this TimeProvider timeProvider)
         {
             if (timeProvider == null)
@@ -84,6 +85,7 @@ namespace Opc.Ua
         /// Returns the elapsed time since the supplied start timestamp obtained
         /// from <see cref="TimeProvider.GetTimestamp"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="timeProvider"/> is <c>null</c>.</exception>
         public static TimeSpan GetElapsedTimeSince(
             this TimeProvider timeProvider,
             long startTimestamp)
@@ -102,12 +104,15 @@ namespace Opc.Ua
         /// <paramref name="cancellationToken"/> is cancelled.
         /// </summary>
         /// <remarks>
-        /// Polyfill for the .NET 8+ <c>Task.Delay(TimeSpan, TimeProvider,
-        /// CancellationToken)</c> static method that is not available on
+        /// Polyfill for the .NET 8+ <code>Task.Delay(TimeSpan, TimeProvider,
+        /// CancellationToken)</code> static method that is not available on
         /// netstandard2.0 / .NET Framework. On .NET 8+ this delegates to the
         /// built-in BCL overload; on older targets it is implemented manually
         /// using <see cref="TimeProvider.CreateTimer"/>.
         /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="timeProvider"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static Task Delay(
             this TimeProvider timeProvider,
             TimeSpan delay,
@@ -191,6 +196,9 @@ namespace Opc.Ua
         /// targets it is implemented manually using
         /// <see cref="TimeProvider.CreateTimer"/>.
         /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="timeProvider"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static CancellationTokenSource CreateCancellationTokenSource(
             this TimeProvider timeProvider,
             TimeSpan delay)
@@ -215,8 +223,7 @@ namespace Opc.Ua
             {
                 return cts;
             }
-            ITimer? timer = null;
-            timer = timeProvider.CreateTimer(
+            ITimer? timer = timeProvider.CreateTimer(
                 static state =>
                 {
                     var inner = (CancellationTokenSource)state!;

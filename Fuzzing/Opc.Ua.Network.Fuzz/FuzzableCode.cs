@@ -103,14 +103,15 @@ namespace Opc.Ua.Fuzzing
             // an OOB read in the binding is a real bug that fuzz should surface,
             // not swallow as an "expected" parser-rejected-input outcome
             // (security audit recommendation §7.2 #3).
-            if (ex is PcapDiagnosticsException or ServiceResultException or CryptographicException or IOException or
-                InvalidOperationException or ArgumentException or OverflowException or
-                FormatException)
-            {
-                return true;
-            }
-
-            return false;
+            return ex is
+                PcapDiagnosticsException or
+                ServiceResultException or
+                CryptographicException or
+                IOException or
+                InvalidOperationException or
+                ArgumentException or
+                OverflowException or
+                FormatException;
         }
 
         private static ChannelKeyMaterial CreateTestKeyMaterial()

@@ -137,7 +137,7 @@ namespace Opc.Ua.Sessions.Tests
                     ep.SecurityMode == MessageSecurityMode.None);
             var jsonEndpoint = new EndpointDescription
             {
-                EndpointUrl = httpsNone.EndpointUrl,
+                EndpointUrl = m_endpointUrl.ToString(),
                 Server = httpsNone.Server,
                 ServerCertificate = httpsNone.ServerCertificate,
                 SecurityMode = MessageSecurityMode.None,
@@ -145,12 +145,12 @@ namespace Opc.Ua.Sessions.Tests
                 TransportProfileUri = Profiles.HttpsJsonTransport
             };
 
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             endpointConfiguration.OperationTimeout = kMaxTimeout;
             TransportChannelSettings settings = CreateClientSettings(jsonEndpoint, endpointConfiguration);
 
             using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, m_telemetry);
-            await channel.OpenAsync(new Uri(jsonEndpoint.EndpointUrl), settings, CancellationToken.None)
+            await channel.OpenAsync(m_endpointUrl, settings, CancellationToken.None)
                 .ConfigureAwait(false);
 
             var request = new GetEndpointsRequest
@@ -159,7 +159,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 1,
-                    TimeoutHint = (uint)kMaxTimeout
+                    TimeoutHint = kMaxTimeout
                 },
                 EndpointUrl = jsonEndpoint.EndpointUrl
             };
@@ -170,7 +170,7 @@ namespace Opc.Ua.Sessions.Tests
 
             Assert.That(response, Is.InstanceOf<GetEndpointsResponse>());
             var getResp = (GetEndpointsResponse)response;
-            Assert.That(getResp.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(getResp.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             Assert.That(getResp.Endpoints.Count, Is.GreaterThan(0));
 
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);

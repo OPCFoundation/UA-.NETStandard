@@ -98,7 +98,7 @@ namespace Opc.Ua.Di.Tests
 
             builder.WithSoftwareUpdate(m_store, su => su.UsePackageLoading());
 
-            var diNs = m_fixture.Manager.DiNamespaceIndex;
+            ushort diNs = m_fixture.Manager.DiNamespaceIndex;
             ISystemContext ctx = m_fixture.Manager.SystemContext;
             NodeState su2 = builder.Device.FindChild(
                 ctx, new QualifiedName("SoftwareUpdate", diNs))!;
@@ -130,7 +130,7 @@ namespace Opc.Ua.Di.Tests
 
             builder.WithSoftwareUpdate(m_store, su => su.UseDirectLoading());
 
-            var diNs = m_fixture.Manager.DiNamespaceIndex;
+            ushort diNs = m_fixture.Manager.DiNamespaceIndex;
             ISystemContext ctx = m_fixture.Manager.SystemContext;
             NodeState su = builder.Device.FindChild(
                 ctx, new QualifiedName("SoftwareUpdate", diNs))!;
@@ -151,7 +151,7 @@ namespace Opc.Ua.Di.Tests
 
             builder.WithSoftwareUpdate(m_store, su => su.UseCachedLoading());
 
-            var diNs = m_fixture.Manager.DiNamespaceIndex;
+            ushort diNs = m_fixture.Manager.DiNamespaceIndex;
             ISystemContext ctx = m_fixture.Manager.SystemContext;
             NodeState su = builder.Device.FindChild(
                 ctx, new QualifiedName("SoftwareUpdate", diNs))!;
@@ -177,7 +177,7 @@ namespace Opc.Ua.Di.Tests
                 return default;
             }));
 
-            var diNs = m_fixture.Manager.DiNamespaceIndex;
+            ushort diNs = m_fixture.Manager.DiNamespaceIndex;
             ISystemContext ctx = m_fixture.Manager.SystemContext;
             NodeState su = builder.Device.FindChild(
                 ctx, new QualifiedName("SoftwareUpdate", diNs))!;
@@ -205,7 +205,7 @@ namespace Opc.Ua.Di.Tests
             var folder = new MemorySoftwareFolder(builder.Device.NodeId);
             builder.WithSoftwareUpdate(m_store, su => su.WithSoftwareFolder(folder));
 
-            var diNs = m_fixture.Manager.DiNamespaceIndex;
+            ushort diNs = m_fixture.Manager.DiNamespaceIndex;
             ISystemContext ctx = m_fixture.Manager.SystemContext;
             NodeState su = builder.Device.FindChild(
                 ctx, new QualifiedName("SoftwareUpdate", diNs))!;

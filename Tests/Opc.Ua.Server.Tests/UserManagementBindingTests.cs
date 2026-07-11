@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests
         public void BindReturnsNullWhenUserManagementNodeMissing()
         {
             using TestableAsyncCustomNodeManager manager = CreateNodeManager();
-            UserManagementBinding? binding =
+            var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null);
             Assert.That(binding, Is.Null);
         }
@@ -162,7 +162,7 @@ namespace Opc.Ua.Server.Tests
         public void BindReturnsBindingWhenUserManagementNodePresent()
         {
             using TestableAsyncCustomNodeManager manager = CreateNodeManagerWithUserManagementNode();
-            using UserManagementBinding? binding =
+            using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null);
             Assert.That(binding, Is.Not.Null);
         }
@@ -171,12 +171,12 @@ namespace Opc.Ua.Server.Tests
         public void DisposeIsIdempotent()
         {
             using TestableAsyncCustomNodeManager manager = CreateNodeManagerWithUserManagementNode();
-            UserManagementBinding? binding =
+            var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null);
             Assert.That(binding, Is.Not.Null);
 
             binding!.Dispose();
-            Assert.DoesNotThrow(() => binding.Dispose());
+            Assert.DoesNotThrow(binding.Dispose);
         }
 
         [Test]
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests
             var sessionManager = new Mock<ISessionManager>();
             sessionManager.Setup(m => m.GetSessions()).Returns([session.Object]);
 
-            using UserManagementBinding? binding =
+            using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
             Assert.That(binding, Is.Not.Null);
 
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests
             var sessionManager = new Mock<ISessionManager>();
             sessionManager.Setup(m => m.GetSessions()).Returns([session.Object]);
 
-            using UserManagementBinding? binding =
+            using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
 
             m_userManagement.Raise(u => u.UserDeactivated += null, new UserDeactivatedEventArgs("bob"));
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests
             var sessionManager = new Mock<ISessionManager>();
             sessionManager.Setup(m => m.GetSessions()).Returns([session.Object]);
 
-            using UserManagementBinding? binding =
+            using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
 
             Assert.DoesNotThrow(() =>
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server.Tests
             var sessionManager = new Mock<ISessionManager>();
             sessionManager.Setup(m => m.GetSessions()).Throws(new InvalidOperationException("boom"));
 
-            using UserManagementBinding? binding =
+            using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
 
             Assert.DoesNotThrow(() =>
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateNodeManagerWithUserManagementNode();
             var sessionManager = new Mock<ISessionManager>();
 
-            using UserManagementBinding? binding =
+            using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
 
             m_userManagement.Raise(u => u.UserDeactivated += null, new UserDeactivatedEventArgs(string.Empty));
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateNodeManagerWithUserManagementNode();
 
-            using UserManagementBinding? binding =
+            using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null);
 
             Assert.DoesNotThrow(() =>
@@ -274,9 +274,9 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateNodeManagerWithUserManagementNode();
             var sessionManager = new Mock<ISessionManager>();
-            sessionManager.Setup(m => m.GetSessions()).Returns(new List<ISession>());
+            sessionManager.Setup(m => m.GetSessions()).Returns([]);
 
-            UserManagementBinding? binding =
+            var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
             Assert.That(binding, Is.Not.Null);
 

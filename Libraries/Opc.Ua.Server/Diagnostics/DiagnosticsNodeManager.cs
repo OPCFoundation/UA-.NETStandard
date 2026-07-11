@@ -332,7 +332,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            var nodes = new NodeStateCollection().AddOpcUa(context);
+            NodeStateCollection nodes = new NodeStateCollection().AddOpcUa(context);
 
             AddSdkImplementedOptionalChildren(context, nodes);
 
@@ -385,6 +385,7 @@ namespace Opc.Ua.Server
                 .AddNamespaces(context)
                 .AddUrisVersion(context)
                 .AddEstimatedReturnTime(context)
+                .AddRequestServerStateChange(context)
                 .AddLocalTime(context);
 
             if (serverObject.ServerCapabilities != null)
@@ -394,8 +395,15 @@ namespace Opc.Ua.Server
             }
             if (serverObject.ServerRedundancy != null)
             {
-                AddServerRedundancySdkOptionalChildren(
-                    context, serverObject.ServerRedundancy);
+                // The base ServerRedundancyType only declares the optional
+                // RedundantServerArray. The mode-specific subtype
+                // (TransparentRedundancyType / NonTransparentRedundancyType) and
+                // its generated children (CurrentServerId / ServerUriArray) are
+                // materialised from the configured RedundancySupport mode at
+                // server startup by Opc.Ua.Redundancy.Server, which promotes this
+                // node to the correct subtype while preserving the well-known
+                // RedundantServerArray NodeId assigned here.
+                serverObject.ServerRedundancy.AddRedundantServerArray(context);
             }
         }
 
@@ -431,13 +439,6 @@ namespace Opc.Ua.Server
                     .AddMaxNodesPerTranslateBrowsePathsToNodeIds(context)
                     .AddMaxNodesPerNodeManagement(context)
                     .AddMaxMonitoredItemsPerCall(context);
-        }
-
-        private static void AddServerRedundancySdkOptionalChildren(
-            ISystemContext context,
-            ServerRedundancyState serverRedundancy)
-        {
-            serverRedundancy.AddRedundantServerArray(context);
         }
 
         private static void AddHistoryCapabilitiesSdkOptionalChildren(
@@ -482,7 +483,7 @@ namespace Opc.Ua.Server
         /// Programmatically re-adds the Optional RoleType children for the
         /// six modifiable well-known roles (Observer, Operator, Engineer,
         /// Supervisor, ConfigureAdmin, SecurityAdmin)
-        /// so <see cref="Opc.Ua.Server.RoleStateBinding"/> finds them and
+        /// so <see cref="RoleStateBinding"/> finds them and
         /// can wire OnCallAsync delegates and OnWriteValue handlers.
         /// </summary>
         /// <remarks>

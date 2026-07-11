@@ -31,8 +31,8 @@ using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Encoding.Uadp;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 {
@@ -137,7 +137,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(value, Is.EqualTo("done"));
         }
 
-
         [TestCase(false, PubSubFieldEncoding.Variant)]
         [TestCase(false, PubSubFieldEncoding.RawData)]
         [TestCase(true, PubSubFieldEncoding.Variant)]
@@ -150,7 +149,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         {
             DataSetMetaDataType metaData = CreateActionMetaData();
             var registry = new DataSetMetaDataRegistry();
-            PublisherId publisherId = PublisherId.FromUInt16(0x55);
+            var publisherId = PublisherId.FromUInt16(0x55);
             registry.Register(
                 new DataSetMetaDataKey(publisherId, 0, 0x33, Uuid.Empty, 0),
                 metaData);
@@ -213,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 TimeoutHint = 100
             };
 
-            ReadOnlyMemory<byte> encoded = await encoder.EncodeAsync(request, context);
+            ReadOnlyMemory<byte> encoded = await encoder.EncodeAsync(request, context).ConfigureAwait(false);
             PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
 
             Assert.That(decoded, Is.InstanceOf<UadpActionRequestMessage>());
@@ -249,7 +248,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(encoded.Span[1] & (byte)ExtendedFlags1EncodingMask.SecurityEnabled, Is.Not.Zero);
             Assert.That(encoded.Span[payloadOffset], Is.EqualTo((byte)(0x01 | 0x10)));
         }
-
 
         private static UadpActionRequestMessage CreateActionRequest(
             PublisherId publisherId,

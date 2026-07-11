@@ -30,7 +30,6 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Stack

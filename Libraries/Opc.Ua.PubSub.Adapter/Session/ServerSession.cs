@@ -60,6 +60,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
     public sealed class ServerSession : IServerSession
     {
         private static readonly TimeSpan s_applyPollInterval = TimeSpan.FromMilliseconds(25);
+
         private static readonly long s_modelChangeCoalesceTicks =
             (long)(TimeSpan.FromMilliseconds(250).TotalSeconds * Stopwatch.Frequency);
 
@@ -67,7 +68,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_connectLock = new(1, 1);
-        private readonly System.Threading.Lock m_disposeGate = new();
+        private readonly Lock m_disposeGate = new();
         private readonly ConcurrentDictionary<string, NodeId> m_resolvedPaths = new(StringComparer.Ordinal);
         private ISession? m_session;
         private ISubscription? m_modelChangeSubscription;
@@ -126,10 +127,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             {
                 // Idempotent: only create the managed session once. A concurrent
                 // caller may have established it while this call awaited the lock.
-                if (m_session == null)
-                {
-                    m_session = await CreateSessionAsync(ct).ConfigureAwait(false);
-                }
+                m_session ??= await CreateSessionAsync(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -336,12 +334,12 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             ISession session = await EnsureConnectedAsync(ct).ConfigureAwait(false);
 
-            var request = new Opc.Ua.BrowsePath
+            var request = new BrowsePath
             {
                 StartingNode = ObjectIds.ObjectsFolder,
                 RelativePath = NodeBrowsePath.ToRelativePath(nodeId)
             };
-            ArrayOf<Opc.Ua.BrowsePath> requests = [request];
+            ArrayOf<BrowsePath> requests = [request];
 
             TranslateBrowsePathsToNodeIdsResponse response = await session
                 .TranslateBrowsePathsToNodeIdsAsync(null, requests, ct)
@@ -360,7 +358,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     result.StatusCode);
             }
 
-            NodeId resolved = ExpandedNodeId.ToNodeId(
+            var resolved = ExpandedNodeId.ToNodeId(
                 result.Targets[0].TargetId,
                 session.MessageContext.NamespaceUris);
             m_resolvedPaths[path] = resolved;
@@ -438,7 +436,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             CancellationToken ct)
         {
             var watch = Stopwatch.StartNew();
-            TimeSpan budget = TimeSpan.FromMilliseconds(5000);
+            var budget = TimeSpan.FromMilliseconds(5000);
 
             while (!subscription.Created ||
                 (!item.Created && StatusCode.IsGood(item.Error.StatusCode)))
@@ -482,9 +480,10 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 return session;
             }
             await ConnectAsync(ct).ConfigureAwait(false);
-            return m_session ?? throw ServiceResultException.Create(
-                StatusCodes.BadNotConnected,
-                "External server session is not connected.");
+            return m_session ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotConnected,
+                    "External server session is not connected.");
         }
 
         private void ThrowIfDisposed()
@@ -709,7 +708,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
             {
