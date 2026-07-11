@@ -449,7 +449,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             IOpcUaServerBuilder opcTcp = builder.AddOpcTcpTransport();
             IOpcUaServerBuilder https = builder.AddHttpsTransport();
             IOpcUaServerBuilder wss = builder.AddWssTransport();
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
             IOpcUaServerBuilder kestrel = builder.AddKestrelOpcTcpTransport();
             IOpcUaServerBuilder webApi = builder.AddWebApiTransport();
 #endif
@@ -458,7 +458,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(opcTcp, Is.SameAs(builder));
             Assert.That(https, Is.SameAs(builder));
             Assert.That(wss, Is.SameAs(builder));
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
             Assert.That(kestrel, Is.SameAs(builder));
             Assert.That(webApi, Is.SameAs(builder));
 #endif
@@ -473,7 +473,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.Throws<ArgumentNullException>(() => builder.AddOpcTcpTransport());
             Assert.Throws<ArgumentNullException>(() => builder.AddHttpsTransport());
             Assert.Throws<ArgumentNullException>(() => builder.AddWssTransport());
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
             Assert.Throws<ArgumentNullException>(() => builder.AddKestrelOpcTcpTransport());
             Assert.Throws<ArgumentNullException>(() => builder.AddWebApiTransport());
 #endif
