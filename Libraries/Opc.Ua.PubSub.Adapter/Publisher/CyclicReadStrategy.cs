@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         {
             if (nodesToRead.IsNull || nodesToRead.Count == 0)
             {
-                return ArrayOf<DataValue>.Empty;
+                return [];
             }
 
             try
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     nodesToRead.Count);
                 return CreateFaultedResults(
                     nodesToRead.Count,
-                    (StatusCode)StatusCodes.BadCommunicationError);
+                    StatusCodes.BadCommunicationError);
             }
         }
 
@@ -160,11 +160,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     DataEncoding = source.DataEncoding
                 };
             }
-            if (resolved is null)
-            {
-                return nodesToRead;
-            }
-            return resolved;
+            return resolved ?? nodesToRead;
         }
 
         private static ReadValueId[] MaterializeUpTo(ArrayOf<ReadValueId> source, int count)

@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Action execution status.
         /// </summary>
-        public StatusCode StatusCode { get; init; } = (StatusCode)StatusCodes.Good;
+        public StatusCode StatusCode { get; init; } = StatusCodes.Good;
 
         /// <summary>
         /// Action lifecycle state reported by the responder.

@@ -87,11 +87,10 @@ namespace Opc.Ua.Identity
                     result.RejectionReason ?? string.Empty);
             }
 
-            var identity = new UserIdentity
+            return new UserIdentity
             {
                 PolicyId = policy.PolicyId ?? string.Empty
             };
-            return identity;
         }
     }
 }

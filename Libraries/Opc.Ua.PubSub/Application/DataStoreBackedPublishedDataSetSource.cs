@@ -82,17 +82,17 @@ namespace Opc.Ua.PubSub.Application
             cancellationToken.ThrowIfCancellationRequested();
             var fields = new List<DataSetField>();
             ExtensionObject src = m_configuration.DataSetSource;
-            if (!src.IsNull
-                && src.TryGetValue(out PublishedDataItemsDataType? items)
-                && items is not null
-                && !items.PublishedData.IsNull)
+            if (!src.IsNull &&
+                src.TryGetValue(out PublishedDataItemsDataType? items) &&
+                items is not null &&
+                !items.PublishedData.IsNull)
             {
                 int index = 0;
                 foreach (PublishedVariableDataType pv in items.PublishedData)
                 {
-                    string fieldName = metaData is not null
-                        && !metaData.Fields.IsNull
-                        && index < metaData.Fields.Count
+                    string fieldName = metaData is not null &&
+                        !metaData.Fields.IsNull &&
+                        index < metaData.Fields.Count
                         ? metaData.Fields[index]?.Name ?? string.Empty
                         : string.Empty;
                     DataValue value = default;

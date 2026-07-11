@@ -61,12 +61,12 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void EnsureInstalledAsyncThrowsWhenContextIsNull()
         {
-            var variable = CreateVariable("v-null-ctx");
+            BaseDataVariableState variable = CreateVariable("v-null-ctx");
             var provider = new InMemoryHistorianProvider();
 
             Assert.That(
                 async () => await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    null!, variable, provider, CancellationToken.None),
+                    null!, variable, provider, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(
                 async () => await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, null!, provider, CancellationToken.None),
+                    context, null!, provider, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -86,11 +86,11 @@ namespace Opc.Ua.Server.Tests.Historian
         public void EnsureInstalledAsyncThrowsWhenProviderIsNull()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-null-prov");
+            BaseDataVariableState variable = CreateVariable("v-null-prov");
 
             Assert.That(
                 async () => await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, null!, CancellationToken.None),
+                    context, variable, null!, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -98,12 +98,12 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncCreatesConfigChildOnFirstCallAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-create");
+            BaseDataVariableState variable = CreateVariable("v-create");
             using var provider = new InMemoryHistorianProvider();
 
             HistoricalDataConfigurationState config =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(config, Is.Not.Null);
             var browseName = new QualifiedName(BrowseNames.HAConfiguration);
@@ -115,16 +115,16 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncIsIdempotentAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-idem");
+            BaseDataVariableState variable = CreateVariable("v-idem");
             using var provider = new InMemoryHistorianProvider();
 
             HistoricalDataConfigurationState first =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             HistoricalDataConfigurationState second =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(second, Is.SameAs(first),
                 "Second call must reuse the existing configuration child.");
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncPopulatesSteppedFromCapabilitiesAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-stepped");
+            BaseDataVariableState variable = CreateVariable("v-stepped");
             using var provider = new InMemoryHistorianProvider();
 
             // Override capabilities to include Stepped = true.
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistoricalDataConfigurationState config =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(config, Is.Not.Null);
             // config.Stepped may be null if the generator did not create the slot, but
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public async Task EnsureInstalledAsyncPopulatesDefinitionWhenSetAsync()
         {
             ISystemContext context = CreateSystemContext();
-            var variable = CreateVariable("v-def");
+            BaseDataVariableState variable = CreateVariable("v-def");
             using var provider = new InMemoryHistorianProvider();
 
             provider.Register(variable.NodeId, new HistorianNodeCapabilities
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistoricalDataConfigurationState config =
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    context, variable, provider, CancellationToken.None);
+                    context, variable, provider, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(config, Is.Not.Null);
         }
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(found, Is.InstanceOf<HistoricalDataConfigurationState>());
 
             // Dispose is part of the API contract.
-            await builder.DisposeAsync();
+            await builder.DisposeAsync().ConfigureAwait(false);
         }
 
         private static BaseDataVariableState CreateVariable(string name)

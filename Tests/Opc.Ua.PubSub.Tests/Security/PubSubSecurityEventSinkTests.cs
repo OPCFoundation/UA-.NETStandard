@@ -51,12 +51,13 @@ namespace Opc.Ua.PubSub.Tests.Security
         private const uint TokenId = 1U;
         private const string CallerId = "client/cn=test";
 
-        private static readonly byte[] s_outerPrefix = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01 };
-        private static readonly byte[] s_innerPayload = new byte[]
-        {
+        private static readonly byte[] s_outerPrefix = [0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01];
+
+        private static readonly byte[] s_innerPayload =
+        [
             0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE,
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
-        };
+        ];
 
         [Test]
         public async Task UadpSinkReceivesSignatureFailureWithoutKeyBytes()
@@ -100,10 +101,10 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .WrapAsync(s_outerPrefix, s_innerPayload)
                 .ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult first = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult replay = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -141,7 +142,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.Multiple(() =>
             {
                 Assert.That(((byte[][]?)response.Keys) ?? [], Has.Length.EqualTo(1));
-                Assert.That((uint)ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(events, Has.Count.EqualTo(2));
                 Assert.That(events[0].Kind, Is.EqualTo(PubSubSecurityEventKind.SksKeysIssued));
                 Assert.That(events[0].Outcome, Is.EqualTo(PubSubSecurityEventOutcome.Success));

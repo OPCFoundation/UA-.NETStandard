@@ -48,6 +48,7 @@ namespace Opc.Ua.Client.Roles
         /// Creates a new <see cref="RoleManagementClient"/> bound to
         /// <paramref name="session"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public RoleManagementClient Create(ISession session)
         {
             if (session is null)

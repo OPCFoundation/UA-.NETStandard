@@ -35,7 +35,6 @@ using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Mqtt;
 using Opc.Ua.PubSub.Mqtt.Internal;
-using Opc.Ua.PubSub.Transports;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -70,6 +69,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional options callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IMqttTransportBuilder AddMqttTransport(
             this IPubSubBuilder builder,
             Action<MqttConnectionOptions>? configure = null)
@@ -98,6 +98,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configuration">Root configuration.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IMqttTransportBuilder AddMqttTransport(
             this IPubSubBuilder builder,
             IConfiguration configuration)
@@ -120,6 +121,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="section">Configuration section.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IMqttTransportBuilder AddMqttTransport(
             this IPubSubBuilder builder,
             IConfigurationSection section)
@@ -144,6 +146,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">MQTT transport builder.</param>
         /// <param name="configure">Options callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IMqttTransportBuilder WithConnectionOptions(
             this IMqttTransportBuilder builder,
             Action<MqttConnectionOptions> configure)
@@ -167,6 +170,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">MQTT transport builder.</param>
         /// <param name="configuration">Root configuration.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IMqttTransportBuilder WithConnectionOptions(
             this IMqttTransportBuilder builder,
             IConfiguration configuration)
@@ -185,6 +189,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">MQTT transport builder.</param>
         /// <param name="section">Configuration section.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IMqttTransportBuilder WithConnectionOptions(
             this IMqttTransportBuilder builder,
             IConfigurationSection section)
@@ -208,6 +213,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="services">Service collection.</param>
         /// <param name="configure">Optional MQTT transport builder callback.</param>
         /// <returns>The same <paramref name="services"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddMqttPubSub(
             this IServiceCollection services,
             Action<IMqttTransportBuilder>? configure = null)
@@ -227,6 +233,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">OPC UA builder.</param>
         /// <param name="configure">Optional MQTT transport builder callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddMqttPubSub(
             this IOpcUaBuilder builder,
             Action<IMqttTransportBuilder>? configure = null)

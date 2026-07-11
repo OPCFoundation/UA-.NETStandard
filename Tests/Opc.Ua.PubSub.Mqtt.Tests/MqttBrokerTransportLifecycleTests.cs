@@ -81,7 +81,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 conn,
                 endpoint,
                 direction,
-                options ?? new MqttConnectionOptions
+                options ??
+                new MqttConnectionOptions
                 {
                     Endpoint = "mqtt://broker.example.com:1883"
                 },
@@ -252,7 +253,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await using MqttBrokerTransport transport = NewTransport(factory);
             await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
 
-            byte[] payload = new byte[] { 9, 8, 7, 6 };
+            byte[] payload = [9, 8, 7, 6];
             const string topic = "opcua/pubsub/json/data/42/1/3";
             await transport.SendAsync(payload, topic).ConfigureAwait(false);
 

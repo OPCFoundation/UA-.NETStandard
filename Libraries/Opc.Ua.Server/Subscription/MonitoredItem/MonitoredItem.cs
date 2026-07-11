@@ -312,6 +312,8 @@ namespace Opc.Ua.Server
             m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
+            m_restoredDataChangeQueue = storedMonitoredItem.RestoredDataChangeQueue;
+            m_restoredEventQueue = storedMonitoredItem.RestoredEventQueue;
             IsDurable = storedMonitoredItem.IsDurable;
             AlwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastError = storedMonitoredItem.LastError;
@@ -1938,18 +1940,21 @@ namespace Opc.Ua.Server
                         {
                             break; // queueing is disabled
                         }
-                        IDataChangeMonitoredItemQueue? restoredQueue = null;
-                        try
+                        IDataChangeMonitoredItemQueue? restoredQueue = m_restoredDataChangeQueue;
+                        if (restoredQueue == null)
                         {
-                            restoredQueue = m_subscriptionStore.RestoreDataChangeMonitoredItemQueue(
-                                Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger.LogError(
-                                ex,
-                                "Failed to restore queue for monitored item with id {MonitoredItemId}",
-                                Id);
+                            try
+                            {
+                                restoredQueue = m_subscriptionStore.RestoreDataChangeMonitoredItemQueue(
+                                    Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.LogError(
+                                    ex,
+                                    "Failed to restore queue for monitored item with id {MonitoredItemId}",
+                                    Id);
+                            }
                         }
 
                         if (restoredQueue != null)
@@ -1981,17 +1986,20 @@ namespace Opc.Ua.Server
                     }
                     else // create event queue.
                     {
-                        IEventMonitoredItemQueue? restoredQueue = null;
-                        try
+                        IEventMonitoredItemQueue? restoredQueue = m_restoredEventQueue;
+                        if (restoredQueue == null)
                         {
-                            restoredQueue = m_subscriptionStore.RestoreEventMonitoredItemQueue(Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger.LogError(
-                                ex,
-                                "Failed to restore queue for monitored item with id {Id}",
-                                Id);
+                            try
+                            {
+                                restoredQueue = m_subscriptionStore.RestoreEventMonitoredItemQueue(Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.LogError(
+                                    ex,
+                                    "Failed to restore queue for monitored item with id {Id}",
+                                    Id);
+                            }
                         }
                         if (restoredQueue != null)
                         {
@@ -2068,6 +2076,8 @@ namespace Opc.Ua.Server
         private DataChangeQueueHandler? m_dataChangeQueueHandler;
         private EventQueueHandler? m_eventQueueHandler;
         private readonly ISubscriptionStore m_subscriptionStore;
+        private readonly IDataChangeMonitoredItemQueue? m_restoredDataChangeQueue;
+        private readonly IEventMonitoredItemQueue? m_restoredEventQueue;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_semanticsChanged;

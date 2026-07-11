@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua.Server.Alarms
 {
@@ -39,7 +40,7 @@ namespace Opc.Ua.Server.Alarms
     /// </summary>
     public sealed class AlarmSuppressionEngine : IDisposable
     {
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly List<RegistrationEntry> m_registrations = [];
         private readonly Dictionary<NodeId, List<AlarmConditionState>> m_firstInGroupMembers = [];
         private bool m_disposed;

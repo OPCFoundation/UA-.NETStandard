@@ -40,7 +40,9 @@ namespace Opc.Ua.Gds.Client
     /// </summary>
     public sealed class KeyCredentialServiceClient
     {
+#pragma warning disable IDE0052 // Kept to root the session supplied to the generated service proxy for this client.
         private readonly ISession m_session;
+#pragma warning restore IDE0052
         private readonly KeyCredentialServiceTypeClient m_proxy;
 
         /// <summary>

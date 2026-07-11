@@ -195,7 +195,7 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
                 Variant value = (i % 5) switch
                 {
                     0 => new Variant((uint)i),
-                    1 => new Variant((double)i / 3.0),
+                    1 => new Variant(i / 3.0),
                     2 => new Variant(i % 2 == 0),
                     3 => new Variant((short)i),
                     _ => new Variant((long)i)

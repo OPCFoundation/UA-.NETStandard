@@ -301,7 +301,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             var transport = new SpyTransport();
             SetPrivateField(connection, "m_transport", transport);
 
-            var message = new Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage
+            var message = new UadpNetworkMessage
             {
                 PublisherId = PublisherId.FromUInt16(11),
                 WriterGroupId = 7
@@ -329,12 +329,12 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 diagnostics: diagnostics);
             var transport = new SpyTransport();
 
-            var exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await InvokePrivateAsync(
                     connection,
                     "SendChunkedAsync",
                     transport,
-                    new ReadOnlyMemory<byte>(new byte[] { 1, 2, 3, 4 }),
+                    new ReadOnlyMemory<byte>([1, 2, 3, 4]),
                     PublisherId.FromUInt16(1),
                     (ushort?)2,
                     CancellationToken.None).ConfigureAwait(false));
@@ -498,7 +498,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             ReadOnlyMemory<byte>? result = InvokePrivate<ReadOnlyMemory<byte>?>(
                 connection,
                 "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(new byte[] { 0xAA, 0xBB, 0xCC }),
+                new ReadOnlyMemory<byte>([0xAA, 0xBB, 0xCC]),
                 1,
                 PublisherId.FromUInt16(1),
                 (ushort)2);
@@ -591,7 +591,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task EncodeAndWrapUadpAsync_WhenWrapperThrows_RecordsDiagnosticAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var throwingWrapper = CreateSecurityWrapper(throwOnCurrentKey: true);
+            UadpSecurityWrapper throwingWrapper = CreateSecurityWrapper(throwOnCurrentKey: true);
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>(),
@@ -608,7 +608,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 await InvokePrivateAsync(
                     connection,
                     "EncodeAndWrapUadpAsync",
-                    new Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage(),
+                    new UadpNetworkMessage(),
                     context,
                     CancellationToken.None).ConfigureAwait(false));
 
@@ -622,7 +622,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task TryRespondToActionRequest_WithOutOfPolicyResponseAddress_DropsResponseAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, "\t"u8.ToArray());
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>
@@ -645,7 +645,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 }),
                 allowUnsecured: true);
 
-            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            var request = new UadpActionRequestMessage
             {
                 DataSetWriterId = 5,
                 ActionTargetId = 3,
@@ -674,7 +674,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task TryRespondToActionRequest_WithInPolicyResponseAddress_SendsResponseAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, "\t"u8.ToArray());
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>
@@ -694,7 +694,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 allowUnsecured: true,
                 responseAddressPolicy: PubSubResponseAddressPolicy.Matching("responses/*"));
 
-            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            var request = new UadpActionRequestMessage
             {
                 DataSetWriterId = 5,
                 ActionTargetId = 3,
@@ -723,7 +723,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task TryRespondToActionRequest_OnDatagramTransport_SendsRegardlessOfAddressAsync()
         {
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, new byte[] { 9 });
+            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, "\t"u8.ToArray());
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>
@@ -742,7 +742,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                         new PubSubActionHandlerResult { StatusCode = StatusCodes.Good })),
                 allowUnsecured: true);
 
-            var request = new Opc.Ua.PubSub.Encoding.Uadp.UadpActionRequestMessage
+            var request = new UadpActionRequestMessage
             {
                 DataSetWriterId = 5,
                 ActionTargetId = 3,
@@ -808,7 +808,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static byte[] Combine(byte[] prefix, byte[] payload)
         {
-            var combined = new byte[prefix.Length + payload.Length];
+            byte[] combined = new byte[prefix.Length + payload.Length];
             Buffer.BlockCopy(prefix, 0, combined, 0, prefix.Length);
             Buffer.BlockCopy(payload, 0, combined, prefix.Length, payload.Length);
             return combined;
@@ -853,7 +853,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Type resultType = result.GetType();
             if (resultType == typeof(ValueTask))
             {
-                await (ValueTask)result;
+                await ((ValueTask)result).ConfigureAwait(false);
                 return null;
             }
 
@@ -867,10 +867,12 @@ namespace Opc.Ua.PubSub.Tests.Connections
             return result;
         }
 
+#pragma warning disable RCS1213 // Reflection helper overload kept for private-method tests that do not disambiguate arity.
         private static MethodInfo GetMethod(Type type, string methodName)
         {
             return GetMethod(type, methodName, parameterCount: -1);
         }
+#pragma warning restore RCS1213
 
         private static MethodInfo GetMethod(Type type, string methodName, int parameterCount)
         {
@@ -919,7 +921,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
             public SpyTransport(IReadOnlyList<PubSubTransportFrame>? frames = null)
             {
-                m_frames = frames ?? Array.Empty<PubSubTransportFrame>();
+                m_frames = frames ?? [];
             }
 
             public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;

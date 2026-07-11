@@ -87,6 +87,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the singleton <see cref="AlarmClientFactory"/> and
         /// keeps the client builder chain flowing.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaClientBuilder AddAlarms(this IOpcUaClientBuilder builder)
         {
             if (builder is null)

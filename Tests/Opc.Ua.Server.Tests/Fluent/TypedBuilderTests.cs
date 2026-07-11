@@ -71,6 +71,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static (NodeManagerBuilder Builder, BaseDataVariableState Var)
             CreateBuilderForVariable<TValue>(NodeId dataType)
         {
+            _ = typeof(TValue);
             SystemContext ctx = CreateContext();
 
             var root = new BaseObjectState(parent: null)

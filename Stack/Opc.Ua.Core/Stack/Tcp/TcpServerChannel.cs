@@ -165,6 +165,7 @@ namespace Opc.Ua.Bindings
         /// outbound transport while reusing the rest of the reverse-hello
         /// machinery.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="transport"/> is <c>null</c>.</exception>
         public IAsyncResult BeginReverseConnect(
             uint channelId,
             Uri endpointUrl,
@@ -182,8 +183,10 @@ namespace Opc.Ua.Bindings
             ReverseConnectionUrl = endpointUrl;
             SetEndpointUrl(Listener.EndpointUrl.ToString());
 
-            var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger);
-            ar.Transport = transport;
+            var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout, m_logger)
+            {
+                Transport = transport
+            };
             Transport = transport;
 
             _ = ReverseConnectAsync(transport, endpointUrl, ar);

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -234,7 +233,7 @@ namespace Opc.Ua.Bindings
                 int sent = 0;
                 while (sent < chunk.Length)
                 {
-                    ReadOnlyMemory<byte> slice = chunk.Slice(sent);
+                    ReadOnlyMemory<byte> slice = chunk[sent..];
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                     int n = await socket
                         .SendAsync(slice, SocketFlags.None, ct)
@@ -282,11 +281,11 @@ namespace Opc.Ua.Bindings
                 // available on all targets but does not accept a CancellationToken,
                 // so we use it directly and rely on Close()/Dispose() for cancel.
                 int sent = await socket
-                    .SendAsync((IList<ArraySegment<byte>>)buffers, SocketFlags.None)
+                    .SendAsync(buffers, SocketFlags.None)
                     .ConfigureAwait(false);
 #else
                 int sent = await socket
-                    .SendAsync((IList<ArraySegment<byte>>)buffers, SocketFlags.None)
+                    .SendAsync(buffers, SocketFlags.None)
                     .ConfigureAwait(false);
 #endif
                 if (sent < buffers.TotalSize)

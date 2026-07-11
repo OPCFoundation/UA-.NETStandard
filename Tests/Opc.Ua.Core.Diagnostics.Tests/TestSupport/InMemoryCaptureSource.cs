@@ -37,8 +37,6 @@ using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests
 {
     /// <summary>
@@ -62,16 +60,16 @@ namespace Opc.Ua.Pcap.Tests
             string? pcapFilePath = null,
             string? keyLogFilePath = null)
         {
-            m_frames = [.. frames ?? Array.Empty<CaptureFrame>()];
-            m_materials = [.. materials ?? Array.Empty<ChannelKeyMaterial>()];
-            m_supportedFormats = [.. supportedFormats ?? new[]
-            {
-                FormatKind.PcapNg,
-                FormatKind.Json,
-                FormatKind.Csv,
-                FormatKind.Text,
-                FormatKind.ServiceTimeline
-            }];
+            m_frames = [.. frames ?? []];
+            m_materials = [.. materials ?? []];
+            m_supportedFormats = [.. supportedFormats ??
+                [
+                    FormatKind.PcapNg,
+                    FormatKind.Json,
+                    FormatKind.Csv,
+                    FormatKind.Text,
+                    FormatKind.ServiceTimeline
+                    ]];
             m_pcapFilePath = pcapFilePath;
             m_keyLogFilePath = keyLogFilePath;
         }

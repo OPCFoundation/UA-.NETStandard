@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -61,7 +60,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ConstructorNullMethodMapThrows()
         {
-            var session = new Mock<IServerSession>().Object;
+            IServerSession session = new Mock<IServerSession>().Object;
             Assert.That(
                 () => new ServerActionHandler(
                     session, null!, AdapterTestHelpers.Telemetry()),
@@ -120,11 +119,11 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Callback<NodeId, NodeId, ArrayOf<Variant>, CancellationToken>(
                     (_, _, args, _) => capturedArgs = args)
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     new[] { new Variant(3.5f) }.ToArrayOf())));
 
             string[] outputNames = ["Sum"];
-            var map = new ActionMethodMap()
+            ActionMethodMap map = new ActionMethodMap()
                 .Add(WriterId, TargetId, objectId, methodId, outputNames.ToArrayOf());
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
@@ -165,10 +164,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<NodeId>(), It.IsAny<NodeId>(),
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     new[] { new Variant(10), new Variant(20) }.ToArrayOf())));
 
-            var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 
@@ -199,9 +198,9 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     objectId, methodId,
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.Good, ArrayOf<Variant>.Empty)));
+                    StatusCodes.Good, [])));
 
-            var map = new ActionMethodMap().Add("Reset", objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add("Reset", objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 
@@ -232,7 +231,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Throws(ServiceResultException.Create(StatusCodes.BadMethodInvalid, "x"));
 
-            var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 
@@ -261,9 +260,9 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     It.IsAny<NodeId>(), It.IsAny<NodeId>(),
                     It.IsAny<ArrayOf<Variant>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<RemoteCallResult>(new RemoteCallResult(
-                    (StatusCode)StatusCodes.BadArgumentsMissing, ArrayOf<Variant>.Empty)));
+                    StatusCodes.BadArgumentsMissing, [])));
 
-            var map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
+            ActionMethodMap map = new ActionMethodMap().Add(WriterId, TargetId, objectId, methodId);
             var handler = new ServerActionHandler(
                 session.Object, map, AdapterTestHelpers.Telemetry());
 

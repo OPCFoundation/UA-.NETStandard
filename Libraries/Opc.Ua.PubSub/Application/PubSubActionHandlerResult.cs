@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Action execution status.
         /// </summary>
-        public StatusCode StatusCode { get; init; } = (StatusCode)StatusCodes.Good;
+        public StatusCode StatusCode { get; init; } = StatusCodes.Good;
 
         /// <summary>
         /// Named output fields to include in the Action response.

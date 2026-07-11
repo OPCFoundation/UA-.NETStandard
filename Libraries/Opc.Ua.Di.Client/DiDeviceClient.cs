@@ -176,7 +176,7 @@ namespace Opc.Ua.Di.Client
                 .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
 
             // Build browse paths for each identification property.
-            BrowsePath[] paths = new BrowsePath[IdentificationBrowseNames.Length];
+            var paths = new BrowsePath[IdentificationBrowseNames.Length];
             for (int i = 0; i < IdentificationBrowseNames.Length; i++)
             {
                 paths[i] = new BrowsePath
@@ -205,15 +205,15 @@ namespace Opc.Ua.Di.Client
                 .ConfigureAwait(false);
 
             // Collect resolved NodeIds for a batch read.
-            List<int> resolvedIndices = new();
-            List<ReadValueId> readItems = new();
+            List<int> resolvedIndices = [];
+            List<ReadValueId> readItems = [];
             for (int i = 0; i < translateResponse.Results.Count; i++)
             {
                 BrowsePathResult result = translateResponse.Results[i];
                 if (StatusCode.IsGood(result.StatusCode) &&
                     result.Targets.Count > 0)
                 {
-                    NodeId targetId = ExpandedNodeId.ToNodeId(
+                    var targetId = ExpandedNodeId.ToNodeId(
                         result.Targets[0].TargetId,
                         Session.NamespaceUris);
                     readItems.Add(new ReadValueId
@@ -281,7 +281,7 @@ namespace Opc.Ua.Di.Client
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
 
-            ReferenceDescription[] snapshot =
+            var snapshot =
                 new ReferenceDescription[references.Count];
             for (int i = 0; i < references.Count; i++)
             {
@@ -297,7 +297,7 @@ namespace Opc.Ua.Di.Client
                     continue;
                 }
 
-                NodeId targetId = ExpandedNodeId.ToNodeId(
+                var targetId = ExpandedNodeId.ToNodeId(
                     reference.NodeId, Session.NamespaceUris);
                 yield return new FunctionalGroupEntry(
                     targetId,
@@ -353,7 +353,7 @@ namespace Opc.Ua.Di.Client
                 return default;
             }
 
-            NodeId targetId = ExpandedNodeId.ToNodeId(
+            var targetId = ExpandedNodeId.ToNodeId(
                 translateResponse.Results[0].Targets[0].TargetId,
                 Session.NamespaceUris);
 

@@ -72,8 +72,6 @@ namespace Opc.Ua.PubSub.Security
     public sealed class SecurityTokenWindow : ISecurityTokenWindow
     {
         private readonly Lock m_lock = new();
-        private readonly TimeProvider m_timeProvider;
-        private readonly int m_historySize;
         private readonly Dictionary<uint, TokenState> m_states = [];
 
         /// <summary>
@@ -97,19 +95,19 @@ namespace Opc.Ua.PubSub.Security
                     nameof(historySize),
                     "History size must be positive.");
             }
-            m_historySize = historySize;
-            m_timeProvider = timeProvider ?? TimeProvider.System;
+            HistorySize = historySize;
+            TimeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>
         /// Configured per-token history size.
         /// </summary>
-        public int HistorySize => m_historySize;
+        public int HistorySize { get; }
 
         /// <summary>
         /// Time source supplied to the window. Reserved for future use.
         /// </summary>
-        public TimeProvider TimeProvider => m_timeProvider;
+        public TimeProvider TimeProvider { get; }
 
         /// <summary>
         /// Snapshot of the currently registered tokens.
@@ -136,7 +134,7 @@ namespace Opc.Ua.PubSub.Security
             {
                 if (!m_states.ContainsKey(tokenId))
                 {
-                    m_states.Add(tokenId, new TokenState(m_historySize));
+                    m_states.Add(tokenId, new TokenState(HistorySize));
                 }
             }
         }
@@ -180,16 +178,16 @@ namespace Opc.Ua.PubSub.Security
 
                 // Reject too-old / duplicate sequence numbers without
                 // mutating the window when the nonce check passed.
-                if (!state.WouldAcceptSequence(sequenceNumber, m_historySize))
+                if (!state.WouldAcceptSequence(sequenceNumber, HistorySize))
                 {
                     return false;
                 }
 
-                state.CommitSequence(sequenceNumber, m_historySize);
+                state.CommitSequence(sequenceNumber, HistorySize);
 
                 if (nonceKey != null)
                 {
-                    if (state.SeenNonces.Count >= m_historySize)
+                    if (state.SeenNonces.Count >= HistorySize)
                     {
                         byte[] evicted = state.NonceOrder.Dequeue();
                         state.SeenNonces.Remove(evicted);
@@ -295,7 +293,7 @@ namespace Opc.Ua.PubSub.Security
                     if (src >= 0)
                     {
                         value = m_window[src] << bitShift;
-                        if (bitShift != 0 && src - 1 >= 0)
+                        if (bitShift != 0 && src >= 1)
                         {
                             value |= m_window[src - 1] >> (64 - bitShift);
                         }

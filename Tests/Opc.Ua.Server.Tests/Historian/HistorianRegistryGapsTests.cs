@@ -31,7 +31,6 @@
 #pragma warning disable CA2000
 
 using System;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
@@ -141,7 +140,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             var registry = new HistorianProviderRegistry(new NamespaceTable());
 
-            Assert.DoesNotThrow(() => registry.ClearDefault());
+            Assert.DoesNotThrow(registry.ClearDefault);
             Assert.That(registry.Providers, Is.Empty);
         }
 
@@ -286,7 +285,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var throwing = new ThrowingDisposableProvider();
             registry.RegisterDefault(throwing);
 
-            Assert.DoesNotThrow(() => registry.Dispose());
+            Assert.DoesNotThrow(registry.Dispose);
         }
 
         [Test]
@@ -298,7 +297,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var ndp = new NonDisposableProvider();
             registry.RegisterDefault(ndp);
 
-            Assert.DoesNotThrow(() => registry.Dispose());
+            Assert.DoesNotThrow(registry.Dispose);
         }
 
         // -----------------------------------------------------------------
@@ -308,12 +307,19 @@ namespace Opc.Ua.Server.Tests.Historian
         private sealed class DisposableProvider : HistorianProviderBase, IDisposable
         {
             public bool Disposed { get; private set; }
-            public void Dispose() => Disposed = true;
+
+            public void Dispose()
+            {
+                Disposed = true;
+            }
         }
 
         private sealed class ThrowingDisposableProvider : HistorianProviderBase, IDisposable
         {
-            public void Dispose() => throw new InvalidOperationException("Intentional dispose failure.");
+            public void Dispose()
+            {
+                throw new InvalidOperationException("Intentional dispose failure.");
+            }
         }
 
         private sealed class NonDisposableProvider : HistorianProviderBase

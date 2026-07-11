@@ -44,8 +44,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     /// (Table 154). The PublisherId type bits are: Byte=0,
     /// UInt16=1, UInt32=2, UInt64=3, String=4. Value 5 is reserved.
     /// </remarks>
-#pragma warning disable CA2217 // Do not mark enums with FlagsAttribute — Table 158 uses both single-bit flags AND a
-                               // bitmask helper (PublisherIdTypeMask = 0x07); [Flags] reflects the spec semantics.
+    // CA2217: [Flags] with the multi-bit PublisherIdTypeMask (0x07) helper reflects the spec (Table 158).
+    // RCS1157: PublisherIdTypeMask (0x07) is a spec-defined multi-bit selector (bits 0-2), not named single-bit
+    // flags — intentional per Table 159.
+#pragma warning disable CA2217, RCS1157
     [Flags]
     public enum ExtendedFlags1EncodingMask : byte
     {
@@ -96,7 +98,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         ExtendedFlags2Enabled = 0x80
     }
-#pragma warning restore CA2217
+#pragma warning restore CA2217, RCS1157
 
     /// <summary>
     /// Helpers for converting between the on-wire UADP PublisherId type
@@ -118,10 +120,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// PublisherId type; <see langword="false"/> for reserved
         /// values.
         /// </returns>
-        public static bool TryGetPublisherIdType(byte raw, out PublisherIdType type)
+        public static bool TryGetPublisherIdType(this byte raw, out PublisherIdType type)
         {
-            int bits = raw & (byte)ExtendedFlags1EncodingMask.PublisherIdTypeMask;
-            switch (bits)
+            switch (raw & (byte)ExtendedFlags1EncodingMask.PublisherIdTypeMask)
             {
                 case 0:
                     type = PublisherIdType.Byte;
@@ -152,7 +153,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="type">PublisherId type to encode.</param>
         /// <returns>The 3-bit encoding (0..4).</returns>
-        public static byte EncodePublisherIdType(PublisherIdType type)
+        /// <exception cref="InvalidOperationException"></exception>
+        public static byte EncodePublisherIdType(this PublisherIdType type)
         {
             return type switch
             {

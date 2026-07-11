@@ -167,12 +167,16 @@ namespace Opc.Ua.Server.Tests.StateMachines
             int secondCalls = 0;
             FluentFiniteStateMachineState sm = BuildOnOffMachine()
                 .WithInitialState(1)
-                .WhenTransition(10, (ctx, m) => {
-                firstCalls++;
-                return true; })
-                .WhenTransition(10, (ctx, m) => {
-                secondCalls++;
-                return false; })
+                .WhenTransition(10, (ctx, m) =>
+                {
+                    firstCalls++;
+                    return true;
+                })
+                .WhenTransition(10, (ctx, m) =>
+                {
+                    secondCalls++;
+                    return false;
+                })
                 .StateMachine;
 
             ServiceResult result = sm.DoTransition(m_context, 10, 0, default, []);

@@ -148,16 +148,16 @@ namespace Opc.Ua.Gds.Tests.Hosting
             IConfiguration configuration = BuildConfiguration();
 
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddGdsClient(
-                    (IOpcUaBuilder)null, (Action<GdsClientOptions>)null),
+                () => ((IOpcUaBuilder)null).AddGdsClient(
+(Action<GdsClientOptions>)null),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddGdsClient(
-                    (IOpcUaBuilder)null, configuration),
+                () => ((IOpcUaBuilder)null).AddGdsClient(
+configuration),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddGdsClient(
-                    (IOpcUaBuilder)null, configuration.GetSection("OpcUa:Gds:Client")),
+                () => ((IOpcUaBuilder)null).AddGdsClient(
+configuration.GetSection("OpcUa:Gds:Client")),
                 Throws.ArgumentNullException);
         }
 
@@ -178,16 +178,16 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void AddGdsClientFromClientBuilderThrowsForNullArgs()
         {
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddGdsClient(
-                    (IOpcUaClientBuilder)null, (Action<GdsClientOptions>)null),
+                () => ((IOpcUaClientBuilder)null).AddGdsClient(
+(Action<GdsClientOptions>)null),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddGdsClient(
-                    (IOpcUaClientBuilder)null, (IConfiguration)null),
+                () => ((IOpcUaClientBuilder)null).AddGdsClient(
+(IConfiguration)null),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsClientBuilderExtensions.AddGdsClient(
-                    (IOpcUaClientBuilder)null, (IConfigurationSection)null),
+                () => ((IOpcUaClientBuilder)null).AddGdsClient(
+(IConfigurationSection)null),
                 Throws.ArgumentNullException);
 
             IOpcUaClientBuilder clientBuilder = new ServiceCollection().AddOpcUa()

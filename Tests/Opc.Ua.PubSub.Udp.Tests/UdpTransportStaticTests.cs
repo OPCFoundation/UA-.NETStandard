@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 

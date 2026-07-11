@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
@@ -393,7 +392,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // Supersedes the default IPubSubApplication registered by
             // RegisterCoreServices: a later AddSingleton wins for
             // GetRequiredService.
-            Services.AddSingleton<IPubSubApplication>(sp =>
+            Services.AddSingleton(sp =>
             {
                 ITelemetryContext telemetry =
                     sp.GetRequiredService<ITelemetryContext>();
@@ -402,7 +401,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 TimeProvider clock =
                     sp.GetService<TimeProvider>() ?? TimeProvider.System;
 
-                var pb = new PubSubApplicationBuilder(telemetry)
+                PubSubApplicationBuilder pb = new PubSubApplicationBuilder(telemetry)
                     .WithTimeProvider(clock)
                     .WithDiagnosticsLevel(options.DiagnosticsLevel);
                 IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();

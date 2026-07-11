@@ -28,14 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Redundancy;
+using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.StateMachine;
 
 namespace Opc.Ua.PubSub.Groups
@@ -54,12 +53,11 @@ namespace Opc.Ua.PubSub.Groups
     public sealed class ReaderGroup : IReaderGroup, IAsyncDisposable
     {
         private readonly ArrayOf<DataSetReader> m_readers;
-        private readonly ArrayOf<IDataSetReader> m_dataSetReaders;
         private readonly ILogger<ReaderGroup> m_logger;
         private readonly IPubSubScheduler? m_scheduler;
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly ITelemetryContext m_telemetry;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
         private string m_componentId = string.Empty;
         private bool m_roleChangedSubscribed;
@@ -117,10 +115,10 @@ namespace Opc.Ua.PubSub.Groups
             }
             Configuration = configuration;
             m_readers = readers;
-            m_dataSetReaders = readers.ToArrayOf<DataSetReader, IDataSetReader>(static reader => reader);
+            DataSetReaders = readers.ToArrayOf<DataSetReader, IDataSetReader>(static reader => reader);
             Name = configuration.Name ?? string.Empty;
             ConfigureActivationCoordinator(
-                componentId ?? string.Concat("pubsub:readergroup:", Name),
+                componentId ?? $"pubsub:readergroup:{Name}",
                 activationCoordinator);
             m_telemetry = telemetry;
             m_scheduler = scheduler;
@@ -140,7 +138,7 @@ namespace Opc.Ua.PubSub.Groups
         public string Name { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<IDataSetReader> DataSetReaders => m_dataSetReaders;
+        public ArrayOf<IDataSetReader> DataSetReaders { get; }
 
         /// <inheritdoc/>
         public ReaderGroupDataType Configuration { get; }
@@ -154,6 +152,7 @@ namespace Opc.Ua.PubSub.Groups
         /// </summary>
         /// <param name="networkMessage">Decoded network message.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask DispatchAsync(
             PubSubNetworkMessage networkMessage,
             CancellationToken cancellationToken = default)
@@ -224,7 +223,6 @@ namespace Opc.Ua.PubSub.Groups
                 await m_timeoutWatcher.StartAsync(cancellationToken).ConfigureAwait(false);
             }
         }
-
 
         internal void ConfigureActivationCoordinator(
             string componentId,

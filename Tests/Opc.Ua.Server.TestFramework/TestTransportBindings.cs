@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.TestFramework
         /// </summary>
         public static DefaultTransportBindingRegistry WithAllSchemes()
         {
-            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry
+            var registry = DefaultTransportBindingRegistry
                 .WithDefaultTcp();
             registry.RegisterListenerFactory(new HttpsTransportListenerFactory());
             registry.RegisterListenerFactory(new OpcHttpsTransportListenerFactory());

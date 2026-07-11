@@ -636,8 +636,10 @@ namespace Opc.Ua.Sessions.Tests
             public long ReceivedCount => Volatile.Read(ref m_receivedCount);
             public long ErrorCount => Volatile.Read(ref m_errorCount);
             public uint LastValue => (uint)Volatile.Read(ref m_lastValue);
+
             public IReadOnlyList<string> MonotonicityErrors
                 => [.. m_monotonicityErrors];
+
             public IReadOnlyList<string> Errors => [.. m_errors];
 
             public void RecordError(string error)

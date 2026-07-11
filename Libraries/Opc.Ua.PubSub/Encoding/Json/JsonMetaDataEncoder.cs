@@ -28,14 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json
 {
     /// <summary>
     /// Serialises a <see cref="DataSetMetaDataType"/> into a JSON
-    /// property using the Stack <see cref="Opc.Ua.JsonEncoder"/> so the
+    /// property using the Stack <see cref="Ua.JsonEncoder"/> so the
     /// structural type definition, configuration version, namespaces
     /// and structure definitions follow the canonical Part 6 mapping.
     /// </summary>
@@ -56,6 +55,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="metaData">Metadata payload.</param>
         /// <param name="mode">Encoding mode.</param>
         /// <param name="context">Stack message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void WriteMetaData(
             Utf8JsonWriter writer,
             string propertyName,
@@ -81,21 +81,21 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             JsonEncoderOptions options = JsonVariantEncoder.ToEncoderOptions(mode);
             using JsonBufferWriter buffer = new(1024);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context, options))
+            using (Ua.JsonEncoder encoder = new(buffer, context, options))
             {
-                encoder.WriteEncodeable<DataSetMetaDataType>("MetaData", metaData);
+                encoder.WriteEncodeable("MetaData", metaData);
             }
-            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            using var document = JsonDocument.Parse(buffer.WrittenMemory);
             JsonElement root = document.RootElement;
             writer.WritePropertyName(propertyName);
-            if (root.ValueKind != JsonValueKind.Object
-                || !root.TryGetProperty("MetaData", out JsonElement valueElement))
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("MetaData", out JsonElement valueElement))
             {
                 writer.WriteNullValue();
                 return;
             }
-            if (valueElement.ValueKind == JsonValueKind.Null
-                || valueElement.ValueKind == JsonValueKind.Undefined)
+            if (valueElement.ValueKind is JsonValueKind.Null or
+                JsonValueKind.Undefined)
             {
                 writer.WriteNullValue();
                 return;

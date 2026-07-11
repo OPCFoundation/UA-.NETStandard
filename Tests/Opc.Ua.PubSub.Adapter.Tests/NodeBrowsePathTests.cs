@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             const string path = "/2:Demo/2:CurrentTime";
 
-            NodeId nodeId = NodeBrowsePath.ToNodeId(path);
+            var nodeId = NodeBrowsePath.ToNodeId(path);
 
             Assert.That(NodeBrowsePath.IsBrowsePath(nodeId), Is.True);
             Assert.That(nodeId.NamespaceIndex, Is.Zero);
@@ -78,9 +78,9 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ToRelativePathMapsSlashSegmentsToHierarchicalReferences()
         {
-            NodeId nodeId = NodeBrowsePath.ToNodeId("/2:Demo/2:CurrentTime");
+            var nodeId = NodeBrowsePath.ToNodeId("/2:Demo/2:CurrentTime");
 
-            RelativePath relativePath = NodeBrowsePath.ToRelativePath(nodeId);
+            var relativePath = NodeBrowsePath.ToRelativePath(nodeId);
 
             Assert.That(relativePath.Elements.Count, Is.EqualTo(2));
             AssertRelativePathElement(
@@ -96,9 +96,9 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ToRelativePathMapsDotSegmentsToAggregates()
         {
-            NodeId nodeId = NodeBrowsePath.ToNodeId("/2:Obj.2:Prop");
+            var nodeId = NodeBrowsePath.ToNodeId("/2:Obj.2:Prop");
 
-            RelativePath relativePath = NodeBrowsePath.ToRelativePath(nodeId);
+            var relativePath = NodeBrowsePath.ToRelativePath(nodeId);
 
             Assert.That(relativePath.Elements.Count, Is.EqualTo(2));
             AssertRelativePathElement(

@@ -39,9 +39,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5">
     /// Part 14 §7.2.5</see>. The three values correspond 1:1 to
-    /// <see cref="Opc.Ua.JsonEncoderOptions.Verbose"/>,
-    /// <see cref="Opc.Ua.JsonEncoderOptions.Compact"/>, and
-    /// <see cref="Opc.Ua.JsonEncoderOptions.RawData"/> from the Stack.
+    /// <see cref="JsonEncoderOptions.Verbose"/>,
+    /// <see cref="JsonEncoderOptions.Compact"/>, and
+    /// <see cref="JsonEncoderOptions.RawData"/> from the Stack.
     /// The 1.04-era <c>Reversible</c> / <c>NonReversible</c> names are
     /// removed; <c>Verbose</c> replaces the former <c>Reversible</c> and
     /// <c>Compact</c> replaces the former <c>NonReversible</c>.

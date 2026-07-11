@@ -618,7 +618,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 // before the hard assertions.
                 await WaitForConditionAsync(
                     () => oldLease.State == ChannelState.Closed &&
-                          oldTransport.CloseCount == 1,
+                        oldTransport.CloseCount == 1,
                     "oldLease.State == Closed && oldTransport.CloseCount == 1").ConfigureAwait(false);
                 Assert.That(oldLease.State, Is.EqualTo(ChannelState.Closed));
                 Assert.That(oldTransport.CloseCount, Is.EqualTo(1));
@@ -959,7 +959,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 // hard assertions.
                 await WaitForConditionAsync(
                     () => listener.EventNames.Contains("ParticipantDetached") &&
-                          listener.EventNames.Contains("ChannelClosed"),
+                        listener.EventNames.Contains("ChannelClosed"),
                     "ParticipantDetached + ChannelClosed events").ConfigureAwait(false);
 
                 Assert.That(listener.EventNames, Does.Contain("StateChanged"), listener.FormatEvents());
@@ -1687,6 +1687,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             }
 
             private readonly ActivityListener m_listener;
+
             private readonly TaskCompletionSource<Activity> m_stoppedActivity = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
         }
@@ -1708,10 +1709,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     builder.Append(record.Name);
                     if (record.Payload.Count > 0)
                     {
-                        builder.Append(' ');
-                        builder.Append(string.Join(
+                        builder.Append(' ')
+                            .AppendJoin(
                             ", ",
-                            record.Payload.Select(p => $"{p.Key}={p.Value}")));
+                            record.Payload.Select(p => $"{p.Key}={p.Value}"));
                     }
                     builder.AppendLine();
                 }
@@ -1880,6 +1881,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         {
             private readonly Func<IManagedTransportChannel, int, CancellationToken,
                 ParticipantReconnectResult>? m_onReconnect;
+
             private int m_notificationCount;
 
             public TestParticipant(

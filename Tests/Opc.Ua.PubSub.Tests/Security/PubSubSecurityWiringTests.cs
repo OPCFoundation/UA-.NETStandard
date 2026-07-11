@@ -55,17 +55,18 @@ namespace Opc.Ua.PubSub.Tests.Security
     {
         private const string UdpProfile =
             "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+
         private const string DemoGroup = "DemoSecurityGroup";
 
         [Test]
         public void DependencyInjectionRegistersSecurityWrapperResolver()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddOpcUa().AddPubSub();
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var resolver = sp.GetService<IPubSubSecurityWrapperResolver>();
+            IPubSubSecurityWrapperResolver? resolver = sp.GetService<IPubSubSecurityWrapperResolver>();
 
             Assert.That(resolver, Is.Not.Null);
         }

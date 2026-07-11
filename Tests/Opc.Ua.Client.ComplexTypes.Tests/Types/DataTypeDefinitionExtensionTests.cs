@@ -398,7 +398,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 ]
             };
 
-            EnumDefinition definition = enumeratedType.ToEnumDefinition("Color");
+            var definition = enumeratedType.ToEnumDefinition("Color");
 
             Assert.That(definition, Is.Not.Null);
             EnumDefinition result = definition;
@@ -427,7 +427,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 EnumeratedValue = [new Schema.Binary.EnumeratedValue { Name = null, Value = 7 }]
             };
 
-            EnumDefinition definition = enumeratedType.ToEnumDefinition("Status");
+            var definition = enumeratedType.ToEnumDefinition("Status");
 
             Assert.That(definition, Is.Not.Null);
             EnumDefinition result = definition;
@@ -452,7 +452,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 EnumeratedValue = [new Schema.Binary.EnumeratedValue { Name = null, Value = 3 }]
             };
 
-            EnumDefinition definition = enumeratedType.ToEnumDefinition(string.Empty);
+            var definition = enumeratedType.ToEnumDefinition(string.Empty);
 
             Assert.That(definition, Is.Null);
         }
@@ -469,7 +469,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 EnumeratedValue = null
             };
 
-            EnumDefinition definition = enumeratedType.ToEnumDefinition("Empty");
+            var definition = enumeratedType.ToEnumDefinition("Empty");
 
             Assert.That(definition, Is.Not.Null);
             Assert.That(definition.Fields.Count, Is.Zero);
@@ -488,7 +488,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 new ExtensionObject(new EnumValueType { Value = 20, DisplayName = LocalizedText.Null })
             ];
 
-            EnumDefinition definition = values.ToEnumDefinition("Nums");
+            var definition = values.ToEnumDefinition("Nums");
 
             Assert.That(definition, Is.Not.Null);
             EnumDefinition result = definition;
@@ -515,7 +515,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 new ExtensionObject(new EnumValueType { Value = 5, DisplayName = LocalizedText.Null })
             ];
 
-            EnumDefinition definition = values.ToEnumDefinition(string.Empty);
+            var definition = values.ToEnumDefinition(string.Empty);
 
             Assert.That(definition, Is.Null);
         }
@@ -528,7 +528,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             ArrayOf<ExtensionObject> values = [];
 
-            EnumDefinition definition = values.ToEnumDefinition("Nums");
+            var definition = values.ToEnumDefinition("Nums");
 
             Assert.That(definition, Is.Not.Null);
             Assert.That(definition.Fields.Count, Is.Zero);
@@ -547,7 +547,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 LocalizedText.From("Two")
             ];
 
-            EnumDefinition definition = names.ToEnumDefinition("Digit");
+            var definition = names.ToEnumDefinition("Digit");
 
             Assert.That(definition, Is.Not.Null);
             EnumDefinition result = definition;
@@ -576,7 +576,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 LocalizedText.Null
             ];
 
-            EnumDefinition definition = names.ToEnumDefinition("Item");
+            var definition = names.ToEnumDefinition("Item");
 
             Assert.That(definition, Is.Not.Null);
             EnumDefinition result = definition;
@@ -599,7 +599,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             ArrayOf<LocalizedText> names = [LocalizedText.Null];
 
-            EnumDefinition definition = names.ToEnumDefinition(string.Empty);
+            var definition = names.ToEnumDefinition(string.Empty);
 
             Assert.That(definition, Is.Null);
         }
@@ -612,7 +612,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             ArrayOf<LocalizedText> names = [];
 
-            EnumDefinition definition = names.ToEnumDefinition("Digit");
+            var definition = names.ToEnumDefinition("Digit");
 
             Assert.That(definition, Is.Not.Null);
             Assert.That(definition.Fields.Count, Is.Zero);

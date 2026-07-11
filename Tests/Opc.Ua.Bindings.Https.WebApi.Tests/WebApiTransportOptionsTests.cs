@@ -27,13 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 #if NET8_0_OR_GREATER
 
-using System;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
@@ -92,10 +88,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         [Test]
         public void MultiplePropertyMutationsAreIndependent()
         {
-            var options = new WebApiTransportOptions();
-
-            options.DefaultEncoding = WebApiEncoding.Verbose;
-            options.HostingMode = WebApiHostingMode.OwnListener;
+            var options = new WebApiTransportOptions
+            {
+                DefaultEncoding = WebApiEncoding.Verbose,
+                HostingMode = WebApiHostingMode.OwnListener
+            };
 
             Assert.That(options.DefaultEncoding, Is.EqualTo(WebApiEncoding.Verbose));
             Assert.That(options.HostingMode, Is.EqualTo(WebApiHostingMode.OwnListener));

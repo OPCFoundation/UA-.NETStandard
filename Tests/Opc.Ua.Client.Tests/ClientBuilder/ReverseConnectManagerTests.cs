@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
-using Opc.Ua.Client;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
@@ -400,7 +399,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             manager.RegisterWaitingConnection(
                 uri, null, (_, _) => { }, ReverseConnectManager.ReverseConnectStrategy.Always);
 
-            Assert.That(() => manager.ClearWaitingConnections(), Throws.Nothing);
+            Assert.That(manager.ClearWaitingConnections, Throws.Nothing);
         }
 
         [Test]
@@ -409,7 +408,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             ITelemetryContext telemetry = CreateTelemetry();
             using var manager = new ReverseConnectManager(telemetry);
 
-            Assert.That(() => manager.ClearWaitingConnections(), Throws.Nothing);
+            Assert.That(manager.ClearWaitingConnections, Throws.Nothing);
         }
 
         // ----------------------------------------------------------------
@@ -433,7 +432,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 #pragma warning disable CA2000 // Intentionally testing Dispose() directly — not using `using`
             var manager = new ReverseConnectManager(telemetry);
 #pragma warning restore CA2000
-            Assert.That(() => manager.Dispose(), Throws.Nothing);
+            Assert.That(manager.Dispose, Throws.Nothing);
         }
 
         [Test]
@@ -444,7 +443,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var manager = new ReverseConnectManager(telemetry);
 #pragma warning restore CA2000
             manager.StartService(new ReverseConnectClientConfiguration());
-            Assert.That(() => manager.Dispose(), Throws.Nothing);
+            Assert.That(manager.Dispose, Throws.Nothing);
         }
 
         [Test]
@@ -457,7 +456,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             manager.Dispose();
 
             // A second Dispose must not throw.
-            Assert.That(() => manager.Dispose(), Throws.Nothing);
+            Assert.That(manager.Dispose, Throws.Nothing);
         }
 
         // ----------------------------------------------------------------

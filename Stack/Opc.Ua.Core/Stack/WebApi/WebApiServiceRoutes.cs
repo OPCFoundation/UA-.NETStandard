@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Bindings
 {
@@ -162,8 +161,10 @@ namespace Opc.Ua.Bindings
 
         private static readonly FrozenDictionary<string, WebApiServiceRoute> s_byPath
             = s_routes.ToFrozenDictionary(r => r.Path, StringComparer.OrdinalIgnoreCase);
+
         private static readonly FrozenDictionary<string, WebApiServiceRoute> s_byOperationId
             = s_routes.ToFrozenDictionary(r => r.OperationId, StringComparer.OrdinalIgnoreCase);
+
         private static readonly FrozenDictionary<Type, WebApiServiceRoute> s_byRequestType
             = s_routes.ToFrozenDictionary(r => r.RequestType);
 

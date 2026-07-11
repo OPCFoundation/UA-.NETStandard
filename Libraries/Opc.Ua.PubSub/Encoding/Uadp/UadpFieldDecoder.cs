@@ -59,6 +59,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Stack service message context.</param>
         /// <returns>The decoded fields, or <c>null</c> if the payload was
         /// malformed (truncated, missing required metadata, etc.).</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ArrayOf<DataSetField>? DecodeFields(
             ref UadpBinaryReader reader,
             PubSubFieldEncoding encoding,
@@ -75,13 +76,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return [];
             }
-            if (messageType == PubSubDataSetMessageType.Event
-                && encoding != PubSubFieldEncoding.Variant)
+            if (messageType == PubSubDataSetMessageType.Event &&
+                encoding != PubSubFieldEncoding.Variant)
             {
                 return null;
             }
-            if (messageType == PubSubDataSetMessageType.DeltaFrame
-                && encoding == PubSubFieldEncoding.RawData)
+            if (messageType == PubSubDataSetMessageType.DeltaFrame &&
+                encoding == PubSubFieldEncoding.RawData)
             {
                 return null;
             }
@@ -176,7 +177,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             string name = string.Empty;
             FieldMetaData? fmd = null;
-            if (metaData is not null && metadataIndex >= 0 &&
+            if (metaData is not null &&
+                metadataIndex >= 0 &&
                 metadataIndex < metaData.Fields.Count)
             {
                 fmd = metaData.Fields[metadataIndex];
@@ -189,23 +191,23 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             switch (encoding)
             {
                 case PubSubFieldEncoding.Variant:
+                {
+                    Variant value;
+                    try
                     {
-                        Variant value;
-                        try
-                        {
-                            value = reader.ReadVariant(context);
-                        }
-                        catch
-                        {
-                            return null;
-                        }
-                        return new DataSetField
-                        {
-                            Name = name,
-                            Value = value,
-                            Encoding = PubSubFieldEncoding.Variant
-                        };
+                        value = reader.ReadVariant(context);
                     }
+                    catch
+                    {
+                        return null;
+                    }
+                    return new DataSetField
+                    {
+                        Name = name,
+                        Value = value,
+                        Encoding = PubSubFieldEncoding.Variant
+                    };
+                }
                 case PubSubFieldEncoding.DataValue:
                     DataValue dv;
                     try
@@ -228,32 +230,32 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         Encoding = PubSubFieldEncoding.DataValue
                     };
                 case PubSubFieldEncoding.RawData:
+                {
+                    if (fmd is null)
                     {
-                        if (fmd is null)
-                        {
-                            return null;
-                        }
-                        Variant value;
-                        try
-                        {
-                            value = reader.ReadRawScalar(
-                                fmd.BuiltInType.ToBuiltInType(),
-                                fmd.ValueRank,
-                                fmd.MaxStringLength,
-                                fmd.ArrayDimensions,
-                                context);
-                        }
-                        catch
-                        {
-                            return null;
-                        }
-                        return new DataSetField
-                        {
-                            Name = name,
-                            Value = value,
-                            Encoding = PubSubFieldEncoding.RawData
-                        };
+                        return null;
                     }
+                    Variant value;
+                    try
+                    {
+                        value = reader.ReadRawScalar(
+                            fmd.BuiltInType.ToBuiltInType(),
+                            fmd.ValueRank,
+                            fmd.MaxStringLength,
+                            fmd.ArrayDimensions,
+                            context);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                    return new DataSetField
+                    {
+                        Name = name,
+                        Value = value,
+                        Encoding = PubSubFieldEncoding.RawData
+                    };
+                }
                 default:
                     return null;
             }

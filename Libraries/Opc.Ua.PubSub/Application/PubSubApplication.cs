@@ -67,25 +67,33 @@ namespace Opc.Ua.PubSub.Application
         private readonly List<PubSubConnection> m_connections;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger<PubSubApplication> m_logger;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly SemaphoreSlim m_mutationGate = new(1, 1);
 
         private readonly IPubSubTransportFactory[] m_factories;
         private readonly INetworkMessageEncoder[] m_encoderArray;
         private readonly INetworkMessageDecoder[] m_decoderArray;
+#pragma warning disable IDE0052 // Kept until PubSub security-wrapper resolution is wired to registered policies.
         private readonly IPubSubSecurityPolicy[] m_securityPolicies;
+#pragma warning restore IDE0052
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
+        private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
         private readonly TimeProvider m_timeProvider;
+
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
             m_publishedDataSetSources;
+
         private readonly IReadOnlyDictionary<string, ISubscribedDataSetSink>?
             m_subscribedDataSetSinks;
+
         private readonly IDataSetSourceProvider? m_publishedDataSetSourceProvider;
         private readonly IDataSetSinkProvider? m_subscribedDataSetSinkProvider;
         private readonly IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
+
         private readonly Func<PubSubConnectionDataType, int>?
             m_maxNetworkMessageSizeResolver;
+
         private readonly Dictionary<string, IPubSubTransportFactory> m_factoryMap;
         private readonly Dictionary<string, INetworkMessageEncoder> m_encoderMap;
         private readonly Dictionary<string, INetworkMessageDecoder> m_decoderMap;
@@ -93,18 +101,25 @@ namespace Opc.Ua.PubSub.Application
 
         private readonly Dictionary<string, NodeId> m_connectionNodeIdsByName
             = new(StringComparer.Ordinal);
-        private readonly Dictionary<NodeId, string> m_connectionNamesByNodeId = new();
+
+        private readonly Dictionary<NodeId, string> m_connectionNamesByNodeId = [];
+
         private readonly Dictionary<NodeId, (string ConnectionName, string GroupName)>
-            m_groupRefs = new();
+            m_groupRefs = [];
+
         private readonly Dictionary<NodeId, (string ConnectionName,
-            string GroupName, string WriterName)> m_writerRefs = new();
+            string GroupName, string WriterName)> m_writerRefs = [];
+
         private readonly Dictionary<NodeId, (string ConnectionName,
-            string GroupName, string ReaderName)> m_readerRefs = new();
-        private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = new();
+            string GroupName, string ReaderName)> m_readerRefs = [];
+
+        private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = [];
+
         private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler,
             bool AllowUnsecured, PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionHandlers = [];
-        private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = new();
+
+        private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = [];
         private readonly IPubSubConfigurationStore m_configurationStore;
         private readonly IPubSubRuntimeStateStore m_runtimeStateStore;
 
@@ -137,6 +152,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="configurationStore">Optional external configuration store.</param>
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -154,7 +170,8 @@ namespace Opc.Ua.PubSub.Application
             Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
-            IPubSubActivationCoordinator? activationCoordinator = null)
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -174,7 +191,8 @@ namespace Opc.Ua.PubSub.Application
                 runtimeStateStore,
                 dataSetSourceProvider: null,
                 dataSetSinkProvider: null,
-                activationCoordinator)
+                activationCoordinator: activationCoordinator,
+                writerCheckpointStore: writerCheckpointStore)
         {
         }
 
@@ -212,6 +230,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="configurationStore">Optional external configuration store.</param>
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -231,7 +250,8 @@ namespace Opc.Ua.PubSub.Application
             Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
-            IPubSubActivationCoordinator? activationCoordinator = null)
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -251,7 +271,8 @@ namespace Opc.Ua.PubSub.Application
                 runtimeStateStore,
                 dataSetSourceProvider,
                 dataSetSinkProvider,
-                activationCoordinator)
+                activationCoordinator,
+                writerCheckpointStore)
         {
         }
 
@@ -274,7 +295,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IDataSetSourceProvider? dataSetSourceProvider = null,
             IDataSetSinkProvider? dataSetSinkProvider = null,
-            IPubSubActivationCoordinator? activationCoordinator = null)
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
         {
             if (snapshot is null)
             {
@@ -316,12 +338,13 @@ namespace Opc.Ua.PubSub.Application
             {
                 throw new ArgumentNullException(nameof(timeProvider));
             }
-            m_factories = transportFactories.ToArray();
-            m_encoderArray = encoders.ToArray();
-            m_decoderArray = decoders.ToArray();
-            m_securityPolicies = securityPolicies.ToArray();
+            m_factories = [.. transportFactories];
+            m_encoderArray = [.. encoders];
+            m_decoderArray = [.. decoders];
+            m_securityPolicies = [.. securityPolicies];
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
+            m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
@@ -439,8 +462,8 @@ namespace Opc.Ua.PubSub.Application
                                 out IPublishedDataSet? publishedDataSet))
                             {
                                 m_logger.LogWarning(
-                                    "DataSetWriter '{Writer}' references unknown "
-                                    + "PublishedDataSet '{Pds}'; skipping.",
+                                    "DataSetWriter '{Writer}' references unknown " +
+                                    "PublishedDataSet '{Pds}'; skipping.",
                                     writerConfig.Name,
                                     publishedDataSetName);
                                 continue;
@@ -516,10 +539,10 @@ namespace Opc.Ua.PubSub.Application
                     new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
                         "PSC1401",
-                        $"Connection '{connectionConfig.Name}' is configured for "
-                        + $"SecurityMode {requiredSecurityMode} but no security wrapper "
-                        + "could be resolved (missing key provider, policy or resolver). "
-                        + "Refusing to start in the clear.",
+                        $"Connection '{connectionConfig.Name}' is configured for " +
+                        $"SecurityMode {requiredSecurityMode} but no security wrapper " +
+                        "could be resolved (missing key provider, policy or resolver). " +
+                        "Refusing to start in the clear.",
                         $"Connections[{connectionConfig.Name}]",
                         "8.3")
                 ]);
@@ -542,7 +565,8 @@ namespace Opc.Ua.PubSub.Application
                 maxMessageSize,
                 requiredSecurityMode,
                 m_scheduler,
-                m_activationCoordinator);
+                m_activationCoordinator,
+                m_writerCheckpointStore);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)
@@ -764,6 +788,8 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Sends a PubSub discovery request on all active runtime connections.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public async ValueTask<PubSubDiscoveryResult> RequestDiscoveryAsync(
             PubSubDiscoveryRequest request,
             TimeSpan timeout,
@@ -818,6 +844,9 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Sends a PubSub Action request on the selected runtime connection.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<PubSubActionResponse> InvokeActionAsync(
             PubSubActionRequest request,
             TimeSpan timeout,
@@ -839,8 +868,8 @@ namespace Opc.Ua.PubSub.Application
             }
             for (int i = 0; i < connections.Length; i++)
             {
-                if (string.IsNullOrEmpty(request.Target.ConnectionName)
-                    || string.Equals(
+                if (string.IsNullOrEmpty(request.Target.ConnectionName) ||
+                    string.Equals(
                         connections[i].Name,
                         request.Target.ConnectionName,
                         StringComparison.Ordinal))
@@ -858,6 +887,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Registers a responder-side Action handler on matching connections.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RegisterActionHandler(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
@@ -881,8 +911,8 @@ namespace Opc.Ua.PubSub.Application
             }
             for (int i = 0; i < connections.Length; i++)
             {
-                if (string.IsNullOrEmpty(target.ConnectionName)
-                    || string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
+                if (string.IsNullOrEmpty(target.ConnectionName) ||
+                    string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
                 {
                     connections[i].RegisterActionHandler(
                         target, handler, allowUnsecured, responseAddressPolicy);
@@ -905,6 +935,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Replaces the entire runtime configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<ArrayOf<StatusCode>> ReplaceConfigurationAsync(
             PubSubConfigurationDataType configuration,
             CancellationToken cancellationToken = default)
@@ -925,6 +956,8 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a connection to the running configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public ValueTask<NodeId> AddConnectionAsync(
             PubSubConnectionDataType configuration,
             CancellationToken cancellationToken = default)
@@ -990,6 +1023,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a WriterGroup to an existing connection.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddWriterGroupAsync(
             NodeId connectionId,
             WriterGroupDataType configuration,
@@ -1039,6 +1073,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a ReaderGroup to an existing connection.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddReaderGroupAsync(
             NodeId connectionId,
             ReaderGroupDataType configuration,
@@ -1152,6 +1187,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a DataSetWriter to an existing WriterGroup.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddDataSetWriterAsync(
             NodeId writerGroupId,
             DataSetWriterDataType configuration,
@@ -1273,6 +1309,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a DataSetReader to an existing ReaderGroup.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddDataSetReaderAsync(
             NodeId readerGroupId,
             DataSetReaderDataType configuration,
@@ -1394,6 +1431,7 @@ namespace Opc.Ua.PubSub.Application
         /// <summary>
         /// Adds a PublishedDataSet to the running configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ValueTask<NodeId> AddPublishedDataSetAsync(
             PublishedDataSetDataType configuration,
             CancellationToken cancellationToken = default)
@@ -1508,16 +1546,16 @@ namespace Opc.Ua.PubSub.Application
 
         private IPublishedDataSetSource ResolvePublishedDataSetSource(string publishedDataSetName)
         {
-            if (m_publishedDataSetSources is not null
-                && m_publishedDataSetSources.TryGetValue(
+            if (m_publishedDataSetSources is not null &&
+                m_publishedDataSetSources.TryGetValue(
                     publishedDataSetName,
                     out IPublishedDataSetSource? configured))
             {
                 return configured;
             }
 
-            if (m_publishedDataSetSourceProvider is not null
-                && m_publishedDataSetSourceProvider.TryGetSource(
+            if (m_publishedDataSetSourceProvider is not null &&
+                m_publishedDataSetSourceProvider.TryGetSource(
                     publishedDataSetName,
                     out IPublishedDataSetSource providerSource))
             {
@@ -1529,16 +1567,16 @@ namespace Opc.Ua.PubSub.Application
 
         private ISubscribedDataSetSink ResolveSubscribedDataSetSink(string dataSetReaderName)
         {
-            if (m_subscribedDataSetSinks is not null
-                && m_subscribedDataSetSinks.TryGetValue(
+            if (m_subscribedDataSetSinks is not null &&
+                m_subscribedDataSetSinks.TryGetValue(
                     dataSetReaderName,
                     out ISubscribedDataSetSink? configured))
             {
                 return configured;
             }
 
-            if (m_subscribedDataSetSinkProvider is not null
-                && m_subscribedDataSetSinkProvider.TryGetSink(
+            if (m_subscribedDataSetSinkProvider is not null &&
+                m_subscribedDataSetSinkProvider.TryGetSink(
                     dataSetReaderName,
                     out ISubscribedDataSetSink providerSink))
             {
@@ -1962,8 +2000,7 @@ namespace Opc.Ua.PubSub.Application
                 return;
             }
 
-            PublishedDataSetDataType[] publishedDataSets = [.. configuration.PublishedDataSets];
-            foreach (PublishedDataSetDataType dataSet in publishedDataSets)
+            foreach (PublishedDataSetDataType dataSet in (PublishedDataSetDataType[])[.. configuration.PublishedDataSets])
             {
                 ConfigurationVersionDataType? version = dataSet.DataSetMetaData?.ConfigurationVersion;
                 if (!string.IsNullOrEmpty(dataSet.Name) && version is not null)
@@ -1983,9 +2020,7 @@ namespace Opc.Ua.PubSub.Application
         {
             List<PubSubConnectionDataType> previousConnections =
                 CloneConnections(previousConfiguration);
-            List<PubSubConnectionDataType> currentConnections =
-                CloneConnections(currentConfiguration);
-            foreach (PubSubConnectionDataType currentConnection in currentConnections)
+            foreach (PubSubConnectionDataType currentConnection in CloneConnections(currentConfiguration))
             {
                 string connectionName = currentConnection.Name ?? string.Empty;
                 PubSubConnectionDataType? previousConnection = previousConnections.Find(
@@ -2004,8 +2039,8 @@ namespace Opc.Ua.PubSub.Application
                             writerGroup.Name,
                             currentWriterGroup.Name,
                             StringComparison.Ordinal));
-                    if (previousWriterGroup is not null
-                        && Utils.IsEqual(previousWriterGroup, currentWriterGroup))
+                    if (previousWriterGroup is not null &&
+                        Utils.IsEqual(previousWriterGroup, currentWriterGroup))
                     {
                         continue;
                     }
@@ -2415,7 +2450,7 @@ namespace Opc.Ua.PubSub.Application
         private RebuiltState BuildRebuiltState(
             PubSubConfigurationDataType configuration)
         {
-            PubSubConfigurationSnapshot snapshot =
+            var snapshot =
                 PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
             var validator = new PubSubConfigurationValidator(
                 m_factories.Select(factory => factory.TransportProfileUri));
@@ -2520,7 +2555,7 @@ namespace Opc.Ua.PubSub.Diagnostics
     {
         private readonly IPubSubDiagnostics m_root;
         private readonly Func<IEnumerable<IPubSubDiagnostics>>? m_componentResolver;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private PubSubDiagnosticsLevel m_level;
 
         /// <summary>
@@ -2605,7 +2640,7 @@ namespace Opc.Ua.PubSub.Diagnostics
         private IEnumerable<IPubSubDiagnostics> ResolveComponents()
         {
             return m_componentResolver?.Invoke()
-                ?? Array.Empty<IPubSubDiagnostics>();
+                ?? [];
         }
     }
 }

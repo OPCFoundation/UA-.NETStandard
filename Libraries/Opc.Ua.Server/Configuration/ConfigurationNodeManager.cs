@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -473,8 +472,8 @@ namespace Opc.Ua.Server
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState!.NamespaceUri!.Value = namespaceUri;
-                namespaceMetadataState.AddDefaultRolePermissions(SystemContext);
-                namespaceMetadataState.AddDefaultUserRolePermissions(SystemContext);
+                namespaceMetadataState.AddDefaultRolePermissions(SystemContext)
+                    .AddDefaultUserRolePermissions(SystemContext);
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
@@ -686,14 +685,14 @@ namespace Opc.Ua.Server
                         "No existing certificate found for the specified certificate type and subject name.");
                 }
 
-                newIssuerCollection = new CertificateCollection();
+                newIssuerCollection = [];
 
                 try
                 {
                     // build issuer chain
                     foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
+                        using var issuerCertificate = Certificate.FromRawData(issuerRawCert);
                         newIssuerCollection.Add(issuerCertificate);
                     }
                 }
@@ -1146,7 +1145,7 @@ namespace Opc.Ua.Server
             using CertificateCollection validationChain = issuerCertificates.AddRef();
             validationChain.Insert(0, newCertificate);
 
-            using var validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
+            using CertificateManager validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
             var options = new Security.Certificates.CertificateValidationOptions
             {
                 AllowCertificateDownload = false,
@@ -1309,8 +1308,8 @@ namespace Opc.Ua.Server
             // acquired entry is disposed at method scope; the borrowed
             // certificate is only read.
             using CertificateEntry? currentEntry =
-                (m_configuration.CertificateManager as ICertificateRegistry)
-                    ?.AcquireApplicationCertificateByType(certificateTypeId);
+                (m_configuration.CertificateManager as ICertificateRegistry)?
+                    .AcquireApplicationCertificateByType(certificateTypeId);
             Certificate? currentCert = currentEntry?.Certificate;
 
             if (string.IsNullOrEmpty(subjectName))

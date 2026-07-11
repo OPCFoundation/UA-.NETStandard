@@ -52,6 +52,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// <param name="stableWindowSamples">The number of consecutive stable samples required.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <exception cref="TimeoutException">The manager did not become quiescent before timeout.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="manager"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static async Task ForManagerAsync(
             IClientChannelManager manager,
             TimeSpan timeout,
@@ -77,13 +79,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             DateTimeOffset deadline = timeProvider.GetUtcNow() + timeout;
             SnapshotSignature? previous = null;
             int stableSamples = 0;
-            IReadOnlyList<ManagedChannelDiagnostic> lastSnapshot = [];
 
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
                 IReadOnlyList<ManagedChannelDiagnostic> snapshot = manager.GetChannelDiagnostics();
-                lastSnapshot = snapshot;
+                IReadOnlyList<ManagedChannelDiagnostic> lastSnapshot = snapshot;
 
                 if (!HasTransientState(snapshot))
                 {
@@ -124,6 +125,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// <param name="timeout">The maximum time to wait.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>True if the refcount was observed; false when the timeout elapsed.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="manager"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static Task<bool> EntryRefcountReachesAsync(
             IClientChannelManager manager,
             ManagedChannelKey key,
@@ -156,6 +159,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// <param name="timeout">The maximum time to wait.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>True if the entry disappeared; false when the timeout elapsed.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="manager"/> is <c>null</c>.</exception>
         public static Task<bool> EntryGoneAsync(
             IClientChannelManager manager,
             ManagedChannelKey key,
@@ -331,8 +335,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                     .Append(", LastReconnectAttempt=")
                     .Append(diagnostic.LastReconnectAttempt.ToString(CultureInfo.InvariantCulture))
                     .Append(", LastError=")
-                    .Append(diagnostic.LastError?.ToString() ?? string.Empty)
-                    .AppendLine();
+                    .AppendLine(diagnostic.LastError?.ToString() ?? string.Empty);
             }
 
             return builder.ToString();

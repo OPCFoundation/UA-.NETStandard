@@ -70,6 +70,7 @@ namespace Opc.Ua.PubSub.Pcap
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The started capture source.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<IPubSubCaptureSource> StartAsync(
             CancellationToken cancellationToken = default)
         {

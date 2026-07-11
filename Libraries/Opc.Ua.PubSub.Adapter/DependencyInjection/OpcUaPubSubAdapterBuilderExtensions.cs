@@ -33,7 +33,6 @@ using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Adapter;
@@ -42,8 +41,6 @@ using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Adapter.Diagnostics;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
-using Opc.Ua.PubSub.Adapter.Subscriber;
-using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.DataSets;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -77,6 +74,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configurePublisher">Publisher adapter options callback.</param>
         /// <param name="configureSubscriber">Subscriber adapter options callback.</param>
         /// <returns>The same <paramref name="services"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddServerAdapterPubSub(
             this IServiceCollection services,
             PubSubConfigurationDataType configuration,
@@ -103,6 +101,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configurePublisher">Publisher adapter options callback.</param>
         /// <param name="configureSubscriber">Subscriber adapter options callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddServerAdapterPubSub(
             this IOpcUaBuilder builder,
             PubSubConfigurationDataType configuration,
@@ -156,7 +155,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ServerPublisherOptions> configure)
         {
             return AddServerAsPublisher(
-                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+                builder, Options.Options.DefaultName, configure);
         }
 
         /// <summary>
@@ -177,6 +176,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddServerAsPublisher(
             this IPubSubBuilder builder,
             string name,
@@ -266,7 +266,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ServerSubscriberOptions> configure)
         {
             return AddServerAsSubscriber(
-                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+                builder, Options.Options.DefaultName, configure);
         }
 
         /// <summary>
@@ -287,6 +287,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddServerAsSubscriber(
             this IPubSubBuilder builder,
             string name,
@@ -376,7 +377,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ServerActionResponderOptions> configure)
         {
             return AddServerAsActionResponder(
-                builder, Microsoft.Extensions.Options.Options.DefaultName, configure);
+                builder, Options.Options.DefaultName, configure);
         }
 
         /// <summary>
@@ -397,6 +398,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <returns>
         /// The same builder, to allow fluent composition.
         /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddServerAsActionResponder(
             this IPubSubBuilder builder,
             string name,
@@ -652,6 +654,7 @@ namespace Microsoft.Extensions.DependencyInjection
             assign(parsed);
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept as the DI session factory hook for upcoming PubSub adapter wiring.
         private static IServerSession CreateSession(
             IServiceProvider sp,
             ServerConnectionOptions connection,
@@ -661,7 +664,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IServerSessionFactory>();
             return factory.Create(connection, telemetry);
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Kept for pending configuration-driven PubSub adapter validation.
         private static List<PublishedDataSetDataType> EnumeratePublishedDataSets(
             PubSubConfigurationDataType configuration)
         {
@@ -679,7 +684,9 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             return dataSets;
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Kept for pending configuration-driven PubSub adapter validation.
         private static List<DataSetReaderDataType> EnumerateDataSetReaders(
             PubSubConfigurationDataType configuration)
         {
@@ -711,7 +718,9 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             return readers;
         }
+#pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Kept for pending writer/reader dataset-name cross-validation.
         private static HashSet<string> CollectWriterDataSetNames(
             PubSubConfigurationDataType configuration)
         {
@@ -743,5 +752,6 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             return names;
         }
+#pragma warning restore IDE0051, RCS1213
     }
 }

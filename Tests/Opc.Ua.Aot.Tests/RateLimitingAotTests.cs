@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Net;
 using Opc.Ua.Client;
 using Opc.Ua.Server;

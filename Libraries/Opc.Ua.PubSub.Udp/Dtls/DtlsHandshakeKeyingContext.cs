@@ -147,6 +147,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Verifies a received Finished verify_data against the expected value in constant time.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public void VerifyFinished(ReadOnlySpan<byte> expected, ReadOnlySpan<byte> actual)
         {
             if (!CryptoUtils.FixedTimeEquals(expected, actual))

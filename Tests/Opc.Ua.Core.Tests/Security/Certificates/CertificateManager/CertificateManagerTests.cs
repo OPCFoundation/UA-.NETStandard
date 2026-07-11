@@ -943,7 +943,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // store) — the exact setup described in issue #3896.
             string trustedPeerPath = CreateTempDir();
             string issuerStorePath = CreateTempDir();
-            using (Certificate rootCaPublic = Certificate.FromRawData(rootCa.RawData))
+            using (var rootCaPublic = Certificate.FromRawData(rootCa.RawData))
             {
                 await rootCaPublic.AddToStoreAsync(
                     CertificateStoreType.Directory,
@@ -1299,7 +1299,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create("CN=IndependentlyTrustedX509")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+            using var publicKey = Certificate.FromRawData(cert.RawData);
 
             using var chain = new CertificateCollection { publicKey };
             try

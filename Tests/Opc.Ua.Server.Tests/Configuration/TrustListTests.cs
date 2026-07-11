@@ -82,7 +82,6 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
         [Test]
         public void OpenReadReturnsGoodAndSetsOpenCount()
         {
@@ -159,7 +158,7 @@ namespace Opc.Ua.Server.Tests
                 (byte)OpenFileMode.Write,
                 ref fileHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotWritable));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(fileHandle, Is.Zero);
         }
 
@@ -175,7 +174,7 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
@@ -196,7 +195,7 @@ namespace Opc.Ua.Server.Tests
                     context,
                     node.Open,
                     node.NodeId,
-                    (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                    (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                     ref fileHandle),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
@@ -238,10 +237,8 @@ namespace Opc.Ua.Server.Tests
                 ref data);
             Assert.That(
                 readWithStaleHandleResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
-
-
 
         [Test]
         public void OpenWithMasksSyncAllReturnsGood()
@@ -303,8 +300,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(decoded.IssuerCertificates, Is.Empty);
         }
 
-
-
         [Test]
         public void ReadWithInvalidFileHandleReturnsBadInvalidArgument()
         {
@@ -324,7 +319,7 @@ namespace Opc.Ua.Server.Tests
                 1024,
                 ref data);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -352,7 +347,7 @@ namespace Opc.Ua.Server.Tests
                 1024,
                 ref data);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -393,7 +388,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]
@@ -422,8 +417,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(readResult.Data.Length, Is.GreaterThan(0));
         }
 
-
-
         [Test]
         public void WriteAfterOpenWriteSucceeds()
         {
@@ -436,10 +429,10 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
             ServiceResult result = node.Write.OnCall(
                 context,
                 node.Write,
@@ -461,10 +454,10 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 CancellationToken.None).ConfigureAwait(false);
 
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3, 4 });
             WriteMethodStateResult writeResult = await node.Write.OnCallAsync(
                 context,
                 node.Write,
@@ -488,10 +481,10 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3 });
             ServiceResult result = node.Write.OnCall(
                 context,
                 node.Write,
@@ -499,7 +492,7 @@ namespace Opc.Ua.Server.Tests
                 fileHandle + 1,
                 payload);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -515,10 +508,10 @@ namespace Opc.Ua.Server.Tests
                 openingContext,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3 });
             ServiceResult result = node.Write.OnCall(
                 otherContext,
                 node.Write,
@@ -526,7 +519,7 @@ namespace Opc.Ua.Server.Tests
                 fileHandle,
                 payload);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -536,7 +529,7 @@ namespace Opc.Ua.Server.Tests
             CreateTrustList(node, allowWrite: false);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            ByteString payload = ByteString.From(new byte[] { 1 });
+            var payload = ByteString.From(new byte[] { 1 });
             Assert.That(
                 () => node.Write.OnCall(context, node.Write, node.NodeId, 1, payload),
                 Throws.TypeOf<ServiceResultException>()
@@ -556,10 +549,10 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
-            ByteString payload = ByteString.From(new byte[10]);
+            var payload = ByteString.From(new byte[10]);
             ServiceResult result = node.Write.OnCall(
                 context,
                 node.Write,
@@ -569,10 +562,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
-
-
 
         [Test]
         public void CloseValidHandleResetsOpenCountToZero()
@@ -627,7 +618,7 @@ namespace Opc.Ua.Server.Tests
 
             ServiceResult result = node.Close.OnCall(context, node.Close, node.NodeId, fileHandle + 1);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -648,7 +639,7 @@ namespace Opc.Ua.Server.Tests
 
             ServiceResult result = node.Close.OnCall(otherContext, node.Close, node.NodeId, fileHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -665,8 +656,6 @@ namespace Opc.Ua.Server.Tests
                     .EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
-
-
         [Test]
         public async Task CloseAndUpdateWithValidDataAppliesCertificatesAndReturnsGoodAsync()
         {
@@ -681,7 +670,7 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
             var trustListData = new TrustListDataType
@@ -723,7 +712,7 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 CancellationToken.None).ConfigureAwait(false);
 
             var trustListData = new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.None };
@@ -759,7 +748,7 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
             bool restartRequired = false;
@@ -770,7 +759,7 @@ namespace Opc.Ua.Server.Tests
                 fileHandle + 1,
                 ref restartRequired);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -785,10 +774,10 @@ namespace Opc.Ua.Server.Tests
                 context,
                 node.Open,
                 node.NodeId,
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ref fileHandle);
 
-            ByteString payload = ByteString.From([0x01, 0x02, 0x03, 0x04, 0x05]);
+            var payload = ByteString.From([0x01, 0x02, 0x03, 0x04, 0x05]);
             node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
 
             bool restartRequired = false;
@@ -801,7 +790,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateInvalid));
+                Is.EqualTo(StatusCodes.BadCertificateInvalid));
         }
 
         [Test]
@@ -823,8 +812,6 @@ namespace Opc.Ua.Server.Tests
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadUserAccessDenied));
         }
-
-
 
         [Test]
         public async Task AddCertificateAddsToTrustedStoreAsync()
@@ -889,7 +876,7 @@ namespace Opc.Ua.Server.Tests
                 ByteString.Empty,
                 true);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -908,7 +895,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateInvalid));
+                Is.EqualTo(StatusCodes.BadCertificateInvalid));
         }
 
         [Test]
@@ -929,7 +916,7 @@ namespace Opc.Ua.Server.Tests
                 cert.RawData.ToByteString(),
                 true);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -951,8 +938,6 @@ namespace Opc.Ua.Server.Tests
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadUserAccessDenied));
         }
-
-
 
         [Test]
         public async Task RemoveCertificateRemovesFromStoreAsync()
@@ -1027,7 +1012,7 @@ namespace Opc.Ua.Server.Tests
                 string.Empty,
                 true);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1044,7 +1029,7 @@ namespace Opc.Ua.Server.Tests
                 "0000000000000000000000000000000000000000",
                 true);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1064,7 +1049,7 @@ namespace Opc.Ua.Server.Tests
                 "AABBCCDDEEFF00112233445566778899AABBCCDD",
                 true);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -1151,7 +1136,7 @@ namespace Opc.Ua.Server.Tests
                 SessionId = sessionId,
                 NamespaceUris = new NamespaceTable(),
                 ServerUris = new StringTable(),
-                EncodeableFactory = Opc.Ua.EncodeableFactory.Create()
+                EncodeableFactory = EncodeableFactory.Create()
             };
         }
 
@@ -1189,6 +1174,5 @@ namespace Opc.Ua.Server.Tests
             }
             return trustList;
         }
-
     }
 }

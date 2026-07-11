@@ -370,7 +370,11 @@ namespace Opc.Ua.Client.Subscriptions
 
             public uint Count
             {
-                get { CountCalls++; return 0; }
+                get
+                {
+                    CountCalls++;
+                    return 0;
+                }
             }
 
             public IEnumerable<IMonitoredItem> Items => [];
@@ -411,4 +415,3 @@ namespace Opc.Ua.Client.Subscriptions
         }
     }
 }
-

@@ -40,6 +40,8 @@ namespace Opc.Ua.Client.TestFramework
         /// tests that require the V2 engine (see
         /// <see cref="ISession.TryGetSubscriptionManager"/>).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static Subscriptions.ISubscriptionManager RequireSubscriptionManager(
             this ISession session)
         {

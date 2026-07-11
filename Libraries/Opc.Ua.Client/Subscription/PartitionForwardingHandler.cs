@@ -92,6 +92,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// captured in a single volatile reference so the dispatch
         /// path can read it lock-free.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="logical"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void BindLogical(ISubscription logical)
         {
             if (logical == null)

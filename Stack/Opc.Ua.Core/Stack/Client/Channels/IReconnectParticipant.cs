@@ -97,7 +97,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
         /// <returns>The asynchronous recreation work.</returns>
-        public ValueTask RecreateAsync(CancellationToken ct = default)
+        ValueTask RecreateAsync(CancellationToken ct = default)
         {
             _ = ct;
             return new ValueTask();

@@ -29,13 +29,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Groups;

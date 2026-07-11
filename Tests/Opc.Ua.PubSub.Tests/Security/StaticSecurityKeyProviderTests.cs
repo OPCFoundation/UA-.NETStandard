@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             PubSubSecurityKey key = TestSecurityKeyFactory.Create(7U);
             ring.SetCurrent(key);
             var provider = new StaticSecurityKeyProvider("g", ring);
-            PubSubSecurityKey result = await provider.GetCurrentKeyAsync();
+            PubSubSecurityKey result = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
             Assert.That(result, Is.SameAs(key));
         }
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             var ring = new PubSubSecurityKeyRing("g");
             var provider = new StaticSecurityKeyProvider("g", ring);
             Assert.That(
-                async () => await provider.GetCurrentKeyAsync(),
+                async () => await provider.GetCurrentKeyAsync().ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             PubSubSecurityKey key = TestSecurityKeyFactory.Create(42U);
             ring.SetCurrent(key);
             var provider = new StaticSecurityKeyProvider("g", ring);
-            PubSubSecurityKey? result = await provider.TryGetKeyAsync(42U);
+            PubSubSecurityKey? result = await provider.TryGetKeyAsync(42U).ConfigureAwait(false);
             Assert.That(result, Is.SameAs(key));
         }
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         {
             var ring = new PubSubSecurityKeyRing("g");
             var provider = new StaticSecurityKeyProvider("g", ring);
-            PubSubSecurityKey? result = await provider.TryGetKeyAsync(999U);
+            PubSubSecurityKey? result = await provider.TryGetKeyAsync(999U).ConfigureAwait(false);
             Assert.That(result, Is.Null);
         }
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             Assert.That(
-                async () => await provider.GetCurrentKeyAsync(cts.Token),
+                async () => await provider.GetCurrentKeyAsync(cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             Assert.That(
-                async () => await provider.TryGetKeyAsync(1U, cts.Token),
+                async () => await provider.TryGetKeyAsync(1U, cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
     }

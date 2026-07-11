@@ -127,13 +127,14 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="clock">Time source to query.</param>
         /// <returns>Whether the token has expired.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public bool IsExpired(TimeProvider clock)
         {
             if (clock is null)
             {
                 throw new ArgumentNullException(nameof(clock));
             }
-            DateTimeUtc now = DateTimeUtc.From(clock.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(clock.GetUtcNow().UtcDateTime);
             return (now - IssuedAt) >= Lifetime;
         }
 
