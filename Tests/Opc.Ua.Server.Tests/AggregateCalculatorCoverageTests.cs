@@ -232,6 +232,47 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ReverseInterpolativeExactGoodBoundaryPreservesRawValue()
+        {
+            DataValue result = ComputeReverseInterpolativeBoundary(StatusCodes.GoodClamped, false);
+            DateTimeUtc expectedTimestamp = new(2024, 1, 1, 0, 0, 10);
+
+            Assert.That(result.WrappedValue.ConvertToDouble().GetDouble(), Is.EqualTo(123.0));
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.GoodClamped));
+            Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Raw));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expectedTimestamp));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(expectedTimestamp));
+        }
+
+        [Test]
+        public void ReverseInterpolativeExactUncertainBoundaryPreservesUncertainRawValue()
+        {
+            DataValue result = ComputeReverseInterpolativeBoundary(
+                StatusCodes.UncertainLastUsableValue,
+                false);
+            DateTimeUtc expectedTimestamp = new(2024, 1, 1, 0, 0, 10);
+
+            Assert.That(result.WrappedValue.ConvertToDouble().GetDouble(), Is.EqualTo(123.0));
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+            Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Raw));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expectedTimestamp));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(expectedTimestamp));
+        }
+
+        [Test]
+        public void ReverseInterpolativeExactBadBoundaryUsesSurroundingGoodValues()
+        {
+            DataValue result = ComputeReverseInterpolativeBoundary(StatusCodes.BadSensorFailure, false);
+            DateTimeUtc expectedTimestamp = new(2024, 1, 1, 0, 0, 10);
+
+            Assert.That(result.WrappedValue.ConvertToDouble().GetDouble(), Is.EqualTo(100.0));
+            Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Interpolated));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(expectedTimestamp));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(expectedTimestamp));
+        }
+
+        [Test]
         public void SlopedExtrapolationConfigurationProducesInterpolatedResult()
         {
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
@@ -264,6 +305,45 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(any, Is.True);
+        }
+
+        private DataValue ComputeReverseInterpolativeBoundary(
+            StatusCode exactStatus,
+            bool treatUncertainAsBad)
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 10);
+            var endTime = new DateTimeUtc(2024, 1, 1, 0, 0, 5);
+            var configuration = new AggregateConfiguration
+            {
+                TreatUncertainAsBad = treatUncertainAsBad,
+                PercentDataBad = 100,
+                PercentDataGood = 100,
+                UseSlopedExtrapolation = false
+            };
+            IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
+                ObjectIds.AggregateFunction_Interpolative,
+                startTime,
+                endTime,
+                5000,
+                false,
+                configuration,
+                m_telemetry);
+
+            DataValue[] values =
+            [
+                Good(150.0, new DateTimeUtc(2024, 1, 1, 0, 0, 15)),
+                new DataValue(new Variant(123.0), exactStatus, startTime, startTime),
+                Good(50.0, endTime),
+                Good(0.0, new DateTimeUtc(2024, 1, 1, 0, 0, 0))
+            ];
+            foreach (DataValue value in values)
+            {
+                Assert.That(calculator.QueueRawValue(value), Is.True);
+            }
+
+            Assert.That(calculator.TryGetProcessedValue(true, out DataValue result), Is.True);
+            Assert.That(calculator.TryGetProcessedValue(true, out _), Is.False);
+            return result;
         }
     }
 }
