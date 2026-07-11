@@ -59,10 +59,13 @@ namespace Opc.Ua.Subscriptions.Tests
     public sealed class StreamingSubscriptionCoverageTests
     {
         private static readonly TimeSpan s_safetyTimeout = TimeSpan.FromSeconds(10);
+
         private static readonly DateTime s_publishTime =
             new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         private static readonly IReadOnlyList<string> s_emptyStringTable =
-            Array.Empty<string>();
+            [];
+
         private static readonly NodeId s_nodeA = new("SensorA", 2);
         private static readonly NodeId s_nodeB = new("SensorB", 2);
         private static readonly NodeId s_notifier = new("Area1", 3);
@@ -98,7 +101,7 @@ namespace Opc.Ua.Subscriptions.Tests
             var subscription = new StreamingSubscription(manager);
 
             ArgumentNullException? ex = Assert.Throws<ArgumentNullException>(
-                () => _ = subscription.SubscribeDataChangesAsync((IReadOnlyList<NodeId>)null!));
+                () => _ = subscription.SubscribeDataChangesAsync(null!));
             Assert.That(ex!.ParamName, Is.EqualTo("nodeIds"));
         }
 
@@ -141,11 +144,11 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(collection.Added[0].ClientHandle,
                 Is.Not.EqualTo(collection.Added[1].ClientHandle));
 
-            await subscription.DisposeAsync();
-            Assert.That(await WithinTimeoutAsync(firstMove), Is.False);
-            Assert.That(await WithinTimeoutAsync(secondMove), Is.False);
-            await firstEnumerator.DisposeAsync();
-            await secondEnumerator.DisposeAsync();
+            await subscription.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await WithinTimeoutAsync(firstMove).ConfigureAwait(false), Is.False);
+            Assert.That(await WithinTimeoutAsync(secondMove).ConfigureAwait(false), Is.False);
+            await firstEnumerator.DisposeAsync().ConfigureAwait(false);
+            await secondEnumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -165,15 +168,15 @@ namespace Opc.Ua.Subscriptions.Tests
 
             var change = new DataValueChange(item,
                 new DataValue(Variant.From(42), new StatusCode(UncertainStatus)), null);
-            await FireDataChangeAsync(manager, change);
+            await FireDataChangeAsync(manager, change).ConfigureAwait(false);
 
-            Assert.That(await WithinTimeoutAsync(move), Is.True);
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.True);
             DataValueChange received = enumerator.Current;
             Assert.That(received.Value.WrappedValue, Is.EqualTo(Variant.From(42)));
             Assert.That(received.Value.StatusCode.Code, Is.EqualTo(UncertainStatus));
             Assert.That(received.MonitoredItem, Is.SameAs(item));
 
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
             Assert.That(manager.Subscription!.Collection.RemovedHandles,
                 Does.Contain(item.ClientHandle));
         }
@@ -197,13 +200,13 @@ namespace Opc.Ua.Subscriptions.Tests
 
             var change = new DataValueChange(second,
                 new DataValue(Variant.From(99), new StatusCode(GoodStatus)), null);
-            await FireDataChangeAsync(manager, change);
+            await FireDataChangeAsync(manager, change).ConfigureAwait(false);
 
-            Assert.That(await WithinTimeoutAsync(move), Is.True);
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.True);
             Assert.That(enumerator.Current.Value.WrappedValue, Is.EqualTo(Variant.From(99)));
             Assert.That(enumerator.Current.MonitoredItem, Is.SameAs(second));
 
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -226,16 +229,16 @@ namespace Opc.Ua.Subscriptions.Tests
 
             var notification = new EventNotification(item,
                 ArrayOf.Wrapped(Variant.From("AlarmActive"), Variant.From(7)));
-            await FireEventAsync(manager, notification);
+            await FireEventAsync(manager, notification).ConfigureAwait(false);
 
-            Assert.That(await WithinTimeoutAsync(move), Is.True);
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.True);
             EventNotification received = enumerator.Current;
             Assert.That(received.Fields.Count, Is.EqualTo(2));
             Assert.That(received.Fields[0], Is.EqualTo(Variant.From("AlarmActive")));
             Assert.That(received.Fields[1], Is.EqualTo(Variant.From(7)));
             Assert.That(received.MonitoredItem, Is.SameAs(item));
 
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -253,7 +256,7 @@ namespace Opc.Ua.Subscriptions.Tests
             StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
             Assert.That(item.Options.QueueSize, Is.EqualTo(5u));
 
-            await DrainAsync(subscription, enumerator, move);
+            await DrainAsync(subscription, enumerator, move).ConfigureAwait(false);
         }
 
         [Test]
@@ -272,16 +275,16 @@ namespace Opc.Ua.Subscriptions.Tests
 
             var change = new DataValueChange(itemA,
                 new DataValue(Variant.From(11), new StatusCode(GoodStatus)), null);
-            await FireDataChangeAsync(manager, change);
+            await FireDataChangeAsync(manager, change).ConfigureAwait(false);
 
-            Assert.That(await WithinTimeoutAsync(moveA), Is.True);
+            Assert.That(await WithinTimeoutAsync(moveA).ConfigureAwait(false), Is.True);
             Assert.That(enumeratorA.Current.Value.WrappedValue, Is.EqualTo(Variant.From(11)));
             Assert.That(moveB.IsCompleted, Is.False);
 
-            await enumeratorA.DisposeAsync();
-            await subscription.DisposeAsync();
-            Assert.That(await WithinTimeoutAsync(moveB), Is.False);
-            await enumeratorB.DisposeAsync();
+            await enumeratorA.DisposeAsync().ConfigureAwait(false);
+            await subscription.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await WithinTimeoutAsync(moveB).ConfigureAwait(false), Is.False);
+            await enumeratorB.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -301,16 +304,16 @@ namespace Opc.Ua.Subscriptions.Tests
             StubMonitoredItem itemB = collection.Added[1];
 
             cancelA.Cancel();
-            await AwaitFaultAsync<OperationCanceledException>(moveA);
+            await AwaitFaultAsync<OperationCanceledException>(moveA).ConfigureAwait(false);
 
             Assert.That(collection.RemovedHandles, Does.Contain(itemA.ClientHandle));
             Assert.That(collection.RemovedHandles, Does.Not.Contain(itemB.ClientHandle));
             Assert.That(collection.ContainsHandle(itemB.ClientHandle), Is.True);
 
-            await enumeratorA.DisposeAsync();
-            await subscription.DisposeAsync();
-            Assert.That(await WithinTimeoutAsync(moveB), Is.False);
-            await enumeratorB.DisposeAsync();
+            await enumeratorA.DisposeAsync().ConfigureAwait(false);
+            await subscription.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await WithinTimeoutAsync(moveB).ConfigureAwait(false), Is.False);
+            await enumeratorB.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -323,14 +326,14 @@ namespace Opc.Ua.Subscriptions.Tests
                 StartDataChanges(subscription, s_nodeA, CancellationToken.None);
             Assert.That(manager.AddCallCount, Is.EqualTo(1));
 
-            await subscription.DisposeAsync();
+            await subscription.DisposeAsync().ConfigureAwait(false);
             Assert.That(manager.Subscription!.DisposeCount, Is.EqualTo(1));
 
-            await subscription.DisposeAsync();
+            await subscription.DisposeAsync().ConfigureAwait(false);
             Assert.That(manager.Subscription!.DisposeCount, Is.EqualTo(1));
 
-            Assert.That(await WithinTimeoutAsync(move), Is.False);
-            await enumerator.DisposeAsync();
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.False);
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -338,14 +341,14 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             var manager = new StubSubscriptionManager();
             var subscription = new StreamingSubscription(manager);
-            await subscription.DisposeAsync();
+            await subscription.DisposeAsync().ConfigureAwait(false);
 
             (IAsyncEnumerator<DataValueChange> enumerator, Task<bool> move) =
                 StartDataChanges(subscription, s_nodeA, CancellationToken.None);
 
-            await AwaitFaultAsync<ObjectDisposedException>(move);
+            await AwaitFaultAsync<ObjectDisposedException>(move).ConfigureAwait(false);
             Assert.That(manager.AddCallCount, Is.Zero);
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -358,10 +361,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 StartDataChanges(subscription, s_nodeA, CancellationToken.None);
 
             InvalidOperationException ex =
-                await AwaitFaultAsync<InvalidOperationException>(move);
+                await AwaitFaultAsync<InvalidOperationException>(move).ConfigureAwait(false);
             Assert.That(ex.Message, Is.EqualTo("subscription create failed"));
             Assert.That(manager.AddCallCount, Is.EqualTo(1));
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -378,7 +381,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(collection.Count, Is.Zero);
             Assert.That(collection.Added, Is.Empty);
 
-            await DrainAsync(subscription, enumerator, move);
+            await DrainAsync(subscription, enumerator, move).ConfigureAwait(false);
         }
 
         [Test]
@@ -393,18 +396,18 @@ namespace Opc.Ua.Subscriptions.Tests
 
             var ignored = new DataValueChange(null,
                 new DataValue(Variant.From(1), new StatusCode(GoodStatus)), null);
-            await FireDataChangeAsync(manager, ignored);
+            await FireDataChangeAsync(manager, ignored).ConfigureAwait(false);
             Assert.That(move.IsCompleted, Is.False);
 
             var delivered = new DataValueChange(item,
                 new DataValue(Variant.From(55), new StatusCode(GoodStatus)), null);
-            await FireDataChangeAsync(manager, delivered);
+            await FireDataChangeAsync(manager, delivered).ConfigureAwait(false);
 
-            Assert.That(await WithinTimeoutAsync(move), Is.True);
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.True);
             Assert.That(enumerator.Current.Value.WrappedValue, Is.EqualTo(Variant.From(55)));
             Assert.That(enumerator.Current.MonitoredItem, Is.SameAs(item));
 
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -419,17 +422,17 @@ namespace Opc.Ua.Subscriptions.Tests
             StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
 
             var ignored = new EventNotification(null, ArrayOf.Wrapped(Variant.From(1)));
-            await FireEventAsync(manager, ignored);
+            await FireEventAsync(manager, ignored).ConfigureAwait(false);
             Assert.That(move.IsCompleted, Is.False);
 
             var delivered = new EventNotification(item, ArrayOf.Wrapped(Variant.From("Ping")));
-            await FireEventAsync(manager, delivered);
+            await FireEventAsync(manager, delivered).ConfigureAwait(false);
 
-            Assert.That(await WithinTimeoutAsync(move), Is.True);
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.True);
             Assert.That(enumerator.Current.Fields.Count, Is.EqualTo(1));
             Assert.That(enumerator.Current.Fields[0], Is.EqualTo(Variant.From("Ping")));
 
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -445,15 +448,15 @@ namespace Opc.Ua.Subscriptions.Tests
             ValueTask keepAlive = manager.Handler!.OnKeepAliveNotificationAsync(
                 manager.Subscription!, 7u, s_publishTime, PublishState.None);
             Assert.That(keepAlive.IsCompleted, Is.True);
-            await keepAlive;
+            await keepAlive.ConfigureAwait(false);
 
             ValueTask stateChanged = manager.Handler!.OnSubscriptionStateChangedAsync(
                 manager.Subscription!, SubscriptionState.Created, PublishState.None);
             Assert.That(stateChanged.IsCompleted, Is.True);
-            await stateChanged;
+            await stateChanged.ConfigureAwait(false);
 
             Assert.That(move.IsCompleted, Is.False);
-            await DrainAsync(subscription, enumerator, move);
+            await DrainAsync(subscription, enumerator, move).ConfigureAwait(false);
         }
 
         [Test]
@@ -469,7 +472,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(manager.CapturedOptions, Is.Not.Null);
             Assert.That(manager.CapturedOnChange, Is.Null);
 
-            await DrainAsync(subscription, enumerator, move);
+            await DrainAsync(subscription, enumerator, move).ConfigureAwait(false);
         }
 
         [Test]
@@ -482,11 +485,11 @@ namespace Opc.Ua.Subscriptions.Tests
                 StartDataChanges(subscription, s_nodeA, CancellationToken.None);
             Assert.That(manager.AddCallCount, Is.EqualTo(1));
 
-            await subscription.DisposeAsync();
+            await subscription.DisposeAsync().ConfigureAwait(false);
             Assert.That(manager.Subscription!.DisposeCount, Is.EqualTo(1));
 
-            Assert.That(await WithinTimeoutAsync(move), Is.False);
-            await enumerator.DisposeAsync();
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.False);
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -502,11 +505,11 @@ namespace Opc.Ua.Subscriptions.Tests
             StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
 
             cancel.Cancel();
-            await AwaitFaultAsync<OperationCanceledException>(move);
+            await AwaitFaultAsync<OperationCanceledException>(move).ConfigureAwait(false);
 
             Assert.That(manager.Subscription!.Collection.RemoveAttempts,
                 Does.Contain(item.ClientHandle));
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -524,11 +527,11 @@ namespace Opc.Ua.Subscriptions.Tests
             StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
 
             cancel.Cancel();
-            await AwaitFaultAsync<OperationCanceledException>(move);
+            await AwaitFaultAsync<OperationCanceledException>(move).ConfigureAwait(false);
 
             Assert.That(manager.Subscription!.Collection.RemoveAttempts,
                 Does.Contain(item.ClientHandle));
-            await enumerator.DisposeAsync();
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -540,7 +543,7 @@ namespace Opc.Ua.Subscriptions.Tests
             var manager = new StubSubscriptionManager
             {
                 OnAddEntered = () => addEntered.Release(),
-                AddGate = () => { _ = releaseAdd.Wait(s_safetyTimeout); },
+                AddGate = () => _ = releaseAdd.Wait(s_safetyTimeout),
                 OnItemAdded = () => itemsAdded.Release()
             };
             await using var subscription = new StreamingSubscription(manager);
@@ -550,7 +553,7 @@ namespace Opc.Ua.Subscriptions.Tests
             IAsyncEnumerator<DataValueChange> firstEnumerator =
                 subscription.SubscribeDataChangesAsync(s_nodeA).GetAsyncEnumerator();
             Task<bool> firstMove = Task.Run(() => firstEnumerator.MoveNextAsync().AsTask());
-            Assert.That(await addEntered.WaitAsync(s_safetyTimeout), Is.True);
+            Assert.That(await addEntered.WaitAsync(s_safetyTimeout).ConfigureAwait(false), Is.True);
 
             // Second creator passes the pre-lock null check then suspends on the
             // held init lock; releasing the gate forces it through the
@@ -560,18 +563,18 @@ namespace Opc.Ua.Subscriptions.Tests
             Task<bool> secondMove = secondEnumerator.MoveNextAsync().AsTask();
 
             releaseAdd.Set();
-            Assert.That(await itemsAdded.WaitAsync(s_safetyTimeout), Is.True);
-            Assert.That(await itemsAdded.WaitAsync(s_safetyTimeout), Is.True);
+            Assert.That(await itemsAdded.WaitAsync(s_safetyTimeout).ConfigureAwait(false), Is.True);
+            Assert.That(await itemsAdded.WaitAsync(s_safetyTimeout).ConfigureAwait(false), Is.True);
 
             Assert.That(manager.AddCallCount, Is.EqualTo(1));
             StubMonitoredItemCollection collection = manager.Subscription!.Collection;
             Assert.That(collection.Count, Is.EqualTo(2u));
 
-            await subscription.DisposeAsync();
-            Assert.That(await WithinTimeoutAsync(firstMove), Is.False);
-            Assert.That(await WithinTimeoutAsync(secondMove), Is.False);
-            await firstEnumerator.DisposeAsync();
-            await secondEnumerator.DisposeAsync();
+            await subscription.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await WithinTimeoutAsync(firstMove).ConfigureAwait(false), Is.False);
+            Assert.That(await WithinTimeoutAsync(secondMove).ConfigureAwait(false), Is.False);
+            await firstEnumerator.DisposeAsync().ConfigureAwait(false);
+            await secondEnumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -632,7 +635,7 @@ namespace Opc.Ua.Subscriptions.Tests
         [Test]
         public async Task BufferedAsyncReturnsRequestedCountAsync()
         {
-            IReadOnlyList<int> buffer = await RangeAsync(1, 2, 3, 4).BufferedAsync(3);
+            IReadOnlyList<int> buffer = await RangeAsync(1, 2, 3, 4).BufferedAsync(3).ConfigureAwait(false);
             Assert.That(buffer, Is.EqualTo(s_oneTwoThree));
         }
 
@@ -640,7 +643,7 @@ namespace Opc.Ua.Subscriptions.Tests
         public async Task BufferedAsyncWithNullSourceThrowsArgumentNullExceptionAsync()
         {
             ArgumentNullException ex = await AwaitFaultAsync<ArgumentNullException>(
-                StreamingSubscriptionExtensions.BufferedAsync<int>(null!, 1).AsTask());
+                StreamingSubscriptionExtensions.BufferedAsync<int>(null!, 1).AsTask()).ConfigureAwait(false);
             Assert.That(ex.ParamName, Is.EqualTo("source"));
         }
 
@@ -648,7 +651,7 @@ namespace Opc.Ua.Subscriptions.Tests
         public async Task BufferedAsyncWithNonPositiveCountThrowsArgumentOutOfRangeExceptionAsync()
         {
             ArgumentOutOfRangeException ex = await AwaitFaultAsync<ArgumentOutOfRangeException>(
-                RangeAsync(1).BufferedAsync(0).AsTask());
+                RangeAsync(1).BufferedAsync(0).AsTask()).ConfigureAwait(false);
             Assert.That(ex.ParamName, Is.EqualTo("count"));
         }
 
@@ -686,8 +689,8 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             await manager.Handler!.OnDataChangeNotificationAsync(
                 manager.Subscription!, 1u, s_publishTime,
-                new ReadOnlyMemory<DataValueChange>(new[] { change }),
-                PublishState.None, s_emptyStringTable);
+                new ReadOnlyMemory<DataValueChange>([change]),
+                PublishState.None, s_emptyStringTable).ConfigureAwait(false);
         }
 
         private static async Task FireEventAsync(
@@ -695,35 +698,35 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             await manager.Handler!.OnEventDataNotificationAsync(
                 manager.Subscription!, 1u, s_publishTime,
-                new ReadOnlyMemory<EventNotification>(new[] { notification }),
-                PublishState.None, s_emptyStringTable);
+                new ReadOnlyMemory<EventNotification>([notification]),
+                PublishState.None, s_emptyStringTable).ConfigureAwait(false);
         }
 
         private static async Task DrainAsync<T>(
             StreamingSubscription subscription, IAsyncEnumerator<T> enumerator, Task<bool> move)
         {
-            await subscription.DisposeAsync();
-            Assert.That(await WithinTimeoutAsync(move), Is.False);
-            await enumerator.DisposeAsync();
+            await subscription.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.False);
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         private static async Task<T> WithinTimeoutAsync<T>(Task<T> task)
         {
             using var cts = new CancellationTokenSource();
-            Task delay = Task.Delay(s_safetyTimeout, cts.Token);
-            Task winner = await Task.WhenAny(task, delay);
+            var delay = Task.Delay(s_safetyTimeout, cts.Token);
+            Task winner = await Task.WhenAny(task, delay).ConfigureAwait(false);
             Assert.That(winner, Is.SameAs(task),
                 "operation did not complete within the safety timeout");
             cts.Cancel();
-            return await task;
+            return await task.ConfigureAwait(false);
         }
 
         private static async Task<TException> AwaitFaultAsync<TException>(Task task)
             where TException : Exception
         {
             using var cts = new CancellationTokenSource();
-            Task delay = Task.Delay(s_safetyTimeout, cts.Token);
-            Task winner = await Task.WhenAny(task, delay);
+            var delay = Task.Delay(s_safetyTimeout, cts.Token);
+            Task winner = await Task.WhenAny(task, delay).ConfigureAwait(false);
             Assert.That(winner, Is.SameAs(task),
                 "operation did not fault within the safety timeout");
             cts.Cancel();
@@ -731,7 +734,7 @@ namespace Opc.Ua.Subscriptions.Tests
             TException? caught = null;
             try
             {
-                await task;
+                await task.ConfigureAwait(false);
             }
             catch (TException ex)
             {
@@ -932,11 +935,11 @@ namespace Opc.Ua.Subscriptions.Tests
 
         private sealed class StubMonitoredItemCollection : IMonitoredItemCollection
         {
-            private readonly object m_lock = new();
-            private readonly Dictionary<uint, StubMonitoredItem> m_items = new();
-            private readonly List<StubMonitoredItem> m_added = new();
-            private readonly List<uint> m_removed = new();
-            private readonly List<uint> m_removeAttempts = new();
+            private readonly Lock m_lock = new();
+            private readonly Dictionary<uint, StubMonitoredItem> m_items = [];
+            private readonly List<StubMonitoredItem> m_added = [];
+            private readonly List<uint> m_removed = [];
+            private readonly List<uint> m_removeAttempts = [];
             private readonly bool m_failItemAdd;
             private readonly bool m_failRemove;
             private readonly Action? m_onItemAdded;
@@ -967,7 +970,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return new List<IMonitoredItem>(m_items.Values);
+                        return [.. m_items.Values];
                     }
                 }
             }
@@ -978,7 +981,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return m_added.ToArray();
+                        return [.. m_added];
                     }
                 }
             }
@@ -989,7 +992,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return m_removed.ToArray();
+                        return [.. m_removed];
                     }
                 }
             }
@@ -1000,7 +1003,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     lock (m_lock)
                     {
-                        return m_removeAttempts.ToArray();
+                        return [.. m_removeAttempts];
                     }
                 }
             }

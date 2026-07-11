@@ -33,8 +33,6 @@ using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Pcap.Frame;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Frame
 {
     [TestFixture]
@@ -77,9 +75,8 @@ namespace Opc.Ua.Pcap.Tests.Frame
 
             TcpFlowSegment[] segments =
             [
-                .. reassembler.Process(CreateEthernetRecord([1], sourcePort: 50000))
-,
-                .. reassembler.Process(CreateEthernetRecord([2], sourcePort: 50001)),
+                .. reassembler.Process(CreateEthernetRecord([1], sourcePort: 50000)),
+                .. reassembler.Process(CreateEthernetRecord([2], sourcePort: 50001))
             ];
 
             Assert.That(segments, Has.Length.EqualTo(2));

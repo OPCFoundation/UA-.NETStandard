@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             {
                 Assert.That(protector.ValidateCookie(endpoint, clientHello, cookie), Is.True);
                 Assert.That(protector.ValidateCookie(new IPEndPoint(IPAddress.Loopback, 4844), clientHello, cookie), Is.False);
-                Assert.That(protector.ValidateCookie(endpoint, new byte[] { 0xff }, cookie), Is.False);
+                Assert.That(protector.ValidateCookie(endpoint, [0xff], cookie), Is.False);
             });
         }
     }

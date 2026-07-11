@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Security
     public class RandomNonceProviderTests
     {
         private const uint KeyId = 1U;
-        private static readonly byte[] s_keyNonce = new byte[] { 0xA1, 0xB2, 0xC3, 0xD4 };
+        private static readonly byte[] s_keyNonce = [0xA1, 0xB2, 0xC3, 0xD4];
 
         [Test]
         public void GetNext_ProducesUniqueMessageRandomBytes()
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             const int iterations = 256;
             const int parallelism = 8;
             var bag = new System.Collections.Concurrent.ConcurrentBag<ulong>();
-            Task[] workers = new Task[parallelism];
+            var workers = new Task[parallelism];
             for (int t = 0; t < parallelism; t++)
             {
                 workers[t] = Task.Run(() =>
@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                     }
                 });
             }
-            await Task.WhenAll(workers);
+            await Task.WhenAll(workers).ConfigureAwait(false);
             // The monotonic counter is serialised, so every call must
             // observe a distinct sequence number with no torn writes.
             Assert.That(bag, Has.Count.EqualTo(parallelism * iterations));
@@ -208,7 +208,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         {
             var provider = new RandomNonceProvider(PublisherId.FromUInt16(1));
             provider.Dispose();
-            Assert.DoesNotThrow(() => provider.Dispose());
+            Assert.DoesNotThrow(provider.Dispose);
         }
     }
 }

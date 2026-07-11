@@ -1849,6 +1849,124 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task RecreateInPlaceAsyncReusesTokenWhenEnabledAsync()
+        {
+            EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
+            using var sut = SessionMock.Create();
+            sut.SetConnected();
+            sut.EnableTokenReuseFailover = true;
+            SetServerNonce(sut, [1, 2, 3, 4]);
+
+            Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
+            failoverChannel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<ActivateSessionRequest>(r =>
+                        r.RequestHeader.AuthenticationToken == NodeId.Parse("s=auth")),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ActivateSessionResponse
+                {
+                    ServerNonce = [5, 6, 7, 8],
+                    Results = [],
+                    DiagnosticInfos = []
+                }))
+                .Verifiable(Times.Once);
+
+            await InvokeRecreateInPlaceCoreAsync(
+                sut,
+                new ConfiguredEndpoint(null, failoverDescription),
+                failoverChannel.Object,
+                requireTokenReuse: false).ConfigureAwait(false);
+
+            failoverChannel.Verify();
+            failoverChannel.Verify(
+                c => c.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task RecreateInPlaceAsyncFallsBackToFullReauthenticationWhenTokenReuseFailsAsync()
+        {
+            EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
+            using var sut = SessionMock.Create();
+            sut.SetConnected();
+            sut.EnableTokenReuseFailover = true;
+            SetServerNonce(sut, [1, 2, 3, 4]);
+
+            var newSessionId = NodeId.Parse("s=recreated");
+            var newAuthenticationToken = NodeId.Parse("s=new-auth");
+            Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
+            ConfigureOpenAsyncReadResponses(failoverChannel);
+            failoverChannel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<ActivateSessionRequest>(r =>
+                        r.RequestHeader.AuthenticationToken == NodeId.Parse("s=auth")),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadSessionNotActivated))
+                .Verifiable(Times.Once);
+            failoverChannel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new CreateSessionResponse
+                {
+                    ServerNonce = [9, 10, 11, 12],
+                    SessionId = newSessionId,
+                    AuthenticationToken = newAuthenticationToken,
+                    ServerEndpoints = [failoverDescription]
+                }))
+                .Verifiable(Times.Once);
+            failoverChannel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<ActivateSessionRequest>(r =>
+                        r.RequestHeader.AuthenticationToken == newAuthenticationToken),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ActivateSessionResponse
+                {
+                    ServerNonce = [13, 14, 15, 16],
+                    Results = [],
+                    DiagnosticInfos = []
+                }))
+                .Verifiable(Times.Once);
+
+            await InvokeRecreateInPlaceCoreAsync(
+                sut,
+                new ConfiguredEndpoint(null, failoverDescription),
+                failoverChannel.Object,
+                requireTokenReuse: false).ConfigureAwait(false);
+
+            Assert.That(sut.SessionId, Is.EqualTo(newSessionId));
+            failoverChannel.Verify();
+        }
+
+        [Test]
+        public void ReactivateMirroredSessionAsyncThrowsWhenTokenReuseIsRequiredButDisabled()
+        {
+            EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
+            using var sut = SessionMock.Create();
+            sut.SetConnected();
+            sut.EnableTokenReuseFailover = false;
+            SetServerNonce(sut, [1, 2, 3, 4]);
+
+            Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await InvokeRecreateInPlaceCoreAsync(
+                    sut,
+                    new ConfiguredEndpoint(null, failoverDescription),
+                    failoverChannel.Object,
+                    requireTokenReuse: true).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            failoverChannel.Verify(
+                c => c.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
         public void SaveShouldOnlySaveSpecifiedSubscriptions()
         {
             using var sut = SessionMock.Create();
@@ -1902,6 +2020,108 @@ namespace Opc.Ua.Client.Tests
             Assert.That(success, Is.True);
             Assert.That(GetClientNonce(target), Is.EquivalentTo(clientNonce));
             Assert.That(GetServerNonce(target), Is.EquivalentTo(serverNonce));
+        }
+
+        private static EndpointDescription CreateSessionEndpointDescription(string endpointUrl)
+        {
+            return new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                EndpointUrl = endpointUrl,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy()
+                ]
+            };
+        }
+
+        private static Mock<ITransportChannel> CreateReconnectChannelMock(
+            SessionMock session,
+            EndpointDescription endpointDescription)
+        {
+            var channel = new Mock<ITransportChannel>();
+            channel.SetupGet(c => c.MessageContext).Returns(session.MessageContext);
+            channel.SetupGet(c => c.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+            channel.SetupGet(c => c.EndpointDescription).Returns(endpointDescription);
+            channel.SetupGet(c => c.EndpointConfiguration).Returns(new EndpointConfiguration());
+            channel.SetupGet(c => c.ChannelThumbprint).Returns([]);
+            channel.SetupGet(c => c.ClientChannelCertificate).Returns([]);
+            channel.SetupGet(c => c.ServerChannelCertificate).Returns([]);
+            return channel;
+        }
+
+        private static void ConfigureOpenAsyncReadResponses(Mock<ITransportChannel> channel)
+        {
+            channel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<ReadRequest>(r => r.NodesToRead.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results =
+                    [
+                        new(new Variant((int)ServerState.Running))
+                    ],
+                    DiagnosticInfos = []
+                }));
+
+            channel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<ReadRequest>(r => r.NodesToRead.Count == 27),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [.. Enumerable
+                        .Range(0, 27)
+                        .Select(_ => new DataValue(Variant.Null))],
+                    DiagnosticInfos = []
+                }));
+
+            channel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<ReadRequest>(r => r.NodesToRead.Count == 2),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results =
+                    [
+                        new(ArrayOf.Create([Namespaces.OpcUa])),
+                        new(ArrayOf.Empty<string>())
+                    ],
+                    DiagnosticInfos = []
+                }));
+        }
+
+        private static Task InvokeRecreateInPlaceCoreAsync(
+            Session session,
+            ConfiguredEndpoint endpoint,
+            ITransportChannel channel,
+            bool requireTokenReuse)
+        {
+            MethodInfo? method = typeof(Session).GetMethod(
+                "RecreateInPlaceCoreAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                [
+                    typeof(ConfiguredEndpoint),
+                    typeof(ITransportWaitingConnection),
+                    typeof(ITransportChannel),
+                    typeof(IRetryBudget),
+                    typeof(CancellationToken),
+                    typeof(bool),
+                    typeof(bool)
+                ],
+                null);
+
+            Assert.That(method, Is.Not.Null);
+
+            var task = (Task?)method!.Invoke(
+                session,
+                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse]);
+
+            Assert.That(task, Is.Not.Null);
+            return task!;
         }
 
         private const BindingFlags PrivateInstance =

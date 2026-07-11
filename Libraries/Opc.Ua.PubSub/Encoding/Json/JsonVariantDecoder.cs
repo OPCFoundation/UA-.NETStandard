@@ -37,12 +37,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// (the value of one field in the <c>Payload</c> object of a JSON
     /// DataSetMessage) into a <see cref="Variant"/> or
     /// <see cref="DataValue"/> by delegating to the Stack
-    /// <see cref="Opc.Ua.JsonDecoder"/>.
+    /// <see cref="Ua.JsonDecoder"/>.
     /// </summary>
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.4">
-    /// Part 14 §7.2.5.4</see>. The Stack <see cref="Opc.Ua.JsonDecoder"/>
+    /// Part 14 §7.2.5.4</see>. The Stack <see cref="Ua.JsonDecoder"/>
     /// expects the top of its element stack to be a JSON object, so the
     /// helper wraps the supplied element in a synthetic
     /// <c>{ "v": &lt;element&gt; }</c> envelope before reading.
@@ -67,6 +67,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </param>
         /// <param name="context">Stack message context.</param>
         /// <returns>Decoded variant.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static Variant DecodeVariant(
             JsonElement element,
             JsonEncodingMode mode,
@@ -85,7 +86,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             string wrapped = wrapsEnvelope
                 ? WrapAndRenameVariant(element)
                 : WrapAsObject(element);
-            using Opc.Ua.JsonDecoder decoder = new(wrapped, context);
+            using Ua.JsonDecoder decoder = new(wrapped, context);
             if (wrapsEnvelope)
             {
                 return decoder.ReadVariant(SpliceFieldName);
@@ -104,6 +105,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="context">Stack message context.</param>
         /// <returns>Decoded DataValue (never null; may be
         /// <see cref="DataValue.IsNull"/>).</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static DataValue DecodeDataValue(
             JsonElement element,
             IServiceMessageContext context)
@@ -117,14 +119,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return DataValue.Null;
             }
             string wrapped = WrapAsObject(element);
-            using Opc.Ua.JsonDecoder decoder = new(wrapped, context);
+            using Ua.JsonDecoder decoder = new(wrapped, context);
             return decoder.ReadDataValue(SpliceFieldName);
         }
 
         /// <summary>
         /// Wraps the supplied element in the synthetic
         /// <c>{ "v": &lt;raw&gt; }</c> envelope required by the Stack
-        /// <see cref="Opc.Ua.JsonDecoder"/>.
+        /// <see cref="Ua.JsonDecoder"/>.
         /// </summary>
         /// <param name="element">Source element.</param>
         /// <returns>JSON text suitable for a string-based decoder
@@ -141,7 +143,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// re-mapping the Part 14 §7.2.5 wire key names
         /// (<c>Type</c>/<c>Body</c>) back to the Stack JSON encoder's
         /// Variant key names (<c>UaType</c>/<c>Value</c>) so the
-        /// Stack <see cref="Opc.Ua.JsonDecoder"/> can rehydrate it.
+        /// Stack <see cref="Ua.JsonDecoder"/> can rehydrate it.
         /// </summary>
         /// <param name="element">Source variant element.</param>
         /// <returns>JSON text suitable for the Stack decoder.</returns>

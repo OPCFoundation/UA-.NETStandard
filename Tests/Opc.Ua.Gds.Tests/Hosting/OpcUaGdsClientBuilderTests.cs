@@ -32,7 +32,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;

@@ -27,15 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
-using Opc.Ua.Bindings.WebApi.Authentication;
 using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
@@ -55,16 +51,21 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
         private const string SampleJwt =
             "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhbGljZSJ9.";
 
-        // CA1861: hoisted to static readonly so repeated test invocations do not
-        // re-allocate the same array argument.
+        /// <summary>
+        /// CA1861: hoisted to static readonly so repeated test invocations do not
+        /// re-allocate the same array argument.
+        /// </summary>
         private static readonly string[] s_expectedScopes =
-            { "read.values", "browse.address-space", "write.values" };
+            ["read.values", "browse.address-space", "write.values"];
+
         private static readonly string[] s_expectedRoles =
-            { "operator", "observer" };
+            ["operator", "observer"];
+
         private static readonly string[] s_expectedCustomScopes =
-            { "a", "b" };
+            ["a", "b"];
+
         private static readonly string[] s_expectedCustomRoles =
-            { "engineering", "qa" };
+            ["engineering", "qa"];
 
         [Test]
         public void UnauthenticatedReturnsNullByDefault()
@@ -156,11 +157,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
             var provider = new JwtClaimSessionlessIdentityProvider();
             DefaultHttpContext context = BuildContext(
                 bearer: SampleJwt,
-                claims: new[]
-                {
+                claims:
+                [
                     new Claim("sub", "alice"),
                     new Claim("scope", "read.values browse.address-space write.values")
-                });
+                ]);
 
             IUserIdentity? identity = provider.Resolve(context);
             IReadOnlyList<string> scopes = JwtClaimSessionlessIdentityProvider.GetScopes(identity);
@@ -174,12 +175,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
             var provider = new JwtClaimSessionlessIdentityProvider();
             DefaultHttpContext context = BuildContext(
                 bearer: SampleJwt,
-                claims: new[]
-                {
+                claims:
+                [
                     new Claim("sub", "alice"),
                     new Claim("roles", "operator"),
                     new Claim("roles", "observer")
-                });
+                ]);
 
             IUserIdentity? identity = provider.Resolve(context);
             IReadOnlyList<string> roles = JwtClaimSessionlessIdentityProvider.GetRoles(identity);
@@ -194,11 +195,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
             var provider = new JwtClaimSessionlessIdentityProvider();
             DefaultHttpContext context = BuildContext(
                 bearer: SampleJwt,
-                claims: new[]
-                {
+                claims:
+                [
                     new Claim("sub", "alice"),
                     new Claim(ClaimTypes.Role, "admin")
-                });
+                ]);
 
             IUserIdentity? identity = provider.Resolve(context);
             IReadOnlyList<string> roles = JwtClaimSessionlessIdentityProvider.GetRoles(identity);
@@ -218,13 +219,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
                 });
             DefaultHttpContext context = BuildContext(
                 bearer: SampleJwt,
-                claims: new[]
-                {
+                claims:
+                [
                     new Claim("preferred_username", "carol"),
                     new Claim("scp", "a b"),
                     new Claim("groups", "engineering"),
                     new Claim("groups", "qa")
-                });
+                ]);
 
             IUserIdentity? identity = provider.Resolve(context);
 
@@ -277,19 +278,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
                 "with an empty password. Upstream subject still available via " +
                 "SecureChannelContext.UpstreamIdentity.");
         }
+
         private static DefaultHttpContext BuildContext(
             string? bearer,
             string? identityName = null,
             params Claim[] claims)
         {
             return BuildContext(bearer, identityName, (IEnumerable<Claim>)claims);
-        }
-
-        private static DefaultHttpContext BuildContext(
-            string? bearer,
-            IEnumerable<Claim> claims)
-        {
-            return BuildContext(bearer, identityName: null, claims);
         }
 
         private static DefaultHttpContext BuildContext(
@@ -309,7 +304,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
             };
             if (bearer != null)
             {
-                context.Request.Headers["Authorization"] = "Bearer " + bearer;
+                context.Request.Headers.Authorization = "Bearer " + bearer;
             }
             return context;
         }

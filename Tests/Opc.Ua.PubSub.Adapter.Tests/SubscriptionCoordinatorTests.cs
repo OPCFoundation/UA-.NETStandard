@@ -27,13 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
 
@@ -108,7 +106,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds2 = AdapterTestHelpers.PublishedDataSet(
                 "PDS2", AdapterTestHelpers.Variable.Value(new NodeId(22u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds1, pds2 });
+                500, [pds1, pds2]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -118,7 +116,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created, Has.Count.EqualTo(1));
             Assert.That(created[0].MonitoredItems, Has.Count.EqualTo(2));
@@ -132,7 +130,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds2 = AdapterTestHelpers.PublishedDataSet(
                 "PDS2", AdapterTestHelpers.Variable.Value(new NodeId(22u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds1, pds2 });
+                500, [pds1, pds2]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -142,7 +140,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.DataSetWriter,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created, Has.Count.EqualTo(2));
         }
@@ -155,7 +153,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 AdapterTestHelpers.Variable.Value(new NodeId(11u), 250),
                 AdapterTestHelpers.Variable.Value(new NodeId(22u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -165,7 +163,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created[0].MonitoredItems[0].SamplingMs, Is.EqualTo(250));
             Assert.That(created[0].MonitoredItems[1].SamplingMs, Is.EqualTo(500));
@@ -178,7 +176,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(nodeId));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -188,13 +186,13 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
             IReadStrategy strategy = coordinator.GetReadStrategy("PDS");
             ReadValueId[] reads =
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(100)));
         }
@@ -206,7 +204,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(nodeId));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -216,7 +214,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
             FakeDataChangeSubscription subscription = created[0];
             (NodeId Node, uint Attribute, double Sampling) item = (
                 created[0].MonitoredItems[0].NodeId,
@@ -229,7 +227,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
             ];
-            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf());
+            ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(777)));
         }
@@ -240,7 +238,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -250,7 +248,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(
                 () => coordinator.GetReadStrategy("Missing"),
@@ -263,7 +261,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             var created = new List<FakeDataChangeSubscription>();
             Mock<IServerSession> session = SessionReturningSubscriptions(created);
@@ -273,8 +271,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 SubscriptionAffinity.WriterGroup,
                 AdapterTestHelpers.Telemetry());
 
-            await coordinator.StartAsync();
-            await coordinator.StartAsync();
+            await coordinator.StartAsync().ConfigureAwait(false);
+            await coordinator.StartAsync().ConfigureAwait(false);
 
             Assert.That(created, Has.Count.EqualTo(1));
         }

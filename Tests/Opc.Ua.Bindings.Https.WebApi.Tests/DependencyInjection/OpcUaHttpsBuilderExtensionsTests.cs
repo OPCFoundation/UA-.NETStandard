@@ -27,12 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 {
@@ -170,7 +167,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
             using ServiceProvider provider = services.BuildServiceProvider();
             ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
-            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
+            var factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeHttps)!;
 
             Assert.That(
                 factory.StartupContributors,
@@ -188,7 +185,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 
             using ServiceProvider provider = services.BuildServiceProvider();
             ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
-            HttpsServiceHost factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeWss)!;
+            var factory = (HttpsServiceHost)registry.GetListenerFactory(Utils.UriSchemeWss)!;
 
             Assert.That(
                 factory.StartupContributors,

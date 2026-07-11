@@ -83,8 +83,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             var transcriptA = new DtlsTranscriptHash(HashAlgorithmName.SHA256);
             var transcriptB = new DtlsTranscriptHash(HashAlgorithmName.SHA256);
 
-            transcriptA.Append(new byte[] { 0x01, 0x00, 0x00, 0x00 });
-            transcriptB.Append(new byte[] { 0x02, 0x00, 0x00, 0x00 });
+            transcriptA.Append([0x01, 0x00, 0x00, 0x00]);
+            transcriptB.Append([0x02, 0x00, 0x00, 0x00]);
 
             Assert.That(transcriptA.GetHash(), Is.Not.EqualTo(transcriptB.GetHash()));
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             byte[] verifyData = schedule.ComputeFinished(finishedKey, transcriptHash);
             byte[] verifyDataAgain = schedule.ComputeFinished(finishedKey, transcriptHash);
 
-            Assert.That(Opc.Ua.CryptoUtils.FixedTimeEquals(verifyData, verifyDataAgain), Is.True);
+            Assert.That(CryptoUtils.FixedTimeEquals(verifyData, verifyDataAgain), Is.True);
         }
 
         private static byte[] BuildTranscriptHash(HashAlgorithmName hashAlgorithmName, params byte[] bytes)
@@ -109,6 +109,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             transcript.Append(bytes);
             return transcript.GetHash();
         }
+
         private static void FillRandom(byte[] buffer)
         {
 #if NET8_0_OR_GREATER

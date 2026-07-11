@@ -35,7 +35,7 @@ namespace Opc.Ua.Server.Hosting
 {
     /// <summary>
     /// Fluent helper returned by
-    /// <see cref="OpcUaServerBuilderExtensions.AddServer(IOpcUaBuilder,System.Action{OpcUaServerOptions})"/>;
+    /// <see cref="OpcUaServerBuilderExtensions.AddServer(IOpcUaBuilder,Action{OpcUaServerOptions})"/>;
     /// allows chained registration of node-manager factories.
     /// </summary>
     public interface IOpcUaServerBuilder

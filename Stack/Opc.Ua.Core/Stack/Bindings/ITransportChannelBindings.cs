@@ -31,7 +31,7 @@ namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// Minimal client-channel surface that
-    /// <see cref="Opc.Ua.ClientChannelManager"/> consumes when creating
+    /// <see cref="ClientChannelManager"/> consumes when creating
     /// transport channels.
     /// </summary>
     /// <remarks>

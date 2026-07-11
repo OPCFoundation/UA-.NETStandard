@@ -126,14 +126,14 @@ namespace Opc.Ua.Server.Tests
         {
             using CoverageSessionManager manager = CreateManager();
 
-            Assert.That(() => manager.ClearAuthenticationLockouts(), Throws.Nothing);
+            Assert.That(manager.ClearAuthenticationLockouts, Throws.Nothing);
         }
 
         [Test]
         public void ValidateSessionLessRequestEventCanBeSubscribedAndRemoved()
         {
             using CoverageSessionManager manager = CreateManager();
-            void Handler(object? sender, ValidateSessionLessRequestEventArgs e)
+            static void Handler(object? sender, ValidateSessionLessRequestEventArgs e)
             {
             }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests
         public void ImpersonateUserEventCanBeSubscribedAndRemoved()
         {
             using CoverageSessionManager manager = CreateManager();
-            void Handler(ISession session, ImpersonateEventArgs e)
+            static void Handler(ISession session, ImpersonateEventArgs e)
             {
             }
 

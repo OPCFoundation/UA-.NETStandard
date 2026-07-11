@@ -35,7 +35,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Mqtt.Internal;
-using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
@@ -213,7 +212,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
 
         private static Certificate CreateCaCertificate(string subjectName)
         {
-            using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             var request = new CertificateRequest(subjectName, ecdsa, HashAlgorithmName.SHA256);
             request.CertificateExtensions.Add(
                 new X509BasicConstraintsExtension(true, false, 0, true));

@@ -139,6 +139,7 @@ namespace Opc.Ua
         /// must hold a lease on <paramref name="channel"/>.</param>
         /// <param name="budget">The shared retry budget.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="budget"/> is <c>null</c>.</exception>
         ValueTask ReconnectAsync(
             IManagedTransportChannel channel,
             IRetryBudget budget,

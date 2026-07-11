@@ -50,8 +50,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
     internal sealed class FakeMqttClientAdapter : IMqttClientAdapter
     {
         private readonly ConcurrentQueue<MqttMessage> m_published = new();
-        private readonly List<MqttTopicFilter> m_subscriptions = new();
-        private readonly List<string> m_unsubscribed = new();
+        private readonly List<MqttTopicFilter> m_subscriptions = [];
+        private readonly List<string> m_unsubscribed = [];
         private bool m_isConnected;
         private bool m_disposed;
 
@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             {
                 lock (m_subscriptions)
                 {
-                    return m_subscriptions.ToArray();
+                    return [.. m_subscriptions];
                 }
             }
         }
@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             {
                 lock (m_unsubscribed)
                 {
-                    return m_unsubscribed.ToArray();
+                    return [.. m_unsubscribed];
                 }
             }
         }
@@ -133,10 +133,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             lock (m_subscriptions)
             {
-                foreach (MqttTopicFilter filter in topics)
-                {
-                    m_subscriptions.Add(filter);
-                }
+                m_subscriptions.AddRange(topics);
             }
             return default;
         }
@@ -147,10 +144,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             lock (m_unsubscribed)
             {
-                foreach (string topic in topics)
-                {
-                    m_unsubscribed.Add(topic);
-                }
+                m_unsubscribed.AddRange(topics);
             }
             return default;
         }

@@ -779,7 +779,6 @@ namespace Opc.Ua.Bindings
                 using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
                 {
                     encoder.EncodeMessage(request, request.TypeId);
-                    encoder.Close();
                 }
                 return memory.ToArray();
             }
@@ -824,6 +823,7 @@ namespace Opc.Ua.Bindings
 
         private static readonly MediaTypeHeaderValue s_binaryMediaTypeHeaderValue = new(
             "application/octet-stream");
+
         private static readonly MediaTypeHeaderValue s_jsonMediaTypeHeaderValue = new(
             Profiles.OpcUaJsonContentType);
     }

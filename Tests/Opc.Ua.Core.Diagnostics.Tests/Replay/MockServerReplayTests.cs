@@ -42,8 +42,6 @@ using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 using Opc.Ua.Pcap.Replay;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Replay
 {
     [TestFixture]
@@ -302,7 +300,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
         {
             return ReplayTestHelpers.CreateFakeCaptureFolderAsync(
                 TempDirectory,
-                new[] { ReplayTestHelpers.CreateFrame(DateTimeOffset.UtcNow, fromClient: false, 0xAA) },
+                [ReplayTestHelpers.CreateFrame(DateTimeOffset.UtcNow, fromClient: false, 0xAA)],
                 CancellationToken.None);
         }
 

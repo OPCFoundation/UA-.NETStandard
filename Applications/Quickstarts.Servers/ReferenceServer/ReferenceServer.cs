@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,7 +56,7 @@ namespace Quickstarts.ReferenceServer
     /// the EmptyNodeManager which provides access to the data exposed by the Server.
     /// </para>
     /// </remarks>
-    public partial class ReferenceServer : ReverseConnectServer
+    public class ReferenceServer : ReverseConnectServer
     {
         /// <summary>
         /// Create reference server

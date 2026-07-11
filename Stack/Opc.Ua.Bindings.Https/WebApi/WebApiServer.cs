@@ -56,7 +56,7 @@ namespace Opc.Ua.Bindings
     /// </remarks>
     public sealed class WebApiServer : IWebApiServer
     {
-        private readonly System.Threading.Lock m_lock = new();
+        private readonly Lock m_lock = new();
         private ITransportListenerCallback? m_callback;
         private IServiceMessageContext m_messageContext;
         private string m_listenerId;
@@ -146,6 +146,7 @@ namespace Opc.Ua.Bindings
         /// the message context becomes available.
         /// </summary>
         /// <param name="messageContext">The new encoding context.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="messageContext"/> is <c>null</c>.</exception>
         public void UpdateMessageContext(IServiceMessageContext messageContext)
         {
             if (messageContext == null)
@@ -164,6 +165,7 @@ namespace Opc.Ua.Bindings
         /// becomes available.
         /// </summary>
         /// <param name="listenerId">The listener identifier.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="listenerId"/> is <c>null</c>.</exception>
         public void UpdateListenerId(string listenerId)
         {
             if (listenerId == null)

@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests.Historian
             IHistorianProvider provider = new ConcreteProvider();
             var nodeId = new NodeId("any", 1);
 
-            bool result = await provider.IsHistorizingAsync(nodeId, CancellationToken.None);
+            bool result = await provider.IsHistorizingAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result, Is.True);
         }
@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("any", 1);
 
             HistorianNodeCapabilities caps =
-                await provider.GetCapabilitiesAsync(nodeId, CancellationToken.None);
+                await provider.GetCapabilitiesAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(caps, Is.SameAs(HistorianNodeCapabilities.ReadOnly));
         }
@@ -109,7 +109,9 @@ namespace Opc.Ua.Server.Tests.Historian
         private sealed class ConcreteProvider : HistorianProviderBase
         {
             public static IList<StatusCode> RepeatStatusPublic(StatusCode code, int count)
-                => RepeatStatus(code, count);
+            {
+                return RepeatStatus(code, count);
+            }
         }
     }
 }

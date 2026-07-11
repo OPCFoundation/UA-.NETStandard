@@ -169,7 +169,7 @@ namespace Opc.Ua.History.Tests
                         {
                             ObjectId = ObjectTypeIds.ConditionType,
                             MethodId = MethodIds.ConditionType_ConditionRefresh,
-                            InputArguments = new Variant[] { new Variant(m_subscriptionId) }.ToArrayOf()
+                            InputArguments = new Variant[] { new(m_subscriptionId) }.ToArrayOf()
                         }
                     }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);

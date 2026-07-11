@@ -523,7 +523,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 if (!entry.Options.SkipDefaultPopulation)
                 {
-                    PopulateDefaults(entry.Notifier, context, e);
+                    PopulateDefaults(entry.Notifier, context, e, entry.Options.EventIdProvider);
                 }
                 entry.Notifier.ReportEvent(context, e);
             }
@@ -552,15 +552,12 @@ namespace Opc.Ua.Server.Fluent
         /// <c>ReceiveTime</c>, <c>Severity</c> (Medium when 0),
         /// <c>Message</c>.
         /// </summary>
-        private static void PopulateDefaults(BaseObjectState notifier, ISystemContext context, BaseEventState e)
+        private static void PopulateDefaults(
+            BaseObjectState notifier,
+            ISystemContext context,
+            BaseEventState e,
+            IEventIdProvider? eventIdProvider)
         {
-            if (e.EventId == null || e.EventId.Value.IsNull)
-            {
-                e.EventId = PropertyState<ByteString>.With<VariantBuilder>(
-                    e,
-                    Uuid.NewUuid().ToByteString());
-            }
-
             if (e.EventType == null || e.EventType.Value.IsNull)
             {
                 NodeId defaultType = e.GetDefaultTypeDefinitionId(context);
@@ -590,7 +587,6 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (e.Time == null || e.Time.Value.IsNull)
-
             {
                 e.Time = PropertyState<DateTimeUtc>.With<VariantBuilder>(e, DateTimeUtc.Now);
             }
@@ -611,6 +607,13 @@ namespace Opc.Ua.Server.Fluent
             e.Message ??= PropertyState<LocalizedText>.With<VariantBuilder>(
                     e,
                     new LocalizedText(string.Empty));
+
+            if (e.EventId == null || e.EventId.Value.IsNull)
+            {
+                e.EventId = PropertyState<ByteString>.With<VariantBuilder>(
+                    e,
+                    eventIdProvider?.CreateEventId(notifier, context, e) ?? Uuid.NewUuid().ToByteString());
+            }
         }
 
         private void ThrowIfDisposed()

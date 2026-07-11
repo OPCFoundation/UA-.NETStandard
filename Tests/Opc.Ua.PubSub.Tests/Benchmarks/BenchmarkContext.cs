@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
             uint majorVersion = 1U,
             uint minorVersion = 0U)
         {
-            FieldMetaData[] fmd = new FieldMetaData[fields.Count];
+            var fmd = new FieldMetaData[fields.Count];
             for (int i = 0; i < fields.Count; i++)
             {
                 fmd[i] = new FieldMetaData

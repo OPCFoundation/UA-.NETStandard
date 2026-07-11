@@ -51,15 +51,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Fixture h = CreateFixture();
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateDataAsync(
-                null!, h.Provider, h.Node, h.UpdateDataDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                null!, h.Provider, h.Node, h.UpdateDataDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, null!, h.Node, h.UpdateDataDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, null!, h.Node, h.UpdateDataDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, h.Provider, null!, h.UpdateDataDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, null!, h.UpdateDataDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateDataAsync(
-                h.SystemContext, h.Provider, h.Node, h.UpdateDataDetails, null!, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, h.UpdateDataDetails, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -68,15 +68,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Fixture h = CreateFixture();
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteRawAsync(
-                null!, h.Provider, h.Node, h.DeleteRawDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                null!, h.Provider, h.Node, h.DeleteRawDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteRawAsync(
-                h.SystemContext, null!, h.Node, h.DeleteRawDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, null!, h.Node, h.DeleteRawDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteRawAsync(
-                h.SystemContext, h.Provider, null!, h.DeleteRawDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, null!, h.DeleteRawDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteRawAsync(
-                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteRawAsync(
-                h.SystemContext, h.Provider, h.Node, h.DeleteRawDetails, null!, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, h.DeleteRawDetails, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -85,15 +85,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Fixture h = CreateFixture();
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteAtTimeAsync(
-                null!, h.Provider, h.Node, h.DeleteAtTimeDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                null!, h.Provider, h.Node, h.DeleteAtTimeDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteAtTimeAsync(
-                h.SystemContext, null!, h.Node, h.DeleteAtTimeDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, null!, h.Node, h.DeleteAtTimeDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteAtTimeAsync(
-                h.SystemContext, h.Provider, null!, h.DeleteAtTimeDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, null!, h.DeleteAtTimeDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteAtTimeAsync(
-                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteAtTimeAsync(
-                h.SystemContext, h.Provider, h.Node, h.DeleteAtTimeDetails, null!, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, h.DeleteAtTimeDetails, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -103,22 +103,22 @@ namespace Opc.Ua.Server.Tests.Historian
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchProcessedReadAsync(
                 null!, h.Provider, h.Node, h.NodeToRead, h.ProcessedDetails,
-                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, null!, h.Node, h.NodeToRead, h.ProcessedDetails,
-                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, null!, h.NodeToRead, h.ProcessedDetails,
-                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, h.Node, null!, h.ProcessedDetails,
-                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, null!,
-                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, h.ProcessedDetails,
-                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, null!, CancellationToken.None).AsTask());
+                ObjectIds.AggregateFunction_Count, TimestampsToReturn.Source, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -128,22 +128,22 @@ namespace Opc.Ua.Server.Tests.Historian
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAtTimeReadAsync(
                 null!, h.Provider, h.Node, h.NodeToRead, h.AtTimeDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, null!, h.Node, h.NodeToRead, h.AtTimeDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, null!, h.NodeToRead, h.AtTimeDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, h.Node, null!, h.AtTimeDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, null!,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, h.AtTimeDetails,
-                TimestampsToReturn.Source, null!, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -153,22 +153,22 @@ namespace Opc.Ua.Server.Tests.Historian
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationReadAsync(
                 null!, h.Provider, h.Node, h.NodeToRead, h.RawReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationReadAsync(
                 h.SystemContext, null!, h.Node, h.NodeToRead, h.RawReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationReadAsync(
                 h.SystemContext, h.Provider, null!, h.NodeToRead, h.RawReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationReadAsync(
                 h.SystemContext, h.Provider, h.Node, null!, h.RawReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, null!,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, h.RawReadDetails,
-                TimestampsToReturn.Source, null!, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -177,15 +177,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Fixture h = CreateFixture();
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationUpdateAsync(
-                null!, h.Provider, h.Node, h.StructureUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                null!, h.Provider, h.Node, h.StructureUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationUpdateAsync(
-                h.SystemContext, null!, h.Node, h.StructureUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, null!, h.Node, h.StructureUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationUpdateAsync(
-                h.SystemContext, h.Provider, null!, h.StructureUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, null!, h.StructureUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationUpdateAsync(
-                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchAnnotationUpdateAsync(
-                h.SystemContext, h.Provider, h.Node, h.StructureUpdateDetails, null!, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, h.StructureUpdateDetails, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -195,22 +195,22 @@ namespace Opc.Ua.Server.Tests.Historian
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchEventReadAsync(
                 null!, h.Provider, h.Node, h.NodeToRead, h.EventReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchEventReadAsync(
                 h.SystemContext, null!, h.Node, h.NodeToRead, h.EventReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchEventReadAsync(
                 h.SystemContext, h.Provider, null!, h.NodeToRead, h.EventReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchEventReadAsync(
                 h.SystemContext, h.Provider, h.Node, null!, h.EventReadDetails,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchEventReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, null!,
-                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, h.ReadResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchEventReadAsync(
                 h.SystemContext, h.Provider, h.Node, h.NodeToRead, h.EventReadDetails,
-                TimestampsToReturn.Source, null!, CancellationToken.None).AsTask());
+                TimestampsToReturn.Source, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -219,15 +219,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Fixture h = CreateFixture();
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateEventAsync(
-                null!, h.Provider, h.Node, h.EventUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                null!, h.Provider, h.Node, h.EventUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateEventAsync(
-                h.SystemContext, null!, h.Node, h.EventUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, null!, h.Node, h.EventUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateEventAsync(
-                h.SystemContext, h.Provider, null!, h.EventUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, null!, h.EventUpdateDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateEventAsync(
-                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchUpdateEventAsync(
-                h.SystemContext, h.Provider, h.Node, h.EventUpdateDetails, null!, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, h.EventUpdateDetails, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         [Test]
@@ -236,15 +236,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Fixture h = CreateFixture();
 
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteEventsAsync(
-                null!, h.Provider, h.Node, h.DeleteEventDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                null!, h.Provider, h.Node, h.DeleteEventDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteEventsAsync(
-                h.SystemContext, null!, h.Node, h.DeleteEventDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, null!, h.Node, h.DeleteEventDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteEventsAsync(
-                h.SystemContext, h.Provider, null!, h.DeleteEventDetails, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, null!, h.DeleteEventDetails, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteEventsAsync(
-                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, null!, h.UpdateResult, CancellationToken.None).AsTask()).ConfigureAwait(false);
             await AssertArgumentNullAsync(() => HistorianDispatcher.DispatchDeleteEventsAsync(
-                h.SystemContext, h.Provider, h.Node, h.DeleteEventDetails, null!, CancellationToken.None).AsTask());
+                h.SystemContext, h.Provider, h.Node, h.DeleteEventDetails, null!, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
         private static Task AssertArgumentNullAsync(Func<Task> action)
@@ -271,7 +271,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 mockServer.Setup(s => s.Telemetry).Returns(new Mock<ITelemetryContext>().Object);
 
                 var opContext = new OperationContext(
-                    new RequestHeader(), null!, RequestType.HistoryRead, RequestLifetime.None);
+                    new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
                 SystemContext = new ServerSystemContext(mockServer.Object, opContext);
                 Provider = new InMemoryHistorianProvider();
                 Node = new BaseDataVariableState(null)

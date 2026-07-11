@@ -116,8 +116,8 @@ namespace Opc.Ua.Server.Tests
 
             ArrayOf<NodeId> input = new NodeId[]
             {
-                new NodeId(1000u),
-                new NodeId("register-me", 0)
+                new(1000u),
+                new("register-me", 0)
             }.ToArrayOf();
 
             sut.RegisterNodes(ctx, input, out ArrayOf<NodeId> registered);
@@ -346,7 +346,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     Elements = new RelativePathElement[]
                     {
-                        new RelativePathElement { TargetName = new QualifiedName("Any", 0) }
+                        new() { TargetName = new QualifiedName("Any", 0) }
                     }.ToArrayOf()
                 }
             };
@@ -392,7 +392,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     Elements = new RelativePathElement[]
                     {
-                        new RelativePathElement()
+                        new()
                     }.ToArrayOf()
                 }
             };
@@ -467,7 +467,7 @@ namespace Opc.Ua.Server.Tests
                 ctx,
                 0.0,
                 TimestampsToReturn.Neither,
-                new ReadValueId[] { new ReadValueId { AttributeId = Attributes.Value } }.ToArrayOf(),
+                new ReadValueId[] { new() { AttributeId = Attributes.Value } }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -545,7 +545,7 @@ namespace Opc.Ua.Server.Tests
 
             (ArrayOf<StatusCode> results, _) = await sut.WriteAsync(
                 ctx,
-                new WriteValue[] { new WriteValue { AttributeId = Attributes.Value } }.ToArrayOf(),
+                new WriteValue[] { new() { AttributeId = Attributes.Value } }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -581,7 +581,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.HistoryReadAsync(
                     ctx,
-                    default(ExtensionObject),
+                    default,
                     TimestampsToReturn.Neither,
                     false,
                     System.Array.Empty<HistoryReadValueId>().ToArrayOf(),
@@ -619,7 +619,7 @@ namespace Opc.Ua.Server.Tests
                 new ExtensionObject(new ReadRawModifiedDetails()),
                 TimestampsToReturn.Neither,
                 false,
-                new HistoryReadValueId[] { new HistoryReadValueId() }.ToArrayOf(),
+                new HistoryReadValueId[] { new() }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -733,7 +733,7 @@ namespace Opc.Ua.Server.Tests
 
             (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
                 ctx,
-                new CallMethodRequest[] { new CallMethodRequest() }.ToArrayOf(),
+                new CallMethodRequest[] { new() }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -787,9 +787,9 @@ namespace Opc.Ua.Server.Tests
                     0.0,
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
@@ -810,8 +810,8 @@ namespace Opc.Ua.Server.Tests
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
                     null!,
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
@@ -831,8 +831,8 @@ namespace Opc.Ua.Server.Tests
                     0.0,
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
+                    [],
+                    [],
                     null!,
                     false,
                     CancellationToken.None).ConfigureAwait(false),
@@ -853,9 +853,9 @@ namespace Opc.Ua.Server.Tests
                     -1.0,
                     TimestampsToReturn.Both,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentOutOfRangeException>()
@@ -875,9 +875,9 @@ namespace Opc.Ua.Server.Tests
                     0.0,
                     (TimestampsToReturn)99,
                     System.Array.Empty<MonitoredItemCreateRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
-                    new List<IMonitoredItem>(),
+                    [],
+                    [],
+                    [],
                     false,
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
@@ -894,10 +894,10 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.ModifyMonitoredItemsAsync(
                     null!,
                     TimestampsToReturn.Both,
-                    new List<IMonitoredItem>(),
+                    [],
                     System.Array.Empty<MonitoredItemModifyRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
@@ -913,10 +913,10 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.ModifyMonitoredItemsAsync(
                     ctx,
                     (TimestampsToReturn)99,
-                    new List<IMonitoredItem>(),
+                    [],
                     System.Array.Empty<MonitoredItemModifyRequest>().ToArrayOf(),
-                    new List<ServiceResult>(),
-                    new List<MonitoringFilterResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
@@ -932,8 +932,8 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.DeleteMonitoredItemsAsync(
                     null!,
                     1u,
-                    new List<IMonitoredItem>(),
-                    new List<ServiceResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
@@ -968,8 +968,8 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.SetMonitoringModeAsync(
                     null!,
                     MonitoringMode.Reporting,
-                    new List<IMonitoredItem>(),
-                    new List<ServiceResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
@@ -1004,8 +1004,8 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.TransferMonitoredItemsAsync(
                     null!,
                     false,
-                    new List<IMonitoredItem>(),
-                    new List<ServiceResult>(),
+                    [],
+                    [],
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));

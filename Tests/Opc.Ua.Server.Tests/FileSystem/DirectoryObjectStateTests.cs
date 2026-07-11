@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
 
             CreateDirectoryMethodStateResult result = await state.CreateDirectory!.OnCallAsync!(
-                m_context, state.CreateDirectory, state.NodeId, "newdir", CancellationToken.None);
+                m_context, state.CreateDirectory, state.NodeId, "newdir", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.DirectoryNodeId, Is.Not.EqualTo(NodeId.Null));
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
 
             CreateDirectoryMethodStateResult result = await state.CreateDirectory!.OnCallAsync!(
-                m_context, state.CreateDirectory, state.NodeId, string.Empty, CancellationToken.None);
+                m_context, state.CreateDirectory, state.NodeId, string.Empty, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
 
             CreateDirectoryMethodStateResult result = await state.CreateDirectory!.OnCallAsync!(
-                OrphanContext(), state.CreateDirectory, state.NodeId, "x", CancellationToken.None);
+                OrphanContext(), state.CreateDirectory, state.NodeId, "x", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
 
             CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
-                m_context, state.CreateFile, state.NodeId, "new.txt", false, CancellationToken.None);
+                m_context, state.CreateFile, state.NodeId, "new.txt", false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.FileNodeId, Is.Not.EqualTo(NodeId.Null));
@@ -162,7 +162,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
 
             CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
-                m_context, state.CreateFile, state.NodeId, "opened.txt", true, CancellationToken.None);
+                m_context, state.CreateFile, state.NodeId, "opened.txt", true, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.FileHandle, Is.GreaterThan(0u));
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
 
             CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
-                m_context, state.CreateFile, state.NodeId, string.Empty, false, CancellationToken.None);
+                m_context, state.CreateFile, state.NodeId, string.Empty, false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
 
             CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
-                OrphanContext(), state.CreateFile, state.NodeId, "x.txt", false, CancellationToken.None);
+                OrphanContext(), state.CreateFile, state.NodeId, "x.txt", false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             NodeId target = FileSystemNodeId.BuildFile("del.txt", m_manager.NamespaceIndex);
 
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
-                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None);
+                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(File.Exists(Path.Combine(m_root, "del.txt")), Is.False);
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             NodeId target = FileSystemNodeId.BuildRoot(m_manager.NamespaceIndex);
 
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
-                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None);
+                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var target = new NodeId(42);
 
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
-                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None);
+                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             NodeId target = FileSystemNodeId.BuildFile("missing.txt", m_manager.NamespaceIndex);
 
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
-                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None);
+                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
         }
@@ -247,7 +247,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             NodeId target = FileSystemNodeId.BuildFile("del.txt", m_manager.NamespaceIndex);
 
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
-                OrphanContext(), state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None);
+                OrphanContext(), state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 m_context, state.MoveOrCopy, state.NodeId, source, targetDir, false, "moved.txt",
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.NewNodeId, Is.Not.EqualTo(NodeId.Null));
@@ -280,7 +280,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 m_context, state.MoveOrCopy, state.NodeId, source, targetDir, true, "copy.txt",
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(File.Exists(Path.Combine(m_root, "copy.txt")), Is.True);
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 m_context, state.MoveOrCopy, state.NodeId, source, targetDir, true, string.Empty,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(File.Exists(Path.Combine(m_root, "keep.txt")), Is.True);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 m_context, state.MoveOrCopy, state.NodeId, source, targetDir, false, "x",
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -328,7 +328,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 m_context, state.MoveOrCopy, state.NodeId, source, targetDir, false, "x",
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 OrphanContext(), state.MoveOrCopy, state.NodeId, source, targetDir, false, "x",
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -354,7 +354,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             File.WriteAllText(Path.Combine(m_root, "clash"), "x");
 
             CreateDirectoryMethodStateResult result = await state.CreateDirectory!.OnCallAsync!(
-                m_context, state.CreateDirectory, state.NodeId, "clash", CancellationToken.None);
+                m_context, state.CreateDirectory, state.NodeId, "clash", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
@@ -367,7 +367,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Directory.CreateDirectory(Path.Combine(m_root, "clashdir"));
 
             CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
-                m_context, state.CreateFile, state.NodeId, "clashdir", false, CancellationToken.None);
+                m_context, state.CreateFile, state.NodeId, "clashdir", false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DirectoryObjectState state = CreateRootDirectory();
             NodeId target = FileSystemNodeId.BuildFile("locked.txt", m_manager.NamespaceIndex);
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
-                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None);
+                m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -405,7 +405,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 m_context, state.MoveOrCopy, state.NodeId, source, targetDir, false, "x.txt",
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
         }
@@ -421,7 +421,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             MoveOrCopyMethodStateResult result = await state.MoveOrCopy!.OnCallAsync!(
                 m_context, state.MoveOrCopy, state.NodeId, source, targetDir, false, "dest.txt",
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));

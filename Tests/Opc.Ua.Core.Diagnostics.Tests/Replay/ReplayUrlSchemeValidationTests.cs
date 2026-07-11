@@ -33,8 +33,6 @@ using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.Replay;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Replay
 {
     /// <summary>

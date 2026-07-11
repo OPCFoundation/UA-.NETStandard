@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Linq;
 using System.Net;
@@ -44,7 +42,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
@@ -80,8 +77,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0));
-                    webHost.ConfigureServices(_ => { });
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0))
+                        .ConfigureServices(_ => { });
                     webHost.Configure(app =>
                     {
                         app.UseWebSockets();
@@ -142,12 +139,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 RequestHeader = new RequestHeader { RequestHandle = 1 },
                 NodesToRead = new ArrayOf<ReadValueId>()
             };
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-            {
-                await channel
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await channel
                     .SendRequestAsync(request, CancellationToken.None)
-                    .ConfigureAwait(false);
-            })!;
+                    .ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded),
                 "Zero-progress continuation frame must surface as " +
                 "BadEncodingLimitsExceeded.");

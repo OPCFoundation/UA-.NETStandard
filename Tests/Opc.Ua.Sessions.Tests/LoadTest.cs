@@ -1040,8 +1040,7 @@ namespace Opc.Ua.Sessions.Tests
                         var nodesToWrite = new List<WriteValue>
                         {
 #pragma warning disable CS0618 // Type or member is obsolete
-                            new WriteValue
-                            {
+                            new() {
                                 NodeId = monitoredNodeId,
                                 AttributeId = Attributes.Value,
                                 Value = new DataValue(

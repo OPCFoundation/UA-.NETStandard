@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// Implements the SKS server-side surface defined in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3.1">
     /// Part 14 §8.3.1 PubSubKeyServiceType</see>. State is guarded
-    /// by an internal <see cref="System.Threading.Lock"/>; the lock
+    /// by an internal <see cref="Lock"/>; the lock
     /// is never exposed.
     /// </remarks>
     public sealed class InMemoryPubSubKeyServiceServer : IPubSubKeyServiceServer
@@ -56,8 +56,10 @@ namespace Opc.Ua.PubSub.Security.Sks
         private const int DefaultMaxPastKeyCount = 4;
 
         private readonly Lock m_lock = new();
+
         private readonly Dictionary<string, SecurityGroupState> m_groups =
             new(StringComparer.Ordinal);
+
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly IPubSubSecurityEventSink? m_securityEventSink;
@@ -110,15 +112,12 @@ namespace Opc.Ua.PubSub.Security.Sks
             cancellationToken.ThrowIfCancellationRequested();
 
             IPubSubSecurityPolicy? policy =
-                PubSubSecurityPolicyRegistry.GetByUri(group.SecurityPolicyUri);
-            if (policy is null)
-            {
+                PubSubSecurityPolicyRegistry.GetByUri(group.SecurityPolicyUri) ??
                 throw new OpcUaSksException(
                     StatusCodes.BadSecurityPolicyRejected,
                     $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
-            }
 
-            SksSecurityGroup? snapshot = null;
+            SksSecurityGroup? snapshot;
             lock (m_lock)
             {
                 if (m_groups.ContainsKey(group.SecurityGroupId))
@@ -266,8 +265,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     return;
                 }
 
-                string[] securityGroupIds = [.. ids];
-                foreach (string securityGroupId in securityGroupIds)
+                foreach (string securityGroupId in (string[])[.. ids])
                 {
                     SksSecurityGroup? group = await m_keyStore
                         .GetSecurityGroupAsync(securityGroupId, CancellationToken.None)
@@ -293,7 +291,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return;
             }
 
-            var keys = group.Keys.IsNull
+            List<PubSubSecurityKey> keys = group.Keys.IsNull
                 ? []
                 : new List<PubSubSecurityKey>([.. group.Keys]);
             if (keys.Count == 0)
@@ -384,11 +382,11 @@ namespace Opc.Ua.PubSub.Security.Sks
                 if (matched < request.RequestedKeyCount)
                 {
                     int additional = (int)request.RequestedKeyCount - matched;
-                    int allowed = (state.Group.MaxFutureKeyCount + 1) - FutureKeyCountLocked(state);
+                    int allowed = state.Group.MaxFutureKeyCount + 1 - FutureKeyCountLocked(state);
                     int toGenerate = Math.Min(additional, allowed);
                     if (toGenerate > 0)
                     {
-                        DateTimeUtc nowGen = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+                        var nowGen = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
                         for (int i = 0; i < toGenerate; i++)
                         {
                             PubSubSecurityKey newKey = SksKeyGenerator.Generate(
@@ -474,14 +472,14 @@ namespace Opc.Ua.PubSub.Security.Sks
                         $"SecurityGroup '{securityGroupId}' is not registered.");
                 }
 
-                uint nextTokenId = unchecked(state.Keys[state.Keys.Count - 1].TokenId + 1u);
+                uint nextTokenId = unchecked(state.Keys[^1].TokenId + 1u);
                 for (int i = state.CurrentIndex; i < state.Keys.Count; i++)
                 {
                     state.Keys[i].Dispose();
                 }
                 state.Keys.RemoveRange(state.CurrentIndex, state.Keys.Count - state.CurrentIndex);
                 PrunePastKeysLocked(state);
-                DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
                 PubSubSecurityKey current = SksKeyGenerator.Generate(
                     state.Policy,
                     nextTokenId,
@@ -539,7 +537,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             int maxFutureKeyCount,
             TimeSpan lifetime)
         {
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             var keys = new List<PubSubSecurityKey>(maxFutureKeyCount + 1);
             for (int i = 0; i <= maxFutureKeyCount; i++)
             {
@@ -581,7 +579,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return;
             }
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             for (int i = 0; i < toAdd; i++)
             {
                 PubSubSecurityKey newKey = SksKeyGenerator.Generate(
@@ -601,12 +599,11 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return TimeSpan.Zero;
             }
             PubSubSecurityKey current = state.Keys[state.CurrentIndex];
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             TimeSpan elapsed = now - current.IssuedAt;
             TimeSpan remaining = state.Group.KeyLifetime - elapsed;
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         }
-
 
         private void RotateExpiredCurrentLocked(SecurityGroupState state)
         {
@@ -652,7 +649,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return 1u;
             }
-            return unchecked(keys[keys.Count - 1].TokenId + 1u);
+            return unchecked(keys[^1].TokenId + 1u);
         }
 
         private sealed class SecurityGroupState

@@ -34,8 +34,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Redundancy;
+using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.StateMachine;
 using JsonDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
 using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
@@ -60,18 +60,22 @@ namespace Opc.Ua.PubSub.Groups
     public sealed class WriterGroup : IWriterGroup, IAsyncDisposable
     {
         private readonly ArrayOf<DataSetWriter> m_writers;
-        private readonly ArrayOf<IDataSetWriter> m_dataSetWriters;
         private readonly IPubSubScheduler m_scheduler;
         private readonly ILogger<WriterGroup> m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<ushort, WriterRuntimeState> m_writerState;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
+        private IPubSubWriterCheckpointStore m_checkpointStore = NullPubSubWriterCheckpointStore.Instance;
         private string m_componentId = string.Empty;
         private bool m_roleChangedSubscribed;
         private IAsyncDisposable? m_schedule;
         private long m_lastPublishedTicks;
+        private long m_lastCheckpointTicks;
+        private int m_restorePending;
         private bool m_disposed;
+        private const uint kSequenceRestoreMargin = 1000;
+        private static readonly TimeSpan kCheckpointInterval = TimeSpan.FromSeconds(1);
 
         /// <summary>
         /// Initializes a new <see cref="WriterGroup"/>.
@@ -108,14 +112,14 @@ namespace Opc.Ua.PubSub.Groups
             }
             Configuration = configuration;
             m_writers = writers;
-            m_dataSetWriters = writers.ToArrayOf<DataSetWriter, IDataSetWriter>(static writer => writer);
+            DataSetWriters = writers.ToArrayOf<DataSetWriter, IDataSetWriter>(static writer => writer);
             Schedule = schedule;
             m_scheduler = scheduler;
             m_timeProvider = timeProvider;
             WriterGroupId = configuration.WriterGroupId;
             Name = configuration.Name ?? string.Empty;
             ConfigureActivationCoordinator(
-                componentId ?? string.Concat("pubsub:writergroup:", Name),
+                componentId ?? $"pubsub:writergroup:{Name}",
                 activationCoordinator);
             m_logger = telemetry.CreateLogger<WriterGroup>();
             State = new PubSubStateMachine(
@@ -132,6 +136,7 @@ namespace Opc.Ua.PubSub.Groups
                 m_writerState[writer.DataSetWriterId] = new WriterRuntimeState();
             }
             m_lastPublishedTicks = timeProvider.GetTimestamp();
+            m_lastCheckpointTicks = m_lastPublishedTicks;
         }
 
         /// <inheritdoc/>
@@ -141,7 +146,7 @@ namespace Opc.Ua.PubSub.Groups
         public string Name { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<IDataSetWriter> DataSetWriters => m_dataSetWriters;
+        public ArrayOf<IDataSetWriter> DataSetWriters { get; }
 
         /// <inheritdoc/>
         public PubSubSchedule Schedule { get; }
@@ -222,49 +227,61 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return;
             }
-            var dataSetMessages = new List<PubSubDataSetMessage>(m_writers.Count);
-            for (int i = 0; i < m_writers.Count; i++)
+            try
             {
-                DataSetWriter writer = m_writers[i];
-                if (writer.State.State == PubSubState.Disabled)
+                if (Volatile.Read(ref m_restorePending) == 1)
                 {
-                    continue;
+                    await RestoreSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
+                    Interlocked.Exchange(ref m_restorePending, 0);
                 }
-                cancellationToken.ThrowIfCancellationRequested();
-                PubSubDataSetMessage? message = await BuildDataSetMessageAsync(
-                    writer,
-                    cancellationToken).ConfigureAwait(false);
-                if (message is not null)
+
+                var dataSetMessages = new List<PubSubDataSetMessage>(m_writers.Count);
+                for (int i = 0; i < m_writers.Count; i++)
                 {
-                    dataSetMessages.Add(message);
-                }
-            }
-            if (dataSetMessages.Count == 0)
-            {
-                if (!ShouldEmitKeepAlive())
-                {
-                    return;
-                }
-                foreach (DataSetWriter writer in m_writers)
-                {
+                    DataSetWriter writer = m_writers[i];
                     if (writer.State.State == PubSubState.Disabled)
                     {
                         continue;
                     }
                     cancellationToken.ThrowIfCancellationRequested();
-                    dataSetMessages.Add(BuildKeepAliveMessage(writer));
+                    PubSubDataSetMessage? message = await BuildDataSetMessageAsync(
+                        writer,
+                        cancellationToken).ConfigureAwait(false);
+                    if (message is not null)
+                    {
+                        dataSetMessages.Add(message);
+                    }
                 }
                 if (dataSetMessages.Count == 0)
                 {
-                    return;
+                    if (!ShouldEmitKeepAlive())
+                    {
+                        return;
+                    }
+                    foreach (DataSetWriter writer in m_writers)
+                    {
+                        if (writer.State.State == PubSubState.Disabled)
+                        {
+                            continue;
+                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        dataSetMessages.Add(BuildKeepAliveMessage(writer));
+                    }
+                    if (dataSetMessages.Count == 0)
+                    {
+                        return;
+                    }
                 }
-            }
-            PubSubNetworkMessage networkMessage = BuildNetworkMessage(dataSetMessages);
-            try
-            {
+                PubSubNetworkMessage networkMessage = BuildNetworkMessage(dataSetMessages);
                 await PublishSink(networkMessage, cancellationToken)
                     .ConfigureAwait(false);
                 Interlocked.Exchange(ref m_lastPublishedTicks, m_timeProvider.GetTimestamp());
+                long nowTicks = m_timeProvider.GetTimestamp();
+                if (m_timeProvider.GetElapsedTime(m_lastCheckpointTicks, nowTicks) >= kCheckpointInterval)
+                {
+                    m_lastCheckpointTicks = nowTicks;
+                    await CheckpointSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -275,7 +292,6 @@ namespace Opc.Ua.PubSub.Groups
                 m_logger.LogError(ex, "WriterGroup {Group} publish failed.", Name);
             }
         }
-
 
         internal void ConfigureActivationCoordinator(
             string componentId,
@@ -300,6 +316,14 @@ namespace Opc.Ua.PubSub.Groups
             {
                 previous.RoleChanged -= OnRoleChanged;
                 SubscribeRoleChanges();
+            }
+        }
+
+        internal void ConfigureWriterCheckpointStore(IPubSubWriterCheckpointStore? checkpointStore)
+        {
+            lock (m_gate)
+            {
+                m_checkpointStore = checkpointStore ?? NullPubSubWriterCheckpointStore.Instance;
             }
         }
 
@@ -368,6 +392,7 @@ namespace Opc.Ua.PubSub.Groups
                 return;
             }
 
+            Interlocked.Exchange(ref m_restorePending, 1);
             if (State.State == PubSubState.Paused)
             {
                 _ = State.TryResume(PubSubStateTransitionReason.ByParent);
@@ -379,6 +404,59 @@ namespace Opc.Ua.PubSub.Groups
             if (State.State == PubSubState.Operational)
             {
                 _ = State.TryResumeCascade();
+            }
+        }
+
+        private async ValueTask RestoreSequenceNumbersAsync(CancellationToken cancellationToken)
+        {
+            IPubSubWriterCheckpointStore store;
+            string componentId;
+            lock (m_gate)
+            {
+                store = m_checkpointStore;
+                componentId = m_componentId;
+            }
+
+            foreach (KeyValuePair<ushort, WriterRuntimeState> entry in m_writerState)
+            {
+                uint? checkpoint = await store.GetSequenceNumberAsync(componentId, entry.Key, cancellationToken)
+                    .ConfigureAwait(false);
+                if (checkpoint is uint value)
+                {
+                    WriterRuntimeState runtime = entry.Value;
+                    uint resumed = value + kSequenceRestoreMargin;
+                    if (resumed > runtime.SequenceNumber)
+                    {
+                        runtime.SequenceNumber = resumed;
+                    }
+                    runtime.CyclesSinceKeyFrame = 0;
+                    runtime.LastSnapshot = null;
+                }
+            }
+        }
+
+        private async ValueTask CheckpointSequenceNumbersAsync(CancellationToken cancellationToken)
+        {
+            IPubSubWriterCheckpointStore store;
+            string componentId;
+            lock (m_gate)
+            {
+                store = m_checkpointStore;
+                componentId = m_componentId;
+            }
+            if (store is NullPubSubWriterCheckpointStore)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<ushort, WriterRuntimeState> entry in m_writerState)
+            {
+                await store.SetSequenceNumberAsync(
+                    componentId,
+                    entry.Key,
+                    entry.Value.SequenceNumber,
+                    cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -405,13 +483,13 @@ namespace Opc.Ua.PubSub.Groups
             }
 
             uint sequenceNumber = ++runtime.SequenceNumber;
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
 
             PubSubDataSetMessageType messageType;
             ArrayOf<DataSetField> fields;
-            if (writer.KeyFrameCount <= 1
-                || runtime.LastSnapshot is null
-                || runtime.CyclesSinceKeyFrame >= writer.KeyFrameCount)
+            if (writer.KeyFrameCount <= 1 ||
+                runtime.LastSnapshot is null ||
+                runtime.CyclesSinceKeyFrame >= writer.KeyFrameCount)
             {
                 messageType = PubSubDataSetMessageType.KeyFrame;
                 fields = snapshot.Fields;
@@ -485,14 +563,14 @@ namespace Opc.Ua.PubSub.Groups
                     WriterGroupId = WriterGroupId,
                     DataSetMessages = dataSetMessages,
                     PublisherId = PubSubAddressing.PublisherId,
-                    SingleMessageMode = IsJsonSingleMessageMode() && dataSetMessages.Count == 1,
+                    SingleMessageMode = IsJsonSingleMessageMode() && dataSetMessages.Count == 1
                 };
             }
             return new UadpNetworkMessageV2
             {
                 WriterGroupId = WriterGroupId,
                 DataSetMessages = dataSetMessages,
-                PublisherId = PubSubAddressing.PublisherId,
+                PublisherId = PubSubAddressing.PublisherId
             };
         }
 
@@ -522,8 +600,8 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
-            return ((uint)json.NetworkMessageContentMask
-                & (uint)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
+            return (json.NetworkMessageContentMask &
+                (uint)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
         }
 
         private string GetEncodingProfile()
@@ -554,7 +632,7 @@ namespace Opc.Ua.PubSub.Groups
             // dataset data being conveyed.
             WriterRuntimeState runtime = m_writerState[writer.DataSetWriterId];
             uint sequenceNumber = ++runtime.SequenceNumber;
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
             ConfigurationVersionDataType metaDataVersion = runtime.LastSnapshot is not null
                 ? runtime.LastSnapshot.MetaDataVersion
                 : new ConfigurationVersionDataType();
@@ -620,10 +698,10 @@ namespace Opc.Ua.PubSub.Groups
                 return null;
             }
             ExtensionObject src = concrete.Configuration.DataSetSource;
-            if (src.IsNull
-                || !src.TryGetValue(out PublishedDataItemsDataType? items)
-                || items is null
-                || items.PublishedData.IsNull)
+            if (src.IsNull ||
+                !src.TryGetValue(out PublishedDataItemsDataType? items) ||
+                items is null ||
+                items.PublishedData.IsNull)
             {
                 return null;
             }

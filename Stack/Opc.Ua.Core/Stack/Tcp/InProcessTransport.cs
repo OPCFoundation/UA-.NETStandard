@@ -58,6 +58,7 @@ namespace Opc.Ua.Bindings
         /// <param name="buffers">Buffer manager used to allocate receive buffers.</param>
         /// <param name="receiveBufferSize">Maximum size of a single chunk on the receive path.</param>
         /// <param name="telemetry">Telemetry context for diagnostics / activity correlation.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="buffers"/> is <c>null</c>.</exception>
         public static (InProcessTransport, InProcessTransport) CreatePair(
             BufferManager buffers,
             int receiveBufferSize,
@@ -72,8 +73,8 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(telemetry));
             }
 
-            Channel<byte[]> aToB = Channel.CreateUnbounded<byte[]>();
-            Channel<byte[]> bToA = Channel.CreateUnbounded<byte[]>();
+            var aToB = Channel.CreateUnbounded<byte[]>();
+            var bToA = Channel.CreateUnbounded<byte[]>();
             var a = new InProcessTransport(
                 buffers, receiveBufferSize, telemetry, bToA.Reader, aToB.Writer);
             var b = new InProcessTransport(
@@ -189,7 +190,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public void Dispose() => Close();
+        public void Dispose()
+        {
+            Close();
+        }
 
         private void ThrowIfClosed()
         {
@@ -203,7 +207,9 @@ namespace Opc.Ua.Bindings
 
         private readonly BufferManager m_buffers;
         private readonly int m_receiveBufferSize;
+#pragma warning disable IDE0052 // Kept to preserve the telemetry dependency for future in-process transport diagnostics.
         private readonly ITelemetryContext m_telemetry;
+#pragma warning restore IDE0052
         private readonly ChannelReader<byte[]> m_inbound;
         private readonly ChannelWriter<byte[]> m_outbound;
         private int m_closed;

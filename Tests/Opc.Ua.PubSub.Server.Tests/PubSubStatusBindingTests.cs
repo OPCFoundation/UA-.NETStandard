@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             BaseDataVariableState first = ctx.Counters[0];
             Assert.That(first.OnSimpleReadValue, Is.Not.Null);
-            var variant = Variant.Null;
+            Variant variant = Variant.Null;
             ServiceResult result = first.OnSimpleReadValue!(null!, first, ref variant);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(variant.TryGetValue(out uint counterValue), Is.True);

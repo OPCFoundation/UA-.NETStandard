@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -115,7 +114,7 @@ namespace Opc.Ua.Fuzzing
         public void VariableNodeWithEmptyArrayDimensionsRoundTripsCleanly()
         {
             VariableNode original = BuildPopulatedVariableNode();
-            original.ArrayDimensions = ArrayOf<uint>.Empty;
+            original.ArrayDimensions = [];
 
             byte[] serialized = BinaryEncoder.EncodeMessage(original, FuzzableCode.MessageContext);
 
@@ -298,8 +297,8 @@ namespace Opc.Ua.Fuzzing
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
                 ArrayDimensions = new ArrayOf<uint>(s_arrayDimensions),
-                AccessLevel = (byte)(AccessLevels.CurrentRead | AccessLevels.CurrentWrite),
-                UserAccessLevel = (byte)AccessLevels.CurrentRead,
+                AccessLevel = AccessLevels.CurrentRead | AccessLevels.CurrentWrite,
+                UserAccessLevel = AccessLevels.CurrentRead,
                 MinimumSamplingInterval = 0,
                 Historizing = false,
                 AccessLevelEx = 0,

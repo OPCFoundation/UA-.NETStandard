@@ -33,8 +33,8 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Tests;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Udp.Tests
@@ -168,8 +168,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await receiver.OpenAsync();
-                await sender.OpenAsync();
+                await receiver.OpenAsync().ConfigureAwait(false);
+                await sender.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -181,10 +181,10 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             for (int attempt = 0; attempt < 5; attempt++)
             {
-                await sender.SendAsync(payload);
+                await sender.SendAsync(payload).ConfigureAwait(false);
                 PubSubTransportFrame? frame = await UdpIntegrationTestHelpers.ReceiveOneAsync(
                     receiver,
-                    TimeSpan.FromMilliseconds(500));
+                    TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
                 if (frame is not null)
                 {
                     Assert.That(frame.Value.Payload.ToArray(), Is.EqualTo(payload));
@@ -225,7 +225,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await transport.OpenAsync();
+                await transport.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {

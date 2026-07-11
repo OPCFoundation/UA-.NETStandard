@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -82,7 +83,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ReadOnlyMemory<byte> frame,
             PubSubNetworkMessageContext context)
         {
-            JsonDocument? document = null;
+            JsonDocument? document;
             try
             {
                 document = JsonDocument.Parse(frame);
@@ -108,12 +109,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                     return null;
                 }
-                if (!root.TryGetProperty("MessageType", out JsonElement typeElement)
-                    || typeElement.ValueKind != JsonValueKind.String)
+                if (!root.TryGetProperty("MessageType", out JsonElement typeElement) ||
+                    typeElement.ValueKind != JsonValueKind.String)
                 {
-                    if (root.TryGetProperty("MessageId", out _)
-                        || root.TryGetProperty("PublisherId", out _)
-                        || root.TryGetProperty("Messages", out _))
+                    if (root.TryGetProperty("MessageId", out _) ||
+                        root.TryGetProperty("PublisherId", out _) ||
+                        root.TryGetProperty("Messages", out _))
                     {
                         context.Diagnostics.Increment(
                             PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
@@ -133,13 +134,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     JsonNetworkMessage.MessageTypeMetaData
                         => DecodeMetaData(root, context),
                     JsonDiscoveryMessage.MessageTypeApplication
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.ApplicationInformation),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.ApplicationInformation),
                     JsonDiscoveryMessage.MessageTypeEndpoints
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.PublisherEndpoints),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.PublisherEndpoints),
                     JsonDiscoveryMessage.MessageTypeStatus
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.None),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.None),
                     JsonDiscoveryMessage.MessageTypeConnection
-                        => DecodeDiscovery(root, context, Uadp.UadpDiscoveryType.PubSubConnection),
+                        => DecodeDiscovery(root, context, UadpDiscoveryType.PubSubConnection),
                     JsonActionNetworkMessage.MessageTypeActionRequest
                         => DecodeAction(root, context),
                     JsonActionNetworkMessage.MessageTypeActionResponse
@@ -233,8 +234,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             Uuid envelopeDataSetClassId = ReadUuid(root, "DataSetClassId");
             string writerGroupName = ReadOptionalString(root, "WriterGroupName");
             ArrayOf<string> replyTo = ReadStringArray(root, "ReplyTo");
-            bool flatLayout = !root.TryGetProperty("Messages", out JsonElement messagesElement)
-                || messagesElement.ValueKind == JsonValueKind.Object;
+            bool flatLayout = !root.TryGetProperty("Messages", out JsonElement messagesElement) ||
+                messagesElement.ValueKind == JsonValueKind.Object;
             var dataSetMessages = new List<PubSubDataSetMessage>();
             if (flatLayout)
             {
@@ -325,8 +326,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PublisherId publisherId = ReadPublisherId(root);
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
             Uuid dataSetClassId = ReadUuid(root, "DataSetClassId");
-            if (!root.TryGetProperty("MetaData", out JsonElement metaElement)
-                || metaElement.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            if (!root.TryGetProperty("MetaData", out JsonElement metaElement) ||
+                metaElement.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
             {
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
@@ -363,18 +364,18 @@ namespace Opc.Ua.PubSub.Encoding.Json
         private static JsonDiscoveryMessage? DecodeDiscovery(
             JsonElement root,
             PubSubNetworkMessageContext context,
-            Uadp.UadpDiscoveryType? forcedType = null)
+            UadpDiscoveryType? forcedType = null)
         {
             string messageId = ReadOptionalString(root, "MessageId");
             PublisherId publisherId = ReadPublisherId(root);
             uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
             uint statusCode = ReadOptionalUInt32(root, "Status");
-            var discoveryType = forcedType ?? (Uadp.UadpDiscoveryType)typeCode;
-            if (discoveryType == Uadp.UadpDiscoveryType.None
-                && root.TryGetProperty("WriterConfiguration", out _))
+            UadpDiscoveryType discoveryType = forcedType ?? (UadpDiscoveryType)typeCode;
+            if (discoveryType == UadpDiscoveryType.None &&
+                root.TryGetProperty("WriterConfiguration", out _))
             {
-                discoveryType = Uadp.UadpDiscoveryType.DataSetWriterConfiguration;
+                discoveryType = UadpDiscoveryType.DataSetWriterConfiguration;
             }
             var msg = new JsonDiscoveryMessage
             {
@@ -386,10 +387,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
             };
             switch (discoveryType)
             {
-                case Uadp.UadpDiscoveryType.ApplicationInformation:
+                case UadpDiscoveryType.ApplicationInformation:
                     if (root.TryGetProperty("ApplicationInformation",
-                            out JsonElement appElement)
-                        && appElement.ValueKind == JsonValueKind.Object)
+                            out JsonElement appElement) &&
+                        appElement.ValueKind == JsonValueKind.Object)
                     {
                         msg = msg with
                         {
@@ -397,9 +398,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.PubSubConnection:
-                    if (root.TryGetProperty("Connection", out JsonElement connElement)
-                        && connElement.ValueKind == JsonValueKind.Object)
+                case UadpDiscoveryType.PubSubConnection:
+                    if (root.TryGetProperty("Connection", out JsonElement connElement) &&
+                        connElement.ValueKind == JsonValueKind.Object)
                     {
                         msg = msg with
                         {
@@ -408,23 +409,23 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.DataSetMetaData:
-                    if (root.TryGetProperty("MetaData", out JsonElement metaElement)
-                        && metaElement.ValueKind == JsonValueKind.Object)
+                case UadpDiscoveryType.DataSetMetaData:
+                    if (root.TryGetProperty("MetaData", out JsonElement metaElement) &&
+                        metaElement.ValueKind == JsonValueKind.Object)
                     {
                         DataSetMetaDataType? meta = DecodeMetaDataPayload(
                             metaElement, context);
                         msg = msg with { MetaData = meta };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.DataSetWriterConfiguration:
+                case UadpDiscoveryType.DataSetWriterConfiguration:
                     msg = msg with
                     {
                         DataSetWriterIds = ReadUInt16Array(root, "DataSetWriterIds")
                     };
                     if (root.TryGetProperty("WriterConfiguration",
-                            out JsonElement cfgElement)
-                        && cfgElement.ValueKind == JsonValueKind.Object)
+                            out JsonElement cfgElement) &&
+                        cfgElement.ValueKind == JsonValueKind.Object)
                     {
                         msg = msg with
                         {
@@ -433,10 +434,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         };
                     }
                     break;
-                case Uadp.UadpDiscoveryType.PublisherEndpoints:
+                case UadpDiscoveryType.PublisherEndpoints:
                     if (root.TryGetProperty("PublisherEndpoints",
-                            out JsonElement epsElement)
-                        && epsElement.ValueKind == JsonValueKind.Array)
+                            out JsonElement epsElement) &&
+                        epsElement.ValueKind == JsonValueKind.Array)
                     {
                         msg = msg with
                         {
@@ -460,7 +461,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     "{\"", propertyName, "\":",
                     element.GetRawText(),
                     "}");
-                using Opc.Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
+                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
                 return decoder.ReadEncodeable<T>(propertyName);
             }
             catch (ServiceResultException)
@@ -500,8 +501,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         private static ushort[] ReadUInt16Array(JsonElement root, string name)
         {
-            if (!root.TryGetProperty(name, out JsonElement array)
-                || array.ValueKind != JsonValueKind.Array)
+            if (!root.TryGetProperty(name, out JsonElement array) ||
+                array.ValueKind != JsonValueKind.Array)
             {
                 return [];
             }
@@ -516,7 +517,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             return [.. list];
         }
 
-        private static Uadp.UadpApplicationInformation ReadApplicationInformation(
+        private static UadpApplicationInformation ReadApplicationInformation(
             JsonElement element)
         {
             string text = ReadOptionalString(element, "ApplicationName");
@@ -524,7 +525,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             string appUri = ReadOptionalString(element, "ApplicationUri");
             string productUri = ReadOptionalString(element, "ProductUri");
             uint appType = ReadOptionalUInt32(element, "ApplicationType");
-            return new Uadp.UadpApplicationInformation
+            return new UadpApplicationInformation
             {
                 ApplicationName = new LocalizedText(locale, text),
                 ApplicationUri = appUri,
@@ -540,8 +541,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         private static string[] ReadStringList(JsonElement root, string name)
         {
-            if (!root.TryGetProperty(name, out JsonElement array)
-                || array.ValueKind != JsonValueKind.Array)
+            if (!root.TryGetProperty(name, out JsonElement array) ||
+                array.ValueKind != JsonValueKind.Array)
             {
                 return [];
             }
@@ -570,8 +571,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            Opc.Ua.JsonActionNetworkMessage? network =
-                DecodeEncodeable<Opc.Ua.JsonActionNetworkMessage>(
+            Ua.JsonActionNetworkMessage? network =
+                DecodeEncodeable<Ua.JsonActionNetworkMessage>(
                     "ActionNetworkMessage",
                     root,
                     context);
@@ -604,8 +605,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ArrayOf<ExtensionObject> fallback,
             PubSubNetworkMessageContext context)
         {
-            if (!root.TryGetProperty("Messages", out JsonElement messagesElement)
-                || messagesElement.ValueKind != JsonValueKind.Array)
+            if (!root.TryGetProperty("Messages", out JsonElement messagesElement) ||
+                messagesElement.ValueKind != JsonValueKind.Array)
             {
                 return fallback;
             }
@@ -639,8 +640,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            Opc.Ua.JsonActionMetaDataMessage? metaData =
-                DecodeEncodeable<Opc.Ua.JsonActionMetaDataMessage>(
+            JsonActionMetaDataMessage? metaData =
+                DecodeEncodeable<JsonActionMetaDataMessage>(
                     "ActionMetaData",
                     root,
                     context);
@@ -660,8 +661,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            Opc.Ua.JsonActionResponderMessage? responder =
-                DecodeEncodeable<Opc.Ua.JsonActionResponderMessage>(
+            JsonActionResponderMessage? responder =
+                DecodeEncodeable<JsonActionResponderMessage>(
                     "ActionResponder",
                     root,
                     context);
@@ -704,9 +705,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             if (entry.TryGetProperty("PublisherId", out JsonElement entryPub))
             {
                 PublisherId nested = ParsePublisherId(entryPub);
-                if (!nested.IsNull
-                    && !envelopePublisherId.IsNull
-                    && !PublisherIdEquals(envelopePublisherId, nested))
+                if (!nested.IsNull &&
+                    !envelopePublisherId.IsNull &&
+                    !PublisherIdEquals(envelopePublisherId, nested))
                 {
                     identityConflict = true;
                     context.Diagnostics.Increment(
@@ -717,9 +718,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             if (entry.TryGetProperty("DataSetClassId", out JsonElement entryClass))
             {
                 Uuid nestedClass = ParseUuid(entryClass);
-                if (nestedClass.Guid != Guid.Empty
-                    && envelopeClassId.Guid != Guid.Empty
-                    && envelopeClassId.Guid != nestedClass.Guid)
+                if (nestedClass.Guid != Guid.Empty &&
+                    envelopeClassId.Guid != Guid.Empty &&
+                    envelopeClassId.Guid != nestedClass.Guid)
                 {
                     identityConflict = true;
                     context.Diagnostics.Increment(
@@ -796,14 +797,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         private static bool HasDataSetMessageHeader(JsonElement entry)
         {
-            return entry.TryGetProperty("DataSetWriterId", out _)
-                || entry.TryGetProperty("DataSetWriterName", out _)
-                || entry.TryGetProperty("SequenceNumber", out _)
-                || entry.TryGetProperty("MetaDataVersion", out _)
-                || entry.TryGetProperty("Timestamp", out _)
-                || entry.TryGetProperty("Status", out _)
-                || entry.TryGetProperty("MessageType", out _)
-                || entry.TryGetProperty("Payload", out _);
+            return entry.TryGetProperty("DataSetWriterId", out _) ||
+                entry.TryGetProperty("DataSetWriterName", out _) ||
+                entry.TryGetProperty("SequenceNumber", out _) ||
+                entry.TryGetProperty("MetaDataVersion", out _) ||
+                entry.TryGetProperty("Timestamp", out _) ||
+                entry.TryGetProperty("Status", out _) ||
+                entry.TryGetProperty("MessageType", out _) ||
+                entry.TryGetProperty("Payload", out _);
         }
 
         /// <summary>
@@ -823,7 +824,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     "{\"MetaData\":",
                     element.GetRawText(),
                     "}");
-                using Opc.Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
+                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
                 return decoder.ReadEncodeable<DataSetMetaDataType>("MetaData");
             }
             catch (ServiceResultException)
@@ -848,8 +849,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <returns>Property value or empty string.</returns>
         private static string ReadOptionalString(JsonElement root, string name)
         {
-            if (root.TryGetProperty(name, out JsonElement value)
-                && value.ValueKind == JsonValueKind.String)
+            if (root.TryGetProperty(name, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String)
             {
                 return value.GetString() ?? string.Empty;
             }
@@ -864,9 +865,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <returns>Property value or zero.</returns>
         private static ushort ReadOptionalUInt16(JsonElement root, string name)
         {
-            if (root.TryGetProperty(name, out JsonElement value)
-                && value.ValueKind == JsonValueKind.Number
-                && value.TryGetUInt16(out ushort v))
+            if (root.TryGetProperty(name, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.Number &&
+                value.TryGetUInt16(out ushort v))
             {
                 return v;
             }
@@ -881,9 +882,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <returns>Property value or zero.</returns>
         private static uint ReadOptionalUInt32(JsonElement root, string name)
         {
-            if (root.TryGetProperty(name, out JsonElement value)
-                && value.ValueKind == JsonValueKind.Number
-                && value.TryGetUInt32(out uint v))
+            if (root.TryGetProperty(name, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.Number &&
+                value.TryGetUInt32(out uint v))
             {
                 return v;
             }
@@ -899,9 +900,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <see cref="DateTimeUtc.MinValue"/>.</returns>
         private static DateTimeUtc ReadOptionalTimestamp(JsonElement root, string name)
         {
-            if (root.TryGetProperty(name, out JsonElement value)
-                && value.ValueKind == JsonValueKind.String
-                && DateTime.TryParse(
+            if (root.TryGetProperty(name, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String &&
+                DateTime.TryParse(
                     value.GetString(),
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.RoundtripKind,
@@ -922,14 +923,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
         {
             if (root.TryGetProperty(name, out JsonElement value))
             {
-                if (value.ValueKind == JsonValueKind.Number
-                    && value.TryGetUInt32(out uint v))
+                if (value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetUInt32(out uint v))
                 {
                     return new StatusCode(v);
                 }
-                if (value.ValueKind == JsonValueKind.Object
-                    && value.TryGetProperty("Code", out JsonElement codeElement)
-                    && codeElement.TryGetUInt32(out uint codeValue))
+                if (value.ValueKind == JsonValueKind.Object &&
+                    value.TryGetProperty("Code", out JsonElement codeElement) &&
+                    codeElement.TryGetUInt32(out uint codeValue))
                 {
                     return new StatusCode(codeValue);
                 }
@@ -944,8 +945,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <returns>Configuration version (zeroed when absent).</returns>
         private static ConfigurationVersionDataType ReadMetaVersion(JsonElement root)
         {
-            if (!root.TryGetProperty("MetaDataVersion", out JsonElement value)
-                || value.ValueKind != JsonValueKind.Object)
+            if (!root.TryGetProperty("MetaDataVersion", out JsonElement value) ||
+                value.ValueKind != JsonValueKind.Object)
             {
                 return new ConfigurationVersionDataType();
             }
@@ -979,8 +980,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             out string wireName)
         {
             wireName = string.Empty;
-            if (root.TryGetProperty("MessageType", out JsonElement value)
-                && value.ValueKind == JsonValueKind.String)
+            if (root.TryGetProperty("MessageType", out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String)
             {
                 string raw = value.GetString() ?? string.Empty;
                 wireName = raw;
@@ -1050,8 +1051,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             bool singleMessage)
         {
             JsonNetworkMessageContentMask mask =
-                JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetMessageHeader;
+                JsonNetworkMessageContentMask.NetworkMessageHeader |
+                JsonNetworkMessageContentMask.DataSetMessageHeader;
             if (singleMessage)
             {
                 mask |= JsonNetworkMessageContentMask.SingleDataSetMessage;
@@ -1103,8 +1104,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 {
                     return JsonEncodingMode.RawData;
                 }
-                if (value.TryGetProperty("Type", out _)
-                    && value.TryGetProperty("Body", out _))
+                if (value.TryGetProperty("Type", out _) &&
+                    value.TryGetProperty("Body", out _))
                 {
                     return JsonEncodingMode.Verbose;
                 }
@@ -1149,8 +1150,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return metaData;
             }
-            if (TryGetUIntegerPublisherIdString(publisherId, out string? numericText)
-                && numericText is not null)
+            if (TryGetUIntegerPublisherIdString(publisherId, out string? numericText) &&
+                numericText is not null)
             {
                 foreach (PublisherId numericPublisherId in EnumerateNumericPublisherIds(numericText))
                 {
@@ -1249,8 +1250,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <returns>Parsed value or default Uuid.</returns>
         private static Uuid ParseUuid(JsonElement value)
         {
-            if (value.ValueKind == JsonValueKind.String
-                && Guid.TryParse(value.GetString(), out Guid g))
+            if (value.ValueKind == JsonValueKind.String &&
+                Guid.TryParse(value.GetString(), out Guid g))
             {
                 return new Uuid(g);
             }
@@ -1265,8 +1266,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <returns>Decoded array (never null).</returns>
         private static string[] ReadStringArray(JsonElement root, string name)
         {
-            if (!root.TryGetProperty(name, out JsonElement value)
-                || value.ValueKind != JsonValueKind.Array)
+            if (!root.TryGetProperty(name, out JsonElement value) ||
+                value.ValueKind != JsonValueKind.Array)
             {
                 return [];
             }
@@ -1278,7 +1279,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     list.Add(entry.GetString() ?? string.Empty);
                 }
             }
-            return list.ToArray();
+            return [.. list];
         }
 
         /// <summary>
@@ -1299,8 +1300,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return false;
             }
-            if (TryGetUIntegerPublisherIdString(left, out string? leftNumber)
-                && TryGetUIntegerPublisherIdString(right, out string? rightNumber))
+            if (TryGetUIntegerPublisherIdString(left, out string? leftNumber) &&
+                TryGetUIntegerPublisherIdString(right, out string? rightNumber))
             {
                 return string.Equals(leftNumber, rightNumber, StringComparison.Ordinal);
             }
@@ -1367,8 +1368,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 value = u64.ToString(CultureInfo.InvariantCulture);
                 return true;
             }
-            if (publisherId.TryGetString(out string? text)
-                && IsUIntegerPublisherIdString(text))
+            if (publisherId.TryGetString(out string? text) &&
+                IsUIntegerPublisherIdString(text))
             {
                 value = text;
                 return true;
@@ -1389,7 +1390,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             for (int i = 0; i < value.Length; i++)
             {
-                if (value[i] < '0' || value[i] > '9')
+                if (value[i] is < '0' or > '9')
                 {
                     return false;
                 }

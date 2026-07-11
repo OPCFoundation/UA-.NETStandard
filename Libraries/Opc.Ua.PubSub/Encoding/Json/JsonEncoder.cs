@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Globalization;
 using System.Text.Json;
 using System.Threading;
@@ -42,7 +41,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// serialises <see cref="JsonNetworkMessage"/> and
     /// <see cref="JsonMetaDataMessage"/> instances to the JSON
     /// NetworkMessage wire format using
-    /// <see cref="System.Text.Json.Utf8JsonWriter"/>.
+    /// <see cref="Utf8JsonWriter"/>.
     /// </summary>
     /// <remarks>
     /// Implements
@@ -114,12 +113,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="message">Source network message.</param>
         /// <param name="context">Encoder context.</param>
         /// <returns>Encoded UTF-8 frame.</returns>
+        /// <exception cref="ArgumentException"></exception>
         private ReadOnlyMemory<byte> EncodeNetwork(
             JsonNetworkMessage message,
             PubSubNetworkMessageContext context)
         {
-            bool singleMessage = message.SingleMessageMode
-                || (message.ContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
+            bool singleMessage = message.SingleMessageMode ||
+                (message.ContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
             bool networkHeader =
                 (message.ContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0;
             bool dataSetHeader =
@@ -201,13 +201,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 WritePublisherId(writer, "PublisherId", message.PublisherId);
             }
-            if ((message.ContentMask & JsonNetworkMessageContentMask.WriterGroupName) != 0
-                && !string.IsNullOrEmpty(message.WriterGroupName))
+            if ((message.ContentMask & JsonNetworkMessageContentMask.WriterGroupName) != 0 &&
+                !string.IsNullOrEmpty(message.WriterGroupName))
             {
                 writer.WriteString("WriterGroupName", message.WriterGroupName);
             }
-            if ((message.ContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0
-                && message.DataSetClassId.Guid != Guid.Empty)
+            if ((message.ContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0 &&
+                message.DataSetClassId.Guid != Guid.Empty)
             {
                 writer.WriteString("DataSetClassId", message.DataSetClassId.ToString());
             }
@@ -223,8 +223,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             Utf8JsonWriter writer,
             JsonNetworkMessage message)
         {
-            if ((message.ContentMask & JsonNetworkMessageContentMask.ReplyTo) == 0
-                || message.ReplyTo.Count == 0)
+            if ((message.ContentMask & JsonNetworkMessageContentMask.ReplyTo) == 0 ||
+                message.ReplyTo.Count == 0)
             {
                 return;
             }
@@ -280,25 +280,25 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubNetworkMessageContext context)
         {
             JsonDataSetMessageContentMask mask = dsm.ContentMask;
-            if ((mask & JsonDataSetMessageContentMask.DataSetWriterId) != 0
-                && dsm.DataSetWriterId != 0)
+            if ((mask & JsonDataSetMessageContentMask.DataSetWriterId) != 0 &&
+                dsm.DataSetWriterId != 0)
             {
                 writer.WriteNumber("DataSetWriterId", dsm.DataSetWriterId);
             }
-            if ((mask & JsonDataSetMessageContentMask.DataSetWriterName) != 0
-                && !string.IsNullOrEmpty(dsm.DataSetWriterName))
+            if ((mask & JsonDataSetMessageContentMask.DataSetWriterName) != 0 &&
+                !string.IsNullOrEmpty(dsm.DataSetWriterName))
             {
                 writer.WriteString("DataSetWriterName", dsm.DataSetWriterName);
             }
-            if ((mask & JsonDataSetMessageContentMask.PublisherId) != 0
-                && (envelope.ContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) == 0)
+            if ((mask & JsonDataSetMessageContentMask.PublisherId) != 0 &&
+                (envelope.ContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) == 0)
             {
                 WritePublisherId(writer, "PublisherId",
                     dsm.PublisherId.IsNull ? envelope.PublisherId : dsm.PublisherId);
             }
-            if ((mask & JsonDataSetMessageContentMask.WriterGroupName) != 0
-                && string.IsNullOrEmpty(envelope.WriterGroupName)
-                && !string.IsNullOrEmpty(dsm.WriterGroupName))
+            if ((mask & JsonDataSetMessageContentMask.WriterGroupName) != 0 &&
+                string.IsNullOrEmpty(envelope.WriterGroupName) &&
+                !string.IsNullOrEmpty(dsm.WriterGroupName))
             {
                 writer.WriteString("WriterGroupName", dsm.WriterGroupName);
             }
@@ -360,6 +360,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="message">Source metadata message.</param>
         /// <param name="context">Encoder context.</param>
         /// <returns>Encoded UTF-8 frame.</returns>
+        /// <exception cref="ArgumentException"></exception>
         private ReadOnlyMemory<byte> EncodeMetaData(
             JsonMetaDataMessage message,
             PubSubNetworkMessageContext context)
@@ -453,7 +454,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                             WriteApplicationInformation(
                                 writer,
                                 message.ApplicationInformation
-                                    ?? new Uadp.UadpApplicationInformation());
+                                ?? new Uadp.UadpApplicationInformation());
                         }
                         break;
                     case Uadp.UadpDiscoveryType.PubSubConnection:
@@ -591,13 +592,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return;
             }
             using JsonBufferWriter buffer = new(1024);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+            using (Ua.JsonEncoder encoder = new(buffer, context))
             {
                 encoder.WriteEncodeable(propertyName, encodeable, ExpandedNodeId.Null);
             }
-            using JsonDocument doc = JsonDocument.Parse(buffer.WrittenMemory);
-            if (doc.RootElement.ValueKind == JsonValueKind.Object
-                && doc.RootElement.TryGetProperty(propertyName, out JsonElement v))
+            using var doc = JsonDocument.Parse(buffer.WrittenMemory);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty(propertyName, out JsonElement v))
             {
                 writer.WriteRawValue(v.GetRawText(), skipInputValidation: true);
             }
@@ -618,11 +619,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
             foreach (EndpointDescription endpoint in endpoints)
             {
                 using JsonBufferWriter buffer = new(512);
-                using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+                using (Ua.JsonEncoder encoder = new(buffer, context))
                 {
                     encoder.WriteEncodeable("Endpoint", endpoint);
                 }
-                using JsonDocument doc = JsonDocument.Parse(buffer.WrittenMemory);
+                using var doc = JsonDocument.Parse(buffer.WrittenMemory);
                 if (doc.RootElement.TryGetProperty("Endpoint", out JsonElement v))
                 {
                     writer.WriteRawValue(v.GetRawText(), skipInputValidation: true);
@@ -644,6 +645,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="message">Source action message.</param>
         /// <param name="context">Encoder context.</param>
         /// <returns>Encoded UTF-8 frame.</returns>
+        /// <exception cref="ArgumentException"></exception>
         private ReadOnlyMemory<byte> EncodeAction(
             JsonActionNetworkMessage message,
             PubSubNetworkMessageContext context)
@@ -668,15 +670,15 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     context.MessageContext);
             }
 
-            Opc.Ua.JsonActionNetworkMessage network = message.NetworkMessage
+            Ua.JsonActionNetworkMessage network = message.NetworkMessage
                 ?? CreateActionNetworkMessage(message);
             network.MessageType = DetermineActionMessageType(network.Messages);
             if (string.IsNullOrEmpty(network.MessageId))
             {
                 network.MessageId = message.MessageId;
             }
-            if (string.IsNullOrEmpty(network.PublisherId)
-                && !message.PublisherId.IsNull)
+            if (string.IsNullOrEmpty(network.PublisherId) &&
+                !message.PublisherId.IsNull)
             {
                 network.PublisherId = message.PublisherId.ToString();
             }
@@ -694,10 +696,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 context.MessageContext);
         }
 
-        private static Opc.Ua.JsonActionNetworkMessage CreateActionNetworkMessage(
+        private static Ua.JsonActionNetworkMessage CreateActionNetworkMessage(
             JsonActionNetworkMessage message)
         {
-            return new Opc.Ua.JsonActionNetworkMessage
+            return new Ua.JsonActionNetworkMessage
             {
                 MessageId = message.MessageId,
                 MessageType = DetermineActionMessageType(message.Messages),
@@ -726,11 +728,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 {
                     continue;
                 }
-                if (value is Opc.Ua.JsonActionResponseMessage)
+                if (value is JsonActionResponseMessage)
                 {
                     hasResponse = true;
                 }
-                else if (value is Opc.Ua.JsonActionRequestMessage)
+                else if (value is JsonActionRequestMessage)
                 {
                     hasRequest = true;
                 }
@@ -751,13 +753,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
             IServiceMessageContext context)
         {
             using JsonBufferWriter buffer = new(1024);
-            using (Opc.Ua.JsonEncoder encoder = new(buffer, context))
+            using (Ua.JsonEncoder encoder = new(buffer, context))
             {
                 encoder.WriteEncodeable(propertyName, encodeable, ExpandedNodeId.Null);
             }
-            using JsonDocument doc = JsonDocument.Parse(buffer.WrittenMemory);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object
-                || !doc.RootElement.TryGetProperty(propertyName, out JsonElement element))
+            using var doc = JsonDocument.Parse(buffer.WrittenMemory);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object ||
+                !doc.RootElement.TryGetProperty(propertyName, out JsonElement element))
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingError);
             }

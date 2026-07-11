@@ -445,7 +445,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => TestableClientBase.TestValidateResponse(header))!;
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServerTooBusy));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
             Assert.That(ex.AdditionalInfo, Does.Contain("RetryAfterMs=2000"));
         }
 

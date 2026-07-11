@@ -29,6 +29,7 @@
 
 using System;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Di.Client;
 
 namespace Opc.Ua.Di.Tests
@@ -64,7 +65,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void DiLockClientExposesConstructorArguments()
         {
-            var session = FakeSession();
+            ISession session = FakeSession();
             var nodeId = new NodeId("lock-1", 2);
             var client = new DiLockClient(session, nodeId, NullTelemetry());
 
@@ -83,14 +84,14 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void DiTopologyClientExposesWellKnownNodeIds()
         {
-            var session = FakeSession();
+            ISession session = FakeSession();
             var client = new DiTopologyClient(session, NullTelemetry());
 
             Assert.That(client.DeviceSetId.IsNull, Is.False);
             Assert.That(client.NetworkSetId.IsNull, Is.False);
             Assert.That(client.DeviceTopologyId.IsNull, Is.False);
             // All three should be in the DI namespace.
-            ushort diNs = (ushort)session.NamespaceUris
+            ushort diNs = session.NamespaceUris
                 .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
             Assert.That(client.DeviceSetId.NamespaceIndex, Is.EqualTo(diNs));
             Assert.That(client.NetworkSetId.NamespaceIndex, Is.EqualTo(diNs));
@@ -135,19 +136,19 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void SoftwareUpdateClientExposesConstructorArguments()
         {
-            var session = FakeSession();
+            ISession session = FakeSession();
             var nodeId = new NodeId("update-1", 2);
             var client = new SoftwareUpdateClient(session, nodeId, NullTelemetry());
             Assert.That(client.Session, Is.SameAs(session));
             Assert.That(client.SoftwareUpdateNodeId, Is.EqualTo(nodeId));
         }
 
-        private static Opc.Ua.Client.ISession FakeSession()
+        private static ISession FakeSession()
         {
             // Use the SessionStub from the existing DI client tests if
             // one exists; otherwise Moq the ISession. Since this test
             // never invokes Browse/Read/Call, an empty Moq is enough.
-            var mock = new Moq.Mock<Opc.Ua.Client.ISession>();
+            var mock = new Moq.Mock<ISession>();
             var nsTable = new NamespaceTable();
             nsTable.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);

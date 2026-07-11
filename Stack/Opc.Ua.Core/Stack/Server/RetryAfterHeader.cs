@@ -57,6 +57,7 @@ namespace Opc.Ua
         /// <param name="retryAfter">
         /// The suggested minimum delay before the client should retry.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="header"/> is <c>null</c>.</exception>
         public static void AttachTo(ResponseHeader header, TimeSpan retryAfter)
         {
             if (header == null)

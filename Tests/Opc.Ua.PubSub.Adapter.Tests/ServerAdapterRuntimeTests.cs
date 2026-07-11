@@ -34,8 +34,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Adapter.Diagnostics;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
+using Opc.Ua.PubSub.Adapter.Diagnostics;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                500, new[] { pds });
+                500, [pds]);
 
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
             session
@@ -237,7 +237,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         public async Task RuntimeAcquireSessionCreatesDistinctSessionsForDifferentEndpointsAsync()
         {
             var sessions = new Queue<IServerSession>(
-                new[] { new Mock<IServerSession>().Object, new Mock<IServerSession>().Object });
+                [new Mock<IServerSession>().Object, new Mock<IServerSession>().Object]);
             var factory = new Mock<IServerSessionFactory>();
             factory
                 .Setup(f => f.Create(
@@ -326,7 +326,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void HostedServiceNullRuntimeThrows()
         {
-            var application = new Mock<IPubSubApplication>().Object;
+            IPubSubApplication application = new Mock<IPubSubApplication>().Object;
 
             Assert.That(
                 () => new ServerAdapterHostedService(
@@ -337,7 +337,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void HostedServiceNullReloadCoordinatorThrows()
         {
-            var application = new Mock<IPubSubApplication>().Object;
+            IPubSubApplication application = new Mock<IPubSubApplication>().Object;
             var runtime = new ServerAdapterRuntime();
 
             Assert.That(

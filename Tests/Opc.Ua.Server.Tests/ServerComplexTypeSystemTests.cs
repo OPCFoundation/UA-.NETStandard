@@ -253,8 +253,8 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName(BrowseNames.EnumStrings),
                 Value = new Variant(new LocalizedText[]
                 {
-                    new LocalizedText("Red"),
-                    new LocalizedText("Green")
+                    new("Red"),
+                    new("Green")
                 })
             };
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = enumStringsPropId,
                 BrowseName = new QualifiedName(BrowseNames.EnumStrings),
-                Value = new Variant(new LocalizedText[] { new LocalizedText("Red") })
+                Value = new Variant(new LocalizedText[] { new("Red") })
             };
             m_nodesById[enumValuesPropId] = new BaseDataVariableState(null)
             {
@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName("EnumValues"),
                 Value = new Variant(new ExtensionObject[]
                 {
-                    new ExtensionObject(new EnumValueType
+                    new(new EnumValueType
                     {
                         Value = 0,
                         DisplayName = new LocalizedText("Red")
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests
         {
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
 
-            var (typeId, encodingId, dataTypeNode) = await resolver
+            (ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode) = await resolver
                 .BrowseTypeIdsForDictionaryComponentAsync(
                     NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris))
                 .ConfigureAwait(false);
@@ -396,7 +396,7 @@ namespace Opc.Ua.Server.Tests
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
             string[] supported = [BrowseNames.DefaultBinary];
 
-            var (encodings, binaryEncodingId, xmlEncodingId) = await resolver
+            (ArrayOf<NodeId> encodings, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId) = await resolver
                 .BrowseForEncodingsAsync(
                     NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris),
                     supported)
@@ -473,10 +473,10 @@ namespace Opc.Ua.Server.Tests
         public void LoadDataTypesThrowsWhenRootNodeCannotBeResolvedAsDataType()
         {
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
-            ExpandedNodeId unknownId =
+            var unknownId =
                 NodeId.ToExpandedNodeId(new NodeId(9999, m_ns), m_namespaceUris);
             // an existing node that is not a DataType surfaces the same way
-            ExpandedNodeId nonDataType =
+            var nonDataType =
                 NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris);
 
             ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(

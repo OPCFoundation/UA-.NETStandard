@@ -143,6 +143,7 @@ namespace Opc.Ua.Client
         }
 
         private readonly IManagedSessionFactory m_factory;
+
         private readonly ConcurrentDictionary<string, Lazy<Task<ManagedSession>>> m_sessions =
             new(StringComparer.Ordinal);
     }

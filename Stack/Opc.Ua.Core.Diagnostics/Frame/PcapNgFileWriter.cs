@@ -33,8 +33,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Frame
 {
     /// <summary>

@@ -107,7 +107,7 @@ namespace Opc.Ua.Di.Client
             ushort diNs = Session.NamespaceUris
                 .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
 
-            BrowsePath browsePath = new BrowsePath
+            var browsePath = new BrowsePath
             {
                 StartingNode = SoftwareUpdateNodeId,
                 RelativePath = new RelativePath
@@ -143,10 +143,10 @@ namespace Opc.Ua.Di.Client
                 return string.Empty;
             }
 
-            NodeId targetId = ExpandedNodeId.ToNodeId(
+            var targetId = ExpandedNodeId.ToNodeId(
                 result.Targets[0].TargetId, Session.NamespaceUris);
 
-            ReadValueId readItem = new ReadValueId
+            var readItem = new ReadValueId
             {
                 NodeId = targetId,
                 AttributeId = Attributes.Value

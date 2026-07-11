@@ -228,15 +228,15 @@ namespace Quickstarts
                 }
 
 #if NET10_0_OR_GREATER
-                    // Stop any env-var-driven pcap capture installed at start.
-                    if (m_pcapCapture != null)
-                    {
-                        await m_pcapCapture.DisposeAsync().ConfigureAwait(false);
-                        m_pcapCapture = null;
-                    }
+                // Stop any env-var-driven pcap capture installed at start.
+                if (m_pcapCapture != null)
+                {
+                    await m_pcapCapture.DisposeAsync().ConfigureAwait(false);
+                    m_pcapCapture = null;
+                }
 #endif
 
-                    ExitCode = ExitCode.Ok;
+                ExitCode = ExitCode.Ok;
             }
             catch (Exception ex)
             {

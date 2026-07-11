@@ -32,7 +32,6 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Tests;

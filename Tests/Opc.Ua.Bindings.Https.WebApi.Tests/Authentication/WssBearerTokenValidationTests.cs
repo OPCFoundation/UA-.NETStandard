@@ -27,20 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using NUnit.Framework;
-using Opc.Ua.Bindings.WebApi.Authentication;
 using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
@@ -64,9 +59,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
     {
         private const string TestIssuer = "https://test-issuer.example";
         private const string TestAudience = "test-audience";
-        // 64-byte (512-bit) HMAC key — well above the minimum 256-bit
-        // requirement that recent Microsoft.IdentityModel releases enforce
-        // for HmacSha256-signed JWTs.
+
+        /// <summary>
+        /// 64-byte (512-bit) HMAC key — well above the minimum 256-bit
+        /// requirement that recent Microsoft.IdentityModel releases enforce
+        /// for HmacSha256-signed JWTs.
+        /// </summary>
         private static readonly byte[] s_signingKeyBytes = GenerateKey(64);
 
         private static byte[] GenerateKey(int size)

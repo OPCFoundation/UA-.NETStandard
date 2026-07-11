@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 #if NET8_0_OR_GREATER
 
 using System;
@@ -36,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
 {
@@ -353,7 +350,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
                 string globalChannelId,
                 EndpointDescription endpointDescription,
                 OpenSecureChannelRequest request,
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }
@@ -363,7 +360,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
             }
 
             public void ReportAuditCertificateEvent(
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }
@@ -402,7 +399,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
                 string globalChannelId,
                 EndpointDescription endpointDescription,
                 OpenSecureChannelRequest request,
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }
@@ -412,7 +409,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
             }
 
             public void ReportAuditCertificateEvent(
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }
@@ -452,7 +449,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
                 string globalChannelId,
                 EndpointDescription endpointDescription,
                 OpenSecureChannelRequest request,
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }
@@ -462,7 +459,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.WebApi
             }
 
             public void ReportAuditCertificateEvent(
-                Opc.Ua.Security.Certificates.Certificate clientCertificate,
+                Security.Certificates.Certificate clientCertificate,
                 Exception exception)
             {
             }

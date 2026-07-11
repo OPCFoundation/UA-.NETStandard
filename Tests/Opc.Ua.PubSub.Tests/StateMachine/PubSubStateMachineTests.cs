@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             Assert.Multiple(() =>
             {
                 Assert.That(sut.State, Is.EqualTo(PubSubState.Disabled));
-                Assert.That(sut.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(sut.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(sut.Parent, Is.Null);
                 Assert.That(sut.Children, Is.Empty);
                 Assert.That(sut.ComponentName, Is.EqualTo("M"));
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             {
                 Assert.That(result, Is.True);
                 Assert.That(sut.State, Is.EqualTo(PubSubState.PreOperational));
-                Assert.That(sut.StatusCode, Is.EqualTo((StatusCode)StatusCodes.GoodCallAgain));
+                Assert.That(sut.StatusCode, Is.EqualTo(StatusCodes.GoodCallAgain));
                 Assert.That(captured, Is.Not.Null);
                 Assert.That(captured!.PreviousState, Is.EqualTo(PubSubState.Disabled));
                 Assert.That(captured.NewState, Is.EqualTo(PubSubState.PreOperational));
@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             {
                 Assert.That(sut.TryMarkOperational(), Is.True);
                 Assert.That(sut.State, Is.EqualTo(PubSubState.Operational));
-                Assert.That(sut.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(sut.StatusCode, Is.EqualTo(StatusCodes.Good));
             });
         }
 
@@ -266,7 +266,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
             {
                 Assert.That(result, Is.True);
                 Assert.That(sut.State, Is.EqualTo(PubSubState.Error));
-                Assert.That(sut.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadCommunicationError));
+                Assert.That(sut.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
             });
         }
 
@@ -471,7 +471,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
         {
             PubSubStateMachine sut = SetupInState(PubSubState.Operational);
             sut.MarkRemoved();
-            Assert.That(() => sut.MarkRemoved(), Throws.Nothing);
+            Assert.That(sut.MarkRemoved, Throws.Nothing);
         }
 
         [Test]
@@ -502,11 +502,11 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
 
         public static IEnumerable<TestCaseData> DefaultStatusCodeFor_TestCases()
         {
-            yield return new TestCaseData(PubSubState.Operational, (StatusCode)StatusCodes.Good);
-            yield return new TestCaseData(PubSubState.Paused, (StatusCode)StatusCodes.GoodNoData);
-            yield return new TestCaseData(PubSubState.PreOperational, (StatusCode)StatusCodes.GoodCallAgain);
-            yield return new TestCaseData(PubSubState.Error, (StatusCode)StatusCodes.BadInternalError);
-            yield return new TestCaseData(PubSubState.Disabled, (StatusCode)StatusCodes.BadInvalidState);
+            yield return new TestCaseData(PubSubState.Operational, StatusCodes.Good);
+            yield return new TestCaseData(PubSubState.Paused, StatusCodes.GoodNoData);
+            yield return new TestCaseData(PubSubState.PreOperational, StatusCodes.GoodCallAgain);
+            yield return new TestCaseData(PubSubState.Error, StatusCodes.BadInternalError);
+            yield return new TestCaseData(PubSubState.Disabled, StatusCodes.BadInvalidState);
         }
 
         [Test]
@@ -522,7 +522,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
         public void DefaultStatusCodeFor_OutOfRangeState_ReturnsBadUnexpected()
         {
             StatusCode code = PubSubStateMachine.DefaultStatusCodeFor((PubSubState)99);
-            Assert.That(code, Is.EqualTo((StatusCode)StatusCodes.BadUnexpectedError));
+            Assert.That(code, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
         [Test]
@@ -557,7 +557,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 Assert.That(evt.PreviousState, Is.EqualTo(PubSubState.Operational));
                 Assert.That(evt.NewState, Is.EqualTo(PubSubState.Error));
                 Assert.That(evt.Reason, Is.EqualTo(PubSubStateTransitionReason.Fatal));
-                Assert.That(evt.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadCommunicationError));
+                Assert.That(evt.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
             });
         }
 
@@ -573,7 +573,7 @@ namespace Opc.Ua.PubSub.Tests.StateMachine
                 tasks.Add(Task.Run(() => sut.TryFault(StatusCodes.BadCommunicationError)));
                 tasks.Add(Task.Run(() => sut.TryMarkOperational(PubSubStateTransitionReason.FromError)));
             }
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             // Final state must be one of the four reachable states; never Disabled (we didn't disable).
             Assert.That(
                 sut.State,

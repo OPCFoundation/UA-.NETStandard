@@ -106,9 +106,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         {
             using Certificate certificate = CreateCertificate();
             CapturingAuditEventServer server = CreateAuditServer();
-            AuditEventExpectation[] expectations = CreateHappyReportExpectations(certificate).ToArray();
-
-            foreach (AuditEventExpectation expectation in expectations)
+            foreach (AuditEventExpectation expectation in CreateHappyReportExpectations(certificate).ToArray())
             {
                 int beforeCount = server.Events.Count;
 
@@ -140,7 +138,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 s_logger);
 
             Assert.That(ServiceResult.IsGood(validationResult), Is.True);
-            AuditWriteUpdateEventState auditEvent = (AuditWriteUpdateEventState)server.Events.Single();
+            var auditEvent = (AuditWriteUpdateEventState)server.Events.Single();
             Assert.That(auditEvent.SourceName.Value, Is.EqualTo("Attribute/Write"));
             Assert.That(auditEvent.Status.Value, Is.True);
         }
@@ -160,10 +158,10 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 new InvalidOperationException("outer", exception),
                 s_logger);
 
-            AuditOpenSecureChannelEventState auditEvent =
+            var auditEvent =
                 (AuditOpenSecureChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
         [Test]
@@ -178,9 +176,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                     new ServiceResultException(StatusCodes.BadSecureChannelClosed)),
                 s_logger);
 
-            AuditChannelEventState auditEvent = (AuditChannelEventState)server.Events.Single();
+            var auditEvent = (AuditChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Uncertain));
         }
 
         [Test]
@@ -714,7 +712,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
         private static OperationContext CreateOperationContext(RequestType requestType)
         {
-            var identity = new UserIdentity("audit-user", Array.Empty<byte>())
+            var identity = new UserIdentity("audit-user", [])
             {
                 DisplayName = UserDisplayName
             };
@@ -735,7 +733,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
         private static ISession CreateSession()
         {
-            var identity = new UserIdentity("session-user", Array.Empty<byte>())
+            var identity = new UserIdentity("session-user", [])
             {
                 DisplayName = SessionUserDisplayName
             };

@@ -37,7 +37,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
-using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
@@ -102,10 +101,9 @@ namespace Opc.Ua.PubSub.Server
         private readonly IPubSubKeyServiceServer? m_keyService;
         private readonly PubSubServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
-        private readonly PubSubMethodHandlers m_methodHandlers;
         private readonly PubSubActionMethodRegistration[] m_actionMethodRegistrations;
         private readonly PushSecurityKeyProvider[] m_pushKeyProviders;
-        private readonly System.Threading.Lock m_addressSpaceGate = new();
+        private readonly Lock m_addressSpaceGate = new();
         private readonly List<NodeState> m_dynamicRoots = [];
         private readonly List<NodeState> m_securityGroupRoots = [];
         private readonly List<NodeState> m_keyPushTargetRoots = [];
@@ -163,10 +161,10 @@ namespace Opc.Ua.PubSub.Server
             m_options = options;
             m_telemetry = telemetry;
             m_actionMethodRegistrations = actionMethodRegistrations?.ToArray()
-                ?? Array.Empty<PubSubActionMethodRegistration>();
-            m_pushKeyProviders = pushKeyProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
+                ?? [];
+            m_pushKeyProviders = pushKeyProviders?.ToArray() ?? [];
             m_idAllocator = idAllocator ?? new InMemoryPubSubIdAllocator();
-            m_methodHandlers = new PubSubMethodHandlers(
+            MethodHandlers = new PubSubMethodHandlers(
                 pubSubApplication,
                 options.ExposeSecurityKeyService ? sksServer : null,
                 options,
@@ -192,7 +190,7 @@ namespace Opc.Ua.PubSub.Server
         /// Returns the <see cref="PubSubMethodHandlers"/> instance
         /// owned by this node manager. Test-only.
         /// </summary>
-        internal PubSubMethodHandlers MethodHandlers => m_methodHandlers;
+        internal PubSubMethodHandlers MethodHandlers { get; }
 
         /// <summary>
         /// Namespace index registered for dynamic PubSub instance nodes. Test-only.
@@ -228,7 +226,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 concreteApplication.SetAddressSpaceNamespaceIndex(NamespaceIndexes[0]);
             }
-            m_methodHandlers.SetSecurityGroupNamespaceIndex(NamespaceIndexes[0]);
+            MethodHandlers.SetSecurityGroupNamespaceIndex(NamespaceIndexes[0]);
 
             BindMethods(diagnosticsNodeManager);
             RegisterActionMethodHandlers();
@@ -288,19 +286,13 @@ namespace Opc.Ua.PubSub.Server
             MethodState? removeConn = diagnosticsNodeManager
                 .FindPredefinedNode<MethodState>(new NodeId(RemoveConnectionNodeId));
 
-            if (enable is not null)
-            {
-                enable.OnCallMethod = m_methodHandlers.OnEnable;
-            }
-            if (disable is not null)
-            {
-                disable.OnCallMethod = m_methodHandlers.OnDisable;
-            }
+            enable?.OnCallMethod = MethodHandlers.OnEnable;
+            disable?.OnCallMethod = MethodHandlers.OnDisable;
             if (m_options.ExposeConfigurationMethods)
             {
                 if (setKeys is not null)
                 {
-                    setKeys.OnCallMethod = m_methodHandlers.OnSetSecurityKeys;
+                    setKeys.OnCallMethod = MethodHandlers.OnSetSecurityKeys;
                     setKeys.RolePermissions =
                     [
                         new RolePermissionType
@@ -310,14 +302,8 @@ namespace Opc.Ua.PubSub.Server
                         }
                     ];
                 }
-                if (addConn is not null)
-                {
-                    addConn.OnCallMethod = m_methodHandlers.OnAddConnection;
-                }
-                if (removeConn is not null)
-                {
-                    removeConn.OnCallMethod = m_methodHandlers.OnRemoveConnection;
-                }
+                addConn?.OnCallMethod = MethodHandlers.OnAddConnection;
+                removeConn?.OnCallMethod = MethodHandlers.OnRemoveConnection;
                 BindPublishedDataSetFolderMethods(diagnosticsNodeManager);
             }
 
@@ -335,30 +321,12 @@ namespace Opc.Ua.PubSub.Server
                     .FindPredefinedNode<MethodState>(new NodeId(AddPushTargetNodeId));
                 MethodState? removePushTarget = diagnosticsNodeManager
                     .FindPredefinedNode<MethodState>(new NodeId(RemovePushTargetNodeId));
-                if (getKeys is not null)
-                {
-                    getKeys.OnCallMethod2 = m_methodHandlers.OnGetSecurityKeys;
-                }
-                if (getGroup is not null)
-                {
-                    getGroup.OnCallMethod = OnGetSecurityGroup;
-                }
-                if (addGroup is not null)
-                {
-                    addGroup.OnCallMethod = OnAddSecurityGroup;
-                }
-                if (removeGroup is not null)
-                {
-                    removeGroup.OnCallMethod = OnRemoveSecurityGroup;
-                }
-                if (addPushTarget is not null)
-                {
-                    addPushTarget.OnCallMethod = OnAddPushTarget;
-                }
-                if (removePushTarget is not null)
-                {
-                    removePushTarget.OnCallMethod = OnRemovePushTarget;
-                }
+                getKeys?.OnCallMethod2 = MethodHandlers.OnGetSecurityKeys;
+                getGroup?.OnCallMethod = OnGetSecurityGroup;
+                addGroup?.OnCallMethod = OnAddSecurityGroup;
+                removeGroup?.OnCallMethod = OnRemoveSecurityGroup;
+                addPushTarget?.OnCallMethod = OnAddPushTarget;
+                removePushTarget?.OnCallMethod = OnRemovePushTarget;
             }
 
             m_methodsBound = enable is not null || disable is not null;
@@ -366,13 +334,13 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindPublishedDataSetFolderMethods(IDiagnosticsNodeManager diagnosticsNodeManager)
         {
-            BindStandardMethod(diagnosticsNodeManager, AddPublishedDataItemsNodeId, m_methodHandlers.OnAddPublishedDataItems);
-            BindStandardMethod(diagnosticsNodeManager, AddPublishedEventsNodeId, m_methodHandlers.OnAddPublishedEvents);
+            BindStandardMethod(diagnosticsNodeManager, AddPublishedDataItemsNodeId, MethodHandlers.OnAddPublishedDataItems);
+            BindStandardMethod(diagnosticsNodeManager, AddPublishedEventsNodeId, MethodHandlers.OnAddPublishedEvents);
             BindStandardMethod(
                 diagnosticsNodeManager,
                 AddPublishedDataItemsTemplateNodeId,
-                m_methodHandlers.OnAddPublishedDataItemsTemplate);
-            BindStandardMethod(diagnosticsNodeManager, RemovePublishedDataSetNodeId, m_methodHandlers.OnRemovePublishedDataSet);
+                MethodHandlers.OnAddPublishedDataItemsTemplate);
+            BindStandardMethod(diagnosticsNodeManager, RemovePublishedDataSetNodeId, MethodHandlers.OnRemovePublishedDataSet);
             BindStandardMethod(diagnosticsNodeManager, AddDataSetFolderNodeId, OnAddDataSetFolder);
             BindStandardMethod(diagnosticsNodeManager, RemoveDataSetFolderNodeId, OnRemoveDataSetFolder);
         }
@@ -384,15 +352,12 @@ namespace Opc.Ua.PubSub.Server
         {
             MethodState? method = diagnosticsNodeManager
                 .FindPredefinedNode<MethodState>(new NodeId(nodeId));
-            if (method is not null)
-            {
-                method.OnCallMethod = handler;
-            }
+            method?.OnCallMethod = handler;
         }
 
         private void OnConfigurationChanged(
             object? sender,
-            Configuration.PubSubConfigurationChangedEventArgs e)
+            PubSubConfigurationChangedEventArgs e)
         {
             _ = sender;
             _ = e;
@@ -601,8 +566,7 @@ namespace Opc.Ua.PubSub.Server
             }
 
             var newRoots = new List<NodeState>();
-            string[] securityGroupIds = [.. m_keyService.SecurityGroupIds];
-            foreach (string securityGroupId in securityGroupIds)
+            foreach (string securityGroupId in (string[])[.. m_keyService.SecurityGroupIds])
             {
                 SksSecurityGroup? group = await m_keyService
                     .GetSecurityGroupAsync(securityGroupId, cancellationToken)
@@ -620,7 +584,7 @@ namespace Opc.Ua.PubSub.Server
                     new NodeId(15471u));
                 groupNode.RolePermissions = group.RolePermissions;
                 BindSecurityGroupMethods(groupNode);
-                m_methodHandlers.RegisterSecurityGroupNodeId(securityGroupId, groupNodeId);
+                MethodHandlers.RegisterSecurityGroupNodeId(securityGroupId, groupNodeId);
                 newRoots.Add(groupNode);
             }
 
@@ -1171,31 +1135,31 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindConnectionMethods(BaseObjectState connectionNode)
         {
-            AddInjectedMethod(connectionNode, "AddWriterGroup", m_methodHandlers.OnAddWriterGroup, connectionNode.NodeId);
-            AddInjectedMethod(connectionNode, "AddReaderGroup", m_methodHandlers.OnAddReaderGroup, connectionNode.NodeId);
-            AddPlainMethod(connectionNode, "RemoveGroup", m_methodHandlers.OnRemoveGroup);
+            AddInjectedMethod(connectionNode, "AddWriterGroup", MethodHandlers.OnAddWriterGroup, connectionNode.NodeId);
+            AddInjectedMethod(connectionNode, "AddReaderGroup", MethodHandlers.OnAddReaderGroup, connectionNode.NodeId);
+            AddPlainMethod(connectionNode, "RemoveGroup", MethodHandlers.OnRemoveGroup);
         }
 
         private void BindDataSetFolderMethods(BaseObjectState folderNode)
         {
-            AddPlainMethod(folderNode, "AddPublishedDataItems", m_methodHandlers.OnAddPublishedDataItems);
-            AddPlainMethod(folderNode, "AddPublishedEvents", m_methodHandlers.OnAddPublishedEvents);
-            AddPlainMethod(folderNode, "AddPublishedDataItemsTemplate", m_methodHandlers.OnAddPublishedDataItemsTemplate);
-            AddPlainMethod(folderNode, "RemovePublishedDataSet", m_methodHandlers.OnRemovePublishedDataSet);
+            AddPlainMethod(folderNode, "AddPublishedDataItems", MethodHandlers.OnAddPublishedDataItems);
+            AddPlainMethod(folderNode, "AddPublishedEvents", MethodHandlers.OnAddPublishedEvents);
+            AddPlainMethod(folderNode, "AddPublishedDataItemsTemplate", MethodHandlers.OnAddPublishedDataItemsTemplate);
+            AddPlainMethod(folderNode, "RemovePublishedDataSet", MethodHandlers.OnRemovePublishedDataSet);
             AddPlainMethod(folderNode, "AddDataSetFolder", OnAddDataSetFolder);
             AddPlainMethod(folderNode, "RemoveDataSetFolder", OnRemoveDataSetFolder);
         }
 
         private void BindPublishedDataItemsMethods(BaseObjectState dataSetNode)
         {
-            AddPlainMethod(dataSetNode, "AddVariables", m_methodHandlers.OnAddVariables);
-            AddPlainMethod(dataSetNode, "RemoveVariables", m_methodHandlers.OnRemoveVariables);
+            AddPlainMethod(dataSetNode, "AddVariables", MethodHandlers.OnAddVariables);
+            AddPlainMethod(dataSetNode, "RemoveVariables", MethodHandlers.OnRemoveVariables);
         }
 
         private void BindPubSubConfigurationFileMethods(BaseObjectState fileNode)
         {
-            AddPlainMethod(fileNode, "SetConfiguration", m_methodHandlers.OnSetConfiguration);
-            AddPlainMethod(fileNode, "GetConfiguration", m_methodHandlers.OnGetConfiguration);
+            AddPlainMethod(fileNode, "SetConfiguration", MethodHandlers.OnSetConfiguration);
+            AddPlainMethod(fileNode, "GetConfiguration", MethodHandlers.OnGetConfiguration);
             AddPlainMethod(fileNode, "Open", OnOpenPubSubConfigurationFile);
             AddPlainMethod(fileNode, "Read", OnReadPubSubConfigurationFile);
             AddPlainMethod(fileNode, "Write", OnWritePubSubConfigurationFile);
@@ -1207,9 +1171,9 @@ namespace Opc.Ua.PubSub.Server
         private void BindSecurityGroupMethods(BaseObjectState securityGroupNode)
         {
             AddPlainMethod(securityGroupNode, "InvalidateKeys", (context, method, inputs, outputs) =>
-                m_methodHandlers.OnInvalidateKeys(context, method, securityGroupNode.NodeId, inputs, outputs));
+                MethodHandlers.OnInvalidateKeys(context, method, securityGroupNode.NodeId, inputs, outputs));
             AddPlainMethod(securityGroupNode, "ForceKeyRotation", (context, method, inputs, outputs) =>
-                m_methodHandlers.OnForceKeyRotation(context, method, securityGroupNode.NodeId, inputs, outputs));
+                MethodHandlers.OnForceKeyRotation(context, method, securityGroupNode.NodeId, inputs, outputs));
         }
 
         private void BindKeyPushTargetMethods(BaseObjectState targetNode)
@@ -1221,14 +1185,14 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindWriterGroupMethods(BaseObjectState writerGroupNode)
         {
-            AddInjectedMethod(writerGroupNode, "AddDataSetWriter", m_methodHandlers.OnAddDataSetWriter, writerGroupNode.NodeId);
-            AddPlainMethod(writerGroupNode, "RemoveDataSetWriter", m_methodHandlers.OnRemoveDataSetWriter);
+            AddInjectedMethod(writerGroupNode, "AddDataSetWriter", MethodHandlers.OnAddDataSetWriter, writerGroupNode.NodeId);
+            AddPlainMethod(writerGroupNode, "RemoveDataSetWriter", MethodHandlers.OnRemoveDataSetWriter);
         }
 
         private void BindReaderGroupMethods(BaseObjectState readerGroupNode)
         {
-            AddInjectedMethod(readerGroupNode, "AddDataSetReader", m_methodHandlers.OnAddDataSetReader, readerGroupNode.NodeId);
-            AddPlainMethod(readerGroupNode, "RemoveDataSetReader", m_methodHandlers.OnRemoveDataSetReader);
+            AddInjectedMethod(readerGroupNode, "AddDataSetReader", MethodHandlers.OnAddDataSetReader, readerGroupNode.NodeId);
+            AddPlainMethod(readerGroupNode, "RemoveDataSetReader", MethodHandlers.OnRemoveDataSetReader);
         }
 
         private static void AddInjectedMethod(
@@ -1282,7 +1246,7 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult result = m_methodHandlers.OnGetSecurityGroup(context, method, inputArguments, outputArguments);
+            ServiceResult result = MethodHandlers.OnGetSecurityGroup(context, method, inputArguments, outputArguments);
             if (StatusCode.IsGood(result.StatusCode))
             {
                 RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None)
@@ -1300,7 +1264,7 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult result = m_methodHandlers.OnAddSecurityGroup(context, method, inputArguments, outputArguments);
+            ServiceResult result = MethodHandlers.OnAddSecurityGroup(context, method, inputArguments, outputArguments);
             if (StatusCode.IsGood(result.StatusCode))
             {
                 RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None)
@@ -1318,7 +1282,7 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult result = m_methodHandlers.OnRemoveSecurityGroup(context, method, inputArguments, outputArguments);
+            ServiceResult result = MethodHandlers.OnRemoveSecurityGroup(context, method, inputArguments, outputArguments);
             if (StatusCode.IsGood(result.StatusCode))
             {
                 RebuildSecurityGroupAddressSpaceAsync(CancellationToken.None)
@@ -1432,7 +1396,7 @@ namespace Opc.Ua.PubSub.Server
             var results = new StatusCode[securityGroupIds.Count];
             for (int i = 0; i < securityGroupIds.Count; i++)
             {
-                string? securityGroupId = m_methodHandlers.LookupSecurityGroupIdForNode(securityGroupIds[i]);
+                string? securityGroupId = MethodHandlers.LookupSecurityGroupIdForNode(securityGroupIds[i]);
                 if (securityGroupId is null)
                 {
                     results[i] = StatusCodes.BadNodeIdUnknown;
@@ -1470,7 +1434,7 @@ namespace Opc.Ua.PubSub.Server
             var results = new StatusCode[securityGroupIds.Count];
             for (int i = 0; i < securityGroupIds.Count; i++)
             {
-                string? securityGroupId = m_methodHandlers.LookupSecurityGroupIdForNode(securityGroupIds[i]);
+                string? securityGroupId = MethodHandlers.LookupSecurityGroupIdForNode(securityGroupIds[i]);
                 if (securityGroupId is null || !target.SecurityGroupIds.Remove(securityGroupId))
                 {
                     results[i] = StatusCodes.BadNotFound;
@@ -1684,10 +1648,10 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            PubSubConfigurationFileHandle? file;
+
             lock (m_addressSpaceGate)
             {
-                _ = m_fileHandles.Remove(handle, out file);
+                _ = m_fileHandles.Remove(handle, out _);
             }
             return ServiceResult.Good;
         }
@@ -1869,7 +1833,7 @@ namespace Opc.Ua.PubSub.Server
                 {
                     return;
                 }
-                string policyUri = m_options.DefaultSecurityPolicyUri ?? m_methodHandlers.DefaultPolicyUri;
+                string policyUri = m_options.DefaultSecurityPolicyUri ?? MethodHandlers.DefaultPolicyUri;
                 var seed = new SksSecurityGroup(
                     securityGroupId: id,
                     securityPolicyUri: policyUri,
@@ -1949,7 +1913,7 @@ namespace Opc.Ua.PubSub.Server
                 {
                     length = 0;
                 }
-                var buffer = new byte[Math.Min(length, m_length - m_position)];
+                byte[] buffer = new byte[Math.Min(length, m_length - m_position)];
                 Array.Copy(m_buffer, m_position, buffer, 0, buffer.Length);
                 m_position += buffer.Length;
                 return buffer;
@@ -1969,7 +1933,7 @@ namespace Opc.Ua.PubSub.Server
 
             public byte[] ToArray()
             {
-                var result = new byte[m_length];
+                byte[] result = new byte[m_length];
                 Array.Copy(m_buffer, 0, result, 0, result.Length);
                 return result;
             }

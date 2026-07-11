@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         private static UserNamePasswordAuthenticator GetUserNamePasswordAuthenticator(IUserDatabase database)

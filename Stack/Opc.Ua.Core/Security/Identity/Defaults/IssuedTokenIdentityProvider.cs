@@ -141,7 +141,7 @@ namespace Opc.Ua.Identity
 
         private readonly IAccessTokenProvider m_accessTokenProvider;
         private readonly string m_profileUri;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private DateTime m_expiresAt = DateTime.MaxValue;
     }
 }

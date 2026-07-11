@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using FileSystemNodeManager manager = CreateManager(out _);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
 
-            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None);
+            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(externalReferences.ContainsKey(ObjectIds.FileSystem), Is.True);
             Assert.That(externalReferences[ObjectIds.FileSystem], Has.Count.EqualTo(1));
@@ -429,7 +429,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var factory = new FileSystemNodeManagerFactory(provider);
 
             IAsyncNodeManager nodeManager = await factory.CreateAsync(
-                mockServer.Object, new ApplicationConfiguration());
+                mockServer.Object, new ApplicationConfiguration()).ConfigureAwait(false);
 
             Assert.That(nodeManager, Is.Not.Null);
         }

@@ -48,6 +48,7 @@ namespace Opc.Ua.Client.Historian
         /// Creates a new <see cref="HistoryClient"/> bound to
         /// <paramref name="session"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public HistoryClient Create(ISession session, HistoryClientOptions? options = null)
         {
             if (session is null)

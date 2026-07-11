@@ -422,10 +422,10 @@ namespace Opc.Ua.Server.Tests
                 true);
 
             alarm.EventType.Value = ObjectTypeIds.ExclusiveLevelAlarmType;
-            alarm.AddOutOfServiceState(context);
-            alarm.AddSuppressedState(context);
-            alarm.AddSilenceState(context);
-            alarm.AddShelvingState(context);
+            alarm.AddOutOfServiceState(context)
+                .AddSuppressedState(context)
+                .AddSilenceState(context)
+                .AddShelvingState(context);
             alarm.AddSeverityLowLow(context);
             if (addFilterRetain)
             {

@@ -49,8 +49,8 @@ namespace Opc.Ua.PubSub.Tests.Security
                 nonce[i] = (byte)(i + 1);
             }
             var header = new UadpSecurityHeader(
-                (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned
-                    | UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted),
+                (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned |
+                    UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted),
                 0xDEADBEEFU,
                 nonce);
             byte[] buffer = new byte[header.GetEncodedSize()];
@@ -71,9 +71,9 @@ namespace Opc.Ua.PubSub.Tests.Security
         public void RoundTrip_WithSecurityFooter()
         {
             byte[] nonce = new byte[12];
-            byte flags = (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned
-                | UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted
-                | UadpSecurityFlagsEncodingMask.SecurityFooterEnabled);
+            const byte flags = (byte)(UadpSecurityFlagsEncodingMask.NetworkMessageSigned |
+                UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted |
+                UadpSecurityFlagsEncodingMask.SecurityFooterEnabled);
             var header = new UadpSecurityHeader(flags, 1U, nonce, securityFooterSize: 16);
             byte[] buffer = new byte[header.GetEncodedSize()];
             header.WriteTo(buffer, out int written);
@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 // Truncated mid-nonce.
                 Assert.That(UadpSecurityHeader.TryRead(buffer.AsSpan(0, 10), out _, out _), Is.False);
                 // Truncated header preamble.
-                Assert.That(UadpSecurityHeader.TryRead(ReadOnlySpan<byte>.Empty, out _, out _), Is.False);
+                Assert.That(UadpSecurityHeader.TryRead([], out _, out _), Is.False);
                 Assert.That(UadpSecurityHeader.TryRead(buffer.AsSpan(0, 5), out _, out _), Is.False);
             });
         }
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         public void TryRead_ReturnsFalseWhenFooterMissing()
         {
             byte[] nonce = new byte[12];
-            byte flags = (byte)UadpSecurityFlagsEncodingMask.SecurityFooterEnabled;
+            const byte flags = (byte)UadpSecurityFlagsEncodingMask.SecurityFooterEnabled;
             var header = new UadpSecurityHeader(flags, 0U, nonce, securityFooterSize: 16);
             byte[] buffer = new byte[header.GetEncodedSize()];
             header.WriteTo(buffer, out int written);

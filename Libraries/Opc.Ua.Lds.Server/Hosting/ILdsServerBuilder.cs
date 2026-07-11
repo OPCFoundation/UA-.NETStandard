@@ -35,7 +35,7 @@ namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>
     /// Fluent helper returned by
-    /// <see cref="OpcUaLdsServerBuilderExtensions.AddLdsServer(IOpcUaBuilder, System.Action{LdsServerOptions})"/>;
+    /// <see cref="OpcUaLdsServerBuilderExtensions.AddLdsServer(IOpcUaBuilder, Action{LdsServerOptions})"/>;
     /// exposes the underlying <see cref="IServiceCollection"/> so callers can
     /// register additional services that the hosted Local Discovery Server
     /// may need (custom telemetry, certificate password providers, etc.).

@@ -54,8 +54,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public async Task UdpLoopbackActionResponderAnswersRequesterAsync()
         {
-            string url = "opc.udp://239.0.0.1:49322";
-            var options = Options.Create(new UdpTransportOptions
+            const string url = "opc.udp://239.0.0.1:49322";
+            IOptions<UdpTransportOptions> options = Options.Create(new UdpTransportOptions
             {
                 MulticastLoopback = true
             });
@@ -186,9 +186,9 @@ namespace Opc.Ua.PubSub.Tests.Application
 
         private static bool IsUdpEnvironmentFailure(Exception ex)
         {
-            return ex is System.Net.Sockets.SocketException
-                || ex is NotSupportedException
-                || ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException);
+            return ex is System.Net.Sockets.SocketException ||
+                ex is NotSupportedException ||
+                (ex.InnerException is not null && IsUdpEnvironmentFailure(ex.InnerException));
         }
     }
 }

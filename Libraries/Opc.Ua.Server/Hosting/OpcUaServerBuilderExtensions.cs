@@ -226,7 +226,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.Services.AddOptions<RoleConfigurationOptions>().Bind(rolesSection);
                 builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
-                builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
+                builder.Services.TryAddSingleton(CreateConfiguredRoleManager);
             }
 
             IConfigurationSection identitySection = section.GetSection("Identity");
@@ -268,7 +268,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddOptions<RoleConfigurationOptions>().Configure(configure);
             builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
-            builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
+            builder.Services.TryAddSingleton(CreateConfiguredRoleManager);
             return builder;
         }
 
@@ -295,7 +295,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddOptions<RoleConfigurationOptions>().Bind(section);
             builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
-            builder.Services.TryAddSingleton<IRoleManager>(CreateConfiguredRoleManager);
+            builder.Services.TryAddSingleton(CreateConfiguredRoleManager);
             return builder;
         }
 
@@ -726,6 +726,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="namespaceUri">Namespace URI owned by the fluent node manager.</param>
         /// <param name="build">Callback that wires fluent nodes, alarms, state machines and simulations.</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddNodeManager(
             this IOpcUaServerBuilder builder,
             string namespaceUri,
@@ -830,6 +831,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Configures server-side reverse connect on the hosted server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddReverseConnect(
             this IOpcUaServerBuilder builder,
             Action<ServerReverseConnectOptions> configure)
@@ -855,6 +857,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Configures server-side reverse connect from a configuration section.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddReverseConnect(
             this IOpcUaServerBuilder builder,
             IConfiguration section)
@@ -876,6 +879,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Configures operation limits advertised by the hosted server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder ConfigureOperationLimits(
             this IOpcUaServerBuilder builder,
             Action<OperationLimitsOptions> configure)
@@ -901,6 +905,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Configures operation limits from a configuration section.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder ConfigureOperationLimits(
             this IOpcUaServerBuilder builder,
             IConfiguration section)
@@ -922,6 +927,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a batteries-included reference-style demo server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddReferenceServer(
             this IOpcUaBuilder builder,
             Action<OpcUaServerOptions>? configure = null)
@@ -950,6 +956,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a hardened hosted server preset with secure policies, identity authenticators and roles.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddSecureServer(
             this IOpcUaBuilder builder,
             Action<OpcUaServerOptions> configure)
@@ -988,6 +995,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a historian provider together with a Part 20 file-system mount.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddHistorianFileStore(
             this IOpcUaServerBuilder builder,
             IHistorianProvider historian,

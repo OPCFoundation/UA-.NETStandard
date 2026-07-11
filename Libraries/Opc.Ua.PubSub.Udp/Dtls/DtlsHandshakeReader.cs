@@ -103,6 +103,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Throws when unconsumed trailing bytes remain in the buffer.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public readonly void EnsureComplete()
         {
             if (!EndOfData)

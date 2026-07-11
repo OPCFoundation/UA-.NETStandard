@@ -44,13 +44,14 @@ namespace Opc.Ua.PubSub.Tests.Security
     [TestSpec("7.2.4.4.3", Summary = "UADP NetworkMessage signing/encryption wrapper")]
     public class UadpSecurityWrapperTests
     {
-        private static readonly byte[] s_outerPrefix = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01 };
-        private static readonly byte[] s_innerPayload = new byte[]
-        {
+        private static readonly byte[] s_outerPrefix = [0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01];
+
+        private static readonly byte[] s_innerPayload =
+        [
             0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE,
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
             0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88
-        };
+        ];
 
         private static (UadpSecurityWrapper Sender, UadpSecurityWrapper Receiver,
             PubSubSecurityKeyRing SenderRing, PubSubSecurityKeyRing ReceiverRing,
@@ -96,11 +97,11 @@ namespace Opc.Ua.PubSub.Tests.Security
             (UadpSecurityWrapper sender, UadpSecurityWrapper receiver, _, _, _) =
                 CreatePair(PubSubAes128CtrPolicy.Instance);
 
-            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload);
+            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload).ConfigureAwait(false);
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length));
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -116,11 +117,11 @@ namespace Opc.Ua.PubSub.Tests.Security
             (UadpSecurityWrapper sender, UadpSecurityWrapper receiver, _, _, _) =
                 CreatePair(PubSubAes256CtrPolicy.Instance);
 
-            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload);
+            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload).ConfigureAwait(false);
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length));
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -135,7 +136,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             (UadpSecurityWrapper sender, UadpSecurityWrapper receiver, _, _, _) =
                 CreatePair(PubSubAes128CtrPolicy.Instance);
 
-            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload);
+            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload).ConfigureAwait(false);
             byte[] tampered = wrapped.ToArray();
             // Flip a byte inside the ciphertext (after outerPrefix +
             // SecurityHeader of size 1+4+1+12 = 18 bytes).
@@ -143,12 +144,12 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                new ReadOnlyMemory<byte>(tampered, s_outerPrefix.Length, tampered.Length - s_outerPrefix.Length));
+                new ReadOnlyMemory<byte>(tampered, s_outerPrefix.Length, tampered.Length - s_outerPrefix.Length)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(result.IsSuccess, Is.False);
-                Assert.That(result.Status, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 
@@ -157,7 +158,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         {
             (UadpSecurityWrapper sender, _, _, _, _) =
                 CreatePair(PubSubAes128CtrPolicy.Instance);
-            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload);
+            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload).ConfigureAwait(false);
 
             // Build a receiver with an empty key ring.
             var emptyRing = new PubSubSecurityKeyRing("group");
@@ -172,12 +173,12 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length));
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(result.IsSuccess, Is.False);
-                Assert.That(result.Status, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 
@@ -187,19 +188,19 @@ namespace Opc.Ua.PubSub.Tests.Security
             (UadpSecurityWrapper sender, UadpSecurityWrapper receiver, _, _, _) =
                 CreatePair(PubSubAes128CtrPolicy.Instance);
 
-            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload);
+            ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload).ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult first = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length));
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult replay = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                wrapped.Slice(s_outerPrefix.Length));
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(first.IsSuccess, Is.True, first.Reason);
                 Assert.That(replay.IsSuccess, Is.False);
-                Assert.That(replay.Status, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                Assert.That(replay.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 
@@ -211,25 +212,25 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
-                new ReadOnlyMemory<byte>(new byte[3]));
+                new ReadOnlyMemory<byte>(new byte[3])).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(result.IsSuccess, Is.False);
-                Assert.That(result.Status, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadDecodingError));
             });
         }
 
         [Test]
         public void Constructor_RejectsNullArguments()
         {
-            var policy = PubSubNonePolicy.Instance;
+            PubSubNonePolicy policy = PubSubNonePolicy.Instance;
             var ring = new PubSubSecurityKeyRing("g");
             ring.SetCurrent(TestSecurityKeyFactory.Create(1U));
             var keyProvider = new StaticSecurityKeyProvider("g", ring);
             var nonceProvider = new RandomNonceProvider(PublisherId.FromUInt16(1));
             var window = new SecurityTokenWindow();
-            var telemetry = NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Assert.Multiple(() =>
             {
                 Assert.That(

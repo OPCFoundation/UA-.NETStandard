@@ -151,6 +151,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// new partition instead. No-op when the composite is in
         /// single-partition mode (no policy / no factory).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         internal void OnPartitionCapReached(IManagedSubscription partition)
         {
             if (partition == null)
@@ -177,6 +178,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <see cref="TryAdd"/> calls account for its capacity.
         /// Must be called under <c>m_partitionLock</c>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         internal void NotifyPreloadedPartitionAdded(IManagedSubscription partition)
         {
             if (partition == null)
@@ -396,8 +398,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // the global name index consistent — the partition's
                 // MonitoredItemManager.TryAdd is a quick local op
                 // that cannot recurse back into this composite.
-                if (!chosen.MonitoredItems.TryAdd(name, options, out IMonitoredItem? added)
-                    || added == null)
+                if (!chosen.MonitoredItems.TryAdd(name, options, out IMonitoredItem? added) ||
+                    added == null)
                 {
                     monitoredItem = null;
                     return false;
@@ -495,12 +497,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     existing.Dispose();
                 }
-                ITimer armed = m_timeProvider.CreateTimer(
+                m_idleTimers[partition] = m_timeProvider.CreateTimer(
                     _ => RunIdleDelete(partition),
                     null,
                     m_secondaryIdleTimeout,
                     Timeout.InfiniteTimeSpan);
-                m_idleTimers[partition] = armed;
             }
         }
 
@@ -624,8 +625,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             foreach ((string itemName, IOptionsMonitor<MonitoredItemOptions> itemOptions) in state)
             {
                 keep.Add(itemName);
-                if (TryGetMonitoredItemByName(itemName, out IMonitoredItem? existing)
-                    && existing != null)
+                if (TryGetMonitoredItemByName(itemName, out IMonitoredItem? existing) &&
+                    existing != null)
                 {
                     result.Add(existing);
                     continue;

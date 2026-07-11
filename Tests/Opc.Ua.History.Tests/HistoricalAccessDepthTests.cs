@@ -385,7 +385,7 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public async Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
+        public Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
             DateTime endTime = DateTime.UtcNow;
@@ -413,6 +413,7 @@ namespace Opc.Ua.History.Tests
                     CancellationToken.None).ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimestampsToReturnInvalid));
+            return Task.CompletedTask;
         }
 
         [Test]

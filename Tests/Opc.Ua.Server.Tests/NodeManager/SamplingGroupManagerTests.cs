@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 mockNodeManager.Object,
                 100,
                 200,
-                samplingRates ?? Array.Empty<SamplingRateGroup>());
+                samplingRates ?? []);
         }
 
         private static OperationContext SessionlessContext()
@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var nm = new Mock<IAsyncNodeManager>();
             Assert.That(
                 () => new SamplingGroupManager(
-                    null!, nm.Object, 100, 200, Array.Empty<SamplingRateGroup>()),
+                    null!, nm.Object, 100, 200, []),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
             Assert.That(
                 () => new SamplingGroupManager(
-                    mockServer.Object, null!, 100, 200, Array.Empty<SamplingRateGroup>()),
+                    mockServer.Object, null!, 100, 200, []),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void ConstructorWithEmptySamplingRatesUsesDefaults()
         {
             using SamplingGroupManager manager = CreateManager(
-                out _, Array.Empty<SamplingRateGroup>());
+                out _, []);
 
             Assert.That(manager, Is.Not.Null);
         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 7,
                 null!,
                 itemToCreate,
-                new Opc.Ua.Range(),
+                new Range(),
                 0,
                 false);
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 8,
                 null!,
                 itemToCreate,
-                new Opc.Ua.Range(),
+                new Range(),
                 0,
                 false);
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using SamplingGroupManager manager = CreateManager(out _);
 
-            Assert.DoesNotThrow(() => manager.Shutdown());
+            Assert.DoesNotThrow(manager.Shutdown);
         }
 
         [Test]
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using SamplingGroupManager manager = CreateManager(out _);
 
-            Assert.DoesNotThrow(() => manager.ApplyChanges());
+            Assert.DoesNotThrow(manager.ApplyChanges);
         }
     }
 }

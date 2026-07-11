@@ -78,7 +78,7 @@ namespace Opc.Ua.Sessions.Tests
             // Build a per-fixture registry that knows opc.tcp + opc.wss.
             // Tests no longer rely on Utils.DefaultBindings reflection
             // auto-load - every consumer registers what it needs.
-            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry
+            var registry = DefaultTransportBindingRegistry
                 .WithDefaultTcp();
             registry.RegisterListenerFactory(new WssTransportListenerFactory());
             registry.RegisterListenerFactory(new OpcWssTransportListenerFactory());

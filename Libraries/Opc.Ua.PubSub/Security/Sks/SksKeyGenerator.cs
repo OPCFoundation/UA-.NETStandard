@@ -57,6 +57,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="issuedAt">Issuance timestamp.</param>
         /// <param name="lifetime">Key validity duration.</param>
         /// <returns>The generated key.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static PubSubSecurityKey Generate(
             IPubSubSecurityPolicy policy,
             uint tokenId,
@@ -103,6 +104,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// </summary>
         /// <param name="key">Key whose components to pack.</param>
         /// <returns>The packed bytes.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static byte[] Pack(PubSubSecurityKey key)
         {
             if (key is null)

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Diagnostics;
 using System.Linq;
@@ -256,4 +254,3 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         private static readonly TimeSpan ServiceCallReleaseWindow = TimeSpan.FromMilliseconds(500);
     }
 }
-

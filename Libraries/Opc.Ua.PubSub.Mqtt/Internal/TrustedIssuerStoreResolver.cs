@@ -142,8 +142,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 {
                     continue;
                 }
-                if (string.Equals(certificate.Subject, subject, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(certificate.Thumbprint, subject, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(certificate.Subject, subject, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(certificate.Thumbprint, subject, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -156,8 +156,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
         {
             foreach (Certificate certificate in resolved)
             {
-                if (string.Equals(certificate.Subject, subject, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(certificate.Thumbprint, subject, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(certificate.Subject, subject, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(certificate.Thumbprint, subject, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }

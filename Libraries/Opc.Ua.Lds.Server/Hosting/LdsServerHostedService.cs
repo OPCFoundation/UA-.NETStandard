@@ -192,7 +192,6 @@ namespace Opc.Ua.Lds.Server.Hosting
             {
                 // Expected on host shutdown.
             }
-
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)

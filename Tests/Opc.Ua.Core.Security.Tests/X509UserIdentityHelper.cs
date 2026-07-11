@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -58,6 +59,7 @@ namespace Opc.Ua.Core.Security.Tests
         /// Creates a signing X.509 <see cref="UserIdentity"/> for the supplied
         /// user certificate (which must expose a private key).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
         public static async Task<UserIdentity> CreateAsync(
             Certificate certificate,
             ITelemetryContext telemetry)
@@ -104,6 +106,7 @@ namespace Opc.Ua.Core.Security.Tests
         /// Creates a signing X.509 <see cref="UserIdentity"/> from an
         /// <see cref="X509Certificate2"/> that carries a private key.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
         public static async Task<UserIdentity> CreateAsync(
             X509Certificate2 certificate,
             ITelemetryContext telemetry)
@@ -118,7 +121,7 @@ namespace Opc.Ua.Core.Security.Tests
             byte[] pfx = certificate.Export(X509ContentType.Pfx, ExportPassword);
             using X509Certificate2 copy = X509CertificateLoader.LoadPkcs12(
                 pfx, ExportPassword, X509KeyStorageFlags.Exportable);
-            using Certificate wrapped = Certificate.From(copy);
+            using var wrapped = Certificate.From(copy);
             return await CreateAsync(wrapped, telemetry).ConfigureAwait(false);
         }
 
@@ -157,7 +160,8 @@ namespace Opc.Ua.Core.Security.Tests
             }
         }
 
-        private static void EnsureProvider(ITelemetryContext telemetry)        {
+        private static void EnsureProvider(ITelemetryContext telemetry)
+        {
             lock (s_lock)
             {
                 if (s_certificateManager != null)
@@ -165,8 +169,8 @@ namespace Opc.Ua.Core.Security.Tests
                     return;
                 }
 
-                s_storePath = System.IO.Path.Combine(
-                    System.IO.Path.GetTempPath(),
+                s_storePath = Path.Combine(
+                    Path.GetTempPath(),
                     "opcua-x509user-" + Guid.NewGuid().ToString("N")[..8]);
                 Directory.CreateDirectory(s_storePath);
                 s_passwordProvider = new CertificatePasswordProvider();
@@ -177,7 +181,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
         }
 
-        private static readonly object s_lock = new();
+        private static readonly Lock s_lock = new();
         private static readonly HashSet<string> s_addedThumbprints = new(StringComparer.OrdinalIgnoreCase);
         private const string ExportPassword = "test";
         private static string? s_storePath;

@@ -57,7 +57,7 @@ namespace Opc.Ua.Bindings
 
         public override async Task OnConnectedAsync(ConnectionContext connection)
         {
-            PipeByteTransport? transport = new PipeByteTransport(
+            var transport = new PipeByteTransport(
                 connection,
                 m_owner.BufferManager,
                 m_owner.Quotas.MaxBufferSize,

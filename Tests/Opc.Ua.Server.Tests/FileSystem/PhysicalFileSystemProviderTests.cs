@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
 
-            FileSystemEntry? entry = await provider.GetEntryAsync("missing.txt", CancellationToken.None);
+            FileSystemEntry? entry = await provider.GetEntryAsync("missing.txt", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(entry, Is.Null);
         }
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider(mountName: "Root");
 
-            FileSystemEntry? entry = await provider.GetEntryAsync(string.Empty, CancellationToken.None);
+            FileSystemEntry? entry = await provider.GetEntryAsync(string.Empty, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry!.Value.IsDirectory, Is.True);
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
             File.WriteAllText(Path.Combine(m_root, "data.json"), "{}");
 
-            FileSystemEntry? entry = await provider.GetEntryAsync("data.json", CancellationToken.None);
+            FileSystemEntry? entry = await provider.GetEntryAsync("data.json", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry!.Value.IsDirectory, Is.False);
@@ -168,18 +168,18 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task CreateFileAndOpenWriteThenReadRoundTripsAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await provider.CreateFileAsync("file.txt", CancellationToken.None);
+            await provider.CreateFileAsync("file.txt", CancellationToken.None).ConfigureAwait(false);
 
             byte[] payload = Encoding.UTF8.GetBytes("hello world");
             using (Stream write = await provider.OpenWriteAsync(
-                "file.txt", FileWriteMode.Truncate, CancellationToken.None))
+                "file.txt", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
             {
-                await WritePayloadAsync(write, payload, CancellationToken.None);
+                await WritePayloadAsync(write, payload, CancellationToken.None).ConfigureAwait(false);
             }
 
-            using Stream read = await provider.OpenReadAsync("file.txt", CancellationToken.None);
+            using Stream read = await provider.OpenReadAsync("file.txt", CancellationToken.None).ConfigureAwait(false);
             using var ms = new MemoryStream();
-            await read.CopyToAsync(ms);
+            await read.CopyToAsync(ms).ConfigureAwait(false);
 
             Assert.That(ms.ToArray(), Is.EqualTo(payload));
         }
@@ -191,10 +191,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             File.WriteAllText(Path.Combine(m_root, "log.txt"), "a");
 
             using (Stream write = await provider.OpenWriteAsync(
-                "log.txt", FileWriteMode.Append, CancellationToken.None))
+                "log.txt", FileWriteMode.Append, CancellationToken.None).ConfigureAwait(false))
             {
                 byte[] payload = Encoding.UTF8.GetBytes("b");
-                await WritePayloadAsync(write, payload, CancellationToken.None);
+                await WritePayloadAsync(write, payload, CancellationToken.None).ConfigureAwait(false);
             }
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "log.txt")), Is.EqualTo("ab"));
@@ -206,10 +206,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
 
             using (Stream write = await provider.OpenWriteAsync(
-                "new.bin", FileWriteMode.OpenOrCreate, CancellationToken.None))
+                "new.bin", FileWriteMode.OpenOrCreate, CancellationToken.None).ConfigureAwait(false))
             {
-                byte[] payload = new byte[] { 1, 2, 3 };
-                await WritePayloadAsync(write, payload, CancellationToken.None);
+                byte[] payload = [1, 2, 3];
+                await WritePayloadAsync(write, payload, CancellationToken.None).ConfigureAwait(false);
             }
 
             Assert.That(File.Exists(Path.Combine(m_root, "new.bin")), Is.True);
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
 
             Assert.That(
-                async () => await provider.OpenReadAsync("nope.txt", CancellationToken.None),
+                async () => await provider.OpenReadAsync("nope.txt", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<FileNotFoundException>());
         }
 
@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
 
-            await provider.CreateDirectoryAsync("a/b/c", CancellationToken.None);
+            await provider.CreateDirectoryAsync("a/b/c", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(Directory.Exists(Path.Combine(m_root, "a", "b", "c")), Is.True);
         }
@@ -288,10 +288,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task CreateDirectoryAsyncOverExistingFileThrowsAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await provider.CreateFileAsync("clash", CancellationToken.None);
+            await provider.CreateFileAsync("clash", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
-                async () => await provider.CreateDirectoryAsync("clash", CancellationToken.None),
+                async () => await provider.CreateDirectoryAsync("clash", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<IOException>());
         }
 
@@ -299,10 +299,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task CreateFileAsyncOverExistingEntryThrowsAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await provider.CreateFileAsync("dup", CancellationToken.None);
+            await provider.CreateFileAsync("dup", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
-                async () => await provider.CreateFileAsync("dup", CancellationToken.None),
+                async () => await provider.CreateFileAsync("dup", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<IOException>());
         }
 
@@ -310,11 +310,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task DeleteAsyncRemovesFileAndDirectoryAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await provider.CreateFileAsync("f.txt", CancellationToken.None);
-            await provider.CreateDirectoryAsync("d", CancellationToken.None);
+            await provider.CreateFileAsync("f.txt", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateDirectoryAsync("d", CancellationToken.None).ConfigureAwait(false);
 
-            await provider.DeleteAsync("f.txt", CancellationToken.None);
-            await provider.DeleteAsync("d", CancellationToken.None);
+            await provider.DeleteAsync("f.txt", CancellationToken.None).ConfigureAwait(false);
+            await provider.DeleteAsync("d", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(File.Exists(Path.Combine(m_root, "f.txt")), Is.False);
             Assert.That(Directory.Exists(Path.Combine(m_root, "d")), Is.False);
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
 
             Assert.That(
-                async () => await provider.DeleteAsync("gone", CancellationToken.None),
+                async () => await provider.DeleteAsync("gone", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<FileNotFoundException>());
         }
 
@@ -335,10 +335,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
             File.WriteAllText(Path.Combine(m_root, "src.txt"), "z");
-            await provider.CreateDirectoryAsync("srcdir", CancellationToken.None);
+            await provider.CreateDirectoryAsync("srcdir", CancellationToken.None).ConfigureAwait(false);
 
-            await provider.MoveAsync("src.txt", "dst.txt", CancellationToken.None);
-            await provider.MoveAsync("srcdir", "dstdir", CancellationToken.None);
+            await provider.MoveAsync("src.txt", "dst.txt", CancellationToken.None).ConfigureAwait(false);
+            await provider.MoveAsync("srcdir", "dstdir", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(File.Exists(Path.Combine(m_root, "dst.txt")), Is.True);
             Assert.That(Directory.Exists(Path.Combine(m_root, "dstdir")), Is.True);
@@ -348,11 +348,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task MoveAsyncToExistingTargetThrowsAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await provider.CreateFileAsync("a", CancellationToken.None);
-            await provider.CreateFileAsync("b", CancellationToken.None);
+            await provider.CreateFileAsync("a", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateFileAsync("b", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
-                async () => await provider.MoveAsync("a", "b", CancellationToken.None),
+                async () => await provider.MoveAsync("a", "b", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<IOException>());
         }
 
@@ -362,7 +362,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
 
             Assert.That(
-                async () => await provider.MoveAsync("missing", "target", CancellationToken.None),
+                async () => await provider.MoveAsync("missing", "target", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<FileNotFoundException>());
         }
 
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
             File.WriteAllText(Path.Combine(m_root, "orig.txt"), "content");
 
-            await provider.CopyAsync("orig.txt", "copy.txt", CancellationToken.None);
+            await provider.CopyAsync("orig.txt", "copy.txt", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "copy.txt")), Is.EqualTo("content"));
         }
@@ -385,7 +385,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             File.WriteAllText(Path.Combine(m_root, "tree", "root.txt"), "1");
             File.WriteAllText(Path.Combine(m_root, "tree", "nested", "leaf.txt"), "2");
 
-            await provider.CopyAsync("tree", "treecopy", CancellationToken.None);
+            await provider.CopyAsync("tree", "treecopy", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(File.Exists(Path.Combine(m_root, "treecopy", "root.txt")), Is.True);
             Assert.That(File.Exists(Path.Combine(m_root, "treecopy", "nested", "leaf.txt")), Is.True);
@@ -395,11 +395,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task CopyAsyncToExistingTargetThrowsAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
-            await provider.CreateFileAsync("s", CancellationToken.None);
-            await provider.CreateFileAsync("t", CancellationToken.None);
+            await provider.CreateFileAsync("s", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateFileAsync("t", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
-                async () => await provider.CopyAsync("s", "t", CancellationToken.None),
+                async () => await provider.CopyAsync("s", "t", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<IOException>());
         }
 
@@ -409,7 +409,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
 
             Assert.That(
-                async () => await provider.CopyAsync("nope", "dest", CancellationToken.None),
+                async () => await provider.CopyAsync("nope", "dest", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<FileNotFoundException>());
         }
 
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             PhysicalFileSystemProvider provider = CreateProvider();
 
             Assert.That(
-                async () => await provider.GetEntryAsync("../escape", CancellationToken.None),
+                async () => await provider.GetEntryAsync("../escape", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<UnauthorizedAccessException>());
         }
 
@@ -430,22 +430,22 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             Assert.That(provider.IsWritable, Is.False);
             Assert.That(
-                async () => await provider.CreateFileAsync("x", CancellationToken.None),
+                async () => await provider.CreateFileAsync("x", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<UnauthorizedAccessException>());
             Assert.That(
-                async () => await provider.CreateDirectoryAsync("x", CancellationToken.None),
+                async () => await provider.CreateDirectoryAsync("x", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<UnauthorizedAccessException>());
             Assert.That(
-                async () => await provider.DeleteAsync("x", CancellationToken.None),
+                async () => await provider.DeleteAsync("x", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<UnauthorizedAccessException>());
             Assert.That(
-                async () => await provider.MoveAsync("x", "y", CancellationToken.None),
+                async () => await provider.MoveAsync("x", "y", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<UnauthorizedAccessException>());
             Assert.That(
-                async () => await provider.CopyAsync("x", "y", CancellationToken.None),
+                async () => await provider.CopyAsync("x", "y", CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<UnauthorizedAccessException>());
             Assert.That(
-                async () => await provider.OpenWriteAsync("x", FileWriteMode.Truncate, CancellationToken.None),
+                async () => await provider.OpenWriteAsync("x", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<UnauthorizedAccessException>());
         }
 
@@ -470,7 +470,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             foreach (KeyValuePair<string, string> expectation in expectations)
             {
                 File.WriteAllText(Path.Combine(m_root, expectation.Key), "x");
-                FileSystemEntry? entry = await provider.GetEntryAsync(expectation.Key, CancellationToken.None);
+                FileSystemEntry? entry = await provider.GetEntryAsync(expectation.Key, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(
                     entry!.Value.MimeType,
                     Is.EqualTo(expectation.Value),

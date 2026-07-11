@@ -185,7 +185,7 @@ namespace Opc.Ua.Schema.Tests
         {
             StructureDefinition definition = CreateDefinition();
             var typeId = new ExpandedNodeId(new NodeId(5001, 1));
-            var standIn = new Opc.Ua.Encoders.Structure(
+            var standIn = new Encoders.Structure(
                 new XmlQualifiedName("StandInStructure", "http://test.org/standin"),
                 typeId,
                 ExpandedNodeId.Null,
@@ -218,7 +218,7 @@ namespace Opc.Ua.Schema.Tests
                 ]
             };
             var typeId = new ExpandedNodeId(new NodeId(5002, 1));
-            var standIn = new Opc.Ua.Encoders.Enumeration(
+            var standIn = new Encoders.Enumeration(
                 new XmlQualifiedName("StandInEnum", "http://test.org/standin"),
                 definition);
             IEncodeableFactory factory = EncodeableFactory.Create();
@@ -247,7 +247,7 @@ namespace Opc.Ua.Schema.Tests
                 ]
             };
             var typeId = new ExpandedNodeId(new NodeId(5003, 1));
-            var standIn = new Opc.Ua.Encoders.OptionSet(
+            var standIn = new Encoders.OptionSet(
                 new XmlQualifiedName("StandInOptionSet", "http://test.org/standin"),
                 typeId,
                 ExpandedNodeId.Null,

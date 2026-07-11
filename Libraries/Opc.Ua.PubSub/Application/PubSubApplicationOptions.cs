@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Application
         /// this list does not by itself wire a provider.
         /// </summary>
         public IList<EndpointDescription> SecurityKeyServiceEndpoints { get; set; }
-            = new List<EndpointDescription>();
+            = [];
 
         /// <summary>
         /// When <see langword="true"/> the builder registers UADP and

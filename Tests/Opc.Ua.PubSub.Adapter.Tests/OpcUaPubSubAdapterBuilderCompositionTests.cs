@@ -33,12 +33,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Adapter;
-using Opc.Ua.PubSub.Adapter.Actions;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
-using Opc.Ua.PubSub.Adapter.Subscriber;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.Tests;
@@ -57,13 +54,12 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PubSubConfigurationDataType configuration = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS1", AdapterTestHelpers.Variable.Value(new NodeId(11u))),
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS2", AdapterTestHelpers.Variable.Value(new NodeId(12u)))
-                });
+                ]);
             MakeConnectionsBuildable(configuration);
             (ServiceCollection services, Mock<IServerSessionFactory> factory) = NewServices();
             services.AddOpcUa().AddPubSub(pubsub => pubsub
@@ -93,13 +89,12 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         {
             PubSubConfigurationDataType configuration = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "Referenced", AdapterTestHelpers.Variable.Value(new NodeId(21u))),
                     AdapterTestHelpers.PublishedDataSet(
                         "Unreferenced", AdapterTestHelpers.Variable.Value(new NodeId(22u)))
-                });
+                ]);
             MakeConnectionsBuildable(configuration);
             IConfiguration options = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
@@ -245,7 +240,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             NewServices()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
             var factory = new Mock<IServerSessionFactory>();

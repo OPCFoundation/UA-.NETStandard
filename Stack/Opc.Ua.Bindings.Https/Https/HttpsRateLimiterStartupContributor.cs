@@ -92,8 +92,7 @@ namespace Opc.Ua.Bindings
         {
             options.RejectionStatusCode = 429;
             options.OnRejected = OnRejectedSetRetryAfterAsync;
-            PartitionedRateLimiter<HttpContext> limiter = CreateDefaultGlobalLimiter();
-            options.GlobalLimiter = limiter;
+            options.GlobalLimiter = CreateDefaultGlobalLimiter();
         }
 
         /// <summary>

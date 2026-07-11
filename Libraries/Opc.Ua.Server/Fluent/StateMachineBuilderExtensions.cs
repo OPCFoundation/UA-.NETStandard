@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.Fluent
 
             string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
             machine.NodeId = new NodeId(
-                string.Concat(parentIdentifier, "_", symbolicName),
+                $"{parentIdentifier}_{symbolicName}",
                 parent.Node.NodeId.NamespaceIndex);
 
             machine.Create(

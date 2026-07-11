@@ -35,8 +35,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Pcap.Frame;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Frame
 {
     [TestFixture]

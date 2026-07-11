@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -44,8 +41,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
-using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
@@ -77,8 +72,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseTestServer();
-                    webHost.ConfigureServices(services =>
+                    webHost.UseTestServer()
+                        .ConfigureServices(services =>
                     {
                         services.AddSingleton<IWebApiServer>(m_stubServer);
                         services.AddRouting();
@@ -222,6 +217,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConfigureAwait(false);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         }
+
         private async Task<TResponse> PostAsync<TRequest, TResponse>(
             string path,
             TRequest request,
@@ -265,6 +261,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 m_stubServer!.MessageContext,
                 WebApiMediaType.ToEncoderOptions(encoding));
         }
+
         /// <summary>
         /// Stub <see cref="IWebApiServer"/> that records the last
         /// request and returns a typed response of the matching type.
@@ -272,14 +269,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// </summary>
         private sealed class StubWebApiServer : IWebApiServer
         {
-            private readonly IServiceMessageContext m_messageContext;
-
             public StubWebApiServer(IServiceMessageContext messageContext)
             {
-                m_messageContext = messageContext;
+                MessageContext = messageContext;
             }
 
-            public IServiceMessageContext MessageContext => m_messageContext;
+            public IServiceMessageContext MessageContext { get; }
             public bool IsReady => true;
 
             public IServiceRequest? LastRequest { get; private set; }
@@ -300,7 +295,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
                 StatusCode serviceResult = NextFault != 0 ? new StatusCode(NextFault) : StatusCodes.Good;
 
-                IServiceResponse response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
+                var response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
                 var responseHeader = new ResponseHeader
                 {
                     Timestamp = DateTime.UtcNow,

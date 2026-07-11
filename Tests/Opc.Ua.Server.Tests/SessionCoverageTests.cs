@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests
                 new ApplicationDescription { ApplicationUri = "urn:coverage:client" },
                 endpoint.EndpointUrl!,
                 clientCertificate!,
-                new CertificateCollection(),
+                [],
                 60_000,
                 10,
                 10);
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests
                     new ApplicationDescription(),
                     "opc.tcp://localhost:4840",
                     null!,
-                    new CertificateCollection(),
+                    [],
                     60_000,
                     10,
                     10),
@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests
                     new ApplicationDescription(),
                     endpoint.EndpointUrl!,
                     null!,
-                    new CertificateCollection(),
+                    [],
                     60_000,
                     10,
                     10),
@@ -264,9 +264,9 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerSession session = CreateSession(CreateEndpoint());
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateRequest(new RequestHeader(), null!, RequestType.CloseSession));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSessionIdInvalid));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
 
         [Test]
@@ -275,9 +275,9 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
             var channelContext = new SecureChannelContext("wrong-channel", CreateEndpoint(), RequestEncoding.Binary);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSecureChannelIdInvalid));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
 
         [Test]
@@ -286,9 +286,9 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint());
             var channelContext = new SecureChannelContext("channel-1", CreateEndpoint(), RequestEncoding.Binary);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSessionNotActivated));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
         }
 
         [TestCase(RequestType.Read)]
@@ -412,7 +412,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerSession session = CreateSession(CreateEndpoint());
             var id = Guid.NewGuid();
-            var payload = new object();
+            object payload = new();
 
             session.SaveHistoryContinuationPoint(id, payload);
             object? restored = session.RestoreHistoryContinuationPoint(new ByteString(id.ToByteArray()));
@@ -444,9 +444,9 @@ namespace Opc.Ua.Server.Tests
         {
             var requestHeader = new RequestHeader();
             var context = new OperationContext(
-                requestHeader, null!, RequestType.ActivateSession, RequestLifetime.None);
+                requestHeader, null, RequestType.ActivateSession, RequestLifetime.None);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => new ServerSession(
                     context,
                     m_serverMock.Object,
@@ -458,20 +458,20 @@ namespace Opc.Ua.Server.Tests
                     new ApplicationDescription(),
                     "opc.tcp://localhost:4840",
                     null!,
-                    new CertificateCollection(),
+                    [],
                     60_000,
                     10,
                     10));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSecureChannelIdInvalid));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
 
         [Test]
         public void ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdmin()
         {
-            var tokens = new[]
-            {
+            UserTokenPolicy[] tokens =
+            [
                 new UserTokenPolicy { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
-            };
+            ];
             EndpointDescription endpoint = CreateEndpoint(tokens: tokens);
             using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
@@ -520,7 +520,7 @@ namespace Opc.Ua.Server.Tests
                 endpoint, channelId: "channel-1", clientCertificate: clientCertificate);
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),
@@ -528,7 +528,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     out _,
                     out _));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadApplicationSignatureInvalid));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
         }
 
         [Test]
@@ -556,7 +556,7 @@ namespace Opc.Ua.Server.Tests
             OperationContext context = CreateContext(
                 CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),
@@ -564,7 +564,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     out _,
                     out _));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
         [Test]
@@ -573,7 +573,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(CreateEndpoint(), channelId: "channel-1");
             OperationContext context = CreateContext(CreateEndpoint(), channelId: "other-channel");
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),
@@ -581,7 +581,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     out _,
                     out _));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSecureChannelIdInvalid));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
 
         [Test]
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server.Tests
         {
             var tokens = new UserTokenPolicy[]
             {
-                new UserTokenPolicy { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
+                new() { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
             };
             EndpointDescription endpoint = CreateEndpoint(tokens: tokens);
             using ServerSession session = CreateSession(endpoint);
@@ -613,13 +613,13 @@ namespace Opc.Ua.Server.Tests
         {
             var tokens = new UserTokenPolicy[]
             {
-                new UserTokenPolicy { PolicyId = "user", TokenType = UserTokenType.UserName }
+                new() { PolicyId = "user", TokenType = UserTokenType.UserName }
             };
             EndpointDescription endpoint = CreateEndpoint(tokens: tokens);
             using ServerSession session = CreateSession(endpoint);
             OperationContext context = CreateContext(endpoint);
 
-            var ex = Assert.Throws<ServiceResultException>(
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
                 () => session.ValidateBeforeActivate(
                     context,
                     new SignatureData(),
@@ -627,7 +627,7 @@ namespace Opc.Ua.Server.Tests
                     new SignatureData(),
                     out _,
                     out _));
-            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -635,8 +635,7 @@ namespace Opc.Ua.Server.Tests
         {
             var tokens = new UserTokenPolicy[]
             {
-                new UserTokenPolicy
-                {
+                new() {
                     PolicyId = "user",
                     TokenType = UserTokenType.UserName,
                     SecurityPolicyUri = SecurityPolicies.None
@@ -671,7 +670,7 @@ namespace Opc.Ua.Server.Tests
         {
             var tokens = new UserTokenPolicy[]
             {
-                new UserTokenPolicy { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
+                new() { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
             };
             EndpointDescription endpoint = CreateEndpoint(tokens: tokens);
             using ServerSession session = CreateSession(endpoint, channelId: "channel-1");

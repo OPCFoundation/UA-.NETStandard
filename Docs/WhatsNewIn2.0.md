@@ -32,6 +32,12 @@ If you are migrating an existing application, the companion
   boilerplate while staying AOT-clean.
 - **GDS is now Part 12 full-compliance**, with arbitrary certificate groups,
   custom group support, and modernised Push/Pull APIs.
+- **OPC UA Part 4 §6.6 redundancy plus opt-in distributed high availability.**
+  Server and client redundancy (`Server.ServerRedundancy` / `ServiceLevel`,
+  `ManagedSession.WithServerRedundancy()`) ship in the box, and new
+  `Opc.Ua.Redundancy(.Server/.Client/.Kubernetes)` packages add distributed
+  address-space / session / subscription mirroring over an in-package CRDT
+  (eventual) or Raft (strong) shared store, with a Kubernetes deployment guide.
 - **An MCP server** ships in the box so an LLM/Copilot can drive an OPC UA
   client; and a **2.0 Migration Analyzer + code fixer** automates the
   mechanical parts of upgrading to v2.
@@ -288,6 +294,38 @@ extracts a server's address space to NodeSet2 XML, and
 [`ModelChangeTracking`](ModelChangeTracking.md) keeps the local
 `INodeCache` consistent with server-side model changes.
 
+### High availability and redundancy
+
+2.0 maps OPC UA Part 4 §6.6 redundancy across the server, client, and network,
+and layers an opt-in distributed high-availability story on top. On the server,
+`AddServerRedundancy(...)` publishes the `Server.ServerRedundancy` nodes, drives
+`Server.ServiceLevel`, advertises the `NTRS` non-transparent discovery
+capability, and exposes `RequestServerStateChange` for administrator-driven
+Maintenance/NoData failover — for every `RedundancySupport` mode
+(None/Cold/Warm/Hot/HotAndMirrored/Transparent). On the client, a single
+[`ManagedSession`](Sessions.md) with `WithServerRedundancy()` reads that
+metadata and fails over transparently, so the same code works whether or not the
+server is configured for redundancy.
+
+The new `Opc.Ua.Redundancy`, `Opc.Ua.Redundancy.Server`,
+`Opc.Ua.Redundancy.Client`, and `Opc.Ua.Redundancy.Kubernetes` packages add the
+distributed building blocks behind DI/fluent seams. `UseDistributedAddressSpace`
+/ `UseReplicatedAddressSpace`, `UseDistributedSessions` /
+`UseReplicatedSessions`, and `UseDistributedSubscriptionMirroring` mirror
+address-space topology and values, session state (fast reconnect that still runs
+a full `ActivateSession` signature re-check against a single-use nonce), and
+subscription / retransmission state across replicas. `UseRedundancyConsistency`
+selects the shared store's consistency model — a leaderless **CRDT** gossip
+layer (eventual, active/active) or a linearizable **Raft** layer
+(`DefaultRaftConsensus`, strong, for single-use nonces and leader election) —
+both over the in-package NanoMsg transport, with every record
+authenticated-encrypted through `IRecordProtector`. Address-space hydration uses
+a snapshot + delta-log fast path for quick time-to-ready on failover, and an
+optional `GetEndpoints` load-direction seam (`UseServerLoadDirection`) can steer
+clients to the best replica. The default path (no store configured) is unchanged
+and zero-overhead. See [High Availability](HighAvailability.md) for the full
+design and [Kubernetes](Kubernetes.md) for the deployment guide.
+
 ### Global Discovery Server
 
 The GDS implementation is now **full OPC UA Part 12 compliance**, including
@@ -391,6 +429,10 @@ projects.
 - [Sessions, Reconnection, and Subscription Engines](Sessions.md) —
   architectural overview of `Session` vs `ManagedSession` and the
   classic vs V2 subscription engines.
+- [High Availability and Redundancy](HighAvailability.md) — OPC 10000-4 §6.6
+  server/client/network redundancy and the opt-in distributed HA building
+  blocks; [Kubernetes High Availability Deployment](Kubernetes.md) — the
+  Kubernetes deployment guide for the `Opc.Ua.Redundancy.Kubernetes` package.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),

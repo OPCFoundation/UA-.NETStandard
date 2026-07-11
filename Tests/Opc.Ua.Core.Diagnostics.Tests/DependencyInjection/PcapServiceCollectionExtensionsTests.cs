@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Capture.Sources;
@@ -40,8 +41,6 @@ using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Models;
 using Opc.Ua.Pcap.Replay;
-
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.DependencyInjection
 {
@@ -258,10 +257,10 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             services.AddPcap();
 
             await using ServiceProvider provider = services.BuildServiceProvider();
-            var bindings = provider.GetRequiredService<ITransportBindingRegistry>();
+            ITransportBindingRegistry bindings = provider.GetRequiredService<ITransportBindingRegistry>();
 
             ITransportChannelFactory? binding = bindings.GetChannelFactory(
-                Opc.Ua.Utils.UriSchemeOpcTcp);
+                Utils.UriSchemeOpcTcp);
 
             Assert.That(binding, Is.Not.Null);
             Assert.That(binding, Is.InstanceOf<PcapTransportChannelBinding>());
@@ -280,15 +279,15 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
             // Apply the pcap configurator to a registry that already has the
             // default opc.tcp listener/channel so the server listener binding
             // has something to wrap.
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             ApplyConfigurators(provider, bindings);
 
             Assert.That(
-                bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
                 Is.InstanceOf<PcapTransportListenerBinding>(),
                 "A Server application must install the pcap listener binding.");
             Assert.That(
-                bindings.GetChannelFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                bindings.GetChannelFactory(Utils.UriSchemeOpcTcp),
                 Is.Not.InstanceOf<PcapTransportChannelBinding>(),
                 "A Server application must not install the client channel binding.");
         }
@@ -303,15 +302,15 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             ApplyConfigurators(provider, bindings);
 
             Assert.That(
-                bindings.GetChannelFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                bindings.GetChannelFactory(Utils.UriSchemeOpcTcp),
                 Is.InstanceOf<PcapTransportChannelBinding>(),
                 "A Client application must install the pcap channel binding.");
             Assert.That(
-                bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
                 Is.Not.InstanceOf<PcapTransportListenerBinding>(),
                 "A Client application must not wrap the server listener binding.");
         }
@@ -325,14 +324,14 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
 
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             ApplyConfigurators(provider, bindings);
 
             Assert.That(
-                bindings.GetChannelFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                bindings.GetChannelFactory(Utils.UriSchemeOpcTcp),
                 Is.InstanceOf<PcapTransportChannelBinding>());
             Assert.That(
-                bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
                 Is.InstanceOf<PcapTransportListenerBinding>());
         }
 

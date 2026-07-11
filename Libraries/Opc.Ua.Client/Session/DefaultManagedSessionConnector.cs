@@ -42,8 +42,7 @@ namespace Opc.Ua.Client
             Action<ManagedSessionBuilder> configure,
             CancellationToken ct)
         {
-            return OpcUaClientBuilderExtensions.ConnectManagedSessionAsync(
-                serviceProvider,
+            return serviceProvider.ConnectManagedSessionAsync(
                 sessionOptions,
                 configure,
                 ct);
