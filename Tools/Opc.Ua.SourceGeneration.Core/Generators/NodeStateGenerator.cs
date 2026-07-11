@@ -1766,7 +1766,6 @@ namespace Opc.Ua.SourceGeneration
             context.Out.WriteLine("}");
         }
 
-
         private bool WriteTemplate_RolePermissions(IWriteContext context)
         {
             if (context.Target is not HashSet<RolePermission> rolePermissions ||
@@ -2662,7 +2661,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return result;
             }
-            string relativeSuffix = childName.Substring(typeRootName.Length);
+            string relativeSuffix = childName[typeRootName.Length..];
 
             // Only count singletons whose corresponding child has actually
             // been collected (m_nodes contains the singleton-instance
@@ -2711,7 +2710,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.InstanceNodeIdOverride,
                 NodeStateTemplates.InstanceNodeIdOverride,
                 singletonChildren.Count > 0
-                    ? (IReadOnlyList<object>)new object[] { singletonChildren }
+                    ? [singletonChildren]
                     : [],
                 WriteTemplate_InstanceNodeIdOverride);
         }
@@ -2730,7 +2729,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ListOfInstanceNodeIdBranches,
                 NodeStateTemplates.InstanceNodeIdBranch,
-                branches.Cast<object>().ToArray(),
+                [.. branches.Cast<object>()],
                 WriteTemplate_InstanceNodeIdBranch);
             return context.Template.Render();
         }

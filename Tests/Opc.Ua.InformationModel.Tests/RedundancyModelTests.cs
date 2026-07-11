@@ -168,9 +168,22 @@ namespace Opc.Ua.InformationModel.Tests
                 response.Results[0].References[0].NodeId,
                 Session.NamespaceUris);
 
-            // Should be ServerRedundancyType or a subtype
             Assert.That(typeDefId, Is.Not.Null,
                 "Type definition NodeId should not be null.");
+
+            DataValue redundancySupport = await ReadValueAsync(
+                VariableIds.Server_ServerRedundancy_RedundancySupport)
+                .ConfigureAwait(false);
+
+            NodeId expectedTypeDefinition = redundancySupport.WrappedValue.GetInt32() switch
+            {
+                4 => TransparentRedundancyTypeId,
+                1 or 2 or 3 or 5 => NonTransparentRedundancyTypeId,
+                _ => ServerRedundancyTypeId
+            };
+
+            Assert.That(typeDefId, Is.EqualTo(expectedTypeDefinition),
+                "ServerRedundancy type definition must match the configured redundancy mode.");
         }
 
         [Test]
@@ -202,6 +215,100 @@ namespace Opc.Ua.InformationModel.Tests
 
             Assert.That(found, Is.True,
                 "CurrentServerId should exist when redundancy is enabled.");
+        }
+
+        [Test]
+        public async Task RequestServerStateChangeMethodIsCallableAsync()
+        {
+            BrowseResult result = await BrowseChildrenAsync(ObjectIds.Server).ConfigureAwait(false);
+
+            bool found = false;
+            foreach (ReferenceDescription rd in result.References)
+            {
+                if (rd.BrowseName.Name == "RequestServerStateChange")
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                Assert.Ignore("RequestServerStateChange method not exposed.");
+            }
+
+            DataValue executableAttr = await ReadAttributeAsync(
+                MethodIds.Server_RequestServerStateChange,
+                Attributes.Executable).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(executableAttr.StatusCode), Is.True);
+        }
+
+        [Test]
+        public async Task RequestServerStateChangeHasCorrectSignatureAsync()
+        {
+            BrowseResult result = await BrowseChildrenAsync(ObjectIds.Server).ConfigureAwait(false);
+
+            bool found = false;
+            foreach (ReferenceDescription rd in result.References)
+            {
+                if (rd.BrowseName.Name == "RequestServerStateChange")
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                Assert.Ignore("RequestServerStateChange method not exposed.");
+            }
+
+            ReadResponse response = await Session.ReadAsync(
+                null, 0, TimestampsToReturn.Both,
+                new ReadValueId[]
+                {
+                    new() {
+                        NodeId = MethodIds.Server_RequestServerStateChange,
+                        AttributeId = Attributes.NodeClass
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
+            var nodeClass = (NodeClass)response.Results[0].WrappedValue.GetInt32();
+            Assert.That(nodeClass, Is.EqualTo(NodeClass.Method));
+        }
+
+        [Test]
+        public async Task RedundancySupportHasCorrectAccessLevelAsync()
+        {
+            DataValue accessLevel = await ReadAttributeAsync(
+                VariableIds.Server_ServerRedundancy_RedundancySupport,
+                Attributes.AccessLevel).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(accessLevel.StatusCode), Is.True);
+            byte level = accessLevel.WrappedValue.GetByte();
+            Assert.That(level & AccessLevels.CurrentRead, Is.Not.Zero,
+                "RedundancySupport must be readable.");
+        }
+
+        private async Task<DataValue> ReadAttributeAsync(NodeId nodeId, uint attributeId)
+        {
+            ReadResponse response = await Session.ReadAsync(
+                null, 0, TimestampsToReturn.Both,
+                new ReadValueId[]
+                {
+                    new() {
+                        NodeId = nodeId,
+                        AttributeId = attributeId
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            return response.Results[0];
         }
 
         private async Task<DataValue> ReadValueAsync(NodeId nodeId)
@@ -242,5 +349,9 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             return response.Results[0];
         }
+
+        private static readonly NodeId ServerRedundancyTypeId = new(2034);
+        private static readonly NodeId TransparentRedundancyTypeId = new(2036);
+        private static readonly NodeId NonTransparentRedundancyTypeId = new(2039);
     }
 }

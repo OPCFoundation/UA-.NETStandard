@@ -56,6 +56,8 @@ namespace Opc.Ua.Mcp.Tools
         /// <summary>
         /// Starts replaying a pcap capture.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         [McpServerTool(Name = "replay_pcap")]
         [Description("Replays a captured pcap. mode='mock-server' opens an OPC UA listener that replays the " +
             "captured server bytes to a connecting client; mode='mock-client' walks the captured request stream " +
@@ -163,14 +165,10 @@ namespace Opc.Ua.Mcp.Tools
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            ReplaySessionManager? manager = services.GetService<ReplaySessionManager>();
-            if (manager is null)
-            {
-                // TODO: Remove this guard once replay registration is mandatory for every host using these tools.
-                throw new NotSupportedException("Replay support is not yet wired - replay agent has not completed.");
-            }
-
-            return manager;
+            // TODO: Remove this guard once replay registration is mandatory for every host using these tools.
+            return services.GetService<ReplaySessionManager>()
+                ?? throw new NotSupportedException(
+                    "Replay support is not yet wired - replay agent has not completed.");
         }
 
         private static ValueTask AuditAsync(

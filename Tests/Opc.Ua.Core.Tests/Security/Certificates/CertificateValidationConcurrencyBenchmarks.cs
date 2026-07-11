@@ -132,16 +132,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_manager = new CertificateManager(m_telemetry);
             m_manager.RegisterTrustList(TrustListIdentifier.Peers, m_trustedPath);
 
-            using (ICertificateStore store = m_manager.OpenTrustedStore(TrustListIdentifier.Peers))
-            {
-                await store.AddAsync(m_rootCa).ConfigureAwait(false);
+            using ICertificateStore store = m_manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            await store.AddAsync(m_rootCa).ConfigureAwait(false);
 
-                // Add an (empty) CRL so the revocation-check path is exercised.
-                var crl = new X509CRL(CrlBuilder
-                    .Create(m_rootCa.SubjectName)
-                    .CreateForRSA(m_rootCa));
-                await store.AddCRLAsync(crl).ConfigureAwait(false);
-            }
+            // Add an (empty) CRL so the revocation-check path is exercised.
+            var crl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .CreateForRSA(m_rootCa));
+            await store.AddCRLAsync(crl).ConfigureAwait(false);
         }
 
         private void Cleanup()

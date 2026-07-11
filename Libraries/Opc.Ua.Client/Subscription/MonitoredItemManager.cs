@@ -1729,6 +1729,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private readonly Dictionary<string, Dictionary<IMonitoredItem, bool>>
             m_pendingByTriggeringName =
                 new(StringComparer.Ordinal);
+
         private int m_pendingTriggeringCount;
 
         private readonly IMonitoredItemManagerContext m_context;

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Globalization;
 using System.Linq;
@@ -58,6 +56,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
         /// L3-A5: verifies a managed session survives mixed connection drops and blocked accepts.
         /// </summary>
         /// <param name="ct">Cancellation token supplied by NUnit.</param>
+        /// <exception cref="ServiceResultException"></exception>
         [Test]
         [Category("ChaosTCP")]
         [CancelAfter(180_000)]

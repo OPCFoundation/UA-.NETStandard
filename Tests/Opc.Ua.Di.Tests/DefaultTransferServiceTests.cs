@@ -32,8 +32,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.Transfer;
 
-#nullable enable
-
 namespace Opc.Ua.Di.Tests
 {
     /// <summary>
@@ -71,12 +69,13 @@ namespace Opc.Ua.Di.Tests
             service.RegisterExporter(ElementId, (_, _) => new ValueTask<ParameterSet>(set));
 
             int transferId = await service
-                .TransferFromDeviceAsync(CreateContext(), ElementId);
+                .TransferFromDeviceAsync(CreateContext(), ElementId)
+                .ConfigureAwait(false);
             Assert.That(transferId, Is.GreaterThan(0));
 
             FetchResult chunk = await service.FetchAsync(
                 CreateContext(), transferId, sequenceNumber: 0,
-                maxResults: 0, omitGoodResults: false);
+                maxResults: 0, omitGoodResults: false).ConfigureAwait(false);
 
             Assert.That(chunk.Entries, Has.Length.EqualTo(1));
             Assert.That(chunk.Entries[0].NodePath[0].Name, Is.EqualTo("Manufacturer"));
@@ -89,9 +88,10 @@ namespace Opc.Ua.Di.Tests
         {
             var service = new DefaultTransferService();
             int transferId = await service
-                .TransferFromDeviceAsync(CreateContext(), ElementId);
+                .TransferFromDeviceAsync(CreateContext(), ElementId)
+                .ConfigureAwait(false);
             FetchResult chunk = await service.FetchAsync(
-                CreateContext(), transferId, 0, 0, false);
+                CreateContext(), transferId, 0, 0, false).ConfigureAwait(false);
 
             Assert.That(chunk.TransferError, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(chunk.EndOfResults, Is.True);
@@ -104,7 +104,7 @@ namespace Opc.Ua.Di.Tests
             var service = new DefaultTransferService();
             FetchResult chunk = await service.FetchAsync(
                 CreateContext(), transferId: 9999, sequenceNumber: 0,
-                maxResults: 0, omitGoodResults: false);
+                maxResults: 0, omitGoodResults: false).ConfigureAwait(false);
             Assert.That(chunk.TransferError, Is.EqualTo(StatusCodes.BadNotFound));
             Assert.That(chunk.EndOfResults, Is.True);
         }
@@ -124,24 +124,25 @@ namespace Opc.Ua.Di.Tests
             service.RegisterExporter(ElementId, (_, _) => new ValueTask<ParameterSet>(set));
 
             int transferId = await service
-                .TransferFromDeviceAsync(CreateContext(), ElementId);
+                .TransferFromDeviceAsync(CreateContext(), ElementId)
+                .ConfigureAwait(false);
 
             FetchResult first = await service.FetchAsync(
                 CreateContext(), transferId, sequenceNumber: 0,
-                maxResults: 2, omitGoodResults: false);
+                maxResults: 2, omitGoodResults: false).ConfigureAwait(false);
             Assert.That(first.Entries, Has.Length.EqualTo(2));
             Assert.That(first.EndOfResults, Is.False);
             Assert.That(first.SequenceNumber, Is.EqualTo(2));
 
             FetchResult second = await service.FetchAsync(
                 CreateContext(), transferId, sequenceNumber: 2,
-                maxResults: 2, omitGoodResults: false);
+                maxResults: 2, omitGoodResults: false).ConfigureAwait(false);
             Assert.That(second.Entries, Has.Length.EqualTo(2));
             Assert.That(second.EndOfResults, Is.False);
 
             FetchResult third = await service.FetchAsync(
                 CreateContext(), transferId, sequenceNumber: 4,
-                maxResults: 2, omitGoodResults: false);
+                maxResults: 2, omitGoodResults: false).ConfigureAwait(false);
             Assert.That(third.Entries, Has.Length.EqualTo(1));
             Assert.That(third.EndOfResults, Is.True);
         }
@@ -165,9 +166,10 @@ namespace Opc.Ua.Di.Tests
             service.RegisterExporter(ElementId, (_, _) => new ValueTask<ParameterSet>(set));
 
             int transferId = await service
-                .TransferFromDeviceAsync(CreateContext(), ElementId);
+                .TransferFromDeviceAsync(CreateContext(), ElementId)
+                .ConfigureAwait(false);
             FetchResult chunk = await service.FetchAsync(
-                CreateContext(), transferId, 0, 0, omitGoodResults: true);
+                CreateContext(), transferId, 0, 0, omitGoodResults: true).ConfigureAwait(false);
 
             Assert.That(chunk.Entries, Has.Length.EqualTo(1));
             Assert.That(chunk.Entries[0].NodePath[0].Name, Is.EqualTo("Bad"));
@@ -203,12 +205,12 @@ namespace Opc.Ua.Di.Tests
             };
 
             int transferId = await service.TransferToDeviceAsync(
-                CreateContext(), ElementId, input);
+                CreateContext(), ElementId, input).ConfigureAwait(false);
 
             Assert.That(capturedInput, Is.SameAs(input));
 
             FetchResult chunk = await service.FetchAsync(
-                CreateContext(), transferId, 0, 0, false);
+                CreateContext(), transferId, 0, 0, false).ConfigureAwait(false);
             Assert.That(chunk.Entries, Has.Length.EqualTo(2));
             Assert.That(chunk.Entries[0].StatusCode,
                 Is.EqualTo(StatusCodes.Good));
@@ -223,9 +225,9 @@ namespace Opc.Ua.Di.Tests
             var input = new ParameterSet(ElementId);
 
             int transferId = await service.TransferToDeviceAsync(
-                CreateContext(), ElementId, input);
+                CreateContext(), ElementId, input).ConfigureAwait(false);
             FetchResult chunk = await service.FetchAsync(
-                CreateContext(), transferId, 0, 0, false);
+                CreateContext(), transferId, 0, 0, false).ConfigureAwait(false);
 
             Assert.That(chunk.TransferError, Is.EqualTo(StatusCodes.BadNotSupported));
         }
@@ -237,9 +239,9 @@ namespace Opc.Ua.Di.Tests
             service.RegisterExporter(ElementId,
                 (_, _) => new ValueTask<ParameterSet>(new ParameterSet(ElementId)));
 
-            int a = await service.TransferFromDeviceAsync(CreateContext(), ElementId);
-            int b = await service.TransferFromDeviceAsync(CreateContext(), ElementId);
-            int c = await service.TransferFromDeviceAsync(CreateContext(), ElementId);
+            int a = await service.TransferFromDeviceAsync(CreateContext(), ElementId).ConfigureAwait(false);
+            int b = await service.TransferFromDeviceAsync(CreateContext(), ElementId).ConfigureAwait(false);
+            int c = await service.TransferFromDeviceAsync(CreateContext(), ElementId).ConfigureAwait(false);
 
             Assert.That(a, Is.Not.EqualTo(b));
             Assert.That(b, Is.Not.EqualTo(c));
@@ -262,16 +264,16 @@ namespace Opc.Ua.Di.Tests
                 }));
 
             int transferId = await service.TransferFromDeviceAsync(
-                CreateContext(), ElementId);
+                CreateContext(), ElementId).ConfigureAwait(false);
 
             FetchResult first = await service.FetchAsync(
-                CreateContext(), transferId, 0, 0, false);
+                CreateContext(), transferId, 0, 0, false).ConfigureAwait(false);
             Assert.That(first.EndOfResults, Is.True);
 
             // After end-of-results, server discards the transfer; a
             // re-fetch must surface BadNotFound.
             FetchResult second = await service.FetchAsync(
-                CreateContext(), transferId, 0, 0, false);
+                CreateContext(), transferId, 0, 0, false).ConfigureAwait(false);
             Assert.That(second.TransferError,
                 Is.EqualTo(StatusCodes.BadNotFound));
         }
@@ -282,10 +284,10 @@ namespace Opc.Ua.Di.Tests
             var service = new DefaultTransferService();
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await service.TransferToDeviceAsync(
-                    null!, ElementId, new ParameterSet(ElementId)));
+                    null!, ElementId, new ParameterSet(ElementId)).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await service.TransferToDeviceAsync(
-                    CreateContext(), ElementId, null!));
+                    CreateContext(), ElementId, null!).ConfigureAwait(false));
         }
     }
 }

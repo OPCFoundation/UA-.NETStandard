@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(0x0, out uint fileHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(fileHandle, Is.Zero);
         }
 
@@ -101,9 +101,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open((byte)(ModeRead | ModeWrite), out _);
+            ServiceResult result = handle.Open(ModeRead | ModeWrite, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(ModeWrite, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(ModeRead, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(ModeWrite, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -175,7 +175,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(ModeRead, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "existing-content");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open((byte)(ModeWrite | ModeEraseExisting), out uint fileHandle);
+            handle.Open(ModeWrite | ModeEraseExisting, out uint fileHandle);
             Stream stream = handle.GetStream(fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("new");
             stream.Write(payload, 0, payload.Length);
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "a");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open((byte)(ModeWrite | ModeAppend), out uint fileHandle);
+            handle.Open(ModeWrite | ModeAppend, out uint fileHandle);
             Stream stream = handle.GetStream(fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("b");
             stream.Write(payload, 0, payload.Length);

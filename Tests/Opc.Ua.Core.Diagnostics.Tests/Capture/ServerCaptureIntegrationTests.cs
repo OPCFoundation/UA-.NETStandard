@@ -33,14 +33,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Pcap.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.Models;
-
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Capture
 {
@@ -61,7 +60,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
         public override async Task OneTimeSetUpAsync()
         {
             m_registry = new ChannelCaptureRegistry();
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             PcapBindings.InstallServer(bindings, m_registry);
             TransportBindingRegistry = bindings;
             m_captureRoot = Path.Combine(

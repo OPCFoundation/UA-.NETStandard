@@ -29,7 +29,6 @@
 
 using System;
 using System.Net;
-using System.Net.Security;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -274,12 +273,17 @@ namespace Opc.Ua.Bindings
         /// Releases the underlying WebSocket and synchronization primitives.
         /// Equivalent to <see cref="Close"/>.
         /// </summary>
-        public void Dispose() => Close();
+        public void Dispose()
+        {
+            Close();
+        }
 
         /// <summary>
         /// Assigns the live <see cref="WebSocket"/> to the transport. Called
         /// by derived implementations from their connect / accept paths.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         protected void AttachSocket(WebSocket socket)
         {
             if (socket == null)
@@ -311,13 +315,15 @@ namespace Opc.Ua.Bindings
             return socket;
         }
 
-        private readonly BufferManager m_bufferManager;
-        private readonly int m_receiveBufferSize;
-        private readonly SemaphoreSlim m_sendLock;
-        // m_logger is used by derived implementations for handshake diagnostics.
+        /// <summary>
+        /// m_logger is used by derived implementations for handshake diagnostics.
+        /// </summary>
         protected readonly ILogger m_logger;
         private WebSocket? m_socket;
         private int m_closed;
+        private readonly BufferManager m_bufferManager;
+        private readonly int m_receiveBufferSize;
+        private readonly SemaphoreSlim m_sendLock;
     }
 
     /// <summary>
@@ -405,7 +411,7 @@ namespace Opc.Ua.Bindings
                 if (ClientTlsCertificate != null)
                 {
                     using X509Certificate2 clientCert = ClientTlsCertificate.AsX509Certificate2();
-                    ws.Options.ClientCertificates ??= new X509CertificateCollection();
+                    ws.Options.ClientCertificates ??= [];
                     ws.Options.ClientCertificates.Add(clientCert);
                 }
 #else
@@ -450,10 +456,11 @@ namespace Opc.Ua.Bindings
             }
         }
 
+#if NET5_0_OR_GREATER
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             X509Certificate2? cert,
-            System.Security.Cryptography.X509Certificates.X509Chain? chain)
+            X509Chain? chain)
         {
             if (cert == null)
             {
@@ -493,6 +500,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
         }
+#endif
 
         private static Uri NormalizeUrl(Uri url)
         {
@@ -531,16 +539,16 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(socket));
             }
-            m_localEndpoint = localEndpoint;
-            m_remoteEndpoint = remoteEndpoint;
+            LocalEndpoint = localEndpoint;
+            RemoteEndpoint = remoteEndpoint;
             AttachSocket(socket);
         }
 
         /// <inheritdoc/>
-        public override EndPoint? LocalEndpoint => m_localEndpoint;
+        public override EndPoint? LocalEndpoint { get; }
 
         /// <inheritdoc/>
-        public override EndPoint? RemoteEndpoint => m_remoteEndpoint;
+        public override EndPoint? RemoteEndpoint { get; }
 
         /// <inheritdoc/>
         public override ValueTask ConnectAsync(Uri url, CancellationToken ct)
@@ -548,8 +556,5 @@ namespace Opc.Ua.Bindings
             throw new NotSupportedException(
                 "WebSocketServerByteTransport is constructed from an accepted WebSocket and cannot connect outbound.");
         }
-
-        private readonly EndPoint? m_localEndpoint;
-        private readonly EndPoint? m_remoteEndpoint;
     }
 }

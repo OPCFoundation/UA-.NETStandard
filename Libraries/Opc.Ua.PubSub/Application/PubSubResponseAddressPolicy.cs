@@ -116,8 +116,8 @@ namespace Opc.Ua.PubSub.Application
         public static PubSubResponseAddressPolicy DenyRequestorTopics { get; } =
             new(
                 "DenyRequestorTopics",
-                context => !context.TransportUsesTopics
-                    || string.IsNullOrEmpty(context.ResponseAddress));
+                context => !context.TransportUsesTopics ||
+                    string.IsNullOrEmpty(context.ResponseAddress));
 
         /// <summary>
         /// Honors any requestor-supplied response address. This restores the
@@ -151,8 +151,8 @@ namespace Opc.Ua.PubSub.Application
                 description,
                 context =>
                 {
-                    if (!context.TransportUsesTopics
-                        || string.IsNullOrEmpty(context.ResponseAddress))
+                    if (!context.TransportUsesTopics ||
+                        string.IsNullOrEmpty(context.ResponseAddress))
                     {
                         return true;
                     }
@@ -213,8 +213,8 @@ namespace Opc.Ua.PubSub.Application
             int matchIndex = 0;
             while (valueIndex < value.Length)
             {
-                if (patternIndex < pattern.Length
-                    && (pattern[patternIndex] == value[valueIndex]))
+                if (patternIndex < pattern.Length &&
+                    (pattern[patternIndex] == value[valueIndex]))
                 {
                     patternIndex++;
                     valueIndex++;

@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 {
                     Name = "f",
                     Value = new Variant(1.0),
-                    StatusCode = (StatusCode)StatusCodes.BadInternalError
+                    StatusCode = StatusCodes.BadInternalError
                 }
             ]).ConfigureAwait(false);
 
@@ -139,7 +139,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
                 {
                     Name = "f",
                     Value = new Variant(22.0),
-                    StatusCode = (StatusCode)StatusCodes.BadInternalError
+                    StatusCode = StatusCodes.BadInternalError
                 }
             ]).ConfigureAwait(false);
 
@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         {
             var writer = new RecordingWriter
             {
-                NextStatus = (StatusCode)StatusCodes.BadInternalError
+                NextStatus = StatusCodes.BadInternalError
             };
             var config = new TargetVariablesDataType
             {
@@ -173,13 +173,13 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             await sink.WriteAsync([
                 new DataSetField { Name = "f", Value = new Variant(1.0) }
             ]).ConfigureAwait(false);
-            writer.NextStatus = (StatusCode)StatusCodes.Good;
+            writer.NextStatus = StatusCodes.Good;
             await sink.WriteAsync([
                 new DataSetField
                 {
                     Name = "f",
                     Value = new Variant(2.0),
-                    StatusCode = (StatusCode)StatusCodes.BadInternalError
+                    StatusCode = StatusCodes.BadInternalError
                 }
             ]).ConfigureAwait(false);
 
@@ -192,7 +192,8 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         {
             public List<(NodeId NodeId, uint AttributeId, DataValue Value)> Writes { get; }
                 = [];
-            public StatusCode NextStatus { get; set; } = (StatusCode)StatusCodes.Good;
+
+            public StatusCode NextStatus { get; set; } = StatusCodes.Good;
 
             public ValueTask<StatusCode> WriteAsync(
                 NodeId nodeId,
@@ -207,5 +208,3 @@ namespace Opc.Ua.PubSub.Tests.DataSets
         }
     }
 }
-
-

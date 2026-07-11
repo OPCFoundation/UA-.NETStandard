@@ -38,7 +38,6 @@ using JsonEncoderV2 = Opc.Ua.PubSub.Encoding.Json.JsonEncoder;
 using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpEncoderV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder;
-using UadpNetworkMessageContentMask = Opc.Ua.UadpNetworkMessageContentMask;
 using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
 namespace Opc.Ua.PubSub.Tests.Benchmarks
@@ -132,8 +131,8 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
         {
             return new UadpNetworkMessageV2
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 WriterGroupId = 10,
                 DataSetMessages =

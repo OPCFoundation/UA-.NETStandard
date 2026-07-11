@@ -102,19 +102,18 @@ namespace OpcUaPubSubJsonTests
             Assert.That(data.PublisherId.IsNull, Is.False);
             Assert.That(((PubSubDataSetMessage[]?)data.DataSetMessages) ?? [], Has.Length.EqualTo(1),
                 $"Expected exactly one decoded DataSetMessage for mode={mode} type={type}; got {data.DataSetMessages.Count}");
-            var receivedDsm = data.DataSetMessages[0]
-                as Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
+            var receivedDsm = data.DataSetMessages[0] as
+                Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
             Assert.That(receivedDsm, Is.Not.Null);
             Assert.That(receivedDsm!.DataSetWriterId, Is.EqualTo(1));
             Assert.That(receivedDsm.SequenceNumber, Is.EqualTo(99));
             Assert.That(receivedDsm.MessageType, Is.EqualTo(type));
-            if (type != PubSubDataSetMessageType.KeepAlive
-                && mode == Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)
+            if (type != PubSubDataSetMessageType.KeepAlive &&
+                mode == Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Verbose)
             {
                 Assert.That(((DataSetField[]?)receivedDsm.Fields) ?? [], Has.Length.EqualTo(3));
             }
         }
-
 
         [Test]
         [TestSpec("7.2.5.3")]
@@ -144,7 +143,7 @@ namespace OpcUaPubSubJsonTests
                 Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact);
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(message, ctx).ConfigureAwait(false);
-            using (JsonDocument document = JsonDocument.Parse(bytes))
+            using (var document = JsonDocument.Parse(bytes))
             {
                 Assert.That(document.RootElement.GetProperty("PublisherId").GetString(), Is.EqualTo("5"));
             }
@@ -156,8 +155,8 @@ namespace OpcUaPubSubJsonTests
             var decodedNetwork = decoded as Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
             Assert.That(decodedNetwork, Is.Not.Null);
             Assert.That(decodedNetwork!.DataSetMessages, Has.Count.EqualTo(1));
-            var decodedMessage = decodedNetwork.DataSetMessages[0]
-                as Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
+            var decodedMessage = decodedNetwork.DataSetMessages[0] as
+                Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
             Assert.That(decodedMessage, Is.Not.Null);
             Assert.That(decodedMessage!.Fields, Has.Count.EqualTo(3),
                 "Part 14 Tables 184 and 185 encode UInteger PublisherId as a JSON string without changing identity.");

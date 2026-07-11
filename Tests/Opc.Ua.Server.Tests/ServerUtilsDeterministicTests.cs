@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests
 
         private static List<DiagnosticInfo> CreateDiagnosticSlots(int count)
         {
-            return new List<DiagnosticInfo>(new DiagnosticInfo[count]);
+            return [.. new DiagnosticInfo[count]];
         }
 
         [Test]

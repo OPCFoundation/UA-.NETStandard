@@ -44,6 +44,10 @@
     <PublishAot>false</PublishAot>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- The no-op shell strips all references, so on netstandard2.x there is no
+         assembly providing System.Object; supply an explicit RuntimeMetadataVersion
+         so the empty assembly still compiles (net4x get it from the targeting pack). -->
+    <RuntimeMetadataVersion Condition="'$(RuntimeMetadataVersion)' == ''">v4.0.30319</RuntimeMetadataVersion>
   </PropertyGroup>
   <ItemGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <Compile Remove="@(Compile)" />

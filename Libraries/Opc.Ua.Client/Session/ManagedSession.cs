@@ -56,7 +56,7 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : ISession
+    public partial class ManagedSession : IManagedSession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -79,6 +79,8 @@ namespace Opc.Ua.Client
             bool checkDomain,
             bool transferSubscriptionsOnRecreate,
             bool poolNotifications,
+            bool enableTokenReuseFailover,
+            NetworkRedundancyOptions? networkRedundancy,
             IClientChannelManager? channelManager,
             IClientConnectGate? connectGate)
         {
@@ -105,6 +107,13 @@ namespace Opc.Ua.Client
             m_checkDomain = checkDomain;
             m_transferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate;
             m_poolNotifications = poolNotifications;
+            m_enableTokenReuseFailover = enableTokenReuseFailover;
+            m_networkEndpointSelector = networkRedundancy == null ||
+                networkRedundancy.AlternateEndpoints.IsEmpty
+                    ? null
+                    : new NetworkRedundancyEndpointSelector(
+                        endpoint,
+                        networkRedundancy.AlternateEndpoints);
             m_channelManager = channelManager;
             m_connectGate = connectGate;
 
@@ -159,6 +168,11 @@ namespace Opc.Ua.Client
         /// release them back to their activator pools. Default
         /// <c>false</c>. See <c>ManagedSessionOptions.PoolNotifications</c>
         /// for the retain-by-copy contract.</param>
+        /// <param name="enableTokenReuseFailover">When <c>true</c>, a failover
+        /// to a redundant server re-activates the existing session by reusing
+        /// the current <c>AuthenticationToken</c> instead of
+        /// creating a new session, falling back to re-authentication if the
+        /// standby rejects the token. Default <c>false</c>.</param>
         /// <param name="identityProvider">Optional lazy identity provider.</param>
         /// <param name="timeProvider">Optional time provider for proactive refresh.</param>
         /// <param name="channelManager">Optional central
@@ -166,6 +180,10 @@ namespace Opc.Ua.Client
         /// inner Session shares its transport channel with any other
         /// session/discovery client targeting the same endpoint, and
         /// channel reconnect is coordinated centrally.</param>
+        /// <param name="networkRedundancy">
+        /// Optional alternate Endpoints for OPC 10000-4 §6.6.4 non-transparent network redundancy. Transparent network
+        /// redundancy is handled by the infrastructure endpoint and does not require alternates.
+        /// </param>
         /// <param name="reverseConnectManager">Optional reverse-connect manager.</param>
         /// <param name="connectGate">Optional shared initial connect
         /// admission gate.</param>
@@ -186,9 +204,11 @@ namespace Opc.Ua.Client
             ISubscriptionEngineFactory? engineFactory = null,
             bool transferSubscriptionsOnRecreate = false,
             bool poolNotifications = false,
+            bool enableTokenReuseFailover = false,
             IClientIdentityProvider? identityProvider = null,
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
+            NetworkRedundancyOptions? networkRedundancy = null,
             ReverseConnectManager? reverseConnectManager = null,
             IClientConnectGate? connectGate = null,
             CancellationToken ct = default)
@@ -231,6 +251,8 @@ namespace Opc.Ua.Client
                 checkDomain,
                 transferSubscriptionsOnRecreate,
                 poolNotifications,
+                enableTokenReuseFailover,
+                networkRedundancy,
                 channelManager,
                 connectGate)
             {
@@ -298,6 +320,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint { get; }
+
+        /// <inheritdoc/>
+        public RedundancySupport RedundancySupport => m_redundancyInfo?.Mode ?? RedundancySupport.None;
 
         /// <inheritdoc/>
         public string SessionName
@@ -453,6 +478,21 @@ namespace Opc.Ua.Client
         {
             get => m_session?.TransferSubscriptionsOnReconnect ?? false;
             set => m_session?.TransferSubscriptionsOnReconnect = value;
+        }
+
+        /// <summary>
+        /// Gets or sets whether failover reuses the current
+        /// <c>AuthenticationToken</c> to reactivate the existing session on a
+        /// redundant server instead of creating a new one.
+        /// </summary>
+        public bool EnableTokenReuseFailover
+        {
+            get => m_enableTokenReuseFailover;
+            set
+            {
+                m_enableTokenReuseFailover = value;
+                m_session?.EnableTokenReuseFailover = value;
+            }
         }
 
         /// <inheritdoc/>
@@ -1052,6 +1092,11 @@ namespace Opc.Ua.Client
                     StartIdentityRefreshLoop();
                 }
 
+                // Propagate token-reuse failover to the inner
+                // session so a redundancy failover re-activates the existing
+                // session instead of creating a new one.
+                session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
+
                 // Apply opt-in V2 transfer-on-recreate. The V2 engine
                 // and SubscriptionManager survive in-place re-creates
                 // (failover via Session.RecreateInPlaceAsync), so this
@@ -1122,11 +1167,22 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
                             session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
                         {
-                            m_logger.LogInformation(
-                                sre,
-                                "ManagedSession: managed channel is faulted; recreating session in place.");
+                            ConfiguredEndpoint? alternateEndpoint =
+                                SelectNextNetworkEndpoint(ConfiguredEndpoint);
+                            if (alternateEndpoint == null)
+                            {
+                                m_logger.LogInformation(
+                                    sre,
+                                    "ManagedSession: managed channel is faulted; recreating session in place.");
+                            }
+                            else
+                            {
+                                m_logger.LogInformation(
+                                    sre,
+                                    "ManagedSession: managed channel is faulted; recreating session on alternate endpoint.");
+                            }
                             await session.RecreateInPlaceAsync(
-                                    endpoint: null,
+                                    endpoint: alternateEndpoint,
                                     budget: budget,
                                     ct: ct)
                                 .ConfigureAwait(false);
@@ -1171,6 +1227,39 @@ namespace Opc.Ua.Client
                     "ManagedSession: Reconnect attempt failed.");
                 return ToAttemptFailure(ex);
             }
+        }
+
+        private ConfiguredEndpoint? SelectNextNetworkEndpoint(
+            ConfiguredEndpoint currentEndpoint)
+        {
+            return m_networkEndpointSelector?.SelectNext(currentEndpoint);
+        }
+
+        /// <summary>
+        /// Reactivates the session against the given endpoint reusing the current
+        /// AuthenticationToken instead of recreating it. Used by client replica sets
+        /// to fast-activate a mirrored session on promotion. The standby still performs
+        /// the full ActivateSession signature validation.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        public async ValueTask ReactivateMirroredSessionAsync(
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct = default)
+        {
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            using (await m_serviceLock.WriterLockAsync(ct)
+                .ConfigureAwait(false))
+            {
+                await InnerSession
+                    .ReactivateMirroredSessionAsync(endpoint, ct)
+                    .ConfigureAwait(false);
+            }
+
+            m_reconnectPolicy.Reset();
         }
 
         /// <summary>
@@ -1415,8 +1504,6 @@ namespace Opc.Ua.Client
                     // machine so the IReconnectPolicy / failover path
                     // can run.
                     StateMachine.TriggerReconnect();
-                    break;
-                default:
                     break;
             }
         }
@@ -1857,6 +1944,8 @@ namespace Opc.Ua.Client
         private readonly bool m_checkDomain;
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
+        private bool m_enableTokenReuseFailover;
+        private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
         private ReverseConnectManager? m_reverseConnectManager;
         private readonly IClientConnectGate? m_connectGate;

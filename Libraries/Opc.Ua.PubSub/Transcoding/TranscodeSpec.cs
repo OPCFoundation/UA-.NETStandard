@@ -72,9 +72,9 @@ namespace Opc.Ua.PubSub.Transcoding
         /// passthrough fast path.
         /// </summary>
         public bool IsIdentity
-            => Transforms.Count == 0
-                && TargetOptions.FieldEncoding is null
-                && !TargetOptions.JsonSingleMessageMode
-                && !(Promotion?.HasFields ?? false);
+            => Transforms.Count == 0 &&
+                TargetOptions.FieldEncoding is null &&
+                !TargetOptions.JsonSingleMessageMode &&
+                !(Promotion?.HasFields ?? false);
     }
 }

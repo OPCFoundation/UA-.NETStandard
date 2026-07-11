@@ -58,8 +58,10 @@ namespace Opc.Ua.Client.Subscriptions
     /// <param name="MonitoredItem"></param>
     /// <param name="Value"></param>
     /// <param name="DiagnosticInfo"></param>
-    public record struct DataValueChange(IMonitoredItem? MonitoredItem,
-        DataValue Value, DiagnosticInfo? DiagnosticInfo)
+    public readonly record struct DataValueChange(
+        IMonitoredItem? MonitoredItem,
+        DataValue Value,
+        DiagnosticInfo? DiagnosticInfo)
     {
         /// <summary>
         /// <para>
@@ -103,7 +105,8 @@ namespace Opc.Ua.Client.Subscriptions
     /// </summary>
     /// <param name="MonitoredItem"></param>
     /// <param name="Fields"></param>
-    public record struct EventNotification(IMonitoredItem? MonitoredItem,
+    public readonly record struct EventNotification(
+        IMonitoredItem? MonitoredItem,
         ArrayOf<Variant> Fields)
     {
         /// <summary>

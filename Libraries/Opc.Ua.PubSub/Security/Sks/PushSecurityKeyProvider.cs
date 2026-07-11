@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.PubSub.Security.Sks
 {
     /// <summary>
-    /// Push-side SKS key provider populated by the Part 14 ง9.1.3.3 SetSecurityKeys Method.
+    /// Push-side SKS key provider populated by the Part 14 ยง9.1.3.3 SetSecurityKeys Method.
     /// </summary>
     public sealed class PushSecurityKeyProvider : IPubSubSecurityKeyProvider, IAsyncDisposable
     {
@@ -79,6 +79,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <summary>
         /// Receives keys pushed by the SKS using SetSecurityKeys.
         /// </summary>
+        /// <exception cref="OpcUaSksException"></exception>
         public ValueTask SetSecurityKeysAsync(
             string securityPolicyUri,
             uint currentTokenId,
@@ -125,7 +126,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 packed,
                 timeToNextKey,
                 keyLifetime);
-            ArrayOf<PubSubSecurityKey> keys = response.Unpacked;
+            ArrayOf<PubSubSecurityKey> keys = response.Unpack(m_timeProvider);
             if (keys.Count == 0)
             {
                 throw new OpcUaSksException(

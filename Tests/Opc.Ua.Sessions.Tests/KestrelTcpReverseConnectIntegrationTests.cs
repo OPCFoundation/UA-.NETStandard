@@ -83,7 +83,7 @@ namespace Opc.Ua.Sessions.Tests
             };
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
-            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry
+            var registry = DefaultTransportBindingRegistry
                 .WithDefaultTcp();
             registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
 

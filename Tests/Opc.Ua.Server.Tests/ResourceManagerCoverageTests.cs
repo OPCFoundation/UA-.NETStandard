@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests
             using ResourceManager manager = CreateResourceManager();
 
             Assert.That(
-                () => manager.Add("en-US", (IDictionary<string, string>)null!),
+                () => manager.Add("en-US", null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ResourceManager manager = CreateResourceManager();
 
-            ServiceResult result = manager.Translate(["en-US"], (ServiceResult)null!);
+            ServiceResult result = manager.Translate(["en-US"], null!);
 
             Assert.That(result, Is.Null);
         }

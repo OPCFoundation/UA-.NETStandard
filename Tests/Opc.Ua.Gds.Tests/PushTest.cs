@@ -1437,7 +1437,7 @@ namespace Opc.Ua.Gds.Tests
                     issuerCertificates = [];
                     foreach (ByteString cert in trustList.IssuerCertificates)
                     {
-                        using Certificate parsed = Certificate.FromRawData(cert.ToArray());
+                        using var parsed = Certificate.FromRawData(cert.ToArray());
                         issuerCertificates.Add(parsed);
                     }
                 }
@@ -1454,7 +1454,7 @@ namespace Opc.Ua.Gds.Tests
                     trustedCertificates = [];
                     foreach (ByteString cert in trustList.TrustedCertificates)
                     {
-                        using Certificate parsed = Certificate.FromRawData(cert.ToArray());
+                        using var parsed = Certificate.FromRawData(cert.ToArray());
                         trustedCertificates.Add(parsed);
                     }
                 }

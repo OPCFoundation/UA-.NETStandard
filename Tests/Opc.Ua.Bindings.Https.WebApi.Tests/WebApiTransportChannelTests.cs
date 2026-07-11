@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Net.Http;
 using System.Threading;
@@ -40,8 +38,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
-using Opc.Ua.Bindings.WebApi;
 using Opc.Ua.Client.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
@@ -73,8 +69,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseTestServer();
-                    webHost.ConfigureServices(services =>
+                    webHost.UseTestServer()
+                        .ConfigureServices(services =>
                     {
                         services.AddSingleton<IWebApiServer>(m_stubServer);
                         services.AddRouting();
@@ -243,6 +239,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConfigureAwait(false);
             Assert.That(response, Is.InstanceOf<ReadResponse>());
         }
+
         private async Task<WebApiTransportChannel> OpenChannelAsync()
         {
             var channel = new WebApiTransportChannel(
@@ -267,6 +264,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConfigureAwait(false);
             return channel;
         }
+
         private sealed class UnknownRequest : IServiceRequest
         {
             public RequestHeader RequestHeader { get; set; } = new();
@@ -274,10 +272,24 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
             public ExpandedNodeId JsonEncodingId => ExpandedNodeId.Null;
-            public void Decode(IDecoder decoder) { }
-            public void Encode(IEncoder encoder) { }
-            public bool IsEqual(IEncodeable? encodeable) => false;
-            public object Clone() => new UnknownRequest();
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return false;
+            }
+
+            public object Clone()
+            {
+                return new UnknownRequest();
+            }
         }
 
         private sealed class StubServer : IWebApiServer
@@ -304,7 +316,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         $"No matching route for {request.GetType().Name}.");
                 }
 
-                IServiceResponse response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
+                var response = (IServiceResponse)Activator.CreateInstance(route.ResponseType)!;
                 var header = new ResponseHeader
                 {
                     Timestamp = DateTime.UtcNow,

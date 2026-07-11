@@ -29,12 +29,12 @@
  * ======================================================================*/
 
 using System;
-using SysText = System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
+using SysText = System.Text;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestSpec("7.2.4.5.11")]
         public void String_WithMaxStringLength10_AlwaysEmits10Bytes(int payloadLength)
         {
-            string payload = new string('x', payloadLength);
+            string payload = new('x', payloadLength);
             byte[] buffer = new byte[64];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
@@ -199,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestSpec("7.2.4.5.11")]
         public void XmlElement_WithMaxStringLength64_AlwaysEmits64Bytes()
         {
-            string xml = "<a/>";
+            const string xml = "<a/>";
             byte[] buffer = new byte[128];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
@@ -297,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             byte[] buffer = [0];
             var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
-            uint[] dimensions = [(uint)int.MaxValue];
+            uint[] dimensions = [int.MaxValue];
             var arrayDimensions = new ArrayOf<uint>(dimensions);
 
             Assert.That(
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             byte[] buffer = [0];
             var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
-            uint[] dimensions = [(uint)int.MaxValue];
+            uint[] dimensions = [int.MaxValue];
             var arrayDimensions = new ArrayOf<uint>(dimensions);
 
             Assert.That(
@@ -399,7 +399,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(4 + 2 * 4),
+            Assert.That(writer.Position, Is.EqualTo(4 + (2 * 4)),
                 "Legacy fallback writes 4-byte length prefix + N * sizeof(Int32).");
             ReadOnlySpan<byte> written = writer.WrittenSpan();
             Assert.That(written[0], Is.EqualTo((byte)2));
@@ -417,10 +417,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 UadpTestUtilities.NewContext(registry);
 
             var publisherId = PublisherId.FromByte(1);
-            ushort writerGroupId = 1;
-            ushort writerId = 100;
+            const ushort writerGroupId = 1;
+            const ushort writerId = 100;
             var classId = (Uuid)Guid.Empty;
-            uint majorVer = 1;
+            const uint majorVer = 1;
 
             var meta = new DataSetMetaDataType
             {
@@ -448,10 +448,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetMessages =
@@ -492,10 +492,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 UadpTestUtilities.NewContext(registry);
 
             var publisherId = PublisherId.FromByte(1);
-            ushort writerGroupId = 1;
-            ushort writerId = 100;
+            const ushort writerGroupId = 1;
+            const ushort writerId = 100;
             var classId = (Uuid)Guid.Empty;
-            uint majorVer = 1;
+            const uint majorVer = 1;
 
             var meta = new DataSetMetaDataType
             {
@@ -523,10 +523,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetMessages =

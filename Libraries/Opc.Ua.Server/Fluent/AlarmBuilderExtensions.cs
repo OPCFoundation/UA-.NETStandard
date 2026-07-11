@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Fluent
 
             string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
             alarm.NodeId = new NodeId(
-                string.Concat(parentIdentifier, "_", symbolicName),
+                $"{parentIdentifier}_{symbolicName}",
                 parent.Node.NodeId.NamespaceIndex);
 
             // Initialize standard alarm state surface so the alarm is

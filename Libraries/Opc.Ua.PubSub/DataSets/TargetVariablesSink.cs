@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.DataSets
         private readonly ITargetVariableWriter m_writer;
         private readonly ArrayOf<FieldTargetDataType> m_targets;
         private readonly DataValue[] m_lastGood;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
 
         /// <summary>
         /// Initializes a new <see cref="TargetVariablesSink"/>.
@@ -78,11 +78,8 @@ namespace Opc.Ua.PubSub.DataSets
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
-            if (writer == null)
-            {
-                throw new ArgumentNullException(nameof(writer));
-            }
-            m_writer = writer;
+
+            m_writer = writer ?? throw new ArgumentNullException(nameof(writer));
             m_targets = configuration.TargetVariables;
             m_lastGood = new DataValue[m_targets.Count];
         }

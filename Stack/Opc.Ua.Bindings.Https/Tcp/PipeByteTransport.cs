@@ -178,7 +178,7 @@ namespace Opc.Ua.Bindings
 
                     Span<byte> headerSpan = stackalloc byte[8];
                     buffer.Slice(0, 8).CopyTo(headerSpan);
-                    int size = BinaryPrimitives.ReadInt32LittleEndian(headerSpan.Slice(4));
+                    int size = BinaryPrimitives.ReadInt32LittleEndian(headerSpan[4..]);
                     if (size < 8)
                     {
                         reader.AdvanceTo(buffer.End);
@@ -252,13 +252,34 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
-            try { m_connection.Transport.Input.Complete(); } catch { }
-            try { m_connection.Transport.Output.Complete(); } catch { }
-            try { m_connection.Abort(); } catch { }
+            try
+            {
+                m_connection.Transport.Input.Complete();
+            }
+            catch
+            {
+            }
+            try
+            {
+                m_connection.Transport.Output.Complete();
+            }
+            catch
+            {
+            }
+            try
+            {
+                m_connection.Abort();
+            }
+            catch
+            {
+            }
             m_sendLock.Dispose();
         }
 
-        public void Dispose() => Close();
+        public void Dispose()
+        {
+            Close();
+        }
 
         private void ThrowIfClosed()
         {

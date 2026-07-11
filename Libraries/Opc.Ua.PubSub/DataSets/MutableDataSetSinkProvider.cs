@@ -45,6 +45,8 @@ namespace Opc.Ua.PubSub.DataSets
         /// </summary>
         /// <param name="dataSetReaderName">DataSetReader name.</param>
         /// <param name="sink">Sink implementation.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public void Register(string dataSetReaderName, ISubscribedDataSetSink sink)
         {
             if (string.IsNullOrEmpty(dataSetReaderName))
@@ -68,6 +70,7 @@ namespace Opc.Ua.PubSub.DataSets
         /// <returns>
         /// <see langword="true"/> when a sink was removed; otherwise <see langword="false"/>.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public bool Remove(string dataSetReaderName)
         {
             if (string.IsNullOrEmpty(dataSetReaderName))

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Linq;
 using System.Net;
@@ -41,13 +39,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 using Opc.Ua.Security.Certificates;
 
@@ -60,7 +56,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     /// <see cref="TransportChannelSettings.CertificateValidator"/>
     /// (TrustedPeers store / application-URI rule / rejected list)
     /// into the
-    /// <see cref="System.Net.Http.HttpClientHandler.ServerCertificateCustomValidationCallback"/>
+    /// <see cref="HttpClientHandler.ServerCertificateCustomValidationCallback"/>
     /// so the server certificate is validated against the OPC UA trust
     /// state, not just the default .NET TLS chain.
     /// </summary>
@@ -89,29 +85,20 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseKestrel(opts =>
+                    webHost.UseKestrel(opts => opts.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(new HttpsConnectionAdapterOptions
                     {
-                        opts.Listen(IPAddress.Loopback, 0, listen =>
-                        {
-                            listen.UseHttps(new HttpsConnectionAdapterOptions
-                            {
-                                ServerCertificate = m_serverCert,
-                                ClientCertificateMode = ClientCertificateMode.NoCertificate
-                            });
-                        });
-                    });
-                    webHost.ConfigureServices(_ => { });
-                    webHost.Configure(app =>
-                    {
-                        app.Run(ctx =>
+                        ServerCertificate = m_serverCert,
+                        ClientCertificateMode = ClientCertificateMode.NoCertificate
+                    })))
+                        .ConfigureServices(_ => { });
+                    webHost.Configure(app => app.Run(ctx =>
                         {
                             // The TLS regression tests assert at the
                             // channel-open stage; we never need to
                             // dispatch a real OPC UA request here.
                             ctx.Response.StatusCode = 204;
                             return Task.CompletedTask;
-                        });
-                    });
+                        }));
                 });
 
             m_host = hostBuilder.Build();
@@ -156,14 +143,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             // CertificateValidator rejects the cert; HttpClient surfaces
             // this as an HttpRequestException wrapping
             // AuthenticationException("remote certificate was rejected").
-            Exception? ex = Assert.CatchAsync(async () =>
-            {
-                await channel
+            Exception? ex = Assert.CatchAsync(async () => await channel
                     .SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader() },
                         CancellationToken.None)
-                    .ConfigureAwait(false);
-            });
+                    .ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null,
                 "WebApiTransportChannel must reject server certificate when the configured " +
                 "OPC UA CertificateValidator returns invalid.");
@@ -173,7 +157,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 ContainsInnerOfType<System.Security.Authentication.AuthenticationException>(ex);
             Assert.That(isCertRejection, Is.True,
                 "Expected a TLS-layer rejection caused by the CertificateValidator, " +
-                "got " + ex!.GetType().FullName + ": " + ex.Message);
+                "got " +
+                ex!.GetType().FullName +
+                ": " +
+                ex.Message);
 
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }
@@ -267,7 +254,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     critical: false));
             req.CertificateExtensions.Add(
                 new X509EnhancedKeyUsageExtension(
-                    [new System.Security.Cryptography.Oid("1.3.6.1.5.5.7.3.1")],
+                    [new Oid("1.3.6.1.5.5.7.3.1")],
                     critical: false));
             var san = new SubjectAlternativeNameBuilder();
             san.AddIpAddress(IPAddress.Loopback);
@@ -292,7 +279,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public Task<CertificateValidationResult> ValidateAsync(
                 CertificateCollection chain,
                 TrustListIdentifier? trustList = null,
-                Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+                Security.Certificates.CertificateValidationOptions? options = null,
                 CancellationToken ct = default)
             {
                 return Task.FromResult(s_rejection);
@@ -314,7 +301,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public Task<CertificateValidationResult> ValidateAsync(
                 CertificateCollection chain,
                 TrustListIdentifier? trustList = null,
-                Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+                Security.Certificates.CertificateValidationOptions? options = null,
                 CancellationToken ct = default)
             {
                 return Task.FromResult(CertificateValidationResult.Success);

@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             var egress = new ConnectionTranscodeEgress(target);
             var result = new TranscodeResult
             {
-                Frames = new List<ReadOnlyMemory<byte>> { new byte[] { 9 } },
+                Frames = new List<ReadOnlyMemory<byte>> { "\t"u8.ToArray() },
                 Properties = new List<PubSubMessageProperty> { new("k", "v") }
             };
 
@@ -148,12 +148,12 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
 
             var message = new UadpNetworkMessageV2
             {
-                ContentMask = Opc.Ua.UadpNetworkMessageContentMask.PublisherId
-                    | Opc.Ua.UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(1),
                 DataSetMessages =
                 [
-                    new Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
                     {
                         DataSetWriterId = 1,
                         FieldEncoding = PubSubFieldEncoding.Variant,
@@ -309,14 +309,14 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         public void AddTranscodingBridge_RegistersHostedService()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .AddTranscodingBridge(b => b.From("a").To("b", TranscodeEncoding.Json)));
 
             bool registered = System.Linq.Enumerable.Any(services, d =>
-                d.ServiceType == typeof(IHostedService)
-                && (d.ImplementationFactory is not null || d.ImplementationType is not null));
+                d.ServiceType == typeof(IHostedService) &&
+                (d.ImplementationFactory is not null || d.ImplementationType is not null));
             Assert.That(registered, Is.True);
         }
 
@@ -324,7 +324,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         public void AddTranscodingBridge_NullArguments_Throw()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IPubSubBuilder? captured = null;
             services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
@@ -365,15 +365,15 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             PubSubConnection target)
         {
             var app = new Mock<IPubSubApplication>();
-            app.SetupGet(a => a.Connections).Returns(new IPubSubConnection[] { source, target });
+            app.SetupGet(a => a.Connections).Returns([source, target]);
             app.SetupGet(a => a.MetaDataRegistry).Returns(new DataSetMetaDataRegistry());
             app.SetupGet(a => a.Diagnostics).Returns(new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
 
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddSingleton(TimeProvider.System);
             services.AddSingleton<INetworkMessageEncoder>(new UadpEncoderV2());
-            services.AddSingleton<INetworkMessageEncoder>(new Opc.Ua.PubSub.Encoding.Json.JsonEncoder());
+            services.AddSingleton<INetworkMessageEncoder>(new PubSub.Encoding.Json.JsonEncoder());
             services.AddSingleton(app.Object);
             return services.BuildServiceProvider();
         }
@@ -465,7 +465,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => m_transport;
+                TimeProvider timeProvider)
+            {
+                return m_transport;
+            }
         }
 
         private sealed class CapturingSendTransport : IPubSubTransport
@@ -484,9 +487,15 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 remove { }
             }
 
-            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
-            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
@@ -506,7 +515,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             }
 #pragma warning restore CS1998
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
 
         private sealed class CapturingHeaderTransport
@@ -528,9 +540,15 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 remove { }
             }
 
-            public ValueTask OpenAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
-            public ValueTask CloseAsync(CancellationToken cancellationToken = default) => default;
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
@@ -560,7 +578,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             }
 #pragma warning restore CS1998
 
-            public ValueTask DisposeAsync() => default;
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

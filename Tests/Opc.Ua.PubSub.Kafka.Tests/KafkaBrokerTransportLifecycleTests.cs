@@ -35,7 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Kafka.Tests
 {
@@ -145,7 +144,7 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
-                async () => await transport.SendAsync(new byte[] { 1, 2, 3 }, topic: null),
+                async () => await transport.SendAsync(new byte[] { 1, 2, 3 }, topic: null).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 

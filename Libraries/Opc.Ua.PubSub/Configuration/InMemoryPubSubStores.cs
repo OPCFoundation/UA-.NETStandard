@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.PubSub.StateMachine;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -40,7 +39,7 @@ namespace Opc.Ua.PubSub.Configuration
     /// </summary>
     public sealed class InMemoryPubSubConfigurationStore : IPubSubConfigurationStore
     {
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private PubSubConfigurationDataType m_configuration;
         private ConfigurationVersionDataType? m_configurationVersion;
 
@@ -177,14 +176,14 @@ namespace Opc.Ua.PubSub.Configuration
     /// </summary>
     public sealed class InMemoryPubSubIdAllocator : IPubSubIdAllocator
     {
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private uint m_nextReservedId;
         private uint m_nextFileHandle;
 
         /// <inheritdoc/>
         public ValueTask<ArrayOf<uint>> ReserveIdsAsync(ushort count, CancellationToken cancellationToken = default)
         {
-            var ids = new uint[count];
+            uint[] ids = new uint[count];
             lock (m_gate)
             {
                 for (int i = 0; i < ids.Length; i++)
@@ -211,7 +210,7 @@ namespace Opc.Ua.PubSub.Configuration
     /// </summary>
     public sealed class InMemoryPubSubRuntimeStateStore : IPubSubRuntimeStateStore
     {
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<string, PubSubState> m_states = new(StringComparer.Ordinal);
 
         /// <inheritdoc/>
@@ -241,6 +240,16 @@ namespace Opc.Ua.PubSub.Configuration
             }
 
             return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetStateAsync(
+            string componentId,
+            PubSubState state,
+            long fencingToken,
+            CancellationToken cancellationToken = default)
+        {
+            return SetStateAsync(componentId, state, cancellationToken);
         }
     }
 }

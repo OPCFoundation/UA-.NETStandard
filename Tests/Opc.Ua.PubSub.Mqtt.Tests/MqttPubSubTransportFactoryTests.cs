@@ -141,14 +141,14 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttPubSubTransportFactory factory = NewFactory();
             PubSubConnectionDataType connection = NewConnection(
                 "mqtt://broker.example.com:1883",
-                writerGroups: new[]
-                {
+                writerGroups:
+                [
                     new WriterGroupDataType
                     {
                         Name = "WG",
                         MessageSettings = new ExtensionObject(new JsonWriterGroupMessageDataType())
                     }
-                });
+                ]);
 
             IPubSubTransport transport = factory.Create(
                 connection,
@@ -167,14 +167,14 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttPubSubTransportFactory factory = NewFactory();
             PubSubConnectionDataType connection = NewConnection(
                 "mqtt://broker.example.com:1883",
-                writerGroups: new[]
-                {
+                writerGroups:
+                [
                     new WriterGroupDataType
                     {
                         Name = "WG",
                         MessageSettings = new ExtensionObject(new JsonWriterGroupMessageDataType())
                     }
-                });
+                ]);
 
             IPubSubTransport transport = factory.Create(
                 connection,
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttPubSubTransportFactory factory = NewFactory();
             PubSubConnectionDataType connection = NewConnection(
                 "mqtt://broker.example.com:1883",
-                readerGroups: new[] { new ReaderGroupDataType { Name = "RG" } });
+                readerGroups: [new ReaderGroupDataType { Name = "RG" }]);
 
             IPubSubTransport transport = factory.Create(
                 connection,
@@ -206,15 +206,15 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttPubSubTransportFactory factory = NewFactory();
             PubSubConnectionDataType connection = NewConnection(
                 "mqtt://broker.example.com:1883",
-                writerGroups: new[]
-                {
+                writerGroups:
+                [
                     new WriterGroupDataType
                     {
                         Name = "WG",
                         MessageSettings = new ExtensionObject(new JsonWriterGroupMessageDataType())
                     }
-                },
-                readerGroups: new[] { new ReaderGroupDataType { Name = "RG" } });
+                ],
+                readerGroups: [new ReaderGroupDataType { Name = "RG" }]);
 
             IPubSubTransport transport = factory.Create(
                 connection,
@@ -291,14 +291,14 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttPubSubTransportFactory factory = NewFactory(Profiles.PubSubMqttUadpTransport);
             PubSubConnectionDataType connection = NewConnection(
                 "mqtt://broker.example.com:1883",
-                writerGroups: new[]
-                {
+                writerGroups:
+                [
                     new WriterGroupDataType
                     {
                         Name = "WG",
                         MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType())
                     }
-                });
+                ]);
 
             IPubSubTransport transport = factory.Create(
                 connection,
@@ -346,7 +346,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task Create_PasswordSecretIdResolved_FromSecretRegistry()
         {
             var store = new InMemorySecretStore();
-            byte[] expected = new byte[] { 0xAA, 0xBB, 0xCC };
+            byte[] expected = [0xAA, 0xBB, 0xCC];
             await store.SetAsync(
                 new SecretIdentifier("mqtt-password", InMemorySecretStore.DefaultStoreType),
                 expected).ConfigureAwait(false);
@@ -376,7 +376,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public async Task Create_PasswordSecretId_WithoutColon_UsesDefaultStoreType()
         {
             var store = new InMemorySecretStore();
-            byte[] expected = new byte[] { 1, 2, 3 };
+            byte[] expected = [1, 2, 3];
             await store.SetAsync(
                 new SecretIdentifier("plain-secret", InMemorySecretStore.DefaultStoreType),
                 expected).ConfigureAwait(false);

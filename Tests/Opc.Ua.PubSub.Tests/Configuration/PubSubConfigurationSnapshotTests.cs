@@ -31,7 +31,6 @@ using System;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -46,7 +45,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     {
         private static PubSubConfigurationDataType BuildSimpleConfig()
         {
-            var config = new PubSubConfigurationDataType
+            return new PubSubConfigurationDataType
             {
                 Enabled = true,
                 PublishedDataSets = new ArrayOf<PublishedDataSetDataType>(
@@ -115,14 +114,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                         }
                     })
             };
-            return config;
         }
 
         [Test]
         [TestSpec("9.1.6", Summary = "ConnectionsByName index includes every connection")]
         public void Create_IndexesConnectionsByName()
         {
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.ConnectionsByName, Has.Count.EqualTo(1));
             Assert.That(snapshot.ConnectionsByName.ContainsKey("Conn1"), Is.True);
@@ -132,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.6", Summary = "WriterGroupsById indexes (Connection, WriterGroupId)")]
         public void Create_IndexesWriterGroupsById()
         {
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.WriterGroupsById, Has.Count.EqualTo(1));
             Assert.That(snapshot.WriterGroupsById.ContainsKey(new WriterGroupKey("Conn1", 1)), Is.True);
@@ -142,7 +140,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.7", Summary = "DataSetWritersById indexes by (Connection, WG, DSW)")]
         public void Create_IndexesDataSetWritersById()
         {
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.DataSetWritersById, Has.Count.EqualTo(2));
             Assert.That(snapshot.DataSetWritersById.ContainsKey(new DataSetWriterKey("Conn1", 1, 10)), Is.True);
@@ -153,7 +151,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.8", Summary = "ReaderGroupsByName indexes by (Connection, ReaderGroupName)")]
         public void Create_IndexesReaderGroupsByName()
         {
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.ReaderGroupsByName, Has.Count.EqualTo(1));
             Assert.That(snapshot.ReaderGroupsByName.ContainsKey(new ReaderGroupKey("Conn1", "RG1")), Is.True);
@@ -163,7 +161,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.9", Summary = "DataSetReadersByName indexes by (Connection, RG, Reader)")]
         public void Create_IndexesDataSetReadersByName()
         {
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.DataSetReadersByName, Has.Count.EqualTo(1));
             Assert.That(
@@ -175,7 +173,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.4", Summary = "PublishedDataSetsByName indexes published data sets")]
         public void Create_IndexesPublishedDataSetsByName()
         {
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 BuildSimpleConfig());
             Assert.That(snapshot.PublishedDataSetsByName, Has.Count.EqualTo(2));
             Assert.That(snapshot.PublishedDataSetsByName.ContainsKey("DS1"), Is.True);
@@ -355,7 +353,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void Create_OnEmptyConfig_BuildsEmptyIndices()
         {
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 new PubSubConfigurationDataType());
             Assert.That(snapshot.ConnectionsByName, Is.Empty);
             Assert.That(snapshot.WriterGroupsById, Is.Empty);
@@ -370,7 +368,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var fixedNow = new DateTimeOffset(2026, 7, 1, 12, 30, 0, TimeSpan.Zero);
             var clock = new FakeTimeProvider(fixedNow);
-            PubSubConfigurationSnapshot snapshot = PubSubConfigurationSnapshot.Create(
+            var snapshot = PubSubConfigurationSnapshot.Create(
                 new PubSubConfigurationDataType(),
                 clock);
             Assert.That(

@@ -95,12 +95,12 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 { 4, 5, 6 },
                 { 7, 8, 9 }
             };
-            Variant value = Variant.From(int3x3Matrix);
+            var value = Variant.From(int3x3Matrix);
 
             var namespaceUris = new NamespaceTable();
             var typeTree = new TypeTable(namespaceUris);
 
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 DataTypeIds.Int32,
                 ValueRanks.TwoDimensions,
@@ -110,8 +110,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(
                 typeInfo.IsUnknown,
                 Is.False,
-                "A 3x3 Int32 matrix must be an instance of Int32 with ValueRank 2 (value rank = "
-                    + value.TypeInfo.ValueRank + ").");
+                "A 3x3 Int32 matrix must be an instance of Int32 with ValueRank 2 (value rank = " +
+                value.TypeInfo.ValueRank +
+                ").");
 
             // A client WriteValue arrives binary-encoded; verify the value still passes
             // the node-level type check after a server-side encode/decode round-trip.
@@ -129,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 decoded = decoder.ReadVariant(null);
             }
 
-            TypeInfo roundTripTypeInfo = TypeInfo.IsInstanceOfDataType(
+            var roundTripTypeInfo = TypeInfo.IsInstanceOfDataType(
                 decoded,
                 DataTypeIds.Int32,
                 ValueRanks.TwoDimensions,
@@ -139,8 +140,10 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(
                 roundTripTypeInfo.IsUnknown,
                 Is.False,
-                "A binary-encoded/decoded 3x3 Int32 matrix must still be an instance of Int32 with "
-                    + "ValueRank 2 (decoded rank = " + decoded.TypeInfo.ValueRank + ").");
+                "A binary-encoded/decoded 3x3 Int32 matrix must still be an instance of Int32 with " +
+                "ValueRank 2 (decoded rank = " +
+                decoded.TypeInfo.ValueRank +
+                ").");
         }
 
         /// <summary>

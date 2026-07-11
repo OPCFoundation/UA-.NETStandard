@@ -95,7 +95,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// <exception cref="ArgumentNullException"><paramref name="namespaceUris"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static NodeId ResolveIndicationTypeId(
-            LifetimeIndicationKind kind,
+            this LifetimeIndicationKind kind,
             NamespaceTable namespaceUris)
         {
             if (namespaceUris == null)

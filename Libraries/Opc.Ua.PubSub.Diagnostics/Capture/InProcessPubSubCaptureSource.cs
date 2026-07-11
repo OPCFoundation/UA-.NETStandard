@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Pcap
             {
                 return;
             }
-            var copy = payload.ToArray();
+            byte[] copy = payload.ToArray();
             var frame = new PubSubCaptureFrame(
                 context.Timestamp.ToDateTimeOffset(),
                 context.Direction,

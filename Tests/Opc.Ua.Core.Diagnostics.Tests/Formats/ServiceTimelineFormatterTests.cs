@@ -38,8 +38,6 @@ using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Formats
 {
     [TestFixture]
@@ -86,7 +84,7 @@ namespace Opc.Ua.Pcap.Tests.Formats
                 SecurityPolicies.None,
                 MessageSecurityMode.None);
             using var source = new InMemoryCaptureSource(
-                materials: new[] { material });
+                materials: [material]);
 
             Assert.That(
                 async () => await formatter.FormatAsync(source, maxFrames: null, CancellationToken.None)
@@ -127,7 +125,7 @@ namespace Opc.Ua.Pcap.Tests.Formats
             ];
             await using var source = new InMemoryCaptureSource(
                 frames,
-                materials: new[] { material });
+                materials: [material]);
 
             FormatResult result = await formatter.FormatAsync(source, maxFrames: null, CancellationToken.None)
                 .ConfigureAwait(false);

@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <see cref="PubSubFieldEncoding.DataValue"/> encoding. Defaults
         /// to <see cref="StatusCodes.Good"/>.
         /// </summary>
-        public StatusCode StatusCode { get; init; } = (StatusCode)StatusCodes.Good;
+        public StatusCode StatusCode { get; init; } = StatusCodes.Good;
 
         /// <summary>
         /// Per-field source timestamp; meaningful only for

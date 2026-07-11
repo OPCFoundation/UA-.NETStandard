@@ -111,7 +111,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             {
                 lock (m_latencyLock)
                 {
-                    return m_latencySamples.ToArray();
+                    return [.. m_latencySamples];
                 }
             }
         }
@@ -166,6 +166,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// </summary>
         /// <param name="ct">Cancellation token linked to the worker lifetime.</param>
         /// <returns>A task that completes when workers have been scheduled.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public Task StartAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -279,7 +280,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             TimeSpan delay = targetElapsed - elapsed;
             if (delay > TimeSpan.Zero)
             {
-                await TimeProviderExtensions.Delay(m_timeProvider, delay, ct).ConfigureAwait(false);
+                await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
             }
         }
 

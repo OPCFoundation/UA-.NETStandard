@@ -247,7 +247,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         {
             try
             {
-                while (true)
+                do
                 {
                     try
                     {
@@ -259,12 +259,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                             ex,
                             "Metadata refresh after a model-change event failed.");
                     }
-
-                    if (Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) == 0)
-                    {
-                        break;
-                    }
                 }
+                while (Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) != 0);
             }
             finally
             {
@@ -337,8 +333,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 }
 
                 NodeId dataType = DataTypeIds.BaseDataType;
-                if (results[baseIndex].WrappedValue.TryGetValue(out NodeId resolvedType)
-                    && !resolvedType.IsNull)
+                if (results[baseIndex].WrappedValue.TryGetValue(out NodeId resolvedType) &&
+                    !resolvedType.IsNull)
                 {
                     dataType = resolvedType;
                 }
@@ -374,8 +370,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
         private static bool MetaDataEquals(DataSetMetaDataType left, DataSetMetaDataType right)
         {
-            if (left.Fields.IsNull || right.Fields.IsNull
-                || left.Fields.Count != right.Fields.Count)
+            if (left.Fields.IsNull ||
+                right.Fields.IsNull ||
+                left.Fields.Count != right.Fields.Count)
             {
                 return false;
             }
@@ -383,11 +380,12 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             {
                 FieldMetaData a = left.Fields[i];
                 FieldMetaData b = right.Fields[i];
-                if (a is null || b is null
-                    || !string.Equals(a.Name, b.Name, StringComparison.Ordinal)
-                    || a.BuiltInType != b.BuiltInType
-                    || a.ValueRank != b.ValueRank
-                    || a.DataType != b.DataType)
+                if (a is null ||
+                    b is null ||
+                    !string.Equals(a.Name, b.Name, StringComparison.Ordinal) ||
+                    a.BuiltInType != b.BuiltInType ||
+                    a.ValueRank != b.ValueRank ||
+                    a.DataType != b.DataType)
                 {
                     return false;
                 }
@@ -462,9 +460,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         private FieldMetaData? GetConfiguredField(int index)
         {
             DataSetMetaDataType? configured = m_configuration.DataSetMetaData;
-            if (configured is null
-                || configured.Fields.IsNull
-                || index >= configured.Fields.Count)
+            if (configured is null ||
+                configured.Fields.IsNull ||
+                index >= configured.Fields.Count)
             {
                 return null;
             }
@@ -518,14 +516,14 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             PublishedDataSetDataType configuration)
         {
             ExtensionObject source = configuration.DataSetSource;
-            if (!source.IsNull
-                && source.TryGetValue(out PublishedDataItemsDataType? items)
-                && items is not null
-                && !items.PublishedData.IsNull)
+            if (!source.IsNull &&
+                source.TryGetValue(out PublishedDataItemsDataType? items) &&
+                items is not null &&
+                !items.PublishedData.IsNull)
             {
                 return items.PublishedData;
             }
-            return ArrayOf<PublishedVariableDataType>.Empty;
+            return [];
         }
 
         private readonly record struct UnresolvedField(int FieldIndex, NodeId SourceNode);

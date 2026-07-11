@@ -214,6 +214,6 @@ namespace Opc.Ua.Identity
 
         private readonly List<IClientIdentityProvider> m_providers = [];
         private readonly List<IClientIdentityProvider> m_queriedProviders = [];
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
     }
 }

@@ -34,9 +34,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {
@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         private static (IPubSubBuilder Builder, ServiceCollection Services) CreatePubSubBuilder()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IPubSubBuilder captured = null!;
             services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
             return (captured, services);
@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         {
             IPubSubBuilder? builder = null;
             IConfigurationSection section = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .AddInMemoryCollection([])
                 .Build()
                 .GetSection("X");
             Assert.That(
@@ -194,4 +194,3 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
     }
 }
-

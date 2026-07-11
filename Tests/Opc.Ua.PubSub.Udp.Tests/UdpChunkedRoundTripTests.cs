@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 "Test invariant: payload must split into multiple chunks");
 
             using var reassembler = new UadpReassembler();
-            PublisherId publisherId = PublisherId.FromUInt16(PublisherIdValue);
+            var publisherId = PublisherId.FromUInt16(PublisherIdValue);
 
             // Start the subscriber receive loop before publishing.
             using var receiveCts = new CancellationTokenSource(
@@ -225,7 +225,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             byte[] buffer = new byte[size];
             for (int i = 0; i < buffer.Length; i++)
             {
-                buffer[i] = (byte)((i * 131u + 7u) & 0xFF);
+                buffer[i] = (byte)(((i * 131u) + 7u) & 0xFF);
             }
             return buffer;
         }

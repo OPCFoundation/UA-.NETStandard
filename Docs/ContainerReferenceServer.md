@@ -10,6 +10,25 @@ There are multiple options to run the reference server in a Docker container:
 - Although with VS 2019 and greater there is built in Container support, so far issues in the UA Reference solution prevent build/startup/connection (under investigation).
 - VS2022 supports native debugging on a Linux distribution with WSL.
 
+## Other published sample images
+
+In addition to the reference server (`refserver`), the `Docker Sample Images CI` workflow builds and publishes the other sample servers, the redundant client, and both PubSub samples to the GitHub container registry (`ghcr.io/opcfoundation/uanetstandard/<image>`). All are `linux/amd64` + `linux/arm64` and share the same version/`latest` tagging scheme as `refserver`:
+
+| Image | Sample application |
+| --- | --- |
+| `refserver` | `Applications/ConsoleReferenceServer` |
+| `ldsserver` | `Applications/ConsoleLdsServer` |
+| `boilerserver` | `Applications/MinimalBoilerServer` |
+| `calcserver` | `Applications/MinimalCalcServer` |
+| `pumpserver` | `Applications/PumpDeviceIntegrationServer` |
+| `mcpserver` | `Applications/McpServer` |
+| `redundantserver` | `Applications/RedundantServer` |
+| `redundantclient` | `Applications/RedundantClient` |
+| `redundantpubsub` | `Applications/RedundantPubSub` |
+| `pubsubclient` | `Applications/ConsoleReferencePubSubClient` |
+
+For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest`. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f Applications/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).
+
 ## Building the local containers
 
 1. Open a command prompt which can execute docker commands.

@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <summary>
         /// Maximum size (in bytes) of a single UADP NetworkMessage
         /// before the publisher chunks it via
-        /// <see cref="Opc.Ua.PubSub.Encoding.Uadp.UadpChunker"/>. The
+        /// <see cref="Encoding.Uadp.UadpChunker"/>. The
         /// default of 65535 matches the MQTT v3.1.1 maximum single
         /// PUBLISH payload size; raise on broker / client pairs that
         /// negotiate a larger MQTT v5 maximum packet size.

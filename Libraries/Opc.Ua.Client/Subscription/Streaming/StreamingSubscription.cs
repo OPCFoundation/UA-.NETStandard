@@ -414,7 +414,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         {
             private readonly object m_channelObj;
             private readonly HashSet<uint> m_clientHandles = [];
-            private readonly object m_handlesLock = new();
+            private readonly Lock m_handlesLock = new();
 
             public bool IsEvent { get; }
 

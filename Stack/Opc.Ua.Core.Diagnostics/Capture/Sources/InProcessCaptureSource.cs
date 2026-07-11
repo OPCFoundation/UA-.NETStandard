@@ -118,32 +118,39 @@ namespace Opc.Ua.Pcap.Capture.Sources
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILoggerFactory m_loggerFactory;
 
-        // CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
-        // by the StopAsync lifecycle, not by a synchronous Dispose. They are
-        // atomically swapped out and AsyncDisposed in StopAsync (see lines
-        // ~268-282); a sync Dispose would have to bridge IAsyncDisposable
-        // with .GetAwaiter().GetResult(), which the repo's no-sync-over-async
-        // rule forbids. The base type intentionally exposes only the async
-        // lifecycle (Start/StopAsync).
+        /// <summary>
+        /// CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
+        /// by the StopAsync lifecycle, not by a synchronous Dispose. They are
+        /// atomically swapped out and AsyncDisposed in StopAsync (see lines
+        /// ~268-282); a sync Dispose would have to bridge IAsyncDisposable
+        /// with .GetAwaiter().GetResult(), which the repo's no-sync-over-async
+        /// rule forbids. The base type intentionally exposes only the async
+        /// lifecycle (Start/StopAsync).
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment above.")]
         private PcapFileWriter? m_pcapWriter;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment on m_pcapWriter.")]
         private UaKeyLogJsonWriter? m_jsonKeyWriter;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment on m_pcapWriter.")]
         private UaKeyLogTextWriter? m_textKeyWriter;
+
         private string? m_sessionFolder;
         private string? m_resolvedPcapPath;
         private string? m_resolvedJsonKeyLogPath;
+#pragma warning disable IDE0052 // Text key-log path is resolved for paired JSON/text key-log capture diagnostics.
         private string? m_resolvedTextKeyLogPath;
+#pragma warning restore IDE0052
         private Channel<CaptureWorkItem>? m_queue;
         private Task? m_workerTask;
         private long m_frameCount;

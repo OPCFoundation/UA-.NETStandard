@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, "topic/x"),
+                async () => await transport.SendAsync(payload, "topic/x").ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -188,7 +188,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, topic: string.Empty),
+                async () => await transport.SendAsync(payload, topic: string.Empty).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, topic: null),
+                async () => await transport.SendAsync(payload, topic: null).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, topic: "a/#"),
+                async () => await transport.SendAsync(payload, topic: "a/#").ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -230,7 +230,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, topic: "a/+/c"),
+                async () => await transport.SendAsync(payload, topic: "a/+/c").ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -244,7 +244,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, topic: "a/\0/b"),
+                async () => await transport.SendAsync(payload, topic: "a/\0/b").ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, "x", cts.Token),
+                async () => await transport.SendAsync(payload, "x", cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
@@ -275,7 +275,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             byte[] payload = [0x01];
 
             Assert.That(
-                async () => await transport.SendAsync(payload, "topic"),
+                async () => await transport.SendAsync(payload, "topic").ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -287,7 +287,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await transport.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(
-                async () => await transport.OpenAsync(CancellationToken.None),
+                async () => await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 

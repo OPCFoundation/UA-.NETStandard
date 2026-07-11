@@ -45,7 +45,11 @@ namespace Opc.Ua.MigrationAnalyzer.Core.Tests
     /// </summary>
     [TestFixture]
     [Category("Shim")]
-    public partial class OpcUaShimAttributeInventoryTests
+    public
+#if NET7_0_OR_GREATER
+        partial
+#endif
+        class OpcUaShimAttributeInventoryTests
     {
 #if NET7_0_OR_GREATER
         [GeneratedRegex(@"^UA\d{4}$", RegexOptions.CultureInvariant)]

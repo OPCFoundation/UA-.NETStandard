@@ -32,8 +32,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 
-#pragma warning disable CA2007
-#pragma warning disable CA2000
+#pragma warning disable CA2007, CA2000
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -64,10 +63,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(uint.MaxValue);
             int factoryCalls = 0;
             var partitions = new List<IManagedSubscription> { primary };
-            var lockObj = new object();
+            object lockObj = new();
             var composite = new CompositeMonitoredItemCollection(
                 partitions, lockObj, policy,
-                () => { factoryCalls++; return secondary; });
+                () =>
+                {
+                    factoryCalls++;
+                    return secondary;
+                });
 
             // Until the reactive fallback fires the policy sees an
             // unbounded cap on the primary, so any TryAdd targets it.

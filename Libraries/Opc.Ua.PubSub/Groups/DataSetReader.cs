@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -158,14 +157,14 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
-            if (WriterGroupId != 0
-                && networkMessage.WriterGroupId.HasValue
-                && networkMessage.WriterGroupId.Value != WriterGroupId)
+            if (WriterGroupId != 0 &&
+                networkMessage.WriterGroupId.HasValue &&
+                networkMessage.WriterGroupId.Value != WriterGroupId)
             {
                 return false;
             }
-            if (!ExpectedPublisherId.IsNull
-                && !ExpectedPublisherId.Equals(networkMessage.PublisherId))
+            if (!ExpectedPublisherId.IsNull &&
+                !ExpectedPublisherId.Equals(networkMessage.PublisherId))
             {
                 return false;
             }
@@ -185,8 +184,8 @@ namespace Opc.Ua.PubSub.Groups
         {
             return networkMessage switch
             {
-                Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage uadp => uadp.DataSetClassId,
-                Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage json => json.DataSetClassId,
+                Encoding.Uadp.UadpNetworkMessage uadp => uadp.DataSetClassId,
+                Encoding.Json.JsonNetworkMessage json => json.DataSetClassId,
                 _ => Uuid.Empty
             };
         }
@@ -196,6 +195,7 @@ namespace Opc.Ua.PubSub.Groups
         /// </summary>
         /// <param name="dataSetMessage">Inbound message.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask DispatchAsync(
             PubSubDataSetMessage dataSetMessage,
             CancellationToken cancellationToken = default)
@@ -240,10 +240,6 @@ namespace Opc.Ua.PubSub.Groups
             long elapsedTicks = TimeProvider.GetTimestamp() - Interlocked.Read(ref m_lastReceivedTicks);
             TimeSpan elapsed = TimeProvider.GetElapsedTime(0, elapsedTicks);
             return elapsed > MessageReceiveTimeout;
-        }
-
-        private static class StateExtensionsHelper
-        {
         }
     }
 }

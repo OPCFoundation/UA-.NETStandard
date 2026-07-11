@@ -55,7 +55,8 @@ namespace Opc.Ua.PubSub.DataSets
     {
         private readonly Dictionary<string, Variant> m_values =
             new(StringComparer.Ordinal);
-        private readonly System.Threading.Lock m_gate = new();
+
+        private readonly Lock m_gate = new();
 
         /// <summary>
         /// Initializes a new <see cref="MirroredVariablesSink"/>.
@@ -77,11 +78,7 @@ namespace Opc.Ua.PubSub.DataSets
         public MirroredVariablesSink(
             SubscribedDataSetMirrorDataType configuration)
         {
-            if (configuration == null)
-            {
-                throw new ArgumentNullException(nameof(configuration));
-            }
-            Configuration = configuration;
+            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
         /// <summary>

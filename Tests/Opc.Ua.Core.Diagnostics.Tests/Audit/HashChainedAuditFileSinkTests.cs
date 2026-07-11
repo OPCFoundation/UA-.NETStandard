@@ -38,8 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Pcap.Audit;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Audit
 {
     /// <summary>
@@ -212,8 +210,13 @@ namespace Opc.Ua.Pcap.Tests.Audit
             char replacement = hmac[0] == 'A' ? 'B' : 'A';
             string mutatedHmac = replacement + hmac[1..];
 
-            return "{\"event\":" + root.GetProperty("event").GetRawText() +
-                ",\"hmac\":\"" + mutatedHmac + "\",\"prev\":\"" + root.GetProperty("prev").GetString() + "\"}";
+            return "{\"event\":" +
+                root.GetProperty("event").GetRawText() +
+                ",\"hmac\":\"" +
+                mutatedHmac +
+                "\",\"prev\":\"" +
+                root.GetProperty("prev").GetString() +
+                "\"}";
         }
     }
 }

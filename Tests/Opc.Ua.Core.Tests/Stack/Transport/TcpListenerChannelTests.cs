@@ -31,7 +31,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -108,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
 
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(channel.ChannelName, Is.EqualTo("TCPLISTENERCHANNEL"));
         }
@@ -119,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void SetRequestReceivedCallbackDoesNotThrow()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(
                 () => channel.SetRequestReceivedCallback(
@@ -131,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void SetReportOpenSecureChannelAuditCallbackDoesNotThrow()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(
                 () => channel.SetReportOpenSecureChannelAuditCallback(
@@ -143,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void SetReportCloseSecureChannelAuditCallbackDoesNotThrow()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(
                 () => channel.SetReportCloseSecureChannelAuditCallback(
@@ -155,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void SetReportCertificateAuditCallbackDoesNotThrow()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(
                 () => channel.SetReportCertificateAuditCallback(
@@ -169,10 +168,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void AttachNullTransportThrowsArgumentNullException()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(
-                () => channel.Attach(channelId: 1, transport: (IUaSCByteTransport)null!),
+                () => channel.Attach(channelId: 1, transport: null!),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("transport"));
         }
@@ -181,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void AttachSecondTimeThrowsInvalidOperationException()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var buffers = new BufferManager("attach-test", 8192, telemetry);
@@ -214,7 +213,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void ReconnectThrowsNotImplementedException()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(
                 () => channel.Reconnect(null!, 0u, 0u, null!, null!, null!),
@@ -227,7 +226,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void UsedBySessionIsFalseOnFreshChannel()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(channel.UsedBySession, Is.False);
         }
@@ -236,7 +235,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void ElapsedSinceLastActiveTimeReturnsNonNegative()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             Assert.That(channel.ElapsedSinceLastActiveTime, Is.GreaterThanOrEqualTo(0));
         }
@@ -247,10 +246,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void IdleCleanupOnFreshChannelDoesNotThrow()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
             // Channel is in Closed state before Attach; IdleCleanup should be a no-op.
-            Assert.That(() => channel.IdleCleanup(), Throws.Nothing);
+            Assert.That(channel.IdleCleanup, Throws.Nothing);
         }
 
         // ── TryCloseForCertificateRotation is internal — tested via the
@@ -262,10 +261,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void OnTokenActivatedEventCanBeSubscribedAndUnsubscribed()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
-            using var channel = BuildChannel(listenerMock);
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
 
-            ListenerChannelTokenActivatedEventHandler handler =
-                (ch, current, previous) => { };
+            static void handler(TcpListenerChannel ch, ChannelToken? current, ChannelToken? previous)
+            {
+            }
 
             Assert.That(() =>
             {
@@ -298,7 +298,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 bufferManager: m_buffers,
                 quotas: m_quotas,
                 serverCertificates: null!,
-                endpoints: new List<EndpointDescription>(),
+                endpoints: [],
                 telemetry: m_telemetry);
         }
     }

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
@@ -115,6 +114,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <see cref="UadpDiscoveryRequestMessage"/> or
         /// <see cref="UadpDiscoveryResponseMessage"/>.</param>
         /// <param name="context">Network message context.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static byte[] Encode(
             PubSubNetworkMessage message,
             PubSubNetworkMessageContext context)
@@ -152,6 +153,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Network message context.</param>
         /// <returns>The decoded message, or <c>null</c> on malformed
         /// input.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         internal static PubSubNetworkMessage? TryDecode(
             ref UadpBinaryReader reader,
             ExtendedFlags2EncodingMask ext2,
@@ -253,7 +255,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return null;
             }
             int countInt = (int)count;
-            var ids = new ushort[countInt];
+            ushort[] ids = new ushort[countInt];
             for (int i = 0; i < countInt; i++)
             {
                 if (!reader.TryReadUInt16Le(out ushort id))
@@ -340,7 +342,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             writer.WriteUInt16Le(message.DataSetWriterId);
             UadpDiscoveryWire.WriteEncodeable(ref writer, message.DataSetMetaData, context);
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            writer.WriteUInt32Le(message.StatusCode.Code);
         }
 
         private static void WriteWriterConfiguration(
@@ -357,7 +359,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             writer.WriteUInt32Le((uint)message.DataSetWriterIds.Count);
             foreach (ushort _ in message.DataSetWriterIds)
             {
-                writer.WriteUInt32Le((uint)message.StatusCode.Code);
+                writer.WriteUInt32Le(message.StatusCode.Code);
             }
         }
 
@@ -371,7 +373,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 UadpDiscoveryWire.WriteEncodeable(ref writer, endpoint, context);
             }
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            writer.WriteUInt32Le(message.StatusCode.Code);
         }
 
         private static UadpDiscoveryResponseMessage ReadMetaData(
@@ -411,7 +413,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 throw new InvalidOperationException("Writer-id count is too large.");
             }
             int countInt = (int)count;
-            var ids = new ushort[countInt];
+            ushort[] ids = new ushort[countInt];
             for (int i = 0; i < countInt; i++)
             {
                 if (!reader.TryReadUInt16Le(out ushort id))
@@ -570,8 +572,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             DateTimeUtc timestamp = DateTimeUtc.MinValue;
             if (isCyclic)
             {
-                if (!reader.TryReadInt64Le(out long nextReportTimeValue)
-                    || !reader.TryReadInt64Le(out long timestampValue))
+                if (!reader.TryReadInt64Le(out long nextReportTimeValue) ||
+                    !reader.TryReadInt64Le(out long timestampValue))
                 {
                     throw new InvalidOperationException("Failed reading cyclic status timestamps.");
                 }
@@ -596,7 +598,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             IServiceMessageContext context)
         {
             UadpDiscoveryWire.WriteEncodeable(ref writer, message.Connection, context);
-            writer.WriteUInt32Le((uint)message.StatusCode.Code);
+            writer.WriteUInt32Le(message.StatusCode.Code);
         }
 
         private static UadpDiscoveryResponseMessage ReadConnection(
@@ -668,8 +670,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     }
                     writerGroupId = id;
                 }
-                if (!reader.TryReadByte(out byte includeGroupsByte)
-                    || !reader.TryReadByte(out byte includeWritersByte))
+                if (!reader.TryReadByte(out byte includeGroupsByte) ||
+                    !reader.TryReadByte(out byte includeWritersByte))
                 {
                     return null;
                 }
@@ -711,7 +713,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 throw new InvalidOperationException("String-array count is too large.");
             }
             int countInt = (int)count;
-            var result = new string[countInt];
+            string[] result = new string[countInt];
             for (int i = 0; i < countInt; i++)
             {
                 if (!reader.TryReadString(out string? entry))
@@ -725,7 +727,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static byte[] TrimToWritten(byte[] buffer, int written)
         {
-            var result = new byte[written];
+            byte[] result = new byte[written];
             Buffer.BlockCopy(buffer, 0, result, 0, written);
             return result;
         }
@@ -830,7 +832,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (type != PublisherIdType.Byte)
             {
                 ext1 |= (ExtendedFlags1EncodingMask)
-                    ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(type);
+                    type.EncodePublisherIdType();
             }
             if (((Guid)dataSetClassId) != Guid.Empty)
             {
@@ -841,7 +843,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ext1 |= ExtendedFlags1EncodingMask.SecurityEnabled;
             }
 
-            writer.WriteByte(UadpFlagsEncodingMaskExtensions.Combine(uadpVersion, uadpFlags));
+            writer.WriteByte(uadpVersion.Combine(uadpFlags));
             writer.WriteByte((byte)ext1);
             writer.WriteByte((byte)extendedFlags2);
 
@@ -904,10 +906,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int written;
             using (var encoder = new BinaryEncoder(buffer, absoluteStart, available, context))
             {
-                if (value is not null)
-                {
-                    value.Encode(encoder);
-                }
+                value?.Encode(encoder);
                 written = encoder.Close();
             }
             writer.Advance(written);

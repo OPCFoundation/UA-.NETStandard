@@ -70,16 +70,16 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                     4,
                     2,
                     Array.Empty<PubSubSecurityKey>(),
-                    authorizedCallerIdentities ?? ["user1"]));
+                    authorizedCallerIdentities ?? ["user1"])).ConfigureAwait(false);
             return server;
         }
 
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsGoodAndPopulatesOutputs()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),
@@ -107,17 +107,17 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsBadInvalidArgumentForFewArgs()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var outputs = new List<Variant>();
             ServiceResult result = handler.HandleGetSecurityKeys(
                 ctx,
                 ObjectIds.PublishSubscribe,
-                new List<Variant> { Variant.From("group-1") },
+                [Variant.From("group-1")],
                 outputs);
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(outputs, Is.Empty);
         }
@@ -125,9 +125,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsBadInvalidArgumentForWrongTypes()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),
@@ -138,18 +138,18 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
         public async Task HandleGetSecurityKeys_ReturnsBadInvalidArgumentForEmptyGroupId()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From(string.Empty),
@@ -160,9 +160,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             var server = new InMemoryPubSubKeyServiceServer();
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("user1");
+            SystemContext ctx = BuildContext("user1");
             var inputs = new List<Variant>
             {
                 Variant.From("missing"),
@@ -182,9 +182,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadNotFound));
         }
 
@@ -193,9 +193,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public async Task HandleGetSecurityKeysForwardsCallerIdentityToAuthorization()
         {
             InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync(
-                authorizedCallerIdentities: ["authorized-user"]);
+                authorizedCallerIdentities: ["authorized-user"]).ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext("unauthorized-user");
+            SystemContext ctx = BuildContext("unauthorized-user");
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),
@@ -206,18 +206,18 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
         public async Task HandleGetSecurityKeys_RejectsAnonymousCallerWithBadUserAccessDenied()
         {
-            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync();
+            InMemoryPubSubKeyServiceServer server = await CreateServerWithGroupAsync().ConfigureAwait(false);
             SksMethodHandler handler = CreateHandler(server);
-            var ctx = BuildContext(userId: null);
+            SystemContext ctx = BuildContext(userId: null);
             var inputs = new List<Variant>
             {
                 Variant.From("group-1"),
@@ -228,9 +228,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 ctx,
                 ObjectIds.PublishSubscribe,
                 inputs,
-                new List<Variant>());
+                []);
             Assert.That(
-                (uint)result.StatusCode.Code,
+                result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -249,6 +249,5 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 () => new SksMethodHandler(new InMemoryPubSubKeyServiceServer(), null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
-
     }
 }

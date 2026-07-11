@@ -40,8 +40,6 @@ using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Formats
 {
     /// <summary>
@@ -148,8 +146,7 @@ namespace Opc.Ua.Pcap.Formats
                     .Append(row.Service.PadRight(30))
                     .Append(row.Status.PadRight(14))
                     .Append(row.Latency.PadRight(11))
-                    .Append(row.Summary)
-                    .AppendLine();
+                    .AppendLine(row.Summary);
             }
 
             return builder.ToString();

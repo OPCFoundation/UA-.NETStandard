@@ -1,0 +1,81 @@
+# Azure DevOps pipeline: Sample HA Long-Haul Test.
+#
+# Long-haul high-availability soak of the redundant sample applications
+# (RedundantServer / RedundantClient / RedundantPubSub). The tests are marked
+# [Explicit] so they are never part of the PR gate; the short-haul variants run
+# in the normal test stages. Register this file as its own pipeline in Azure
+# DevOps and run it manually (choosing the duration) or let the weekly schedule
+# run the default one-hour soak.
+
+trigger: none
+pr: none
+
+schedules:
+- cron: '0 4 * * 0'
+  displayName: 'Weekly HA long-haul soak (Sun 04:00 UTC)'
+  branches:
+    include:
+    - master
+  always: true
+
+parameters:
+- name: durationMinutes
+  displayName: 'High-availability soak duration in minutes'
+  type: number
+  default: 60
+
+variables:
+  configuration: 'Release'
+  targetFramework: 'net10.0'
+  testProject: 'Tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
+
+pool:
+  vmImage: 'ubuntu-24.04'
+
+steps:
+- checkout: self
+  fetchDepth: 0
+
+- task: UseDotNet@2
+  displayName: 'Install .NET 10 SDK'
+  inputs:
+    packageType: sdk
+    version: '10.0.x'
+
+- pwsh: ./.azurepipelines/set-version.ps1
+  displayName: 'Set Cloud Version'
+
+- script: dotnet restore 'UA.slnx'
+  displayName: 'Restore dependencies'
+
+- script: >
+    dotnet build $(testProject)
+    --framework $(targetFramework)
+    --configuration $(configuration)
+    --no-restore
+    /p:CustomTestTarget=$(targetFramework)
+  displayName: 'Build sample HA tests (and the referenced sample apps)'
+
+- script: >
+    dotnet test $(testProject)
+    --configuration $(configuration)
+    --no-build
+    --framework $(targetFramework)
+    /p:CustomTestTarget=$(targetFramework)
+    --filter "Category=SampleHaLongHaul"
+    --logger "trx;LogFileName=sample-ha-longhaul.trx"
+    --logger "console;verbosity=detailed"
+    --results-directory $(Agent.TempDirectory)/TestResults
+  displayName: 'Run long-haul HA soak (${{ parameters.durationMinutes }} min)'
+  timeoutInMinutes: 110
+  env:
+    SAMPLE_HA_DURATION_MINUTES: ${{ parameters.durationMinutes }}
+
+- task: PublishTestResults@2
+  displayName: 'Publish test results'
+  condition: always()
+  inputs:
+    testResultsFormat: 'VSTest'
+    testResultsFiles: '**/sample-ha-longhaul.trx'
+    searchFolder: '$(Agent.TempDirectory)/TestResults'
+    failTaskOnFailedTests: true

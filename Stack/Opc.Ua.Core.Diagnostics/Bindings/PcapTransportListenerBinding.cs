@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Bindings
@@ -157,27 +156,40 @@ namespace Opc.Ua.Pcap.Bindings
 
         /// <inheritdoc/>
         public ValueTask CloseAsync(CancellationToken ct = default)
-            => m_inner.CloseAsync(ct);
+        {
+            return m_inner.CloseAsync(ct);
+        }
 
         /// <inheritdoc/>
         public void CertificateUpdate(
             ICertificateValidatorEx validator,
             ICertificateRegistry serverCertificates)
-            => m_inner.CertificateUpdate(validator, serverCertificates);
+        {
+            m_inner.CertificateUpdate(validator, serverCertificates);
+        }
 
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
-            => m_inner.CreateReverseConnection(url, timeout);
+        {
+            m_inner.CreateReverseConnection(url, timeout);
+        }
 
         /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
-            => m_inner.UpdateChannelLastActiveTime(globalChannelId);
+        {
+            m_inner.UpdateChannelLastActiveTime(globalChannelId);
+        }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync() => m_inner.DisposeAsync();
+        public ValueTask DisposeAsync()
+        {
+            return m_inner.DisposeAsync();
+        }
 
         private CapturingByteTransport WrapTransport(IUaSCByteTransport inner)
-            => new(inner, m_registry, m_loggerFactory);
+        {
+            return new(inner, m_registry, m_loggerFactory);
+        }
 
         private void SubscribeChannel(TcpListenerChannel channel)
         {

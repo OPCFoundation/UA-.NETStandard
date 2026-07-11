@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -583,8 +581,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
             return string.Format(
                 CultureInfo.InvariantCulture,
                 "Seed={0} Cell={1} Ops attempted={2} succeeded={3} failed={4} failure-rate={5:P} " +
-                    "p50={6} p95={7} p99={8} notifications={9} ReconnectStarted={10} " +
-                    "ReconnectCompleted={11} ReconnectFailed={12}",
+                "p50={6} p95={7} p99={8} notifications={9} ReconnectStarted={10} " +
+                "ReconnectCompleted={11} ReconnectFailed={12}",
                 seed,
                 cellName,
                 runner.TotalOpsAttempted,
@@ -780,4 +778,3 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
         }
     }
 }
-

@@ -88,6 +88,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Protects one plaintext record and increments the write sequence number.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] Seal(ReadOnlySpan<byte> plaintext)
         {
             ThrowIfDisposed();
@@ -148,6 +149,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Authenticates and unprotects one record, rejecting replayed sequence numbers, throwing a
         /// <see cref="CryptographicException"/> if the record is malformed, forged or replayed.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public byte[] Open(ReadOnlySpan<byte> record)
         {
             if (!TryOpen(record, out byte[]? applicationData))
@@ -165,12 +167,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// malformed, forged or replayed datagrams cannot poison the replay window. RFC 9147 §4.5.2
         /// callers silently drop a record when this returns <see langword="false"/>.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public bool TryOpen(ReadOnlySpan<byte> record, out byte[]? applicationData)
         {
             ThrowIfDisposed();
             applicationData = null;
-            if (record.Length < HeaderLength + 1 + m_tagLength
-                || record.Length < HeaderLength + SequenceNumberSampleLength)
+            if (record.Length < HeaderLength + 1 + m_tagLength ||
+                record.Length < HeaderLength + SequenceNumberSampleLength)
             {
                 return false;
             }
@@ -495,7 +498,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 #if NET8_0_OR_GREATER
                 {
                     Span<byte> block = stackalloc byte[SequenceNumberSampleLength];
-                    using (Aes aes = Aes.Create())
+                    using (var aes = Aes.Create())
                     {
                         aes.Key = m_snKey;
                         aes.EncryptEcb(sample, block, PaddingMode.None);
@@ -568,7 +571,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             state[12] = BinaryPrimitives.ReadUInt32LittleEndian(counter);
-            state[13] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(0, 4));
+            state[13] = BinaryPrimitives.ReadUInt32LittleEndian(nonce[..4]);
             state[14] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(4, 4));
             state[15] = BinaryPrimitives.ReadUInt32LittleEndian(nonce.Slice(8, 4));
             Span<uint> working = stackalloc uint[16];

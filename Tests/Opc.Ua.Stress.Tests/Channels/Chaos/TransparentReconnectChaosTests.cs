@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -714,4 +712,3 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
         }
     }
 }
-

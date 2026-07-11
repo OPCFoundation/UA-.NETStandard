@@ -201,7 +201,7 @@ namespace Opc.Ua.Client.Tests
         {
             using var handler = new SessionReconnectHandler(m_telemetry);
 
-            Assert.That(() => handler.CancelReconnect(), Throws.Nothing);
+            Assert.That(handler.CancelReconnect, Throws.Nothing);
             Assert.That(handler.State, Is.EqualTo(SessionReconnectHandler.ReconnectState.Ready));
         }
 
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Tests
             var handler = new SessionReconnectHandler(m_telemetry);
             handler.Dispose();
 
-            Assert.That(() => handler.Dispose(), Throws.Nothing);
+            Assert.That(handler.Dispose, Throws.Nothing);
             Assert.That(handler.State, Is.EqualTo(SessionReconnectHandler.ReconnectState.Disposed));
         }
 
@@ -221,7 +221,7 @@ namespace Opc.Ua.Client.Tests
             var handler = new SessionReconnectHandler(m_telemetry);
             handler.Dispose();
 
-            Assert.That(() => handler.CancelReconnect(), Throws.Nothing);
+            Assert.That(handler.CancelReconnect, Throws.Nothing);
             Assert.That(handler.State, Is.EqualTo(SessionReconnectHandler.ReconnectState.Disposed));
         }
 

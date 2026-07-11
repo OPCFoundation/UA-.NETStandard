@@ -77,16 +77,12 @@ namespace Opc.Ua.PubSub.Kafka
         : IPubSubTransport, IPubSubTopicProvider, IPubSubHeaderTransport
     {
         private readonly PubSubConnectionDataType m_connection;
-        private readonly KafkaEndpoint m_endpoint;
-        private readonly PubSubTransportDirection m_direction;
-        private readonly KafkaConnectionOptions m_options;
         private readonly IKafkaClientFactory m_clientFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly IPubSubDiagnostics? m_diagnostics;
         private readonly ILogger m_logger;
-        private readonly System.Threading.Lock m_sync = new();
-        private readonly string m_transportProfileUri;
+        private readonly Lock m_sync = new();
         private readonly byte[] m_partitionKey;
 
         private IKafkaClientAdapter? m_adapter;
@@ -156,25 +152,25 @@ namespace Opc.Ua.PubSub.Kafka
             }
 
             m_connection = connection;
-            m_endpoint = endpoint;
-            m_direction = direction;
-            m_options = options;
+            Endpoint = endpoint;
+            Direction = direction;
+            Options = options;
             m_clientFactory = clientFactory;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_diagnostics = diagnostics;
             m_logger = telemetry.CreateLogger<KafkaBrokerTransport>();
-            m_transportProfileUri = DetermineTransportProfileUri(connection);
+            TransportProfileUri = DetermineTransportProfileUri(connection);
             m_partitionKey = BuildPartitionKey(connection);
-            Subscriptions = new List<string>();
+            Subscriptions = [];
             AddDefaultSubscriptions();
         }
 
         /// <inheritdoc/>
-        public string TransportProfileUri => m_transportProfileUri;
+        public string TransportProfileUri { get; }
 
         /// <inheritdoc/>
-        public PubSubTransportDirection Direction => m_direction;
+        public PubSubTransportDirection Direction { get; }
 
         /// <inheritdoc/>
         public bool IsConnected
@@ -193,13 +189,13 @@ namespace Opc.Ua.PubSub.Kafka
         /// integration tests can confirm bootstrap server selection
         /// without re-parsing the URL.
         /// </summary>
-        public KafkaEndpoint Endpoint => m_endpoint;
+        public KafkaEndpoint Endpoint { get; }
 
         /// <summary>
         /// Resolved connection options. Exposed for diagnostics and
         /// tests; the password bytes are never serialized.
         /// </summary>
-        public KafkaConnectionOptions Options => m_options;
+        public KafkaConnectionOptions Options { get; }
 
         /// <summary>
         /// Kafka topics the subscriber consumes from. Populated from the
@@ -248,7 +244,7 @@ namespace Opc.Ua.PubSub.Kafka
 
             try
             {
-                await adapter.ConnectAsync(m_options, cancellationToken).ConfigureAwait(false);
+                await adapter.ConnectAsync(Options, cancellationToken).ConfigureAwait(false);
                 if (HasReceiveDirection && Subscriptions.Count > 0)
                 {
                     var topicList = new List<string>(Subscriptions);
@@ -280,9 +276,9 @@ namespace Opc.Ua.PubSub.Kafka
             m_logger.LogInformation(
                 "Kafka transport opened: connection='{Connection}' bootstrap={Bootstrap} direction={Direction} profile={Profile}",
                 m_connection.Name,
-                m_endpoint.BootstrapServers,
-                m_direction,
-                m_transportProfileUri);
+                Endpoint.BootstrapServers,
+                Direction,
+                TransportProfileUri);
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
 
@@ -331,7 +327,9 @@ namespace Opc.Ua.PubSub.Kafka
             ReadOnlyMemory<byte> payload,
             string? topic = null,
             CancellationToken cancellationToken = default)
-            => ProduceInternalAsync(payload, topic, null, cancellationToken);
+        {
+            return ProduceInternalAsync(payload, topic, null, cancellationToken);
+        }
 
         /// <inheritdoc/>
         public ValueTask SendAsync(
@@ -339,7 +337,9 @@ namespace Opc.Ua.PubSub.Kafka
             string? topic,
             ArrayOf<PubSubMessageProperty> properties,
             CancellationToken cancellationToken = default)
-            => ProduceInternalAsync(payload, topic, ToHeaders(properties), cancellationToken);
+        {
+            return ProduceInternalAsync(payload, topic, ToHeaders(properties), cancellationToken);
+        }
 
         private static Dictionary<string, string>? ToHeaders(
             ArrayOf<PubSubMessageProperty> properties)
@@ -387,7 +387,7 @@ namespace Opc.Ua.PubSub.Kafka
                     "Kafka transport must be opened before sending.");
             }
 
-            string? contentType = MapContentType(m_transportProfileUri);
+            string? contentType = MapContentType(TransportProfileUri);
             var message = new KafkaMessage(
                 topic,
                 m_partitionKey,
@@ -444,16 +444,16 @@ namespace Opc.Ua.PubSub.Kafka
             ushort writerGroupId,
             ushort dataSetWriterId)
         {
-            if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer)
-                && writer is not null
-                && TryReadBrokerWriterSettings(
-                    writer.TransportSettings, out _, out string? metadataQueue)
-                && !string.IsNullOrEmpty(metadataQueue))
+            if (TryFindWriter(writerGroupId, dataSetWriterId, out DataSetWriterDataType? writer) &&
+                writer is not null &&
+                TryReadBrokerWriterSettings(
+                    writer.TransportSettings, out _, out string? metadataQueue) &&
+                !string.IsNullOrEmpty(metadataQueue))
             {
                 return metadataQueue;
             }
             return BuildDefaultTopic(
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 "metadata",
                 publisherId.ToString(),
                 writerGroupId.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -470,24 +470,22 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 throw new ArgumentNullException(nameof(writerGroup));
             }
-            if (dataSetWriterId.HasValue
-                && TryFindWriter(writerGroup.WriterGroupId, dataSetWriterId.Value, out DataSetWriterDataType? writer)
-                && writer is not null
-                && TryReadBrokerWriterSettings(writer.TransportSettings, out string? queue, out _)
-                && !string.IsNullOrEmpty(queue))
+            if (dataSetWriterId.HasValue &&
+                TryFindWriter(writerGroup.WriterGroupId, dataSetWriterId.Value, out DataSetWriterDataType? writer) &&
+                writer is not null &&
+                TryReadBrokerWriterSettings(writer.TransportSettings, out string? queue, out _) &&
+                !string.IsNullOrEmpty(queue))
             {
                 return queue;
             }
-            if (TryReadBrokerGroupSettings(writerGroup.TransportSettings, out string? groupQueue)
-                && !string.IsNullOrEmpty(groupQueue))
+            if (TryReadBrokerGroupSettings(writerGroup.TransportSettings, out string? groupQueue) &&
+                !string.IsNullOrEmpty(groupQueue))
             {
                 return groupQueue;
             }
-            string? writerSegment = dataSetWriterId.HasValue
-                ? dataSetWriterId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                : null;
+            string? writerSegment = dataSetWriterId?.ToString(System.Globalization.CultureInfo.InvariantCulture);
             return BuildDefaultTopic(
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 "data",
                 publisherId.ToString(),
                 writerGroup.WriterGroupId.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -498,7 +496,7 @@ namespace Opc.Ua.PubSub.Kafka
         public string BuildDiscoveryTopic(PublisherId publisherId, string messageTypeSegment)
         {
             return BuildDefaultTopic(
-                ResolveEncoding(m_transportProfileUri),
+                ResolveEncoding(TransportProfileUri),
                 messageTypeSegment,
                 publisherId.ToString(),
                 additional1: null,
@@ -506,7 +504,7 @@ namespace Opc.Ua.PubSub.Kafka
         }
 
         private bool HasReceiveDirection =>
-            (m_direction & PubSubTransportDirection.Receive) != 0;
+            (Direction & PubSubTransportDirection.Receive) != 0;
 
         private int GetReceiveQueueCapacity()
         {
@@ -689,7 +687,7 @@ namespace Opc.Ua.PubSub.Kafka
             string? additional2)
         {
             var builder = new StringBuilder();
-            AppendSegment(builder, m_options.Topics.Prefix);
+            AppendSegment(builder, Options.Topics.Prefix);
             AppendSegment(builder, encoding.ToTopicSegment());
             AppendSegment(builder, messageType);
             AppendSegment(builder, publisherId);
@@ -716,10 +714,10 @@ namespace Opc.Ua.PubSub.Kafka
             var builder = new StringBuilder(segment.Length);
             foreach (char c in segment)
             {
-                bool allowed = (c >= 'a' && c <= 'z')
-                    || (c >= 'A' && c <= 'Z')
-                    || (c >= '0' && c <= '9')
-                    || c is '_' or '-';
+                bool allowed = c is (>= 'a' and <= 'z') or
+                    (>= 'A' and <= 'Z') or
+                    (>= '0' and <= '9') or
+                    '_' or '-';
                 builder.Append(allowed ? c : '_');
             }
             return builder.ToString();
@@ -739,7 +737,7 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 return System.Text.Encoding.UTF8.GetBytes(connection.Name);
             }
-            return Array.Empty<byte>();
+            return [];
         }
 
         private static void ValidateTopic(string topic)

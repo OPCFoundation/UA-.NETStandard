@@ -148,7 +148,7 @@ namespace Opc.Ua.Sessions.Tests
                     ep.SecurityMode == MessageSecurityMode.None);
             var jsonEndpoint = new EndpointDescription
             {
-                EndpointUrl = wssNone.EndpointUrl,
+                EndpointUrl = m_endpointUrl.ToString(),
                 Server = wssNone.Server,
                 ServerCertificate = wssNone.ServerCertificate,
                 SecurityMode = MessageSecurityMode.None,
@@ -156,12 +156,12 @@ namespace Opc.Ua.Sessions.Tests
                 TransportProfileUri = Profiles.UaWssJsonTransport
             };
 
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             endpointConfiguration.OperationTimeout = kMaxTimeout;
             TransportChannelSettings settings = CreateClientSettings(jsonEndpoint, endpointConfiguration);
 
             using var channel = new WssJsonTransportChannel(m_telemetry);
-            await channel.OpenAsync(new Uri(jsonEndpoint.EndpointUrl), settings, CancellationToken.None)
+            await channel.OpenAsync(m_endpointUrl, settings, CancellationToken.None)
                 .ConfigureAwait(false);
 
             var request = new GetEndpointsRequest
@@ -170,7 +170,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 1,
-                    TimeoutHint = (uint)kMaxTimeout
+                    TimeoutHint = kMaxTimeout
                 },
                 EndpointUrl = jsonEndpoint.EndpointUrl
             };
@@ -181,7 +181,7 @@ namespace Opc.Ua.Sessions.Tests
 
             Assert.That(response, Is.InstanceOf<GetEndpointsResponse>());
             var getResp = (GetEndpointsResponse)response;
-            Assert.That(getResp.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(getResp.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
             Assert.That(getResp.Endpoints.Count, Is.GreaterThan(0));
 
             await channel.CloseAsync().ConfigureAwait(false);
@@ -204,4 +204,3 @@ namespace Opc.Ua.Sessions.Tests
 }
 
 #endif // NET5_0_OR_GREATER
-

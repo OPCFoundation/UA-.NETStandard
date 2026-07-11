@@ -107,7 +107,7 @@ namespace Opc.Ua.Sessions.Tests
             await using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
             using Certificate oldCertificate = CertificateBuilder.Create("CN=Old").CreateForRSA();
 
-            System.Collections.Generic.IReadOnlyList<string> closed = await ((ITransportListenerCertificateRotation)listener).CloseChannelsForCertificateAsync(oldCertificate).ConfigureAwait(false);
+            System.Collections.Generic.IReadOnlyList<string> closed = await listener.CloseChannelsForCertificateAsync(oldCertificate).ConfigureAwait(false);
 
             Assert.That(closed, Is.Not.Null);
             Assert.That(closed, Is.Empty);
@@ -123,7 +123,7 @@ namespace Opc.Ua.Sessions.Tests
             await using var listener = new KestrelTcpTransportListener(NUnitTelemetryContext.Create());
 
             Assert.That(
-                async () => await ((ITransportListenerCertificateRotation)listener).CloseChannelsForCertificateAsync(null!).ConfigureAwait(false),
+                async () => await listener.CloseChannelsForCertificateAsync(null!).ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
@@ -169,10 +169,10 @@ namespace Opc.Ua.Sessions.Tests
         private static TransportListenerSettings BuildMinimalSettings(ITelemetryContext telemetry = null!)
         {
             telemetry ??= NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             return new TransportListenerSettings
             {
-                Descriptions = new System.Collections.Generic.List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 NamespaceUris = context.NamespaceUris,
                 Factory = context.Factory,

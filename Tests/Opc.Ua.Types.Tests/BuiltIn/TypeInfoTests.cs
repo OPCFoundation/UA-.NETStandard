@@ -1789,14 +1789,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             [
                 new Variant(42),
                 Variant.From(ints.ToArrayOf()),
-                Variant.From(strings.ToArrayOf()),
+                Variant.From(strings.ToArrayOf())
             ];
-            Variant value = Variant.From(elements.ToArrayOf());
+            var value = Variant.From(elements.ToArrayOf());
 
             Assert.That(value.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
             Assert.That(value.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
 
-            TypeInfo result = TypeInfo.IsInstanceOfDataType(
+            var result = TypeInfo.IsInstanceOfDataType(
                 value,
                 new NodeId(24u), // DataTypes.BaseDataType
                 ValueRanks.OneDimension,
@@ -1814,11 +1814,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             [
                 new Variant(1),
                 new Variant("text"),
-                new Variant(true),
+                new Variant(true)
             ];
-            Variant value = Variant.From(elements.ToArrayOf());
+            var value = Variant.From(elements.ToArrayOf());
 
-            TypeInfo result = TypeInfo.IsInstanceOfDataType(
+            var result = TypeInfo.IsInstanceOfDataType(
                 value,
                 new NodeId(24u), // DataTypes.BaseDataType
                 ValueRanks.OneDimension,
@@ -1832,9 +1832,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void IsInstanceOfDataTypeTypedArrayMatchesBaseDataType()
         {
             int[] ints = [1, 2, 3];
-            Variant value = Variant.From(ints.ToArrayOf());
+            var value = Variant.From(ints.ToArrayOf());
 
-            TypeInfo result = TypeInfo.IsInstanceOfDataType(
+            var result = TypeInfo.IsInstanceOfDataType(
                 value,
                 new NodeId(24u), // DataTypes.BaseDataType
                 ValueRanks.OneDimension,

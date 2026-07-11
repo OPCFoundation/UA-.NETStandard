@@ -1145,12 +1145,11 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
-                Value = 0
+                Value = 0,
+                // The asynchronous read handler returns a value that differs from the cached one.
+                OnSimpleReadValueAsync = (c, n, ct) => new ValueTask<AttributeSimpleReadResult>(
+                        new AttributeSimpleReadResult(ServiceResult.Good, new Variant(777)))
             };
-
-            // The asynchronous read handler returns a value that differs from the cached one.
-            node.OnSimpleReadValueAsync = (c, n, ct) => new ValueTask<AttributeSimpleReadResult>(
-                new AttributeSimpleReadResult(ServiceResult.Good, new Variant(777)));
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
             nodeManagerMock
@@ -1211,16 +1210,15 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
-                Value = 0
-            };
-
-            node.OnReadValueAsync = async (c, n, range, encoding, ct) =>
-            {
-                readStarted.Set();
-                // Wait off-thread so the producer cannot be completing synchronously.
-                await Task.Run(() => releaseRead.Wait(TimeSpan.FromSeconds(30)), ct).ConfigureAwait(false);
-                return new AttributeReadResult(
-                    ServiceResult.Good, new Variant(555), StatusCodes.Good, DateTimeUtc.Now);
+                Value = 0,
+                OnReadValueAsync = async (c, n, range, encoding, ct) =>
+                    {
+                        readStarted.Set();
+                        // Wait off-thread so the producer cannot be completing synchronously.
+                        await Task.Run(() => releaseRead.Wait(TimeSpan.FromSeconds(30)), ct).ConfigureAwait(false);
+                        return new AttributeReadResult(
+                            ServiceResult.Good, new Variant(555), StatusCodes.Good, DateTimeUtc.Now);
+                    }
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();

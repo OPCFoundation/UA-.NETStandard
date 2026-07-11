@@ -42,13 +42,13 @@ namespace Opc.Ua.Client
     /// with the new options-based subscription API. These wrap plain
     /// <see cref="Subscriptions.SubscriptionOptions"/> /
     /// <see cref="Subscriptions.MonitoredItems.MonitoredItemOptions"/> snapshots into
-    /// <see cref="Microsoft.Extensions.Options.IOptionsMonitor{T}"/>
+    /// <see cref="IOptionsMonitor{T}"/>
     /// adapters so callers don't need to set up a DI options pipeline for
     /// one-off use.
     /// </summary>
     public static class ManagedSessionExtensions
     {
-        private static Subscriptions.ISubscriptionManager GetSubscriptionManager(
+        private static ISubscriptionManager GetSubscriptionManager(
             this ManagedSession session)
         {
             if (session == null)
@@ -56,7 +56,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(session));
             }
             if (!session.TryGetSubscriptionManager(
-                    out Subscriptions.ISubscriptionManager? manager))
+                    out ISubscriptionManager? manager))
             {
                 throw new InvalidOperationException(
                     "The managed session does not expose a V2 subscription manager. " +
@@ -120,7 +120,6 @@ namespace Opc.Ua.Client
             }
             return session.AddSubscription(handler, configure(new Subscriptions.SubscriptionOptions()));
         }
-
 
         /// <summary>
         /// Add a new subscription using an options monitor, typically the container default.
@@ -404,7 +403,7 @@ namespace Opc.Ua.Client
         }
 
         internal static List<SubscriptionStateSnapshot> ValidateAndSortGroup(
-            string groupId,
+            this string groupId,
             List<SubscriptionStateSnapshot> bucket)
         {
             bucket.Sort(static (a, b) => a.PartitionIndex.CompareTo(b.PartitionIndex));

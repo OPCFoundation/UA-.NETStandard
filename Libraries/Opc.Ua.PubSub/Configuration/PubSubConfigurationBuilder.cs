@@ -79,6 +79,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="name">PublishedDataSet name.</param>
         /// <param name="configure">Nested builder callback.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubConfigurationBuilder AddPublishedDataSet(
             string name,
             Action<PublishedDataSetBuilder> configure)
@@ -125,6 +126,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="methods">Method bindings for the action targets.</param>
         /// <param name="configure">Optional callback for additional generated type settings.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public PubSubConfigurationBuilder AddPublishedAction(
             string name,
             DataSetMetaDataType requestMetaData,
@@ -156,6 +158,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="name">Connection name.</param>
         /// <param name="configure">Nested builder callback.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubConfigurationBuilder AddConnection(
             string name,
             Action<PubSubConnectionBuilder> configure)
@@ -302,6 +305,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="dataType">DataType node id.</param>
         /// <param name="valueRank">Value rank (default scalar).</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public PublishedDataSetBuilder AddField(
             string name,
             byte builtInType,
@@ -428,6 +432,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="name">WriterGroup name.</param>
         /// <param name="configure">Nested builder callback.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubConnectionBuilder AddWriterGroup(
             string name,
             Action<WriterGroupBuilder> configure)
@@ -449,6 +454,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="name">ReaderGroup name.</param>
         /// <param name="configure">Nested builder callback.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubConnectionBuilder AddReaderGroup(
             string name,
             Action<ReaderGroupBuilder> configure)
@@ -609,6 +615,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="name">DataSetWriter name.</param>
         /// <param name="configure">Nested builder callback.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public WriterGroupBuilder AddDataSetWriter(
             string name,
             Action<DataSetWriterBuilder> configure)
@@ -829,6 +836,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="name">DataSetReader name.</param>
         /// <param name="configure">Nested builder callback.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public ReaderGroupBuilder AddDataSetReader(
             string name,
             Action<DataSetReaderBuilder> configure)
@@ -980,6 +988,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="name">DataSet name.</param>
         /// <param name="configure">Metadata builder callback.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public DataSetReaderBuilder WithDataSetMetaData(
             string name,
             Action<PublishedDataSetBuilder> configure)

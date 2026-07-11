@@ -167,7 +167,7 @@ namespace Opc.Ua.Schema.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    () => new DefaultSchemaProvider(null!, Array.Empty<IUaSchemaGenerator>()),
+                    () => new DefaultSchemaProvider(null!, []),
                     Throws.TypeOf<ArgumentNullException>());
                 Assert.That(
                     () => new DefaultSchemaProvider(new DataTypeDefinitionRegistry(), null!),

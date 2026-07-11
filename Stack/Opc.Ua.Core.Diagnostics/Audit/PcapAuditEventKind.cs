@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Audit
 {
     /// <summary>

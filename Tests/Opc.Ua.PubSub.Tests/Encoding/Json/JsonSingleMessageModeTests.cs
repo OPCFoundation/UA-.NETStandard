@@ -78,7 +78,7 @@ namespace OpcUaPubSubJsonTests
             var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(msg, ctx).ConfigureAwait(false);
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             JsonElement root = document.RootElement;
             Assert.That(root.TryGetProperty("Messages", out JsonElement messages), Is.True);
             Assert.That(messages.ValueKind, Is.EqualTo(JsonValueKind.Object),

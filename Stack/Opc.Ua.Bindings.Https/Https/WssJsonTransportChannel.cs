@@ -71,7 +71,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public void Dispose() => Dispose(true);
+        public void Dispose()
+        {
+            Dispose(true);
+        }
 
         private void Dispose(bool disposing)
         {
@@ -144,7 +147,10 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public ValueTask CloseAsync(CancellationToken ct = default) => default;
+        public ValueTask CloseAsync(CancellationToken ct = default)
+        {
+            return default;
+        }
 
         /// <inheritdoc/>
         public ValueTask ReconnectAsync(
@@ -199,7 +205,6 @@ namespace Opc.Ua.Bindings
                         JsonEncoderOptions.Compact))
                     {
                         encoder.EncodeMessage(request, request.TypeId);
-                        encoder.Close();
                     }
                     payload = memory.ToArray();
                 }
@@ -336,12 +341,13 @@ namespace Opc.Ua.Bindings
                 using System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
                     clientCert.AsX509Certificate2();
                 ws.Options.ClientCertificates ??=
-                    new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
+                    [];
                 ws.Options.ClientCertificates.Add(x509);
             }
 #endif
         }
 
+#if NET5_0_OR_GREATER
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             System.Security.Cryptography.X509Certificates.X509Certificate2? cert,
@@ -383,6 +389,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
         }
+#endif
 
         private static ServiceResultException BadNotConnected()
         {

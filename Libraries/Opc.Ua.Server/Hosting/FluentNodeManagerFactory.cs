@@ -50,6 +50,7 @@ namespace Opc.Ua.Server.Hosting
         }
 
         public ArrayOf<string> NamespacesUris { get; }
+
         public ValueTask<IAsyncNodeManager> CreateAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -70,6 +71,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly Action<INodeManagerBuilder> m_build;
         private readonly string m_namespaceUri;
     }
+
     internal sealed class FluentNodeManager : FluentNodeManagerBase
     {
         public FluentNodeManager(
