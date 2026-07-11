@@ -106,8 +106,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// <paramref name="filePath"/> is <c>null</c>.
         /// </exception>
         /// <exception cref="InvalidOperationException">
-        /// The file cannot be read or does not contain a valid NodeSet2
-        /// document.
+        /// The NodeSet does not declare a <c>Models</c> section. Use the
+        /// overload that supplies owned model namespace URIs for legacy
+        /// NodeSets.
         /// </exception>
         public static FileRuntimeNodeSetSource FromFile(string filePath)
         {
@@ -237,14 +238,14 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// <summary>
         /// Extracts owned model namespace URIs from a parsed
         /// <see cref="UANodeSet"/>. Uses <c>Models[].ModelUri</c> when
-        /// present; falls back to <c>NamespaceUris</c> for older NodeSets
+        /// present; falls back to <paramref name="declaredUris"/> for older NodeSets
         /// that omit the <c>Models</c> element.
         /// </summary>
         /// <param name="nodeSet">The parsed NodeSet2 document.</param>
         /// <param name="declaredUris">
-        /// Caller-declared namespace URIs used as a secondary fallback
-        /// when both <c>Models</c> and <c>NamespaceUris</c> are absent.
-        /// May be an empty collection.
+        /// Caller-declared owned model namespace URIs used when the
+        /// NodeSet does not declare a <c>Models</c> section. May be an
+        /// empty collection.
         /// </param>
         /// <returns>
         /// An <see cref="ArrayOf{T}"/> of owned model namespace URIs.

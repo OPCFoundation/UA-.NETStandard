@@ -300,13 +300,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             // Parsing fails because the XML in source2 declares kUriA, which
             // does not match the declared URI kUriExtra.
-            Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await factory.CreateAsync(
+            await Assert.ThatAsync(
+                () => factory.CreateAsync(
                     mockServer.Object,
                     new ApplicationConfiguration(),
-                    default).ConfigureAwait(false));
-
-            await Task.CompletedTask.ConfigureAwait(false);
+                    default).AsTask(),
+                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
         }
 
         /// <summary>

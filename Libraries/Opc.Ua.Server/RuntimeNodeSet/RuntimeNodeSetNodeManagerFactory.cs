@@ -298,9 +298,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
         /// <summary>
         /// Validates that each URI declared in the parsed document's Models
-        /// section is consistent with the pre-scanned metadata for file sources.
-        /// For stream sources the declared URIs are authoritative, so
-        /// no cross-check is needed.
+        /// section matches the source's declared owned model namespace URIs.
+        /// File sources declare URIs from their initial metadata scan; stream
+        /// sources declare them explicitly when the source is created.
         /// </summary>
         private static void ValidateOwnedUris(
             ArrayOf<string> parsedUris,
