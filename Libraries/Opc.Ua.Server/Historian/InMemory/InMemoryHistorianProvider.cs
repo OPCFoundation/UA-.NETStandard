@@ -1048,7 +1048,30 @@ namespace Opc.Ua.Server.Historian.InMemory
 
             if (windowMin == windowMax && archive.Raw.TryGetValue(windowMin, out DataValue exact))
             {
-                output.Add(new HistoricalDataValue(CloneValue(exact), request.ReturnBounds));
+                if (resumeAt == DateTime.MinValue)
+                {
+                    output.Add(new HistoricalDataValue(CloneValue(exact), request.ReturnBounds));
+                }
+
+                if (!request.ReturnBounds || request.MaxValues == 1)
+                {
+                    return new HistorianPage<HistoricalDataValue>(output);
+                }
+
+                foreach (KeyValuePair<DateTime, DataValue> entry in archive.Raw)
+                {
+                    if (entry.Key > windowMax)
+                    {
+                        if (output.Count >= cap)
+                        {
+                            return new HistorianPage<HistoricalDataValue>(
+                                output,
+                                EncodeTimestamp(windowMin));
+                        }
+                        output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
+                        break;
+                    }
+                }
                 return new HistorianPage<HistoricalDataValue>(output);
             }
 
@@ -1062,11 +1085,11 @@ namespace Opc.Ua.Server.Historian.InMemory
                 : archive.Raw.Reverse();
 
             bool leadingBoundarySpecified = request.IsForward
-                ? windowMin != DateTime.MinValue
-                : windowMax != DateTime.MaxValue;
+                ? request.StartTime != DateTimeUtc.MinValue
+                : request.EndTime != DateTimeUtc.MaxValue;
             bool trailingBoundarySpecified = request.IsForward
-                ? windowMax != DateTime.MaxValue
-                : windowMin != DateTime.MinValue;
+                ? request.EndTime != DateTimeUtc.MaxValue
+                : request.StartTime != DateTimeUtc.MinValue;
             bool isOpenEnded = request.MaxValues > 0 &&
                 (request.StartTime == DateTimeUtc.MinValue || request.EndTime == DateTimeUtc.MaxValue);
 
@@ -1158,6 +1181,11 @@ namespace Opc.Ua.Server.Historian.InMemory
                         EncodeTimestamp(lastEmitted));
                 }
                 output.Add(CreateMissingBound(request.IsForward ? windowMax : windowMin));
+            }
+            else if (request.ReturnBounds && isOpenEnded && output.Count > 0 && output.Count < cap)
+            {
+                DateTime previousTimestamp = output[^1].Value.SourceTimestamp.ToDateTime();
+                output.Add(CreateMissingBound(previousTimestamp.AddSeconds(request.IsForward ? 1 : -1)));
             }
 
             return new HistorianPage<HistoricalDataValue>(output);

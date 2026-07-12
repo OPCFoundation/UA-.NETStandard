@@ -117,6 +117,38 @@ namespace Opc.Ua.History.Tests
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        [TestCase(1, 1)]
+        [TestCase(2, 2)]
+        public async Task ReadRawWithEqualTimesAndBoundsReturnsNextValueAsync(
+            int maxValues,
+            int expectedCount)
+        {
+            List<DataValue> seeded = await ReadSeededValuesAsync().ConfigureAwait(false);
+            int index = seeded.Count / 2;
+            DataValue expected = seeded[index];
+
+            HistoryReadResult result = await ReadRawAsync(
+                new ReadRawModifiedDetails
+                {
+                    StartTime = expected.SourceTimestamp,
+                    EndTime = expected.SourceTimestamp,
+                    NumValuesPerNode = (uint)maxValues,
+                    IsReadModified = false,
+                    ReturnBounds = true
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(expectedCount));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(expected.SourceTimestamp));
+            if (expectedCount == 2)
+            {
+                Assert.That(values[1].SourceTimestamp, Is.EqualTo(seeded[index + 1].SourceTimestamp));
+            }
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
         [TestCase(true)]
         [TestCase(false)]
         public async Task ReadRawWithOneSpecifiedTimeReturnsFiveValuesWithoutContinuationAsync(bool startOnly)
@@ -146,6 +178,38 @@ namespace Opc.Ua.History.Tests
                     values[i].SourceTimestamp.CompareTo(values[i - 1].SourceTimestamp),
                     Is.EqualTo(startOnly ? 1 : -1));
             }
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ReadRawOneSidedBoundsAddsMissingBoundaryAfterArchiveExhaustionAsync(
+            bool startOnly)
+        {
+            List<DataValue> stored = await ReadAllStoredValuesAsync().ConfigureAwait(false);
+            int boundaryIndex = startOnly ? stored.Count - 2 : 1;
+            DateTimeUtc boundary = stored[boundaryIndex].SourceTimestamp;
+            DateTimeUtc expectedMissingBound = startOnly
+                ? (DateTimeUtc)stored[^1].SourceTimestamp.ToDateTime().AddSeconds(1)
+                : (DateTimeUtc)stored[0].SourceTimestamp.ToDateTime().AddSeconds(-1);
+
+            HistoryReadResult result = await ReadRawAsync(
+                new ReadRawModifiedDetails
+                {
+                    StartTime = startOnly ? boundary : DateTimeUtc.MinValue,
+                    EndTime = startOnly ? DateTimeUtc.MinValue : boundary,
+                    NumValuesPerNode = 5,
+                    IsReadModified = false,
+                    ReturnBounds = true
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(3));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(boundary));
+            Assert.That(values[^1].StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+            Assert.That(values[^1].SourceTimestamp, Is.EqualTo(expectedMissingBound));
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
@@ -724,6 +788,23 @@ namespace Opc.Ua.History.Tests
                 m_doubleNodeId,
                 now.AddDays(-2),
                 now.AddDays(2)))
+            {
+                values.Add(value);
+            }
+
+            values.Sort((left, right) => left.SourceTimestamp.CompareTo(right.SourceTimestamp));
+            Assert.That(values, Has.Count.GreaterThan(20));
+            return values;
+        }
+
+        private async Task<List<DataValue>> ReadAllStoredValuesAsync()
+        {
+            var client = new HistoryClient(Session);
+            var values = new List<DataValue>();
+            await foreach (DataValue value in client.ReadRawAsync(
+                m_doubleNodeId,
+                new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc)))
             {
                 values.Add(value);
             }

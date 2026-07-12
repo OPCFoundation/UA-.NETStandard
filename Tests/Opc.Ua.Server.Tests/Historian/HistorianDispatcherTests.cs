@@ -179,6 +179,106 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        [TestCase(1, 1)]
+        [TestCase(2, 2)]
+        public async Task EqualTimeRawReadWithBoundsReturnsExactAndEndBoundAsync(
+            int maxValues,
+            int expectedCount)
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(3);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("EqualBoundsVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId,
+                    ContinuationPoint = ByteString.Empty
+                },
+                new ReadRawModifiedDetails
+                {
+                    StartTime = HarnessFixture.BaseTime,
+                    EndTime = HarnessFixture.BaseTime,
+                    NumValuesPerNode = (uint)maxValues,
+                    IsReadModified = false,
+                    ReturnBounds = true
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(expectedCount));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(HarnessFixture.BaseTime));
+            if (expectedCount == 2)
+            {
+                Assert.That(values[1].SourceTimestamp, Is.EqualTo(HarnessFixture.BaseTime.AddSeconds(1)));
+            }
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task OneSidedRawReadWithBoundsAddsMissingBoundaryWhenArchiveIsExhaustedAsync(
+            bool startOnly)
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(3);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("OneSidedBoundsVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+            DateTime boundary = HarnessFixture.BaseTime.AddSeconds(startOnly ? 0 : 2);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId,
+                    ContinuationPoint = ByteString.Empty
+                },
+                new ReadRawModifiedDetails
+                {
+                    StartTime = startOnly ? boundary : DateTimeUtc.MinValue,
+                    EndTime = startOnly ? DateTimeUtc.MinValue : boundary,
+                    NumValuesPerNode = 5,
+                    IsReadModified = false,
+                    ReturnBounds = true
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(4));
+            Assert.That(values[^1].StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+            Assert.That(values[^1].SourceTimestamp,
+                Is.EqualTo(HarnessFixture.BaseTime.AddSeconds(startOnly ? 3 : -1)));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
         [Test]
         public async Task ModifiedReadWithReturnBoundsReturnsBadInvalidArgumentAsync()
         {
