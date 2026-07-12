@@ -791,4 +791,139 @@ no speculative compatibility changes were made.
   fix:** use `TC_Variables.OutputArguments.length` (the array actually populated at line 37), or track a
   running count of returned aliases.
 
+## 7. Aggregate `Err-004.js` creates an unintended equal-time request when ProcessingInterval is blank
+
+**Tests:** every Aggregate Conformance Unit reuses
+`maintree/Aggregates/Aggregate - Base/Test Cases/Err-004.js`.
+
+**Observed in run 14:** 552 errors:
+
+- 276 generic `HistoryRead.js` / `assertions.js` errors reporting per-node
+  `BadInvalidArgument`;
+- 276 explicit `HAAggregateHelper.js:1764` errors rejecting the same
+  `BadInvalidArgument`.
+
+The normal Base `001-01` / `002-01` comparisons correctly accept this response (the console log
+contains hundreds of `Server and CTT have status codes of BadInvalidArgument` confirmations).
+Only `Err-004.js` rejects it.
+
+### Why this is a CTT/configuration defect
+
+`Err-004.js:25` calls `PerformExpectedErrorTest`. The helper constructs the request range from the
+configured Aggregate `ProcessingInterval`, but the run's CTT configuration leaves that setting blank.
+JavaScript coerces the blank value multiplied by ten to zero, so the helper sends
+`StartTime == EndTime`.
+
+OPC UA Part 11 §6.5.4.2 is explicit: when `StartTime` and `EndTime` are equal, the Server shall
+return `Bad_InvalidArgument` because the request has no meaningful processed time domain. Per Part 4
+§5.11.3.2, this is the per-node operation result while the HistoryRead ServiceResult remains Good.
+The reference server therefore returns the required result; the error test accidentally combines its
+intended invalid condition with a second invalid condition and then rejects the mandated status.
+
+### Recommended CTT fix
+
+Validate the setting before building the request in `HAAggregateHelper.js`:
+
+```js
+var interval = parseInt(
+    Settings.ServerTest.NodeIds.Static.HAProfile.Aggregates.ProcessingInterval);
+if (isNaN(interval) || interval <= 0) {
+    interval = 1;
+}
+```
+
+Alternatively, skip the test with a clear configuration error when a positive interval is missing.
+Apply the same guard to `PerformMismatchTest`. The immediate configuration workaround is to set
+Aggregate `ProcessingInterval` to a positive value.
+
+## 8. Historical Access Read Raw scripts contain independent result-validation defects
+
+Run 15 exposed five CTT script defects alongside genuine server raw-history defects (the server
+ordering/bounds/paging/continuation fixes are described below).
+
+### `004.js` rejects correct reverse ordering
+
+At lines 78, 91, and 105 the test uses:
+
+```js
+if (OPCF.HA.Analysis.Date.FlowsBackward(...)) result = false;
+```
+
+Those branches are specifically validating reverse reads, so `FlowsBackward(...) == true` is success,
+not failure. Replace each predicate with:
+
+```js
+if (!OPCF.HA.Analysis.Date.FlowsBackward(...)) result = false;
+```
+
+Part 11 §6.5.3.2 requires raw values to be returned in the direction implied by StartTime/EndTime.
+
+### `014.js` indexes a nonexistent second node result
+
+The test requests one node but lines 46 and 78 inspect `Response.Results[1]`. The intended check is the
+second returned `DataValue` for the first node. Validate
+`haItems[0].Value[1].StatusCode` (with length guards) and describe it as record 2, not result 2.
+
+### `019.js` bypasses the CTT test harness
+
+The script invokes `readraw019()` directly while the normal `Test.Execute` wrapper is commented out.
+Use:
+
+```js
+Test.Execute({ Procedure: readraw019 });
+```
+
+This ensures exceptions, result accounting, setup, and cleanup follow the same path as the other
+Historical Access cases.
+
+### `Err-013.js` describes an operation error as a ServiceResult
+
+Reusing a consumed ContinuationPoint shall produce per-node
+`BadContinuationPointInvalid`; the HistoryRead ServiceResult remains Good. Update the message to:
+
+> HistoryRead test #3 expected a Good ServiceResult and
+> `Results[0].StatusCode` `BadContinuationPointInvalid`.
+
+This matches Part 11 §6.3 and Part 4 §5.11.3.2.
+
+### `Err-019.js` uses an undefined loop variable in error messages
+
+Lines 25 and 43 interpolate undeclared `i`. Use literal test numbers `#1` and `#2` (or define a
+proper case index) so a failed assertion reports the actual case instead of throwing another
+JavaScript error.
+
+### Aggregate run 14 residual value findings (not additional server fixes)
+
+Focused direct-calculator and live-historian Part 13 oracle tests reproduce the reference server's
+actual seed data: an all-Good linear ramp (`value = sample index`, 10 s spacing). They establish:
+
+- Float/Double sloped Interpolative, StartBound, and EndBound results match the Part 13 linear oracle.
+- Int32 interpolation differs from the CTT by exactly one where the mathematical value is fractional:
+  the stack converts with `Convert.ToInt32` (round-to-nearest, unchanged from 1.5.378), while the CTT
+  truncates. Part 13 §5.4.3.2.2 does not mandate integer truncation, so the CTT must not require that
+  conversion convention; compare the mathematical result using the source type's documented rounding
+  policy or accept either conforming conversion.
+- DurationGood/Bad, PercentGood/Bad, WorstQuality2, and DurationInState results over the configured
+  reference data are necessarily all-Good/full-duration. The CTT log warns that no start of Bad data
+  is configured but still compares against an oracle that assumes a Bad-data region. Configure the
+  required Bad/Uncertain test region before running those cases, or skip them when the prerequisite is
+  absent.
+- Small TimeAverage/Total/NumberOfTransitions boundary-convention deltas remain unclassified. No CTT
+  issue or server compatibility change is claimed without a normative oracle.
+
+### Historical Access run 15 server defects now fixed
+
+The server fixes (not CTT issues) cover:
+
+- correct start-only forward and end-only reverse reads;
+- exact equal-time raw reads;
+- exact versus outside bounding values, including synthetic `BadBoundNotFound` FIRST/LAST values at
+  the requested timestamps;
+- bounds counting toward `NumValuesPerNode` and continuation-point paging of a trailing bound;
+- no residual ContinuationPoint for a completed open-ended N-value request;
+- fresh single-use ContinuationPoint identifiers after every resume;
+- `BadInvalidArgument` for modified reads with `ReturnBounds=true`;
+- exclusion of synthetic `BadBoundNotFound` protocol markers from AtTime interpolation input.
+
+These behaviors are covered by historian provider/dispatcher and end-to-end tests on net10 and net48.
 
