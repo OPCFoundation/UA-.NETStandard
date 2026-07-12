@@ -246,5 +246,69 @@ namespace Opc.Ua.Server.Tests
             Assert.That(correctPassword, Is.True);
             Assert.That(wrongPassword, Is.False);
         }
+
+        [Theory]
+        [TestCase("0")]
+        [TestCase("-1")]
+        [TestCase("100000000")]
+        [TestCase("99999999999999999999")]
+        [TestCase("notanumber")]
+        public void CheckCredentialsReturnsFalseForHashWithInvalidIterationCount(string iterations)
+        {
+            // Arrange - reuse the valid salt/key segments from a known-good vector but
+            // replace the iteration count with an out-of-range or unparsable value.
+            string[] parts = kPbkdf2Vector100000Iterations.Split('.');
+            string corruptHash = $"{iterations}.{parts[1]}.{parts[2]}";
+            var usersDb = new LinqUserDatabase
+            {
+                Users =
+                [
+                    new LinqUserDatabase.User
+                    {
+                        ID = Guid.NewGuid(),
+                        UserName = "CorruptIterationsUser",
+                        Hash = corruptHash,
+                        Roles = [Role.AuthenticatedUser]
+                    }
+                ]
+            };
+
+            // Act
+            bool result = usersDb.CheckCredentials(
+                "CorruptIterationsUser",
+                "Correct.Horse.Battery9!"u8);
+
+            // Assert - fail closed, never throw.
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void CheckCredentialsReturnsFalseForHashWithEmptyKey()
+        {
+            // Arrange - a persisted hash with an empty derived key segment.
+            string[] parts = kPbkdf2Vector100000Iterations.Split('.');
+            string corruptHash = $"{parts[0]}.{parts[1]}.";
+            var usersDb = new LinqUserDatabase
+            {
+                Users =
+                [
+                    new LinqUserDatabase.User
+                    {
+                        ID = Guid.NewGuid(),
+                        UserName = "EmptyKeyUser",
+                        Hash = corruptHash,
+                        Roles = [Role.AuthenticatedUser]
+                    }
+                ]
+            };
+
+            // Act
+            bool result = usersDb.CheckCredentials(
+                "EmptyKeyUser",
+                "Correct.Horse.Battery9!"u8);
+
+            // Assert - fail closed, never throw.
+            Assert.That(result, Is.False);
+        }
     }
 }
