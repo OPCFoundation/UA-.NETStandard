@@ -263,9 +263,25 @@ namespace Opc.Ua.Client
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
 
-            await managed.StateMachine
-                .WaitForConnectedAsync(ct)
-                .ConfigureAwait(false);
+            try
+            {
+                await managed.StateMachine
+                    .WaitForConnectedAsync(ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                try
+                {
+                    await managed.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception disposeException) when (
+                    disposeException is not OutOfMemoryException)
+                {
+                    // Preserve the connection failure or cancellation reported to the caller.
+                }
+                throw;
+            }
 
             return managed;
         }
