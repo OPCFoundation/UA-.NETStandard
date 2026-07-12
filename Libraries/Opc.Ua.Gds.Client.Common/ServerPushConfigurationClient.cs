@@ -797,6 +797,44 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
+        public async ValueTask CancelChangesAsync(CancellationToken ct = default)
+        {
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+
+            try
+            {
+                await m_serverConfiguration!.CancelChangesAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DeleteCertificateAsync(
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            CancellationToken ct = default)
+        {
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+
+            try
+            {
+                await m_serverConfiguration!.DeleteCertificateAsync(
+                    certificateGroupId,
+                    certificateTypeId,
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<ByteString> CreateSelfSignedCertificateAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,

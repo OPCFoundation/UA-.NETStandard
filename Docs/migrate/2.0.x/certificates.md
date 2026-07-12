@@ -129,6 +129,32 @@ See [CertificateManager.md](../../CertificateManager.md) for the full API refere
 
 See [CertificateManager.md](../../CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
 
+### PushManagement transactions: TrustList/Certificate updates now require `ApplyChanges`
+
+`ConfigurationNodeManager` now implements the full OPC UA Part 12 §7.10.2
+PushManagement transaction model. This affects any code (Client or
+custom `ServerConfiguration`-adjacent NodeManager) that calls the
+`TrustList` `AddCertificate` / `RemoveCertificate` / `CloseAndUpdate`
+Methods directly and previously observed the change take effect
+immediately:
+
+| 1.5.378 behavior | 2.0 behavior |
+|---|---|
+| `TrustList.AddCertificate` / `RemoveCertificate` / `CloseAndUpdate` applied to the store immediately; a subsequent `ReadTrustList` reflected the change right away. | The same calls are **staged**. The store is unchanged — and `ReadTrustList` still returns the *old* contents — until the Session that made the call also calls `ServerConfiguration.ApplyChanges`. `CloseAndUpdate` now always reports `applyChangesRequired = true` (previously reported `false` when no restart was needed). |
+| No concept of a per-Session transaction; concurrent Sessions could interleave TrustList/Certificate updates freely. | Exactly one transaction is active at a time, owned by the Session that started it; every other Session's staging call fails with `Bad_TransactionPending` until that Session calls `ApplyChanges`, calls the new `CancelChanges` Method, or closes. |
+| `UpdateCertificate`/`CreateSelfSignedCertificate` already required `ApplyChanges` (§7.7.5) — unaffected by this change. | Unchanged; now share the same transaction as TrustList updates, plus the new `DeleteCertificate` Method. |
+
+No application code changes are required if you already call
+`ApplyChanges` after every push-management write (the previously
+recommended/spec-compliant pattern for Certificate updates) — this
+change only affects code that assumed `TrustList` writes took effect
+without it. See
+[CertificateManager.md § PushManagement Transactions](../../CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-7102-71011)
+for the full model, the new standard nodes (`SupportsTransactions`,
+`DeleteCertificate`, `CancelChanges`, `TransactionDiagnostics`), and the
+`IPushConfigurationTransactionCoordinator` / `IPendingCertificateKeyStore`
+DI replacement points.
+
 ### Obsoleted certificate APIs
 
 The following APIs are marked `[Obsolete]` and will be removed in the next minor version. They remain

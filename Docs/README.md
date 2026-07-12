@@ -12,6 +12,7 @@ Here is a list of available documentation for different topics:
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
+* [CertificateManager](CertificateManager.md) - Centralized certificate lifecycle management, server-side push certificate rotation, and the OPC UA Part 12 PushManagement transaction model (`ApplyChanges`/`CancelChanges`, staged TrustList/Certificate updates, `DeleteCertificate`, pending-key persistence).
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.

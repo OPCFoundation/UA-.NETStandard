@@ -41,15 +41,71 @@ namespace Opc.Ua.Server
         public MainNodeManagerFactory(
             ApplicationConfiguration applicationConfiguration,
             IServerInternal server)
+            : this(applicationConfiguration, server, coordinator: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an explicit PushManagement
+        /// transaction coordinator, replacing the default one that
+        /// <see cref="ConfigurationNodeManager"/> would otherwise create.
+        /// </summary>
+        /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <param name="server">The server.</param>
+        /// <param name="coordinator">
+        /// The shared PushManagement transaction coordinator, or
+        /// <see langword="null"/> to let <see cref="ConfigurationNodeManager"/>
+        /// create its own default instance.
+        /// </param>
+        public MainNodeManagerFactory(
+            ApplicationConfiguration applicationConfiguration,
+            IServerInternal server,
+            IPushConfigurationTransactionCoordinator? coordinator)
+            : this(applicationConfiguration, server, coordinator, pendingKeyStore: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an explicit PushManagement
+        /// transaction coordinator and pending-key store, replacing the
+        /// defaults that <see cref="ConfigurationNodeManager"/> would
+        /// otherwise create.
+        /// </summary>
+        /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <param name="server">The server.</param>
+        /// <param name="coordinator">
+        /// The shared PushManagement transaction coordinator, or
+        /// <see langword="null"/> to let <see cref="ConfigurationNodeManager"/>
+        /// create its own default instance.
+        /// </param>
+        /// <param name="pendingKeyStore">
+        /// The store used to persist regenerated signing-request private
+        /// keys (§7.10.10), or <see langword="null"/> to let
+        /// <see cref="ConfigurationNodeManager"/> create its own default
+        /// <see cref="DirectoryPendingCertificateKeyStore"/>.
+        /// </param>
+        public MainNodeManagerFactory(
+            ApplicationConfiguration applicationConfiguration,
+            IServerInternal server,
+            IPushConfigurationTransactionCoordinator? coordinator,
+            IPendingCertificateKeyStore? pendingKeyStore)
         {
             m_applicationConfiguration = applicationConfiguration;
             m_server = server;
+            m_coordinator = coordinator;
+            m_pendingKeyStore = pendingKeyStore;
         }
 
         /// <inheritdoc/>
         public IConfigurationNodeManager CreateConfigurationNodeManager()
         {
-            return new ConfigurationNodeManager(m_server, m_applicationConfiguration);
+            return new ConfigurationNodeManager(
+                m_server,
+                m_applicationConfiguration,
+                m_server.Telemetry.CreateLogger<ConfigurationNodeManager>(),
+                timeProvider: null,
+                m_coordinator,
+                m_pendingKeyStore);
         }
 
         /// <inheritdoc/>
@@ -60,5 +116,7 @@ namespace Opc.Ua.Server
 
         private readonly ApplicationConfiguration m_applicationConfiguration;
         private readonly IServerInternal m_server;
+        private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
+        private readonly IPendingCertificateKeyStore? m_pendingKeyStore;
     }
 }

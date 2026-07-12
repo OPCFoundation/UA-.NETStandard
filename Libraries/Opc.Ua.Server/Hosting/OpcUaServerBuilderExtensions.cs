@@ -1116,6 +1116,9 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            services
+                .TryAddSingleton<IPushConfigurationTransactionCoordinator, PushConfigurationTransactionCoordinator>();
+            services.TryAddSingleton<IPendingCertificateKeyStore, DirectoryPendingCertificateKeyStore>();
             services.AddOptions<RoleConfigurationOptions>();
             if (enableConfiguredIdentityAuthenticators)
             {

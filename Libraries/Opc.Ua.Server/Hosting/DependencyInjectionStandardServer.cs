@@ -121,6 +121,21 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <inheritdoc/>
+        protected override IMainNodeManagerFactory CreateMainNodeManagerFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            IPushConfigurationTransactionCoordinator? coordinator =
+                m_services.GetService<IPushConfigurationTransactionCoordinator>();
+            IPendingCertificateKeyStore? pendingKeyStore =
+                m_services.GetService<IPendingCertificateKeyStore>();
+
+            return coordinator != null || pendingKeyStore != null
+                ? new MainNodeManagerFactory(configuration, server, coordinator, pendingKeyStore)
+                : base.CreateMainNodeManagerFactory(server, configuration);
+        }
+
+        /// <inheritdoc/>
         protected override void OnNodeManagerStarted(IServerInternal server)
         {
             RegisterHistorians(server);

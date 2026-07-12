@@ -87,11 +87,50 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             ILogger logger,
             TimeProvider? timeProvider)
+            : this(server, configuration, logger, timeProvider, coordinator: null, pendingKeyStore: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the configuration and diagnostics manager with an
+        /// explicit PushManagement transaction coordinator and pending-key
+        /// store, replacing the defaults this manager would otherwise
+        /// create for itself.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="logger">The logger.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used by the certificate-alarm
+        /// timer and by the "apply changes" delay. When <c>null</c>, the time
+        /// provider exposed by the server (via <see cref="ITimeProviderProvider"/>)
+        /// is used, falling back to <see cref="TimeProvider.System"/>.
+        /// </param>
+        /// <param name="coordinator">
+        /// The shared PushManagement transaction coordinator (OPC 10000-12
+        /// §§7.10.2-7.10.11). When <see langword="null"/>, a private
+        /// <see cref="PushConfigurationTransactionCoordinator"/> is created.
+        /// </param>
+        /// <param name="pendingKeyStore">
+        /// The store used to persist regenerated signing-request private
+        /// keys (§7.10.10). When <see langword="null"/>, a private
+        /// <see cref="DirectoryPendingCertificateKeyStore"/> is created.
+        /// </param>
+        public ConfigurationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger,
+            TimeProvider? timeProvider,
+            IPushConfigurationTransactionCoordinator? coordinator,
+            IPendingCertificateKeyStore? pendingKeyStore)
             : base(server, configuration, logger, timeProvider)
         {
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
+            m_coordinator = coordinator
+                ?? new PushConfigurationTransactionCoordinator(server.Telemetry, m_timeProvider);
+            m_pendingKeyStore = pendingKeyStore ?? new DirectoryPendingCertificateKeyStore();
             string? rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
                 .StorePath;
             if (!string.IsNullOrEmpty(rejectedStorePath))
@@ -201,7 +240,11 @@ namespace Opc.Ua.Server
 
                             activeNode
                                 .AddGetCertificates(context)
-                                .AddCreateSelfSignedCertificate(context);
+                                .AddCreateSelfSignedCertificate(context)
+                                .AddDeleteCertificate(context)
+                                .AddCancelChanges(context)
+                                .AddSupportsTransactions(context)
+                                .AddTransactionDiagnostics(context);
 
                             m_serverConfigurationNode = activeNode;
 
@@ -279,15 +322,49 @@ namespace Opc.Ua.Server
                 m_userManagementBinding?.Dispose();
                 m_userManagementBinding = null;
 
-                foreach (ServerCertificateGroup certificateGroup in m_certificateGroups)
-                {
-                    DisposePendingRotationState(certificateGroup);
-                }
+                // Cancels and disposes any transaction still active
+                // (staged certificate/TrustList operations) so their
+                // captured certificates and streams do not leak. Any
+                // rotations produced by a commit are always drained and
+                // handled (disposed or scheduled) by that same call to
+                // ApplyChangesAsync below before it returns, so there is
+                // no separate global rotation list to clean up here.
+                m_coordinator.Reset();
 
                 StopAlarmMonitoring();
             }
 
             base.Dispose(disposing);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Per OPC UA Part 12 §7.10.2, an abandoned PushManagement
+        /// transaction must not block every other Session indefinitely.
+        /// When the closing Session owns the active transaction, it is
+        /// cancelled (staged operations discarded, never applied) and
+        /// every TrustList's open write handle owned by this Session is
+        /// closed.
+        /// </remarks>
+        public override async ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            m_coordinator.CancelForSessionClose(sessionId);
+            UpdateTransactionDiagnostics(SystemContext);
+
+            foreach (ServerCertificateGroup certificateGroup in m_certificateGroups)
+            {
+                if (certificateGroup.Node?.TrustList?.Handle is TrustList trustList)
+                {
+                    trustList.NotifySessionClosing(sessionId);
+                }
+            }
+
+            await base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         ///<inheritdoc/>
@@ -322,15 +399,24 @@ namespace Opc.Ua.Server
             configNode.CreateSelfSignedCertificate?.OnCallAsync =
                     new CreateSelfSignedCertificateMethodStateMethodAsyncCallHandler(
                         CreateSelfSignedCertificateAsync);
-            configNode.ApplyChanges!.OnCallMethod2
-                = new GenericMethodCalledEventHandler2(ApplyChanges);
+            configNode.DeleteCertificate?.OnCallAsync =
+                new DeleteCertificateMethodStateMethodAsyncCallHandler(DeleteCertificateAsync);
+            configNode.ApplyChanges!.OnCallMethod2Async
+                = new GenericMethodCalledEventHandler2Async(ApplyChangesAsync);
+            configNode.CancelChanges?.OnCallMethod2Async
+                = new GenericMethodCalledEventHandler2Async(CancelChangesAsync);
             configNode.GetRejectedList!.OnCall
                 = new GetRejectedListMethodStateMethodCallHandler(
                 GetRejectedList);
             configNode.GetCertificates!.OnCall
                 = new GetCertificatesMethodStateMethodCallHandler(
                 GetCertificates);
+            if (configNode.SupportsTransactions != null)
+            {
+                configNode.SupportsTransactions.Value = true;
+            }
             configNode.ClearChangeMasks(systemContext, true);
+            UpdateTransactionDiagnostics(systemContext);
 
             // setup certificate group trust list handlers
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
@@ -343,6 +429,7 @@ namespace Opc.Ua.Server
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                     Server.Telemetry,
+                    m_coordinator,
                     m_configuration.ServerConfiguration!.MaxTrustListSize);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
@@ -565,6 +652,656 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Extracts the owning Session's NodeId from <paramref name="context"/>,
+        /// or <see cref="NodeId.Null"/> when the context is not
+        /// Session-bound (for example, an internal call).
+        /// </summary>
+        private static NodeId GetSessionId(ISystemContext context)
+        {
+            return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+        }
+
+        /// <summary>
+        /// Refreshes the <c>TransactionDiagnostics</c> address-space node
+        /// from the coordinator's current snapshot. Called after every
+        /// <c>ApplyChanges</c>, <c>CancelChanges</c>, and Session-close
+        /// cancellation.
+        /// </summary>
+        private void UpdateTransactionDiagnostics(ISystemContext context)
+        {
+            if (m_serverConfigurationNode?.TransactionDiagnostics is not { } diagnosticsNode)
+            {
+                return;
+            }
+
+            PushConfigurationTransactionSnapshot snapshot = m_coordinator.GetSnapshot();
+
+            if (diagnosticsNode.StartTime != null)
+            {
+                diagnosticsNode.StartTime.Value = snapshot.StartTime;
+            }
+
+            if (diagnosticsNode.EndTime != null)
+            {
+                diagnosticsNode.EndTime.Value = snapshot.EndTime;
+            }
+
+            if (diagnosticsNode.Result != null)
+            {
+                diagnosticsNode.Result.Value = snapshot.Result;
+            }
+
+            if (diagnosticsNode.AffectedTrustLists != null)
+            {
+                diagnosticsNode.AffectedTrustLists.Value = snapshot.AffectedTrustLists;
+            }
+
+            if (diagnosticsNode.AffectedCertificateGroups != null)
+            {
+                diagnosticsNode.AffectedCertificateGroups.Value = snapshot.AffectedCertificateGroups;
+            }
+
+            if (diagnosticsNode.Errors != null)
+            {
+                diagnosticsNode.Errors.Value = snapshot.Errors;
+            }
+
+            diagnosticsNode.ClearChangeMasks(context, true);
+        }
+
+        /// <summary>
+        /// Finds the configured <see cref="CertificateIdentifier"/> for
+        /// <paramref name="certificateTypeId"/> within <paramref name="certificateGroup"/>.
+        /// The identifier is metadata-only (store path/type and
+        /// certificate type); it may or may not currently resolve to a
+        /// certificate on disk.
+        /// </summary>
+        private static CertificateIdentifier FindCertificateIdentifier(
+            ServerCertificateGroup certificateGroup,
+            NodeId certificateTypeId)
+        {
+            return certificateGroup.ApplicationCertificates
+                .ToList()
+                .FirstOrDefault(cert => cert.CertificateType == certificateTypeId)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "Certificate type not valid for certificate group.");
+        }
+
+        /// <summary>
+        /// Asynchronously determines whether <paramref name="existingCertIdentifier"/>'s
+        /// slot currently resolves to a certificate. The certificate
+        /// manager's registry (keyed purely by configured certificate
+        /// type, consistent with <c>GetCertificates</c>/<c>UpdateCertificate</c>
+        /// elsewhere in this class) is authoritative when available;
+        /// resolving directly against the store is used only as a
+        /// fallback, since store resolution re-validates the certificate's
+        /// cryptographic properties against the certificate type and would
+        /// otherwise disagree with the registry for perfectly valid
+        /// configurations. Used by <c>CreateSelfSignedCertificate</c> (OPC
+        /// 10000-12 §7.10.6: never replace an occupied slot) and by
+        /// <c>DeleteCertificate</c> (the slot must be occupied).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The live occupancy above is netted against every operation
+        /// already staged (but not yet committed) in the active
+        /// transaction for this exact (<paramref name="certificateGroupId"/>,
+        /// <c>existingCertIdentifier.CertificateType</c>) slot, via
+        /// <see cref="IPushConfigurationTransactionCoordinator.GetStagedOperations"/>,
+        /// so a later request in the same transaction is validated
+        /// against the cumulative effect of every earlier request against
+        /// this slot - not just the live state as it appeared before any
+        /// staging began. This permits, for example, staging
+        /// <c>DeleteCertificate</c> followed by <c>CreateSelfSignedCertificate</c>
+        /// for the same slot in one transaction (the slot nets as
+        /// unoccupied even though the live delete has not committed yet),
+        /// and makes <c>CreateSelfSignedCertificate</c> followed by
+        /// <c>DeleteCertificate</c> see the slot as occupied (even though
+        /// the live create has not committed yet either).
+        /// </para>
+        /// <para>
+        /// Only the returned <c>Occupied</c> flag is netted this way;
+        /// <c>Thumbprint</c> always reflects the real live state.
+        /// <see cref="IPushConfigurationTransactionCoordinator.Stage"/>
+        /// supersedes (and discards, without ever committing) whichever
+        /// operation a new request for the same slot replaces, so the
+        /// single operation left staged for this slot must still act
+        /// against whatever is genuinely live on disk/registry once it
+        /// commits; ordered operation semantics are preserved because at
+        /// most one staged operation can ever match this exact slot.
+        /// </para>
+        /// </remarks>
+        private async ValueTask<(bool Occupied, string? Thumbprint)> IsSlotOccupiedAsync(
+            NodeId certificateGroupId,
+            CertificateIdentifier existingCertIdentifier,
+            CancellationToken cancellationToken)
+        {
+            bool occupied;
+            string? thumbprint;
+            if (m_configuration.CertificateManager is ICertificateRegistry registry)
+            {
+                using CertificateEntry? entry = registry
+                    .AcquireApplicationCertificateByType(existingCertIdentifier.CertificateType);
+                occupied = entry != null;
+                thumbprint = entry?.Certificate.Thumbprint;
+            }
+            else
+            {
+                Certificate? resolved = await CertificateIdentifierResolver.ResolveAsync(
+                    existingCertIdentifier,
+                    registry: null,
+                    needPrivateKey: false,
+                    m_configuration.ApplicationUri,
+                    Server.Telemetry,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (resolved == null)
+                {
+                    occupied = false;
+                    thumbprint = null;
+                }
+                else
+                {
+                    using (resolved)
+                    {
+                        occupied = true;
+                        thumbprint = resolved.Thumbprint;
+                    }
+                }
+            }
+
+            foreach (PushConfigurationOperation staged in m_coordinator.GetStagedOperations())
+            {
+                if (staged.AffectedCertificateType.IsNull ||
+                    !Utils.IsEqual(staged.AffectedCertificateType, existingCertIdentifier.CertificateType) ||
+                    !Utils.IsEqual(staged.AffectedCertificateGroup, certificateGroupId))
+                {
+                    continue;
+                }
+
+                // Stage() supersedes (and disposes) any earlier operation
+                // staged for this same (group, type) pair, so at most one
+                // entry here can ever match; that single match always
+                // reflects the net effect of every request already made
+                // against this slot in this transaction.
+                occupied = !staged.LeavesCertificateSlotEmpty;
+            }
+
+            return (occupied, thumbprint);
+        }
+
+        /// <summary>
+        /// Builds the scope used to persist or retrieve the pending
+        /// regenerated private key (§7.10.10) for a certificate group/type
+        /// slot.
+        /// </summary>
+        private PendingCertificateKeyContext CreatePendingKeyContext(
+            ServerCertificateGroup certificateGroup,
+            CertificateIdentifier existingCertIdentifier)
+        {
+            var baseStore = new CertificateStoreIdentifier(
+                existingCertIdentifier.StorePath ?? string.Empty,
+                existingCertIdentifier.StoreType ?? string.Empty,
+                noPrivateKeys: false);
+            return new PendingCertificateKeyContext(
+                baseStore,
+                certificateGroup.NodeId,
+                existingCertIdentifier.CertificateType,
+                m_configuration.SecurityConfiguration.CertificatePasswordProvider,
+                Server.Telemetry);
+        }
+
+        /// <summary>
+        /// Applies a single certificate-group slot mutation: removes
+        /// <paramref name="removeThumbprint"/> (if any) from the
+        /// application store, adds <paramref name="addCertificateWithKey"/>
+        /// (if any), imports <paramref name="addIssuerChain"/> into the
+        /// group's issuer store (skipping any issuer certificate whose
+        /// thumbprint is already present), and synchronizes the
+        /// certificate manager's registry. This single primitive
+        /// implements every staged certificate operation's commit AND
+        /// rollback: a rollback simply invokes it with the before/after
+        /// roles swapped (remove what commit added, restore what commit
+        /// removed).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The coordinator only compensates operations that commit in
+        /// full (see <see cref="PushConfigurationTransactionCoordinator.ApplyChangesAsync"/>);
+        /// an operation whose own <c>CommitAsync</c> throws is excluded
+        /// from that reverse-order compensation. When <paramref name="removedCertificateBackup"/>
+        /// is supplied and the certificate removal above already
+        /// succeeded, this method is therefore self-compensating: it
+        /// restores <paramref name="removedCertificateBackup"/> before
+        /// propagating a failure to add <paramref name="addCertificateWithKey"/>,
+        /// so the slot is never left empty just because the replacement
+        /// certificate could not be written.
+        /// </para>
+        /// <para>
+        /// The returned thumbprints identify exactly the issuer
+        /// certificates this call newly added (excluding any that were
+        /// already present in the issuer store before it ran). A caller
+        /// that later needs to compensate this import - either via a
+        /// reverse-order rollback once a later staged operation in the
+        /// same transaction fails to commit, or via its own self-
+        /// compensation - should remove exactly those thumbprints (for
+        /// example with <see cref="RemoveIssuerCertificatesAsync"/>), so a
+        /// pre-existing issuer certificate is never removed just because
+        /// it was also part of this call's issuer chain.
+        /// </para>
+        /// <para>
+        /// This method is also self-compensating for the reverse ordering:
+        /// when the application certificate slot above has already been
+        /// fully swapped (both <paramref name="removeThumbprint"/> removed
+        /// and <paramref name="addCertificateWithKey"/> added) and
+        /// <paramref name="removedCertificateBackup"/> is supplied, a
+        /// subsequent failure importing <paramref name="addIssuerChain"/>
+        /// is compensated via <see cref="RestoreCertificateSlotAfterIssuerImportFailureAsync"/>
+        /// before it propagates: the previous application certificate is
+        /// restored and exactly the issuer certificates this call's import
+        /// loop newly added so far are removed again, so a partial issuer
+        /// import can never leave a newer application certificate live
+        /// alongside orphaned or half-imported issuers.
+        /// </para>
+        /// </remarks>
+        private async Task<ArrayOf<string>> ApplyCertificateSlotChangeAsync(
+            ServerCertificateGroup certificateGroup,
+            CertificateIdentifier existingCertIdentifier,
+            string? removeThumbprint,
+            Certificate? addCertificateWithKey,
+            CertificateCollection? addIssuerChain,
+            CancellationToken ct,
+            Certificate? removedCertificateBackup = null)
+        {
+            bool removedCertificate = false;
+            using (ICertificateStore? appStore = CertificateIdentifierResolver
+                .OpenStore(existingCertIdentifier, Server.Telemetry))
+            {
+                if (appStore == null)
+                {
+                    throw ServiceResultException.ConfigurationError(
+                        "Failed to open application certificate store.");
+                }
+
+                if (!string.IsNullOrEmpty(removeThumbprint))
+                {
+                    m_logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "Delete application certificate {Thumbprint}",
+                        removeThumbprint);
+                    await appStore.DeleteAsync(removeThumbprint!, ct).ConfigureAwait(false);
+                    removedCertificate = true;
+                }
+
+                if (addCertificateWithKey != null)
+                {
+                    ICertificatePasswordProvider? passwordProvider = m_configuration
+                        .SecurityConfiguration
+                        .CertificatePasswordProvider;
+                    try
+                    {
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "Add application certificate {Certificate}",
+                            addCertificateWithKey);
+                        Debug.Assert(addCertificateWithKey.HasPrivateKey);
+                        await appStore.AddAsync(
+                            addCertificateWithKey,
+                            passwordProvider?.GetPassword(existingCertIdentifier),
+                            ct).ConfigureAwait(false);
+                    }
+                    catch (Exception) when (removedCertificate && removedCertificateBackup != null)
+                    {
+                        // This operation already removed the previous
+                        // certificate above before this add failed; self-
+                        // compensate by restoring it (see remarks) before
+                        // the original exception propagates below.
+                        try
+                        {
+                            await appStore.AddAsync(
+                                removedCertificateBackup,
+                                passwordProvider?.GetPassword(existingCertIdentifier),
+                                ct).ConfigureAwait(false);
+                            m_logger.LogWarning(
+                                Utils.TraceMasks.Security,
+                                "Restored the previous application certificate for {Type} after " +
+                                "the replacement failed to commit.",
+                                existingCertIdentifier.CertificateType);
+                        }
+                        catch (Exception restoreException)
+                        {
+                            m_logger.LogCritical(
+                                restoreException,
+                                "Failed to restore the previous application certificate for {Type} " +
+                                "after the replacement failed to commit. Server configuration may " +
+                                "be inconsistent.",
+                                existingCertIdentifier.CertificateType);
+                        }
+
+                        throw;
+                    }
+                }
+            }
+
+            List<string>? newlyAddedIssuerThumbprints = null;
+            if (addIssuerChain is { Count: > 0 })
+            {
+                using ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
+                try
+                {
+                    foreach (Certificate issuer in addIssuerChain)
+                    {
+                        bool alreadyPresent;
+                        using (CertificateCollection existingMatches = await issuerStore
+                            .FindByThumbprintAsync(issuer.Thumbprint, ct).ConfigureAwait(false))
+                        {
+                            alreadyPresent = existingMatches.Count > 0;
+                        }
+
+                        try
+                        {
+                            await issuerStore.AddAsync(issuer, ct: ct).ConfigureAwait(false);
+                        }
+                        catch (ArgumentException)
+                        {
+                            // ignore error if issuer cert already exists
+                            alreadyPresent = true;
+                        }
+
+                        if (!alreadyPresent)
+                        {
+                            (newlyAddedIssuerThumbprints ??= []).Add(issuer.Thumbprint);
+                        }
+                    }
+                }
+                catch (Exception)
+                    when (removedCertificate && addCertificateWithKey != null && removedCertificateBackup != null)
+                {
+                    // The application certificate slot above was already
+                    // fully swapped (the previous certificate removed and
+                    // the new one added) before this issuer import failed;
+                    // self-compensate by restoring the previous certificate
+                    // and removing exactly the issuer certificates this
+                    // loop newly added so far (preserving every issuer that
+                    // was already present before it ran), before the
+                    // original exception propagates below.
+                    await RestoreCertificateSlotAfterIssuerImportFailureAsync(
+                        certificateGroup,
+                        existingCertIdentifier,
+                        addCertificateWithKey,
+                        removedCertificateBackup,
+                        newlyAddedIssuerThumbprints?.ToArrayOf() ?? ArrayOf<string>.Empty,
+                        ct).ConfigureAwait(false);
+
+                    throw;
+                }
+            }
+
+            if (addCertificateWithKey != null)
+            {
+                if (m_configuration.CertificateManager is ICertificateLifecycle lifecycle)
+                {
+                    using Certificate certOnly = Certificate.FromRawData(addCertificateWithKey.RawData);
+                    await lifecycle.UpdateApplicationCertificateAsync(
+                        existingCertIdentifier.CertificateType,
+                        certOnly,
+                        issuerChain: null,
+                        ct).ConfigureAwait(false);
+                }
+            }
+            else if (m_configuration.CertificateManager != null)
+            {
+                // DeleteCertificate / rollback-of-create leaves nothing to
+                // register. ICertificateLifecycle exposes no direct
+                // "unregister" primitive, so a reload re-derives the
+                // registry from the security configuration's stores; the
+                // now-missing certificate file naturally drops this
+                // type's entry from the reloaded snapshot.
+                await m_configuration.CertificateManager.UpdateAsync(
+                    m_configuration.SecurityConfiguration,
+                    m_configuration.ApplicationUri,
+                    ct).ConfigureAwait(false);
+            }
+
+            return newlyAddedIssuerThumbprints?.ToArrayOf() ?? ArrayOf<string>.Empty;
+        }
+
+        /// <summary>
+        /// Self-compensates a completed application-certificate slot swap
+        /// (the previous certificate removed and <paramref name="committedCertificateWithKey"/>
+        /// added in its place) once importing that certificate's issuer
+        /// chain fails after the swap has already committed: deletes
+        /// <paramref name="committedCertificateWithKey"/> from the
+        /// application store, restores <paramref name="removedCertificateBackup"/>
+        /// in its place, and removes exactly <paramref name="newlyAddedIssuerThumbprints"/>
+        /// from the group's issuer store, preserving every issuer that was
+        /// already present before the failed import ran.
+        /// </summary>
+        /// <remarks>
+        /// Every step here is best-effort cleanup running after the
+        /// triggering issuer-import failure; each stage is isolated so a
+        /// failure restoring the application certificate does not prevent
+        /// the issuer cleanup from being attempted, and any compensation
+        /// failure is only logged (never thrown), so the caller's
+        /// <see langword="throw"/> of the original import failure is never
+        /// masked or replaced.
+        /// </remarks>
+        private async Task RestoreCertificateSlotAfterIssuerImportFailureAsync(
+            ServerCertificateGroup certificateGroup,
+            CertificateIdentifier existingCertIdentifier,
+            Certificate committedCertificateWithKey,
+            Certificate removedCertificateBackup,
+            ArrayOf<string> newlyAddedIssuerThumbprints,
+            CancellationToken ct)
+        {
+            try
+            {
+                using ICertificateStore? appStore = CertificateIdentifierResolver
+                    .OpenStore(existingCertIdentifier, Server.Telemetry);
+                if (appStore != null)
+                {
+                    await appStore.DeleteAsync(committedCertificateWithKey.Thumbprint, ct)
+                        .ConfigureAwait(false);
+                    ICertificatePasswordProvider? passwordProvider = m_configuration
+                        .SecurityConfiguration
+                        .CertificatePasswordProvider;
+                    await appStore.AddAsync(
+                        removedCertificateBackup,
+                        passwordProvider?.GetPassword(existingCertIdentifier),
+                        ct).ConfigureAwait(false);
+                    m_logger.LogWarning(
+                        Utils.TraceMasks.Security,
+                        "Restored the previous application certificate for {Type} after " +
+                        "importing its issuer chain failed to commit.",
+                        existingCertIdentifier.CertificateType);
+                }
+            }
+            catch (Exception restoreException)
+            {
+                m_logger.LogCritical(
+                    restoreException,
+                    "Failed to restore the previous application certificate for {Type} after " +
+                    "importing its issuer chain failed to commit. Server configuration may be " +
+                    "inconsistent.",
+                    existingCertIdentifier.CertificateType);
+            }
+
+            // RemoveIssuerCertificatesAsync never throws (it logs and
+            // continues per thumbprint); it is still awaited within its
+            // own scope here so a hypothetical future change to that
+            // contract can never mask the original issuer-import failure
+            // this method was called to compensate.
+            await RemoveIssuerCertificatesAsync(certificateGroup, newlyAddedIssuerThumbprints, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Removes each issuer certificate identified by <paramref name="thumbprints"/>
+        /// from <paramref name="certificateGroup"/>'s issuer store.
+        /// </summary>
+        /// <remarks>
+        /// Used to compensate the issuers a completed <c>UpdateCertificate</c>
+        /// commit imported via <see cref="ApplyCertificateSlotChangeAsync"/>,
+        /// so a reverse-order rollback (or self-compensation) removes
+        /// exactly the issuer certificates that commit newly added and
+        /// never a pre-existing issuer certificate. A failure to remove
+        /// one thumbprint is logged and does not prevent the remaining
+        /// thumbprints from being attempted, since these failures are
+        /// best-effort cleanup after the more critical application
+        /// certificate has already been restored by the caller.
+        /// </remarks>
+        private async Task RemoveIssuerCertificatesAsync(
+            ServerCertificateGroup certificateGroup,
+            ArrayOf<string> thumbprints,
+            CancellationToken ct)
+        {
+            if (thumbprints.Count == 0)
+            {
+                return;
+            }
+
+            using ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
+            // Indexed rather than foreach: ArrayOf<T>'s enumerator is a
+            // ReadOnlySpan<T>.Enumerator (a ref struct), which cannot be
+            // held across the await below.
+            for (int i = 0; i < thumbprints.Count; i++)
+            {
+                string thumbprint = thumbprints[i];
+                try
+                {
+                    await issuerStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogCritical(
+                        ex,
+                        "Failed to remove a newly staged issuer certificate {Thumbprint} from {Group} " +
+                        "while rolling back a PushManagement operation. Server configuration may be " +
+                        "inconsistent.",
+                        thumbprint,
+                        certificateGroup.NodeId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Records that <paramref name="oldCertificateWithKey"/> was
+        /// replaced or removed by a just-committed operation so
+        /// <c>ApplyChanges</c> can force-close the SecureChannels that were
+        /// negotiated against it (OPC UA Part 12 §7.10.9), once the whole
+        /// transaction commits successfully. Takes its own reference; the
+        /// caller's own copy is unaffected.
+        /// </summary>
+        /// <remarks>
+        /// Adds to the collector that is flowed, through the ambient
+        /// async call chain, by whichever call to <c>ApplyChanges</c> is
+        /// currently running the coordinator's commit loop. This is
+        /// deliberately NOT a single shared/global collection: a
+        /// concurrent or duplicate <c>ApplyChanges</c> call that finds no
+        /// active transaction (and so short-circuits with
+        /// <see cref="StatusCodes.BadNothingToDo"/> without running any
+        /// commit) never sees, and can therefore never drain or dispose,
+        /// the rotations produced by another call's still-running
+        /// successful commit.
+        /// </remarks>
+        private void RegisterPendingRotation(NodeId certificateType, Certificate oldCertificateWithKey)
+        {
+            List<PendingCertificateRotation>? collector = m_activeRotationCollector.Value;
+            if (collector == null)
+            {
+                // Not reachable through the standard ApplyChanges method
+                // handler, which always sets the collector before running
+                // the coordinator's commit loop; nothing to correlate this
+                // rotation with.
+                return;
+            }
+
+            using Certificate rotationCopy = Certificate.FromRawData(oldCertificateWithKey.RawData);
+            collector.Add(new PendingCertificateRotation
+            {
+                OldCertificate = rotationCopy.AddRef(),
+                CertificateType = certificateType
+            });
+        }
+
+        /// <summary>
+        /// Conservative OPC 10000-12 §7.10.7 safety check for <c>DeleteCertificate</c>:
+        /// rejects deleting the last remaining active application
+        /// certificate across every certificate group, since every secure
+        /// endpoint would then have no certificate to present.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is a deliberately conservative subset of the full "is this
+        /// certificate the sole reference of an active endpoint" check,
+        /// which would additionally require correlating each endpoint's
+        /// configured SecurityPolicyUri to a specific certificate
+        /// group/type. It never rejects a delete that the full check would
+        /// allow, but a deployment that assigns different certificate
+        /// groups to different endpoints could be more permissive than a
+        /// full per-endpoint check.
+        /// </para>
+        /// <para>
+        /// The live registry alone is not enough: staging one
+        /// <c>DeleteCertificate</c> request per certificate type within
+        /// the same transaction would otherwise pass this check
+        /// individually for every request (none of the earlier staged
+        /// deletes have actually been applied to the live registry yet)
+        /// and still leave every certificate-group/type slot empty once
+        /// <c>ApplyChanges</c> commits them all together. This check
+        /// therefore nets the live registry against every certificate
+        /// type already staged (but not yet committed) in the active
+        /// transaction, via <see cref="IPushConfigurationTransactionCoordinator.GetStagedOperations"/>,
+        /// before deciding whether this additional delete is safe.
+        /// </para>
+        /// </remarks>
+        private void EnsureCertificateNotSoleEndpointReference(NodeId certificateTypeId)
+        {
+            if (m_configuration.CertificateManager is not ICertificateRegistry registry)
+            {
+                return;
+            }
+
+            var occupiedTypes = new HashSet<NodeId>();
+            using (CertificateEntryCollection snapshot = registry.SnapshotApplicationCertificates())
+            {
+                foreach (CertificateEntry entry in snapshot)
+                {
+                    occupiedTypes.Add(entry.CertificateType);
+                }
+            }
+
+            foreach (PushConfigurationOperation staged in m_coordinator.GetStagedOperations())
+            {
+                if (staged.AffectedCertificateType.IsNull)
+                {
+                    continue;
+                }
+
+                if (staged.LeavesCertificateSlotEmpty)
+                {
+                    occupiedTypes.Remove(staged.AffectedCertificateType);
+                }
+                else
+                {
+                    occupiedTypes.Add(staged.AffectedCertificateType);
+                }
+            }
+
+            // The delete about to be staged removes this type too.
+            occupiedTypes.Remove(certificateTypeId);
+
+            if (occupiedTypes.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Deleting this certificate would leave the server with no application certificate " +
+                    "for any active endpoint.");
+            }
+        }
+
         private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -577,7 +1314,6 @@ namespace Opc.Ua.Server
             ByteString privateKey,
             CancellationToken ct)
         {
-            bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
             // OPC 10000-12 §7.10.3: the private key is sensitive material;
@@ -604,6 +1340,8 @@ namespace Opc.Ua.Server
                 m_logger);
             Certificate? newCert = null;
             CertificateCollection? newIssuerCollection = null;
+            Certificate? newCertificateWithKey = null;
+            Certificate? previousCertificateWithKey = null;
             try
             {
                 if (certificate.IsEmpty)
@@ -622,7 +1360,9 @@ namespace Opc.Ua.Server
                 ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                     certificateGroupId,
                     certificateTypeId)!;
-                ResetPendingUpdateCertificate(certificateGroup);
+
+                NodeId sessionId = GetSessionId(context);
+                m_coordinator.ValidateSessionCanParticipate(sessionId);
 
                 try
                 {
@@ -742,157 +1482,100 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                var updateCertificate = new UpdateCertificateData
+                // Capture the pre-transaction certificate/private key
+                // before any mutation (OPC UA Part 12 §7.10.2) so a
+                // reverse-compensation rollback can restore it if a later
+                // staged operation in this transaction fails to commit.
+                ICertificatePasswordProvider? passwordProvider = m_configuration
+                    .SecurityConfiguration
+                    .CertificatePasswordProvider;
+                string? previousThumbprint;
+                if (m_configuration.CertificateManager is ICertificateRegistry registry)
                 {
-                    IssuerCollection = newIssuerCollection,
-                    SessionId = (context as ISessionSystemContext)?.SessionId ?? default
-                };
+                    using CertificateEntry? currentEntry = registry
+                        .AcquireApplicationCertificateByType(existingCertIdentifier.CertificateType);
+                    previousThumbprint = currentEntry?.Certificate.Thumbprint
+                        ?? existingCertIdentifier.Thumbprint;
+                }
+                else
+                {
+                    previousThumbprint = existingCertIdentifier.Thumbprint;
+                }
+
+                previousCertificateWithKey = await CertificateIdentifierResolver
+                    .LoadPrivateKeyAsync(
+                        existingCertIdentifier,
+                        passwordProvider,
+                        m_configuration.ApplicationUri,
+                        Server.Telemetry,
+                        ct)
+                    .ConfigureAwait(false);
+
                 try
                 {
-                    ICertificatePasswordProvider? passwordProvider = m_configuration
-                        .SecurityConfiguration
-                        .CertificatePasswordProvider;
                     switch (privateKeyFormat)
                     {
                         case null:
                         case "":
-                            for (int attempt = 0; ; attempt++)
-                            {
-                                Certificate? exportableKey = null;
-                                try
-                                {
-                                    // use the new generated private key if one exists and matches the provided public key
-                                    if (certificateGroup.TemporaryApplicationCertificate != null &&
-                                        X509Utils.VerifyKeyPair(
-                                            newCert,
-                                            certificateGroup.TemporaryApplicationCertificate))
-                                    {
-                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
-                                        // cannot track disposal across the for-retry loop / try / catch structure.
-#pragma warning disable CA2000
-                                        exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                            certificateGroup.TemporaryApplicationCertificate,
-                                            false);
-#pragma warning restore CA2000
-                                    }
-                                    else
-                                    {
-                                        using Certificate certWithPrivateKey = await CertificateIdentifierResolver
-                                            .LoadPrivateKeyAsync(
-                                                existingCertIdentifier,
-                                                passwordProvider,
-                                                m_configuration.ApplicationUri,
-                                                Server.Telemetry,
-                                                ct)
-                                            .ConfigureAwait(false) ??
-                                            throw new ServiceResultException(
-                                                StatusCodes.BadSecurityChecksFailed,
-                                                "A private key was not found");
-                                        // CA2000: exportableKey is disposed in the finally below; the analyzer
-                                        // cannot track disposal across the for-retry loop / try / catch structure.
-#pragma warning disable CA2000
-                                        exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                            certWithPrivateKey,
-                                            false);
-#pragma warning restore CA2000
-                                    }
+                            PendingCertificateKeyContext pendingKeyContext =
+                                CreatePendingKeyContext(certificateGroup, existingCertIdentifier);
+                            Certificate? pendingKey = await m_pendingKeyStore
+                                .TryTakeAsync(pendingKeyContext, ct).ConfigureAwait(false);
 
-                                    updateCertificate.CertificateWithPrivateKey?.Dispose();
-                                    updateCertificate.CertificateWithPrivateKey =
-                                        DefaultCertificateFactory.Instance.CreateWithPrivateKey(
-                                            newCert,
-                                            exportableKey);
-                                    try
-                                    {
-                                        await UpdateCertificateInternalAsync(
-                                            certificateGroup,
-                                            existingCertIdentifier,
-                                            updateCertificate, ct).ConfigureAwait(false);
-                                        break;
-                                    }
-                                    catch (Exception ex) when (ShouldRetry(attempt, ex))
-                                    {
-                                        m_logger.LogDebug(
-                                            Utils.TraceMasks.Security,
-                                            ex,
-                                            "Failed to update certificate {Certificate}. Retrying...",
-                                            newCert);
-                                    }
-                                }
-                                finally
-                                {
-                                    exportableKey?.Dispose();
-                                }
+                            Certificate exportableKey;
+                            if (pendingKey != null && X509Utils.VerifyKeyPair(newCert, pendingKey))
+                            {
+                                // The regenerated key from a matching
+                                // CreateSigningRequest(regeneratePrivateKey:
+                                // true) is consumed here.
+                                exportableKey = pendingKey;
+                            }
+                            else
+                            {
+                                pendingKey?.Dispose();
+                                // CA2000: exportableKey is disposed by the
+                                // `using` immediately below; the analyzer
+                                // cannot track disposal through the
+                                // conditional (?:) assignment.
+#pragma warning disable CA2000
+                                exportableKey = previousCertificateWithKey != null
+                                    ? X509Utils.CreateCopyWithPrivateKey(previousCertificateWithKey, false)
+                                    : throw new ServiceResultException(
+                                        StatusCodes.BadSecurityChecksFailed,
+                                        "A private key was not found");
+#pragma warning restore CA2000
+                            }
+
+                            using (exportableKey)
+                            {
+                                newCertificateWithKey = DefaultCertificateFactory.Instance
+                                    .CreateWithPrivateKey(newCert, exportableKey);
                             }
                             break;
                         case "PFX":
-                            for (int attempt = 0; ; attempt++)
-                            {
+                        {
 #if !NET9_0_OR_GREATER
-                                // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
-                                // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
-                                bool noEphemeralKeySet = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+                            // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+                            // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
+                            bool noEphemeralKeySet = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 #else
-                                // But it seems to work on .net 9 - and we prefer that over files
-                                const bool noEphemeralKeySet = false;
+                            // But it seems to work on .net 9 - and we prefer that over files
+                            const bool noEphemeralKeySet = false;
 #endif
-                                // CA2000: certWithPrivateKey is a using declaration (disposed at scope exit);
-                                // the analyzer mis-flags it inside the for-retry loop with break.
-#pragma warning disable CA2000
-                                using Certificate certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
-                                    privateKey.ToArray(),
-                                    passwordProvider?.GetPassword(existingCertIdentifier),
-                                    noEphemeralKeySet);
-#pragma warning restore CA2000
-                                try
-                                {
-                                    updateCertificate.CertificateWithPrivateKey?.Dispose();
-                                    updateCertificate.CertificateWithPrivateKey =
-                                        DefaultCertificateFactory.Instance.CreateWithPrivateKey(
-                                            newCert,
-                                            certWithPrivateKey);
-                                    await UpdateCertificateInternalAsync(
-                                        certificateGroup,
-                                        existingCertIdentifier,
-                                        updateCertificate, ct).ConfigureAwait(false);
-                                    break;
-                                }
-                                catch (Exception ex) when (ShouldRetry(attempt, ex))
-                                {
-                                    m_logger.LogDebug(
-                                        Utils.TraceMasks.Security,
-                                        ex,
-                                        "Failed to update certificate {Certificate} with PFX private key. Retrying...",
-                                        newCert);
-                                }
-                            }
+                            using Certificate certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
+                                privateKey.ToArray(),
+                                passwordProvider?.GetPassword(existingCertIdentifier),
+                                noEphemeralKeySet);
+                            newCertificateWithKey = DefaultCertificateFactory.Instance
+                                .CreateWithPrivateKey(newCert, certWithPrivateKey);
                             break;
+                        }
                         case "PEM":
-                            for (int attempt = 0; ; attempt++)
-                            {
-                                updateCertificate.CertificateWithPrivateKey?.Dispose();
-                                updateCertificate.CertificateWithPrivateKey =
-                                    DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
-                                        newCert,
-                                        privateKey.ToArray(),
-                                        passwordProvider?.GetPassword(existingCertIdentifier));
-                                try
-                                {
-                                    await UpdateCertificateInternalAsync(
-                                        certificateGroup,
-                                        existingCertIdentifier,
-                                        updateCertificate, ct).ConfigureAwait(false);
-                                    break;
-                                }
-                                catch (Exception ex) when (ShouldRetry(attempt, ex))
-                                {
-                                    m_logger.LogDebug(
-                                        Utils.TraceMasks.Security,
-                                        ex,
-                                        "Failed to update certificate {Certificate} with PEM private key. Retrying...",
-                                        newCert);
-                                }
-                            }
+                            newCertificateWithKey = DefaultCertificateFactory.Instance
+                                .CreateWithPEMPrivateKey(
+                                    newCert,
+                                    privateKey.ToArray(),
+                                    passwordProvider?.GetPassword(existingCertIdentifier));
                             break;
                     }
                 }
@@ -902,19 +1585,87 @@ namespace Opc.Ua.Server
                         StatusCodes.BadSecurityChecksFailed,
                         "Failed to verify integrity of the new certificate and the private key.", ex);
                 }
-                finally
-                {
-                    // dispose temporary new private key as it is no longer needed
-                    certificateGroup.TemporaryApplicationCertificate?.Dispose();
-                    certificateGroup.TemporaryApplicationCertificate = null!;
-                }
 
-                certificateGroup.UpdateCertificate = updateCertificate;
-                // Ownership of the issuer collection now belongs to the staged
-                // UpdateCertificate (and the certificate group); clear the local
-                // handle so the finally does not dispose the staged collection.
+                NodeId groupNodeId = certificateGroup.NodeId;
+                Certificate stagedNewCert = newCertificateWithKey!;
+                CertificateCollection stagedIssuers = newIssuerCollection;
+                Certificate? stagedPreviousCert = previousCertificateWithKey;
+                // Populated by CommitAsync with the thumbprints of exactly
+                // the issuer certificates it newly adds (excluding any
+                // already present in the issuer store); RollbackAsync only
+                // ever runs after CommitAsync has fully completed (the
+                // coordinator only reverse-compensates operations that
+                // committed in full), so it always reads the value
+                // CommitAsync wrote.
+                ArrayOf<string> stagedNewlyAddedIssuerThumbprints = ArrayOf<string>.Empty;
+
+                // CA2025: the coordinator guarantees CommitAsync/RollbackAsync
+                // always complete (awaited to conclusion) before it invokes
+                // DisposeStaged, so stagedNewCert/stagedIssuers/
+                // stagedPreviousCert are never disposed while an operation
+                // delegate is still using them; the analyzer cannot see
+                // across that ordering contract.
+#pragma warning disable CA2025
+                m_coordinator.Stage(sessionId, new PushConfigurationOperation
+                {
+                    AffectedCertificateGroup = groupNodeId,
+                    AffectedCertificateType = certificateTypeId,
+                    CommitAsync = async ct2 =>
+                    {
+                        stagedNewlyAddedIssuerThumbprints = await ApplyCertificateSlotChangeAsync(
+                            certificateGroup,
+                            existingCertIdentifier,
+                            previousThumbprint,
+                            stagedNewCert,
+                            stagedIssuers,
+                            ct2,
+                            stagedPreviousCert).ConfigureAwait(false);
+                        if (stagedPreviousCert != null)
+                        {
+                            RegisterPendingRotation(certificateTypeId, stagedPreviousCert);
+                        }
+
+                        Server.ReportCertificateUpdatedAuditEvent(
+                            context,
+                            objectId,
+                            method,
+                            inputArguments,
+                            certificateGroupId,
+                            certificateTypeId,
+                            m_logger);
+                    },
+                    RollbackAsync = async ct2 =>
+                    {
+                        await ApplyCertificateSlotChangeAsync(
+                            certificateGroup,
+                            existingCertIdentifier,
+                            stagedNewCert.Thumbprint,
+                            stagedPreviousCert,
+                            null,
+                            ct2).ConfigureAwait(false);
+                        // Remove exactly the issuers the commit above newly
+                        // added, preserving every issuer that was already
+                        // present in the store before this operation ran.
+                        await RemoveIssuerCertificatesAsync(
+                            certificateGroup,
+                            stagedNewlyAddedIssuerThumbprints,
+                            ct2).ConfigureAwait(false);
+                    },
+                    DisposeStaged = () =>
+                    {
+                        stagedNewCert.Dispose();
+                        stagedIssuers.Dispose();
+                        stagedPreviousCert?.Dispose();
+                    }
+                });
+#pragma warning restore CA2025
+
+                // Ownership of these transferred to the staged operation
+                // above; clear the local handles so the outer finally does
+                // not double-dispose them.
+                newCertificateWithKey = null;
                 newIssuerCollection = null;
-                applyChangesRequired = true;
+                previousCertificateWithKey = null;
             }
             catch (Exception e)
             {
@@ -935,185 +1686,18 @@ namespace Opc.Ua.Server
             finally
             {
                 newCert?.Dispose();
-                // Disposed only when ownership was not transferred to the staged
-                // UpdateCertificate (i.e. an exception occurred before staging).
+                // Disposed only when ownership was not transferred to the
+                // staged operation (i.e. an exception occurred before staging).
                 newIssuerCollection?.Dispose();
+                newCertificateWithKey?.Dispose();
+                previousCertificateWithKey?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
-                ApplyChangesRequired = applyChangesRequired
+                ApplyChangesRequired = true
             };
-
-            static bool ShouldRetry(int attempt, Exception ex)
-            {
-                if (ex is ServiceResultException sre && sre.StatusCode == StatusCodes.BadConfigurationError)
-                {
-                    return false;
-                }
-                const int maxAttempts = 3;
-                return attempt < maxAttempts;
-            }
-
-            // Handle the store update
-            async Task UpdateCertificateInternalAsync(
-                ServerCertificateGroup certificateGroup,
-                CertificateIdentifier existingCertIdentifier,
-                UpdateCertificateData updateCertificate,
-                CancellationToken ct)
-            {
-                try
-                {
-                    // Resolve the currently-loaded certificate so we can
-                    // delete the right blob from the store. The configured
-                    // CertificateIdentifier may not carry an explicit
-                    // thumbprint (typical config: only StorePath +
-                    // SubjectName), and the identifier no longer caches the
-                    // loaded certificate, so we ask the registry for the
-                    // currently-active cert of this type.
-                    string? thumbprintToDelete = null;
-                    if (m_configuration.CertificateManager is ICertificateRegistry registry)
-                    {
-                        using CertificateEntry? currentEntry = registry
-                            .AcquireApplicationCertificateByType(existingCertIdentifier.CertificateType);
-                        thumbprintToDelete = currentEntry?.Certificate.Thumbprint
-                            ?? existingCertIdentifier.Thumbprint;
-
-                        // Capture the pre-transaction certificate exactly
-                        // once, even if UpdateCertificate is called multiple
-                        // times before ApplyChanges. Per OPC UA Part 12
-                        // §7.10.2 a transaction groups multiple changes; the
-                        // channel-cut in ApplyChanges must match every
-                        // SecureChannel still negotiated against the cert
-                        // that was active when the transaction started —
-                        // including connections that arrived between the
-                        // first and last staged UpdateCertificate. The
-                        // captured cert is owned by the group and disposed
-                        // by ApplyChanges after consumption (or by
-                        // DisposePendingRotationState on teardown).
-                        if (certificateGroup.OriginalCertificate == null && currentEntry != null)
-                        {
-                            certificateGroup.OriginalCertificate = currentEntry.Certificate.AddRef();
-                            certificateGroup.OriginalCertificateType =
-                                existingCertIdentifier.CertificateType;
-                        }
-                    }
-                    else
-                    {
-                        thumbprintToDelete = existingCertIdentifier.Thumbprint;
-                    }
-
-                    using (ICertificateStore? appStore = CertificateIdentifierResolver
-                        .OpenStore(existingCertIdentifier, Server.Telemetry))
-                    {
-                        if (appStore == null)
-                        {
-                            throw ServiceResultException.ConfigurationError(
-                                "Failed to open application certificate store.");
-                        }
-
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.Security,
-                            "Delete application certificate {Thumbprint}",
-                            thumbprintToDelete);
-                        if (!string.IsNullOrEmpty(thumbprintToDelete))
-                        {
-                            await appStore.DeleteAsync(
-                                thumbprintToDelete!,
-                                ct)
-                                .ConfigureAwait(false);
-                        }
-                        ICertificatePasswordProvider? passwordProvider = m_configuration
-                            .SecurityConfiguration
-                            .CertificatePasswordProvider;
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.Security,
-                            "Add new application certificate {Certificate}",
-                            updateCertificate.CertificateWithPrivateKey);
-                        Debug.Assert(updateCertificate.CertificateWithPrivateKey.HasPrivateKey);
-                        await appStore.AddAsync(
-                            updateCertificate.CertificateWithPrivateKey,
-                            passwordProvider?.GetPassword(existingCertIdentifier),
-                            ct)
-                            .ConfigureAwait(false);
-
-                        // Replace the registered application certificate in
-                        // the CertificateManager's registry so endpoint
-                        // descriptions, transport listeners, and validation
-                        // cores pick up the new cert without waiting for the
-                        // ApplyChanges-driven UpdateAsync reload.
-                        if (m_configuration.CertificateManager is ICertificateLifecycle lifecycle)
-                        {
-                            await lifecycle.UpdateApplicationCertificateAsync(
-                                existingCertIdentifier.CertificateType,
-                                updateCertificate.CertificateWithPrivateKey,
-                                issuerChain: null,
-                                ct).ConfigureAwait(false);
-                        }
-
-                        // keep only track of cert without private key
-                        var certOnly = Certificate.FromRawData(
-                            updateCertificate.CertificateWithPrivateKey.RawData);
-                        updateCertificate.CertificateWithPrivateKey.Dispose();
-                        updateCertificate.CertificateWithPrivateKey = certOnly;
-                    }
-
-                    ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
-                    try
-                    {
-                        if (issuerStore == null)
-                        {
-                            throw ServiceResultException.ConfigurationError(
-                                "Failed to open issuer certificate store.");
-                        }
-
-                        foreach (Certificate issuer in updateCertificate.IssuerCollection)
-                        {
-                            try
-                            {
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "Add new issuer certificate {Certificate}",
-                                    issuer);
-                                await issuerStore.AddAsync(issuer, ct: ct).ConfigureAwait(false);
-                            }
-                            catch (ArgumentException)
-                            {
-                                // ignore error if issuer cert already exists
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        issuerStore?.Dispose();
-                    }
-
-                    updateCertificate.IssuerCollection?.Dispose();
-                    updateCertificate.IssuerCollection = null!;
-
-                    Server.ReportCertificateUpdatedAuditEvent(
-                        context,
-                        objectId,
-                        method,
-                        inputArguments,
-                        certificateGroupId,
-                        certificateTypeId,
-                        m_logger);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.LogError(
-                        Utils.TraceMasks.Security,
-                        ex,
-                        "Failed to update certificate {Certificate}.",
-                        newCert);
-                    throw new ServiceResultException(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "Failed to update certificate.",
-                        ex);
-                }
-            }
         }
 
         internal static async Task ValidatePushCertificateAndIssuerChainAsync(
@@ -1168,11 +1752,20 @@ namespace Opc.Ua.Server
         /// Creates a new self-signed certificate per OPC 10000-12 §7.10.6.
         /// The server generates a key pair internally, builds a self-signed
         /// certificate with the requested subject / DNS / IP and lifetime,
-        /// stores it, and returns the DER-encoded public certificate.
+        /// asynchronously verifies the target slot is not occupied (a
+        /// self-signed certificate never replaces an occupied slot; use
+        /// <c>DeleteCertificate</c> first) - netted against every operation
+        /// already staged in the active transaction (see
+        /// <see cref="IsSlotOccupiedAsync"/>), so a <c>DeleteCertificate</c>
+        /// staged earlier in the same transaction for this slot permits
+        /// this call even though nothing has actually been removed from
+        /// the store/registry yet - stages the new private-key
+        /// certificate (also removing, and restoring on a later rollback,
+        /// whatever the slot still genuinely holds live in that case),
+        /// and returns the DER-encoded public certificate.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-#pragma warning disable RCS1229 // Synchronous certificate creation; TODO: remove when the handler performs async I/O.
-        private ValueTask<CreateSelfSignedCertificateMethodStateResult>
+        private async ValueTask<CreateSelfSignedCertificateMethodStateResult>
             CreateSelfSignedCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -1188,9 +1781,9 @@ namespace Opc.Ua.Server
         {
             HasApplicationSecureAdminAccess(context);
 
-            ServerCertificateGroup? certificateGroup = VerifyGroupAndTypeId(
+            ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId);
+                certificateTypeId)!;
 
             if (string.IsNullOrEmpty(subjectName))
             {
@@ -1198,6 +1791,46 @@ namespace Opc.Ua.Server
                     StatusCodes.BadInvalidArgument,
                     "SubjectName must be provided.");
             }
+
+            NodeId sessionId = GetSessionId(context);
+            m_coordinator.ValidateSessionCanParticipate(sessionId);
+
+            CertificateIdentifier existingCertIdentifier =
+                FindCertificateIdentifier(certificateGroup, certificateTypeId);
+
+            // OPC 10000-12 §7.10.6: never replace an occupied slot;
+            // DeleteCertificate is the standard mechanism to empty one.
+            // Netted against every operation already staged in this
+            // transaction, so a DeleteCertificate staged earlier for this
+            // same slot permits this call to proceed.
+            (bool occupied, string? previousThumbprint) = await IsSlotOccupiedAsync(
+                certificateGroup.NodeId, existingCertIdentifier, cancellationToken).ConfigureAwait(false);
+            if (occupied)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "The certificate slot is already occupied. Use DeleteCertificate to empty it first.");
+            }
+
+            // The slot may still genuinely hold a certificate on disk/the
+            // registry even though it is not occupied above: an earlier
+            // DeleteCertificate staged for this same slot in this
+            // transaction nets it as unoccupied without having actually
+            // removed anything from the store yet. Capture that
+            // certificate now so this operation can restore it - instead
+            // of just discarding the newly created one and leaving the
+            // slot empty - if a later staged operation in the same
+            // transaction fails and this one must be rolled back.
+            Certificate? previousCertificateWithKey = string.IsNullOrEmpty(previousThumbprint)
+                ? null
+                : await CertificateIdentifierResolver
+                    .LoadPrivateKeyAsync(
+                        existingCertIdentifier,
+                        m_configuration.SecurityConfiguration.CertificatePasswordProvider,
+                        m_configuration.ApplicationUri,
+                        Server.Telemetry,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
             if (lifetimeInDays == 0)
             {
@@ -1237,7 +1870,7 @@ namespace Opc.Ua.Server
                 .SetNotBefore(utcToday.AddDays(-1))
                 .SetNotAfter(utcToday.AddDays(lifetimeInDays));
 
-            Certificate certificate;
+            Certificate certificateWithKey;
             if (certificateTypeId.IsNull ||
                 certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
                 certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
@@ -1246,7 +1879,7 @@ namespace Opc.Ua.Server
                 ushort keySize = keySizeInBits > 0
                     ? keySizeInBits
                     : CertificateFactory.DefaultKeySize;
-                certificate = builder.SetRSAKeySize(keySize).CreateForRSA();
+                certificateWithKey = builder.SetRSAKeySize(keySize).CreateForRSA();
             }
             else
             {
@@ -1255,41 +1888,200 @@ namespace Opc.Ua.Server
                     ?? throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
                         "The ECC certificate type is not supported.");
-                certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
+                certificateWithKey = builder.SetECCurve(curve.Value).CreateForECDsa();
             }
 
+            ByteString certBytes;
             try
             {
-                // persist the new self-signed certificate into the group's
-                // configured store so it survives restarts and becomes the
-                // active application certificate.
-                CertificateIdentifier? existingIdent = certificateGroup!.ApplicationCertificates
-                    .ToList()
-                    .FirstOrDefault(c => c.CertificateType == certificateTypeId);
-
-                existingIdent?.RawData = certificate.RawData;
+                certBytes = certificateWithKey.RawData.ToByteString();
 
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
-                    "Created self-signed certificate {Subject} for {Group}/{Type}.",
-                    certificate.Subject,
+                    "Staged self-signed certificate {Subject} for {Group}/{Type}.",
+                    certificateWithKey.Subject,
                     certificateGroupId,
                     certificateTypeId);
 
-                ByteString certBytes = certificate.RawData.ToByteString();
-                return new ValueTask<CreateSelfSignedCertificateMethodStateResult>(
-                    new CreateSelfSignedCertificateMethodStateResult
+                NodeId groupNodeId = certificateGroup.NodeId;
+                Certificate stagedNewCert = certificateWithKey;
+                Certificate? stagedPreviousCert = previousCertificateWithKey;
+                // CA2025: the coordinator guarantees CommitAsync/RollbackAsync
+                // complete before DisposeStaged runs; see the identical
+                // suppression in UpdateCertificateAsync for the full
+                // rationale.
+#pragma warning disable CA2025
+                m_coordinator.Stage(sessionId, new PushConfigurationOperation
+                {
+                    AffectedCertificateGroup = groupNodeId,
+                    AffectedCertificateType = certificateTypeId,
+                    CommitAsync = async ct =>
                     {
-                        ServiceResult = ServiceResult.Good,
-                        Certificate = certBytes
-                    });
+                        await ApplyCertificateSlotChangeAsync(
+                            certificateGroup,
+                            existingCertIdentifier,
+                            previousThumbprint,
+                            stagedNewCert,
+                            null,
+                            ct,
+                            stagedPreviousCert).ConfigureAwait(false);
+                        if (stagedPreviousCert != null)
+                        {
+                            RegisterPendingRotation(certificateTypeId, stagedPreviousCert);
+                        }
+                    },
+                    // Mirrors the commit's before/after roles: when this
+                    // slot genuinely held stagedPreviousCert live (a
+                    // DeleteCertificate staged earlier in this same
+                    // transaction had netted the slot as unoccupied without
+                    // having actually removed it yet), restore it instead
+                    // of leaving the slot empty; otherwise there was
+                    // nothing live to restore.
+                    RollbackAsync = ct => ApplyCertificateSlotChangeAsync(
+                        certificateGroup,
+                        existingCertIdentifier,
+                        stagedNewCert.Thumbprint,
+                        stagedPreviousCert,
+                        null,
+                        ct),
+                    DisposeStaged = () =>
+                    {
+                        stagedNewCert.Dispose();
+                        stagedPreviousCert?.Dispose();
+                    }
+                });
+#pragma warning restore CA2025
+
+                // Ownership transferred to the staged operation above;
+                // clear the local handle so the finally below does not
+                // double-dispose it.
+                previousCertificateWithKey = null;
+            }
+            catch
+            {
+                certificateWithKey.Dispose();
+                throw;
             }
             finally
             {
-                certificate.Dispose();
+                // Disposed only when ownership was not transferred to the
+                // staged operation (i.e. an exception occurred before staging).
+                previousCertificateWithKey?.Dispose();
             }
+
+            // The slot's future content no longer comes from a pending
+            // signing request; discard any pending regenerated key for it.
+            await m_pendingKeyStore
+                .RemoveAsync(CreatePendingKeyContext(certificateGroup, existingCertIdentifier), cancellationToken)
+                .ConfigureAwait(false);
+
+            return new CreateSelfSignedCertificateMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Certificate = certBytes
+            };
         }
-#pragma warning restore RCS1229
+
+        /// <summary>
+        /// Deletes the certificate occupying a certificate group/type slot
+        /// per OPC 10000-12 §7.10.7. Unlike <c>CreateSelfSignedCertificate</c>,
+        /// this is the standard mechanism for emptying an occupied slot; it
+        /// always requires <c>ApplyChanges</c> to take effect. The
+        /// occupied-slot check is netted against every operation already
+        /// staged in the active transaction (see <see cref="IsSlotOccupiedAsync"/>),
+        /// so a <c>CreateSelfSignedCertificate</c> staged earlier in the
+        /// same transaction for this slot permits this call even though
+        /// nothing has actually been added to the store/registry yet.
+        /// </summary>
+        private async ValueTask<DeleteCertificateMethodStateResult> DeleteCertificateAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            CancellationToken cancellationToken)
+        {
+            HasApplicationSecureAdminAccess(context);
+
+            ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
+                certificateGroupId,
+                certificateTypeId)!;
+
+            NodeId sessionId = GetSessionId(context);
+            m_coordinator.ValidateSessionCanParticipate(sessionId);
+
+            CertificateIdentifier existingCertIdentifier =
+                FindCertificateIdentifier(certificateGroup, certificateTypeId);
+
+            (bool occupied, string? previousThumbprint) = await IsSlotOccupiedAsync(
+                certificateGroup.NodeId, existingCertIdentifier, cancellationToken).ConfigureAwait(false);
+            if (!occupied)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The certificate slot is already empty.");
+            }
+
+            // Deferred to staging time (i.e. now) rather than commit time,
+            // using the server's current endpoint/registry state netted
+            // against every certificate type already staged in this
+            // transaction, so the administrator gets immediate feedback.
+            EnsureCertificateNotSoleEndpointReference(certificateTypeId);
+
+            ICertificatePasswordProvider? passwordProvider = m_configuration
+                .SecurityConfiguration
+                .CertificatePasswordProvider;
+            Certificate? previousCertificateWithKey = await CertificateIdentifierResolver
+                .LoadPrivateKeyAsync(
+                    existingCertIdentifier,
+                    passwordProvider,
+                    m_configuration.ApplicationUri,
+                    Server.Telemetry,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            NodeId groupNodeId = certificateGroup.NodeId;
+            Certificate? stagedPreviousCert = previousCertificateWithKey;
+            m_coordinator.Stage(sessionId, new PushConfigurationOperation
+            {
+                AffectedCertificateGroup = groupNodeId,
+                AffectedCertificateType = certificateTypeId,
+                LeavesCertificateSlotEmpty = true,
+                CommitAsync = async ct =>
+                {
+                    await ApplyCertificateSlotChangeAsync(
+                        certificateGroup,
+                        existingCertIdentifier,
+                        previousThumbprint,
+                        null,
+                        null,
+                        ct).ConfigureAwait(false);
+                    if (stagedPreviousCert != null)
+                    {
+                        RegisterPendingRotation(certificateTypeId, stagedPreviousCert);
+                    }
+                },
+                RollbackAsync = stagedPreviousCert == null
+                    ? null
+                    : ct => ApplyCertificateSlotChangeAsync(
+                        certificateGroup,
+                        existingCertIdentifier,
+                        null,
+                        stagedPreviousCert,
+                        null,
+                        ct),
+                DisposeStaged = () => stagedPreviousCert?.Dispose()
+            });
+
+            await m_pendingKeyStore
+                .RemoveAsync(CreatePendingKeyContext(certificateGroup, existingCertIdentifier), cancellationToken)
+                .ConfigureAwait(false);
+
+            return new DeleteCertificateMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good
+            };
+        }
 
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
             ISystemContext context,
@@ -1304,15 +2096,19 @@ namespace Opc.Ua.Server
         {
             HasApplicationSecureAdminAccess(context);
 
-            ServerCertificateGroup? certificateGroup = VerifyGroupAndTypeId(
+            ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
-                certificateTypeId);
+                certificateTypeId)!;
 
-            // identify the existing certificate for which to CreateSigningRequest
-            // it should be of the same type
-            CertificateIdentifier? existingCertIdentifier = certificateGroup!.ApplicationCertificates
-                .ToList().FirstOrDefault(
-                    cert => cert.CertificateType == certificateTypeId);
+            // OPC 10000-12 §7.10.10: while a transaction is active, only
+            // its owning Session may regenerate the pending key, since a
+            // second Session's ApplyChanges/CancelChanges could otherwise
+            // race the pending-key lifecycle.
+            NodeId sessionId = GetSessionId(context);
+            m_coordinator.ValidateSessionCanParticipate(sessionId);
+
+            CertificateIdentifier existingCertIdentifier =
+                FindCertificateIdentifier(certificateGroup, certificateTypeId);
 
             // Look up the currently-active certificate via the manager
             // registry — the configured identifier is metadata only. The
@@ -1325,11 +2121,11 @@ namespace Opc.Ua.Server
 
             if (string.IsNullOrEmpty(subjectName))
             {
-                subjectName = (currentCert?.Subject ?? existingCertIdentifier?.SubjectName)!;
+                subjectName = (currentCert?.Subject ?? existingCertIdentifier.SubjectName)!;
             }
 
-            certificateGroup.TemporaryApplicationCertificate?.Dispose();
-            certificateGroup.TemporaryApplicationCertificate = null!;
+            PendingCertificateKeyContext pendingKeyContext =
+                CreatePendingKeyContext(certificateGroup, existingCertIdentifier);
 
             Certificate certWithPrivateKey;
             if (regeneratePrivateKey)
@@ -1340,9 +2136,21 @@ namespace Opc.Ua.Server
 
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
-                    certificateGroup,
                     subjectName,
                     domainNames);
+
+                // A repeated signing request replaces (and disposes) any
+                // previously pending key for this slot (§7.10.10).
+                if (!await m_pendingKeyStore
+                    .SaveAsync(pendingKeyContext, certWithPrivateKey, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    certWithPrivateKey.Dispose();
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "Secure persistence of the regenerated private key is not supported " +
+                        "for this certificate store.");
+                }
             }
             else
             {
@@ -1351,13 +2159,18 @@ namespace Opc.Ua.Server
                     .CertificatePasswordProvider;
                 certWithPrivateKey = await CertificateIdentifierResolver
                     .LoadPrivateKeyAsync(
-                        existingCertIdentifier!,
+                        existingCertIdentifier,
                         passwordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,
                         cancellationToken)
                     .ConfigureAwait(false) ??
                     throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
+
+                // No regenerated key accompanies this request; discard any
+                // previously pending one so a later UpdateCertificate does
+                // not pick up a stale key.
+                await m_pendingKeyStore.RemoveAsync(pendingKeyContext, cancellationToken).ConfigureAwait(false);
             }
 
             try
@@ -1378,16 +2191,12 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (!regeneratePrivateKey)
-                {
-                    certWithPrivateKey.Dispose();
-                }
+                certWithPrivateKey.Dispose();
             }
         }
 
         private Certificate GenerateTemporaryApplicationCertificate(
             NodeId certificateTypeId,
-            ServerCertificateGroup certificateGroup,
             string subjectName,
             ArrayOf<string> domainNames)
         {
@@ -1421,82 +2230,105 @@ namespace Opc.Ua.Server
                 certificate = certificateBuilder.SetECCurve(curve.Value).CreateForECDsa();
             }
 
-            certificateGroup.TemporaryApplicationCertificate = certificate;
-
             return certificate;
         }
 
-        private ServiceResult ApplyChanges(
+        /// <summary>
+        /// Commits the active PushManagement transaction (OPC UA Part 12
+        /// §7.10.2). Runs every staged certificate/TrustList operation's
+        /// commit in request order (reverse-compensating on failure),
+        /// updates <c>TransactionDiagnostics</c>, and — once the commit
+        /// succeeds — schedules the post-response SecureChannel
+        /// renegotiation for every rotated certificate (§7.10.9).
+        /// </summary>
+        private async ValueTask<ServiceResult> ApplyChangesAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             ArrayOf<Variant> inputArguments,
-            List<Variant> outputArguments)
+            List<Variant> outputArguments,
+            CancellationToken cancellationToken)
         {
             HasApplicationSecureAdminAccess(context);
 
-            // Capture the per-group rotation payload (original cert +
-            // type, captured at the first staged UpdateCertificate) and
-            // clear the staging slot so the post-response channel-cut
-            // can target the correct SecureChannels by thumbprint per
-            // OPC UA Part 12 §7.10.9.
-            var pendingRotations = new List<PendingCertificateRotation>();
+            NodeId sessionId = GetSessionId(context);
 
-            foreach (ServerCertificateGroup certificateGroup in m_certificateGroups)
+            // A fresh collector for this call alone, flowed to
+            // RegisterPendingRotation via the ambient async call chain
+            // (see m_activeRotationCollector) rather than a shared field:
+            // a concurrent/duplicate ApplyChanges call that finds no
+            // active transaction owned by its Session short-circuits
+            // through the coordinator without ever running a commit, so
+            // it always observes its OWN empty collector and can never
+            // drain or dispose the rotations produced by this call.
+            var rotations = new List<PendingCertificateRotation>();
+            ServiceResult result;
+            try
             {
-                UpdateCertificateData? updateCertificate = certificateGroup.UpdateCertificate;
-                if (updateCertificate == null)
+                m_activeRotationCollector.Value = rotations;
+                result = await m_coordinator.ApplyChangesAsync(sessionId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_activeRotationCollector.Value = null;
+            }
+
+            UpdateTransactionDiagnostics(context);
+
+            if (!ServiceResult.IsGood(result))
+            {
+                // The transaction failed and was reverse-compensated;
+                // nothing actually rotated, so any provisionally-recorded
+                // rotations must be discarded rather than scheduled.
+                foreach (PendingCertificateRotation rotation in rotations)
                 {
-                    // No staged update for this group — but a previous
-                    // failed staging may have left an OriginalCertificate
-                    // behind. Discard it so it does not leak.
-                    DisposePendingRotationState(certificateGroup);
-                    continue;
+                    rotation.OldCertificate?.Dispose();
                 }
-
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "Apply Changes for certificate {Certificate}",
-                    updateCertificate.CertificateWithPrivateKey);
-
-                // Hand off ownership of OriginalCertificate to the
-                // deferred task. The reference on the group is then
-                // cleared so DisposePendingRotationState cannot
-                // double-dispose it.
-                pendingRotations.Add(new PendingCertificateRotation
-                {
-                    OldCertificate = certificateGroup.OriginalCertificate,
-                    CertificateType = certificateGroup.OriginalCertificateType
-                });
-                certificateGroup.OriginalCertificate = null;
-                certificateGroup.OriginalCertificateType = NodeId.Null;
-                updateCertificate.CertificateWithPrivateKey?.Dispose();
-                updateCertificate.IssuerCollection?.Dispose();
-                certificateGroup.UpdateCertificate = null!;
+                return result;
             }
 
-            if (pendingRotations.Count == 0)
+            if (rotations.Count > 0)
             {
-                return StatusCodes.Good;
+                // Schedule the deferred apply: wait a short grace period for
+                // the method response to be flushed, then re-sync the
+                // certificate manager from disk and force-close every
+                // SecureChannel that was negotiated against the rotated
+                // certificate(s). The completion handle is exposed via
+                // DrainPendingApplyChangesAsync so tests and hosts can
+                // deterministically await rotation rather than racing the
+                // delay.
+                ScheduleDeferredApplyChanges(rotations);
             }
-
-            // Schedule the deferred apply: wait a short grace period for
-            // the method response to be flushed, then re-sync the
-            // certificate manager from disk and force-close every
-            // SecureChannel that was negotiated against the rotated
-            // certificate(s). The completion handle is exposed via
-            // DrainPendingApplyChangesAsync so tests and hosts can
-            // deterministically await rotation rather than racing the
-            // delay.
-            ScheduleDeferredApplyChanges(pendingRotations);
 
             return StatusCodes.Good;
         }
 
         /// <summary>
+        /// Cancels (discards, without applying) the active PushManagement
+        /// transaction owned by the calling Session (OPC UA Part 12
+        /// §7.10.2/§7.10.11).
+        /// </summary>
+        private ValueTask<ServiceResult> CancelChangesAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
+            CancellationToken cancellationToken)
+        {
+            HasApplicationSecureAdminAccess(context);
+
+            NodeId sessionId = GetSessionId(context);
+            ServiceResult result = m_coordinator.CancelChanges(sessionId);
+            UpdateTransactionDiagnostics(context);
+            return new ValueTask<ServiceResult>(result);
+        }
+
+        /// <summary>
         /// Schedules the post-response cert-rotation fan-out. Chains
         /// onto any already-running deferred apply so concurrent calls
-        /// to <see cref="ApplyChanges"/> run sequentially.
+        /// to <see cref="ApplyChangesAsync"/> run sequentially.
         /// </summary>
         private void ScheduleDeferredApplyChanges(List<PendingCertificateRotation> rotations)
         {
@@ -1654,44 +2486,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Clears the staging slot for a new <c>UpdateCertificate</c>
-        /// call. The pre-transaction
-        /// <see cref="ServerCertificateGroup.OriginalCertificate"/> is
-        /// <i>preserved</i> across consecutive stagings so a multi-step
-        /// transaction (Part 12 §7.10.2) still cuts every SecureChannel
-        /// established before the first staged update. Use
-        /// <see cref="DisposePendingRotationState"/> to release the
-        /// captured certificate on full teardown.
-        /// </summary>
-        private static void ResetPendingUpdateCertificate(ServerCertificateGroup certificateGroup)
-        {
-            certificateGroup.UpdateCertificate?.CertificateWithPrivateKey?.Dispose();
-            certificateGroup.UpdateCertificate?.IssuerCollection?.Dispose();
-            certificateGroup.UpdateCertificate = null!;
-        }
-
-        /// <summary>
-        /// Releases temporary and pre-transaction certificates captured
-        /// during certificate rotation and clears the staging slot.
-        /// Called by <see cref="ApplyChanges"/> when a group has no
-        /// pending update (stale capture from a failed transaction) and
-        /// by the manager's <see cref="Dispose"/>.
-        /// </summary>
-        private static void DisposePendingRotationState(ServerCertificateGroup certificateGroup)
-        {
-            certificateGroup.TemporaryApplicationCertificate?.Dispose();
-            certificateGroup.TemporaryApplicationCertificate = null!;
-            certificateGroup.OriginalCertificate?.Dispose();
-            certificateGroup.OriginalCertificate = null;
-            certificateGroup.OriginalCertificateType = NodeId.Null;
-            certificateGroup.UpdateCertificate?.CertificateWithPrivateKey?.Dispose();
-            certificateGroup.UpdateCertificate?.IssuerCollection?.Dispose();
-            certificateGroup.UpdateCertificate = null!;
-        }
-
-        /// <summary>
         /// Captured payload for a single certificate-group rotation
-        /// scheduled by <see cref="ApplyChanges"/>. The deferred apply
+        /// scheduled by <see cref="ApplyChangesAsync"/>. The deferred apply
         /// task owns the contained <see cref="Certificate"/> reference
         /// and disposes it once the channel-cut completes.
         /// </summary>
@@ -1977,13 +2773,6 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public event EventHandler? DefaultPermissionsChanged;
 
-        private class UpdateCertificateData
-        {
-            public NodeId SessionId { get; set; }
-            public Certificate CertificateWithPrivateKey { get; set; } = null!;
-            public CertificateCollection IssuerCollection { get; set; } = null!;
-        }
-
         /// <summary>
         /// Evaluates certificate expiration and trust-list staleness for
         /// all certificate groups and activates/deactivates the optional
@@ -2105,32 +2894,6 @@ namespace Opc.Ua.Server
             public ArrayOf<CertificateIdentifier> ApplicationCertificates { get; set; }
             public CertificateStoreIdentifier IssuerStore { get; set; } = null!;
             public CertificateStoreIdentifier TrustedStore { get; set; } = null!;
-            public UpdateCertificateData UpdateCertificate { get; set; } = null!;
-            public Certificate TemporaryApplicationCertificate { get; set; } = null!;
-
-            /// <summary>
-            /// The application certificate that was active in the
-            /// registry BEFORE the first <c>UpdateCertificate</c> call
-            /// of the current transaction. Captured on the first staging
-            /// in <c>UpdateCertificateInternalAsync</c> and preserved
-            /// across subsequent staging calls (per OPC UA Part 12
-            /// §7.10.2 transaction lifecycle) so that the channel-cut
-            /// in <c>ApplyChanges</c> matches every SecureChannel still
-            /// negotiated against the pre-transaction certificate —
-            /// including connections established between the first and
-            /// last staged <c>UpdateCertificate</c>. Owned by the group;
-            /// disposed only by <c>ApplyChanges</c> after consumption
-            /// or by <c>DisposePendingRotationState</c> on
-            /// teardown.
-            /// </summary>
-            public Certificate? OriginalCertificate { get; set; }
-
-            /// <summary>
-            /// The certificate type that <see cref="OriginalCertificate"/>
-            /// belongs to. <see cref="NodeId.Null"/> when no original
-            /// has been captured.
-            /// </summary>
-            public NodeId OriginalCertificateType { get; set; }
         }
 
 #pragma warning disable CA2213 // m_serverConfigurationNode is owned by the address space, not by this manager.
@@ -2139,6 +2902,8 @@ namespace Opc.Ua.Server
 #pragma warning restore CA2213
         private readonly ApplicationConfiguration m_configuration;
         private readonly TimeProvider m_timeProvider;
+        private readonly IPushConfigurationTransactionCoordinator m_coordinator;
+        private readonly IPendingCertificateKeyStore m_pendingKeyStore;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;
         private ITimer? m_alarmTimer;
@@ -2147,6 +2912,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_namespaceMetadataStatesLock = new();
         private readonly Lock m_pendingApplyChangesLock = new();
         private Task m_pendingApplyChangesTask = Task.CompletedTask;
+        private readonly AsyncLocal<List<PendingCertificateRotation>?> m_activeRotationCollector = new();
 
         /// <inheritdoc/>
         public TimeSpan ApplyChangesGracePeriod { get; set; }
