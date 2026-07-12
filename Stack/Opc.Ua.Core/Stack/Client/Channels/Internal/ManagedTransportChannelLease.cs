@@ -242,13 +242,109 @@ namespace Opc.Ua
                 return await bypass.SendRequestAsync(request, ct).ConfigureAwait(false);
             }
 
-            await Entry.WaitForReadyAsync(ct).ConfigureAwait(false);
+            int attempt = 0;
+            while (true)
+            {
+                await Entry.WaitForReadyAsync(ct).ConfigureAwait(false);
 
-            ITransportChannel? underlying = Entry.Underlying
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "Channel has no underlying transport.");
-            return await underlying.SendRequestAsync(request, ct).ConfigureAwait(false);
+                ChannelEntry entry = Entry;
+                long generation = entry.ReconnectGeneration;
+                ITransportChannel? underlying = entry.Underlying
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel has no underlying transport.");
+                try
+                {
+                    return await underlying.SendRequestAsync(request, ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (
+                    IsActive &&
+                    attempt < kMaxTransientSendRetries &&
+                    !ct.IsCancellationRequested &&
+                    IsIdempotentRequest(request) &&
+                    IsTransientChannelError(sre.StatusCode))
+                {
+                    // The shared channel broke while the request was in
+                    // flight. If no reconnect has begun since we sent (the
+                    // generation is unchanged) and the entry still reports
+                    // Ready, this is a transport drop the manager has not
+                    // detected yet - force a (coalesced) reconnect so the
+                    // shared channel recovers. Otherwise a reconnect is
+                    // already in progress or completed (a stale in-flight
+                    // failure): loop back, wait for the recovered channel and
+                    // resend without starting an extra reconnect cycle. Either
+                    // way the drop is transparent for the caller. Retries are
+                    // bounded and the reconnect itself is governed by the
+                    // reconnect policy / budget; if the channel terminally
+                    // faults the original transport error is surfaced.
+                    attempt++;
+                    ChannelState state = entry.State;
+                    if (state is ChannelState.Closed or ChannelState.Faulted)
+                    {
+                        // The entry is already terminal (e.g. the reconnect
+                        // policy / budget was exhausted by a concurrent cycle).
+                        // Surface the ORIGINAL transport error rather than
+                        // looping back into WaitForReadyAsync, which would throw
+                        // a generic BadSecureChannelClosed and mask the real
+                        // failure signal.
+                        throw;
+                    }
+                    if (entry.ReconnectGeneration == generation &&
+                        state == ChannelState.Ready)
+                    {
+                        bool recovered;
+                        try
+                        {
+                            recovered = await entry.RequestReconnectAsync(ct).ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException)
+                        {
+                            throw sre;
+                        }
+
+                        if (!recovered)
+                        {
+                            throw;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static bool IsIdempotentRequest(IServiceRequest request)
+        {
+            // Only requests with no server-side side effects are safe to
+            // transparently re-send after a transport drop: the request may
+            // already have been processed on the server before the
+            // connection died, so re-sending a non-idempotent request
+            // (Create*, Write, Call, AddNodes, HistoryUpdate, Publish,
+            // RegisterNodes, BrowseNext, Query*, ...) could double-apply it
+            // or corrupt continuation state. Non-idempotent requests surface
+            // the transport error instead, letting the caller or a
+            // higher-level recovery loop (for example the subscription
+            // engine's own re-create) decide how to retry.
+            return request is ReadRequest
+                or BrowseRequest
+                or TranslateBrowsePathsToNodeIdsRequest
+                or GetEndpointsRequest
+                or FindServersRequest
+                or FindServersOnNetworkRequest;
+        }
+
+        private static bool IsTransientChannelError(StatusCode statusCode)
+        {
+            uint code = statusCode.CodeBits;
+            return code == StatusCodes.BadConnectionClosed
+                || code == StatusCodes.BadSecureChannelClosed
+                || code == StatusCodes.BadSecureChannelIdInvalid
+                || code == StatusCodes.BadNotConnected
+                || code == StatusCodes.BadConnectionRejected
+                || code == StatusCodes.BadServerNotConnected
+                || code == StatusCodes.BadServerHalted
+                || code == StatusCodes.BadNoCommunication
+                || code == StatusCodes.BadCommunicationError
+                || code == StatusCodes.BadTcpInternalError
+                || code == StatusCodes.BadRequestInterrupted;
         }
 
         /// <inheritdoc/>
@@ -310,6 +406,7 @@ namespace Opc.Ua
         private ChannelEntry m_entry;
         private int m_active;
         private int m_swapCount;
+        private const int kMaxTransientSendRetries = 3;
         private readonly Lock m_participantLock = new();
         private IReconnectParticipant m_participant;
     }
