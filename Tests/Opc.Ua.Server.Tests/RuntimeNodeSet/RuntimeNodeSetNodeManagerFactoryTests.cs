@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -309,6 +310,168 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         /// <summary>
+        /// <see cref="RuntimeNodeSetNodeManagerFactory.CreateAsync"/> rejects a
+        /// <c>null</c> server.
+        /// </summary>
+        [Test]
+        public void CreateAsyncRejectsNullServer()
+        {
+            StreamRuntimeNodeSetSource source = MakeStreamSource(kUriA, MakeMinimalXml(kUriA));
+            var factory = new RuntimeNodeSetNodeManagerFactory(
+                new RuntimeNodeSetOptions { Sources = [source] });
+
+            Assert.That(
+                () => factory.CreateAsync(null, new ApplicationConfiguration(), default).AsTask(),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("server"));
+        }
+
+        /// <summary>
+        /// A single-source group with no fluent callback creates a runtime node
+        /// manager whose owned namespace matches the source.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncReturnsManagerForSingleSourceAsync()
+        {
+            StreamRuntimeNodeSetSource source = MakeStreamSource(kUriA, MakeMinimalXml(kUriA));
+            var factory = new RuntimeNodeSetNodeManagerFactory(
+                new RuntimeNodeSetOptions { Sources = [source] });
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                BuildMockServer().Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using (manager as IDisposable)
+            {
+                Assert.That(manager, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// When a fluent callback is present and an explicit default namespace is
+        /// configured, the manager is created using that namespace.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncWithExplicitDefaultNamespaceAsync()
+        {
+            StreamRuntimeNodeSetSource source = MakeStreamSource(kUriA, MakeMinimalXml(kUriA));
+            var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+            {
+                Sources = [source],
+                DefaultNamespaceUri = kUriA,
+                Configure = _ => { }
+            });
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                BuildMockServer().Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using (manager as IDisposable)
+            {
+                Assert.That(manager, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// When a fluent callback is present but no explicit default namespace is
+        /// set, a single-source group infers the namespace from that source.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncInfersDefaultNamespaceForSingleSourceAsync()
+        {
+            StreamRuntimeNodeSetSource source = MakeStreamSource(kUriA, MakeMinimalXml(kUriA));
+            var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+            {
+                Sources = [source],
+                Configure = _ => { }
+            });
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                BuildMockServer().Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using (manager as IDisposable)
+            {
+                Assert.That(manager, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// With a fluent callback and two dependent sources, the default namespace
+        /// is inferred as the unique leaf model (the one not required by another).
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncInfersLeafNamespaceForDependentSourcesAsync()
+        {
+            // Source A requires B, so A is the leaf and B is a dependency.
+            StreamRuntimeNodeSetSource sourceA = MakeStreamSource(kUriA, MakeCycleXml(kUriA, kUriB));
+            StreamRuntimeNodeSetSource sourceB = MakeStreamSource(kUriB, MakeMinimalXml(kUriB));
+            var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+            {
+                Sources = [sourceA, sourceB],
+                Configure = _ => { }
+            });
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                BuildMockServer().Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using (manager as IDisposable)
+            {
+                Assert.That(manager, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// With a fluent callback and two independent leaf models, the default
+        /// namespace cannot be inferred and creation fails with a clear error.
+        /// </summary>
+        [Test]
+        public void CreateAsyncThrowsWhenDefaultNamespaceAmbiguous()
+        {
+            StreamRuntimeNodeSetSource sourceA = MakeStreamSource(kUriA, MakeMinimalXml(kUriA));
+            StreamRuntimeNodeSetSource sourceB = MakeStreamSource(kUriB, MakeMinimalXml(kUriB));
+            var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+            {
+                Sources = [sourceA, sourceB],
+                Configure = _ => { }
+            });
+
+            Assert.That(
+                () => factory.CreateAsync(
+                    BuildMockServer().Object,
+                    new ApplicationConfiguration(),
+                    default).AsTask(),
+                Throws.InvalidOperationException.With.Message.Contains("infer"));
+        }
+
+        /// <summary>
+        /// When a source declares more owned namespaces than the parsed NodeSet
+        /// defines, creation fails during validation.
+        /// </summary>
+        [Test]
+        public void CreateAsyncThrowsWhenDeclaredNamespaceCountMismatch()
+        {
+            StreamRuntimeNodeSetSource source = RuntimeNodeSetSource.FromStream(
+                "mismatch",
+                _ => new ValueTask<Stream>(
+                    new MemoryStream(Encoding.UTF8.GetBytes(MakeMinimalXml(kUriA)))),
+                [kUriA, kUriB]);
+            var factory = new RuntimeNodeSetNodeManagerFactory(
+                new RuntimeNodeSetOptions { Sources = [source] });
+
+            Assert.That(
+                () => factory.CreateAsync(
+                    BuildMockServer().Object,
+                    new ApplicationConfiguration(),
+                    default).AsTask(),
+                Throws.InvalidOperationException);
+        }
+
+        /// <summary>
         /// Creates a minimal <see cref="IServerInternal"/> mock sufficient for
         /// <see cref="RuntimeNodeSetNodeManagerFactory.CreateAsync"/> to attempt
         /// parsing (a real logger is injected so diagnostic output works).
@@ -321,6 +484,27 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             var mockServer = new Mock<IServerInternal>();
             mockServer.SetupGet(s => s.Telemetry).Returns(mockTelemetry.Object);
+
+            return mockServer;
+        }
+
+        /// <summary>
+        /// Creates an <see cref="IServerInternal"/> mock with the namespace table
+        /// and system context required to fully construct a runtime node manager
+        /// during <see cref="RuntimeNodeSetNodeManagerFactory.CreateAsync"/>.
+        /// </summary>
+        private static Mock<IServerInternal> BuildMockServer()
+        {
+            var mockLoggerFactory = LoggerFactory.Create(b => b.AddDebug());
+            var mockTelemetry = new Mock<ITelemetryContext>();
+            mockTelemetry.SetupGet(t => t.LoggerFactory).Returns(mockLoggerFactory);
+
+            var mockServer = new Mock<IServerInternal>();
+            mockServer.SetupGet(s => s.Telemetry).Returns(mockTelemetry.Object);
+            mockServer.SetupGet(s => s.NamespaceUris).Returns(new NamespaceTable());
+
+            var systemContext = new ServerSystemContext(mockServer.Object);
+            mockServer.SetupGet(s => s.DefaultSystemContext).Returns(systemContext);
 
             return mockServer;
         }
