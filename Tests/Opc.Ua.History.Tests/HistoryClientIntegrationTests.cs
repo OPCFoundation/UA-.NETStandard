@@ -35,6 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Historian;
@@ -90,6 +91,134 @@ namespace Opc.Ua.History.Tests
 
             Assert.That(values, Is.Not.Empty,
                 "ReferenceServer historizes Scalar_Static_Double with 1001 seed samples; raw read must return at least some.");
+        }
+
+        [Test]
+        public async Task ReadRawWithEqualTimesReturnsSingleExactValueAsync()
+        {
+            List<DataValue> seeded = await ReadSeededValuesAsync().ConfigureAwait(false);
+            DataValue expected = seeded[seeded.Count / 2];
+
+            HistoryReadResult result = await ReadRawAsync(
+                new ReadRawModifiedDetails
+                {
+                    StartTime = expected.SourceTimestamp,
+                    EndTime = expected.SourceTimestamp,
+                    NumValuesPerNode = 0,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(1));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(expected.SourceTimestamp));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ReadRawWithOneSpecifiedTimeReturnsFiveValuesWithoutContinuationAsync(bool startOnly)
+        {
+            List<DataValue> seeded = await ReadSeededValuesAsync().ConfigureAwait(false);
+            int index = seeded.Count / 2;
+            DateTimeUtc boundary = seeded[index].SourceTimestamp;
+
+            HistoryReadResult result = await ReadRawAsync(
+                new ReadRawModifiedDetails
+                {
+                    StartTime = startOnly ? boundary : DateTimeUtc.MinValue,
+                    EndTime = startOnly ? DateTimeUtc.MinValue : boundary,
+                    NumValuesPerNode = 5,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(5));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(boundary));
+            for (int i = 1; i < values.Length; i++)
+            {
+                Assert.That(
+                    values[i].SourceTimestamp.CompareTo(values[i - 1].SourceTimestamp),
+                    Is.EqualTo(startOnly ? 1 : -1));
+            }
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task ReusingConsumedRawContinuationPointReturnsBadContinuationPointInvalidAsync()
+        {
+            List<DataValue> seeded = await ReadSeededValuesAsync().ConfigureAwait(false);
+            int index = seeded.Count / 2;
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = seeded[index].SourceTimestamp,
+                EndTime = seeded[index + 3].SourceTimestamp,
+                NumValuesPerNode = 1,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            HistoryReadResult first = await ReadRawAsync(details).ConfigureAwait(false);
+            Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
+            ByteString consumed = first.ContinuationPoint;
+
+            HistoryReadResult second = await ReadRawAsync(details, consumed).ConfigureAwait(false);
+            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second.ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(second.ContinuationPoint, Is.Not.EqualTo(consumed));
+
+            HistoryReadResult stale = await ReadRawAsync(details, consumed).ConfigureAwait(false);
+            Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(stale.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task ReadModifiedWithReturnBoundsReturnsBadInvalidArgumentAsync()
+        {
+            List<DataValue> seeded = await ReadSeededValuesAsync().ConfigureAwait(false);
+            int index = seeded.Count / 2;
+
+            HistoryReadResult result = await ReadRawAsync(
+                new ReadRawModifiedDetails
+                {
+                    StartTime = seeded[index].SourceTimestamp,
+                    EndTime = seeded[index + 1].SourceTimestamp,
+                    NumValuesPerNode = 0,
+                    IsReadModified = true,
+                    ReturnBounds = true
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task ReadRawMissingStartBoundReturnsBadBoundNotFoundAsync()
+        {
+            List<DataValue> seeded = await ReadSeededValuesAsync().ConfigureAwait(false);
+            var startTime = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            HistoryReadResult result = await ReadRawAsync(
+                new ReadRawModifiedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = seeded[1].SourceTimestamp,
+                    NumValuesPerNode = 0,
+                    IsReadModified = false,
+                    ReturnBounds = true
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Is.Not.Empty);
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(startTime));
         }
 
         [Test]
@@ -584,6 +713,47 @@ namespace Opc.Ua.History.Tests
 
             Assert.That(total, Is.EqualTo(3),
                 "AnnotationCount across the window must total the three written annotations.");
+        }
+
+        private async Task<List<DataValue>> ReadSeededValuesAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime now = DateTime.UtcNow;
+            var values = new List<DataValue>();
+            await foreach (DataValue value in client.ReadRawAsync(
+                m_doubleNodeId,
+                now.AddDays(-2),
+                now.AddDays(2)))
+            {
+                values.Add(value);
+            }
+
+            values.Sort((left, right) => left.SourceTimestamp.CompareTo(right.SourceTimestamp));
+            Assert.That(values, Has.Count.GreaterThan(20));
+            return values;
+        }
+
+        private async Task<HistoryReadResult> ReadRawAsync(
+            ReadRawModifiedDetails details,
+            ByteString continuationPoint = default)
+        {
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(details),
+                TimestampsToReturn.Source,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new()
+                    {
+                        NodeId = m_doubleNodeId,
+                        ContinuationPoint = continuationPoint
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            return response.Results[0];
         }
     }
 }

@@ -50,10 +50,10 @@ namespace Opc.Ua.Server.Tests.Historian
     public class HistorianDispatcherTests
     {
         [Test]
-        public async Task PagedRawReadKeepsStableCursorGuidAsync()
+        public async Task PagedRawReadUsesSingleUseContinuationPointsAsync()
         {
             HarnessFixture h = CreateHarness();
-            NodeId nodeId = h.SeedSamples(100);
+            NodeId nodeId = h.SeedSamples(3);
 
             var variable = new BaseDataVariableState(null)
             {
@@ -67,63 +67,157 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddMinutes(5),
-                NumValuesPerNode = 10,
+                NumValuesPerNode = 1,
                 IsReadModified = false
             };
 
-            ByteString cp = ByteString.Empty;
-            Guid? firstCursor = null;
-            int totalValues = 0;
-            int pages = 0;
-
-            while (true)
-            {
-                var nodeToRead = new HistoryReadValueId
+            var firstResult = new HistoryReadResult();
+            ServiceResult firstError = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
                 {
                     NodeId = nodeId,
-                    ContinuationPoint = cp
-                };
-                var result = new HistoryReadResult();
+                    ContinuationPoint = ByteString.Empty
+                },
+                details,
+                TimestampsToReturn.Source,
+                firstResult,
+                CancellationToken.None).ConfigureAwait(false);
 
-                ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
-                    h.SystemContext,
-                    h.Provider,
-                    variable,
-                    nodeToRead,
-                    details,
-                    TimestampsToReturn.Source,
-                    result,
-                    CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(firstError), Is.True);
+            Assert.That(firstResult.ContinuationPoint.IsEmpty, Is.False);
+            ByteString firstContinuationPoint = firstResult.ContinuationPoint;
 
-                Assert.That(ServiceResult.IsGood(error), Is.True);
-
-                if (result.HistoryData.TryGetValue(out HistoryData? hd))
+            var secondResult = new HistoryReadResult();
+            ServiceResult secondError = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
                 {
-                    DataValue[]? values = hd.DataValues.ToArray();
-                    if (values != null)
-                    {
-                        totalValues += values.Length;
-                    }
-                }
+                    NodeId = nodeId,
+                    ContinuationPoint = firstContinuationPoint
+                },
+                details,
+                TimestampsToReturn.Source,
+                secondResult,
+                CancellationToken.None).ConfigureAwait(false);
 
-                pages++;
+            Assert.That(ServiceResult.IsGood(secondError), Is.True);
+            Assert.That(secondResult.ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(secondResult.ContinuationPoint, Is.Not.EqualTo(firstContinuationPoint));
 
-                if (result.ContinuationPoint.IsEmpty)
+            var staleResult = new HistoryReadResult();
+            ServiceResult staleError = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
                 {
-                    break;
-                }
+                    NodeId = nodeId,
+                    ContinuationPoint = firstContinuationPoint
+                },
+                details,
+                TimestampsToReturn.Source,
+                staleResult,
+                CancellationToken.None).ConfigureAwait(false);
 
-                Guid currentCursor = new(result.ContinuationPoint.ToArray());
-                firstCursor ??= currentCursor;
-                Assert.That(currentCursor, Is.EqualTo(firstCursor),
-                    "Cursor Guid must remain stable across paged reads.");
+            Assert.That(ServiceResult.IsGood(staleError), Is.True);
+            Assert.That(staleResult.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(staleResult.ContinuationPoint.IsEmpty, Is.True);
+        }
 
-                cp = result.ContinuationPoint;
-                Assert.That(pages, Is.LessThan(50), "Pagination did not terminate.");
-            }
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task RawReadWithOneSpecifiedTimeUsesRequiredDirectionAsync(bool startOnly)
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(30);
 
-            Assert.That(totalValues, Is.EqualTo(100));
-            Assert.That(pages, Is.GreaterThan(1), "Test should exercise multiple pages.");
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("OneSidedVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+
+            DateTime boundary = HarnessFixture.BaseTime.AddSeconds(startOnly ? 10 : 20);
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = startOnly ? boundary : DateTimeUtc.MinValue,
+                EndTime = startOnly ? DateTimeUtc.MinValue : boundary,
+                NumValuesPerNode = 5,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId,
+                    ContinuationPoint = ByteString.Empty
+                },
+                details,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            DataValue[] values = historyData!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(5));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(boundary));
+            Assert.That(values[^1].SourceTimestamp,
+                Is.EqualTo(boundary.AddSeconds(startOnly ? 4 : -4)));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task ModifiedReadWithReturnBoundsReturnsBadInvalidArgumentAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(3);
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("ModifiedBoundsVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId,
+                    ContinuationPoint = ByteString.Empty
+                },
+                new ReadRawModifiedDetails
+                {
+                    StartTime = HarnessFixture.BaseTime,
+                    EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                    NumValuesPerNode = 0,
+                    IsReadModified = true,
+                    ReturnBounds = true
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
         [Test]

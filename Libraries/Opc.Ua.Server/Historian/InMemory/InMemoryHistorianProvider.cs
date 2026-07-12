@@ -1040,30 +1040,52 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 (lo, hi) = (hi, lo);
             }
+            DateTime windowMin = lo;
+            DateTime windowMax = hi;
 
             uint cap = request.MaxValues > 0 ? request.MaxValues : kMaxValuesPerPage;
             var output = new List<HistoricalDataValue>((int)Math.Min(cap, kMaxValuesPerPage));
+
+            if (windowMin == windowMax && archive.Raw.TryGetValue(windowMin, out DataValue exact))
+            {
+                output.Add(new HistoricalDataValue(CloneValue(exact), request.ReturnBounds));
+                return new HistorianPage<HistoricalDataValue>(output);
+            }
+
+            if (windowMin == windowMax && !request.ReturnBounds)
+            {
+                return new HistorianPage<HistoricalDataValue>(output);
+            }
 
             IEnumerable<KeyValuePair<DateTime, DataValue>> source = request.IsForward
                 ? archive.Raw
                 : archive.Raw.Reverse();
 
-            DateTime windowMin = lo;
-            DateTime windowMax = hi;
+            bool leadingBoundarySpecified = request.IsForward
+                ? windowMin != DateTime.MinValue
+                : windowMax != DateTime.MaxValue;
+            bool trailingBoundarySpecified = request.IsForward
+                ? windowMax != DateTime.MaxValue
+                : windowMin != DateTime.MinValue;
+            bool isOpenEnded = request.MaxValues > 0 &&
+                (request.StartTime == DateTimeUtc.MinValue || request.EndTime == DateTimeUtc.MaxValue);
 
-            // Optional leading bound: latest sample strictly before windowMin (forward) or first sample strictly after windowMax (reverse).
-            if (request.ReturnBounds && resumeAt == DateTime.MinValue)
+            DateTime lastEmitted = DateTime.MinValue;
+            if (request.ReturnBounds && leadingBoundarySpecified && resumeAt == DateTime.MinValue)
             {
-                HistoricalDataValue? leadingBound = ComputeLeadingBound(archive, request.IsForward, windowMin, windowMax);
-                if (leadingBound.HasValue)
+                DateTime leadingBoundary = request.IsForward ? windowMin : windowMax;
+                if (!archive.Raw.ContainsKey(leadingBoundary))
                 {
-                    output.Add(leadingBound.Value);
+                    HistoricalDataValue bound =
+                        ComputeLeadingBound(archive, request.IsForward, windowMin, windowMax) ??
+                        CreateMissingBound(leadingBoundary);
+                    output.Add(bound);
+                    lastEmitted = bound.Value.SourceTimestamp.ToDateTime();
                 }
             }
 
             DateTime resumeLocal = resumeAt;
-            DateTime lastEmitted = DateTime.MinValue;
-            bool capReached = false;
+            bool capReached = output.Count >= cap;
             foreach (KeyValuePair<DateTime, DataValue> entry in source)
             {
                 if (request.IsForward)
@@ -1074,8 +1096,14 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                     if (entry.Key >= windowMax)
                     {
-                        if (request.ReturnBounds)
+                        if (request.ReturnBounds && trailingBoundarySpecified)
                         {
+                            if (capReached)
+                            {
+                                return new HistorianPage<HistoricalDataValue>(
+                                    output,
+                                    EncodeTimestamp(lastEmitted));
+                            }
                             output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
                         }
                         return new HistorianPage<HistoricalDataValue>(output);
@@ -1089,8 +1117,14 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                     if (entry.Key <= windowMin)
                     {
-                        if (request.ReturnBounds)
+                        if (request.ReturnBounds && trailingBoundarySpecified)
                         {
+                            if (capReached)
+                            {
+                                return new HistorianPage<HistoricalDataValue>(
+                                    output,
+                                    EncodeTimestamp(lastEmitted));
+                            }
                             output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
                         }
                         return new HistorianPage<HistoricalDataValue>(output);
@@ -1103,12 +1137,27 @@ namespace Opc.Ua.Server.Historian.InMemory
                 // ContinuationPoint on the final page (OPC UA Part 11; CTT HA Read Raw 008/009).
                 if (capReached)
                 {
+                    if (isOpenEnded)
+                    {
+                        return new HistorianPage<HistoricalDataValue>(output);
+                    }
                     return new HistorianPage<HistoricalDataValue>(output, EncodeTimestamp(lastEmitted));
                 }
 
                 output.Add(new HistoricalDataValue(CloneValue(entry.Value)));
                 lastEmitted = entry.Key;
                 capReached = output.Count >= cap;
+            }
+
+            if (request.ReturnBounds && trailingBoundarySpecified)
+            {
+                if (capReached)
+                {
+                    return new HistorianPage<HistoricalDataValue>(
+                        output,
+                        EncodeTimestamp(lastEmitted));
+                }
+                output.Add(CreateMissingBound(request.IsForward ? windowMax : windowMin));
             }
 
             return new HistorianPage<HistoricalDataValue>(output);
@@ -1146,6 +1195,17 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
                 return null;
             }
+        }
+
+        private static HistoricalDataValue CreateMissingBound(DateTime timestamp)
+        {
+            return new HistoricalDataValue(
+                new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadBoundNotFound,
+                    sourceTimestamp: timestamp,
+                    serverTimestamp: DateTimeUtc.MinValue),
+                IsBound: true);
         }
 
         private static HistorianPage<ModifiedDataValue> ReadModifiedPage(
