@@ -990,9 +990,17 @@ namespace Opc.Ua.Client
                 // channel manager would fail to resolve a factory for
                 // the bare "https" scheme. Skip the refresh for the
                 // OpenAPI profiles to preserve the caller-supplied URL.
+                //
+                // Otherwise honour the caller's ConfiguredEndpoint.UpdateBeforeConnect
+                // choice (default true). A caller that pins a specific URL - for
+                // example connecting through a proxy / gateway / NAT whose host and
+                // port differ from the server's advertised EndpointUrl - sets the
+                // flag to false so the channel is opened against exactly that URL
+                // instead of re-discovering and adopting the server-advertised URL.
                 string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
-                bool updateBeforeConnect = !Profiles.IsHttpsOpenApi(profile) &&
-                    !Profiles.IsWssOpenApi(profile);
+                bool updateBeforeConnect = ConfiguredEndpoint.UpdateBeforeConnect
+                    && !Profiles.IsHttpsOpenApi(profile)
+                    && !Profiles.IsWssOpenApi(profile);
 
                 IDisposable? connectLease = null;
                 Session session;
