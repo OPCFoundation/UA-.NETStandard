@@ -131,6 +131,25 @@ namespace Opc.Ua.Server
             {
                 ThrowIfConflictingOwner(sessionId);
 
+                if (m_isCommitting)
+                {
+                    // ApplyChangesAsync already took every staged operation
+                    // for this transaction and is committing/rolling them
+                    // back. Ownership (m_isActive/m_ownerSessionId) is
+                    // intentionally still held by the owning Session while
+                    // that commit is in flight (see ApplyChangesAsync), so
+                    // ThrowIfConflictingOwner above already rejected a
+                    // different Session with BadTransactionPending. A
+                    // same-owner Stage this soon after ApplyChangesAsync
+                    // has already taken the staged operations must not
+                    // silently add to a list that will never be committed
+                    // and would otherwise still be present once
+                    // ApplyChangesAsync's finally block releases ownership.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The active PushManagement configuration transaction is being committed.");
+                }
+
                 if (!m_isActive)
                 {
                     m_isActive = true;
@@ -399,7 +418,11 @@ namespace Opc.Ua.Server
                 m_ownerSessionId = NodeId.Null;
             }
 
-            DiscardOperations(operations, startTime, StatusCodes.BadRequestCancelledByRequest);
+            // OPC 10000-12 §7.10.17: TransactionDiagnostics.Result is
+            // Bad_RequestCancelledByClient specifically when CancelChanges
+            // was called (as opposed to e.g. a Session closing, which uses
+            // the more generic BadRequestCancelledByRequest below).
+            DiscardOperations(operations, startTime, StatusCodes.BadRequestCancelledByClient);
             return StatusCodes.Good;
         }
 

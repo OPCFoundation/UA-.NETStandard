@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1361,6 +1362,11 @@ namespace Opc.Ua.Server
                     certificateGroupId,
                     certificateTypeId)!;
 
+                // OPC 10000-12 §7.10.5: "The Purpose of the associated
+                // CertificateGroup determines the validation rules for
+                // Certificate being updated."
+                bool isApplicationCertificateGroup = IsApplicationCertificateGroup(certificateGroup);
+
                 NodeId sessionId = GetSessionId(context);
                 m_coordinator.ValidateSessionCanParticipate(sessionId);
 
@@ -1428,38 +1434,27 @@ namespace Opc.Ua.Server
 
                 newIssuerCollection = new CertificateCollection();
 
-                try
+                if (isApplicationCertificateGroup)
                 {
-                    // build issuer chain
-                    foreach (ByteString issuerRawCert in issuerCertificates)
-                    {
-                        using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
-                        newIssuerCollection.Add(issuerCertificate);
-                    }
-                }
-                catch
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Issuer certificate data is invalid.");
-                }
-
-                // self signed
-                bool selfSigned = X509Utils.IsSelfSigned(newCert);
-                if (selfSigned && newIssuerCollection.Count != 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Issuer list not empty for self signed certificate.");
-                }
-
-                if (!selfSigned)
-                {
+                    // OPC 10000-12 §7.10.5: "If the CertificateGroup Purpose
+                    // is ApplicationCertificateType, this list is redundant
+                    // because the IssuerCertificates are already required
+                    // to be in the associated TrustList, therefore the
+                    // Server shall ignore this list." The caller-supplied
+                    // issuerCertificates are therefore never parsed, staged,
+                    // or imported for this group; newIssuerCollection stays
+                    // empty. The Server instead validates newCert using the
+                    // validation process defined in OPC 10000-4 against the
+                    // group's own configured TrustList, which is
+                    // authoritative, ignoring every suppressible validation
+                    // error while still enforcing every other error.
                     try
                     {
-                        await ValidatePushCertificateAndIssuerChainAsync(
+                        await ValidateCertificateAgainstGroupTrustListAsync(
+                            certificateGroup.TrustedStore,
+                            certificateGroup.IssuerStore,
+                            certificateGroup.BrowseName,
                             newCert,
-                            newIssuerCollection,
                             m_configuration.SecurityConfiguration,
                             Server.Telemetry,
                             ct).ConfigureAwait(false);
@@ -1473,12 +1468,70 @@ namespace Opc.Ua.Server
                         m_logger.LogError(
                             Utils.TraceMasks.Security,
                             ex,
-                            "Failed to verify integrity of the new certificate {Certificate} and the issuer list.",
+                            "Failed to verify integrity of the new certificate {Certificate} against " +
+                            "the certificate group's TrustList.",
                             newCert);
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
-                            "Failed to verify integrity of the new certificate and the issuer list.",
+                            "Failed to verify integrity of the new certificate against the " +
+                            "certificate group's TrustList.",
                             ex);
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        // build issuer chain
+                        foreach (ByteString issuerRawCert in issuerCertificates)
+                        {
+                            using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
+                            newIssuerCollection.Add(issuerCertificate);
+                        }
+                    }
+                    catch
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadCertificateInvalid,
+                            "Issuer certificate data is invalid.");
+                    }
+
+                    // self signed
+                    bool selfSigned = X509Utils.IsSelfSigned(newCert);
+                    if (selfSigned && newIssuerCollection.Count != 0)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadCertificateInvalid,
+                            "Issuer list not empty for self signed certificate.");
+                    }
+
+                    if (!selfSigned)
+                    {
+                        try
+                        {
+                            await ValidatePushCertificateAndIssuerChainAsync(
+                                newCert,
+                                newIssuerCollection,
+                                m_configuration.SecurityConfiguration,
+                                Server.Telemetry,
+                                ct).ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(
+                                Utils.TraceMasks.Security,
+                                ex,
+                                "Failed to verify integrity of the new certificate {Certificate} and the issuer list.",
+                                newCert);
+                            throw new ServiceResultException(
+                                StatusCodes.BadSecurityChecksFailed,
+                                "Failed to verify integrity of the new certificate and the issuer list.",
+                                ex);
+                        }
                     }
                 }
 
@@ -1749,6 +1802,232 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Determines whether <paramref name="certificateGroup"/>'s Purpose
+        /// is <c>ApplicationCertificateType</c> per OPC 10000-12 §7.10.5,
+        /// i.e. whether it is the standard <c>DefaultApplicationGroup</c>
+        /// used for the Server's own ApplicationInstance Certificates, as
+        /// opposed to a group used for another purpose (HTTPS, user
+        /// credentials).
+        /// </summary>
+        private static bool IsApplicationCertificateGroup(ServerCertificateGroup certificateGroup)
+        {
+            return Utils.IsEqual(
+                certificateGroup.NodeId,
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
+        }
+
+        /// <summary>
+        /// Validates <paramref name="newCertificate"/> against the TrustList
+        /// (<paramref name="trustedStore"/>/<paramref name="issuerStore"/>)
+        /// associated with a certificate group whose Purpose is
+        /// <c>ApplicationCertificateType</c>, per OPC 10000-12 §7.10.5: "the
+        /// Server shall verify the Certificate using the validation process
+        /// defined in OPC 10000-4. All suppressible errors shall be
+        /// ignored; however, they may be logged as warnings. If the
+        /// validation fails, the appropriate StatusCode defined in
+        /// OPC 10000-4 shall be reported. The validation process requires
+        /// that the TrustList associated with the CertificateGroup already
+        /// contains the IssuerCertificates."
+        /// </summary>
+        /// <remarks>
+        /// Delegates entirely to the shared certificate validator's own
+        /// suppressible-status-code classification (accepting every error
+        /// it reports as suppressible) rather than maintaining a second
+        /// hard-coded status list here: anything the validator does not
+        /// classify as suppressible (key size, certificate type, signature
+        /// integrity, URI/hostname requirements, and so on) still fails
+        /// before this method's <c>AcceptError</c> callback is ever
+        /// consulted.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when validation fails with a non-suppressible error.
+        /// </exception>
+        internal static async Task ValidateCertificateAgainstGroupTrustListAsync(
+            CertificateStoreIdentifier trustedStore,
+            CertificateStoreIdentifier? issuerStore,
+            string trustListName,
+            Certificate newCertificate,
+            SecurityConfiguration securityConfiguration,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
+        {
+            if (trustedStore == null)
+            {
+                throw new ArgumentNullException(nameof(trustedStore));
+            }
+
+            if (string.IsNullOrEmpty(trustListName))
+            {
+                throw new ArgumentException(
+                    "Trust list name must not be null or empty.",
+                    nameof(trustListName));
+            }
+
+            if (newCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(newCertificate));
+            }
+
+            if (securityConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(securityConfiguration));
+            }
+
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+
+            var trustList = new TrustListIdentifier(trustListName);
+            using CertificateManager validator = CertificateManagerFactory.Create(
+                securityConfiguration,
+                telemetry,
+                managerOptions => managerOptions.AddTrustList(
+                    trustList.Name,
+                    trustedStore.StorePath!,
+                    issuerStore?.StorePath));
+
+            using var validationChain = new CertificateCollection { newCertificate };
+
+            var options = new Security.Certificates.CertificateValidationOptions
+            {
+                AllowCertificateDownload = false,
+                UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
+                // OPC 10000-12 §7.10.5: "All suppressible errors shall be
+                // ignored."
+                AcceptError = static (_, _) => true
+            };
+
+            CertificateValidationResult validationResult = await validator.ValidateAsync(
+                validationChain,
+                trustList: trustList,
+                options: options,
+                ct).ConfigureAwait(false);
+
+            validationResult.ThrowIfInvalid();
+        }
+
+        /// <summary>
+        /// Builds a suitable default SubjectName for an ApplicationCertificateType
+        /// slot when the caller omits one, per OPC 10000-12 §7.10.6/§7.10.21:
+        /// a subject derived from the Server's ApplicationIdentity (here,
+        /// its configured application name).
+        /// </summary>
+        internal static string CreateDefaultApplicationCertificateSubjectName(string? applicationName)
+        {
+            if (string.IsNullOrEmpty(applicationName))
+            {
+                applicationName = "UA Server";
+            }
+
+            // Distinguished-name field separators/control characters are not
+            // valid inside a single RDN value.
+            var sanitized = new StringBuilder(applicationName!.Length);
+            foreach (char ch in applicationName)
+            {
+                sanitized.Append(char.IsControl(ch) || ch is '/' or ',' or ';' ? '+' : ch);
+            }
+
+            return Utils.Format("CN={0}, O=OPC Foundation", sanitized);
+        }
+
+        /// <summary>
+        /// Determines whether <paramref name="subjectName"/>'s common name
+        /// (the <c>CN=</c> field) equals one of <paramref name="domainNames"/>,
+        /// per OPC 10000-12 §7.10.6: "For HttpsCertificateTypes the
+        /// SubjectName shall be specified and have the dnsName or IP
+        /// Address as the common name."
+        /// </summary>
+        internal static bool SubjectCommonNameMatchesDomain(
+            string subjectName,
+            IEnumerable<string> domainNames)
+        {
+            string? commonName = null;
+            foreach (string field in X509Utils.ParseDistinguishedName(subjectName))
+            {
+                if (field.StartsWith("CN=", StringComparison.Ordinal))
+                {
+                    commonName = field[3..].Trim();
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(commonName))
+            {
+                return false;
+            }
+
+            foreach (string domainName in domainNames)
+            {
+                if (string.Equals(domainName, commonName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Validates <paramref name="keySizeInBits"/> against the set of
+        /// key sizes permitted for <paramref name="certificateTypeId"/> per
+        /// OPC 10000-12 §7.10.6: "The CertificateTypeId limits the values
+        /// that may be set." A value of 0 (use a suitable default) is
+        /// always permitted.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadOutOfRange"/> when
+        /// <paramref name="keySizeInBits"/> is not supported for the
+        /// specified certificate type.
+        /// </exception>
+        internal static void ValidateKeySizeForCertificateType(
+            NodeId certificateTypeId,
+            bool isRsaCertificateType,
+            ushort keySizeInBits)
+        {
+            if (keySizeInBits == 0)
+            {
+                return;
+            }
+
+            bool supported;
+            if (isRsaCertificateType)
+            {
+                supported = certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType
+                    ? keySizeInBits is 1024 or 2048
+                    : certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType
+                        ? keySizeInBits is 2048 or 3072 or 4096
+                        : keySizeInBits is 1024 or 2048 or 3072 or 4096;
+            }
+            else if (certificateTypeId == ObjectTypeIds.EccNistP256ApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.EccApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+            {
+                supported = keySizeInBits == 256;
+            }
+            else if (certificateTypeId == ObjectTypeIds.EccNistP384ApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+            {
+                supported = keySizeInBits == 384;
+            }
+            else
+            {
+                // An unrecognized ECC certificate type; CryptoUtils.GetCurveFromCertificateTypeId
+                // reports Bad_NotSupported once certificate construction is attempted.
+                return;
+            }
+
+            if (!supported)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadOutOfRange,
+                    Utils.Format(
+                        "The keySizeInBits value {0} is not supported for the specified certificate type.",
+                        keySizeInBits));
+            }
+        }
+
+        /// <summary>
         /// Creates a new self-signed certificate per OPC 10000-12 §7.10.6.
         /// The server generates a key pair internally, builds a self-signed
         /// certificate with the requested subject / DNS / IP and lifetime,
@@ -1785,12 +2064,71 @@ namespace Opc.Ua.Server
                 certificateGroupId,
                 certificateTypeId)!;
 
-            if (string.IsNullOrEmpty(subjectName))
+            // merge DNS names and IP addresses into one domain list. OPC
+            // 10000-12 §7.10.6 requires at least one non-empty entry
+            // across both lists, regardless of certificate type.
+            var domainNames = new List<string>();
+            if (!dnsNames.IsNull)
+            {
+                foreach (string dns in dnsNames)
+                {
+                    if (!string.IsNullOrEmpty(dns))
+                    {
+                        domainNames.Add(dns);
+                    }
+                }
+            }
+            if (!ipAddresses.IsNull)
+            {
+                foreach (string ip in ipAddresses)
+                {
+                    if (!string.IsNullOrEmpty(ip))
+                    {
+                        domainNames.Add(ip);
+                    }
+                }
+            }
+
+            if (domainNames.Count == 0)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument,
-                    "SubjectName must be provided.");
+                    "At least one DNS name or IP address must be provided.");
             }
+
+            bool isHttpsCertificateType = certificateTypeId == ObjectTypeIds.HttpsCertificateType;
+            if (string.IsNullOrEmpty(subjectName))
+            {
+                if (isHttpsCertificateType)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "SubjectName must be provided for HTTPS certificate types.");
+                }
+
+                // OPC 10000-12 §7.10.6/§7.10.21: for ApplicationCertificateTypes
+                // the SubjectName may be omitted; the Server creates a
+                // suitable default based on the Server's ApplicationIdentity.
+                subjectName = CreateDefaultApplicationCertificateSubjectName(m_configuration.ApplicationName);
+            }
+            else if (isHttpsCertificateType && !SubjectCommonNameMatchesDomain(subjectName, domainNames))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "For HTTPS certificate types the SubjectName common name must match a " +
+                    "supplied DNS name or IP address.");
+            }
+
+            // OPC 10000-12 §7.10.6: "keySizeInBits ... The CertificateTypeId
+            // limits the values that may be set." Validated before invoking
+            // the builder so an unsupported value is reported as
+            // Bad_OutOfRange rather than a raw ArgumentException from the
+            // certificate builder (or silently accepted for ECC types).
+            bool isRsaCertificateType = certificateTypeId.IsNull ||
+                certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            ValidateKeySizeForCertificateType(certificateTypeId, isRsaCertificateType, keySizeInBits);
 
             NodeId sessionId = GetSessionId(context);
             m_coordinator.ValidateSessionCanParticipate(sessionId);
@@ -1837,29 +2175,6 @@ namespace Opc.Ua.Server
                 lifetimeInDays = CertificateFactory.DefaultLifeTime;
             }
 
-            // merge DNS names and IP addresses into one domain list
-            var domainNames = new List<string>();
-            if (!dnsNames.IsNull)
-            {
-                foreach (string dns in dnsNames)
-                {
-                    if (!string.IsNullOrEmpty(dns))
-                    {
-                        domainNames.Add(dns);
-                    }
-                }
-            }
-            if (!ipAddresses.IsNull)
-            {
-                foreach (string ip in ipAddresses)
-                {
-                    if (!string.IsNullOrEmpty(ip))
-                    {
-                        domainNames.Add(ip);
-                    }
-                }
-            }
-
             DateTime utcToday = m_timeProvider.GetUtcNow().UtcDateTime.Date;
             ICertificateBuilder builder = s_certificateFactory
                 .CreateApplicationCertificate(
@@ -1871,10 +2186,7 @@ namespace Opc.Ua.Server
                 .SetNotAfter(utcToday.AddDays(lifetimeInDays));
 
             Certificate certificateWithKey;
-            if (certificateTypeId.IsNull ||
-                certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
-                certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            if (isRsaCertificateType)
             {
                 ushort keySize = keySizeInBits > 0
                     ? keySizeInBits
@@ -2017,8 +2329,11 @@ namespace Opc.Ua.Server
                 certificateGroup.NodeId, existingCertIdentifier, cancellationToken).ConfigureAwait(false);
             if (!occupied)
             {
+                // OPC 10000-12 §7.10.7: "If no Certificate is assigned to
+                // the CertificateType slot then a Bad_InvalidState error is
+                // returned."
                 throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
+                    StatusCodes.BadInvalidState,
                     "The certificate slot is already empty.");
             }
 
@@ -2551,21 +2866,56 @@ namespace Opc.Ua.Server
                     StatusCodes.BadInvalidArgument,
                     "Certificate group invalid.");
 
-            certificateTypeIds = certificateGroup.CertificateTypes;
-
             // Look up each certificate via the manager registry so the
             // returned blobs reflect the currently-active cert (the
             // configured identifier carries no Certificate cache).
-            var rawCerts = new List<ByteString>();
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
-            foreach (CertificateIdentifier appId in certificateGroup.ApplicationCertificates)
-            {
-                using CertificateEntry? entry = registry?.AcquireApplicationCertificateByType(appId.CertificateType);
-                rawCerts.Add(entry?.Certificate?.RawData.ToByteString() ?? default);
-            }
-            certificates = rawCerts.ToArrayOf();
+            (certificateTypeIds, certificates) = SelectOccupiedCertificateSlots(
+                certificateGroup.ApplicationCertificates,
+                certificateType => registry?.AcquireApplicationCertificateByType(certificateType));
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Builds the aligned (CertificateTypeIds, Certificates) pair
+        /// returned by <c>GetCertificates</c> from only the currently
+        /// occupied slots in <paramref name="applicationCertificates"/>,
+        /// preserving configured order. A configured placeholder slot
+        /// whose <paramref name="resolveActiveCertificate"/> resolves to
+        /// <see langword="null"/> (no active certificate) is omitted
+        /// rather than reported with an empty <see cref="ByteString"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="resolveActiveCertificate"/> is
+        /// <see langword="null"/>.
+        /// </exception>
+        internal static (ArrayOf<NodeId> CertificateTypeIds, ArrayOf<ByteString> Certificates)
+            SelectOccupiedCertificateSlots(
+                ArrayOf<CertificateIdentifier> applicationCertificates,
+                Func<NodeId, CertificateEntry?> resolveActiveCertificate)
+        {
+            if (resolveActiveCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(resolveActiveCertificate));
+            }
+
+            var occupiedTypes = new List<NodeId>();
+            var occupiedCerts = new List<ByteString>();
+
+            foreach (CertificateIdentifier appId in applicationCertificates)
+            {
+                using CertificateEntry? entry = resolveActiveCertificate(appId.CertificateType);
+                if (entry?.Certificate == null)
+                {
+                    continue;
+                }
+
+                occupiedTypes.Add(appId.CertificateType);
+                occupiedCerts.Add(entry.Certificate.RawData.ToByteString());
+            }
+
+            return (occupiedTypes.ToArrayOf(), occupiedCerts.ToArrayOf());
         }
 
         private ServerCertificateGroup? VerifyGroupAndTypeId(

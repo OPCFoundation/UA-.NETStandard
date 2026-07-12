@@ -459,6 +459,116 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task StageFromOwningSessionDuringInFlightCommitReturnsBadInvalidStateThenSucceedsAsync()
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            var commitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var commitGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool committed = false;
+
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = async _ =>
+                {
+                    commitEntered.TrySetResult(true);
+                    await commitGate.Task.ConfigureAwait(false);
+                    committed = true;
+                }
+            });
+
+            Task<ServiceResult> applyTask = coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None)
+                .AsTask();
+            await commitEntered.Task.ConfigureAwait(false);
+
+            // A same-owner Stage racing an in-flight commit must be
+            // rejected with BadInvalidState: silently accepting it would
+            // add to m_operations after ApplyChangesAsync already took
+            // ownership of the previous list, leaving the new operation
+            // stranded once the commit's finally block releases ownership.
+            bool raced = false;
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                coordinator.Stage(s_sessionA, new PushConfigurationOperation
+                {
+                    CommitAsync = _ =>
+                    {
+                        raced = true;
+                        return Task.CompletedTask;
+                    }
+                }));
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(raced, Is.False);
+            Assert.That(coordinator.IsTransactionActive, Is.True);
+
+            commitGate.TrySetResult(true);
+            ServiceResult result = await applyTask.ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(committed, Is.True);
+            Assert.That(coordinator.IsTransactionActive, Is.False);
+
+            // Staging must succeed immediately after the commit completes,
+            // with no residual operation left over from the rejected Stage
+            // above (GetStagedOperations should show exactly the one just
+            // staged here).
+            bool secondCommitted = false;
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ =>
+                {
+                    secondCommitted = true;
+                    return Task.CompletedTask;
+                }
+            });
+            Assert.That(coordinator.IsTransactionActive, Is.True);
+            Assert.That(coordinator.OwnerSessionId, Is.EqualTo(s_sessionA));
+            Assert.That(coordinator.GetStagedOperations().Count, Is.EqualTo(1));
+
+            ServiceResult secondApplyResult = await coordinator
+                .ApplyChangesAsync(s_sessionA, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(secondApplyResult), Is.True);
+            Assert.That(secondCommitted, Is.True);
+        }
+
+        [Test]
+        public void CancelChangesReportsBadRequestCancelledByClientInDiagnostics()
+        {
+            // OPC 10000-12 §7.10.17: "If the CancelChanges Method was
+            // called the value is Bad_RequestCancelledByClient."
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry, TimeProvider.System);
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            ServiceResult result = coordinator.CancelChanges(s_sessionA);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(
+                coordinator.GetSnapshot().Result,
+                Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+        }
+
+        [Test]
+        public void CancelForSessionCloseReportsBadRequestCancelledByRequestInDiagnostics()
+        {
+            // Only an explicit CancelChanges call reports
+            // Bad_RequestCancelledByClient per §7.10.17; a Session closing
+            // (e.g. a timeout, not necessarily the client's request to
+            // cancel) reports the more generic BadRequestCancelledByRequest.
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry, TimeProvider.System);
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            coordinator.CancelForSessionClose(s_sessionA);
+
+            Assert.That(
+                coordinator.GetSnapshot().Result,
+                Is.EqualTo(StatusCodes.BadRequestCancelledByRequest));
+        }
+
+        [Test]
         public async Task CancelForSessionCloseDuringAnInFlightCommitIsANoOpAsync()
         {
             var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);

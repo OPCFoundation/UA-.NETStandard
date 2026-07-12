@@ -96,7 +96,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
-        /// another Session already owns the active transaction.
+        /// another Session already owns the active transaction, or with
+        /// <see cref="StatusCodes.BadInvalidState"/> when the owning
+        /// Session's own <see cref="ApplyChangesAsync"/> commit is still in
+        /// flight.
         /// </exception>
         void Stage(NodeId sessionId, PushConfigurationOperation operation);
 
