@@ -40,6 +40,8 @@ you need finer control.
 | `Opc.Ua.Client.ComplexTypes`   | `builder.AddComplexTypes()`              | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client.Alarms` (within `Opc.Ua.Client`) | `builder.AddAlarms()`        | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Server`                | `builder.AddServer(opt => …)`            | `IOpcUaServerBuilder`    | yes     | `OpcUa:Server`           |
+| `Opc.Ua.Server` (node manager)| `builder.AddNodeManager<T>()`            | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Server` (runtime NodeSet) | `builder.AddRuntimeNodeSet(…)`       | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
