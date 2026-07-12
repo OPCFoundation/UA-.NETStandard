@@ -132,13 +132,26 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public BufferManager(string name, int maxBufferSize, ITelemetryContext telemetry)
+            : this(name, maxBufferSize, telemetry, CreateArrayPool(maxBufferSize))
+        {
+        }
+
+        /// <summary>
+        /// Constructs the buffer manager with the specified array pool.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="maxBufferSize">Max size of the buffer.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="arrayPool">The array pool to use.</param>
+        internal BufferManager(
+            string name,
+            int maxBufferSize,
+            ITelemetryContext telemetry,
+            ArrayPool<byte> arrayPool)
         {
             m_logger = telemetry.CreateLogger<BufferManager>();
             Name = name;
-            m_arrayPool =
-                maxBufferSize <= 1024 * 1024
-                    ? ArrayPool<byte>.Shared
-                    : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
+            m_arrayPool = arrayPool ?? throw new ArgumentNullException(nameof(arrayPool));
             m_maxBufferSize = maxBufferSize;
             MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize, m_logger);
         }
@@ -379,17 +392,33 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Returns the suggested rent size for the requested amount of data.
+        /// </summary>
+        /// <param name="size">The requested amount of data.</param>
+        /// <returns>The suggested rent size.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        internal int GetSuggestedBufferSize(int size)
+        {
+            if (size > m_maxBufferSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(size));
+            }
+
+            return DetermineSuggestedBufferSize(size, logger: null);
+        }
+
+        /// <summary>
         /// Returns the suggested max rent size for data in the buffers.
         /// </summary>
         /// <param name="maxBufferSize">The max buffer size configured.</param>
         /// <param name="logger">A contextual logger to log to</param>
-        private static int DetermineSuggestedBufferSize(int maxBufferSize, ILogger logger)
+        private static int DetermineSuggestedBufferSize(int maxBufferSize, ILogger? logger)
         {
             int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
             int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
             if (bufferArrayPoolSize != maxDataRentSize)
             {
-                logger.LogWarning(
+                logger?.LogWarning(
                     "BufferManager: Max buffer size {MaxBufferSize} + cookie length {Cookie} may waste memory because it allocates buffers in the next bucket!",
                     maxBufferSize,
                     kCookieLength);
@@ -411,6 +440,13 @@ namespace Opc.Ua.Bindings
             }
 
             return result;
+        }
+
+        private static ArrayPool<byte> CreateArrayPool(int maxBufferSize)
+        {
+            return maxBufferSize <= 1024 * 1024
+                ? ArrayPool<byte>.Shared
+                : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
         }
 
         /// <summary>

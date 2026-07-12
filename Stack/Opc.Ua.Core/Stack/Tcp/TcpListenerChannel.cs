@@ -230,7 +230,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(socket));
             }
 #pragma warning disable CA2000 // transport ownership is transferred to Attach below
-            IUaSCByteTransport transport = new TcpByteTransport(socket, BufferManager, Quotas.MaxBufferSize, Telemetry);
+            IUaSCByteTransport transport = new TcpByteTransport(socket, BufferManager, ReceiveBufferSize, Telemetry);
             transport = TransportDecorator?.Invoke(transport) ?? transport;
             Attach(channelId, transport);
 #pragma warning restore CA2000

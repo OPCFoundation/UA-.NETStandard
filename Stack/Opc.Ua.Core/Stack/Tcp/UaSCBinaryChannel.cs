@@ -262,6 +262,13 @@ namespace Opc.Ua.Bindings
                 SendBufferSize = TcpMessageLimits.MaxBufferSize;
             }
 
+            ReceiveBufferSize = Math.Max(
+                TcpMessageLimits.MinBufferSize,
+                bufferManager.GetSuggestedBufferSize(ReceiveBufferSize));
+            SendBufferSize = Math.Max(
+                TcpMessageLimits.MinBufferSize,
+                bufferManager.GetSuggestedBufferSize(SendBufferSize));
+
             MaxRequestMessageSize = quotas.MaxMessageSize;
             MaxResponseMessageSize = quotas.MaxMessageSize;
 

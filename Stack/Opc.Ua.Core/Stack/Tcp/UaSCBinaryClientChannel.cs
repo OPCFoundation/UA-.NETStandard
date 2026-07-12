@@ -240,7 +240,7 @@ namespace Opc.Ua.Bindings
                 {
                     Transport = m_transportFactory.Create(
                         BufferManager,
-                        Quotas.MaxBufferSize,
+                        ReceiveBufferSize,
                         m_telemetry);
                 }
                 transport = Transport;
@@ -527,8 +527,12 @@ namespace Opc.Ua.Bindings
                 }
 
                 // assign new values once ensured that sizes are within bounds
-                SendBufferSize = (int)sendBufferSize;
-                ReceiveBufferSize = (int)receiveBufferSize;
+                SendBufferSize = Math.Max(
+                    TcpMessageLimits.MinBufferSize,
+                    BufferManager.GetSuggestedBufferSize((int)sendBufferSize));
+                ReceiveBufferSize = Math.Max(
+                    TcpMessageLimits.MinBufferSize,
+                    BufferManager.GetSuggestedBufferSize((int)receiveBufferSize));
 
                 // update the max message size.
                 if (maxMessageSize > 0 && maxMessageSize < MaxRequestMessageSize)
@@ -1106,7 +1110,7 @@ namespace Opc.Ua.Bindings
                         State = TcpChannelState.Connecting;
                         transport = m_transportFactory.Create(
                             BufferManager,
-                            Quotas.MaxBufferSize,
+                            ReceiveBufferSize,
                             m_telemetry);
 
                         operation = m_handshakeOperation;
