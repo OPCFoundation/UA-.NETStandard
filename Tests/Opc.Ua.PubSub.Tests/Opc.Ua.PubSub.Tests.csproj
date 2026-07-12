@@ -37,6 +37,7 @@
   <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <Compile Remove="Encoding\Avro\**\*.cs" />
     <Compile Remove="Encoding\Arrow\**\*.cs" />
+    <Compile Remove="SchemaExchange\**\*.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />

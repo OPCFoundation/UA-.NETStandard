@@ -45,6 +45,11 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
   </ItemGroup>
+  <!-- Apache.Arrow backs the Arrow PubSub adapter; only referenced on the modern
+       target frameworks where the Arrow encoding is compiled (net8+). -->
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Apache.Arrow" />
+  </ItemGroup>
   <Choose>
     <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">
       <ItemGroup>

@@ -97,6 +97,19 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
+        /// Adds an Arrow schema announcement after verifying the announced SchemaId.
+        /// </summary>
+        /// <param name="announcement">The Arrow schema announcement.</param>
+        public void Add(ArrowSchemaAnnouncement announcement)
+        {
+            if (announcement is null)
+            {
+                throw new ArgumentNullException(nameof(announcement));
+            }
+            Add(announcement.SchemaId, announcement.Schema, ArrowFormat);
+        }
+
+        /// <summary>
         /// Marks a schema as announced to a destination if this is the first announcement.
         /// </summary>
         /// <param name="destinationId">The destination identity.</param>

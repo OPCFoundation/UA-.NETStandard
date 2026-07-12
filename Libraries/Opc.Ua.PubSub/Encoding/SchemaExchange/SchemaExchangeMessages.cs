@@ -67,6 +67,21 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
+        /// Creates an Arrow announcement for the current PubSub schema shape. The SchemaId and Schema
+        /// are derived from the internal descriptor (see the type remarks), not yet the canonical
+        /// serialized Arrow Schema.
+        /// </summary>
+        /// <param name="message">The Arrow network message.</param>
+        /// <returns>The schema announcement.</returns>
+        internal static ArrowSchemaAnnouncement CreateArrowAnnouncement(ArrowNetworkMessage message)
+        {
+            string descriptor = BuildSchemaDescriptor(message, SchemaCache.ArrowFormat);
+            ByteString schema = ByteString.From(System.Text.Encoding.UTF8.GetBytes(descriptor));
+            ByteString schemaId = SchemaCache.ComputeSchemaId(schema, SchemaCache.ArrowFormat);
+            return new ArrowSchemaAnnouncement(schemaId, schema, null);
+        }
+
+        /// <summary>
         /// Writes a deterministic schema descriptor for announcement change tracking. This is an
         /// internal shape summary, not the canonical Avro/Arrow schema (see the type remarks).
         /// </summary>
@@ -85,6 +100,10 @@ namespace Opc.Ua.PubSub.Encoding
                 if (message is AvroNetworkMessage avro)
                 {
                     writer.WriteString("dataSetClassId", avro.DataSetClassId.ToString());
+                }
+                if (message is ArrowNetworkMessage arrow)
+                {
+                    writer.WriteString("dataSetClassId", arrow.DataSetClassId.ToString());
                 }
                 writer.WriteStartArray("messages");
                 for (int i = 0; i < message.DataSetMessages.Count; i++)
@@ -125,6 +144,7 @@ namespace Opc.Ua.PubSub.Encoding
             return message switch
             {
                 AvroDataSetMessage avro => (uint)avro.FieldContentMask,
+                ArrowDataSetMessage arrow => (uint)arrow.FieldContentMask,
                 _ => 0
             };
         }
