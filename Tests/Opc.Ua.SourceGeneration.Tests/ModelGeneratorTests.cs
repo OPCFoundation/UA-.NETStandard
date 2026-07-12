@@ -137,6 +137,37 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Theory]
+        public void GenerateAndCompileIsa95JobControlNodeSet2Test(
+            LanguageVersion languageVersion)
+        {
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
+
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(languageVersion))
+                .AddAdditionalTexts([EmbeddedText.From("Isa95JobControl.NodeSet2.xml")])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
+
+            string generatedSources = string.Join(
+                "\n",
+                generatorResult.GeneratedSources.Select(source => source.SourceText.ToString()));
+            Assert.That(generatedSources, Does.Contain("ISA95JobOrderDataType"));
+        }
+
+        [Theory]
         public void GenerateAndCompileTestDataDesignTest(
             LanguageVersion languageVersion)
         {

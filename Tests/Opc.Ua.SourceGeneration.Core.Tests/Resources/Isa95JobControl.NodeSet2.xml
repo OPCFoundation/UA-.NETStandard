@@ -1,0 +1,3674 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2024-01-31T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/" Version="2.0.0" PublicationDate="2024-01-31T00:00:00Z" ModelVersion="2.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.11" PublicationDate="2022-03-29T00:00:00Z" ModelVersion="1.4.11" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="SByte">i=2</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="Int16">i=4</Alias>
+    <Alias Alias="UInt16">i=5</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="XmlElement">i=16</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="ExpandedNodeId">i=18</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="StatusCode">i=19</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="Number">i=26</Alias>
+    <Alias Alias="Integer">i=27</Alias>
+    <Alias Alias="UInteger">i=28</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasEventSource">i=36</Alias>
+    <Alias Alias="HasNotifier">i=48</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+    <Alias Alias="HasCause">i=53</Alias>
+    <Alias Alias="ToState">i=52</Alias>
+    <Alias Alias="FromState">i=51</Alias>
+    <Alias Alias="HasEffect">i=54</Alias>
+    <Alias Alias="HasTrueSubState">i=9004</Alias>
+    <Alias Alias="HasFalseSubState">i=9005</Alias>
+    <Alias Alias="HasDictionaryEntry">i=17597</Alias>
+    <Alias Alias="HasCondition">i=9006</Alias>
+    <Alias Alias="HasGuard">i=15112</Alias>
+    <Alias Alias="HasAddIn">i=17604</Alias>
+    <Alias Alias="HasInterface">i=17603</Alias>
+  </Aliases>
+  <UADataType NodeId="ns=1;i=3005" BrowseName="1:ISA95EquipmentDataType">
+    <DisplayName>ISA95EquipmentDataType</DisplayName>
+    <Description>Defines an equipment resource or a piece of equipment, a quantity, an optional description, and an optional collection of properties.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5008</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5010</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5009</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95EquipmentDataType">
+      <Field Name="ID" DataType="i=12">
+        <Description>An identification of an EquipmentClass or Equipment.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" ValueRank="1" IsOptional="true">
+        <Description>Additional information and description about the resource.</Description>
+      </Field>
+      <Field Name="EquipmentUse" DataType="i=12" IsOptional="true">
+        <Description>Information about the expected use of the equipment, see the ISA 95 Part 2 standard for defined values.</Description>
+      </Field>
+      <Field Name="Quantity" DataType="i=12878" IsOptional="true">
+        <Description>The quantity of the resource</Description>
+      </Field>
+      <Field Name="EngineeringUnits" DataType="i=887" IsOptional="true">
+        <Description>The Unit Of Measure of the quantity</Description>
+      </Field>
+      <Field Name="Properties" DataType="ns=1;i=3002" ValueRank="1" IsOptional="true">
+        <Description>Any associated properties, or empty if there are no properties defined.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3015" BrowseName="1:ISA95JobOrderAndStateDataType">
+    <DisplayName>ISA95JobOrderAndStateDataType</DisplayName>
+    <Description>Defines the information needed to schedule and execute a job.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5032</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5034</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5033</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95JobOrderAndStateDataType">
+      <Field Name="JobOrder" DataType="ns=1;i=3008">
+        <Description>The job order</Description>
+      </Field>
+      <Field Name="State" DataType="ns=1;i=3006" ValueRank="1">
+        <Description>The State of the job order. The array shall provide at least one entry representing the top level state and potentially additional entries representing substates. The first entry shall be the top level entry, having the BrowsePath set to Null. The order of the subtstates is not defined.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3008" BrowseName="1:ISA95JobOrderDataType">
+    <DisplayName>ISA95JobOrderDataType</DisplayName>
+    <Description>Defines the information needed to schedule and execute a job.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5014</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5016</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5015</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95JobOrderDataType">
+      <Field Name="JobOrderID" DataType="i=12">
+        <Description>An identification of the Job Order.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" ValueRank="1" IsOptional="true">
+        <Description>Addition information about the Job Order The array allows to provide descriptions in different languages.</Description>
+      </Field>
+      <Field Name="WorkMasterID" DataType="ns=1;i=3007" ValueRank="1" IsOptional="true">
+        <Description>Work Master associated with the job order. If multiple work masters are defined, then the execution system can select the work master based on the availability of resources.</Description>
+      </Field>
+      <Field Name="StartTime" DataType="i=13" IsOptional="true">
+        <Description>The proposed start time for the order, may be empty if not specified</Description>
+      </Field>
+      <Field Name="EndTime" DataType="i=13" IsOptional="true">
+        <Description>The proposed end time for the order, may be empty if not specified</Description>
+      </Field>
+      <Field Name="Priority" DataType="i=4" IsOptional="true">
+        <Description>The priority of the job order, may be empty of not specified. Higher numbers have higher priority.  This type allows the Job Order clients to pick their own ranges, and the Job Order server only has to pick the highest number.</Description>
+      </Field>
+      <Field Name="JobOrderParameters" DataType="ns=1;i=3003" ValueRank="1" IsOptional="true">
+        <Description>Key value pair with values, not associated with a resource that is provided as part of the job order, may be empty if not specified.</Description>
+      </Field>
+      <Field Name="PersonnelRequirements" DataType="ns=1;i=3011" ValueRank="1" IsOptional="true">
+        <Description>A specification of any personnel requirements associated with the job order, may be empty if not specified</Description>
+      </Field>
+      <Field Name="EquipmentRequirements" DataType="ns=1;i=3005" ValueRank="1" IsOptional="true">
+        <Description>A specification of any equipment requirements associated with the job order, may be empty if not specified.</Description>
+      </Field>
+      <Field Name="PhysicalAssetRequirements" DataType="ns=1;i=3012" ValueRank="1" IsOptional="true">
+        <Description>A specification of any physical asset requirements associated with the job order, may be empty if not specified.</Description>
+      </Field>
+      <Field Name="MaterialRequirements" DataType="ns=1;i=3010" ValueRank="1" IsOptional="true">
+        <Description>A specification of any material requirements associated with the job order, may be empty if not specified.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3013" BrowseName="1:ISA95JobResponseDataType">
+    <DisplayName>ISA95JobResponseDataType</DisplayName>
+    <Description>Defines the information needed to schedule and execute a job.</Description>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.5</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5026</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5028</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5027</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95JobResponseDataType">
+      <Field Name="JobResponseID" DataType="i=12">
+        <Description>An identification of the Job Response</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" IsOptional="true">
+        <Description>Additional information about the Job Response</Description>
+      </Field>
+      <Field Name="JobOrderID" DataType="i=12">
+        <Description>An identification of the job order associated with the job response.</Description>
+      </Field>
+      <Field Name="StartTime" DataType="i=13" IsOptional="true">
+        <Description>The actual start time for the order.</Description>
+      </Field>
+      <Field Name="EndTime" DataType="i=13" IsOptional="true">
+        <Description>The actual end time for the order.</Description>
+      </Field>
+      <Field Name="JobState" DataType="ns=1;i=3006" ValueRank="1">
+        <Description>The current state of the job. The array shall provide at least one entry representing the top level state and potentially additional entries representing substates. The first entry shall be the top level entry, having the BrowsePath set to Null. The order of the subtstates is not defined.</Description>
+      </Field>
+      <Field Name="JobResponseData" DataType="ns=1;i=3003" ValueRank="1" IsOptional="true">
+        <Description>Key value pair with values, not associated with a resource that is provided as part of the job response, may be empty if not specified.</Description>
+      </Field>
+      <Field Name="PersonnelActuals" DataType="ns=1;i=3011" ValueRank="1" IsOptional="true">
+        <Description>A specification of any personnel requirements associated with the job response, may be empty if not specified.</Description>
+      </Field>
+      <Field Name="EquipmentActuals" DataType="ns=1;i=3005" ValueRank="1" IsOptional="true">
+        <Description>A specification of any equipment requirements associated with the job response, may be empty if not specified.</Description>
+      </Field>
+      <Field Name="PhysicalAssetActuals" DataType="ns=1;i=3012" ValueRank="1" IsOptional="true">
+        <Description>A specification of any physical asset requirements associated with the job response, may be empty if not specified.</Description>
+      </Field>
+      <Field Name="MaterialActuals" DataType="ns=1;i=3010" ValueRank="1" IsOptional="true">
+        <Description>A specification of any material requirements associated with the job response, may be empty if not specified.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3010" BrowseName="1:ISA95MaterialDataType">
+    <DisplayName>ISA95MaterialDataType</DisplayName>
+    <Description>Defines a material resource, a quantity, an optional description, and an optional collection of properties.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.6</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5017</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5019</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5018</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95MaterialDataType">
+      <Field Name="MaterialClassID" DataType="i=12" IsOptional="true">
+        <Description>An identification of the resource, or null if the Material Class is not used to identify the material.</Description>
+      </Field>
+      <Field Name="MaterialDefinitionID" DataType="i=12" IsOptional="true">
+        <Description>An identification of the resource, or null if the Material Definition is not used to identify the material.</Description>
+      </Field>
+      <Field Name="MaterialLotID" DataType="i=12" IsOptional="true">
+        <Description>An identification of the resource, or null if the Material Lot is not used to identify the material.</Description>
+      </Field>
+      <Field Name="MaterialSublotID" DataType="i=12" IsOptional="true">
+        <Description>An identification of the resource, or null if the Material Sublot is not used to identify the material.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" ValueRank="1" IsOptional="true">
+        <Description>Additional information and description about the resource.</Description>
+      </Field>
+      <Field Name="MaterialUse" DataType="i=12" IsOptional="true">
+        <Description>Information about the expected use of the material, see the ISA 95 Part 2 standard for defined values.</Description>
+      </Field>
+      <Field Name="Quantity" DataType="i=12878" IsOptional="true">
+        <Description>The quantity of the resource</Description>
+      </Field>
+      <Field Name="EngineeringUnits" DataType="i=887" IsOptional="true">
+        <Description>The Unit Of Measure of the quantity</Description>
+      </Field>
+      <Field Name="Properties" DataType="ns=1;i=3002" ValueRank="1" IsOptional="true">
+        <Description>Any associated properties, or empty if there are no properties defined.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3003" BrowseName="1:ISA95ParameterDataType">
+    <DisplayName>ISA95ParameterDataType</DisplayName>
+    <Description>A subtype of OPC UA Structure that defines three linked data items: the ID, which is a unique identifier for a property, the value, which is the data that is identified, and an optional description of the parameter.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.10</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5005</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5007</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5006</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95ParameterDataType">
+      <Field Name="ID" DataType="i=12">
+        <Description>A unique identifier for a parameter</Description>
+      </Field>
+      <Field Name="Value">
+        <Description>Value of the parameter.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" ValueRank="1" IsOptional="true">
+        <Description>An optional description of the parameter. The array allows to provide descriptions in different languages when writing. When accessing, the server shall only provide one entry in the array.</Description>
+      </Field>
+      <Field Name="EngineeringUnits" DataType="i=887" IsOptional="true">
+        <Description>The Unit Of Measure of the value</Description>
+      </Field>
+      <Field Name="Subparameters" DataType="ns=1;i=3003" ValueRank="1" IsOptional="true" />
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3011" BrowseName="1:ISA95PersonnelDataType">
+    <DisplayName>ISA95PersonnelDataType</DisplayName>
+    <Description>Defines a personnel resource or a person, a quantity, an optional description, and an optional collection of properties.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.7</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5020</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5022</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5021</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95PersonnelDataType">
+      <Field Name="ID" DataType="i=12">
+        <Description>An identification of a Personnel Class or Person.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" ValueRank="1" IsOptional="true">
+        <Description>Additional information and description about the resource.</Description>
+      </Field>
+      <Field Name="PersonnelUse" DataType="i=12" IsOptional="true">
+        <Description>Information about the expected use of the personnel, see the ISA 95 Part 2 standard for defined values.</Description>
+      </Field>
+      <Field Name="Quantity" DataType="i=12878" IsOptional="true">
+        <Description>The quantity of the resource</Description>
+      </Field>
+      <Field Name="EngineeringUnits" DataType="i=887" IsOptional="true">
+        <Description>The Unit Of Measure of the quantity</Description>
+      </Field>
+      <Field Name="Properties" DataType="ns=1;i=3002" ValueRank="1" IsOptional="true">
+        <Description>Any associated properties, or empty if there are no properties defined.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3012" BrowseName="1:ISA95PhysicalAssetDataType">
+    <DisplayName>ISA95PhysicalAssetDataType</DisplayName>
+    <Description>Defines a physical asset, a quantity, an optional description, and an optional collection of properties.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.8</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5023</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5025</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5024</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95PhysicalAssetDataType">
+      <Field Name="ID" DataType="i=12">
+        <Description>An identification of a Physical Asset Class or Physical Asset.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" ValueRank="1" IsOptional="true">
+        <Description>Additional information and description about the resource.</Description>
+      </Field>
+      <Field Name="PhysicalAssetUse" DataType="i=12" IsOptional="true">
+        <Description>Information about the expected use of the physical asset, see the ISA 95 Part 2 standard for defined values.</Description>
+      </Field>
+      <Field Name="Quantity" DataType="i=12878" IsOptional="true">
+        <Description>The quantity of the resource</Description>
+      </Field>
+      <Field Name="EngineeringUnits" DataType="i=887" IsOptional="true">
+        <Description>The Unit Of Measure of the quantity</Description>
+      </Field>
+      <Field Name="Properties" DataType="ns=1;i=3002" ValueRank="1" IsOptional="true">
+        <Description>Any associated properties, or empty if there are no properties defined.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3002" BrowseName="1:ISA95PropertyDataType">
+    <DisplayName>ISA95PropertyDataType</DisplayName>
+    <Description>A subtype of OPC UA Structure that defines two linked data items: an ID, which is a unique identifier for a property within the scope of the associated resource, and the value, which is the data for the property.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.9</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5002</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5004</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5003</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95PropertyDataType">
+      <Field Name="ID" DataType="i=12">
+        <Description>Unique identifier for a property within the scope of the associated resource</Description>
+      </Field>
+      <Field Name="Value">
+        <Description>Value for the property</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" ValueRank="1" IsOptional="true">
+        <Description>An optional description of the parameter.</Description>
+      </Field>
+      <Field Name="EngineeringUnits" DataType="i=887" IsOptional="true">
+        <Description>The Unit Of Measure of the value</Description>
+      </Field>
+      <Field Name="Subproperties" DataType="ns=1;i=3002" ValueRank="1" IsOptional="true" />
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3006" BrowseName="1:ISA95StateDataType">
+    <DisplayName>ISA95StateDataType</DisplayName>
+    <Description>Defines the information needed to schedule and execute a job.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5029</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5031</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5030</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95StateDataType">
+      <Field Name="BrowsePath" DataType="i=540">
+        <Description>The browse path of substates. Shall be null when the top-level state is represented.</Description>
+      </Field>
+      <Field Name="StateText" DataType="i=21">
+        <Description>The state represented as human readable text. Shall represent the same text as the CurrentState Variable of a StateMachine would.</Description>
+      </Field>
+      <Field Name="StateNumber" DataType="i=7">
+        <Description>The state represented as number. Shall represent the same number as the Number subvariable of the CurrentState Variable of a StateMachine would.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3007" BrowseName="1:ISA95WorkMasterDataType">
+    <DisplayName>ISA95WorkMasterDataType</DisplayName>
+    <Description>Defines a Work Master ID and the defined parameters for the Work Master.</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.3.11</Documentation>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5011</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5013</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5012</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:ISA95WorkMasterDataType">
+      <Field Name="ID" DataType="i=12">
+        <Description>An identification of the Work Master.</Description>
+      </Field>
+      <Field Name="Description" DataType="i=21" IsOptional="true">
+        <Description>Additional information and description about the Work Master.</Description>
+      </Field>
+      <Field Name="Parameters" DataType="ns=1;i=3003" ValueRank="1" IsOptional="true">
+        <Description>Defined parameters for the Work Master.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObjectType NodeId="ns=1;i=1006" BrowseName="1:ISA95JobOrderStatusEventType" IsAbstract="true">
+    <DisplayName>ISA95JobOrderStatusEventType</DisplayName>
+    <Category>ISA-95 Job Control Job Response Provider Job Order Status Events</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.6</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6047</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6049</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6048</Reference>
+      <Reference ReferenceType="i=41" IsForward="false">ns=1;i=1003</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5041</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5042</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5043</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5044</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5045</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5046</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5047</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5048</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5049</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5050</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5051</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5069</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5070</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5071</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5072</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5073</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5074</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5075</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5076</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5077</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5078</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5079</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5084</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5085</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5086</Reference>
+      <Reference ReferenceType="HasEffect" IsForward="false">ns=1;i=5087</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6047" BrowseName="1:JobOrder" ParentNodeId="ns=1;i=1006" DataType="ns=1;i=3008" AccessLevel="3">
+    <DisplayName>JobOrder</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6049" BrowseName="1:JobResponse" ParentNodeId="ns=1;i=1006" DataType="ns=1;i=3013" AccessLevel="3">
+    <DisplayName>JobResponse</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6048" BrowseName="1:JobState" ParentNodeId="ns=1;i=1006" DataType="ns=1;i=3006" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>JobState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1003" BrowseName="1:ISA95JobResponseProviderObjectType">
+    <DisplayName>ISA95JobResponseProviderObjectType</DisplayName>
+    <Description>The OPENSCSJobResponseProviderObjectType contains a method to receive unsolicited job response requests.</Description>
+    <Category>ISA-95 Job Response Provider V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.7/#7.2.7.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=6050</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7014</Reference>
+      <Reference ReferenceType="i=41">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6050" BrowseName="1:JobOrderResponseList" ParentNodeId="ns=1;i=1003" DataType="ns=1;i=3013" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>JobOrderResponseList</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7002" BrowseName="1:RequestJobResponseByJobOrderID" ParentNodeId="ns=1;i=1003">
+    <DisplayName>RequestJobResponseByJobOrderID</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.7/#7.2.7.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6042</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6043</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6042" BrowseName="InputArguments" ParentNodeId="ns=1;i=7002" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7002</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains an ID of the job order, as specified by the method caller.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6043" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7002" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7002</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobResponse</Name>
+              <DataType>
+                <Identifier>ns=1;i=3013</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information about the execution of a job order, such as the current status of the job, actual material consumed, actual material produced, actual equipment used, and job specific data.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7014" BrowseName="1:RequestJobResponseByJobOrderState" ParentNodeId="ns=1;i=1003">
+    <DisplayName>RequestJobResponseByJobOrderState</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.7/#7.2.7.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6016</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6017</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6016" BrowseName="InputArguments" ParentNodeId="ns=1;i=7014" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7014</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderState</Name>
+              <DataType>
+                <Identifier>ns=1;i=3006</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>Contains a job status of the JobResponse to be returned. The array shall provide at least one entry representing the top level state and potentially additional entries representing substates. The first entry shall be the top level entry, having the BrowsePath set to null. The order of the substates is not defined.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6017" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7014" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7014</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobResponses</Name>
+              <DataType>
+                <Identifier>ns=1;i=3013</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>Contains a list of information about the execution of a job order, such as the current status of the job, actual material consumed, actual material produced, actual equipment used, and job specific data.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1004" BrowseName="1:ISA95JobResponseReceiverObjectType">
+    <DisplayName>ISA95JobResponseReceiverObjectType</DisplayName>
+    <Description>A Job Response Receiver receives unsolicited Job Responses, usually as the result of completion of a job, or at intermediate points within the job.</Description>
+    <Category>ISA-95 Job Response Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.8/#7.2.8.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=7003</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="ns=1;i=7003" BrowseName="1:ReceiveJobResponse" ParentNodeId="ns=1;i=1004">
+    <DisplayName>ReceiveJobResponse</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.8/#7.2.8.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6044</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6045</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6044" BrowseName="InputArguments" ParentNodeId="ns=1;i=7003" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7003</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobResponse</Name>
+              <DataType>
+                <Identifier>ns=1;i=3013</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information about the execution of a job order, such as actual material consumed, actual material produced, actual equipment used, and job specific data.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6045" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7003" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7003</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1005" BrowseName="1:ISA95EndedStateMachineType">
+    <DisplayName>ISA95EndedStateMachineType</DisplayName>
+    <Category>ISA-95 Job Control Job Order Receiver SubStates</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=5057</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5056</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5058</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2771</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5057" BrowseName="1:Closed" ParentNodeId="ns=1;i=1005">
+    <DisplayName>Closed</DisplayName>
+    <Description>The job order has been completed and no further post processing is performed.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6094</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5058</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6094" BrowseName="StateNumber" ParentNodeId="ns=1;i=5057" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5057</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5056" BrowseName="1:Completed" ParentNodeId="ns=1;i=1005">
+    <DisplayName>Completed</DisplayName>
+    <Description>The job order has been completed and is no longer in execution.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6093</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5058</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6093" BrowseName="StateNumber" ParentNodeId="ns=1;i=5056" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5056</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5058" BrowseName="1:FromCompletedToClosed" ParentNodeId="ns=1;i=1005">
+    <DisplayName>FromCompletedToClosed</DisplayName>
+    <Description>This transition is triggered when the system has finalized post processing of a ended job order.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6095</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5057</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5056</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6095" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5058" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5058</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1007" BrowseName="1:ISA95InterruptedStateMachineType">
+    <DisplayName>ISA95InterruptedStateMachineType</DisplayName>
+    <Category>ISA-95 Job Control Job Order Receiver SubStates</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.5</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=5061</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5062</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5059</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5060</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2771</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5061" BrowseName="1:FromHeldToSuspended" ParentNodeId="ns=1;i=1007">
+    <DisplayName>FromHeldToSuspended</DisplayName>
+    <Description>This transition is triggered when the system has switched the job order from internally held to externally suspended, for example by a call of the Pause Method.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6098</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5059</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5060</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6098" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5061" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5061</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5062" BrowseName="1:FromSuspendedToHeld" ParentNodeId="ns=1;i=1007">
+    <DisplayName>FromSuspendedToHeld</DisplayName>
+    <Description>This transition is triggered when the system has switched the job order from externally suspended to an internal held, for example by a call of the Resume Method.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6099</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5059</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5060</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6099" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5062" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5062</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5059" BrowseName="1:Held" ParentNodeId="ns=1;i=1007">
+    <DisplayName>Held</DisplayName>
+    <Description>The job order has been temporarily stopped due to a constraint of some form.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6096</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5061</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5062</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6096" BrowseName="StateNumber" ParentNodeId="ns=1;i=5059" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5059</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5060" BrowseName="1:Suspended" ParentNodeId="ns=1;i=1007">
+    <DisplayName>Suspended</DisplayName>
+    <Description>The job order has been temporarily stopped due to a deliberate decision within the execution system.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6097</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5061</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5062</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6097" BrowseName="StateNumber" ParentNodeId="ns=1;i=5060" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5060</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1002" BrowseName="1:ISA95JobOrderReceiverObjectType">
+    <DisplayName>ISA95JobOrderReceiverObjectType</DisplayName>
+    <Description>The OPENSCSJobOrderReciverObjectType contains a method to receive job order commands and optional definitions of allowable job order information</Description>
+    <Category>ISA-95 Job Order Receiver V2</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=7010</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5040</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5036</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7011</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7012</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5039</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6037</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5085</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5044</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5043</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5045</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5049</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5051</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5050</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5084</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5042</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5041</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5048</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5047</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5046</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5038</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6033</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6035</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6036</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6088</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5035</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7007</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6039</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6038</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7008</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7013</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5037</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7005</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7006</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7001</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7004</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7009</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6034</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2771</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="ns=1;i=7010" BrowseName="1:Abort" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Abort</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.10</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6063</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6064</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5048</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5049</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5076</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5077</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5084</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5085</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5086</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5087</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6063" BrowseName="InputArguments" ParentNodeId="ns=1;i=7010" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7010</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6064" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7010" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7010</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5040" BrowseName="1:Aborted" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Aborted</DisplayName>
+    <Description>The job order is aborted.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6076</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5048</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5049</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5084</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5085</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6076" BrowseName="StateNumber" ParentNodeId="ns=1;i=5040" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5040</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">6</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5036" BrowseName="1:AllowedToStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>AllowedToStart</DisplayName>
+    <Description>The job order is stored and may be executed.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6072</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5042</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5043</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5044</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5044</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5045</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5085</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6072" BrowseName="StateNumber" ParentNodeId="ns=1;i=5036" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5036</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7011" BrowseName="1:Cancel" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Cancel</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.12</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6065</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6066</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6065" BrowseName="InputArguments" ParentNodeId="ns=1;i=7011" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7011</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6066" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7011" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7011</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7012" BrowseName="1:Clear" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Clear</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.13</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6067</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6068</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6067" BrowseName="InputArguments" ParentNodeId="ns=1;i=7012" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7012</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6068" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7012" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7012</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5039" BrowseName="1:Ended" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Ended</DisplayName>
+    <Description>The job order has been completed and is no longer in execution.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6075</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5047</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5051</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6075" BrowseName="StateNumber" ParentNodeId="ns=1;i=5039" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5039</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">5</UInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6037" BrowseName="1:EquipmentID" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>EquipmentID</DisplayName>
+    <Description>Defines a read-only set of Equipment Class IDs and Equipment IDs that may be specified in a job order.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5085" BrowseName="1:FromAllowedToStartToAborted" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromAllowedToStartToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6010</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5040</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5036</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6010" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5085" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5085</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">13</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5044" BrowseName="1:FromAllowedToStartToAllowedToStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromAllowedToStartToAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the Update Method is called and the job order is modified.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6080</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5036</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5036</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7009</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6080" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5044" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5044</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">4</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5043" BrowseName="1:FromAllowedToStartToNotAllowedToStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromAllowedToStartToNotAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the RevokeStart Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6079</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5036</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5035</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6079" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5043" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5043</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5045" BrowseName="1:FromAllowedToStartToRunning" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromAllowedToStartToRunning</DisplayName>
+    <Description>This transition is triggered when a job order is started to be executed.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6081</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5036</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5037</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6081" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5045" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5045</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">5</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5049" BrowseName="1:FromInterruptedToAborted" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromInterruptedToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6085</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5040</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5038</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6085" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5049" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5049</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">9</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5051" BrowseName="1:FromInterruptedToEnded" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromInterruptedToEnded</DisplayName>
+    <Description>This transition is triggered when Stop Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6087</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5039</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5038</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6087" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5051" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5051</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">11</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5050" BrowseName="1:FromInterruptedToRunning" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromInterruptedToRunning</DisplayName>
+    <Description>This transition is triggered when Resume Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6086</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5038</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7008</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5037</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6086" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5050" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5050</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">10</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5084" BrowseName="1:FromNotAllowedToStartToAborted" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromNotAllowedToStartToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6009</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5040</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5035</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6009" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5084" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5084</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">12</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5042" BrowseName="1:FromNotAllowedToStartToAllowedToStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromNotAllowedToStartToAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the Start Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6078</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5036</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5035</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7005</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6078" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5042" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5042</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5041" BrowseName="1:FromNotAllowedToStartToNotAllowedToStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromNotAllowedToStartToNotAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the Update Method is called and the job order is modified.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6077</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5035</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5035</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7009</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6077" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5041" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5041</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5048" BrowseName="1:FromRunningToAborted" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromRunningToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6084</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5040</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5037</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6084" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5048" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5048</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">8</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5047" BrowseName="1:FromRunningToEnded" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromRunningToEnded</DisplayName>
+    <Description>This transition is triggered when the execution of a job order has finished, either internally or by the Stop Method.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6083</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5039</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5037</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6083" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5047" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5047</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">7</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5046" BrowseName="1:FromRunningToInterrupted" ParentNodeId="ns=1;i=1002">
+    <DisplayName>FromRunningToInterrupted</DisplayName>
+    <Description>This transition is triggered when an executing job order gets interrupted, either internally or by the Pause Method.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6082</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5038</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7007</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5037</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6082" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5046" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5046</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">6</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5038" BrowseName="1:Interrupted" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Interrupted</DisplayName>
+    <Description>The job order has been temporarily stopped.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6074</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5049</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5051</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5050</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5046</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6074" BrowseName="StateNumber" ParentNodeId="ns=1;i=5038" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5038</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">4</UInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6033" BrowseName="1:JobOrderList" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3015" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>JobOrderList</DisplayName>
+    <Description>Defines a read-only list of job order information available from the server.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6035" BrowseName="1:MaterialClassID" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>MaterialClassID</DisplayName>
+    <Description>Defines a read-only set of Material Classes IDs that may be specified in a job order.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6036" BrowseName="1:MaterialDefinitionID" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>MaterialDefinitionID</DisplayName>
+    <Description>Defines a read-only set of Material Classes IDs that may be specified in a job order.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6088" BrowseName="1:MaxDownloadableJobOrders" ParentNodeId="ns=1;i=1002" DataType="UInt16">
+    <DisplayName>MaxDownloadableJobOrders</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5035" BrowseName="1:NotAllowedToStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>NotAllowedToStart</DisplayName>
+    <Description>The job order is stored but may not be executed.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6071</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5043</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5084</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5042</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5041</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5041</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6071" BrowseName="StateNumber" ParentNodeId="ns=1;i=5035" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5035</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7007" BrowseName="1:Pause" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Pause</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.7</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6057</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6058</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5046</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5074</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6057" BrowseName="InputArguments" ParentNodeId="ns=1;i=7007" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7007</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6058" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7007" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7007</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6039" BrowseName="1:PersonnelID" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>PersonnelID</DisplayName>
+    <Description>Defines a read-only set of Personnel IDs and Person IDs that may be specified in a job order.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6038" BrowseName="1:PhysicalAssetID" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>PhysicalAssetID</DisplayName>
+    <Description>Defines a read-only set of Physical Asset Class IDs and Physical Asset IDs that may be specified in a job order.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7008" BrowseName="1:Resume" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Resume</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.8</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6059</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6060</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5050</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5078</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6059" BrowseName="InputArguments" ParentNodeId="ns=1;i=7008" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7008</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6060" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7008" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7008</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7013" BrowseName="1:RevokeStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>RevokeStart</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.6</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6069</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6070</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5043</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5071</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6069" BrowseName="InputArguments" ParentNodeId="ns=1;i=7013" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7013</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6070" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7013" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7013</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5037" BrowseName="1:Running" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Running</DisplayName>
+    <Description>The job order is executing.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6073</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5045</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5050</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5048</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5047</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5046</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6073" BrowseName="StateNumber" ParentNodeId="ns=1;i=5037" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5037</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3</UInt32>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7005" BrowseName="1:Start" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Start</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.5</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6053</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6054</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5042</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5070</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6053" BrowseName="InputArguments" ParentNodeId="ns=1;i=7005" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7005</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6054" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7005" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7005</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7006" BrowseName="1:Stop" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Stop</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.11</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6055</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6056</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5051</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5047</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5075</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5079</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6055" BrowseName="InputArguments" ParentNodeId="ns=1;i=7006" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7006</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrderID</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6056" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7006" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7006</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7001" BrowseName="1:Store" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Store</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6040</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6041</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6040" BrowseName="InputArguments" ParentNodeId="ns=1;i=7001" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7001</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrder</Name>
+              <DataType>
+                <Identifier>ns=1;i=3008</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6041" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7001" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7001</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7004" BrowseName="1:StoreAndStart" ParentNodeId="ns=1;i=1002">
+    <DisplayName>StoreAndStart</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6051</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6052</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6051" BrowseName="InputArguments" ParentNodeId="ns=1;i=7004" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7004</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrder</Name>
+              <DataType>
+                <Identifier>ns=1;i=3008</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6052" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7004" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7004</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7009" BrowseName="1:Update" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Update</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.1/#7.2.1.9</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6061</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6062</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5044</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5041</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5069</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=5072</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6061" BrowseName="InputArguments" ParentNodeId="ns=1;i=7009" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7009</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>JobOrder</Name>
+              <DataType>
+                <Identifier>ns=1;i=3008</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Contains information defining the job order with all parameters and any material, equipment, or physical asset requirements associated with the order.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>1</ValueRank>
+              <ArrayDimensions>
+                <UInt32>0</UInt32>
+              </ArrayDimensions>
+              <Description>
+                <Text>The comment provides a description of why the method was called. In order to provide the comment in several languages, it is an array of LocalizedText. The array may be empty, when no comment is provided.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6062" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7009" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7009</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ReturnStatus</Name>
+              <DataType>
+                <Identifier>i=9</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Text>Returns the status of the method execution.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6034" BrowseName="1:WorkMaster" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3007" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>WorkMaster</DisplayName>
+    <Description>Defines a read-only set of work master IDs that may be specified in a job order, and the read-only set of parameters that may be specified for a specific work master.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1008" BrowseName="1:ISA95JobOrderReceiverSubStatesType">
+    <DisplayName>ISA95JobOrderReceiverSubStatesType</DisplayName>
+    <Category>ISA-95 Job Control Job Order Receiver SubStates</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.2/#7.2.2.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=5068</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5064</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5067</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5086</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5072</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5071</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5073</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5077</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5079</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5078</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5087</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5070</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5069</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5076</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5075</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5074</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5066</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5063</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5065</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5081</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5082</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5083</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5080</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5068" BrowseName="1:Aborted" ParentNodeId="ns=1;i=1008">
+    <DisplayName>Aborted</DisplayName>
+    <Description>The job order is aborted.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6105</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5076</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5077</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5087</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5086</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6105" BrowseName="StateNumber" ParentNodeId="ns=1;i=5068" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5068</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">6</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5064" BrowseName="1:AllowedToStart" ParentNodeId="ns=1;i=1008">
+    <DisplayName>AllowedToStart</DisplayName>
+    <Description>The job order is stored and may be executed.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6101</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5070</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5071</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5072</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5072</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5073</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5086</Reference>
+      <Reference ReferenceType="i=117">ns=1;i=5081</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6101" BrowseName="StateNumber" ParentNodeId="ns=1;i=5064" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5064</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5067" BrowseName="1:Ended" ParentNodeId="ns=1;i=1008">
+    <DisplayName>Ended</DisplayName>
+    <Description>The job order has been completed and is no longer in execution.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6104</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5075</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5079</Reference>
+      <Reference ReferenceType="i=117">ns=1;i=5082</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6104" BrowseName="StateNumber" ParentNodeId="ns=1;i=5067" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5067</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">5</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5086" BrowseName="1:FromAllowedToStartToAborted" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromAllowedToStartToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6011</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5068</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5064</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6011" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5086" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5086</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">13</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5072" BrowseName="1:FromAllowedToStartToAllowedToStart" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromAllowedToStartToAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the Update Method is called and the job order is modified.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6109</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5064</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5064</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7009</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6109" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5072" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5072</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">4</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5071" BrowseName="1:FromAllowedToStartToNotAllowedToStart" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromAllowedToStartToNotAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the RevokeStart Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6108</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5064</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5063</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6108" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5071" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5071</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5073" BrowseName="1:FromAllowedToStartToRunning" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromAllowedToStartToRunning</DisplayName>
+    <Description>This transition is triggered when a job order is started to be executed.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6110</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5064</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5065</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6110" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5073" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5073</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">5</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5077" BrowseName="1:FromInterruptedToAborted" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromInterruptedToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6114</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5068</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5066</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6114" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5077" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5077</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">9</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5079" BrowseName="1:FromInterruptedToEnded" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromInterruptedToEnded</DisplayName>
+    <Description>This transition is triggered when Stop Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6116</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5067</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5066</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6116" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5079" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5079</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">11</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5078" BrowseName="1:FromInterruptedToRunning" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromInterruptedToRunning</DisplayName>
+    <Description>This transition is triggered when Resume Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6115</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5066</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5065</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7008</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6115" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5078" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5078</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">10</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5087" BrowseName="1:FromNotAllowedToStartToAborted" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromNotAllowedToStartToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6012</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5068</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5063</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6012" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5087" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5087</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">12</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5070" BrowseName="1:FromNotAllowedToStartToAllowedToStart" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromNotAllowedToStartToAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the Start Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6107</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5064</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5063</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7005</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6107" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5070" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5070</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5069" BrowseName="1:FromNotAllowedToStartToNotAllowedToStart" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromNotAllowedToStartToNotAllowedToStart</DisplayName>
+    <Description>This transition is triggered when the Update Method is called and the job order is modified.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6106</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5063</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5063</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7009</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6106" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5069" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5069</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5076" BrowseName="1:FromRunningToAborted" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromRunningToAborted</DisplayName>
+    <Description>This transition is triggered when Abort Method is called.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6113</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5068</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5065</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7010</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6113" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5076" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5076</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">8</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5075" BrowseName="1:FromRunningToEnded" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromRunningToEnded</DisplayName>
+    <Description>This transition is triggered when the execution of a job order has finished, either internally or by the Stop Method.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6112</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5067</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5065</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6112" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5075" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5075</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">7</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5074" BrowseName="1:FromRunningToInterrupted" ParentNodeId="ns=1;i=1008">
+    <DisplayName>FromRunningToInterrupted</DisplayName>
+    <Description>This transition is triggered when an executing job order gets interrupted, either internally or by the Pause Method.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6111</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5066</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=1006</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5065</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=7007</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6111" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5074" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5074</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">6</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5066" BrowseName="1:Interrupted" ParentNodeId="ns=1;i=1008">
+    <DisplayName>Interrupted</DisplayName>
+    <Description>The job order has been temporarily stopped.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6103</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5077</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5079</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5078</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5074</Reference>
+      <Reference ReferenceType="i=117">ns=1;i=5083</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6103" BrowseName="StateNumber" ParentNodeId="ns=1;i=5066" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5066</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">4</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5063" BrowseName="1:NotAllowedToStart" ParentNodeId="ns=1;i=1008">
+    <DisplayName>NotAllowedToStart</DisplayName>
+    <Description>The job order is stored but may not be executed.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6100</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5071</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5087</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5070</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5069</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5069</Reference>
+      <Reference ReferenceType="i=117">ns=1;i=5080</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6100" BrowseName="StateNumber" ParentNodeId="ns=1;i=5063" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5063</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5065" BrowseName="1:Running" ParentNodeId="ns=1;i=1008">
+    <DisplayName>Running</DisplayName>
+    <Description>The job order is executing.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6102</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5073</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5078</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5076</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5075</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5074</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6102" BrowseName="StateNumber" ParentNodeId="ns=1;i=5065" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5065</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5081" BrowseName="1:AllowedToStartSubstates" ParentNodeId="ns=1;i=1008">
+    <DisplayName>AllowedToStartSubstates</DisplayName>
+    <Description>Substates of AllowedToStart</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=6003</Reference>
+      <Reference ReferenceType="i=117" IsForward="false">ns=1;i=5064</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6003" BrowseName="CurrentState" ParentNodeId="ns=1;i=5081" DataType="LocalizedText">
+    <DisplayName>CurrentState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6004</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2760</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5081</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6004" BrowseName="Id" ParentNodeId="ns=1;i=6003" DataType="NodeId">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6003</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5082" BrowseName="1:EndedSubstates" ParentNodeId="ns=1;i=1008">
+    <DisplayName>EndedSubstates</DisplayName>
+    <Description>Substates of Ended</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=6005</Reference>
+      <Reference ReferenceType="i=117" IsForward="false">ns=1;i=5067</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6005" BrowseName="CurrentState" ParentNodeId="ns=1;i=5082" DataType="LocalizedText">
+    <DisplayName>CurrentState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2760</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5082</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6006" BrowseName="Id" ParentNodeId="ns=1;i=6005" DataType="NodeId">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6005</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5083" BrowseName="1:InterruptedSubstates" ParentNodeId="ns=1;i=1008">
+    <DisplayName>InterruptedSubstates</DisplayName>
+    <Description>Substates of Interrupted</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=6007</Reference>
+      <Reference ReferenceType="i=117" IsForward="false">ns=1;i=5066</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1007</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6007" BrowseName="CurrentState" ParentNodeId="ns=1;i=5083" DataType="LocalizedText">
+    <DisplayName>CurrentState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6008</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2760</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5083</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6008" BrowseName="Id" ParentNodeId="ns=1;i=6007" DataType="NodeId">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6007</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5080" BrowseName="1:NotAllowedToStartSubstates" ParentNodeId="ns=1;i=1008">
+    <DisplayName>NotAllowedToStartSubstates</DisplayName>
+    <Description>Substates of NotAllowedToStart</Description>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=6001</Reference>
+      <Reference ReferenceType="i=117" IsForward="false">ns=1;i=5063</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6001" BrowseName="CurrentState" ParentNodeId="ns=1;i=5080" DataType="LocalizedText">
+    <DisplayName>CurrentState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6002</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2760</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5080</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6002" BrowseName="Id" ParentNodeId="ns=1;i=6001" DataType="NodeId">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6001</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1001" BrowseName="1:ISA95PrepareStateMachineType">
+    <DisplayName>ISA95PrepareStateMachineType</DisplayName>
+    <Category>ISA-95 Job Control Job Order Receiver SubStates</Category>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/7.2.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=5089</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5090</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5055</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5088</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5054</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5053</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5052</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5000</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2771</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5089" BrowseName="1:FromLoadedToReady" ParentNodeId="ns=1;i=1001">
+    <DisplayName>FromLoadedToReady</DisplayName>
+    <Description>This transition is triggered when the program or configuration to execute the job order is unloaded.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6014</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5053</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5052</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6014" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5089" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5089</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">4</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5090" BrowseName="1:FromLoadedToWaiting" ParentNodeId="ns=1;i=1001">
+    <DisplayName>FromLoadedToWaiting</DisplayName>
+    <Description>This transition is triggered when the system is not ready to start the execution of the job order anymore.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6015</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5053</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6015" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5090" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5090</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">5</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5055" BrowseName="1:FromReadyToLoaded" ParentNodeId="ns=1;i=1001">
+    <DisplayName>FromReadyToLoaded</DisplayName>
+    <Description>This transition is triggered when the program or configuration to execute the job order is loaded.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6092</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5053</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5052</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6092" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5055" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5055</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5088" BrowseName="1:FromReadyToWaiting" ParentNodeId="ns=1;i=1001">
+    <DisplayName>FromReadyToWaiting</DisplayName>
+    <Description>This transition is triggered when the system is not ready to start the execution of the job order anymore.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6013</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5052</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6013" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5088" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5088</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5054" BrowseName="1:FromWaitingToReady" ParentNodeId="ns=1;i=1001">
+    <DisplayName>FromWaitingToReady</DisplayName>
+    <Description>This transition is triggered when the system is ready to start the execution of the job order.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6091</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=5052</Reference>
+      <Reference ReferenceType="FromState">ns=1;i=5000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6091" BrowseName="TransitionNumber" ParentNodeId="ns=1;i=5054" DataType="UInt32">
+    <DisplayName>TransitionNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5054</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5053" BrowseName="1:Loaded" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Loaded</DisplayName>
+    <Description>In situations where only one job may be in active memory and is able to be run, then the job is loaded in active memory, the necessary pre-conditions have been met, and the job order is ready to run, awaiting a Start command.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6090</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5089</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5090</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5055</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6090" BrowseName="StateNumber" ParentNodeId="ns=1;i=5053" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5053</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5052" BrowseName="1:Ready" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Ready</DisplayName>
+    <Description>The necessary pre-conditions have been met and the job order is ready to run, awaiting a Start command.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6089</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5089</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5055</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5088</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5054</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6089" BrowseName="StateNumber" ParentNodeId="ns=1;i=5052" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5000" BrowseName="1:Waiting" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Waiting</DisplayName>
+    <Description>The necessary pre-conditions have not been met and the job order is not ready to run.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6000</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5090</Reference>
+      <Reference ReferenceType="ToState" IsForward="false">ns=1;i=5088</Reference>
+      <Reference ReferenceType="FromState" IsForward="false">ns=1;i=5054</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=2307</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6000" BrowseName="StateNumber" ParentNodeId="ns=1;i=5000" DataType="UInt32">
+    <DisplayName>StateNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5000</Reference>
+    </References>
+    <Value>
+      <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5001" BrowseName="1:http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/" SymbolicName="http___opcfoundation_org_UA_ISA95_JOBCONTROL_V2_">
+    <DisplayName>http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/ISA95JOBCONTROL/v200/docs/9.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=6025</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6026</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6023</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6027</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6028</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6029</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6025" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=5001" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/</String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6026" BrowseName="NamespaceVersion" ParentNodeId="ns=1;i=5001" DataType="String">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2.0.0</String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6024" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=5001" DataType="DateTime">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2024-01-31T00:00:00Z</DateTime>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6023" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=5001" DataType="Boolean">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6027" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=1;i=5001" DataType="i=256" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNodeIdTypes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <ListOfInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <Int32>0</Int32>
+      </ListOfInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6028" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=1;i=5001" DataType="i=291" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNumericNodeIdRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <ListOfString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <String>1:2147483647</String>
+      </ListOfString>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6029" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=1;i=5001" DataType="String">
+    <DisplayName>StaticStringNodeIdPattern</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</String>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5002" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3002</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6128</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5003" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3002</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6129</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5004" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3002</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5005" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3003</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6122</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5006" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3003</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6123</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5007" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3003</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5008" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3005</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6022</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5009" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3005</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6030</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5010" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3005</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5011" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3007</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6132</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5012" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3007</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6133</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5013" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3007</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5014" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3008</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6046</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5015" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3008</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6117</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5016" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3008</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5017" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3010</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6120</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5018" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3010</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6121</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5019" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3010</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5020" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3011</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6124</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5021" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3011</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6125</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5022" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3011</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5023" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3012</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6126</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5024" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3012</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6127</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5025" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3012</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5026" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3013</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6118</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5027" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3013</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6119</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5028" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5029" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6130</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5030" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6131</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5031" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5032" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3015</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6031</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5033" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3015</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6032</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5034" BrowseName="Default JSON" SymbolicName="DefaultJson">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3015</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>
