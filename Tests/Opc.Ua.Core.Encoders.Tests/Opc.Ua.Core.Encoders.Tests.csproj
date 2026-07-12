@@ -30,6 +30,14 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
+  <!-- The Avro/Protobuf/Arrow reference encoders exist only on net8.0+ (see
+       Opc.Ua.Types); exclude their tests on the legacy target frameworks. -->
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <Compile Remove="Avro\**\*.cs" />
+    <Compile Remove="Arrow\**\*.cs" />
+    <Compile Remove="Protobuf\**\*.cs" />
+    <Compile Remove="SchemaExchange\**\*.cs" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Core.TestFramework\Opc.Ua.Core.TestFramework.csproj" />

@@ -23,6 +23,12 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
   </ItemGroup>
+  <!-- The Protobuf gRPC service-message wrappers require net8.0+ (they pair with
+       the Protobuf reference encoder in Opc.Ua.Types); exclude them on the legacy
+       target frameworks (net472/net48/netstandard2.1). -->
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <Compile Remove="Encoders\Protobuf\**\*.cs" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>

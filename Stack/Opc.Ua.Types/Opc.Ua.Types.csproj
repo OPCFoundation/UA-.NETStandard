@@ -17,7 +17,19 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Types" />
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
+  </ItemGroup>
+  <!-- The Avro, Protobuf and Arrow reference encoders require modern .NET (net5+
+       BCL APIs such as BitConverter.SingleToUInt32Bits / Convert.ToHexString /
+       Stream.ReadExactly, and Apache.Arrow for Arrow). Exclude them on the legacy
+       target frameworks (net472/net48/netstandard2.0/netstandard2.1). -->
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <Compile Remove="Encoders\Avro\**\*.cs" />
+    <Compile Remove="Encoders\Arrow\**\*.cs" />
+    <Compile Remove="Encoders\Protobuf\**\*.cs" />
+    <Compile Remove="Encoders\SchemaExchange\**\*.cs" />
+    <Compile Remove="Encoders\SchemaId.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
