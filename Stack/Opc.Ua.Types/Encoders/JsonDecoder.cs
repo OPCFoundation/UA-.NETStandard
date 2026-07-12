@@ -2455,11 +2455,20 @@ namespace Opc.Ua
                     value = QualifiedName.Null;
                     return true;
                 case JsonValueKind.String:
-                    value = QualifiedName.Parse(
-                        Context,
-                        element.GetString()!,
-                        m_options.UpdateNamespaceTable);
-                    return true;
+                    try
+                    {
+                        value = QualifiedName.Parse(
+                            Context,
+                            element.GetString()!,
+                            m_options.UpdateNamespaceTable);
+                        return true;
+                    }
+                    catch (ServiceResultException sre)
+                        when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
+                    {
+                        value = QualifiedName.Null;
+                        return false;
+                    }
                 default:
                     value = QualifiedName.Null;
                     return false;
