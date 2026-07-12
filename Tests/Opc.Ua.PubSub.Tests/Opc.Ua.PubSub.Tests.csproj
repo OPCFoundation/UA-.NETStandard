@@ -32,6 +32,12 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
+  <!-- The Avro/Arrow PubSub adapters exist only on net8.0+ (see Opc.Ua.PubSub);
+       exclude their tests on the legacy target frameworks. -->
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <Compile Remove="Encoding\Avro\**\*.cs" />
+    <Compile Remove="Encoding\Arrow\**\*.cs" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
