@@ -5643,7 +5643,7 @@ namespace Quickstarts.ReferenceServer
 
         /// <summary>
         /// Identifiers of the one-dimensional array nodes that support history
-        /// archiving. These map to the CTT "HA Profile &gt; Arrays" node ids and
+        /// archiving. These map to the CTT "HA Profile > Arrays" node ids and
         /// mirror the element types historized for the scalar nodes.
         /// </summary>
         private static readonly string[] HistoricalArrayNodeNames =
