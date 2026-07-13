@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Opc.Ua.PubSub.Encoding;
+using AvroDataSetMessageV2 = Opc.Ua.PubSub.Encoding.AvroDataSetMessage;
+using AvroNetworkMessageV2 = Opc.Ua.PubSub.Encoding.AvroNetworkMessage;
 using JsonDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
 using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
@@ -88,9 +90,12 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 return ApplySameEncodingOptions(source, targetEncoding, options);
             }
-            return targetEncoding == TranscodeEncoding.Uadp
-                ? ToUadp(source, options)
-                : ToJson(source, options);
+            return targetEncoding switch
+            {
+                TranscodeEncoding.Uadp => ToUadp(source, options),
+                TranscodeEncoding.Avro => ToAvro(source, options),
+                _ => ToJson(source, options)
+            };
         }
 
         private static PubSubNetworkMessage ApplySameEncodingOptions(
@@ -133,6 +138,19 @@ namespace Opc.Ua.PubSub.Transcoding
                     return json;
                 }
                 return json with { SingleMessageMode = single, ContentMask = mask };
+            }
+            if (encoding == TranscodeEncoding.Avro && source is AvroNetworkMessageV2 avro)
+            {
+                if (options.FieldEncoding is null && options.PreserveMetaDataVersion)
+                {
+                    return avro;
+                }
+                return avro with
+                {
+                    DataSetMessages = MapDataSetMessages(
+                        avro.DataSetMessages,
+                        dsm => RebuildAvroDataSetMessage(dsm, options))
+                };
             }
             return source;
         }
@@ -262,6 +280,42 @@ namespace Opc.Ua.PubSub.Transcoding
             };
         }
 
+        private static AvroNetworkMessageV2 ToAvro(
+            PubSubNetworkMessage source,
+            TranscodeTargetOptions options)
+        {
+            return new AvroNetworkMessageV2
+            {
+                PublisherId = source.PublisherId,
+                WriterGroupId = source.WriterGroupId,
+                DataSetClassId = ExtractDataSetClassId(source),
+                MetaData = source.MetaData,
+                DataSetMessages = MapDataSetMessages(
+                    source.DataSetMessages,
+                    dsm => RebuildAvroDataSetMessage(dsm, options))
+            };
+        }
+
+        private static AvroDataSetMessageV2 RebuildAvroDataSetMessage(
+            PubSubDataSetMessage source,
+            TranscodeTargetOptions options)
+        {
+            var existing = source as AvroDataSetMessageV2;
+            return new AvroDataSetMessageV2
+            {
+                DataSetWriterId = source.DataSetWriterId,
+                SequenceNumber = source.SequenceNumber,
+                Timestamp = source.Timestamp,
+                Status = source.Status,
+                MessageType = source.MessageType,
+                MetaDataVersion = options.PreserveMetaDataVersion
+                    ? source.MetaDataVersion
+                    : new ConfigurationVersionDataType(),
+                Fields = RetargetFieldEncoding(source.Fields, options.FieldEncoding),
+                FieldContentMask = existing?.FieldContentMask ?? DataSetFieldContentMask.None
+            };
+        }
+
         private static ArrayOf<DataSetField> RetargetFieldEncoding(
             ArrayOf<DataSetField> fields,
             PubSubFieldEncoding? fieldEncoding)
@@ -296,6 +350,7 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 UadpNetworkMessageV2 uadp => uadp.DataSetClassId,
                 JsonNetworkMessageV2 json => json.DataSetClassId,
+                AvroNetworkMessageV2 avro => avro.DataSetClassId,
                 _ => Uuid.Empty
             };
         }

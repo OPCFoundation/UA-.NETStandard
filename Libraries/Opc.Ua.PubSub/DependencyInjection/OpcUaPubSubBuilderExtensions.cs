@@ -236,6 +236,11 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder());
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Json.JsonDecoder());
 
+            // Experimental Avro NetworkMessage encoder/decoder (Part 14 draft) so routes can
+            // transcode to and from the Avro mapping alongside UADP and JSON.
+            services.AddSingleton<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageEncoder());
+            services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageDecoder());
+
             // Security policies.
             foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.All)
             {
