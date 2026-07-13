@@ -756,20 +756,14 @@ namespace Opc.Ua.Client.Subscriptions
             uint deadId = Id;
             try
             {
-                Logger.LogWarning(
-                    "{Subscription}: unsolicited Good_SubscriptionTransferred received — " +
-                    "auto-recreating on the same session " +
-                    "(RecoveryPolicy=RecreateOnUnsolicitedTransfer).",
-                    this);
+                Logger.SubscriptionUnsolicitedGoodSubscriptionTransferredReceivedAuto(this);
 
                 if (deadId != 0)
                 {
                     int dropped = AckQueue.DropPendingForSubscription(deadId);
                     if (dropped > 0)
                     {
-                        Logger.LogInformation(
-                            "{Subscription}: dropped {Count} stale acknowledgement(s) " +
-                            "before recovery recreate.",
+                        Logger.SubscriptionDroppedCountStaleAcknowledgementS(
                             this,
                             dropped);
                     }
@@ -783,20 +777,14 @@ namespace Opc.Ua.Client.Subscriptions
                 await ResetToRecreateAsync(CancellationToken.None)
                     .ConfigureAwait(false);
 
-                Logger.LogInformation(
-                    "{Subscription}: recreate signalled after unsolicited " +
-                    "Good_SubscriptionTransferred (old SubscriptionId={OldId}).",
+                Logger.SubscriptionRecreateSignalledAfterUnsolicitedGood(
                     this,
                     deadId);
             }
             catch (Exception ex)
             {
-                Logger.LogWarning(
+                Logger.SubscriptionRecoveryAfterUnsolicitedGoodSubscriptionTransferred(
                     ex,
-                    "{Subscription}: recovery after unsolicited " +
-                    "Good_SubscriptionTransferred failed (old SubscriptionId={OldId}); " +
-                    "the subscription stays dark until the next reconnect or " +
-                    "manual recreate.",
                     this,
                     deadId);
             }
@@ -814,7 +802,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="state"></param>
         protected virtual void OnSubscriptionStateChanged(SubscriptionState state)
         {
-            Logger.LogInformation("{Subscription}: {State}.", this, state);
+            Logger.SubscriptionState(
+                this,
+                state);
             FireStateChangedToHandler(state, default);
         }
 
@@ -843,8 +833,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
-                Logger.LogWarning(ex,
-                    "{Subscription}: OnSubscriptionStateChangedAsync handler threw.",
+                Logger.SubscriptionOnSubscriptionStateChangedAsyncHandlerThrew(
+                    ex,
                     this);
             }
         }
@@ -901,11 +891,9 @@ namespace Opc.Ua.Client.Subscriptions
                                     }
                                     catch (Exception hookEx)
                                     {
-                                        Logger.LogWarning(hookEx,
-                                            "{Subscription}: OnAfterCreateAsync " +
-                                            "hook threw; partition continues but " +
-                                            "the post-create operation did not " +
-                                            "complete.", this);
+                                        Logger.SubscriptionOnAfterCreateAsyncHookThrewPartitionContinues(
+                                            hookEx,
+                                            this);
                                         OnSubscriptionStateChanged(
                                             SubscriptionState.Modified);
                                     }
@@ -936,14 +924,12 @@ namespace Opc.Ua.Client.Subscriptions
                         // failing apply cannot flood the log.
                         if (consecutiveApplyFailures == 0)
                         {
-                            Logger.LogError(
-                                ex, "Failed to apply subscription changes; will retry.");
+                            Logger.FailedApplySubscriptionChangesWillRetry(ex);
                         }
                         else
                         {
-                            Logger.LogDebug(
+                            Logger.RetryingSubscriptionChangesFailedAttemptAttempt(
                                 ex,
-                                "Retrying subscription changes failed (attempt {Attempt}).",
                                 consecutiveApplyFailures + 1);
                         }
                     }
@@ -1035,7 +1021,7 @@ namespace Opc.Ua.Client.Subscriptions
             // suppress exception if silent flag is set.
             catch (Exception e)
             {
-                Logger.LogInformation(e, "Deleting subscription on server failed.");
+                Logger.DeletingSubscriptionServerFailed(e);
             }
             OnSubscriptionDeleteCompleted();
         }
@@ -1122,9 +1108,9 @@ namespace Opc.Ua.Client.Subscriptions
                         response.DiagnosticInfos, response.ResponseHeader));
                 }
 
-                Logger.LogInformation(
-                    "{Subscription}: Modified - Publishing is now {New}.",
-                    this, options.PublishingEnabled ? "Enabled" : "Disabled");
+                Logger.SubscriptionModifiedPublishingNowNew(
+                    this,
+                    options.PublishingEnabled ? "Enabled" : "Disabled");
             }
         }
 
@@ -1147,50 +1133,50 @@ namespace Opc.Ua.Client.Subscriptions
         {
             if (CurrentPublishingEnabled != publishingEnabled)
             {
-                Logger.LogInformation(
-                    "{Subscription}: Created - Publishing is {New}.",
-                    this, publishingEnabled ? "Enabled" : "Disabled");
+                Logger.SubscriptionCreatedPublishingNew(
+                    this,
+                    publishingEnabled ? "Enabled" : "Disabled");
                 CurrentPublishingEnabled = publishingEnabled;
             }
 
             if (CurrentKeepAliveCount != revisedKeepAliveCount)
             {
-                Logger.LogInformation(
-                    "{Subscription}: Changed KeepAliveCount to {New}.",
-                    this, revisedKeepAliveCount);
+                Logger.SubscriptionChangedKeepAliveCountNew(
+                    this,
+                    revisedKeepAliveCount);
 
                 CurrentKeepAliveCount = revisedKeepAliveCount;
             }
 
             if (CurrentPublishingInterval != revisedPublishingInterval)
             {
-                Logger.LogInformation(
-                    "{Subscription}: Changed PublishingInterval to {New}.",
-                    this, revisedPublishingInterval);
+                Logger.SubscriptionChangedPublishingIntervalNew(
+                    this,
+                    revisedPublishingInterval);
                 CurrentPublishingInterval = revisedPublishingInterval;
             }
 
             if (CurrentMaxNotificationsPerPublish != maxNotificationsPerPublish)
             {
-                Logger.LogInformation(
-                    "{Subscription}: Change MaxNotificationsPerPublish to {New}.",
-                    this, maxNotificationsPerPublish);
+                Logger.SubscriptionChangeMaxNotificationsPerPublishNew(
+                    this,
+                    maxNotificationsPerPublish);
                 CurrentMaxNotificationsPerPublish = maxNotificationsPerPublish;
             }
 
             if (CurrentLifetimeCount != revisedLifetimeCount)
             {
-                Logger.LogInformation(
-                    "{Subscription}: Changed LifetimeCount to {New}.",
-                    this, revisedLifetimeCount);
+                Logger.SubscriptionChangedLifetimeCountNew(
+                    this,
+                    revisedLifetimeCount);
                 CurrentLifetimeCount = revisedLifetimeCount;
             }
 
             if (CurrentPriority != priority)
             {
-                Logger.LogInformation(
-                    "{Subscription}: Changed Priority to {New}.",
-                    this, priority);
+                Logger.SubscriptionChangedPriorityNew(
+                    this,
+                    priority);
                 CurrentPriority = priority;
             }
 
@@ -1296,8 +1282,10 @@ namespace Opc.Ua.Client.Subscriptions
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                Logger.LogInformation("{Subscription}: Adjusted KeepAliveCount " +
-                    "from {Old} to {New}.", this, keepAliveCount, kDefaultKeepAlive);
+                Logger.SubscriptionAdjustedKeepAliveCountOldNew(
+                    this,
+                    keepAliveCount,
+                    kDefaultKeepAlive);
                 keepAliveCount = kDefaultKeepAlive;
             }
 
@@ -1307,10 +1295,10 @@ namespace Opc.Ua.Client.Subscriptions
                 if (options.MinLifetimeInterval > TimeSpan.Zero &&
                     options.MinLifetimeInterval < m_context.SessionTimeout)
                 {
-                    Logger.LogWarning(
-                        "{Subscription}: A smaller minimum LifetimeInterval " +
-                        "{Counter}ms than session timeout {Timeout}ms configured.",
-                        this, options.MinLifetimeInterval, m_context.SessionTimeout);
+                    Logger.SubscriptionSmallerMinimumLifetimeIntervalCounterMs(
+                        this,
+                        options.MinLifetimeInterval,
+                        m_context.SessionTimeout);
                 }
 
                 uint minLifetimeInterval = (uint)options.MinLifetimeInterval.TotalMilliseconds;
@@ -1324,26 +1312,27 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         lifetimeCount++;
                     }
-                    Logger.LogInformation(
-                        "{Subscription}: Adjusted LifetimeCount to value={New}.",
-                        this, lifetimeCount);
+                    Logger.SubscriptionAdjustedLifetimeCountValueNew(
+                        this,
+                        lifetimeCount);
                 }
 
                 if (options.PublishingInterval.Multiply(lifetimeCount) < m_context.SessionTimeout)
                 {
-                    Logger.LogWarning(
-                        "{Subscription}: Lifetime {LifeTime}ms configured is less " +
-                        "than session timeout {Timeout}ms.", this,
-                        options.PublishingInterval.Multiply(lifetimeCount), m_context.SessionTimeout);
+                    Logger.SubscriptionLifetimeLifeTimeMsConfiguredLess(
+                        this,
+                        options.PublishingInterval.Multiply(lifetimeCount),
+                        m_context.SessionTimeout);
                 }
             }
             else if (lifetimeCount == 0)
             {
                 // don't know what the sampling interval will be - use something large
                 // enough to ensure the user does not experience unexpected drop outs.
-                Logger.LogInformation(
-                    "{Subscription}: Adjusted LifetimeCount from {Old} to {New}. ",
-                    this, lifetimeCount, kDefaultLifeTime);
+                Logger.SubscriptionAdjustedLifetimeCountOldNew(
+                    this,
+                    lifetimeCount,
+                    kDefaultLifeTime);
                 lifetimeCount = kDefaultLifeTime;
             }
 
@@ -1351,9 +1340,10 @@ namespace Opc.Ua.Client.Subscriptions
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                Logger.LogInformation(
-                    "{Subscription}: Adjusted LifetimeCount from {Old} to {New}.",
-                    this, lifetimeCount, minLifeTimeCount);
+                Logger.SubscriptionAdjustedLifetimeCountOldNew2(
+                    this,
+                    lifetimeCount,
+                    minLifeTimeCount);
                 lifetimeCount = minLifeTimeCount;
             }
         }
@@ -1377,4 +1367,177 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly ISubscriptionContext m_context;
         private readonly MonitoredItemManager m_monitoredItems;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="Subscription"/>.
+    /// </summary>
+    internal static partial class SubscriptionLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 43, Level = LogLevel.Warning,
+            Message = "{Subscription}: unsolicited Good_SubscriptionTransferred received — auto-recreating on the" +
+                " same session (RecoveryPolicy=RecreateOnUnsolicitedTransfer).")]
+        public static partial void SubscriptionUnsolicitedGoodSubscriptionTransferredReceivedAuto(
+            this ILogger logger,
+            Subscription subscription);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 44, Level = LogLevel.Information,
+            Message = "{Subscription}: dropped {Count} stale acknowledgement(s) before recovery recreate.")]
+        public static partial void SubscriptionDroppedCountStaleAcknowledgementS(
+            this ILogger logger,
+            Subscription subscription,
+            int count);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 45, Level = LogLevel.Information,
+            Message = "{Subscription}: recreate signalled after unsolicited Good_SubscriptionTransferred (old" +
+                " SubscriptionId={OldId}).")]
+        public static partial void SubscriptionRecreateSignalledAfterUnsolicitedGood(
+            this ILogger logger,
+            Subscription subscription,
+            uint oldId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 46, Level = LogLevel.Warning,
+            Message = "{Subscription}: recovery after unsolicited Good_SubscriptionTransferred failed (old" +
+                " SubscriptionId={OldId}); the subscription stays dark until the next reconnect or manual" +
+                " recreate.")]
+        public static partial void SubscriptionRecoveryAfterUnsolicitedGoodSubscriptionTransferred(
+            this ILogger logger,
+            Exception? exception,
+            Subscription subscription,
+            uint oldId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 47, Level = LogLevel.Information,
+            Message = "{Subscription}: {State}.")]
+        public static partial void SubscriptionState(
+            this ILogger logger,
+            Subscription subscription,
+            SubscriptionState state);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 48, Level = LogLevel.Warning,
+            Message = "{Subscription}: OnSubscriptionStateChangedAsync handler threw.")]
+        public static partial void SubscriptionOnSubscriptionStateChangedAsyncHandlerThrew(
+            this ILogger logger,
+            Exception? exception,
+            Subscription subscription);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 49, Level = LogLevel.Warning,
+            Message = "{Subscription}: OnAfterCreateAsync hook threw; partition continues but the post-create" +
+                " operation did not complete.")]
+        public static partial void SubscriptionOnAfterCreateAsyncHookThrewPartitionContinues(
+            this ILogger logger,
+            Exception? exception,
+            Subscription subscription);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 50, Level = LogLevel.Error,
+            Message = "Failed to apply subscription changes; will retry.")]
+        public static partial void FailedApplySubscriptionChangesWillRetry(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 51, Level = LogLevel.Debug,
+            Message = "Retrying subscription changes failed (attempt {Attempt}).")]
+        public static partial void RetryingSubscriptionChangesFailedAttemptAttempt(
+            this ILogger logger,
+            Exception? exception,
+            int attempt);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 52, Level = LogLevel.Information,
+            Message = "Deleting subscription on server failed.")]
+        public static partial void DeletingSubscriptionServerFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 53, Level = LogLevel.Information,
+            Message = "{Subscription}: Modified - Publishing is now {New}.")]
+        public static partial void SubscriptionModifiedPublishingNowNew(
+            this ILogger logger,
+            Subscription subscription,
+            string @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 54, Level = LogLevel.Information,
+            Message = "{Subscription}: Created - Publishing is {New}.")]
+        public static partial void SubscriptionCreatedPublishingNew(
+            this ILogger logger,
+            Subscription subscription,
+            string @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 55, Level = LogLevel.Information,
+            Message = "{Subscription}: Changed KeepAliveCount to {New}.")]
+        public static partial void SubscriptionChangedKeepAliveCountNew(
+            this ILogger logger,
+            Subscription subscription,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 56, Level = LogLevel.Information,
+            Message = "{Subscription}: Changed PublishingInterval to {New}.")]
+        public static partial void SubscriptionChangedPublishingIntervalNew(
+            this ILogger logger,
+            Subscription subscription,
+            TimeSpan @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 57, Level = LogLevel.Information,
+            Message = "{Subscription}: Change MaxNotificationsPerPublish to {New}.")]
+        public static partial void SubscriptionChangeMaxNotificationsPerPublishNew(
+            this ILogger logger,
+            Subscription subscription,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 58, Level = LogLevel.Information,
+            Message = "{Subscription}: Changed LifetimeCount to {New}.")]
+        public static partial void SubscriptionChangedLifetimeCountNew(
+            this ILogger logger,
+            Subscription subscription,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 59, Level = LogLevel.Information,
+            Message = "{Subscription}: Changed Priority to {New}.")]
+        public static partial void SubscriptionChangedPriorityNew(
+            this ILogger logger,
+            Subscription subscription,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 60, Level = LogLevel.Information,
+            Message = "{Subscription}: Adjusted KeepAliveCount from {Old} to {New}.")]
+        public static partial void SubscriptionAdjustedKeepAliveCountOldNew(
+            this ILogger logger,
+            Subscription subscription,
+            uint old,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 61, Level = LogLevel.Warning,
+            Message = "{Subscription}: A smaller minimum LifetimeInterval {Counter}ms than session timeout" +
+                " {Timeout}ms configured.")]
+        public static partial void SubscriptionSmallerMinimumLifetimeIntervalCounterMs(
+            this ILogger logger,
+            Subscription subscription,
+            TimeSpan counter,
+            TimeSpan timeout);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 62, Level = LogLevel.Information,
+            Message = "{Subscription}: Adjusted LifetimeCount to value={New}.")]
+        public static partial void SubscriptionAdjustedLifetimeCountValueNew(
+            this ILogger logger,
+            Subscription subscription,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 63, Level = LogLevel.Warning,
+            Message = "{Subscription}: Lifetime {LifeTime}ms configured is less than session timeout {Timeout}ms.")]
+        public static partial void SubscriptionLifetimeLifeTimeMsConfiguredLess(
+            this ILogger logger,
+            Subscription subscription,
+            TimeSpan lifeTime,
+            TimeSpan timeout);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 64, Level = LogLevel.Information,
+            Message = "{Subscription}: Adjusted LifetimeCount from {Old} to {New}. ")]
+        public static partial void SubscriptionAdjustedLifetimeCountOldNew(
+            this ILogger logger,
+            Subscription subscription,
+            uint old,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 65, Level = LogLevel.Information,
+            Message = "{Subscription}: Adjusted LifetimeCount from {Old} to {New}.")]
+        public static partial void SubscriptionAdjustedLifetimeCountOldNew2(
+            this ILogger logger,
+            Subscription subscription,
+            uint old,
+            uint @new);
+    }
+
 }

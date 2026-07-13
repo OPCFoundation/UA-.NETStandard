@@ -296,7 +296,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Exception during dispose");
+                m_logger.ExceptionDuringDispose(ex);
             }
             finally
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_subscriptionHistory.TryDequeue(out _);
             }
-            m_logger.LogInformation("{Subscription} REMOVED.", subscription);
+            m_logger.SubscriptionRemoved(subscription.Id);
             m_publishControl.Set();
             return default;
         }
@@ -493,7 +493,7 @@ namespace Opc.Ua.Client.Subscriptions
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to register logical subscription.");
                 }
-                m_logger.LogInformation("{Subscription} ADDED.", primary);
+                m_logger.SubscriptionAdded(primary.Id);
             }
             m_publishControl.Set();
             return wrapper;
@@ -568,9 +568,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(ex,
-                    "Idle-delete of secondary partition {Partition} threw on dispose.",
-                    partition);
+                m_logger.IdleDeleteSecondaryPartitionThrew(ex, partition.Id);
             }
             m_publishControl.Set();
         }
@@ -622,13 +620,11 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 if (loadState == null)
                 {
-                    m_logger.LogInformation(
-                        "{Subscription} ADDED (secondary partition).", partition);
+                    m_logger.SubscriptionAddedSecondaryPartition(partition.Id);
                 }
                 else
                 {
-                    m_logger.LogInformation(
-                        "{Subscription} ADDED (preloaded secondary partition).", partition);
+                    m_logger.SubscriptionAddedPreloadedSecondaryPartition(partition.Id);
                 }
             }
             m_publishControl.Set();
@@ -802,10 +798,7 @@ namespace Opc.Ua.Client.Subscriptions
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to register restored logical subscription.");
                 }
-                m_logger.LogInformation(
-                    "{Subscription} ADDED (transfer-pending, ServerId={ServerId}).",
-                    subscription,
-                    state.ServerId);
+                m_logger.SubscriptionAddedTransferPending(subscription.Id, state.ServerId);
             }
 
             // Issue TransferSubscriptions for the saved server id.
@@ -839,27 +832,16 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 else if (results.Count > 0)
                 {
-                    m_logger.LogWarning(
-                        "{Subscription}: TransferSubscriptions per-item " +
-                        "result Bad ({Status}); falling back to recreate.",
-                        subscription,
-                        results[0].StatusCode);
+                    m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
                 }
             }
             else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
             {
-                m_logger.LogWarning(
-                    "{Subscription}: server does not support " +
-                    "TransferSubscriptions; falling back to recreate.",
-                    subscription);
+                m_logger.ServerDoesNotSupportTransfer(subscription.Id);
             }
             else
             {
-                m_logger.LogWarning(
-                    "{Subscription}: TransferSubscriptions service-level " +
-                    "result Bad ({Status}); falling back to recreate.",
-                    subscription,
-                    responseHeader.ServiceResult);
+                m_logger.TransferServiceLevelResultBad(subscription.Id, responseHeader.ServiceResult);
             }
 
             if (!transferred && subscription is Subscription loaded)
@@ -881,10 +863,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    m_logger.LogWarning(
-                        "{Subscription}: re-creation did not complete " +
-                        "within 15s after failed transfer; returning anyway.",
-                        subscription);
+                    m_logger.ReCreationDidNotComplete(subscription.Id);
                 }
             }
 
@@ -1039,10 +1018,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex,
-                        "{Subscription}: TransferSubscriptions threw on " +
-                        "secondary partition restore; falling back to recreate.",
-                        partition);
+                    m_logger.TransferThrewSecondaryPartitionRestore(ex, partition.Id);
                 }
                 if (!transferred)
                 {
@@ -1186,14 +1162,11 @@ namespace Opc.Ua.Client.Subscriptions
                     if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
                     {
                         TransferSubscriptionsOnRecreate = false;
-                        m_logger.LogWarning("Transfer subscription unsupported, " +
-                            "TransferSubscriptionsOnReconnect set to false.");
+                        m_logger.TransferSubscriptionUnsupported();
                     }
                     else
                     {
-                        m_logger.LogError(
-                            "Transfer subscriptions failed with error {Error}.",
-                            responseHeader.ServiceResult);
+                        m_logger.TransferSubscriptionsFailed(responseHeader.ServiceResult);
                     }
                     remaining.AddRange(subscriptions);
                     return remaining;
@@ -1207,15 +1180,12 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     if (transferResults[index].StatusCode == StatusCodes.BadNothingToDo)
                     {
-                        m_logger.LogDebug(
-                            "Subscription {Id} is already member of the session.",
-                            subscriptionIds[index]);
+                        m_logger.SubscriptionAlreadyMember(subscriptionIds[index]);
                         // Done
                     }
                     else if (!StatusCode.IsGood(transferResults[index].StatusCode))
                     {
-                        m_logger.LogError(
-                            "Subscription {Id} failed to transfer, StatusCode={Status}",
+                        m_logger.SubscriptionFailedToTransfer(
                             subscriptionIds[index],
                             transferResults[index].StatusCode);
                         remaining.Add(subscriptions[index]);
@@ -1284,8 +1254,7 @@ namespace Opc.Ua.Client.Subscriptions
                         foreach (PublishWorker worker in publishWorkers.Skip(desiredWorkerCount))
 #endif
                         {
-                            m_logger.LogInformation("Removing publish worker {Index}",
-                                worker.Index);
+                            m_logger.RemovingPublishWorker(worker.Index);
                             await worker.DisposeAsync().ConfigureAwait(false);
                         }
 #if NET8_0_OR_GREATER
@@ -1315,9 +1284,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (item.IsCompleted)
                         {
                             PublishWorker worker = publishWorkers[index];
-                            m_logger.LogInformation(
-                                "Publish worker {Index} exited",
-                                worker.Index);
+                            m_logger.PublishWorkerExited(worker.Index);
                             await worker.DisposeAsync().ConfigureAwait(false);
                             publishWorkers.RemoveAt(index);
                             continue;
@@ -1453,18 +1420,16 @@ namespace Opc.Ua.Client.Subscriptions
                 bool publishLatencyRunning = false;
                 uint timeoutHint = 0u;
                 bool moreNotifications = true; // Dont wait first time we enter the loop.
-                m_logger.LogInformation("PUBLISH Worker #{Handle} - STARTED.", Index);
+                m_logger.PublishWorkerStarted(Index);
                 while (!ct.IsCancellationRequested)
                 {
                     if (!m_outer.m_running.IsSet)
                     {
-                        m_logger.LogInformation("PUBLISH Worker #{Handle} - PAUSED.", Index);
+                        m_logger.PublishWorkerPaused(Index);
                         try
                         {
                             await m_outer.m_running.WaitAsync(ct).ConfigureAwait(false);
-                            m_logger.LogInformation(
-                                "PUBLISH Worker #{Handle} - RESUMED.",
-                                Index);
+                            m_logger.PublishWorkerResumed(Index);
                         }
                         catch (OperationCanceledException)
                         {
@@ -1472,10 +1437,7 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogError(
-                                ex,
-                                "PUBLISH Worker #{Handle} - Unexpected exception while waiting to connect.",
-                                Index);
+                            m_logger.PublishWorkerUnexpectedExceptionConnecting(ex, Index);
                             break;
                         }
                     }
@@ -1542,9 +1504,7 @@ namespace Opc.Ua.Client.Subscriptions
                             {
                                 // ignore messages with a subscription that was deleted
                                 // Do not delete publish requests of stale subscriptions
-                                m_logger.LogInformation(
-                                    "PUBLISH Worker #{Handle}-{Id} - Received Publish Response " +
-                                    "for Unknown SubscriptionId={SubscriptionId}. Deleting...",
+                                m_logger.PublishWorkerReceivedUnknownSubscription(
                                     Index, handle, subscriptionId);
                                 Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
                                 await m_outer.m_session.DeleteSubscriptionsAsync(
@@ -1587,9 +1547,7 @@ namespace Opc.Ua.Client.Subscriptions
                         // ignore errors if paused.
                         if (!m_outer.m_running.IsSet)
                         {
-                            m_logger.LogWarning("PUBLISH Worker #{Handle}-{Id} - Publish " +
-                                "abandoned after error due to reconnect: {Message}",
-                                Index, handle, e.Message);
+                            m_logger.PublishAbandonedAfterError(Index, handle, e.Message);
                             continue;
                         }
 
@@ -1625,9 +1583,7 @@ namespace Opc.Ua.Client.Subscriptions
                             if (m_lastLoggedErrorStatus != statusCode)
                             {
                                 m_lastLoggedErrorStatus = statusCode;
-                                m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
-                                    "Transport unavailable ({Status}); waiting for reconnect.",
-                                    Index, handle, statusCode);
+                                m_logger.TransportUnavailable(Index, handle, statusCode);
                             }
                         }
                         // Servers may return this error when overloaded
@@ -1636,9 +1592,7 @@ namespace Opc.Ua.Client.Subscriptions
                             statusCode == StatusCodes.BadServerTooBusy)
                         {
                             // throttle the next publish to reduce server load
-                            m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
-                                "Server busy, throttling worker.",
-                                Index, handle);
+                            m_logger.ServerBusyThrottling(Index, handle);
                             moreNotifications = false; // throttle
                         }
                         else if (statusCode == StatusCodes.BadTimeout ||
@@ -1646,9 +1600,7 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             // Timed out - retry with larger timeout
                             timeoutHint += 1000; // Increase by seconds
-                            m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
-                                "Timed out, increasing timeout to {Timeout}.",
-                                Index, handle, timeoutHint);
+                            m_logger.TimedOutIncreasingTimeout(Index, handle, timeoutHint);
                             moreNotifications = true;
                         }
                         else if (m_lastLoggedErrorStatus != statusCode)
@@ -1657,15 +1609,11 @@ namespace Opc.Ua.Client.Subscriptions
                             // exception (stack trace) once per distinct status so
                             // a recurring error cannot flood the logs.
                             m_lastLoggedErrorStatus = statusCode;
-                            m_logger.LogError(e, "PUBLISH Worker #{Handle}-{Id} - " +
-                                "Unhandled error {Status} during Publish.",
-                                Index, handle, error.StatusCode);
+                            m_logger.UnhandledErrorDuringPublish(e, Index, handle, error.StatusCode);
                         }
                         else
                         {
-                            m_logger.LogDebug("PUBLISH Worker #{Handle}-{Id} - " +
-                                "Unhandled error {Status} during Publish (repeated).",
-                                Index, handle, error.StatusCode);
+                            m_logger.UnhandledErrorDuringPublishRepeated(Index, handle, error.StatusCode);
                         }
 
                         // Always apply a bounded, exponential backoff after a failed
@@ -1690,7 +1638,7 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                     }
                 }
-                m_logger.LogInformation("PUBLISH Worker #{Handle} - STOPPED.", Index);
+                m_logger.PublishWorkerStopped(Index);
             }
 
             /// <summary>
@@ -1719,9 +1667,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     maxWaitTime /= workers;
 #endif
-                    m_logger.LogDebug(
-                        "PUBLISH Worker #{Handle} - Waiting max {Time}ms for acks to arrive.",
-                        Index, maxWaitTime);
+                    m_logger.PublishWorkerWaitingMaxForAcks(Index, maxWaitTime);
                     timeoutCts = m_outer.m_timeProvider
                         .CreateCancellationTokenSource(TimeSpan.FromMilliseconds(maxWaitTime));
                     linkedCts = CancellationTokenSource
@@ -1730,9 +1676,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 else
                 {
-                    m_logger.LogDebug(
-                        "PUBLISH Worker #{Handle} - Waiting for acks to arrive.",
-                        Index);
+                    m_logger.PublishWorkerWaitingForAcks(Index);
                     waitToken = ct;
                 }
                 try
@@ -1743,19 +1687,23 @@ namespace Opc.Ua.Client.Subscriptions
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
                     ArrayOf<SubscriptionAcknowledgement> acks = ackList;
-                    m_logger.LogDebug(
-                        "PUBLISH Worker #{Handle} - Publish {Count} acks after pausing {Duration}.",
-                        Index,
-                        acks.Count,
-                        m_outer.m_timeProvider.GetElapsedTime(swStart));
+                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        m_logger.PublishWorkerPublishAcksAfterPausing(
+                            Index,
+                            acks.Count,
+                            m_outer.m_timeProvider.GetElapsedTime(swStart));
+                    }
                     return acks;
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    m_logger.LogInformation(
-                        "PUBLISH Worker #{Handle} - Publish with no acks after waiting {Duration}.",
-                        Index,
-                        m_outer.m_timeProvider.GetElapsedTime(swStart));
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.PublishWorkerNoAcksAfterWaiting(
+                            Index,
+                            m_outer.m_timeProvider.GetElapsedTime(swStart));
+                    }
                     return [];
                 }
                 finally
@@ -1783,9 +1731,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 if (acks.Count != 0)
                 {
-                    m_logger.LogDebug(
-                        "PUBLISH Worker #{Handle} - Acknoledging {Count} of {Total} messages.",
-                        Index, acks.Count, available);
+                    m_logger.PublishWorkerAcknowledging(Index, acks.Count, available);
                 }
                 return acks;
             }
@@ -1896,5 +1842,215 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly ILoggerFactory m_loggerFactory;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SubscriptionManager"/>.
+    /// </summary>
+    internal static partial class SubscriptionManagerLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 0, Level = LogLevel.Error,
+            Message = "Exception during dispose")]
+        public static partial void ExceptionDuringDispose(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 1, Level = LogLevel.Information,
+            Message = "{SubscriptionId} REMOVED.")]
+        public static partial void SubscriptionRemoved(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 2, Level = LogLevel.Information,
+            Message = "{SubscriptionId} ADDED.")]
+        public static partial void SubscriptionAdded(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 3, Level = LogLevel.Information,
+            Message = "Idle-delete of secondary partition {PartitionId} threw on dispose.")]
+        public static partial void IdleDeleteSecondaryPartitionThrew(
+            this ILogger logger,
+            Exception exception,
+            uint partitionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 4, Level = LogLevel.Information,
+            Message = "{SubscriptionId} ADDED (secondary partition).")]
+        public static partial void SubscriptionAddedSecondaryPartition(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 5, Level = LogLevel.Information,
+            Message = "{SubscriptionId} ADDED (preloaded secondary partition).")]
+        public static partial void SubscriptionAddedPreloadedSecondaryPartition(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 6, Level = LogLevel.Information,
+            Message = "{SubscriptionId} ADDED (transfer-pending, ServerId={ServerId}).")]
+        public static partial void SubscriptionAddedTransferPending(
+            this ILogger logger,
+            uint subscriptionId,
+            uint serverId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 7, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: TransferSubscriptions per-item result Bad ({Status}); " +
+                "falling back to recreate.")]
+        public static partial void TransferPerItemResultBad(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 8, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: server does not support TransferSubscriptions; " +
+                "falling back to recreate.")]
+        public static partial void ServerDoesNotSupportTransfer(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 9, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: TransferSubscriptions service-level result Bad ({Status}); " +
+                "falling back to recreate.")]
+        public static partial void TransferServiceLevelResultBad(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 10, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: re-creation did not complete within 15s after failed transfer; " +
+                "returning anyway.")]
+        public static partial void ReCreationDidNotComplete(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 11, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: TransferSubscriptions threw on secondary partition restore; " +
+                "falling back to recreate.")]
+        public static partial void TransferThrewSecondaryPartitionRestore(
+            this ILogger logger,
+            Exception exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 12, Level = LogLevel.Warning,
+            Message = "Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false.")]
+        public static partial void TransferSubscriptionUnsupported(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 13, Level = LogLevel.Error,
+            Message = "Transfer subscriptions failed with error {Error}.")]
+        public static partial void TransferSubscriptionsFailed(this ILogger logger, StatusCode error);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 14, Level = LogLevel.Debug,
+            Message = "Subscription {Id} is already member of the session.")]
+        public static partial void SubscriptionAlreadyMember(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 15, Level = LogLevel.Error,
+            Message = "Subscription {Id} failed to transfer, StatusCode={Status}")]
+        public static partial void SubscriptionFailedToTransfer(this ILogger logger, uint id, StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 16, Level = LogLevel.Information,
+            Message = "Removing publish worker {Index}")]
+        public static partial void RemovingPublishWorker(this ILogger logger, int index);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 17, Level = LogLevel.Information,
+            Message = "Publish worker {Index} exited")]
+        public static partial void PublishWorkerExited(this ILogger logger, int index);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 18, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle} - STARTED.")]
+        public static partial void PublishWorkerStarted(this ILogger logger, int handle);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 19, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle} - PAUSED.")]
+        public static partial void PublishWorkerPaused(this ILogger logger, int handle);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 20, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle} - RESUMED.")]
+        public static partial void PublishWorkerResumed(this ILogger logger, int handle);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 21, Level = LogLevel.Error,
+            Message = "PUBLISH Worker #{Handle} - Unexpected exception while waiting to connect.")]
+        public static partial void PublishWorkerUnexpectedExceptionConnecting(
+            this ILogger logger,
+            Exception exception,
+            int handle);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 22, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for Unknown " +
+                "SubscriptionId={SubscriptionId}. Deleting...")]
+        public static partial void PublishWorkerReceivedUnknownSubscription(
+            this ILogger logger,
+            int handle,
+            uint id,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 23, Level = LogLevel.Warning,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Publish abandoned after error due to reconnect: " +
+                "{Message}")]
+        public static partial void PublishAbandonedAfterError(
+            this ILogger logger,
+            int handle,
+            uint id,
+            string message);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 24, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Transport unavailable ({Status}); " +
+                "waiting for reconnect.")]
+        public static partial void TransportUnavailable(
+            this ILogger logger,
+            int handle,
+            uint id,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 25, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Server busy, throttling worker.")]
+        public static partial void ServerBusyThrottling(this ILogger logger, int handle, uint id);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 26, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Timed out, increasing timeout to {Timeout}.")]
+        public static partial void TimedOutIncreasingTimeout(
+            this ILogger logger,
+            int handle,
+            uint id,
+            uint timeout);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 27, Level = LogLevel.Error,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Unhandled error {Status} during Publish.")]
+        public static partial void UnhandledErrorDuringPublish(
+            this ILogger logger,
+            Exception exception,
+            int handle,
+            uint id,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 28, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Unhandled error {Status} during Publish (repeated).")]
+        public static partial void UnhandledErrorDuringPublishRepeated(
+            this ILogger logger,
+            int handle,
+            uint id,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 29, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle} - STOPPED.")]
+        public static partial void PublishWorkerStopped(this ILogger logger, int handle);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 30, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle} - Waiting max {Time}ms for acks to arrive.")]
+        public static partial void PublishWorkerWaitingMaxForAcks(this ILogger logger, int handle, int time);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 31, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle} - Waiting for acks to arrive.")]
+        public static partial void PublishWorkerWaitingForAcks(this ILogger logger, int handle);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 32, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle} - Publish {Count} acks after pausing {Duration}.")]
+        public static partial void PublishWorkerPublishAcksAfterPausing(
+            this ILogger logger,
+            int handle,
+            int count,
+            TimeSpan duration);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 33, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle} - Publish with no acks after waiting {Duration}.")]
+        public static partial void PublishWorkerNoAcksAfterWaiting(
+            this ILogger logger,
+            int handle,
+            TimeSpan duration);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 34, Level = LogLevel.Debug,
+            Message = "PUBLISH Worker #{Handle} - Acknoledging {Count} of {Total} messages.")]
+        public static partial void PublishWorkerAcknowledging(
+            this ILogger logger,
+            int handle,
+            int count,
+            int total);
     }
 }

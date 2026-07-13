@@ -301,7 +301,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task WorkerLoopAsync(CancellationToken ct)
         {
-            m_logger.LogDebug("ConnectionStateMachine: Worker started.");
+            m_logger.ConnectionStateMachineWorkerStarted();
 
             try
             {
@@ -351,8 +351,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                m_logger.LogDebug(
-                    "ConnectionStateMachine: Worker exiting.");
+                m_logger.ConnectionStateMachineWorkerExiting();
             }
         }
 
@@ -361,8 +360,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task HandleConnectingAsync(CancellationToken ct)
         {
-            m_logger.LogInformation(
-                "ConnectionStateMachine: Attempting initial connection.");
+            m_logger.ConnectionStateMachineAttemptingInitialConnection();
 
             ServiceResult result = await InvokeConnectAsync(ct)
                 .ConfigureAwait(false);
@@ -424,9 +422,9 @@ namespace Opc.Ua.Client
                     delay = remaining;
                 }
 
-                m_logger.LogInformation(
-                    "ConnectionStateMachine:Reconnect attempt {Attempt}, delay {DelayMs} ms.",
-                    attempt, (int)delay.Value.TotalMilliseconds);
+                m_logger.ConnectionStateMachineReconnectAttemptAttemptDelayDelayMs(
+                    attempt,
+                    (int)delay.Value.TotalMilliseconds);
 
                 await m_timeProvider.Delay(delay.Value, ct)
                     .ConfigureAwait(false);
@@ -449,9 +447,7 @@ namespace Opc.Ua.Client
 
                 if (ServiceResult.IsGood(result))
                 {
-                    m_logger.LogInformation(
-                        "ConnectionStateMachine: Reconnected on attempt {Attempt}.",
-                        attempt);
+                    m_logger.ConnectionStateMachineReconnectedAttemptAttempt(attempt);
 
                     budget.Reset();
                     ClearReconnectBudget();
@@ -554,17 +550,11 @@ namespace Opc.Ua.Client
         {
             if (budgetExhausted)
             {
-                m_logger.LogWarning(
-                    "ConnectionStateMachine: Reconnect budget exhausted after " +
-                    "{Attempt} attempts, entering failover.",
-                    attempt);
+                m_logger.ConnectionStateMachineReconnectBudgetExhaustedAfterAttempt(attempt);
             }
             else
             {
-                m_logger.LogWarning(
-                    "ConnectionStateMachine: Reconnect policy exhausted after " +
-                    "{Attempt} attempts, entering failover.",
-                    attempt);
+                m_logger.ConnectionStateMachineReconnectPolicyExhaustedAfterAttempt(attempt);
             }
 
             lock (m_lock)
@@ -584,8 +574,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task HandleFailoverAsync(CancellationToken ct)
         {
-            m_logger.LogInformation(
-                "ConnectionStateMachine: Attempting failover to redundant server.");
+            m_logger.ConnectionStateMachineAttemptingFailoverRedundantServer();
 
             IRetryBudget budget = GetOrCreateReconnectBudget();
             ServiceResult result = await InvokeFailoverAsync(budget, ct).ConfigureAwait(false);
@@ -606,9 +595,7 @@ namespace Opc.Ua.Client
                 else
                 {
                     ClearReconnectBudget();
-                    m_logger.LogError(
-                        "ConnectionStateMachine: Failover failed: {Error}.",
-                        result);
+                    m_logger.ConnectionStateMachineFailoverFailedError(result);
 
                     TransitionTo(
                         ConnectionState.Disconnected,
@@ -625,7 +612,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task HandleClosingAsync(CancellationToken ct)
         {
-            m_logger.LogInformation("ConnectionStateMachine: Closing session.");
+            m_logger.ConnectionStateMachineClosingSession();
 
             try
             {
@@ -637,9 +624,7 @@ namespace Opc.Ua.Client
             catch (Exception ex)
                 when (ex is not OperationCanceledException)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "ConnectionStateMachine: Error during session close.");
+                m_logger.ConnectionStateMachineErrorDuringSessionClose(ex);
             }
 
             lock (m_lock)
@@ -673,9 +658,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "ConnectionStateMachine: Connect failed with exception.");
+                m_logger.ConnectionStateMachineConnectFailedException(ex);
                 return new ServiceResult(ex);
             }
         }
@@ -707,9 +690,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "ConnectionStateMachine: Reconnect failed with exception.");
+                m_logger.ConnectionStateMachineReconnectFailedException(ex);
                 return new ServiceResult(ex);
             }
         }
@@ -740,9 +721,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "ConnectionStateMachine: Failover failed with exception.");
+                m_logger.ConnectionStateMachineFailoverFailedException(ex);
                 return new ServiceResult(ex);
             }
         }
@@ -765,9 +744,9 @@ namespace Opc.Ua.Client
 
             m_state = newState;
 
-            m_logger.LogInformation(
-                "ConnectionStateMachine: State changed from {Old} to {New}.",
-                previous, newState);
+            m_logger.ConnectionStateMachineStateChangedOldNew(
+                previous,
+                newState);
 
             OnStateChanged(new ConnectionStateChangedEventArgs
             {
@@ -791,10 +770,103 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "ConnectionStateMachine: StateChanged handler threw an exception.");
+                m_logger.ConnectionStateMachineStateChangedHandlerThrewException(ex);
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ConnectionStateMachine"/>.
+    /// </summary>
+    internal static partial class ConnectionStateMachineLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 0, Level = LogLevel.Debug,
+            Message = "ConnectionStateMachine: Worker started.")]
+        public static partial void ConnectionStateMachineWorkerStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 1, Level = LogLevel.Debug,
+            Message = "ConnectionStateMachine: Worker exiting.")]
+        public static partial void ConnectionStateMachineWorkerExiting(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 2, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine: Attempting initial connection.")]
+        public static partial void ConnectionStateMachineAttemptingInitialConnection(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 3, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine:Reconnect attempt {Attempt}, delay {DelayMs} ms.")]
+        public static partial void ConnectionStateMachineReconnectAttemptAttemptDelayDelayMs(
+            this ILogger logger,
+            int attempt,
+            int delayMs);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 4, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine: Reconnected on attempt {Attempt}.")]
+        public static partial void ConnectionStateMachineReconnectedAttemptAttempt(
+            this ILogger logger,
+            int attempt);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 5, Level = LogLevel.Warning,
+            Message = "ConnectionStateMachine: Reconnect budget exhausted after {Attempt} attempts, entering" +
+                " failover.")]
+        public static partial void ConnectionStateMachineReconnectBudgetExhaustedAfterAttempt(
+            this ILogger logger,
+            int attempt);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 6, Level = LogLevel.Warning,
+            Message = "ConnectionStateMachine: Reconnect policy exhausted after {Attempt} attempts, entering" +
+                " failover.")]
+        public static partial void ConnectionStateMachineReconnectPolicyExhaustedAfterAttempt(
+            this ILogger logger,
+            int attempt);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 7, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine: Attempting failover to redundant server.")]
+        public static partial void ConnectionStateMachineAttemptingFailoverRedundantServer(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 8, Level = LogLevel.Error,
+            Message = "ConnectionStateMachine: Failover failed: {Error}.")]
+        public static partial void ConnectionStateMachineFailoverFailedError(this ILogger logger, ServiceResult error);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 9, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine: Closing session.")]
+        public static partial void ConnectionStateMachineClosingSession(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 10, Level = LogLevel.Warning,
+            Message = "ConnectionStateMachine: Error during session close.")]
+        public static partial void ConnectionStateMachineErrorDuringSessionClose(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 11, Level = LogLevel.Error,
+            Message = "ConnectionStateMachine: Connect failed with exception.")]
+        public static partial void ConnectionStateMachineConnectFailedException(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 12, Level = LogLevel.Error,
+            Message = "ConnectionStateMachine: Reconnect failed with exception.")]
+        public static partial void ConnectionStateMachineReconnectFailedException(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 13, Level = LogLevel.Error,
+            Message = "ConnectionStateMachine: Failover failed with exception.")]
+        public static partial void ConnectionStateMachineFailoverFailedException(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 14, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine: State changed from {Old} to {New}.")]
+        public static partial void ConnectionStateMachineStateChangedOldNew(
+            this ILogger logger,
+            ConnectionState old,
+            ConnectionState @new);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 15, Level = LogLevel.Error,
+            Message = "ConnectionStateMachine: StateChanged handler threw an exception.")]
+        public static partial void ConnectionStateMachineStateChangedHandlerThrewException(
+            this ILogger logger,
+            Exception? exception);
+    }
+
 }
