@@ -1,10 +1,9 @@
-# CTT (Compliance Test Tool) script defects
+# CTT (Compliance Test Tool) conformance findings
 
-This document reports defects found in the **OPC UA Compliance Test Tool** test
-scripts (not in the server under test) while working through issue #3960 against
-the OPC Foundation .NET reference server. Each entry describes the defect, why
-the reference server's behaviour is correct per the OPC UA specification, and the
-recommended fix to the CTT script.
+This document records CTT script defects and server-side findings discovered while
+working through issue #3960 against the OPC Foundation .NET reference server. Each
+entry classifies the observed behavior, records the available evidence, and identifies
+the appropriate server or CTT corrective action.
 
 Paths below are relative to the CTT installation
 (`.../Compliance Test Tool/ServerProjects/Standard/`). Line numbers refer to the
@@ -178,7 +177,7 @@ this.GetRequestEntry = function ( requestEntries, requestDefinition ) {
 
 ---
 
-## 4. Multi-dimensional array (Matrix) — CTT reports `BadDecodingError` for spec-compliant Variant encoding
+## 4. Multi-dimensional array (Matrix) — invalid server Variant poisoned batched CTT reads
 
 **Tests (all multi-dimensional-array cases):**
 - `maintree/Attribute Services/Attribute Read/Test Cases/030.js` — read a multi-dim array Value
@@ -188,9 +187,11 @@ this.GetRequestEntry = function ( requestEntries, requestDefinition ) {
 - `maintree/Monitored Item Services/Monitor Value Change V2/Test Cases/042.js` — monitor a multi-dim array with IndexRange
 
 **Observed error:** *"Expected: Good (0x00000000) but received: BadDecodingError (0x80070000)"*
-(`library/Base/assertions.js:386`), on both **read/monitor** (server encodes the value, CTT
-decodes) and **write** (CTT encodes the value, server decodes). Every failing case is a
-**multi-dimensional array**; single-dimensional and scalar cases of the same tests pass.
+(`library/Base/assertions.js:386`). The read-side failures were initially attributed to the CTT
+decoder. That conclusion was incorrect: the reference server returned an invalid copied Value for
+`ns=2;s=Scalar_Static_Arrays2D_Variant`, and the CTT read these configured matrix nodes in a batch.
+The one invalid Variant made the encoded response undecodable and therefore hid the otherwise good
+neighboring results.
 
 ### Run 12 Attribute Services evidence
 
@@ -202,8 +203,8 @@ The installed scripts were inspected under
 
 | Failure class | Count | Tests and interpretation |
 |---|---:|---|
-| `BadDecodingError` | 14 | Read `030`-`034`; Write Index `007`-`010`; Write Values `020`/`021`. These are the direct matrix-codec failures. |
-| `BadTypeMismatch` | 40 | 19 whole-matrix writes in each of Write Values `020` and `021`, plus one indexed write in each of Write Index `008` and `009`. The CTT payload reaches the server as the wrong value rank/type after CTT matrix construction/encoding. |
+| `BadDecodingError` | 14 | Read `030`-`034`; Write Index `007`-`010`; Write Values `020`/`021`. The batched read failures are explained by the invalid server `Scalar_Static_Arrays2D_Variant`. The write-side entries require a rerun or independent wire capture; the result code alone does not prove a CTT encoder defect. |
+| `BadTypeMismatch` | 40 | 19 whole-matrix writes in each of Write Values `020` and `021`, plus one indexed write in each of Write Index `008` and `009`. These results must be re-evaluated after the server fix and are no longer attributed to CTT matrix construction without payload evidence. |
 | Write Index `010` follow-on assertions | 38 | 19 `BadIndexRangeInvalid` checks plus 19 "SourceTimestamp not set" checks. The test continues to construct/read ranges after its initial matrix `BadDecodingError`; the timestamp checks are secondary because Part 4 §5.11.2.2 only associates an Attribute Value with a successful operation result. |
 | CTT JavaScript exceptions | 4 | Attribute Read `026`/`036` reject configured `StatusCode` arrays; Read `034` indexes `Dimensions[-1]`; Write Index `007` dereferences an undefined decoded matrix. |
 
@@ -218,10 +219,17 @@ script continues after the preceding matrix decode failure and derives the next 
 unusable matrix metadata. A fixed literal valid range is covered by the in-process server proof
 below.
 
-### Why this is a CTT defect (the server is byte-exact spec-compliant)
+### Root cause: the server corrupted a Variant matrix while copying the read value
 
-Per **OPC UA Part 6 §5.2.2.16, Table 26 (Variant Binary DataEncoding)** a multi-dimensional
-array Variant is encoded, in this order:
+The node was initialized with a valid `MatrixOf<Variant>`. However, `Variant.Copy()` copied matrices
+whose BuiltInType was `Variant`, `Number`, `Integer`, or `UInteger` through `GetVariantArray()`.
+For a matrix TypeInfo that array accessor returns a null `ArrayOf<Variant>`, so the copy retained a
+rank-2 TypeInfo but no longer contained a shaped `MatrixOf<Variant>`.
+
+Before the fix, binary encoding that corrupted copy used the matrix Variant mask
+(`Variant | Array | ArrayDimensions`) with a null flattened array and no dimensions. This is not a
+valid matrix encoding. Per **OPC UA Part 6 §5.2.2.16, Table 26 (Variant Binary DataEncoding)** a
+multi-dimensional array Variant is encoded, in this order:
 
 1. `EncodingMask` (Byte) — bits 0:5 = BuiltInTypeId, **bit 6 = ArrayDimensions present**, **bit 7 = array**.
 2. `ArrayLength` (Int32) — the **total** element count of the flattened array.
@@ -231,9 +239,10 @@ array Variant is encoded, in this order:
 
 The spec also states (Table 26, `ArrayDimensions` row): *"If ArrayDimensions are inconsistent
 with the ArrayLength then the decoder shall stop and raise a **Bad_DecodingError**."* — i.e.
-`BadDecodingError` is the **mandated** decoder behaviour for an inconsistent matrix.
+`BadDecodingError` is the mandated decoder behaviour for an inconsistent matrix. The CTT was
+therefore correct to reject the invalid server response.
 
-The reference server emits exactly this layout. Encoding of the 2×3 `Int32` matrix
+For comparison, encoding of the valid 2×3 `Int32` matrix
 `{{1,2,3},{4,5,6}}` on the wire is:
 
 ```
@@ -244,35 +253,36 @@ C6                          EncodingMask = Int32(6) | Array(0x80) | ArrayDimensi
 02 00 00 00  03 00 00 00    ArrayDimensions       = [2,3] (lower-rank-first; product == ArrayLength)
 ```
 
-Every field matches Table 26: the encoding byte sets both the array and dimensions bits, the
-value precedes the dimensions, `ArrayLength` equals the product of the dimensions, and the
-element/dimension ordering follows the spec. The server's decoder is symmetric — it reads the
-value array first and the dimensions afterwards, and it raises `BadDecodingError` **only** when
-`ArrayLength` is inconsistent with the decoded dimensions (again per Table 26). So the server is
-correct in **both** directions.
+Every field in that golden vector matches Table 26. It proves the ordinary `Int32` matrix path, but
+it does **not** prove that the old `Scalar_Static_Arrays2D_Variant` response was valid and it does
+not prove that the CTT encoder or decoder is symmetrically wrong.
 
-Because the CTT flags `BadDecodingError` on read (decoding the server's valid bytes) **and** the
-server flags `BadDecodingError` on write (decoding the CTT's bytes), the CTT's own
-multi-dimensional-array Variant codec is internally inconsistent with Part 6 §5.2.2.16 —
-symmetrically on both encode and decode (e.g. writing/expecting the `ArrayDimensions` in the
-wrong position relative to the `Value`, or an `ArrayLength`/dimensions mismatch). A server that
-is spec-compliant therefore cannot pass these cases against the current CTT codec.
+### Corrective action and regression proof
 
-The repository now locks this conclusion down with non-randomized proof:
+The server fix changes `Variant.Copy()` to use `GetVariantMatrix()` for `Variant`, `Number`,
+`Integer`, and `UInteger` matrices, preserving both the flattened values and dimensions. Matrix
+codec validation is also hardened so encoders reject invalid shapes and decoders consistently
+report `BadDecodingError` for malformed dimensions.
+
+The repository locks the corrected behavior down with deterministic proof:
 
 - `BinaryEncoderTests.WriteVariantWithInt32MatrixMatchesPart6Table26` compares the complete
   encoded 2x3 `Int32` Variant to the 41-byte Table 26 golden vector above.
+- `VariantCoverageTests.CopyPreservesVariantMatrixShape` verifies that copying a
+  `MatrixOf<Variant>` preserves its rank, dimensions, count, and values.
+- `VariantMatrixConformanceTests` exercises binary, JSON, and both XML decoders with a valid 2x3
+  matrix, null and zero-length arrays, invalid rank-1 dimensions, a zero dimension, and a
+  dimension-product mismatch.
+- `ReferenceServerTests.VariantMatrixDoesNotPoisonBatchedReadEncodingAsync` reads the Variant
+  matrix between two valid matrix nodes, binary-encodes and decodes the full result array, and
+  verifies that all three results remain good.
 - `ReferenceServerTests.MatrixReadWriteAndNumericRangeAsync` writes and reads a deterministic
   3x3 `Int32` matrix in-process, reads the valid Part 4 §7.27 range `1,0:2`, writes the matching
   `1,1:2` slice, and verifies the updated row.
 
-### Recommended CTT fix
-
-Align the CTT's multi-dimensional-array Variant encoder **and** decoder with Part 6 §5.2.2.16
-Table 26: encode/expect `EncodingMask (bits 6+7 set) → ArrayLength → Value → ArrayDimensionsLength
-→ ArrayDimensions`, with `ArrayLength == product(ArrayDimensions)`, the value flattened
-higher-rank-first, and the dimensions listed lower-rank-first. The byte sequence above is a
-ready-made golden vector to validate the CTT codec against.
+The CTT matrix cases must be rerun against the corrected server. Any remaining CTT codec claim
+requires separate proof from a captured payload or an isolated CTT codec test; the Run 12 status
+codes are not sufficient evidence.
 
 ### CTT script defect: Write Index `007.js` dereferences a failed matrix decode
 
