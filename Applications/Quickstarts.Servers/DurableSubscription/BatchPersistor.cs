@@ -142,7 +142,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to restore batch");
+                m_logger.FailedToRestoreBatch(ex);
             }
 
             batch.RestoreInProgress = false;
@@ -206,7 +206,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to store batch");
+                m_logger.FailedToStoreBatch(ex);
                 lock (batch)
                 {
                     batch.PersistingInProgress = false;
@@ -242,7 +242,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to clean up batches");
+                m_logger.FailedToCleanUpBatches(ex);
             }
         }
 
@@ -270,7 +270,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to clean up single batch");
+                m_logger.FailedToCleanUpSingleBatch(ex);
             }
         }
 
@@ -279,4 +279,28 @@ namespace Quickstarts.Servers
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
     }
+
+    internal static partial class BatchPersistorLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.BatchPersistor + 0, Level = LogLevel.Error,
+            Message = "Failed to restore batch")]
+        public static partial void FailedToRestoreBatch(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.BatchPersistor + 1, Level = LogLevel.Warning,
+            Message = "Failed to store batch")]
+        public static partial void FailedToStoreBatch(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.BatchPersistor + 2, Level = LogLevel.Warning,
+            Message = "Failed to clean up batches")]
+        public static partial void FailedToCleanUpBatches(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.BatchPersistor + 3, Level = LogLevel.Warning,
+            Message = "Failed to clean up single batch")]
+        public static partial void FailedToCleanUpSingleBatch(this ILogger logger, Exception exception);
+    }
+
 }
