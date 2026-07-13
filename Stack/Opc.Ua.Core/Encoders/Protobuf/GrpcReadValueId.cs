@@ -31,6 +31,7 @@ namespace Opc.Ua
     /// <summary>
     /// Identifies one node, attribute, and optional index range requested by the experimental gRPC Read message.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class GrpcReadValueId
     {
         /// <summary>

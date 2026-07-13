@@ -37,5 +37,6 @@ namespace Opc.Ua.PubSub.Encoding
     /// <param name="SchemaId">The raw schema identifier.</param>
     /// <param name="Schema">The schema bytes.</param>
     /// <param name="Format">The schema format.</param>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public readonly record struct SchemaCacheEntry(ByteString SchemaId, ByteString Schema, string Format);
 }

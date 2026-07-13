@@ -37,6 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Decodes OPC UA values from the experimental Part 6 Protobuf wire representation.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class ProtobufDecoder : IDecoder
     {
         /// <summary>

@@ -31,6 +31,7 @@ namespace Opc.Ua
     /// <summary>
     /// Carries the fields of an OPC UA Read response for the experimental gRPC mapping.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class GrpcReadResponseMessage
     {
         /// <summary>

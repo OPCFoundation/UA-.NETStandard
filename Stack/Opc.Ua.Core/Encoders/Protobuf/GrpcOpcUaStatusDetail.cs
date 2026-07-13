@@ -31,6 +31,7 @@ namespace Opc.Ua
     /// <summary>
     /// Carries OPC UA status details for the experimental gRPC status mapping.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class GrpcOpcUaStatusDetail
     {
         /// <summary>

@@ -34,6 +34,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Carries one PubSub DataSetMessage encoded with the experimental Avro mapping.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed record AvroDataSetMessage : PubSubDataSetMessage
     {
         /// <summary>

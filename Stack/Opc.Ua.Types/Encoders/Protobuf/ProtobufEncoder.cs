@@ -41,6 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// Encodes OPC UA values into the Protobuf wire format defined by the Part 6 Protobuf DataEncoding.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class ProtobufEncoder : IEncoder
     {
         /// <summary>

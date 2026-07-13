@@ -51,6 +51,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// typed RawData field columns; unsupported Arrow/OPC UA type pairings
     /// throw rather than falling back to blobs or JSON.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class ArrowNetworkMessageDecoder : INetworkMessageDecoder
     {
         private const string Magic = "OPC-UA-PubSub-Arrow";

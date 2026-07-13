@@ -42,6 +42,7 @@ namespace Opc.Ua
     /// <summary>
     /// Encodes OPC UA values into the experimental Apache Arrow stream representation.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class ArrowEncoder : IEncoder
     {
         /// <summary>

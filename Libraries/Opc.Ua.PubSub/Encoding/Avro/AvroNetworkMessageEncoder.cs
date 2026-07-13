@@ -38,6 +38,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Encodes PubSub network messages into the experimental Avro frame format.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public sealed class AvroNetworkMessageEncoder : INetworkMessageEncoder
     {
         private const string Magic = "OPC-UA-PubSub-Avro";
