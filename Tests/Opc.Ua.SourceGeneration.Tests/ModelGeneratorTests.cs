@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -165,6 +166,62 @@ namespace Opc.Ua.SourceGeneration
                 "\n",
                 generatorResult.GeneratedSources.Select(source => source.SourceText.ToString()));
             Assert.That(generatedSources, Does.Contain("ISA95JobOrderDataType"));
+        }
+
+        [Test]
+        public void Isa95JobControlNodeSet2FixtureIsComplete()
+        {
+            string nodeSet = EmbeddedText.From("Isa95JobControl.NodeSet2.xml")
+                .GetText()!
+                .ToString();
+            Assert.That(nodeSet, Does.Contain("OPC Foundation MIT License 1.00"));
+
+            XDocument document = XDocument.Parse(nodeSet);
+            XNamespace ua = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd";
+            XElement root = document.Root!;
+            XElement[] models = [.. root.Element(ua + "Models")!.Elements(ua + "Model")];
+            Assert.That(models, Has.Length.EqualTo(1));
+            Assert.That(
+                models[0].Attribute("ModelUri")!.Value,
+                Is.EqualTo("http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/"));
+            Assert.That(models[0].Attribute("Version")!.Value, Is.EqualTo("2.0.0"));
+            Assert.That(
+                models[0].Attribute("PublicationDate")!.Value,
+                Is.EqualTo("2024-01-31T00:00:00Z"));
+
+            XElement[] nodes = [.. root.Elements().Where(element =>
+                element.Name.LocalName.StartsWith("UA", StringComparison.Ordinal))];
+            Assert.That(nodes, Has.Length.EqualTo(258));
+            Assert.That(root.Elements(ua + "UADataType").Count(), Is.EqualTo(11));
+            Assert.That(root.Elements(ua + "UAObjectType").Count(), Is.EqualTo(8));
+            Assert.That(root.Elements(ua + "UAVariable").Count(), Is.EqualTo(134));
+            Assert.That(root.Elements(ua + "UAObject").Count(), Is.EqualTo(91));
+            Assert.That(root.Elements(ua + "UAMethod").Count(), Is.EqualTo(14));
+
+            Assert.That(
+                root.Elements(ua + "UAVariable").Any(variable =>
+                    variable.Attribute("NodeId")!.Value == "ns=1;i=6088" &&
+                    variable.Attribute("BrowseName")!.Value == "1:MaxDownloadableJobOrders"),
+                Is.True);
+            Assert.That(
+                root.Elements(ua + "UAVariable").Any(variable =>
+                    variable.Attribute("NodeId")!.Value == "ns=1;i=6029" &&
+                    variable.Attribute("BrowseName")!.Value == "StaticStringNodeIdPattern"),
+                Is.True);
+
+            var nodeIds = new HashSet<string>(
+                nodes.Select(node => node.Attribute("NodeId")!.Value),
+                StringComparer.Ordinal);
+            string[] unresolvedSameNamespaceReferences =
+            [
+                .. document.Descendants(ua + "Reference")
+                    .Select(reference => reference.Value.Trim())
+                    .Where(reference =>
+                        reference.StartsWith("ns=1;", StringComparison.Ordinal) &&
+                        !nodeIds.Contains(reference))
+                    .Distinct(StringComparer.Ordinal)
+            ];
+            Assert.That(unresolvedSameNamespaceReferences, Is.Empty);
         }
 
         [Theory]
