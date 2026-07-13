@@ -43,10 +43,10 @@ namespace Opc.Ua.PubSub.Transcoding
 {
     /// <summary>
     /// Default <see cref="INetworkMessageProfileProjector"/>. Re-materialises
-    /// the transport-neutral message tree into a concrete UADP or JSON
-    /// record, preserving the shared identification and payload while
-    /// translating the profile-specific header fields. Stateless and
-    /// thread-safe.
+    /// the transport-neutral message tree into a concrete UADP, JSON or
+    /// experimental Avro record, preserving the shared identification and
+    /// payload while translating the profile-specific header fields. Stateless
+    /// and thread-safe.
     /// </summary>
     /// <remarks>
     /// Implements the mapping between the UADP

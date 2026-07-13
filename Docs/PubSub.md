@@ -57,7 +57,7 @@
   group, writer, reader.
 - Runtime configuration mutation via
   `IPubSubApplication.AddConnectionAsync` / `AddWriterGroupAsync` / etc.
-- High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
+- High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding (plus the experimental Avro mapping), transform pipelines, and managed UADP re-securing.
 
 ## Architecture
 
@@ -827,7 +827,7 @@ Additional v1.05.06 flavours:
 
 ## Transcoding
 
-High-performance PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp` or `Json`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
+High-performance PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp`, `Json`, or the experimental `Avro`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
 
 Use transcoders when a deployment needs an in-process PubSub gateway: for example, a UADP UDP subscriber feeding an MQTT JSON publisher, a JSON cloud topic being normalized before it is re-published as UADP, or a relay that preserves UADP frames on an identity route but rewrites selected fields on another route. The implementation is aligned with OPC UA Part 14 NetworkMessage mappings for [UADP §7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4), [JSON §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5), PubSub connection filtering in [§6.2.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.7), and Security Key Service (SKS) key distribution in [§8](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8).
 
@@ -859,7 +859,9 @@ encoder + TranscodeSecurity (target re-securing where applicable)
 TranscodeResult(Frames, Messages, FastPath)
 ```
 
-`PubSubNetworkMessage` is the seam between the receive path and the target profile. Built-in and custom transforms operate on that decoded message tree, while `NetworkMessageProfileProjector` re-materializes it as the concrete UADP or JSON record requested by `TranscodeSpec.TargetEncoding`. `NetworkMessageTranscoder` is the structured primitive that applies transforms and projection; `PubSubTranscoder` is the frame-level primitive that also encodes output frames, applies target-side UADP security, and exposes the raw-frame fast path.
+`PubSubNetworkMessage` is the seam between the receive path and the target profile. Built-in and custom transforms operate on that decoded message tree, while `NetworkMessageProfileProjector` re-materializes it as the concrete UADP, JSON, or experimental Avro record requested by `TranscodeSpec.TargetEncoding`. `NetworkMessageTranscoder` is the structured primitive that applies transforms and projection; `PubSubTranscoder` is the frame-level primitive that also encodes output frames, applies target-side UADP security, and exposes the raw-frame fast path.
+
+When a route targets the experimental Avro mapping, the Avro encoder generates the per-DataSet schema progressively (announce-once through the `SchemaCache` schema handshake) as each DataSet shape is first seen. A DataSet MetaData version change re-announces automatically because the announced schema descriptor embeds the version; `SchemaCache.Reset()` forces an explicit reset, and because the Avro encoder is registered per transcoding bridge, reloading a route (which recreates the bridge) also resets its progressive-schema state.
 
 The fast path is used only when the route is an identity transcode (`TranscodeSpec.IsIdentity`), the source and target encoding match, the subscriber supplied a raw source frame, the source frame is not still message-layer secured, and the target route is not configured for message-layer security. In that case the input frame is returned as a `TranscodeResult` without rebuilding the message.
 
