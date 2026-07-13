@@ -27,12 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.RuntimeNodeSet;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -51,7 +54,8 @@ namespace Opc.Ua.Aot.Tests
     /// the AOT publish will produce IL2026/IL3050 warnings attributable
     /// to this file.
     /// </remarks>
-    public class HostingAotTests
+    [ClassDataSource<AotTestFixture>(Shared = SharedType.PerTestSession)]
+    public class HostingAotTests(AotTestFixture fixture)
     {
         [Test]
         public async Task AddOpcUaCanRegisterRootServicesWithoutAotWarningAsync()
@@ -175,6 +179,63 @@ namespace Opc.Ua.Aot.Tests
             Func<CancellationToken, Task<ManagedSession>> sessionAccessor =
                 sp.GetService<Func<CancellationToken, Task<ManagedSession>>>();
             await Assert.That(sessionAccessor).IsNotNull();
+        }
+
+        [Test]
+        public async Task AddRuntimeNodeSetStreamRegistrationIsAotSafeAsync()
+        {
+            string namespaceUri = fixture.ServerFixture.Server.CurrentInstance
+                .NamespaceUris.GetString(1);
+            string nodeSetXml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                "<NamespaceUris><Uri>" + namespaceUri + "</Uri></NamespaceUris>" +
+                "<Models><Model ModelUri=\"" + namespaceUri + "\" /></Models>" +
+                "<UAObject NodeId=\"ns=1;i=1\" BrowseName=\"1:Root\">" +
+                "<DisplayName>Root</DisplayName></UAObject>" +
+                "</UANodeSet>";
+
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddServer(o =>
+                {
+                    o.ApplicationName = "AotRuntimeNodeSetServer";
+                    o.AutoAcceptUntrustedCertificates = true;
+                })
+                .AddRuntimeNodeSet(options =>
+                {
+                    options.Sources =
+                    [
+                        RuntimeNodeSetSource.FromStream(
+                            "AOT runtime NodeSet",
+                            _ => new ValueTask<Stream>(
+                                new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml))),
+                            [namespaceUri])
+                    ];
+                });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IAsyncNodeManagerFactory factory = sp.GetService<IAsyncNodeManagerFactory>();
+
+            await Assert.That(factory).IsNotNull();
+            await Assert.That(factory.NamespacesUris.Count).IsEqualTo(1);
+            await Assert.That(factory.NamespacesUris[0]).IsEqualTo(namespaceUri);
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                fixture.ServerFixture.Server.CurrentInstance,
+                fixture.ServerFixture.Config,
+                CancellationToken.None).ConfigureAwait(false);
+
+            try
+            {
+                await manager.CreateAddressSpaceAsync(
+                    new Dictionary<NodeId, IList<IReference>>(),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                (manager as IDisposable)?.Dispose();
+            }
         }
 
         private static ApplicationConfiguration CreateMinimalClientConfiguration(

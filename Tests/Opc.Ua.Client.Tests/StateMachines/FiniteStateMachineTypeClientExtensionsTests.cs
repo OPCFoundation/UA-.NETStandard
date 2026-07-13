@@ -231,6 +231,117 @@ namespace Opc.Ua.Client.Tests.StateMachines
         }
 
         [Test]
+        public async Task GetAvailableStatesAsyncReturnsEmptyWhenAvailablePropertyResolvesToNullNodeIdAsync()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);
+            FiniteStateMachineTypeClient client = CreateClient(sessionMock);
+
+            sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, _, _) => new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                        new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results =
+                            [
+                                new BrowsePathResult
+                                {
+                                    StatusCode = StatusCodes.Good,
+                                    Targets =
+                                    [
+                                        new BrowsePathTarget
+                                        {
+                                            TargetId = ExpandedNodeId.Null,
+                                            RemainingPathIndex = uint.MaxValue
+                                        }
+                                    ]
+                                }
+                            ],
+                            DiagnosticInfos = []
+                        }));
+
+            IReadOnlyList<FiniteStateInfo> states = await client
+                .GetAvailableStatesAsync().ConfigureAwait(false);
+
+            Assert.That(states, Is.Empty);
+            sessionMock.Verify(s => s.ReadAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<double>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task GetAvailableTransitionsAsyncReturnsEmptyWhenAvailableNodeIdsAreAllNullAsync()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);
+            FiniteStateMachineTypeClient client = CreateClient(sessionMock);
+            NodeId availableTransitionsNode = new(106u, 2);
+
+            sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, _, _) => new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                        new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results =
+                            [
+                                new BrowsePathResult
+                                {
+                                    StatusCode = StatusCodes.Good,
+                                    Targets =
+                                    [
+                                        new BrowsePathTarget
+                                        {
+                                            TargetId = availableTransitionsNode,
+                                            RemainingPathIndex = uint.MaxValue
+                                        }
+                                    ]
+                                }
+                            ],
+                            DiagnosticInfos = []
+                        }));
+            sessionMock.Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
+                    (_, _, _, _, _) => new ValueTask<ReadResponse>(new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results =
+                        [
+                            new DataValue(Variant.From(new[] { NodeId.Null, NodeId.Null }.ToArrayOf()))
+                        ],
+                        DiagnosticInfos = []
+                    }));
+
+            IReadOnlyList<FiniteTransitionInfo> transitions = await client
+                .GetAvailableTransitionsAsync().ConfigureAwait(false);
+
+            Assert.That(transitions, Is.Empty);
+            sessionMock.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<BrowsePath>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            sessionMock.Verify(s => s.ReadAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<double>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
         public async Task GetCurrentFiniteStateAsyncReturnsBadNotFoundEmptySnapshotWhenAllBrowsePathsResolveNull()
         {
             var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);

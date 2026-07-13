@@ -747,6 +747,8 @@ Servers can build the same dynamic stand-in encodeables for the custom DataTypes
 
 DataTypes that are already backed by a compiled, source-generated type are **already registered in the server's `IEncodeableFactory` and used as-is** for encoding and decoding; the server only builds stand-ins for the DataTypes that are still missing from the factory (i.e. those loaded from a NodeSet at runtime).
 
+If you are using [Runtime NodeSets](RuntimeNodeSets.md) (`AddRuntimeNodeSet`) to load NodeSet2 documents at server startup, the server-side complex-type pass runs automatically after all node managers finish building their address spaces — no extra configuration is needed. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for details on the startup-only semantics and stream ownership contract.
+
 ### How compiled types reach the factory
 
 Compiled DataTypes are registered explicitly, not by reflection: the OPC UA source generator emits one `Add<Namespace>(this IEncodeableFactoryBuilder)` extension per namespace, and a node manager calls it while it builds its address space (for example `Server.Factory.Builder.AddTestData().Commit()`). Node managers finish starting before `OnNodeManagerStartedAsync` runs, so every source-generated type is already present in `server.Factory` when the complex-type pass executes — `ComplexTypeSystem` finds them via `TryGetType` / `TryGetEncodeableType` and skips them, creating stand-ins only for the remaining runtime-loaded DataTypes.
