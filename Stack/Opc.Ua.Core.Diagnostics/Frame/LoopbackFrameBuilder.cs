@@ -113,9 +113,15 @@ namespace Opc.Ua.Pcap.Frame
                     $"TCP payload cannot exceed {MaxTcpPayloadSize} bytes in a synthetic IPv4 frame.");
             }
 
-            byte host = (byte)(channelId & 0xFFU);
-            Span<byte> clientAddress = [127, 0, 1, host];
-            Span<byte> serverAddress = [127, 0, 2, host];
+            uint clientHost = channelId >> 14;
+            Span<byte> clientAddress =
+            [
+                127,
+                (byte)(clientHost >> 16),
+                (byte)(clientHost >> 8),
+                (byte)clientHost
+            ];
+            Span<byte> serverAddress = [127, 255, 255, 255];
             ushort clientPort = checked((ushort)(49152U + (channelId & 0x3FFFU)));
             const ushort serverPort = 4840;
             ReadOnlySpan<byte> sourceAddress = fromClient ? clientAddress : serverAddress;

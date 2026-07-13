@@ -31,7 +31,6 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -136,7 +135,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
         }
 
         [Test]
-        public async Task CollidingSyntheticChannelIdsShareSequenceSpace()
+        public async Task FullSyntheticChannelIdsHaveIndependentSequenceSpace()
         {
             var registry = new ChannelCaptureRegistry();
             var source = new InProcessClientCaptureSource(registry);
@@ -160,7 +159,10 @@ namespace Opc.Ua.Pcap.Tests.Capture
                     Is.Zero);
                 Assert.That(
                     BinaryPrimitives.ReadUInt32BigEndian(records[1].Data.Span[28..]),
-                    Is.EqualTo(3));
+                    Is.Zero);
+                Assert.That(
+                    records[0].Data.Span[16..20].ToArray(),
+                    Is.Not.EqualTo(records[1].Data.Span[16..20].ToArray()).AsCollection);
             }
             finally
             {
@@ -200,6 +202,120 @@ namespace Opc.Ua.Pcap.Tests.Capture
         }
 
         [Test]
+        public async Task FrameQueueSaturationDoesNotLoseKeyMaterial()
+        {
+            var registry = new ChannelCaptureRegistry();
+            TaskCompletionSource<object?> queueGate = CreateSignal();
+            var source = CreateTestSource(registry, frameQueueCapacity: 1, queueGate: queueGate);
+            ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
+                SecurityPolicies.Basic256Sha256,
+                MessageSecurityMode.SignAndEncrypt);
+            try
+            {
+                await source.StartAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(false);
+                using ChannelToken token = MaterializeToken(material);
+
+                IFrameCaptureSink sink = source;
+                sink.OnFrameSent(0x1234, [1, 2, 3]);
+                sink.OnFrameSent(0x1234, [4, 5, 6]);
+                sink.OnTokenActivated(material.ChannelId, token, previousToken: null);
+
+                queueGate.TrySetResult(null);
+                await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+                List<PcapRecord> records = await ReadPcapRecordsAsync(source, maxCount: 1).ConfigureAwait(false);
+                List<ChannelKeyMaterial> keys = await ReadKeyRecordsAsync(source).ConfigureAwait(false);
+
+                Assert.That(source.FrameCount, Is.EqualTo(2));
+                Assert.That(records, Has.Count.EqualTo(1));
+                Assert.That(keys, Has.Count.EqualTo(1));
+                PcapTestHelpers.AssertMaterialEqual(keys[0], material, includeJsonOnlyFields: true);
+            }
+            finally
+            {
+                material.Dispose();
+                await source.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task RejectedMiddleChunkPreservesSequenceGapForLaterData()
+        {
+            var registry = new ChannelCaptureRegistry();
+            TaskCompletionSource<object?> queueGate = CreateSignal();
+            TaskCompletionSource<object?> firstFrameProcessed = CreateSignal();
+            var source = CreateTestSource(
+                registry,
+                frameQueueCapacity: 1,
+                queueGate: queueGate,
+                frameProcessed: firstFrameProcessed);
+            try
+            {
+                await source.StartAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(false);
+                IFrameCaptureSink sink = source;
+
+                sink.OnFrameSent(0x1234, [1, 2, 3]);
+                sink.OnFrameSent(0x1234, [4, 5, 6, 7, 8]);
+
+                queueGate.TrySetResult(null);
+                await firstFrameProcessed.Task.ConfigureAwait(false);
+
+                sink.OnFrameSent(0x1234, [9, 10]);
+                await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+                List<PcapRecord> records = await ReadPcapRecordsAsync(source, maxCount: 2).ConfigureAwait(false);
+
+                Assert.That(records, Has.Count.EqualTo(2));
+                Assert.That(ReadTcpSequenceNumber(records[0]), Is.Zero);
+                Assert.That(ReadTcpSequenceNumber(records[1]), Is.EqualTo(8));
+                Assert.That(records[0].Data.ToArray()[44..], Is.EqualTo(new byte[] { 1, 2, 3 }).AsCollection);
+                Assert.That(records[1].Data.ToArray()[44..], Is.EqualTo(new byte[] { 9, 10 }).AsCollection);
+            }
+            finally
+            {
+                await source.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task StopAsyncDrainsFrameAndKeyQueues()
+        {
+            var registry = new ChannelCaptureRegistry();
+            TaskCompletionSource<object?> queueGate = CreateSignal();
+            var source = CreateTestSource(registry, frameQueueCapacity: 1, queueGate: queueGate);
+            ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
+                SecurityPolicies.Basic256Sha256,
+                MessageSecurityMode.SignAndEncrypt);
+            try
+            {
+                await source.StartAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(false);
+                using ChannelToken token = MaterializeToken(material);
+
+                IFrameCaptureSink sink = source;
+                sink.OnFrameSent(0x1234, [1, 2, 3, 4]);
+                sink.OnTokenActivated(material.ChannelId, token, previousToken: null);
+
+                Task stopTask = source.StopAsync(CancellationToken.None).AsTask();
+                Assert.That(stopTask.IsCompleted, Is.False);
+
+                queueGate.TrySetResult(null);
+                await stopTask.ConfigureAwait(false);
+
+                List<PcapRecord> records = await ReadPcapRecordsAsync(source, maxCount: 1).ConfigureAwait(false);
+                List<ChannelKeyMaterial> keys = await ReadKeyRecordsAsync(source).ConfigureAwait(false);
+
+                Assert.That(records, Has.Count.EqualTo(1));
+                Assert.That(keys, Has.Count.EqualTo(1));
+                PcapTestHelpers.AssertMaterialEqual(keys[0], material, includeJsonOnlyFields: true);
+            }
+            finally
+            {
+                material.Dispose();
+                await source.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task MaxBytesCapStopsAcceptingFramesAfterLimit()
         {
             var registry = new ChannelCaptureRegistry();
@@ -212,7 +328,6 @@ namespace Opc.Ua.Pcap.Tests.Capture
                 sink.OnFrameSent(0x1234, new byte[60]);
                 sink.OnFrameSent(0x1234, new byte[60]);
                 await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                await ForceDisposeWritersAsync(source).ConfigureAwait(false);
 
                 string path = source.GetRawPcapFilePath() ?? throw new AssertionException("Missing pcap path.");
                 List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
@@ -261,73 +376,56 @@ namespace Opc.Ua.Pcap.Tests.Capture
             };
         }
 
-        private static async Task ForceDisposeWritersAsync(InProcessClientCaptureSource source)
+        private static InProcessClientCaptureSource CreateTestSource(
+            IChannelCaptureRegistry registry,
+            int frameQueueCapacity,
+            TaskCompletionSource<object?>? queueGate = null,
+            TaskCompletionSource<object?>? frameProcessed = null,
+            TaskCompletionSource<object?>? keyProcessed = null)
         {
-            // ForceDisposeWriterAsync bypasses StopAsync's normal teardown and can race
-            // with the queue worker. Drain the queue + worker explicitly so the worker has
-            // written any pending packets to disk before the writers are forcibly disposed.
-            // Drain the queue + worker explicitly here so the worker has
-            // written any pending packets to disk before the writers are
-            // forcibly disposed.
-            await DrainWorkerAsync(source).ConfigureAwait(false);
-
-            await ForceDisposeWriterAsync(source, "m_pcapWriter").ConfigureAwait(false);
-            await ForceDisposeWriterAsync(source, "m_jsonKeyWriter").ConfigureAwait(false);
-            await ForceDisposeWriterAsync(source, "m_textKeyWriter").ConfigureAwait(false);
+            return new InProcessClientCaptureSource(
+                registry,
+                loggerFactory: null,
+                new InProcessCaptureSourceQueueOptions
+                {
+                    FrameQueueCapacity = frameQueueCapacity,
+                    BeforeQueueReadAsync = queueGate is null
+                        ? null
+                        : () => new ValueTask(queueGate.Task),
+                    AfterFrameProcessed = frameProcessed is null
+                        ? null
+                        : () => frameProcessed.TrySetResult(null),
+                    AfterKeyProcessed = keyProcessed is null
+                        ? null
+                        : () => keyProcessed.TrySetResult(null)
+                });
         }
 
-        private static async Task DrainWorkerAsync(InProcessClientCaptureSource source)
+        private static TaskCompletionSource<object?> CreateSignal()
         {
-            Type baseType = typeof(InProcessClientCaptureSource).BaseType!;
-
-            FieldInfo queueField = baseType.GetField(
-                "m_queue",
-                BindingFlags.NonPublic | BindingFlags.Instance) ??
-                throw new AssertionException("Missing m_queue field.");
-            object? queueObj = queueField.GetValue(source);
-            if (queueObj is not null)
-            {
-                // Channel<T>.Writer.TryComplete() — invoke via reflection
-                // because CaptureWorkItem is internal to Opc.Ua.Bindings.Pcap.
-                PropertyInfo writerProp = queueObj.GetType().GetProperty("Writer") ??
-                    throw new AssertionException("Channel.Writer property missing.");
-                object writer = writerProp.GetValue(queueObj)!;
-                MethodInfo tryComplete = writer.GetType().GetMethod(
-                    "TryComplete",
-                    BindingFlags.Public | BindingFlags.Instance) ??
-                    throw new AssertionException("ChannelWriter.TryComplete missing.");
-                tryComplete.Invoke(writer, [null]);
-            }
-
-            FieldInfo workerField = baseType.GetField(
-                "m_workerTask",
-                BindingFlags.NonPublic | BindingFlags.Instance) ??
-                throw new AssertionException("Missing m_workerTask field.");
-            if (workerField.GetValue(source) is Task worker)
-            {
-                try
-                {
-                    await worker.ConfigureAwait(false);
-                }
-                catch
-                {
-                    // best effort drain — match StopAsync's swallow-and-continue.
-                }
-                workerField.SetValue(source, null);
-            }
+            return new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
-        private static async Task ForceDisposeWriterAsync(InProcessClientCaptureSource source, string fieldName)
+        private static Task<List<PcapRecord>> ReadPcapRecordsAsync(
+            InProcessClientCaptureSource source,
+            int maxCount)
         {
-            FieldInfo field = typeof(InProcessClientCaptureSource).BaseType!.GetField(
-                fieldName,
-                BindingFlags.NonPublic | BindingFlags.Instance) ??
-                throw new AssertionException($"Missing {fieldName} field.");
-            if (field.GetValue(source) is IAsyncDisposable writer)
-            {
-                await writer.DisposeAsync().ConfigureAwait(false);
-                field.SetValue(source, null);
-            }
+            string path = source.GetRawPcapFilePath() ?? throw new AssertionException("Missing pcap path.");
+            return PcapTestHelpers.ToListAsync(
+                PcapFileReader.ReadAllAsync(path, CancellationToken.None),
+                maxCount);
+        }
+
+        private static Task<List<ChannelKeyMaterial>> ReadKeyRecordsAsync(InProcessClientCaptureSource source)
+        {
+            string path = source.GetKeyLogFilePath() ?? throw new AssertionException("Missing keylog path.");
+            return PcapTestHelpers.ToListAsync(
+                new UaKeyLogJsonReader().ReadAllAsync(path, CancellationToken.None));
+        }
+
+        private static uint ReadTcpSequenceNumber(PcapRecord record)
+        {
+            return BinaryPrimitives.ReadUInt32BigEndian(record.Data.Span[28..]);
         }
     }
 }

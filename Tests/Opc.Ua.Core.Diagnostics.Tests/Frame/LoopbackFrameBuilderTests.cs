@@ -90,6 +90,20 @@ namespace Opc.Ua.Pcap.Tests.Frame
         }
 
         [Test]
+        public void FullChannelIdDistinguishesSyntheticTcpFlows()
+        {
+            byte[] first = LoopbackFrameBuilder.Build(fromClient: true, 1, [1]);
+            byte[] second = LoopbackFrameBuilder.Build(fromClient: true, 0x4001, [2]);
+
+            Assert.That(
+                first.AsSpan(16, 4).ToArray(),
+                Is.Not.EqualTo(second.AsSpan(16, 4).ToArray()).AsCollection);
+            Assert.That(
+                first.AsSpan(24, 2).ToArray(),
+                Is.EqualTo(second.AsSpan(24, 2).ToArray()).AsCollection);
+        }
+
+        [Test]
         public async Task BuiltPacketsRoundTripThroughPcap()
         {
             byte[] chunk = [0xDE, 0xAD, 0xBE, 0xEF];
