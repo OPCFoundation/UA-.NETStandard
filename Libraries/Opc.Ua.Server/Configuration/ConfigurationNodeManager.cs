@@ -117,13 +117,41 @@ namespace Opc.Ua.Server
         /// keys (§7.10.10). When <see langword="null"/>, a private
         /// <see cref="DirectoryPendingCertificateKeyStore"/> is created.
         /// </param>
+        /// <param name="keyGenerator">
+        /// The generator that creates the regenerated signing-request key,
+        /// genuinely incorporating the caller-supplied nonce entropy
+        /// (§7.10.10). When <see langword="null"/>, a private
+        /// <see cref="AdditionalEntropyCertificateKeyGenerator"/> is created.
+        /// </param>
+        /// <param name="trustListEffectHandler">
+        /// Applies the post-<c>ApplyChanges</c> TrustList effects of
+        /// §7.10.9 (force affected SecureChannels to renegotiate; close
+        /// Sessions/Subscriptions whose certificate user identity is no
+        /// longer valid). When <see langword="null"/>, a private
+        /// <see cref="PushConfigurationTrustListEffectHandler"/> is created.
+        /// </param>
+        /// <param name="serverConfigurationOptions">
+        /// Configures the Optional <c>ServerConfigurationType</c> surface of
+        /// OPC 10000-12 §7.10.3: the <c>HasSecureElement</c> and
+        /// <c>InApplicationSetup</c> Properties, the
+        /// <c>ResetToServerDefaults</c> Method (§7.10.13), and the
+        /// <c>ConfigurationFile</c> Object (§7.10.20). Each member is only
+        /// exposed when configured; when <see langword="null"/> none of those
+        /// Optional members are exposed. The identity Properties
+        /// (<c>ApplicationUri</c>, <c>ProductUri</c>, <c>ApplicationType</c>,
+        /// <c>ApplicationNames</c>) are always exposed from the
+        /// <see cref="ApplicationConfiguration"/>.
+        /// </param>
         public ConfigurationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             ILogger logger,
             TimeProvider? timeProvider,
             IPushConfigurationTransactionCoordinator? coordinator,
-            IPendingCertificateKeyStore? pendingKeyStore)
+            IPendingCertificateKeyStore? pendingKeyStore,
+            IPushCertificateKeyGenerator? keyGenerator = null,
+            IPushConfigurationTrustListEffectHandler? trustListEffectHandler = null,
+            ServerConfigurationOptions? serverConfigurationOptions = null)
             : base(server, configuration, logger, timeProvider)
         {
             m_timeProvider = timeProvider
@@ -132,6 +160,10 @@ namespace Opc.Ua.Server
             m_coordinator = coordinator
                 ?? new PushConfigurationTransactionCoordinator(server.Telemetry, m_timeProvider);
             m_pendingKeyStore = pendingKeyStore ?? new DirectoryPendingCertificateKeyStore();
+            m_keyGenerator = keyGenerator ?? new AdditionalEntropyCertificateKeyGenerator();
+            m_trustListEffectHandler = trustListEffectHandler
+                ?? new PushConfigurationTrustListEffectHandler(server.Telemetry);
+            m_serverConfigurationOptions = serverConfigurationOptions ?? new ServerConfigurationOptions();
             string? rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
                 .StorePath;
             if (!string.IsNullOrEmpty(rejectedStorePath))
@@ -247,6 +279,35 @@ namespace Opc.Ua.Server
                                 .AddSupportsTransactions(context)
                                 .AddTransactionDiagnostics(context);
 
+                            // OPC 10000-12 §7.10.3 identity Properties are always
+                            // known from the ApplicationConfiguration and are
+                            // therefore always exposed.
+                            activeNode
+                                .AddApplicationUri(context)
+                                .AddProductUri(context)
+                                .AddApplicationType(context)
+                                .AddApplicationNames(context);
+
+                            // The remaining Optional members are only exposed
+                            // when configured (provider/value supplied); otherwise
+                            // the optional child is suppressed.
+                            if (m_serverConfigurationOptions.HasSecureElement.HasValue)
+                            {
+                                activeNode.AddHasSecureElement(context);
+                            }
+                            if (m_serverConfigurationOptions.InApplicationSetup.HasValue)
+                            {
+                                activeNode.AddInApplicationSetup(context);
+                            }
+                            if (m_serverConfigurationOptions.ResetProvider != null)
+                            {
+                                activeNode.AddResetToServerDefaults(context);
+                            }
+                            if (m_serverConfigurationOptions.ConfigurationFileProvider != null)
+                            {
+                                activeNode.AddConfigurationFile(context);
+                            }
+
                             m_serverConfigurationNode = activeNode;
 
                             return activeNode;
@@ -323,6 +384,12 @@ namespace Opc.Ua.Server
                 m_userManagementBinding?.Dispose();
                 m_userManagementBinding = null;
 
+                // Releases the ConfigurationFile handler (§7.10.20): cancels any
+                // pending confirm/revert timer, disposes the open write stream
+                // and the activity timer.
+                m_configurationFile?.Dispose();
+                m_configurationFile = null;
+
                 // Cancels and disposes any transaction still active
                 // (staged certificate/TrustList operations) so their
                 // captured certificates and streams do not leak. Any
@@ -332,10 +399,94 @@ namespace Opc.Ua.Server
                 // no separate global rotation list to clean up here.
                 m_coordinator.Reset();
 
+                // Signal any in-flight deferred ApplyChanges effects to stop
+                // so they never run against listeners/managers being disposed.
+                // DeleteAddressSpaceAsync drains the task deterministically as
+                // part of the async server shutdown; Dispose only signals
+                // (it must never block on async work), which also covers the
+                // direct-construction path where DeleteAddressSpaceAsync is
+                // not invoked.
+                CancelPendingApplyChanges();
+                m_shutdownCts.Dispose();
+
                 StopAlarmMonitoring();
             }
 
             base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Loads the predefined configuration nodes and then creates the
+        /// optional per-certificate-group alarm instances
+        /// (<c>CertificateExpired</c> and <c>TrustListOutOfDate</c>,
+        /// OPC 10000-12 §7.8.3). The alarm nodes are created here - once the
+        /// certificate-group nodes exist - and initialized in an inactive,
+        /// event-free state. Periodic monitoring is started later, after the
+        /// server is fully running (see <see cref="StartAlarmMonitoring"/>).
+        /// </summary>
+        /// <param name="externalReferences">The external references collection.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+
+            await CreateCertificateAlarmsAsync(SystemContext, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Drains any deferred post-<c>ApplyChanges</c> effects (OPC UA Part 12
+        /// §7.10.9) before the address space is torn down, integrating with the
+        /// async server shutdown lifecycle
+        /// (<see cref="MasterNodeManager.ShutdownAsync"/>). The pending effects
+        /// are first signalled to stop - so a long grace period does not delay
+        /// shutdown and no effect runs against a listener/manager that is about
+        /// to be disposed - and then awaited to completion.
+        /// </summary>
+        public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+        {
+            StopAlarmMonitoring();
+            CancelPendingApplyChanges();
+
+            Task pending;
+            lock (m_pendingApplyChangesLock)
+            {
+                pending = m_pendingApplyChangesTask;
+            }
+
+            try
+            {
+                await pending.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // A faulted deferred apply is already logged where it runs;
+                // never let it abort the shutdown drain.
+                m_logger.LogWarning(
+                    ex,
+                    "A deferred ApplyChanges task faulted while draining during shutdown.");
+            }
+
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Signals any in-flight deferred <c>ApplyChanges</c> effects to stop,
+        /// tolerating an already-disposed cancellation source.
+        /// </summary>
+        private void CancelPendingApplyChanges()
+        {
+            try
+            {
+                m_shutdownCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed via Dispose(bool); nothing to cancel.
+            }
         }
 
         /// <inheritdoc/>
@@ -364,6 +515,10 @@ namespace Opc.Ua.Server
                 }
             }
 
+            // §7.10.20: an abandoned Session must not leave the ConfigurationFile
+            // permanently open for writing (which would block ApplyChanges).
+            m_configurationFile?.NotifySessionClosing(sessionId);
+
             await base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -386,9 +541,16 @@ namespace Opc.Ua.Server
             ];
             configNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
-            configNode.MaxTrustListSize!.Value = (uint)configuration
-                .ServerConfiguration
-                .MaxTrustListSize;
+            // OPC 10000-12 §8.4.5: MaxTrustListSize is the maximum TrustList
+            // size, in bytes, a Client may write (0 = unlimited). The server
+            // bounds actual enforcement by a resource-protection safety ceiling,
+            // so advertise the honest effective limit — the value the TrustList
+            // handlers actually enforce — instead of a raw 0 while a hidden cap
+            // is in force.
+            int effectiveMaxTrustListSize = TrustList.ComputeEffectiveMaxTrustListSize(
+                configuration.ServerConfiguration!.MaxTrustListSize,
+                m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
+            configNode.MaxTrustListSize!.Value = (uint)effectiveMaxTrustListSize;
             configNode.MulticastDnsEnabled!.Value = configuration.ServerConfiguration
                 .MultiCastDnsEnabled;
 
@@ -416,6 +578,9 @@ namespace Opc.Ua.Server
             {
                 configNode.SupportsTransactions.Value = true;
             }
+
+            ConfigureOptionalServerConfigurationSurface(systemContext, configNode, configuration);
+
             configNode.ClearChangeMasks(systemContext, true);
             UpdateTransactionDiagnostics(systemContext);
 
@@ -431,17 +596,19 @@ namespace Opc.Ua.Server
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                     Server.Telemetry,
                     m_coordinator,
-                    m_configuration.ServerConfiguration!.MaxTrustListSize);
+                    m_configuration.ServerConfiguration!.MaxTrustListSize,
+                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
-            // OPC 10000-12 §7.8.3: populate the optional alarm property
-            // values (ExpirationDate, TrustListId, LastUpdateTime) from
-            // the current certificate and CRL state. Active-state
-            // transitions (SetActiveState) are not performed during
-            // CreateAddressSpace to avoid event-notification issues before
-            // the subscription infrastructure is ready.
-            EvaluateCertificateAlarms(systemContext);
+            // OPC 10000-12 §7.8.3: publish the current certificate and CRL
+            // state onto the optional alarm inputs (ExpirationDate,
+            // TrustListId, LastUpdateTime) and establish the baseline
+            // inactive state. Events are suppressed here (emitEvents: false)
+            // because the subscription infrastructure is not yet ready during
+            // CreateAddressSpace; StartAlarmMonitoring re-evaluates with events
+            // once the server is running.
+            UpdateAndEvaluateAlarms(systemContext, emitEvents: false);
 
             // find ServerNamespaces node and subscribe to StateChanged
 
@@ -479,6 +646,326 @@ namespace Opc.Ua.Server
                 DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
                     .AsTask().GetAwaiter().GetResult();
             }
+        }
+
+        /// <summary>
+        /// Configures the Optional OPC 10000-12 §7.10.3
+        /// <c>ServerConfigurationType</c> surface on the configuration node:
+        /// the identity Properties (always known from the
+        /// <see cref="ApplicationConfiguration"/>), the <c>HasSecureElement</c>
+        /// and <c>InApplicationSetup</c> Properties (when a value is
+        /// configured), the <c>ResetToServerDefaults</c> Method (§7.10.13) and
+        /// the <c>ConfigurationFile</c> Object (§7.10.20) (each when a provider
+        /// is configured). Only members whose address-space nodes were added in
+        /// <see cref="AddBehaviourToPredefinedNodeAsync"/> are seeded/wired, so
+        /// the optional-child suppression is preserved.
+        /// </summary>
+        private void ConfigureOptionalServerConfigurationSurface(
+            ServerSystemContext systemContext,
+            ServerConfigurationState configNode,
+            ApplicationConfiguration configuration)
+        {
+            if (configNode.ApplicationUri != null)
+            {
+                configNode.ApplicationUri.Value = configuration.ApplicationUri ?? string.Empty;
+            }
+            if (configNode.ProductUri != null)
+            {
+                configNode.ProductUri.Value = configuration.ProductUri ?? string.Empty;
+            }
+            if (configNode.ApplicationType != null)
+            {
+                configNode.ApplicationType.Value = configuration.ApplicationType;
+            }
+            if (configNode.ApplicationNames != null)
+            {
+                configNode.ApplicationNames.Value = string.IsNullOrEmpty(configuration.ApplicationName)
+                    ? ArrayOf<LocalizedText>.Empty
+                    : ArrayOf.Wrapped(new LocalizedText(configuration.ApplicationName));
+                configNode.ApplicationNames.ValueRank = ValueRanks.OneDimension;
+            }
+
+            if (configNode.HasSecureElement != null &&
+                m_serverConfigurationOptions.HasSecureElement is bool hasSecureElement)
+            {
+                configNode.HasSecureElement.Value = hasSecureElement;
+            }
+            if (configNode.InApplicationSetup != null &&
+                m_serverConfigurationOptions.InApplicationSetup is bool inApplicationSetup)
+            {
+                configNode.InApplicationSetup.Value = inApplicationSetup;
+            }
+
+            if (configNode.ResetToServerDefaults != null &&
+                m_serverConfigurationOptions.ResetProvider != null)
+            {
+                configNode.ResetToServerDefaults.OnCallMethod2Async
+                    = new GenericMethodCalledEventHandler2Async(ResetToServerDefaultsAsync);
+            }
+
+            ConfigureConfigurationFile(systemContext, configNode);
+        }
+
+        /// <summary>
+        /// Instantiates and wires the <see cref="ApplicationConfigurationFile"/>
+        /// handler onto the <c>ConfigurationFile</c> node (§7.10.20) when a
+        /// provider is configured and the optional node was materialised.
+        /// </summary>
+        private void ConfigureConfigurationFile(
+            ServerSystemContext systemContext,
+            ServerConfigurationState configNode)
+        {
+            if (m_serverConfigurationOptions.ConfigurationFileProvider is not { } fileProvider ||
+                configNode.ConfigurationFile is not { } fileNode)
+            {
+                return;
+            }
+
+            m_configurationFile = new ApplicationConfigurationFile(
+                fileNode,
+                fileProvider,
+                new ApplicationConfigurationFile.SecureAccess(
+                    ctx => HasApplicationSecureAdminAccess(ctx, requireEncryptedChannel: true)),
+                new ApplicationConfigurationFile.SecureAccess(
+                    ctx => HasApplicationSecureAdminAccess(ctx, requireEncryptedChannel: false)),
+                Server.Telemetry,
+                m_coordinator,
+                m_timeProvider,
+                m_serverConfigurationOptions.ConfigurationFileActivityTimeout);
+
+            if (fileNode.ActivityTimeout != null)
+            {
+                fileNode.ActivityTimeout.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
+            }
+            if (fileNode.CurrentVersion != null)
+            {
+                fileNode.CurrentVersion.Value = fileProvider.CurrentVersion;
+            }
+            if (fileNode.LastUpdateTime != null)
+            {
+                fileNode.LastUpdateTime.Value = new DateTimeUtc(fileProvider.LastUpdateTime);
+            }
+            if (fileNode.SupportedDataType != null)
+            {
+                fileNode.SupportedDataType.Value = DataTypeIds.ApplicationConfigurationDataType;
+            }
+            if (fileNode.Writable != null)
+            {
+                fileNode.Writable.Value = true;
+            }
+            if (fileNode.UserWritable != null)
+            {
+                fileNode.UserWritable.Value = true;
+            }
+            if (fileNode.OpenCount != null)
+            {
+                fileNode.OpenCount.Value = 0;
+            }
+
+            fileNode.ClearChangeMasks(systemContext, true);
+        }
+
+        /// <summary>
+        /// Implements the Optional OPC 10000-12 §7.10.13
+        /// <c>ResetToServerDefaults</c> Method: it resets the application
+        /// security configuration to its default state. The Method requires an
+        /// authenticated SecureChannel and the SecurityAdmin Role, is rejected
+        /// while another Session owns an active PushManagement transaction, and
+        /// returns its response before the actual reset runs. After the
+        /// response, the server advertises the pending shutdown
+        /// (<c>ServerState</c> = Shutdown, <c>ShutdownReason</c>,
+        /// <c>SecondsTillShutdown</c>), waits the configured grace period so the
+        /// Client can receive this response, and then invokes the injected
+        /// <see cref="IServerConfigurationResetProvider"/>.
+        /// </summary>
+        private ValueTask<ServiceResult> ResetToServerDefaultsAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
+            CancellationToken cancellationToken)
+        {
+            // §7.10.13: authenticated SecureChannel + SecurityAdmin Role.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+
+            if (m_serverConfigurationOptions.ResetProvider == null)
+            {
+                return new ValueTask<ServiceResult>(
+                    (ServiceResult)StatusCodes.BadNotSupported);
+            }
+
+            // A reset invalidates the whole configuration, so it must not race
+            // an in-flight PushManagement transaction owned by another Session.
+            NodeId sessionId = GetSessionId(context);
+            try
+            {
+                m_coordinator.ValidateSessionCanParticipate(sessionId);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ValueTask<ServiceResult>((ServiceResult)ex.StatusCode);
+            }
+
+            m_logger.LogWarning(
+                Utils.TraceMasks.Security,
+                "ResetToServerDefaults requested by session {SessionId}; scheduling reset to server defaults.",
+                sessionId);
+
+            ScheduleDeferredReset();
+
+            // §7.10.13: the response is returned before the reset/shutdown runs.
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
+        }
+
+        /// <summary>
+        /// Advertises the pending shutdown and, after the configured grace
+        /// period has elapsed so the <c>ResetToServerDefaults</c> response can
+        /// be received, invokes the reset provider. Honors the shutdown
+        /// cancellation token so a server shutdown that races the reset
+        /// abandons it cleanly. The completion is exposed via
+        /// <see cref="DrainPendingResetAsync"/> for deterministic testing.
+        /// </summary>
+        private void ScheduleDeferredReset()
+        {
+            IServerConfigurationResetProvider? resetProvider = m_serverConfigurationOptions.ResetProvider;
+            if (resetProvider == null)
+            {
+                return;
+            }
+
+            CancellationToken shutdownToken;
+            try
+            {
+                shutdownToken = m_shutdownCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            if (shutdownToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            TimeSpan delay = m_serverConfigurationOptions.ResetShutdownDelay;
+            if (delay < TimeSpan.Zero)
+            {
+                delay = TimeSpan.Zero;
+            }
+
+            var completion = new TaskCompletionSource<object?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (m_pendingApplyChangesLock)
+            {
+                m_pendingResetTask = completion.Task;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    AdvertisePendingShutdown(delay);
+
+                    try
+                    {
+                        await m_timeProvider.Delay(delay, shutdownToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        completion.TrySetResult(null);
+                        return;
+                    }
+
+                    if (shutdownToken.IsCancellationRequested)
+                    {
+                        completion.TrySetResult(null);
+                        return;
+                    }
+
+                    await resetProvider.ResetToServerDefaultsAsync(shutdownToken).ConfigureAwait(false);
+                    completion.TrySetResult(null);
+                }
+                catch (OperationCanceledException)
+                {
+                    completion.TrySetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(ex, "ResetToServerDefaults failed. Server could be in a faulted state.");
+                    completion.TrySetException(ex);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Sets <c>ServerState</c> to <see cref="ServerState.Shutdown"/> and
+        /// advertises the <c>ShutdownReason</c> and <c>SecondsTillShutdown</c>
+        /// per OPC 10000-12 §7.10.13, tolerating a server whose status object is
+        /// not available.
+        /// </summary>
+        private void AdvertisePendingShutdown(TimeSpan delay)
+        {
+            try
+            {
+                uint secondsTillShutdown = (uint)Math.Ceiling(Math.Max(0, delay.TotalSeconds));
+                var reason = new LocalizedText(
+                    "en-US",
+                    "The server is resetting to its default configuration. " +
+                    "Existing credentials may no longer be valid after the restart.");
+
+                Server.UpdateServerStatus(status =>
+                {
+                    status.Value.State = ServerState.Shutdown;
+                    status.Value.ShutdownReason = reason;
+                    status.Value.SecondsTillShutdown = secondsTillShutdown;
+
+                    ServerStatusState? variable = status.Variable;
+                    if (variable != null)
+                    {
+                        if (variable.State != null)
+                        {
+                            variable.State.Value = ServerState.Shutdown;
+                        }
+                        if (variable.ShutdownReason != null)
+                        {
+                            variable.ShutdownReason.Value = reason;
+                        }
+                        if (variable.SecondsTillShutdown != null)
+                        {
+                            variable.SecondsTillShutdown.Value = secondsTillShutdown;
+                        }
+                        variable.ClearChangeMasks(Server.DefaultSystemContext, true);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "Failed to advertise pending shutdown for ResetToServerDefaults.");
+            }
+        }
+
+        /// <summary>
+        /// Awaits completion of any pending deferred <c>ResetToServerDefaults</c>
+        /// work scheduled by a recent Method call. Returns immediately when no
+        /// reset is in flight. Used by tests and tightly-coupled hosts to
+        /// deterministically wait for the reset to run.
+        /// </summary>
+        internal Task DrainPendingResetAsync(CancellationToken cancellationToken = default)
+        {
+            Task pending;
+            lock (m_pendingApplyChangesLock)
+            {
+                pending = m_pendingResetTask;
+            }
+
+            if (pending.IsCompleted)
+            {
+                return Task.CompletedTask;
+            }
+
+            return cancellationToken.CanBeCanceled ? pending.WaitAsync(cancellationToken) : pending;
         }
 
         ///<inheritdoc/>
@@ -631,15 +1118,72 @@ namespace Opc.Ua.Server
             ISystemContext context,
             CertificateStoreIdentifier trustedStore)
         {
+            // The generic ServerConfiguration / TrustList (§7.8) access path
+            // requires an encrypted SecureChannel. Individual Push methods
+            // that do not transfer private-key material relax this to an
+            // authenticated channel by calling the
+            // requireEncryptedChannel overload directly.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
+        }
+
+        /// <summary>
+        /// Enforces the SecureChannel security and SecurityAdmin Role
+        /// requirements shared by the standard <c>ServerConfiguration</c>
+        /// Push methods (OPC 10000-12 §7.10). The channel requirement is
+        /// evaluated first and, when unmet, reported as
+        /// <see cref="StatusCodes.BadSecurityModeInsufficient"/> as required
+        /// by the §7.10 Method result tables; the Role requirement is
+        /// reported separately as <see cref="StatusCodes.BadUserAccessDenied"/>.
+        /// </summary>
+        /// <param name="context">
+        /// The calling context. Non Session-bound (internal/programmatic)
+        /// calls are always permitted.
+        /// </param>
+        /// <param name="requireEncryptedChannel">
+        /// When <see langword="true"/> the SecureChannel must be encrypted
+        /// (<see cref="MessageSecurityMode.SignAndEncrypt"/>), as required by
+        /// <c>UpdateCertificate</c> (§7.10.5) and <c>CreateSigningRequest</c>
+        /// (§7.10.10). When <see langword="false"/> an authenticated channel
+        /// (<see cref="MessageSecurityMode.Sign"/> or
+        /// <see cref="MessageSecurityMode.SignAndEncrypt"/>) is sufficient,
+        /// as required by <c>CreateSelfSignedCertificate</c> (§7.10.6),
+        /// <c>DeleteCertificate</c> (§7.10.7), <c>GetCertificates</c>,
+        /// <c>GetRejectedList</c>, <c>ApplyChanges</c> (§7.10.9) and
+        /// <c>CancelChanges</c>.
+        /// </param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadSecurityModeInsufficient"/>
+        /// when the channel security is insufficient, or with
+        /// <see cref="StatusCodes.BadUserAccessDenied"/> when the caller does
+        /// not hold the SecurityAdmin Role.
+        /// </exception>
+        private void HasApplicationSecureAdminAccess(
+            ISystemContext context,
+            bool requireEncryptedChannel)
+        {
             if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
             {
-                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
-                    MessageSecurityMode.SignAndEncrypt)
+                MessageSecurityMode securityMode = operationContext
+                    .ChannelContext?
+                    .EndpointDescription?
+                    .SecurityMode
+                    ?? MessageSecurityMode.Invalid;
+
+                bool channelSecure = requireEncryptedChannel
+                    ? securityMode == MessageSecurityMode.SignAndEncrypt
+                    : securityMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
+
+                if (!channelSecure)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadUserAccessDenied,
-                        "Access to this item is only allowed with MessageSecurityMode SignAndEncrypt.");
+                        StatusCodes.BadSecurityModeInsufficient,
+                        requireEncryptedChannel
+                            ? "This Method must be called from an encrypted SecureChannel " +
+                                "(MessageSecurityMode SignAndEncrypt)."
+                            : "This Method must be called from an authenticated SecureChannel " +
+                                "(MessageSecurityMode Sign or SignAndEncrypt).");
                 }
+
                 IUserIdentity identity = operationContext.UserIdentity;
                 // allow access to system configuration only with Role SecurityAdmin
                 if (identity == null ||
@@ -665,10 +1209,25 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Refreshes the <c>TransactionDiagnostics</c> address-space node
-        /// from the coordinator's current snapshot. Called after every
-        /// <c>ApplyChanges</c>, <c>CancelChanges</c>, and Session-close
-        /// cancellation.
+        /// from the coordinator's current snapshot, applying the OPC 10000-12
+        /// §7.10.17 DataValue status semantics. Called after every
+        /// <c>ApplyChanges</c>, <c>CancelChanges</c>, Session-close
+        /// cancellation, and after a staged operation starts/continues a
+        /// transaction so a Client reading the node while a transaction is
+        /// active observes <see cref="StatusCodes.BadInvalidState"/> on
+        /// <c>Result</c>.
         /// </summary>
+        /// <remarks>
+        /// §7.10.17: when no transaction has ever started, every Variable
+        /// reads with a status of <see cref="StatusCodes.BadOutOfService"/>.
+        /// While a transaction is active, <c>StartTime</c> is Good,
+        /// <c>EndTime</c> is <see cref="DateTime.MinValue"/>, and
+        /// <c>Result</c> reads <see cref="StatusCodes.BadInvalidState"/>. Once
+        /// the transaction completes, <c>Result</c> is Good and carries the
+        /// outcome <see cref="StatusCode"/> (the <c>ApplyChanges</c> result,
+        /// or <see cref="StatusCodes.BadRequestCancelledByClient"/> for
+        /// <c>CancelChanges</c>).
+        /// </remarks>
         private void UpdateTransactionDiagnostics(ISystemContext context)
         {
             if (m_serverConfigurationNode?.TransactionDiagnostics is not { } diagnosticsNode)
@@ -677,38 +1236,90 @@ namespace Opc.Ua.Server
             }
 
             PushConfigurationTransactionSnapshot snapshot = m_coordinator.GetSnapshot();
+            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+
+            if (snapshot.State == PushConfigurationTransactionState.None)
+            {
+                // §7.10.17: before any transaction has started every Variable
+                // reads with a status of Bad_OutOfService.
+                SetDiagnosticVariableStatus(diagnosticsNode.StartTime, StatusCodes.BadOutOfService, now);
+                SetDiagnosticVariableStatus(diagnosticsNode.EndTime, StatusCodes.BadOutOfService, now);
+                SetDiagnosticVariableStatus(diagnosticsNode.Result, StatusCodes.BadOutOfService, now);
+                SetDiagnosticVariableStatus(diagnosticsNode.AffectedTrustLists, StatusCodes.BadOutOfService, now);
+                SetDiagnosticVariableStatus(diagnosticsNode.AffectedCertificateGroups, StatusCodes.BadOutOfService, now);
+                SetDiagnosticVariableStatus(diagnosticsNode.Errors, StatusCodes.BadOutOfService, now);
+                diagnosticsNode.ClearChangeMasks(context, true);
+                return;
+            }
+
+            bool active = snapshot.State == PushConfigurationTransactionState.Active;
 
             if (diagnosticsNode.StartTime != null)
             {
+                // StartTime is Good once a transaction has started.
                 diagnosticsNode.StartTime.Value = snapshot.StartTime;
+                diagnosticsNode.StartTime.StatusCode = StatusCodes.Good;
+                diagnosticsNode.StartTime.Timestamp = now;
             }
 
             if (diagnosticsNode.EndTime != null)
             {
-                diagnosticsNode.EndTime.Value = snapshot.EndTime;
+                // EndTime keeps the value DateTime.MinValue until the
+                // transaction completes.
+                diagnosticsNode.EndTime.Value = active ? DateTime.MinValue : snapshot.EndTime;
+                diagnosticsNode.EndTime.StatusCode = StatusCodes.Good;
+                diagnosticsNode.EndTime.Timestamp = now;
             }
 
             if (diagnosticsNode.Result != null)
             {
-                diagnosticsNode.Result.Value = snapshot.Result;
+                // Result status is Bad_InvalidState while a transaction is in
+                // flight; once completed the status is Good and the value is
+                // the ApplyChanges/CancelChanges outcome StatusCode.
+                diagnosticsNode.Result.Value = active ? (StatusCode)StatusCodes.Good : snapshot.Result;
+                diagnosticsNode.Result.StatusCode = active ? StatusCodes.BadInvalidState : StatusCodes.Good;
+                diagnosticsNode.Result.Timestamp = now;
             }
 
             if (diagnosticsNode.AffectedTrustLists != null)
             {
                 diagnosticsNode.AffectedTrustLists.Value = snapshot.AffectedTrustLists;
+                diagnosticsNode.AffectedTrustLists.StatusCode = StatusCodes.Good;
+                diagnosticsNode.AffectedTrustLists.Timestamp = now;
             }
 
             if (diagnosticsNode.AffectedCertificateGroups != null)
             {
                 diagnosticsNode.AffectedCertificateGroups.Value = snapshot.AffectedCertificateGroups;
+                diagnosticsNode.AffectedCertificateGroups.StatusCode = StatusCodes.Good;
+                diagnosticsNode.AffectedCertificateGroups.Timestamp = now;
             }
 
             if (diagnosticsNode.Errors != null)
             {
                 diagnosticsNode.Errors.Value = snapshot.Errors;
+                diagnosticsNode.Errors.StatusCode = StatusCodes.Good;
+                diagnosticsNode.Errors.Timestamp = now;
             }
 
             diagnosticsNode.ClearChangeMasks(context, true);
+        }
+
+        /// <summary>
+        /// Sets the DataValue status (and source timestamp) of a single
+        /// <c>TransactionDiagnostics</c> Variable, tolerating a
+        /// <see langword="null"/> Variable (optional children).
+        /// </summary>
+        private static void SetDiagnosticVariableStatus(
+            BaseVariableState? variable,
+            StatusCode statusCode,
+            DateTime timestamp)
+        {
+            if (variable != null)
+            {
+                variable.StatusCode = statusCode;
+                variable.Timestamp = timestamp;
+            }
         }
 
         /// <summary>
@@ -870,7 +1481,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// <para>
         /// The coordinator only compensates operations that commit in
-        /// full (see <see cref="PushConfigurationTransactionCoordinator.ApplyChangesAsync"/>);
+        /// full (see <see cref="PushConfigurationTransactionCoordinator.ApplyChangesAsync(NodeId, CancellationToken)"/>);
         /// an operation whose own <c>CommitAsync</c> throws is excluded
         /// from that reverse-order compensation. When <paramref name="removedCertificateBackup"/>
         /// is supplied and the certificate removal above already
@@ -1303,6 +1914,136 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// OPC 10000-12 §7.10.7 endpoint-reference determination, evaluated
+        /// during <c>ApplyChanges</c> preparation: rejects deleting a
+        /// certificate that is still referenced by an active
+        /// <see cref="EndpointDescription"/>. Because a delete that is
+        /// superseded within the same transaction by a
+        /// <c>CreateSelfSignedCertificate</c>/<c>UpdateCertificate</c> for the
+        /// same slot never reaches commit (the operations coalesce), only a
+        /// delete that genuinely empties the slot is checked here.
+        /// </summary>
+        /// <param name="deletedThumbprint">
+        /// The thumbprint of the certificate the staged delete removes.
+        /// </param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadInvalidState"/> when the
+        /// certificate is still referenced by an endpoint.
+        /// </exception>
+        private void EnsureCertificateNotEndpointReferenced(string? deletedThumbprint)
+        {
+            if (string.IsNullOrEmpty(deletedThumbprint))
+            {
+                return;
+            }
+
+            ArrayOf<EndpointDescription> endpoints =
+                (Server as IServerEndpointRegistryProvider)?.ServerEndpoints ?? default;
+
+            // Resolve the certificate each endpoint currently presents from the
+            // active certificate registry rather than the EndpointDescription's
+            // ServerCertificate blob captured at startup: after a successful
+            // certificate rotation that blob may be stale, so the live registry
+            // (keyed by the endpoint's SecurityPolicyUri, exactly as the channel
+            // handshake resolves the presented certificate) is authoritative for
+            // which certificate/type is presented at this moment. When no
+            // registry is available (an external/mocked IServerInternal) the
+            // endpoint's own blob is the only source and is used as a fallback.
+            var registry = m_configuration.CertificateManager as ICertificateRegistry;
+
+            if (IsCertificateReferencedByEndpoint(deletedThumbprint!, endpoints, registry, Server.Telemetry))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "The certificate is referenced by an EndpointDescription and cannot be deleted " +
+                    "(OPC 10000-12 §7.10.7).");
+            }
+        }
+
+        /// <summary>
+        /// Resolves the exact certificate each <see cref="EndpointDescription"/>
+        /// currently presents and reports whether any matches
+        /// <paramref name="thumbprint"/>.
+        /// </summary>
+        /// <remarks>
+        /// When <paramref name="registry"/> is supplied the presented
+        /// certificate is resolved live from the certificate registry using the
+        /// endpoint's (immutable) <see cref="EndpointDescription.SecurityPolicyUri"/>,
+        /// so a certificate that was rotated after the endpoints were created is
+        /// still matched even though the endpoint's cached
+        /// <see cref="EndpointDescription.ServerCertificate"/> blob is stale;
+        /// endpoints that do not require encryption present no channel
+        /// certificate and are skipped. When no <paramref name="registry"/> is
+        /// available the endpoint's <see cref="EndpointDescription.ServerCertificate"/>
+        /// blob is used as a fallback (external/mocked servers).
+        /// </remarks>
+        internal static bool IsCertificateReferencedByEndpoint(
+            string thumbprint,
+            ArrayOf<EndpointDescription> endpoints,
+            ICertificateRegistry? registry,
+            ITelemetryContext? telemetry)
+        {
+            if (endpoints.IsNull)
+            {
+                return false;
+            }
+
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                if (endpoint == null)
+                {
+                    continue;
+                }
+
+                if (registry != null)
+                {
+                    // Authoritative path: an endpoint that requires encryption
+                    // presents the certificate the registry currently maps its
+                    // SecurityPolicyUri to. Endpoints without encryption present
+                    // no channel certificate to protect.
+                    if (!ServerBase.RequireEncryption(endpoint))
+                    {
+                        continue;
+                    }
+
+                    using CertificateEntry? entry = registry
+                        .AcquireApplicationCertificateBySecurityPolicy(endpoint.SecurityPolicyUri!);
+                    if (entry?.Certificate is { } current &&
+                        string.Equals(current.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    // The registry resolved the exact certificate this endpoint
+                    // presents; do not also consult the potentially stale blob.
+                    continue;
+                }
+
+                ByteString serverCertificate = endpoint.ServerCertificate;
+                if (serverCertificate.IsNull || serverCertificate.Length == 0)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    using Certificate leaf = Utils.ParseCertificateBlob(serverCertificate, telemetry);
+                    if (string.Equals(leaf.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                catch (ServiceResultException)
+                {
+                    // A malformed endpoint certificate cannot be matched;
+                    // skip it rather than blocking every DeleteCertificate.
+                }
+            }
+
+            return false;
+        }
+
         private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -1315,7 +2056,9 @@ namespace Opc.Ua.Server
             ByteString privateKey,
             CancellationToken ct)
         {
-            HasApplicationSecureAdminAccess(context);
+            // §7.10.5: UpdateCertificate may transfer private-key material,
+            // so it requires an encrypted SecureChannel.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
 
             // OPC 10000-12 §7.10.3: the private key is sensitive material;
             // it must not be persisted into the
@@ -1746,6 +2489,11 @@ namespace Opc.Ua.Server
                 previousCertificateWithKey?.Dispose();
             }
 
+            // §7.10.17: the staged operation started/continued the active
+            // transaction, so refresh TransactionDiagnostics now (Result reads
+            // Bad_InvalidState while active) rather than only at ApplyChanges.
+            UpdateTransactionDiagnostics(context);
+
             return new UpdateCertificateMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
@@ -2058,7 +2806,9 @@ namespace Opc.Ua.Server
             ushort keySizeInBits,
             CancellationToken cancellationToken)
         {
-            HasApplicationSecureAdminAccess(context);
+            // §7.10.6: CreateSelfSignedCertificate does not transfer a
+            // private key, so an authenticated SecureChannel is sufficient.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
@@ -2287,6 +3037,11 @@ namespace Opc.Ua.Server
                 .RemoveAsync(CreatePendingKeyContext(certificateGroup, existingCertIdentifier), cancellationToken)
                 .ConfigureAwait(false);
 
+            // §7.10.17: refresh TransactionDiagnostics now the operation is
+            // staged so Result reads Bad_InvalidState while the transaction
+            // is active.
+            UpdateTransactionDiagnostics(context);
+
             return new CreateSelfSignedCertificateMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
@@ -2313,7 +3068,9 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId,
             CancellationToken cancellationToken)
         {
-            HasApplicationSecureAdminAccess(context);
+            // §7.10.7: DeleteCertificate requires an authenticated (but not
+            // necessarily encrypted) SecureChannel.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
@@ -2337,10 +3094,13 @@ namespace Opc.Ua.Server
                     "The certificate slot is already empty.");
             }
 
-            // Deferred to staging time (i.e. now) rather than commit time,
-            // using the server's current endpoint/registry state netted
-            // against every certificate type already staged in this
-            // transaction, so the administrator gets immediate feedback.
+            // Conservative net-state safety check applied at staging time so
+            // the administrator gets immediate feedback: deleting every
+            // application-certificate slot (netting the live registry against
+            // everything already staged in this transaction) is rejected up
+            // front. The authoritative OPC 10000-12 §7.10.7 endpoint-reference
+            // determination happens later, during ApplyChanges preparation
+            // (see the operation's PrepareAsync below).
             EnsureCertificateNotSoleEndpointReference(certificateTypeId);
 
             ICertificatePasswordProvider? passwordProvider = m_configuration
@@ -2362,6 +3122,17 @@ namespace Opc.Ua.Server
                 AffectedCertificateGroup = groupNodeId,
                 AffectedCertificateType = certificateTypeId,
                 LeavesCertificateSlotEmpty = true,
+                // OPC 10000-12 §7.10.7: "Certificates that are referenced by
+                // EndpointDescriptions shall not be deleted. This
+                // determination happens when ApplyChanges is called." Because
+                // a delete-then-create/update for the same slot coalesces to
+                // the later operation, only a delete that survives to commit
+                // (i.e. genuinely leaves the slot empty) reaches this check.
+                PrepareAsync = _ =>
+                {
+                    EnsureCertificateNotEndpointReferenced(previousThumbprint);
+                    return Task.CompletedTask;
+                },
                 CommitAsync = async ct =>
                 {
                     await ApplyCertificateSlotChangeAsync(
@@ -2392,6 +3163,11 @@ namespace Opc.Ua.Server
                 .RemoveAsync(CreatePendingKeyContext(certificateGroup, existingCertIdentifier), cancellationToken)
                 .ConfigureAwait(false);
 
+            // §7.10.17: refresh TransactionDiagnostics now the operation is
+            // staged so Result reads Bad_InvalidState while the transaction
+            // is active.
+            UpdateTransactionDiagnostics(context);
+
             return new DeleteCertificateMethodStateResult
             {
                 ServiceResult = ServiceResult.Good
@@ -2409,11 +3185,24 @@ namespace Opc.Ua.Server
             ByteString nonce,
             CancellationToken cancellationToken)
         {
-            HasApplicationSecureAdminAccess(context);
+            // §7.10.10: CreateSigningRequest may return a regenerated key's
+            // signing request, so it requires an encrypted SecureChannel.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                 certificateGroupId,
                 certificateTypeId)!;
+
+            // OPC 10000-12 §7.10.10: when a new private key is regenerated the
+            // caller must supply at least 32 bytes of additional entropy in
+            // the Nonce. An invalid Nonce is reported as Bad_InvalidArgument
+            // and leaves all state unchanged.
+            if (regeneratePrivateKey && (nonce.IsNull || nonce.Length < kMinimumRegenerateNonceLength))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The Nonce must be at least 32 bytes long when regeneratePrivateKey is true.");
+            }
 
             // OPC 10000-12 §7.10.10: while a transaction is active, only
             // its owning Session may regenerate the pending key, since a
@@ -2452,7 +3241,9 @@ namespace Opc.Ua.Server
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
                     subjectName,
-                    domainNames);
+                    domainNames,
+                    nonce,
+                    cancellationToken);
 
                 // A repeated signing request replaces (and disposes) any
                 // previously pending key for this slot (§7.10.10).
@@ -2510,42 +3301,36 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Generates the temporary application certificate and private key
+        /// for a <c>CreateSigningRequest</c> regenerate-key request
+        /// (OPC 10000-12 §7.10.10), delegating to the injected
+        /// <see cref="IPushCertificateKeyGenerator"/> so the caller-supplied
+        /// <paramref name="additionalEntropy"/> is genuinely mixed into the
+        /// new private key.
+        /// </summary>
         private Certificate GenerateTemporaryApplicationCertificate(
             NodeId certificateTypeId,
             string subjectName,
-            ArrayOf<string> domainNames)
+            ArrayOf<string> domainNames,
+            ByteString additionalEntropy,
+            CancellationToken cancellationToken)
         {
-            Certificate certificate;
-
             DateTime utcToday = m_timeProvider.GetUtcNow().UtcDateTime.Date;
-            ICertificateBuilder certificateBuilder = s_certificateFactory
-                .CreateApplicationCertificate(
-                    m_configuration.ApplicationUri!,
-                    m_configuration.ApplicationName!,
-                    subjectName,
-                    domainNames.ToArray())
-                .SetNotBefore(utcToday.AddDays(-1))
-                .SetNotAfter(utcToday.AddDays(14));
-
-            if (certificateTypeId.IsNull ||
-                certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
-                certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType)
-            {
-                certificate = certificateBuilder.SetRSAKeySize(CertificateFactory.DefaultKeySize)
-                    .CreateForRSA();
-            }
-            else
-            {
-                ECCurve? curve =
-                    CryptoUtils.GetCurveFromCertificateTypeId(certificateTypeId)
-                    ?? throw new ServiceResultException(
-                        StatusCodes.BadNotSupported,
-                        "The Ecc certificate type is not supported.");
-                certificate = certificateBuilder.SetECCurve(curve.Value).CreateForECDsa();
-            }
-
-            return certificate;
+            return m_keyGenerator.CreateApplicationCertificate(
+                new PushCertificateKeyGenerationRequest
+                {
+                    CertificateTypeId = certificateTypeId,
+                    ApplicationUri = m_configuration.ApplicationUri!,
+                    ApplicationName = m_configuration.ApplicationName!,
+                    SubjectName = subjectName,
+                    DomainNames = domainNames,
+                    KeySizeInBits = 0,
+                    NotBefore = utcToday.AddDays(-1),
+                    NotAfter = utcToday.AddDays(14),
+                    AdditionalEntropy = additionalEntropy
+                },
+                cancellationToken);
         }
 
         /// <summary>
@@ -2564,7 +3349,8 @@ namespace Opc.Ua.Server
             List<Variant> outputArguments,
             CancellationToken cancellationToken)
         {
-            HasApplicationSecureAdminAccess(context);
+            // §7.10.9: ApplyChanges requires an authenticated SecureChannel.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
             NodeId sessionId = GetSessionId(context);
 
@@ -2577,11 +3363,21 @@ namespace Opc.Ua.Server
             // it always observes its OWN empty collector and can never
             // drain or dispose the rotations produced by this call.
             var rotations = new List<PendingCertificateRotation>();
+
+            // An apply-local collector for the exact certificate groups and
+            // TrustLists this call commits, filled by the coordinator while
+            // this Session still owns the transaction. This is the §7.10.9
+            // counterpart of the rotation collector above: it must never be
+            // re-derived from a fresh coordinator snapshot after ApplyChanges
+            // returns, because ownership is released before the coordinator
+            // returns and another Session may already have staged a new
+            // transaction whose (uncommitted) targets a snapshot would report.
+            var committedEffects = new PushConfigurationApplyEffects();
             ServiceResult result;
             try
             {
                 m_activeRotationCollector.Value = rotations;
-                result = await m_coordinator.ApplyChangesAsync(sessionId, cancellationToken)
+                result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -2603,20 +3399,109 @@ namespace Opc.Ua.Server
                 return result;
             }
 
-            if (rotations.Count > 0)
+            // §7.10.9: identify the TrustLists whose committed changes must
+            // force affected SecureChannels to renegotiate (application/HTTPS
+            // groups) or invalidate certificate-based user identities (user
+            // token group). Only TrustLists actually committed by THIS
+            // transaction are considered - taken from the apply-local
+            // collector, not a fresh coordinator snapshot that may already
+            // represent another Session's active transaction - so unaffected
+            // channels/Sessions are never disturbed.
+            List<TrustListChangeEffect> trustListEffects =
+                BuildTrustListEffects(committedEffects.TrustLists);
+
+            if (rotations.Count > 0 || trustListEffects.Count > 0)
             {
                 // Schedule the deferred apply: wait a short grace period for
                 // the method response to be flushed, then re-sync the
-                // certificate manager from disk and force-close every
-                // SecureChannel that was negotiated against the rotated
-                // certificate(s). The completion handle is exposed via
-                // DrainPendingApplyChangesAsync so tests and hosts can
-                // deterministically await rotation rather than racing the
-                // delay.
-                ScheduleDeferredApplyChanges(rotations);
+                // certificate manager from disk (for rotations), force-close
+                // every SecureChannel that was negotiated against the rotated
+                // certificate(s), force channels with a now-untrusted peer
+                // certificate to renegotiate, and close Sessions whose
+                // certificate user identity is no longer valid. The
+                // completion handle is exposed via DrainPendingApplyChangesAsync
+                // so tests and hosts can deterministically await the effects
+                // rather than racing the delay.
+                ScheduleDeferredApplyChanges(rotations, trustListEffects);
+            }
+
+            // OPC 10000-12 §7.8.3: a committed TrustList change updates the
+            // TrustList's LastUpdateTime synchronously here (even when no
+            // deferred §7.10.9 effects are scheduled), so refresh the alarm
+            // values now. A certificate rotation additionally re-evaluates
+            // once the deferred reload has completed.
+            try
+            {
+                UpdateAndEvaluateAlarms(context, emitEvents: m_alarmMonitoringActive);
+            }
+            catch (Exception alarmEx)
+            {
+                m_logger.LogWarning(
+                    alarmEx,
+                    "Certificate-alarm re-evaluation after ApplyChanges commit failed.");
             }
 
             return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Maps the TrustList NodeIds committed by a transaction to the
+        /// §7.10.9 post-<c>ApplyChanges</c> effect that must be applied to
+        /// running SecureChannels or Sessions, using the certificate group
+        /// each TrustList belongs to. TrustLists that do not map to a known
+        /// server certificate group are ignored.
+        /// </summary>
+        internal List<TrustListChangeEffect> BuildTrustListEffects(ArrayOf<NodeId> affectedTrustLists)
+        {
+            var effects = new List<TrustListChangeEffect>();
+            if (affectedTrustLists.Count == 0)
+            {
+                return effects;
+            }
+
+            foreach (NodeId trustListId in affectedTrustLists)
+            {
+                if (trustListId.IsNull)
+                {
+                    continue;
+                }
+
+                foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+                {
+                    if (certGroup.Node?.TrustList == null ||
+                        !Utils.IsEqual(certGroup.Node.TrustList.NodeId, trustListId))
+                    {
+                        continue;
+                    }
+
+                    if (certGroup.BrowseName == BrowseNames.DefaultUserTokenGroup)
+                    {
+                        effects.Add(new TrustListChangeEffect
+                        {
+                            TrustListId = trustListId,
+                            CertificateGroupId = certGroup.NodeId,
+                            Kind = TrustListEffectKind.UserIdentityTrust,
+                            ValidationScope = TrustListIdentifier.Users
+                        });
+                    }
+                    else
+                    {
+                        effects.Add(new TrustListChangeEffect
+                        {
+                            TrustListId = trustListId,
+                            CertificateGroupId = certGroup.NodeId,
+                            Kind = TrustListEffectKind.SecureChannelTrust,
+                            ValidationScope = certGroup.BrowseName == BrowseNames.DefaultHttpsGroup
+                                ? TrustListIdentifier.Https
+                                : TrustListIdentifier.Peers
+                        });
+                    }
+
+                    break;
+                }
+            }
+
+            return effects;
         }
 
         /// <summary>
@@ -2632,7 +3517,9 @@ namespace Opc.Ua.Server
             List<Variant> outputArguments,
             CancellationToken cancellationToken)
         {
-            HasApplicationSecureAdminAccess(context);
+            // §7.10.2/§7.10.11: CancelChanges requires an authenticated
+            // SecureChannel.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = m_coordinator.CancelChanges(sessionId);
@@ -2641,12 +3528,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Schedules the post-response cert-rotation fan-out. Chains
-        /// onto any already-running deferred apply so concurrent calls
-        /// to <see cref="ApplyChangesAsync"/> run sequentially.
+        /// Schedules the post-response fan-out for both the server
+        /// certificate rotation channel-cuts and the §7.10.9 TrustList
+        /// effects. Chains onto any already-running deferred apply so
+        /// concurrent calls to <see cref="ApplyChangesAsync"/> run
+        /// sequentially.
         /// </summary>
-        private void ScheduleDeferredApplyChanges(List<PendingCertificateRotation> rotations)
+        private void ScheduleDeferredApplyChanges(
+            List<PendingCertificateRotation> rotations,
+            List<TrustListChangeEffect> trustListEffects)
         {
+            CancellationToken shutdownToken;
+            try
+            {
+                shutdownToken = m_shutdownCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The manager is being disposed; do not schedule new deferred
+                // work. Release the captured rotations so nothing leaks.
+                DisposeRotations(rotations);
+                return;
+            }
+
+            if (shutdownToken.IsCancellationRequested)
+            {
+                // Shutdown already signalled: skip the post-response effects
+                // entirely (they would only run against listeners/managers
+                // being torn down) and release the captured rotations.
+                DisposeRotations(rotations);
+                return;
+            }
+
             var completion = new TaskCompletionSource<object?>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -2698,14 +3611,38 @@ namespace Opc.Ua.Server
                     // TODO: implement a transport-level
                     // "response-flushed" callback so this can be
                     // deterministic without relying on a fixed delay.
-                    await m_timeProvider.Delay(gracePeriod)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        await m_timeProvider.Delay(gracePeriod, shutdownToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Server shutting down during the grace period: skip
+                        // the post-response effects entirely so they never run
+                        // against listeners/managers that are about to be
+                        // disposed. The finally below releases the rotations.
+                        completion.TrySetResult(null);
+                        return;
+                    }
+
+                    if (shutdownToken.IsCancellationRequested)
+                    {
+                        completion.TrySetResult(null);
+                        return;
+                    }
 
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
-                        "Apply Changes for application certificate running...");
+                        "Apply Changes running...");
 
-                    if (m_configuration.CertificateManager != null)
+                    // Reload the certificate manager only when a server
+                    // application certificate actually rotated. A TrustList-
+                    // only change does not touch the server's own
+                    // certificates, and the validator's directory-backed
+                    // trust stores refresh themselves, so an app-cert reload
+                    // here would be needless work.
+                    if (rotations.Count > 0 && m_configuration.CertificateManager != null)
                     {
                         await m_configuration.CertificateManager.UpdateAsync(
                                 m_configuration.SecurityConfiguration,
@@ -2758,6 +3695,32 @@ namespace Opc.Ua.Server
                         "Apply Changes for application certificate completed: {Count} SecureChannel(s) cut.",
                         totalCut);
 
+                    // §7.10.9 TrustList effects: force channels whose peer
+                    // certificate is no longer trusted to renegotiate and
+                    // close Sessions (plus Subscriptions) whose certificate
+                    // user identity is no longer valid. Unaffected channels
+                    // and Sessions are left untouched.
+                    if (trustListEffects.Count > 0)
+                    {
+                        await ApplyTrustListEffectsAsync(trustListEffects, listeners)
+                            .ConfigureAwait(false);
+                    }
+
+                    // OPC 10000-12 §7.8.3: the committed certificate/TrustList
+                    // change may clear (or raise) the CertificateExpired /
+                    // TrustListOutOfDate alarms, so re-evaluate now that the new
+                    // certificate has been reloaded from disk.
+                    try
+                    {
+                        UpdateAndEvaluateAlarms(SystemContext, emitEvents: m_alarmMonitoringActive);
+                    }
+                    catch (Exception alarmEx)
+                    {
+                        m_logger.LogWarning(
+                            alarmEx,
+                            "Certificate-alarm re-evaluation after ApplyChanges failed.");
+                    }
+
                     completion.TrySetResult(null);
                 }
                 catch (Exception ex)
@@ -2770,12 +3733,45 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    foreach (PendingCertificateRotation rotation in rotations)
-                    {
-                        rotation.OldCertificate?.Dispose();
-                    }
+                    DisposeRotations(rotations);
                 }
             });
+        }
+
+        /// <summary>
+        /// Disposes the captured old-certificate references of every pending
+        /// rotation, tolerating a <see langword="null"/> reference.
+        /// </summary>
+        private static void DisposeRotations(List<PendingCertificateRotation> rotations)
+        {
+            foreach (PendingCertificateRotation rotation in rotations)
+            {
+                rotation.OldCertificate?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Builds the effect context from the running server and applies the
+        /// committed §7.10.9 TrustList effects through the injected
+        /// <see cref="IPushConfigurationTrustListEffectHandler"/>.
+        /// </summary>
+        private ValueTask ApplyTrustListEffectsAsync(
+            List<TrustListChangeEffect> trustListEffects,
+            IReadOnlyList<ITransportListener> listeners)
+        {
+            var context = new PushConfigurationTrustListEffectContext
+            {
+                Effects = trustListEffects,
+                TransportListeners = listeners,
+                SessionManager = Server.SessionManager,
+                CertificateValidator = m_configuration.CertificateManager,
+                // A server-initiated close carries no client OperationContext,
+                // matching the SessionManager's own timeout-driven close path.
+                CloseSessionAsync = (sessionId, deleteSubscriptions, ct) =>
+                    Server.CloseSessionAsync(null!, sessionId, deleteSubscriptions, ct)
+            };
+
+            return m_trustListEffectHandler.ApplyAsync(context, CancellationToken.None);
         }
 
         /// <inheritdoc/>
@@ -2818,7 +3814,9 @@ namespace Opc.Ua.Server
             NodeId objectId,
             ref ArrayOf<ByteString> certificates)
         {
-            HasApplicationSecureAdminAccess(context);
+            // GetRejectedList returns only public certificates, so an
+            // authenticated SecureChannel is sufficient.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
             // No rejected store configured
             if (m_rejectedStore == null)
@@ -2857,7 +3855,9 @@ namespace Opc.Ua.Server
             ref ArrayOf<NodeId> certificateTypeIds,
             ref ArrayOf<ByteString> certificates)
         {
-            HasApplicationSecureAdminAccess(context);
+            // GetCertificates returns only public certificates, so an
+            // authenticated SecureChannel is sufficient.
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
 
             ServerCertificateGroup certificateGroup =
                 m_certificateGroups.FirstOrDefault(
@@ -3123,116 +4123,319 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public event EventHandler? DefaultPermissionsChanged;
 
-        /// <summary>
-        /// Evaluates certificate expiration and trust-list staleness for
-        /// all certificate groups and activates/deactivates the optional
-        /// <c>CertificateExpired</c> and <c>TrustListOutOfDate</c> alarm
-        /// instances per OPC 10000-12 §7.8.3.
-        /// </summary>
         /// <inheritdoc/>
         public void StartAlarmMonitoring(TimeSpan interval)
         {
-            if (m_alarmTimer != null)
+            lock (m_alarmEvaluationLock)
             {
-                return;
+                if (m_alarmTimer != null)
+                {
+                    return;
+                }
+
+                // The subscription/event infrastructure is ready once this is
+                // called (see StandardServer.OnServerStarted), so transition
+                // events may now be reported. Clear any prior stopped state so a
+                // restart after StopAlarmMonitoring resumes evaluation.
+                m_alarmMonitoringStopped = false;
+                m_alarmMonitoringActive = true;
             }
 
-            m_alarmTimer = m_timeProvider.CreateTimer(
-                _ =>
+            // Perform an immediate evaluation so an already-expired certificate
+            // or a stale TrustList is signalled without waiting a full interval.
+            // This is done outside the lock (UpdateAndEvaluateAlarms takes it
+            // itself) because System.Threading.Lock is not reentrant.
+            try
+            {
+                UpdateAndEvaluateAlarms(SystemContext, emitEvents: true);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "Initial certificate-alarm evaluation failed.");
+            }
+
+            lock (m_alarmEvaluationLock)
+            {
+                // A concurrent StopAlarmMonitoring may have run during the
+                // initial evaluation; do not arm the periodic timer in that case.
+                if (m_alarmMonitoringStopped || m_alarmTimer != null)
                 {
-                    try
+                    return;
+                }
+
+                m_alarmTimer = m_timeProvider.CreateTimer(
+                    _ =>
                     {
-                        EvaluateCertificateAlarms(SystemContext);
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.LogWarning(ex, "Alarm evaluation tick failed.");
-                    }
-                },
-                null,
-                interval,
-                interval);
+                        try
+                        {
+                            UpdateAndEvaluateAlarms(SystemContext, emitEvents: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogWarning(ex, "Alarm evaluation tick failed.");
+                        }
+                    },
+                    null,
+                    interval,
+                    interval);
+            }
         }
 
         /// <inheritdoc/>
         public void StopAlarmMonitoring()
         {
-            m_alarmTimer?.Dispose();
-            m_alarmTimer = null;
+            // Prevent further evaluations, then serialize with any in-flight one:
+            // setting the stopped flag under the evaluation lock waits for a
+            // running evaluation to finish and guarantees any evaluation still
+            // queued behind the lock returns without mutating nodes that may be
+            // getting torn down. The timer is disposed outside the lock so its
+            // disposal can never deadlock against a callback that is blocked
+            // waiting for the same lock.
+            ITimer? timer;
+            lock (m_alarmEvaluationLock)
+            {
+                m_alarmMonitoringActive = false;
+                m_alarmMonitoringStopped = true;
+                timer = m_alarmTimer;
+                m_alarmTimer = null;
+            }
+
+            timer?.Dispose();
         }
 
-        private void EvaluateCertificateAlarms(ISystemContext context)
+        /// <summary>
+        /// Gets the certificate-group alarm monitors created for the server's
+        /// certificate groups. Exposed for testing.
+        /// </summary>
+        internal IReadOnlyList<CertificateGroupAlarmMonitor> AlarmMonitors
+            => m_alarmMonitors.ConvertAll(entry => entry.Monitor);
+
+        /// <summary>
+        /// Gets a value indicating whether alarm monitoring is currently
+        /// active (i.e. transition events may be reported). Exposed for testing.
+        /// </summary>
+        internal bool AlarmMonitoringActive => m_alarmMonitoringActive;
+
+        /// <summary>
+        /// Refreshes the alarm inputs from the current certificate/TrustList
+        /// state and then evaluates every certificate-group alarm, driving the
+        /// standard active/inactive state transitions per OPC 10000-12 §7.8.3.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="emitEvents">Whether transition events may be reported.</param>
+        internal void UpdateAndEvaluateAlarms(ISystemContext context, bool emitEvents)
         {
-            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+            // Serialize the entire refresh + evaluation path so the NodeState
+            // mutations and event reporting driven from the periodic timer,
+            // ApplyChanges commits, startup and shutdown never overlap. The lock
+            // only ever guards fully synchronous work (RefreshAlarmInputs +
+            // EvaluateCertificateAlarms perform no awaits), so it never spans an
+            // await and never introduces sync-over-async.
+            lock (m_alarmEvaluationLock)
             {
-                CertificateGroupState node = certGroup.Node!;
+                // Once monitoring has been stopped (shutdown/dispose) the
+                // address-space nodes may be getting torn down: a timer tick
+                // that was already in flight when StopAlarmMonitoring ran blocks
+                // here until Stop releases the lock, then observes the stopped
+                // flag and returns without mutating any disposed nodes.
+                if (m_alarmMonitoringStopped)
+                {
+                    return;
+                }
+
+                RefreshAlarmInputs(context);
+                EvaluateCertificateAlarms(context, emitEvents);
+            }
+        }
+
+        /// <summary>
+        /// Evaluates every certificate-group alarm against the current time.
+        /// Transition events are only reported when <paramref name="emitEvents"/>
+        /// is <see langword="true"/> and the active state actually changed.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="emitEvents">Whether transition events may be reported.</param>
+        internal void EvaluateCertificateAlarms(ISystemContext context, bool emitEvents)
+        {
+            foreach (AlarmMonitorEntry entry in m_alarmMonitors)
+            {
+                entry.Monitor.Evaluate(context, emitEvents);
+            }
+        }
+
+        /// <summary>
+        /// Publishes the current certificate and TrustList state onto the
+        /// alarm inputs (expiration date/certificate/type, trust-list id and
+        /// last-update time) without emitting any event.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        private void RefreshAlarmInputs(ISystemContext context)
+        {
+            foreach (AlarmMonitorEntry entry in m_alarmMonitors)
+            {
+                CertificateGroupAlarmMonitor monitor = entry.Monitor;
+                ServerCertificateGroup certGroup = entry.Group;
+                CertificateGroupState? node = certGroup.Node;
+                if (node == null)
+                {
+                    continue;
+                }
 
                 try
                 {
-                    // --- CertificateExpired alarm ---
-                    // Only populate properties if the optional alarm instance
-                    // was loaded from the predefined nodeset. We set property
-                    // values directly rather than calling SetActiveState to
-                    // avoid triggering event notifications during server
-                    // startup (which can fail before subscriptions exist).
-                    if (node.CertificateExpired?.ExpirationDate != null)
-                    {
-                        DateTime expirationDate = DateTime.MaxValue;
+                    DateTime earliest = DateTime.MaxValue;
+                    ByteString certificate = default;
+                    NodeId certificateType = NodeId.Null;
 
-                        foreach (CertificateIdentifier certIdent in certGroup.ApplicationCertificates)
+                    foreach (CertificateIdentifier certIdent in certGroup.ApplicationCertificates)
+                    {
+                        if (certIdent.RawData == null || certIdent.RawData.Length == 0)
                         {
-                            if (certIdent.RawData != null && certIdent.RawData.Length > 0)
+                            continue;
+                        }
+
+                        try
+                        {
+                            using Certificate cert = Certificate.FromRawData(certIdent.RawData);
+                            if (cert.NotAfter < earliest)
                             {
-                                try
-                                {
-                                    using var cert = Certificate.FromRawData(certIdent.RawData);
-                                    if (cert.NotAfter < expirationDate)
-                                    {
-                                        expirationDate = cert.NotAfter;
-                                    }
-                                }
-                                catch
-                                {
-                                    // ignore parsing errors
-                                }
+                                earliest = cert.NotAfter;
+                                certificate = ByteString.From(certIdent.RawData);
+                                certificateType = certIdent.CertificateType;
                             }
                         }
-
-                        if (expirationDate != DateTime.MaxValue)
+                        catch (Exception ex)
                         {
-                            node.CertificateExpired.ExpirationDate.Value = expirationDate;
+                            m_logger.LogDebug(ex, "Skipping unreadable certificate in group {Group}.", certGroup.BrowseName);
                         }
                     }
+
+                    monitor.SetCertificateExpiration(
+                        context,
+                        earliest == DateTime.MaxValue ? null : earliest,
+                        certificate,
+                        certificateType);
                 }
                 catch (Exception ex)
                 {
                     m_logger.LogWarning(
                         ex,
-                        "Failed to evaluate CertificateExpired alarm for group {Group}.",
+                        "Failed to refresh CertificateExpired alarm inputs for group {Group}.",
                         certGroup.BrowseName);
                 }
 
                 try
                 {
-                    // --- TrustListOutOfDate alarm ---
-                    if (node.TrustListOutOfDate?.TrustListId != null)
-                    {
-                        node.TrustListOutOfDate.TrustListId.Value =
-                            node.TrustList?.NodeId ?? default;
+                    NodeId trustListId = node.TrustList?.NodeId ?? NodeId.Null;
+                    var lastUpdate = (DateTime)(node.TrustList?.LastUpdateTime?.Value
+                        ?? (DateTimeUtc)DateTime.MinValue);
+                    double updateFrequency = monitor.TrustListOutOfDate?.UpdateFrequency?.Value ?? 0;
 
-                        node.TrustListOutOfDate.LastUpdateTime?.Value =
-                                (DateTime)(node.TrustList?.LastUpdateTime?.Value
-                                    ?? (DateTimeUtc)DateTime.MinValue);
-                    }
+                    monitor.SetTrustListStatus(context, trustListId, lastUpdate, updateFrequency);
                 }
                 catch (Exception ex)
                 {
                     m_logger.LogWarning(
                         ex,
-                        "Failed to evaluate TrustListOutOfDate alarm for group {Group}.",
+                        "Failed to refresh TrustListOutOfDate alarm inputs for group {Group}.",
                         certGroup.BrowseName);
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates the optional per-group <c>CertificateExpired</c> and
+        /// <c>TrustListOutOfDate</c> alarm instances (OPC 10000-12 §7.8.3),
+        /// registers them with the node manager and as event sources, and
+        /// initializes their condition state without emitting any event.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask CreateCertificateAlarmsAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+            {
+                CertificateGroupState? node = certGroup.Node;
+                if (node == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    // Instantiate the optional alarm instances when the loaded
+                    // nodeset did not already provide them.
+                    if (node.CertificateExpired == null)
+                    {
+                        node.AddCertificateExpired(context);
+                        WireConditionMethodHandlers(context, node.CertificateExpired!);
+                        node.CertificateExpired!.AddExpirationLimit(context);
+                    }
+
+                    if (node.TrustListOutOfDate == null)
+                    {
+                        node.AddTrustListOutOfDate(context);
+                        WireConditionMethodHandlers(context, node.TrustListOutOfDate!);
+                    }
+
+                    var monitor = new CertificateGroupAlarmMonitor(
+                        node,
+                        certGroup.BrowseName,
+                        m_timeProvider,
+                        m_logger);
+                    monitor.InitializeQuiet(context);
+                    m_alarmMonitors.Add(new AlarmMonitorEntry(monitor, certGroup));
+
+                    // Register the new alarm subtrees and wire them as event
+                    // sources so their transition events reach subscriptions
+                    // and ConditionRefresh.
+                    if (node.CertificateExpired != null)
+                    {
+                        await AddPredefinedNodeAsync(context, node.CertificateExpired, cancellationToken)
+                            .ConfigureAwait(false);
+                        await AddRootNotifierAsync(node.CertificateExpired, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
+                    if (node.TrustListOutOfDate != null)
+                    {
+                        await AddPredefinedNodeAsync(context, node.TrustListOutOfDate, cancellationToken)
+                            .ConfigureAwait(false);
+                        await AddRootNotifierAsync(node.TrustListOutOfDate, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to create certificate alarms for group {Group}.",
+                        certGroup.BrowseName);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Wires the standard condition method handlers (Acknowledge, Confirm,
+        /// Enable, Disable, AddComment) for an alarm that was built by the
+        /// generated <c>Add&lt;Alarm&gt;</c> factory. The factory constructs the
+        /// full alarm structure but does not run <c>OnAfterCreate</c>, which is
+        /// what binds those handlers; re-running <c>Create</c>
+        /// without reassigning NodeIds triggers <c>OnAfterCreate</c> while
+        /// preserving the existing structure so client method calls are honoured.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="alarm">The alarm whose method handlers must be wired.</param>
+        private static void WireConditionMethodHandlers(ISystemContext context, NodeState alarm)
+        {
+            alarm.Create(
+                context,
+                alarm.NodeId,
+                alarm.BrowseName,
+                alarm.DisplayName,
+                assignNodeIds: false);
         }
 
         private class ServerCertificateGroup
@@ -3246,6 +4449,20 @@ namespace Opc.Ua.Server
             public CertificateStoreIdentifier TrustedStore { get; set; } = null!;
         }
 
+        /// <summary>
+        /// Explicitly binds a <see cref="CertificateGroupAlarmMonitor"/> to the
+        /// <see cref="ServerCertificateGroup"/> whose certificate/TrustList state
+        /// it evaluates. Pairing them removes the fragile positional/index
+        /// coupling between the monitor list and the certificate-group list
+        /// (groups without a node are skipped when monitors are created, which
+        /// would otherwise misalign the two lists).
+        /// </summary>
+        /// <param name="Monitor">The alarm monitor.</param>
+        /// <param name="Group">The certificate group it evaluates.</param>
+        private sealed record AlarmMonitorEntry(
+            CertificateGroupAlarmMonitor Monitor,
+            ServerCertificateGroup Group);
+
 #pragma warning disable CA2213 // m_serverConfigurationNode is owned by the address space, not by this manager.
         private ServerConfigurationState? m_serverConfigurationNode;
         private UserManagement.UserManagementBinding? m_userManagementBinding;
@@ -3254,14 +4471,24 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private readonly IPushConfigurationTransactionCoordinator m_coordinator;
         private readonly IPendingCertificateKeyStore m_pendingKeyStore;
+        private readonly IPushCertificateKeyGenerator m_keyGenerator;
+        private readonly IPushConfigurationTrustListEffectHandler m_trustListEffectHandler;
+        private readonly ServerConfigurationOptions m_serverConfigurationOptions;
+        private ApplicationConfigurationFile? m_configurationFile;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;
         private ITimer? m_alarmTimer;
+        private readonly List<AlarmMonitorEntry> m_alarmMonitors = [];
+        private readonly Lock m_alarmEvaluationLock = new();
+        private bool m_alarmMonitoringActive;
+        private bool m_alarmMonitoringStopped;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
         private readonly Lock m_namespaceMetadataStatesLock = new();
         private readonly Lock m_pendingApplyChangesLock = new();
         private Task m_pendingApplyChangesTask = Task.CompletedTask;
+        private Task m_pendingResetTask = Task.CompletedTask;
+        private readonly CancellationTokenSource m_shutdownCts = new();
         private readonly AsyncLocal<List<PendingCertificateRotation>?> m_activeRotationCollector = new();
 
         /// <inheritdoc/>
@@ -3269,5 +4496,7 @@ namespace Opc.Ua.Server
             = TimeSpan.FromMilliseconds(250);
 
         private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
+
+        private const int kMinimumRegenerateNonceLength = 32;
     }
 }

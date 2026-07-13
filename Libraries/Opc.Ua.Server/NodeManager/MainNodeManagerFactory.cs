@@ -84,16 +84,41 @@ namespace Opc.Ua.Server
         /// <see cref="ConfigurationNodeManager"/> create its own default
         /// <see cref="DirectoryPendingCertificateKeyStore"/>.
         /// </param>
+        /// <param name="keyGenerator">
+        /// The generator that creates regenerated signing-request keys with
+        /// genuine nonce entropy (§7.10.10), or <see langword="null"/> to let
+        /// <see cref="ConfigurationNodeManager"/> create its own default
+        /// <see cref="AdditionalEntropyCertificateKeyGenerator"/>.
+        /// </param>
+        /// <param name="trustListEffectHandler">
+        /// The handler that applies the §7.10.9 post-<c>ApplyChanges</c>
+        /// TrustList effects, or <see langword="null"/> to let
+        /// <see cref="ConfigurationNodeManager"/> create its own default
+        /// <see cref="PushConfigurationTrustListEffectHandler"/>.
+        /// </param>
+        /// <param name="serverConfigurationOptions">
+        /// Configures the Optional OPC 10000-12 §7.10.3
+        /// <c>ServerConfigurationType</c> surface (<c>HasSecureElement</c>,
+        /// <c>InApplicationSetup</c>, <c>ResetToServerDefaults</c>,
+        /// <c>ConfigurationFile</c>), or <see langword="null"/> to expose only
+        /// the always-known identity Properties.
+        /// </param>
         public MainNodeManagerFactory(
             ApplicationConfiguration applicationConfiguration,
             IServerInternal server,
             IPushConfigurationTransactionCoordinator? coordinator,
-            IPendingCertificateKeyStore? pendingKeyStore)
+            IPendingCertificateKeyStore? pendingKeyStore,
+            IPushCertificateKeyGenerator? keyGenerator = null,
+            IPushConfigurationTrustListEffectHandler? trustListEffectHandler = null,
+            ServerConfigurationOptions? serverConfigurationOptions = null)
         {
             m_applicationConfiguration = applicationConfiguration;
             m_server = server;
             m_coordinator = coordinator;
             m_pendingKeyStore = pendingKeyStore;
+            m_keyGenerator = keyGenerator;
+            m_trustListEffectHandler = trustListEffectHandler;
+            m_serverConfigurationOptions = serverConfigurationOptions;
         }
 
         /// <inheritdoc/>
@@ -105,7 +130,10 @@ namespace Opc.Ua.Server
                 m_server.Telemetry.CreateLogger<ConfigurationNodeManager>(),
                 timeProvider: null,
                 m_coordinator,
-                m_pendingKeyStore);
+                m_pendingKeyStore,
+                m_keyGenerator,
+                m_trustListEffectHandler,
+                m_serverConfigurationOptions);
         }
 
         /// <inheritdoc/>
@@ -118,5 +146,8 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private readonly IPendingCertificateKeyStore? m_pendingKeyStore;
+        private readonly IPushCertificateKeyGenerator? m_keyGenerator;
+        private readonly IPushConfigurationTrustListEffectHandler? m_trustListEffectHandler;
+        private readonly ServerConfigurationOptions? m_serverConfigurationOptions;
     }
 }

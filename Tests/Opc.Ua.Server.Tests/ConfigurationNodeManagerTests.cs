@@ -272,13 +272,16 @@ namespace Opc.Ua.Server.Tests
 
                 NodeId[] suppressedNodeIds =
                 [
-                    // ServerConfiguration Optional Variables/Methods - SDK
-                    // does not implement these.
-                    VariableIds.ServerConfiguration_ApplicationUri,
-                    VariableIds.ServerConfiguration_ProductUri,
-                    VariableIds.ServerConfiguration_ApplicationType,
+                    // ServerConfiguration Optional members that are only
+                    // exposed when explicitly configured via
+                    // ServerConfigurationOptions (OPC 10000-12 §7.10.3). The
+                    // default ReferenceServer configures none of these, so they
+                    // remain suppressed here (HasSecureElement/InApplicationSetup
+                    // and ResetToServerDefaults require options/providers;
+                    // ConfigurationFile requires a provider).
                     VariableIds.ServerConfiguration_HasSecureElement,
                     MethodIds.ServerConfiguration_ResetToServerDefaults,
+                    ObjectIds.ServerConfiguration_ConfigurationFile,
                     // PublishSubscribe Optional Methods - SDK does not
                     // implement these (no PubSub configuration provider).
                     MethodIds.PublishSubscribe_AddConnection,
@@ -370,6 +373,19 @@ namespace Opc.Ua.Server.Tests
                     // ServerConfigurationState properties in
                     // ConfigurationNodeManagerPushTests instead.
                     MethodIds.ServerConfiguration_CancelChanges,
+
+                    // ServerConfiguration identity Properties (OPC 10000-12
+                    // §7.10.3) - always exposed from the ApplicationConfiguration
+                    // by ConfigurationNodeManager.CreateServerConfiguration and
+                    // must resolve at their well-known singleton-instance
+                    // NodeIds. ApplicationNames and InApplicationSetup have no
+                    // well-known singleton-instance NodeId (only their TYPE-level
+                    // definitions do), so they are verified via the
+                    // ServerConfigurationState properties in
+                    // ServerConfigurationSurfaceTests instead.
+                    VariableIds.ServerConfiguration_ApplicationUri,
+                    VariableIds.ServerConfiguration_ProductUri,
+                    VariableIds.ServerConfiguration_ApplicationType,
                     ObjectIds.ServerConfiguration_TransactionDiagnostics,
                     VariableIds.ServerConfiguration_TransactionDiagnostics_StartTime,
                     VariableIds.ServerConfiguration_TransactionDiagnostics_EndTime,

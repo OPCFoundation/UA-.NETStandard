@@ -206,6 +206,30 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         }
 
         [Test]
+        public async Task GetServiceDescriptionReportsConfiguredServiceUri()
+        {
+            AuthorizationServiceClient client = await CreateClientAsync().ConfigureAwait(false);
+
+            // OPC 10000-12 §9 GetServiceDescription: an authenticated Client can
+            // read the AuthorizationService's ServiceUri, ServiceCertificate and
+            // UserTokenPolicies. The reference node manager seeds ServiceUri from
+            // the server ApplicationUri and advertises the server user token
+            // policies.
+            (string serviceUri, _, ArrayOf<UserTokenPolicy> userTokenPolicies) = await client
+                .GetServiceDescriptionAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(serviceUri, Is.EqualTo(m_serverFixture.Config.ApplicationUri ?? string.Empty),
+                "GetServiceDescription must report the AuthorizationService ServiceUri "
+                + "seeded from the server ApplicationUri.");
+            Assert.That(userTokenPolicies.IsNull, Is.False,
+                "GetServiceDescription must return a non-null UserTokenPolicies array.");
+            Assert.That(userTokenPolicies.Count,
+                Is.EqualTo(m_serverFixture.Config.ServerConfiguration.UserTokenPolicies.Count),
+                "GetServiceDescription must advertise the server's configured user token policies.");
+        }
+
+        [Test]
         public async Task RefreshTokenAuditEventIsEmittedOnSuccessWithoutSecret()
         {
             AuthorizationServiceClient client = await CreateClientAsync().ConfigureAwait(false);

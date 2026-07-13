@@ -652,12 +652,33 @@ namespace Opc.Ua.Gds.Tests
         public async Task CreateSigningRequestNullParmsWithNewPrivateKeyAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
+            byte[] regenerateNonce = new byte[32];
+            m_randomSource.NextBytes(regenerateNonce, 0, regenerateNonce.Length);
+#if !NET5_0_OR_GREATER
+            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null)
+            {
+                // §7.10.10: genuine additional-entropy incorporation into an ECC
+                // private key is unavailable on .NET Framework, so a
+                // regenerate-key request for an ECC CertificateType must be
+                // rejected with Bad_NotSupported rather than silently ignoring
+                // the mandated Nonce.
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    () => m_pushClient.PushClient.CreateSigningRequestAsync(
+                        default,
+                        m_certificateType,
+                        null,
+                        true,
+                        ByteString.From(regenerateNonce)).AsTask());
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                return;
+            }
+#endif
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 default,
                 m_certificateType,
                 null,
                 true,
-                ByteString.From(Encoding.ASCII.GetBytes("OPCTest"))).ConfigureAwait(false);
+                ByteString.From(regenerateNonce)).ConfigureAwait(false);
             Assert.That(csr.IsEmpty, Is.False);
         }
 
@@ -668,6 +689,23 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] nonce = new byte[32];
             m_randomSource.NextBytes(nonce, 0, nonce.Length);
+#if !NET5_0_OR_GREATER
+            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null)
+            {
+                // §7.10.10: ECC regenerate-key requests are rejected with
+                // Bad_NotSupported on .NET Framework (see
+                // CreateSigningRequestNullParmsWithNewPrivateKeyAsync).
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    () => m_pushClient.PushClient.CreateSigningRequestAsync(
+                        m_pushClient.PushClient.DefaultApplicationGroup,
+                        m_certificateType,
+                        string.Empty,
+                        true,
+                        ByteString.From(nonce)).AsTask());
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                return;
+            }
+#endif
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 m_pushClient.PushClient.DefaultApplicationGroup,
                 m_certificateType,
@@ -859,12 +897,20 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             await ConnectGDSClientAsync(true).ConfigureAwait(false);
             TestContext.Out.WriteLine("Create Signing Request");
+            ByteString regenerateNonce = default;
+            if (regeneratePrivateKey)
+            {
+                // §7.10.10: a regenerated key requires >= 32 bytes of nonce entropy.
+                byte[] nonce = new byte[32];
+                m_randomSource.NextBytes(nonce, 0, nonce.Length);
+                regenerateNonce = ByteString.From(nonce);
+            }
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 default,
                 m_certificateType,
                 m_selfSignedServerCert.Subject + "2",
                 regeneratePrivateKey,
-                default).ConfigureAwait(false);
+                regenerateNonce).ConfigureAwait(false);
             Assert.That(csr.IsEmpty, Is.False);
             TestContext.Out.WriteLine("Start Signing Request");
             NodeId requestId = await m_gdsClient.GDSClient.StartSigningRequestAsync(

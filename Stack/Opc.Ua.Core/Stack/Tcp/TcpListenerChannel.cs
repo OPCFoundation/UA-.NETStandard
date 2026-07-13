@@ -423,6 +423,94 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Returns an independent public-key copy of the channel's
+        /// negotiated client (peer) certificate for re-validation against an
+        /// updated TrustList, or <see langword="null"/> when the channel has
+        /// no client certificate (for example a
+        /// <see cref="SecurityPolicies.None"/> channel) or is already
+        /// closed/faulted. The returned reference is owned by the caller,
+        /// which must dispose it. Snapshotting under <c>DataLock</c> avoids
+        /// racing the channel's own disposal of its live client certificate.
+        /// </summary>
+        internal Certificate? SnapshotClientCertificateForRevalidation()
+        {
+            lock (DataLock)
+            {
+                if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
+                {
+                    return null;
+                }
+
+                byte[]? rawData = ClientCertificate?.RawData;
+                if (rawData == null || rawData.Length == 0)
+                {
+                    return null;
+                }
+
+                return Certificate.FromRawData(rawData);
+            }
+        }
+
+        /// <summary>
+        /// Force-closes the channel because its negotiated client (peer)
+        /// certificate is no longer trusted after a committed TrustList
+        /// change. Implements the peer-trust channel-cut step required by
+        /// OPC UA Part 12 §7.10.9 (ApplyChanges → force renegotiate affected
+        /// SecureChannels). The listener socket is unaffected — only the
+        /// per-channel TCP connection is torn down so the peer re-negotiates
+        /// and is re-validated against the updated TrustList.
+        /// </summary>
+        /// <param name="globalChannelId">
+        /// On <c>true</c> return, the
+        /// <see cref="UaSCUaBinaryChannel.GlobalChannelId"/> of the channel
+        /// that was just closed; otherwise <c>null</c>.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when the channel was closed; <c>false</c> when it was
+        /// already closed or faulted.
+        /// </returns>
+        internal bool CloseForUntrustedPeerCertificate(out string? globalChannelId)
+        {
+            globalChannelId = null;
+
+            lock (DataLock)
+            {
+                if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
+                {
+                    return false;
+                }
+
+                globalChannelId = GlobalChannelId;
+                m_logger.LogInformation(
+                    Utils.TraceMasks.Security,
+                    "{Channel} ChannelId={ChannelId}: closing because the peer certificate is no longer trusted.",
+                    ChannelName,
+                    ChannelId);
+
+                var reason = ServiceResult.Create(
+                    StatusCodes.BadCertificateUntrusted,
+                    "Peer certificate is no longer trusted. Renegotiate the SecureChannel.");
+
+                if (Transport != null)
+                {
+                    try
+                    {
+                        SendErrorMessage(reason);
+                    }
+                    catch
+                    {
+                        // Best-effort — the goal is to close the channel
+                        // even if the error message cannot be flushed.
+                    }
+                }
+
+                ChannelFaulted();
+                NotifyMonitors(reason, true);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Handles a socket error.
         /// </summary>
         protected override void HandleSocketError(ServiceResult result)

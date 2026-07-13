@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -370,6 +371,145 @@ namespace Opc.Ua.Server.Tests
                         s_telemetry,
                         CancellationToken.None)
                     .ConfigureAwait(false));
+        }
+
+        [Test]
+        public void IsCertificateReferencedByEndpointMatchesTheEndpointServerCertificateThumbprint()
+        {
+            using Certificate referenced = CertificateBuilder
+                .Create("CN=Referenced " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate other = CertificateBuilder
+                .Create("CN=Other " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            ArrayOf<EndpointDescription> endpoints = ArrayOf.Wrapped(new[]
+            {
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.None
+                },
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    ServerCertificate = referenced.RawData.ToByteString()
+                }
+            });
+
+            Assert.That(
+                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                    referenced.Thumbprint, endpoints, null, s_telemetry),
+                Is.True,
+                "a certificate presented by an endpoint must be reported as referenced");
+            Assert.That(
+                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                    other.Thumbprint, endpoints, null, s_telemetry),
+                Is.False,
+                "a certificate not presented by any endpoint must not be reported as referenced");
+        }
+
+        [Test]
+        public void IsCertificateReferencedByEndpointReturnsFalseForAnEmptyEndpointSet()
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Unreferenced " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            Assert.That(
+                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                    certificate.Thumbprint, default, null, s_telemetry),
+                Is.False);
+        }
+
+        [Test]
+        public void IsCertificateReferencedByEndpointResolvesTheCurrentCertificateFromTheRegistry()
+        {
+            // Regression for the endpoint-reference check using startup-only
+            // EndpointDescription.ServerCertificate data (OPC 10000-12 §7.10.7):
+            // after a rotation the endpoint's cached ServerCertificate blob is
+            // the previous certificate (A) while the live registry maps the
+            // endpoint's SecurityPolicyUri to the rotated certificate (B). The
+            // check must protect B (the certificate presented right now) and
+            // must NOT protect A (no longer presented), resolving the
+            // assignment from the registry rather than the stale blob.
+            using Certificate previous = CertificateBuilder
+                .Create("CN=Rotated Out " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate rotated = CertificateBuilder
+                .Create("CN=Currently Presented " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            // The endpoint still advertises the stale previous-certificate blob.
+            ArrayOf<EndpointDescription> endpoints = ArrayOf.Wrapped(new[]
+            {
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                    ServerCertificate = previous.RawData.ToByteString()
+                }
+            });
+
+            using var emptyIssuerChain = new CertificateCollection();
+            using var liveEntry = new CertificateEntry(
+                rotated, emptyIssuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            var registry = new Mock<ICertificateRegistry>();
+            registry
+                .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(It.IsAny<string>()))
+                .Returns(() => liveEntry.AddRef());
+
+            Assert.That(
+                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                    rotated.Thumbprint, endpoints, registry.Object, s_telemetry),
+                Is.True,
+                "the certificate currently presented (resolved from the registry) must be protected");
+            Assert.That(
+                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                    previous.Thumbprint, endpoints, registry.Object, s_telemetry),
+                Is.False,
+                "the stale endpoint blob must not keep a rotated-out certificate referenced");
+        }
+
+        [Test]
+        public void IsCertificateReferencedByEndpointIgnoresUnencryptedEndpointsWhenRegistryPresent()
+        {
+            // An endpoint that does not require encryption presents no channel
+            // certificate, so it must never keep a certificate referenced when
+            // the live registry is consulted.
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Unencrypted " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            ArrayOf<EndpointDescription> endpoints = ArrayOf.Wrapped(new[]
+            {
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None,
+                    ServerCertificate = certificate.RawData.ToByteString()
+                }
+            });
+
+            using var emptyIssuerChain = new CertificateCollection();
+            using var liveEntry = new CertificateEntry(
+                certificate, emptyIssuerChain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
+            var registry = new Mock<ICertificateRegistry>();
+            registry
+                .Setup(r => r.AcquireApplicationCertificateBySecurityPolicy(It.IsAny<string>()))
+                .Returns(() => liveEntry.AddRef());
+
+            Assert.That(
+                ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                    certificate.Thumbprint, endpoints, registry.Object, s_telemetry),
+                Is.False);
         }
 
         private (CertificateStoreIdentifier TrustedStore, CertificateStoreIdentifier IssuerStore) CreateEmptyStores()

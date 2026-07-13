@@ -98,7 +98,7 @@ namespace Opc.Ua.Server
         /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
         /// another Session already owns the active transaction, or with
         /// <see cref="StatusCodes.BadInvalidState"/> when the owning
-        /// Session's own <see cref="ApplyChangesAsync"/> commit is still in
+        /// Session's own <see cref="ApplyChangesAsync(NodeId, CancellationToken)"/> commit is still in
         /// flight.
         /// </exception>
         void Stage(NodeId sessionId, PushConfigurationOperation operation);
@@ -146,15 +146,52 @@ namespace Opc.Ua.Server
         /// method returns.
         /// </remarks>
         /// <returns>
+        /// <see cref="StatusCodes.BadInvalidState"/> when a
+        /// <see cref="TrustList"/> is still open for writing (§7.10.9) - this
+        /// takes precedence over every other result, including when no
+        /// transaction is active, so the caller learns to close the writer
+        /// and retry rather than receiving <see cref="StatusCodes.BadNothingToDo"/>;
         /// <see cref="StatusCodes.BadNothingToDo"/> when no transaction is
-        /// active, <see cref="StatusCodes.BadSessionIdInvalid"/> when
+        /// active; <see cref="StatusCodes.BadSessionIdInvalid"/> when
         /// <paramref name="sessionId"/> does not own the active
-        /// transaction, <see cref="StatusCodes.BadInvalidState"/> when a
-        /// <see cref="TrustList"/> is still open for writing or a previous
-        /// commit for the same transaction is still in flight, otherwise
-        /// the result of applying every staged operation.
+        /// transaction; <see cref="StatusCodes.BadInvalidState"/> when a
+        /// previous commit for the same transaction is still in flight;
+        /// otherwise the result of applying every staged operation.
         /// </returns>
         ValueTask<ServiceResult> ApplyChangesAsync(NodeId sessionId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Overload of <see cref="ApplyChangesAsync(NodeId, CancellationToken)"/>
+        /// that additionally records the certificate groups and TrustLists
+        /// actually committed by <b>this</b> apply into
+        /// <paramref name="committedEffects"/>.
+        /// </summary>
+        /// <remarks>
+        /// The caller supplies a fresh, apply-local
+        /// <see cref="PushConfigurationApplyEffects"/> instance and reads it
+        /// back once this method returns. Because the collector is populated
+        /// from the operations this specific commit runs - while the calling
+        /// Session still owns the transaction - the caller obtains exactly the
+        /// targets it committed, never a later <see cref="GetSnapshot"/> that
+        /// may already reflect another Session's transaction started in the
+        /// window after ownership is released. This mirrors the apply-local
+        /// certificate-rotation collection used by
+        /// <see cref="ConfigurationNodeManager"/>.
+        /// </remarks>
+        /// <param name="sessionId">
+        /// The Session that owns the transaction being committed.
+        /// </param>
+        /// <param name="committedEffects">
+        /// An apply-local collector, owned by the caller, that this method
+        /// fills with the committed certificate groups and TrustLists.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// A token used to cancel the commit.
+        /// </param>
+        ValueTask<ServiceResult> ApplyChangesAsync(
+            NodeId sessionId,
+            PushConfigurationApplyEffects committedEffects,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Cancels (discards without applying) the transaction owned by
@@ -166,7 +203,7 @@ namespace Opc.Ua.Server
         /// active, <see cref="StatusCodes.BadSessionIdInvalid"/> when
         /// <paramref name="sessionId"/> does not own the active
         /// transaction, <see cref="StatusCodes.BadInvalidState"/> when
-        /// <see cref="ApplyChangesAsync"/> already took every staged
+        /// <see cref="ApplyChangesAsync(NodeId, CancellationToken)"/> already took every staged
         /// operation and is committing/rolling them back, otherwise
         /// <see cref="StatusCodes.Good"/>.
         /// </returns>
@@ -174,7 +211,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Cancels the active transaction if it is owned by <paramref name="sessionId"/>;
-        /// a no-op otherwise (including while <see cref="ApplyChangesAsync"/>
+        /// a no-op otherwise (including while <see cref="ApplyChangesAsync(NodeId, CancellationToken)"/>
         /// is still committing/rolling back that same Session's
         /// transaction). Used when a Session closes so an abandoned
         /// transaction does not block every other Session indefinitely.
@@ -245,6 +282,21 @@ namespace Opc.Ua.Server
         public NodeId AffectedTrustList { get; init; } = NodeId.Null;
 
         /// <summary>
+        /// Optional validation run before <b>any</b> operation in the
+        /// transaction is committed, in request order, when
+        /// <c>ApplyChanges</c> is called. OPC 10000-12 §7.10.2 requires the
+        /// Server to "verif[y] that all the changes are consistent and can be
+        /// applied without errors" and, "if any errors are found[,] all
+        /// changes are discarded". A <see cref="PrepareAsync"/> that throws
+        /// therefore aborts the whole transaction <b>before</b> any
+        /// <see cref="CommitAsync"/> runs, so no partial mutation occurs and
+        /// no rollback is required. Used, for example, by
+        /// <c>DeleteCertificate</c> to reject deleting a certificate that is
+        /// still referenced by an <c>EndpointDescription</c> (§7.10.7).
+        /// </summary>
+        public Func<CancellationToken, Task>? PrepareAsync { get; init; }
+
+        /// <summary>
         /// Applies the staged mutation to the store(s) and/or registry.
         /// Invoked once, in request order, by <c>ApplyChanges</c>.
         /// </summary>
@@ -270,12 +322,81 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Apply-local collector that captures the certificate groups and
+    /// TrustLists actually committed by a single
+    /// <see cref="IPushConfigurationTransactionCoordinator.ApplyChangesAsync(NodeId, PushConfigurationApplyEffects, CancellationToken)"/>
+    /// call.
+    /// </summary>
+    /// <remarks>
+    /// A caller creates one fresh instance per apply, passes it to the
+    /// coordinator, and reads the results back once the call returns. The
+    /// instance is owned by that single apply and must not be shared across
+    /// concurrent applies, so the committed targets it reports can never be
+    /// contaminated by a different Session's transaction started after the
+    /// committing Session released ownership.
+    /// </remarks>
+    public sealed class PushConfigurationApplyEffects
+    {
+        /// <summary>
+        /// The certificate groups committed by the apply, in commit order
+        /// without duplicates.
+        /// </summary>
+        public ArrayOf<NodeId> CertificateGroups { get; set; } = ArrayOf<NodeId>.Empty;
+
+        /// <summary>
+        /// The TrustLists committed by the apply, in commit order without
+        /// duplicates.
+        /// </summary>
+        public ArrayOf<NodeId> TrustLists { get; set; } = ArrayOf<NodeId>.Empty;
+    }
+
+    /// <summary>
+    /// The lifecycle state of the PushManagement transaction represented by
+    /// a <see cref="PushConfigurationTransactionSnapshot"/>, mapped to the
+    /// OPC 10000-12 §7.10.17 <c>TransactionDiagnostics</c> DataValue status
+    /// semantics.
+    /// </summary>
+    public enum PushConfigurationTransactionState
+    {
+        /// <summary>
+        /// No transaction has ever started on this coordinator. Every
+        /// <c>TransactionDiagnostics</c> Variable reads with a status of
+        /// <see cref="StatusCodes.BadOutOfService"/> (§7.10.17).
+        /// </summary>
+        None,
+
+        /// <summary>
+        /// A transaction has started (at least one operation staged) but has
+        /// not completed. The <c>Result</c> Variable reads with a status of
+        /// <see cref="StatusCodes.BadInvalidState"/> and <c>EndTime</c> reads
+        /// <see cref="DateTime.MinValue"/> (§7.10.17).
+        /// </summary>
+        Active,
+
+        /// <summary>
+        /// The most recent transaction has completed (via <c>ApplyChanges</c>,
+        /// <c>CancelChanges</c>, a Session close, or a failed commit). The
+        /// <c>Result</c> Variable reads with a status of
+        /// <see cref="StatusCodes.Good"/> and its value is the outcome
+        /// <see cref="StatusCode"/> (§7.10.17).
+        /// </summary>
+        Completed
+    }
+
+    /// <summary>
     /// Point-in-time snapshot of the active (or most recently completed)
     /// PushManagement transaction, used to populate the standard
     /// <c>TransactionDiagnostics</c> address-space node.
     /// </summary>
     public sealed class PushConfigurationTransactionSnapshot
     {
+        /// <summary>
+        /// The lifecycle state of the transaction, used to derive the
+        /// §7.10.17 DataValue status of each <c>TransactionDiagnostics</c>
+        /// Variable.
+        /// </summary>
+        public PushConfigurationTransactionState State { get; init; }
+
         /// <summary>
         /// <see langword="true"/> when a transaction is currently active.
         /// </summary>

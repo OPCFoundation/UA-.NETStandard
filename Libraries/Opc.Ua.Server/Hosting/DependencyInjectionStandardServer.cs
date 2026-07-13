@@ -30,6 +30,7 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
 
@@ -125,14 +126,71 @@ namespace Opc.Ua.Server.Hosting
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
+            // A custom coordinator (if any) is honored as-is. When none is
+            // registered (the default), this resolves to null so each server's
+            // ConfigurationNodeManager creates and owns its own per-server
+            // coordinator - the coordinator holds mutable per-transaction state
+            // and must never be shared across servers built from one container.
             IPushConfigurationTransactionCoordinator? coordinator =
                 m_services.GetService<IPushConfigurationTransactionCoordinator>();
             IPendingCertificateKeyStore? pendingKeyStore =
                 m_services.GetService<IPendingCertificateKeyStore>();
+            IPushCertificateKeyGenerator? keyGenerator =
+                m_services.GetService<IPushCertificateKeyGenerator>();
+            IPushConfigurationTrustListEffectHandler? trustListEffectHandler =
+                m_services.GetService<IPushConfigurationTrustListEffectHandler>();
 
-            return coordinator != null || pendingKeyStore != null
-                ? new MainNodeManagerFactory(configuration, server, coordinator, pendingKeyStore)
+            // Resolve the Optional §7.10.3 ServerConfiguration surface. The
+            // value options (HasSecureElement/InApplicationSetup/timers) come
+            // from IOptions or a directly-registered instance; the providers may
+            // be registered either as standalone DI services or set on the
+            // options. A DI-registered provider takes precedence.
+            ServerConfigurationOptions? serverConfigurationOptions =
+                ResolveServerConfigurationOptions();
+
+            bool hasSurface = serverConfigurationOptions != null;
+
+            return coordinator != null || pendingKeyStore != null || keyGenerator != null ||
+                    trustListEffectHandler != null || hasSurface
+                ? new MainNodeManagerFactory(
+                    configuration,
+                    server,
+                    coordinator,
+                    pendingKeyStore,
+                    keyGenerator,
+                    trustListEffectHandler,
+                    serverConfigurationOptions)
                 : base.CreateMainNodeManagerFactory(server, configuration);
+        }
+
+        /// <summary>
+        /// Builds the <see cref="ServerConfigurationOptions"/> for the
+        /// configuration node manager by merging directly-registered value
+        /// options (via <see cref="IOptions{TOptions}"/> or a registered
+        /// instance) with any standalone provider services. Returns
+        /// <see langword="null"/> when nothing configures the Optional surface,
+        /// so the default (identity Properties only) behaviour is preserved.
+        /// </summary>
+        private ServerConfigurationOptions? ResolveServerConfigurationOptions()
+        {
+            ServerConfigurationOptions? options =
+                m_services.GetService<IOptions<ServerConfigurationOptions>>()?.Value
+                ?? m_services.GetService<ServerConfigurationOptions>();
+
+            IServerConfigurationResetProvider? resetProvider =
+                m_services.GetService<IServerConfigurationResetProvider>();
+            IApplicationConfigurationFileProvider? configurationFileProvider =
+                m_services.GetService<IApplicationConfigurationFileProvider>();
+
+            if (options == null && resetProvider == null && configurationFileProvider == null)
+            {
+                return null;
+            }
+
+            options ??= new ServerConfigurationOptions();
+            options.ResetProvider ??= resetProvider;
+            options.ConfigurationFileProvider ??= configurationFileProvider;
+            return options;
         }
 
         /// <inheritdoc/>

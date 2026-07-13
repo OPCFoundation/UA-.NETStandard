@@ -50,6 +50,8 @@ namespace Opc.Ua.Server.Tests
     {
         private static readonly int[] s_expectedCommitOrder = [1, 2];
         private static readonly int[] s_expectedRollbackOrder = [2, 1];
+        private static readonly string[] s_expectedPrepareCommitOrder =
+            ["prepare-1", "prepare-2", "commit-1", "commit-2"];
 
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
         private static readonly NodeId s_sessionA = new(Guid.NewGuid(), 1);
@@ -717,6 +719,276 @@ namespace Opc.Ua.Server.Tests
         {
             var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
             Assert.Throws<ArgumentNullException>(() => coordinator.Stage(s_sessionA, null!));
+        }
+
+        [Test]
+        public async Task ApplyChangesRunsEveryPrepareStepBeforeAnyCommitAsync()
+        {
+            // OPC 10000-12 §7.10.2: the Server verifies that all changes are
+            // consistent before applying any of them. Every PrepareAsync must
+            // therefore run before the first CommitAsync.
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            var order = new System.Collections.Generic.List<string>();
+
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                PrepareAsync = _ =>
+                {
+                    order.Add("prepare-1");
+                    return Task.CompletedTask;
+                },
+                CommitAsync = _ =>
+                {
+                    order.Add("commit-1");
+                    return Task.CompletedTask;
+                }
+            });
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedTrustList = new NodeId(Guid.NewGuid(), 1),
+                PrepareAsync = _ =>
+                {
+                    order.Add("prepare-2");
+                    return Task.CompletedTask;
+                },
+                CommitAsync = _ =>
+                {
+                    order.Add("commit-2");
+                    return Task.CompletedTask;
+                }
+            });
+
+            ServiceResult result = await coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(order, Is.EqualTo(s_expectedPrepareCommitOrder));
+        }
+
+        [Test]
+        public async Task ApplyChangesWithFailingPrepareDiscardsTransactionWithoutCommittingAsync()
+        {
+            // A PrepareAsync that throws (for example DeleteCertificate
+            // rejecting a still-referenced certificate, §7.10.7) must abort
+            // the whole transaction before any operation commits, and every
+            // staged operation must still be disposed.
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            bool firstCommitted = false;
+            bool secondCommitted = false;
+            bool firstDisposed = false;
+            bool secondDisposed = false;
+
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ =>
+                {
+                    firstCommitted = true;
+                    return Task.CompletedTask;
+                },
+                DisposeStaged = () => firstDisposed = true
+            });
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedTrustList = new NodeId(Guid.NewGuid(), 1),
+                PrepareAsync = _ => throw new ServiceResultException(StatusCodes.BadInvalidState, "referenced"),
+                CommitAsync = _ =>
+                {
+                    secondCommitted = true;
+                    return Task.CompletedTask;
+                },
+                DisposeStaged = () => secondDisposed = true
+            });
+
+            ServiceResult result = await coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(firstCommitted, Is.False, "no operation may commit when a prepare step fails");
+            Assert.That(secondCommitted, Is.False);
+            Assert.That(firstDisposed, Is.True, "every staged operation must be disposed");
+            Assert.That(secondDisposed, Is.True);
+            Assert.That(coordinator.IsTransactionActive, Is.False);
+
+            PushConfigurationTransactionSnapshot snapshot = coordinator.GetSnapshot();
+            Assert.That(snapshot.Result, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(snapshot.Errors, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void StagingSameSlotAfterAnInterleavedOperationKeepsTheSurvivorLastInRequestOrder()
+        {
+            // §7.10.2: the Server queues the changes "in the order that they
+            // were requested". When a same-slot certificate operation is
+            // superseded, the surviving (later) request must retain its later
+            // request order relative to an operation staged in between, and
+            // interleaved non-slot (TrustList) operations must never coalesce.
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            var group = new NodeId(Guid.NewGuid(), 1);
+            var certType = new NodeId(Guid.NewGuid(), 1);
+            var trustListId = new NodeId(Guid.NewGuid(), 1);
+
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedCertificateGroup = group,
+                AffectedCertificateType = certType,
+                CommitAsync = _ => Task.CompletedTask
+            });
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedTrustList = trustListId,
+                CommitAsync = _ => Task.CompletedTask
+            });
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedCertificateGroup = group,
+                AffectedCertificateType = certType,
+                LeavesCertificateSlotEmpty = true,
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            ArrayOf<PushConfigurationOperation> staged = coordinator.GetStagedOperations();
+
+            Assert.That(staged, Has.Count.EqualTo(2), "the superseded same-slot operation must be discarded");
+            Assert.That(
+                staged[0].AffectedTrustList,
+                Is.EqualTo(trustListId),
+                "the interleaved TrustList operation must keep its request-order position");
+            Assert.That(
+                staged[1].AffectedCertificateType,
+                Is.EqualTo(certType),
+                "the surviving same-slot operation must be applied after the earlier TrustList operation");
+            Assert.That(
+                staged[1].LeavesCertificateSlotEmpty,
+                Is.True,
+                "the surviving operation must be the later (delete) request, not the earlier one");
+        }
+
+        [Test]
+        public void GetSnapshotStateIsNoneBeforeAnyTransaction()
+        {
+            // OPC 10000-12 §7.10.17: "If no transaction has started the values
+            // of all Variables have a status of Bad_OutOfService." The snapshot
+            // reports this via State == None.
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+
+            PushConfigurationTransactionSnapshot snapshot = coordinator.GetSnapshot();
+
+            Assert.That(snapshot.State, Is.EqualTo(PushConfigurationTransactionState.None));
+            Assert.That(snapshot.IsActive, Is.False);
+            Assert.That(snapshot.AffectedCertificateGroups, Is.Empty);
+            Assert.That(snapshot.AffectedTrustLists, Is.Empty);
+            Assert.That(snapshot.Errors, Is.Empty);
+        }
+
+        [Test]
+        public void GetSnapshotStateIsActiveWhileTransactionInFlightAndReflectsStagedTargets()
+        {
+            // §7.10.17: while a transaction has started but not completed the
+            // snapshot reports State == Active, and AffectedCertificateGroups /
+            // AffectedTrustLists reflect the targets staged so far (updated "as
+            // soon as" a group/TrustList is added to the transaction).
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            var group = new NodeId(Guid.NewGuid(), 1);
+            var trustListId = new NodeId(Guid.NewGuid(), 1);
+
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedCertificateGroup = group,
+                AffectedCertificateType = new NodeId(Guid.NewGuid(), 1),
+                CommitAsync = _ => Task.CompletedTask
+            });
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedTrustList = trustListId,
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            PushConfigurationTransactionSnapshot snapshot = coordinator.GetSnapshot();
+
+            Assert.That(snapshot.State, Is.EqualTo(PushConfigurationTransactionState.Active));
+            Assert.That(snapshot.IsActive, Is.True);
+            Assert.That(snapshot.AffectedCertificateGroups.Contains(group), Is.True);
+            Assert.That(snapshot.AffectedTrustLists.Contains(trustListId), Is.True);
+            Assert.That(snapshot.Errors, Is.Empty, "no errors are recorded until a commit runs");
+        }
+
+        [Test]
+        public async Task GetSnapshotStateIsCompletedWithGoodResultAfterApplyAsync()
+        {
+            // §7.10.17: once the transaction completes the status is Good and
+            // the value is the StatusCode returned from ApplyChanges.
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            await coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None).ConfigureAwait(false);
+
+            PushConfigurationTransactionSnapshot snapshot = coordinator.GetSnapshot();
+            Assert.That(snapshot.State, Is.EqualTo(PushConfigurationTransactionState.Completed));
+            Assert.That(snapshot.Result, Is.EqualTo((StatusCode)StatusCodes.Good));
+        }
+
+        [Test]
+        public void GetSnapshotStateIsCompletedAfterCancel()
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            coordinator.CancelChanges(s_sessionA);
+
+            PushConfigurationTransactionSnapshot snapshot = coordinator.GetSnapshot();
+            Assert.That(snapshot.State, Is.EqualTo(PushConfigurationTransactionState.Completed));
+            Assert.That(snapshot.Result, Is.EqualTo((StatusCode)StatusCodes.BadRequestCancelledByClient));
+        }
+
+        [Test]
+        public async Task GetSnapshotStateIsCompletedWithFailingResultAfterFailedCommitAsync()
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ => throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "bad")
+            });
+
+            await coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None).ConfigureAwait(false);
+
+            PushConfigurationTransactionSnapshot snapshot = coordinator.GetSnapshot();
+            Assert.That(snapshot.State, Is.EqualTo(PushConfigurationTransactionState.Completed));
+            Assert.That(snapshot.Result, Is.EqualTo((StatusCode)StatusCodes.BadCertificateInvalid));
+        }
+
+        [Test]
+        public async Task ApplyChangesWithOpenTrustListWriterAndNoActiveTransactionReturnsBadInvalidStateAsync()
+        {
+            // OPC 10000-12 §7.10.9: ApplyChanges returns Bad_InvalidState if any
+            // TrustList is still open for writing. This precedence holds even
+            // when no transaction is active, so the caller learns to close the
+            // writer and retry rather than receiving BadNothingToDo.
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            var trustListId = new NodeId(Guid.NewGuid(), 1);
+            coordinator.SetTrustListWriteOpen(trustListId, true);
+
+            Assert.That(coordinator.IsTransactionActive, Is.False, "no transaction has been staged");
+
+            ServiceResult result = await coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState),
+                "an open TrustList writer takes precedence over BadNothingToDo");
+
+            coordinator.SetTrustListWriteOpen(trustListId, false);
+            ServiceResult afterClose = await coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(
+                afterClose.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo),
+                "once every writer is closed and nothing is staged the result is BadNothingToDo");
         }
     }
 }

@@ -41,6 +41,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -82,7 +83,11 @@ namespace Opc.Ua.Bindings
     /// supported.
     /// </para>
     /// </remarks>
-    public sealed class KestrelTcpTransportListener : ITransportListener, ITcpChannelListener, ITransportListenerCertificateRotation
+    public sealed class KestrelTcpTransportListener
+        : ITransportListener,
+            ITcpChannelListener,
+            ITransportListenerCertificateRotation,
+            ITransportListenerPeerCertificateRotation
     {
         /// <summary>
         /// Create a new listener.
@@ -243,7 +248,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
-            Opc.Ua.Security.Certificates.Certificate oldCertificate,
+            Certificate oldCertificate,
             CancellationToken ct = default)
         {
             if (oldCertificate == null)
@@ -297,13 +302,121 @@ namespace Opc.Ua.Bindings
             return new ValueTask<IReadOnlyList<string>>(closed);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The Kestrel-hosted <c>opc.tcp</c> transport validates the client
+        /// application certificate presented during <c>OpenSecureChannel</c>
+        /// against the <see cref="TrustListIdentifier.Peers"/> store, so only
+        /// a change to that TrustList forces this listener's channels to
+        /// renegotiate.
+        /// </remarks>
+        public TrustListIdentifier PeerCertificateTrustListScope => TrustListIdentifier.Peers;
+
+        /// <inheritdoc/>
+        public ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersAsync(
+            Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct = default)
+        {
+            if (isPeerTrustedAsync == null)
+            {
+                throw new ArgumentNullException(nameof(isPeerTrustedAsync));
+            }
+
+            // Snapshot the channel map so we can iterate without racing
+            // channel registration/unregistration while re-validating peer
+            // certificates and invoking per-channel close paths (each channel
+            // acquires its own DataLock internally).
+            (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries =
+                m_channels?.Values.ToArray()
+                ?? Array.Empty<(TcpListenerChannel, TaskCompletionSource<bool>)>();
+
+            if (entries.Length == 0)
+            {
+                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
+            }
+
+            return CloseChannelsForUntrustedPeersCoreAsync(entries, isPeerTrustedAsync, ct);
+        }
+
+        private async ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersCoreAsync(
+            (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries,
+            Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct)
+        {
+            var closed = new List<string>(entries.Length);
+            foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry in entries)
+            {
+                TcpListenerChannel channel = entry.Channel;
+                Certificate? peerCertificate = null;
+                try
+                {
+                    peerCertificate = channel.SnapshotClientCertificateForRevalidation();
+                    if (peerCertificate == null)
+                    {
+                        // No client certificate (e.g. SecurityPolicy.None) —
+                        // the channel is unaffected by a peer-trust change.
+                        continue;
+                    }
+
+                    bool trusted;
+                    try
+                    {
+                        trusted = await isPeerTrustedAsync(peerCertificate, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Best-effort: if trust cannot be determined, leave
+                        // the channel open rather than cutting a possibly
+                        // still-trusted peer.
+                        Logger.LogWarning(
+                            ex,
+                            "KestrelTcp failed to re-validate certificate for channel {ChannelId}; leaving it open.",
+                            channel.GlobalChannelId);
+                        continue;
+                    }
+
+                    if (trusted)
+                    {
+                        continue;
+                    }
+
+                    if (channel.CloseForUntrustedPeerCertificate(out string? globalChannelId) &&
+                        !string.IsNullOrEmpty(globalChannelId))
+                    {
+                        closed.Add(globalChannelId!);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort: log and continue closing remaining
+                    // channels. Failure to close one channel must not block
+                    // others from being renegotiated.
+                    Logger.LogWarning(
+                        ex,
+                        "KestrelTcp failed to close channel {ChannelId} for peer-certificate trust change.",
+                        channel.GlobalChannelId);
+                }
+                finally
+                {
+                    peerCertificate?.Dispose();
+                }
+            }
+
+            Logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "KestrelTcp closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.",
+                closed.Count);
+
+            return closed;
+        }
+
         /// <inheritdoc cref="ITcpChannelListener.ReconnectToExistingChannel"/>
         public bool ReconnectToExistingChannel(
             IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            Opc.Ua.Security.Certificates.Certificate clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {

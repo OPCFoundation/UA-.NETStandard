@@ -226,15 +226,49 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<ServiceResult> ApplyChangesAsync(
+        public ValueTask<ServiceResult> ApplyChangesAsync(
             NodeId sessionId,
             CancellationToken cancellationToken = default)
+        {
+            return ApplyChangesCoreAsync(sessionId, committedEffects: null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> ApplyChangesAsync(
+            NodeId sessionId,
+            PushConfigurationApplyEffects committedEffects,
+            CancellationToken cancellationToken = default)
+        {
+            if (committedEffects == null)
+            {
+                throw new ArgumentNullException(nameof(committedEffects));
+            }
+
+            return ApplyChangesCoreAsync(sessionId, committedEffects, cancellationToken);
+        }
+
+        private async ValueTask<ServiceResult> ApplyChangesCoreAsync(
+            NodeId sessionId,
+            PushConfigurationApplyEffects? committedEffects,
+            CancellationToken cancellationToken)
         {
             List<PushConfigurationOperation> operations;
             DateTime startTime;
 
             lock (m_lock)
             {
+                if (m_openTrustListWriters.Count > 0)
+                {
+                    // §7.10.9: ApplyChanges returns Bad_InvalidState if any
+                    // TrustList is still open for writing. This precedence
+                    // holds even when no transaction is active, so the caller
+                    // learns to close the writer and retry rather than
+                    // receiving BadNothingToDo. Do not change transaction
+                    // state: the caller may retry once every open TrustList
+                    // handle has been closed.
+                    return StatusCodes.BadInvalidState;
+                }
+
                 if (!m_isActive)
                 {
                     return StatusCodes.BadNothingToDo;
@@ -243,13 +277,6 @@ namespace Opc.Ua.Server
                 if (!Utils.IsEqual(m_ownerSessionId, sessionId))
                 {
                     return StatusCodes.BadSessionIdInvalid;
-                }
-
-                if (m_openTrustListWriters.Count > 0)
-                {
-                    // Do not change transaction state: the caller may retry
-                    // once every open TrustList handle has been closed.
-                    return StatusCodes.BadInvalidState;
                 }
 
                 if (m_isCommitting)
@@ -282,13 +309,21 @@ namespace Opc.Ua.Server
 
             try
             {
+                // §7.10.2: verify that all staged changes are consistent and
+                // can be applied without errors before mutating anything. A
+                // failing PrepareAsync (e.g. deleting a still-referenced
+                // certificate, §7.10.7) discards the whole transaction without
+                // committing any operation, so no rollback is needed.
                 foreach (PushConfigurationOperation operation in operations)
                 {
+                    if (operation.PrepareAsync == null)
+                    {
+                        continue;
+                    }
+
                     try
                     {
-                        await operation.CommitAsync(cancellationToken).ConfigureAwait(false);
-                        committedCount++;
-                        RecordAffected(operation, affectedCertificateGroups, affectedTrustLists);
+                        await operation.PrepareAsync(cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -302,6 +337,32 @@ namespace Opc.Ua.Server
                             Message = LocalizedText.From(ex.Message)
                         });
                         break;
+                    }
+                }
+
+                if (ServiceResult.IsGood(result))
+                {
+                    foreach (PushConfigurationOperation operation in operations)
+                    {
+                        try
+                        {
+                            await operation.CommitAsync(cancellationToken).ConfigureAwait(false);
+                            committedCount++;
+                            RecordAffected(operation, affectedCertificateGroups, affectedTrustLists);
+                        }
+                        catch (Exception ex)
+                        {
+                            result = new ServiceResult(ex);
+                            errors.Add(new TransactionErrorType
+                            {
+                                TargetId = operation.AffectedCertificateGroup.IsNull
+                                    ? operation.AffectedTrustList
+                                    : operation.AffectedCertificateGroup,
+                                Error = result.StatusCode,
+                                Message = LocalizedText.From(ex.Message)
+                            });
+                            break;
+                        }
                     }
                 }
 
@@ -368,6 +429,7 @@ namespace Opc.Ua.Server
                     m_lastAffectedCertificateGroups = affectedCertificateGroups.ToArrayOf();
                     m_lastAffectedTrustLists = affectedTrustLists.ToArrayOf();
                     m_lastErrors = errors.ToArrayOf();
+                    m_hasCompletedTransaction = true;
 
                     // Release ownership only now: commit/rollback and
                     // diagnostics finalization are both complete, so a new
@@ -377,6 +439,17 @@ namespace Opc.Ua.Server
                     m_isCommitting = false;
                     m_ownerSessionId = NodeId.Null;
                 }
+            }
+
+            if (committedEffects != null)
+            {
+                // Report the exact certificate groups and TrustLists this
+                // apply committed. Captured here, before returning, from the
+                // operations this commit ran - never from a later
+                // GetSnapshot() that may already reflect another Session's
+                // transaction started once ownership was released above.
+                committedEffects.CertificateGroups = affectedCertificateGroups.ToArrayOf();
+                committedEffects.TrustLists = affectedTrustLists.ToArrayOf();
             }
 
             return result;
@@ -493,16 +566,44 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                PushConfigurationTransactionState state = m_isActive
+                    ? PushConfigurationTransactionState.Active
+                    : m_hasCompletedTransaction
+                        ? PushConfigurationTransactionState.Completed
+                        : PushConfigurationTransactionState.None;
+
+                ArrayOf<NodeId> affectedCertificateGroups;
+                ArrayOf<NodeId> affectedTrustLists;
+                ArrayOf<TransactionErrorType> errors;
+                if (m_isActive)
+                {
+                    // §7.10.17: AffectedCertificateGroups/AffectedTrustLists
+                    // are updated as soon as a group/TrustList is added to the
+                    // active transaction, so report the currently staged
+                    // operations rather than the previous transaction's
+                    // committed set (which is discarded when a new transaction
+                    // starts). No errors are recorded until a commit runs.
+                    CollectAffected(m_operations, out affectedCertificateGroups, out affectedTrustLists);
+                    errors = ArrayOf<TransactionErrorType>.Empty;
+                }
+                else
+                {
+                    affectedCertificateGroups = m_lastAffectedCertificateGroups;
+                    affectedTrustLists = m_lastAffectedTrustLists;
+                    errors = m_lastErrors;
+                }
+
                 return new PushConfigurationTransactionSnapshot
                 {
+                    State = state,
                     IsActive = m_isActive,
                     OwnerSessionId = m_isActive ? m_ownerSessionId : NodeId.Null,
                     StartTime = m_isActive ? m_startTime : m_lastStartTime,
                     EndTime = m_isActive ? DateTime.MinValue : m_lastEndTime,
                     Result = m_isActive ? StatusCodes.Good : m_lastResult,
-                    AffectedCertificateGroups = m_lastAffectedCertificateGroups,
-                    AffectedTrustLists = m_lastAffectedTrustLists,
-                    Errors = m_lastErrors
+                    AffectedCertificateGroups = affectedCertificateGroups,
+                    AffectedTrustLists = affectedTrustLists,
+                    Errors = errors
                 };
             }
         }
@@ -541,6 +642,22 @@ namespace Opc.Ua.Server
             }
         }
 
+        private static void CollectAffected(
+            List<PushConfigurationOperation> operations,
+            out ArrayOf<NodeId> affectedCertificateGroups,
+            out ArrayOf<NodeId> affectedTrustLists)
+        {
+            var groups = new List<NodeId>();
+            var trustLists = new List<NodeId>();
+            foreach (PushConfigurationOperation operation in operations)
+            {
+                RecordAffected(operation, groups, trustLists);
+            }
+
+            affectedCertificateGroups = groups.ToArrayOf();
+            affectedTrustLists = trustLists.ToArrayOf();
+        }
+
         private void DiscardOperations(
             List<PushConfigurationOperation> operations,
             DateTime startTime,
@@ -574,6 +691,7 @@ namespace Opc.Ua.Server
                 m_lastAffectedCertificateGroups = affectedCertificateGroups.ToArrayOf();
                 m_lastAffectedTrustLists = affectedTrustLists.ToArrayOf();
                 m_lastErrors = ArrayOf<TransactionErrorType>.Empty;
+                m_hasCompletedTransaction = true;
             }
         }
 
@@ -582,6 +700,7 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private bool m_isActive;
         private bool m_isCommitting;
+        private bool m_hasCompletedTransaction;
         private NodeId m_ownerSessionId = NodeId.Null;
         private DateTime m_startTime;
         private List<PushConfigurationOperation> m_operations = [];
