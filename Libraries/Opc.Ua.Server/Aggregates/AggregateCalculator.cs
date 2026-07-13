@@ -115,7 +115,8 @@ namespace Opc.Ua.Server
             }
 
             // ignore placeholders in the stream.
-            if (value.StatusCode == StatusCodes.BadNoData)
+            if (value.StatusCode == StatusCodes.BadNoData ||
+                value.StatusCode == StatusCodes.BadBoundNotFound)
             {
                 return true;
             }

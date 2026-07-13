@@ -191,6 +191,73 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [TestCase("DurationGood")]
+        [TestCase("PercentGood")]
+        [TestCase("WorstQuality2")]
+        [TestCase("StartBound")]
+        public async Task BadBoundNotFoundPlaceholderIsNotAggregateInputAsync(string aggregateName)
+        {
+            List<DataValue> raw = CreateRamp(BuiltInType.Int32, 10);
+            DateTimeUtc start = At(-10);
+            DateTimeUtc end = At(50);
+            AggregateConfiguration configuration = CreateConfiguration();
+            NodeId aggregateId = GetAggregateId(aggregateName);
+
+            List<DataValue> expected = RunDirect(
+                aggregateId,
+                raw,
+                start,
+                end,
+                c_interval,
+                configuration);
+
+            var withMissingBound = new List<DataValue>(raw.Count + 1)
+            {
+                new(
+                    Variant.Null,
+                    StatusCodes.BadBoundNotFound,
+                    sourceTimestamp: start,
+                    serverTimestamp: DateTimeUtc.MinValue)
+            };
+            withMissingBound.AddRange(raw);
+
+            List<DataValue> direct = RunDirect(
+                aggregateId,
+                withMissingBound,
+                start,
+                end,
+                c_interval,
+                configuration);
+
+            using var harness = new Harness();
+            List<DataValue> live = await harness
+                .ReadProcessedAsync(aggregateId, raw, start, end, c_interval, configuration)
+                .ConfigureAwait(false);
+
+            Assert.That(direct, Is.EqualTo(expected), "direct calculator");
+            Assert.That(live, Has.Count.EqualTo(expected.Count), "live historian count");
+            for (int index = 0; index < expected.Count; index++)
+            {
+                Assert.That(
+                    live[index].WrappedValue,
+                    Is.EqualTo(expected[index].WrappedValue),
+                    $"live historian value[{index}]");
+                Assert.That(
+                    live[index].StatusCode,
+                    Is.EqualTo(expected[index].StatusCode),
+                    $"live historian status[{index}]");
+                Assert.That(
+                    live[index].SourceTimestamp,
+                    Is.EqualTo(expected[index].SourceTimestamp),
+                    $"live historian timestamp[{index}]");
+            }
+            Assert.That(
+                live,
+                Has.None.Matches<DataValue>(value =>
+                    value.StatusCode == StatusCodes.BadBoundNotFound),
+                "A synthetic missing-bound marker must never appear in processed results.");
+        }
+
         private static async Task AssertConstantAsync(
             string aggregateName,
             List<DataValue> raw,

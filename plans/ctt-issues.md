@@ -911,6 +911,28 @@ actual seed data: an all-Good linear ramp (`value = sample index`, 10 s spacing)
 - Small TimeAverage/Total/NumberOfTransitions boundary-convention deltas remain unclassified. No CTT
   issue or server compatibility change is claimed without a normative oracle.
 
+### Aggregate run 16 regression (server fix, not a new CTT defect)
+
+Run 16 increased from 3270 to 4126 errors without changing the CTT execution topology, scripts,
+configuration warnings, or tested node set. The +856 delta mapped exactly to tests `005-01`,
+`005-02`, `005-03`, `002-02`, and `002-03` across the aggregate families.
+
+The regression was introduced by the run-15 raw-history bounds fix. The in-memory historian correctly
+synthesizes `BadBoundNotFound` `DataValue`s to represent missing FIRST/LAST raw bounds (Part 11 §4.6),
+but the normal processed-read path queued those protocol markers into `IAggregateCalculator` as if
+they were archived Bad data. The AtTime collector already excluded the same synthetic status.
+
+Part 11 and Part 13 treat `BadBoundNotFound` as a missing-bound marker, not aggregate input. Feeding it
+into the calculator changed first/last partial intervals across every family: values became
+`BadNoData`, Percent/Duration calculations counted a false Bad region, WorstQuality returned
+`BadBoundNotFound`, and numeric aggregates lost the expected Good+Partial status.
+
+The server now ignores both `BadNoData` and `BadBoundNotFound` placeholders in
+`AggregateCalculator.QueueRawValue`. Direct and live historian regression tests cover
+DurationGood, PercentGood, WorstQuality2, and StartBound with a synthesized missing leading bound.
+This restores run-14 behavior while preserving the raw HistoryRead FIRST/LAST values. No new CTT
+issue is logged for the run-14 → run-16 increments; the pre-existing CTT issues above remain.
+
 ### Historical Access run 15 server defects now fixed
 
 The server fixes (not CTT issues) cover:
@@ -926,4 +948,3 @@ The server fixes (not CTT issues) cover:
 - exclusion of synthetic `BadBoundNotFound` protocol markers from AtTime interpolation input.
 
 These behaviors are covered by historian provider/dispatcher and end-to-end tests on net10 and net48.
-
