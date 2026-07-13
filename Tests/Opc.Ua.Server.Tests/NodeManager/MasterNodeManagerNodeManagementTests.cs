@@ -54,6 +54,8 @@ namespace Opc.Ua.Server.Tests
     [NonParallelizable]
     public class MasterNodeManagerNodeManagementTests
     {
+        private const string TestNamespaceUri = "http://test.org/UA/MasterNodeManagement/";
+
         private ServerFixture<StandardServer> m_fixture = null!;
         private StandardServer m_server = null!;
 
@@ -160,6 +162,175 @@ namespace Opc.Ua.Server.Tests
                 ctx, new AddNodesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
+        }
+
+        [Test]
+        public async Task AddNodesAsyncRequestedIdInUnownedNamespaceReturnsBadNodeIdRejectedAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext();
+            var item = new AddNodesItem
+            {
+                ParentNodeId = ObjectIds.RootFolder,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                RequestedNewNodeId = new NodeId("Requested", ushort.MaxValue),
+                BrowseName = new QualifiedName("Requested", ushort.MaxValue),
+                NodeClass = NodeClass.Object
+            };
+
+            (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
+                ctx,
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
+        }
+
+        [Test]
+        public async Task AddNodesAsyncRequestedIdInOptedOutNamespaceReturnsBadNodeIdRejectedAsync()
+        {
+            Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(false);
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            var item = new AddNodesItem
+            {
+                ParentNodeId = ObjectIds.RootFolder,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                RequestedNewNodeId = new NodeId("Requested", namespaceIndex),
+                BrowseName = new QualifiedName("Requested", namespaceIndex),
+                NodeClass = NodeClass.Object
+            };
+
+            (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
+                CreateContext(),
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
+        }
+
+        [Test]
+        public async Task AddNodesAsyncRequestedIdInSupportedNamespaceIsDispatchedAsync()
+        {
+            Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(true);
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            NodeId parentNodeId = ConfigureParent(manager, namespaceIndex);
+            var requestedNodeId = new NodeId("Requested", namespaceIndex);
+            manager
+                .Setup(m => m.AddNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddNodesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ServiceResult.Good, requestedNodeId));
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                RequestedNewNodeId = requestedNodeId,
+                BrowseName = new QualifiedName("Requested", namespaceIndex),
+                NodeClass = NodeClass.Object
+            };
+
+            (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
+                CreateContext(),
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].AddedNodeId, Is.EqualTo(requestedNodeId));
+        }
+
+        [Test]
+        public async Task AddNodesAsyncAuthorizationFailureFromOwnerIsPreservedAsync()
+        {
+            Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(true);
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            NodeId parentNodeId = ConfigureParent(manager, namespaceIndex);
+            manager
+                .Setup(m => m.AddNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddNodesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((
+                    new ServiceResult(StatusCodes.BadUserAccessDenied),
+                    NodeId.Null));
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                RequestedNewNodeId = new NodeId("Requested", namespaceIndex),
+                BrowseName = new QualifiedName("Requested", namespaceIndex),
+                NodeClass = NodeClass.Object
+            };
+
+            (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
+                CreateContext(),
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public async Task AddNodesAsyncHasSubtypeWithIncompatibleNodeClassesReturnsBadReferenceNotAllowedAsync()
+        {
+            var item = new AddNodesItem
+            {
+                ParentNodeId = ObjectIds.RootFolder,
+                ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                BrowseName = new QualifiedName("Variable", 2),
+                NodeClass = NodeClass.Variable
+            };
+
+            (ArrayOf<AddNodesResult> results, _) =
+                await m_server.CurrentInstance.NodeManager.AddNodesAsync(
+                    CreateContext(),
+                    new AddNodesItem[] { item }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
+        }
+
+        [TestCase(ValidReferenceKind.Organizes, NodeClass.Object)]
+        [TestCase(ValidReferenceKind.HasComponent, NodeClass.Variable)]
+        [TestCase(ValidReferenceKind.HasProperty, NodeClass.Variable)]
+        public async Task AddNodesAsyncValidReferenceNodeClassesAreNotRejectedAsync(
+            ValidReferenceKind referenceKind,
+            NodeClass nodeClass)
+        {
+            Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(true);
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            NodeId parentNodeId = ConfigureParent(manager, namespaceIndex);
+            var addedNodeId = new NodeId($"Added{referenceKind}", namespaceIndex);
+            manager
+                .Setup(m => m.AddNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddNodesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ServiceResult.Good, addedNodeId));
+            NodeId referenceTypeId = referenceKind switch
+            {
+                ValidReferenceKind.Organizes => ReferenceTypeIds.Organizes,
+                ValidReferenceKind.HasComponent => ReferenceTypeIds.HasComponent,
+                _ => ReferenceTypeIds.HasProperty
+            };
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentNodeId,
+                ReferenceTypeId = referenceTypeId,
+                BrowseName = new QualifiedName($"Added{referenceKind}", namespaceIndex),
+                NodeClass = nodeClass
+            };
+
+            (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
+                CreateContext(),
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -480,6 +651,39 @@ namespace Opc.Ua.Server.Tests
                 [.. nodeManagers]);
         }
 
+        private ushort GetTestNamespaceIndex()
+        {
+            return (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestNamespaceUri);
+        }
+
+        private static Mock<INodeManagerWithNodeManagement> CreateNodeManagementManager(
+            bool allowNodeManagement)
+        {
+            var manager = new Mock<INodeManagerWithNodeManagement>();
+            manager.Setup(m => m.NamespaceUris).Returns([TestNamespaceUri]);
+            manager.Setup(m => m.AllowNodeManagement).Returns(allowNodeManagement);
+            return manager;
+        }
+
+        private static NodeId ConfigureParent(
+            Mock<INodeManagerWithNodeManagement> manager,
+            ushort namespaceIndex)
+        {
+            var parentNodeId = new NodeId("Parent", namespaceIndex);
+            var parentHandle = new object();
+            manager.Setup(m => m.GetManagerHandle(parentNodeId)).Returns(parentHandle);
+            manager
+                .Setup(m => m.GetNodeMetadata(
+                    It.IsAny<OperationContext>(),
+                    parentHandle,
+                    BrowseResultMask.NodeClass))
+                .Returns(new NodeMetadata(parentHandle, parentNodeId)
+                {
+                    NodeClass = NodeClass.Object
+                });
+            return parentNodeId;
+        }
+
         private static OperationContext CreateContext()
         {
             var session = new Mock<ISession>();
@@ -497,6 +701,21 @@ namespace Opc.Ua.Server.Tests
             var requestHeader = new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask };
             return new OperationContext(
                 requestHeader, null!, RequestType.AddNodes, RequestLifetime.None, session.Object);
+        }
+
+        /// <summary>
+        /// Combines the legacy manager contract with the asynchronous NodeManagement facet.
+        /// </summary>
+        public interface INodeManagerWithNodeManagement : INodeManager, INodeManagementAsyncNodeManager;
+
+        /// <summary>
+        /// Standard concrete hierarchical references used by the valid-semantics test.
+        /// </summary>
+        public enum ValidReferenceKind
+        {
+            Organizes,
+            HasComponent,
+            HasProperty
         }
     }
 }
