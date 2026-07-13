@@ -47,3 +47,18 @@ The server will establish a reverse connection to the client endpoint, and the c
 - `-t` or `--timeout`: Timeout in seconds to exit application
 
 For the complete list of options, use `--help`.
+
+## X509 user identity certificates
+
+The reference server validates X509 **user** identity tokens against its trusted-user certificate
+store (`TrustedUserCertificates`, by default `%LocalApplicationData%/OPC Foundation/pki/trustedUser`).
+An untrusted user certificate is rejected with `BadIdentityTokenRejected` — the `--autoaccept` option
+only auto-accepts the application/channel certificate, never user identity certificates.
+
+To let a trusted client (for example the OPC Foundation Compliance Test Tool) authenticate with an
+X509 user token, its user certificate must be present in that store. To make provisioning easy, the
+server writes every **rejected** X509 user certificate to a dedicated review store,
+`pki/rejectedUser` (a sibling of `pki/trustedUser`). After one failing activation you can move the
+legitimate user certificate from `pki/rejectedUser/certs` into `pki/trustedUser/certs` (and any
+issuing CA into `pki/issuerUser/certs`) and reconnect. Deliberately-untrusted certificates simply stay
+out of the trusted store and continue to be rejected.

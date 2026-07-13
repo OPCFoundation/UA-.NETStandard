@@ -679,6 +679,15 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             StatusCode sc = response.Results[0].StatusCode;
 
+            // OPC UA Part 11 §6.5.4.2 requires BadInvalidArgument when
+            // StartTime equals EndTime because there is no meaningful processed
+            // time domain to aggregate.
+            if (arrangement == TimeArrangement.StartEqualsEnd)
+            {
+                Assert.That(sc, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                return;
+            }
+
             // The Quickstart Reference Server does not implement the
             // historical-access node manager with a seeded dataset, so it
             // legitimately returns BadHistoryOperationUnsupported for every

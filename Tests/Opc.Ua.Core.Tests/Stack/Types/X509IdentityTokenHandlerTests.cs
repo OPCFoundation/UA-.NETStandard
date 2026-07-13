@@ -105,5 +105,50 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 }
             }
         }
+
+        /// <summary>
+        /// A user identity token signature that carries an unexpected /
+        /// mismatched signature algorithm must be surfaced as the token-level
+        /// <see cref="StatusCodes.BadIdentityTokenInvalid"/>, not the
+        /// channel-level <see cref="StatusCodes.BadSecurityChecksFailed"/> that
+        /// the shared <see cref="SecurityPolicies.VerifySignatureData"/> raises
+        /// internally (OPC UA Part 4 ActivateSession user identity token
+        /// validation). Regression for CTT Security User X509 018.
+        /// </summary>
+        [Test]
+        public void VerifyWithMismatchedSignatureAlgorithmYieldsBadIdentityTokenInvalid()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=X509HandlerWrongAlg, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            var token = new X509IdentityToken
+            {
+                CertificateData = cert.RawData.ToByteString()
+            };
+            var handler = new X509IdentityTokenHandler(token);
+
+            // Basic256Sha256 expects RsaSha256; RsaSha1 is a valid-but-mismatched
+            // algorithm that makes VerifySignatureData fall through to its
+            // BadSecurityChecksFailed guard. The signature bytes are irrelevant
+            // because the algorithm mismatch short-circuits before the crypto verify.
+            var signature = new SignatureData
+            {
+                Algorithm = SecurityAlgorithms.RsaSha1,
+                Signature = new byte[] { 0x00 }.ToByteString()
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                () => handler.VerifyAsync(
+                    [0x01, 0x02, 0x03, 0x04],
+                    signature,
+                    SecurityPolicies.Basic256Sha256).AsTask());
+
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo(StatusCodes.BadIdentityTokenInvalid),
+                "A user-token signature with a mismatched algorithm must be a token-level fault.");
+        }
     }
 }
