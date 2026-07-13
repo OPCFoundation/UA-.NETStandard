@@ -108,9 +108,9 @@ IReadOnlyList<FiniteTransitionInfo> transitions =
     await proxy.GetAvailableTransitionsAsync(ct);
 ```
 
-Browses the state machine instance's `HasComponent` children and
-filters by `StateType` / `TransitionType`. Useful for runtime
-introspection of vendor state machines.
+Reads the optional `AvailableStates` / `AvailableTransitions` NodeId-array
+properties and then reads each referenced node's browse name and number.
+An absent or invalid availability property produces an empty result.
 
 ### Alarm shelving alignment
 

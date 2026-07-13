@@ -111,7 +111,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             byte[][] tickets =
             [
-                new byte[] { 1, 2, 3 },
+                [1, 2, 3],
                 [4, 5, 6]
             ];
             ByteString[] ticketsBs = Array.ConvertAll(tickets, b => new ByteString(b));

@@ -94,8 +94,8 @@ namespace Opc.Ua.PubSub.Server
             m_options = options;
             m_telemetry = telemetry;
             m_actionMethodRegistrations =
-                actionMethodRegistrations ?? Array.Empty<PubSubActionMethodRegistration>();
-            m_pushKeyProviders = pushKeyProviders ?? Array.Empty<PushSecurityKeyProvider>();
+                actionMethodRegistrations ?? [];
+            m_pushKeyProviders = pushKeyProviders ?? [];
             m_idAllocator = idAllocator ?? new InMemoryPubSubIdAllocator();
         }
 

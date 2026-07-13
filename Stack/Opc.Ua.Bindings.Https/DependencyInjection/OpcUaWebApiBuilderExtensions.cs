@@ -68,7 +68,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         public static IOpcUaBuilder AddWebApiTransport(this IOpcUaBuilder builder)
-            => AddWebApiTransport(builder, configure: null);
+        {
+            return AddWebApiTransport(builder, configure: null);
+        }
 
         /// <summary>
         /// Registers the OPC UA REST binding with caller-supplied options.
@@ -104,7 +106,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // startup contributor (added below to every HTTPS / WSS
             // listener factory) attaches the host server's
             // ITransportListenerCallback to it when Kestrel starts.
-            services.TryAddSingleton<WebApiServer>(sp =>
+            services.TryAddSingleton(sp =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 IServiceMessageContext context = sp.GetService<IServiceMessageContext>()
@@ -116,7 +118,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // Minimal-API endpoint mapping needs routing services only;
             // no MVC controllers or AddApplicationPart reflection scan.
             services.AddRouting();
-            services.TryAddSingleton<WebApiHttpsStartupContributor>(sp =>
+            services.TryAddSingleton(sp =>
                 new WebApiHttpsStartupContributor(sp.GetRequiredService<WebApiServer>()));
             services.AddSingleton<IHttpsListenerStartupContributor>(
                 sp => sp.GetRequiredService<WebApiHttpsStartupContributor>());

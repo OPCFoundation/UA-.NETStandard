@@ -33,8 +33,6 @@ using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Formats;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Formats
 {
     [TestFixture]
@@ -45,15 +43,15 @@ namespace Opc.Ua.Pcap.Tests.Formats
         {
             var registry = TraceFormatterRegistry.CreateDefault();
 
-            Assert.That(registry.Available, Is.EquivalentTo(new[]
-            {
+            Assert.That(registry.Available, Is.EquivalentTo(
+            [
                 FormatKind.Pcap,
                 FormatKind.PcapNg,
                 FormatKind.Json,
                 FormatKind.Csv,
                 FormatKind.Text,
                 FormatKind.ServiceTimeline
-            }));
+            ]));
         }
 
         [TestCase(FormatKind.Pcap, typeof(PcapFormatter))]
@@ -77,7 +75,7 @@ namespace Opc.Ua.Pcap.Tests.Formats
         {
             // Build a registry that only knows about Json so we can prove
             // Get rejects every other kind with a diagnostic exception.
-            TraceFormatterRegistry registry = new(new ITraceFormatter[] { new JsonFormatter() });
+            TraceFormatterRegistry registry = new([new JsonFormatter()]);
 
             PcapDiagnosticsException? exception = Assert.Throws<PcapDiagnosticsException>(
                 () => registry.Get(FormatKind.Pcap));
@@ -97,13 +95,13 @@ namespace Opc.Ua.Pcap.Tests.Formats
         [Test]
         public void AvailableMatchesGetForCustomRegistry()
         {
-            TraceFormatterRegistry registry = new(new ITraceFormatter[]
-            {
+            TraceFormatterRegistry registry = new(
+            [
                 new TextFormatter(),
                 new CsvFormatter()
-            });
+            ]);
 
-            Assert.That(registry.Available, Is.EquivalentTo(new[] { FormatKind.Text, FormatKind.Csv }));
+            Assert.That(registry.Available, Is.EquivalentTo([FormatKind.Text, FormatKind.Csv]));
             Assert.That(registry.Get(FormatKind.Text), Is.InstanceOf<TextFormatter>());
             Assert.That(registry.Get(FormatKind.Csv), Is.InstanceOf<CsvFormatter>());
         }

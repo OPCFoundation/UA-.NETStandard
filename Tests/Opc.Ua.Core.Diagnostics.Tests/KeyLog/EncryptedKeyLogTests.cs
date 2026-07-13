@@ -38,8 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Pcap.KeyLog;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.KeyLog
 {
     /// <summary>

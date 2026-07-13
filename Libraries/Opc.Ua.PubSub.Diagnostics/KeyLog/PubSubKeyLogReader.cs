@@ -33,7 +33,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.PubSub.Pcap.KeyLog
 {
@@ -68,6 +67,7 @@ namespace Opc.Ua.PubSub.Pcap.KeyLog
         /// Reads all key material from the bound file path.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public IAsyncEnumerable<PubSubKeyMaterial> ReadAllAsync(CancellationToken cancellationToken = default)
         {
             if (FilePath is null)
@@ -168,11 +168,8 @@ namespace Opc.Ua.PubSub.Pcap.KeyLog
         {
             PubSubKeyLogRecord? record = JsonSerializer.Deserialize(
                 line,
-                PubSubKeyLogJsonContext.Default.PubSubKeyLogRecord);
-            if (record is null)
-            {
+                PubSubKeyLogJsonContext.Default.PubSubKeyLogRecord) ??
                 throw new FormatException("Invalid PubSub JSON key-log record.");
-            }
             return record.ToMaterial();
         }
     }

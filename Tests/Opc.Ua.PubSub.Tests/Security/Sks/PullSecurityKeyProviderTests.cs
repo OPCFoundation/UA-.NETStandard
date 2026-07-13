@@ -75,10 +75,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 NUnitTelemetryContext.Create(),
                 clock);
 
-            await provider.StartAsync();
+            await provider.StartAsync().ConfigureAwait(false);
 
             Assert.That(fake.CallCount, Is.EqualTo(1));
-            PubSubSecurityKey current = await provider.GetCurrentKeyAsync();
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
             Assert.That(current.TokenId, Is.EqualTo(1U));
             Assert.That(provider.Ring.Current, Is.SameAs(current));
         }
@@ -95,12 +95,12 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
+            await provider.StartAsync().ConfigureAwait(false);
 
             int after = fake.CallCount;
             for (int i = 0; i < 10; i++)
             {
-                _ = await provider.GetCurrentKeyAsync();
+                _ = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
             }
             Assert.That(fake.CallCount, Is.EqualTo(after));
         }
@@ -117,8 +117,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
-            await provider.StartAsync();
+            await provider.StartAsync().ConfigureAwait(false);
+            await provider.StartAsync().ConfigureAwait(false);
             Assert.That(fake.CallCount, Is.EqualTo(1));
         }
 
@@ -134,10 +134,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
+            await provider.StartAsync().ConfigureAwait(false);
 
             int before = fake.CallCount;
-            PubSubSecurityKey? key = await provider.TryGetKeyAsync(99U);
+            PubSubSecurityKey? key = await provider.TryGetKeyAsync(99U).ConfigureAwait(false);
             Assert.That(fake.CallCount, Is.GreaterThan(before));
             Assert.That(key, Is.Null);
         }
@@ -154,10 +154,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(futureKeys: 4),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
+            await provider.StartAsync().ConfigureAwait(false);
 
             int before = fake.CallCount;
-            PubSubSecurityKey? key = await provider.TryGetKeyAsync(1U);
+            PubSubSecurityKey? key = await provider.TryGetKeyAsync(1U).ConfigureAwait(false);
             Assert.That(key, Is.Not.Null);
             Assert.That(key!.TokenId, Is.EqualTo(1U));
             Assert.That(fake.CallCount, Is.EqualTo(before));
@@ -175,16 +175,16 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
-            PubSubSecurityKey served = await provider.GetCurrentKeyAsync();
+            await provider.StartAsync().ConfigureAwait(false);
+            PubSubSecurityKey served = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
 
             fake.FailOnce(new OpcUaSksException(
                 StatusCodes.BadCommunicationError,
                 "transient"));
-            PubSubSecurityKey? lookup = await provider.TryGetKeyAsync(99U);
+            PubSubSecurityKey? lookup = await provider.TryGetKeyAsync(99U).ConfigureAwait(false);
             Assert.That(lookup, Is.Null);
 
-            PubSubSecurityKey afterFailure = await provider.GetCurrentKeyAsync();
+            PubSubSecurityKey afterFailure = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
             Assert.That(afterFailure, Is.SameAs(served));
         }
 
@@ -200,10 +200,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
-            await provider.DisposeAsync();
+            await provider.StartAsync().ConfigureAwait(false);
+            await provider.DisposeAsync().ConfigureAwait(false);
             Assert.That(
-                async () => await provider.GetCurrentKeyAsync(),
+                async () => await provider.GetCurrentKeyAsync().ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -219,9 +219,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
-            await provider.DisposeAsync();
-            await provider.DisposeAsync();
+            await provider.StartAsync().ConfigureAwait(false);
+            await provider.DisposeAsync().ConfigureAwait(false);
+            await provider.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -236,13 +236,13 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 DefaultOptions(),
                 NUnitTelemetryContext.Create(),
                 clock);
-            await provider.StartAsync();
+            await provider.StartAsync().ConfigureAwait(false);
             int initial = fake.CallCount;
 
             for (int i = 0; i < 30 && fake.CallCount <= initial; i++)
             {
                 clock.Advance(TimeSpan.FromSeconds(5));
-                await Task.Delay(20);
+                await Task.Delay(20).ConfigureAwait(false);
             }
             Assert.That(fake.CallCount, Is.GreaterThan(initial));
         }
@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 NUnitTelemetryContext.Create(),
                 clock);
             Assert.That(
-                async () => await provider.GetCurrentKeyAsync(),
+                async () => await provider.GetCurrentKeyAsync().ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -338,11 +338,11 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 clock);
             int rotationCount = 0;
             provider.KeyRotated += (_, _) => Interlocked.Increment(ref rotationCount);
-            await provider.StartAsync();
+            await provider.StartAsync().ConfigureAwait(false);
 
             // Advance past the lifetime so the next refresh rotates.
             clock.Advance(TimeSpan.FromMilliseconds(60));
-            await provider.TryGetKeyAsync(uint.MaxValue);
+            await provider.TryGetKeyAsync(uint.MaxValue).ConfigureAwait(false);
             Assert.That(rotationCount, Is.GreaterThan(0));
         }
 
@@ -359,7 +359,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 new FakeTimeProvider(DateTimeOffset.UtcNow),
                 ownsSecurityKeyService: true);
 
-            await provider.DisposeAsync();
+            await provider.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(sks.Disposed, Is.True);
         }
@@ -376,7 +376,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 NUnitTelemetryContext.Create(),
                 new FakeTimeProvider(DateTimeOffset.UtcNow));
 
-            await provider.DisposeAsync();
+            await provider.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(sks.Disposed, Is.False);
         }

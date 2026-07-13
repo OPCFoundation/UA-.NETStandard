@@ -300,29 +300,20 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="sessionManager"/> is <c>null</c>.</exception>
         [MemberNotNull(nameof(SessionManager), nameof(SubscriptionManager))]
         public void SetSessionManager(
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
-            if (sessionManager == null)
-            {
-                throw new ArgumentNullException(nameof(sessionManager));
-            }
-
-            if (subscriptionManager == null)
-            {
-                throw new ArgumentNullException(nameof(subscriptionManager));
-            }
-
             if (SessionManager != null)
             {
                 SessionManager.SessionCreated -= OnSessionCountChanged;
                 SessionManager.SessionClosing -= OnSessionCountChanged;
             }
 
-            SessionManager = sessionManager;
-            SubscriptionManager = subscriptionManager;
+            SessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+            SubscriptionManager = subscriptionManager ?? throw new ArgumentNullException(nameof(subscriptionManager));
 
             SessionManager.SessionCreated += OnSessionCountChanged;
             SessionManager.SessionClosing += OnSessionCountChanged;
@@ -875,7 +866,7 @@ namespace Opc.Ua.Server
 
             // update server capabilities.
             ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
-            serverObject.ServiceLevel!.Value = (byte)255;
+            serverObject.ServiceLevel!.Value = 255;
             serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
             serverCapabilities.ServerProfileArray!.Value =

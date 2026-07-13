@@ -66,6 +66,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// A sentinel <see cref="NodeId"/> understood by
         /// <see cref="IServerSession.ResolveNodeIdAsync"/>.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public static NodeId ToNodeId(string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath))
@@ -96,16 +97,16 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// </returns>
         public static bool IsBrowsePath(NodeId nodeId)
         {
-            return !nodeId.IsNull
-                && nodeId.IdType == IdType.String
-                && nodeId.NamespaceIndex == 0
-                && nodeId.IdentifierAsString is { Length: > 0 } text
-                && IsBrowsePathText(text);
+            return !nodeId.IsNull &&
+                nodeId.IdType == IdType.String &&
+                nodeId.NamespaceIndex == 0 &&
+                nodeId.IdentifierAsString is { Length: > 0 } text &&
+                IsBrowsePathText(text);
         }
 
         /// <summary>
         /// Converts a browse-path sentinel <see cref="NodeId"/> into the
-        /// <see cref="Opc.Ua.RelativePath"/> that a TranslateBrowsePathsToNodeIds
+        /// <see cref="RelativePath"/> that a TranslateBrowsePathsToNodeIds
         /// request requires.
         /// </summary>
         /// <param name="nodeId">
@@ -114,6 +115,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// <returns>
         /// The parsed relative path.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public static RelativePath ToRelativePath(NodeId nodeId)
         {
             if (!IsBrowsePath(nodeId))
@@ -149,7 +151,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     index++;
                 }
 
-                string segment = text.Substring(start, index - start);
+                string segment = text[start..index];
                 if (segment.Length == 0)
                 {
                     throw ServiceResultException.Create(

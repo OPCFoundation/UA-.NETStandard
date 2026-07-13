@@ -247,12 +247,16 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => m_transport;
+                TimeProvider timeProvider)
+            {
+                return m_transport;
+            }
         }
 
         private sealed class LoopbackReceiveTransport : IPubSubTransport
         {
             private readonly IReadOnlyList<byte[]> m_frames;
+
             private readonly TaskCompletionSource<bool> m_drained =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -288,7 +292,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             public ValueTask SendAsync(
                 ReadOnlyMemory<byte> payload,
                 string? topic = null,
-                CancellationToken cancellationToken = default) => default;
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
 
             public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)

@@ -38,8 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Pcap.Audit;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Tests.Audit
 {
     /// <summary>
@@ -154,6 +152,98 @@ namespace Opc.Ua.Pcap.Tests.Audit
         }
 
         [Test]
+        public void ConstructorRejectsNullInputs()
+        {
+            Assert.That(
+                () => new HashChainedAuditFileSink(null!, CreateKey(), logger: null),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("filePath"));
+            Assert.That(
+                () => new HashChainedAuditFileSink(CreateTempPath("audit.jsonl"), null!, logger: null),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("hmacKey"));
+        }
+
+        [Test]
+        public void VerifyChainRejectsNullAndWrongKeyLength()
+        {
+            string filePath = CreateTempPath("audit.jsonl");
+
+            Assert.That(
+                () => HashChainedAuditFileSink.VerifyChain(null!, CreateKey()),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("filePath"));
+            Assert.That(
+                () => HashChainedAuditFileSink.VerifyChain(filePath, null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("hmacKey"));
+            Assert.That(
+                () => HashChainedAuditFileSink.VerifyChain(filePath, new byte[31]),
+                Throws.TypeOf<ArgumentException>().With.Property("ParamName").EqualTo("hmacKey"));
+        }
+
+        [Test]
+        public async Task OnEventAsyncRejectsNullAndDisposedSink()
+        {
+            string filePath = CreateTempPath("audit.jsonl");
+            await using var sink = new HashChainedAuditFileSink(filePath, CreateKey(), logger: null);
+
+            Assert.That(
+                async () => await sink.OnEventAsync(null!, CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("auditEvent"));
+
+            await sink.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(
+                async () => await sink.OnEventAsync(CreateEvent(1), CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(
+                async () => await sink.DisposeAsync().ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public async Task ConstructorContinuesExistingLedgerFromLastHmac()
+        {
+            string filePath = CreateTempPath("audit.jsonl");
+            byte[] key = CreateKey();
+
+            await WriteEventsAsync(filePath, key, eventCount: 2).ConfigureAwait(false);
+            await WriteEventsAsync(filePath, key, eventCount: 2).ConfigureAwait(false);
+
+            AuditChainVerification result = HashChainedAuditFileSink.VerifyChain(filePath, key);
+
+            Assert.That(result.LinesVerified, Is.EqualTo(4));
+            Assert.That(result.FirstCorruptLine, Is.EqualTo(-1));
+        }
+
+        [TestCase("")]
+        [TestCase("[]")]
+        [TestCase("{\"hmac\":\"AAAA\",\"prev\":\"AAAA\"}")]
+        [TestCase("{\"event\":{},\"prev\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}")]
+        [TestCase("{\"event\":{},\"prev\":null,\"hmac\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}")]
+        [TestCase("{\"event\":{},\"prev\":\"not-base64\",\"hmac\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}")]
+        [TestCase("{\"event\":{},\"prev\":\"AA==\",\"hmac\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}")]
+        public void VerifyChainReportsMalformedLedgerLine(string line)
+        {
+            string filePath = CreateTempPath("audit.jsonl");
+            File.WriteAllText(filePath, line + Environment.NewLine);
+
+            AuditChainVerification result = HashChainedAuditFileSink.VerifyChain(filePath, CreateKey());
+
+            Assert.That(result.LinesVerified, Is.Zero);
+            Assert.That(result.FirstCorruptLine, Is.EqualTo(1));
+            Assert.That(result.CorruptionReason, Is.Not.Empty);
+        }
+
+        [Test]
+        public void ConstructorRejectsExistingLedgerWithUnreadableFinalHmac()
+        {
+            string filePath = CreateTempPath("audit.jsonl");
+            File.WriteAllText(filePath, "{\"event\":{},\"prev\":\"AA==\",\"hmac\":\"AA==\"}" + Environment.NewLine);
+
+            Assert.That(
+                () => new HashChainedAuditFileSink(filePath, CreateKey(), logger: null),
+                Throws.TypeOf<InvalidDataException>().With.Message.Contains("unreadable final HMAC"));
+        }
+
+        [Test]
         [Platform("Linux,MacOSX")]
         public async Task OnNonWindowsFileIsModeUserAndGroupRead()
         {
@@ -212,8 +302,13 @@ namespace Opc.Ua.Pcap.Tests.Audit
             char replacement = hmac[0] == 'A' ? 'B' : 'A';
             string mutatedHmac = replacement + hmac[1..];
 
-            return "{\"event\":" + root.GetProperty("event").GetRawText() +
-                ",\"hmac\":\"" + mutatedHmac + "\",\"prev\":\"" + root.GetProperty("prev").GetString() + "\"}";
+            return "{\"event\":" +
+                root.GetProperty("event").GetRawText() +
+                ",\"hmac\":\"" +
+                mutatedHmac +
+                "\",\"prev\":\"" +
+                root.GetProperty("prev").GetString() +
+                "\"}";
         }
     }
 }

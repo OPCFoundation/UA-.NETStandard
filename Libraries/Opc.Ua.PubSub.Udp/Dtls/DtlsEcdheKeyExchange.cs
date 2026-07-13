@@ -69,6 +69,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Derives the raw ECDHE shared secret from the peer key share.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] DeriveSharedSecret(ReadOnlySpan<byte> peerKeyShare)
         {
             ECPoint peerPoint = DecodePoint(Curve, peerKeyShare);
@@ -109,6 +110,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Maps a <see cref="DtlsNamedCurve"/> to the matching BCL <see cref="ECCurve"/>,
         /// rejecting curves the portable .NET BCL cannot support.
         /// </summary>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static ECCurve ToEccCurve(DtlsNamedCurve curve)
         {
             return curve switch

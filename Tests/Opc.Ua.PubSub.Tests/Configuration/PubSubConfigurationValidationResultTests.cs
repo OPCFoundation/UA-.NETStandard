@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void EmptyIssues_IsValidTrue()
         {
             var result = new PubSubConfigurationValidationResult(
-                Array.Empty<PubSubConfigurationIssue>());
+                []);
             Assert.That(result.IsValid, Is.True);
             Assert.That(((PubSubConfigurationIssue[]?)result.Issues) ?? [], Is.Empty);
         }
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void OnlyInfoIssues_IsValidTrue()
         {
             var result = new PubSubConfigurationValidationResult(
-                new[] { NewIssue(PubSubConfigurationIssueSeverity.Info) });
+                [NewIssue(PubSubConfigurationIssueSeverity.Info)]);
             Assert.That(result.IsValid, Is.True);
         }
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void OnlyWarningIssues_IsValidTrue()
         {
             var result = new PubSubConfigurationValidationResult(
-                new[] { NewIssue(PubSubConfigurationIssueSeverity.Warning) });
+                [NewIssue(PubSubConfigurationIssueSeverity.Warning)]);
             Assert.That(result.IsValid, Is.True);
         }
 
@@ -82,12 +82,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void AnyErrorIssue_IsValidFalse()
         {
             var result = new PubSubConfigurationValidationResult(
-                new[]
-                {
+                [
                     NewIssue(PubSubConfigurationIssueSeverity.Info),
                     NewIssue(PubSubConfigurationIssueSeverity.Warning),
                     NewIssue(PubSubConfigurationIssueSeverity.Error)
-                });
+                ]);
             Assert.That(result.IsValid, Is.False);
         }
 
@@ -95,12 +94,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ThrowIfInvalid_OnInvalid_ThrowsWithErrors()
         {
             var result = new PubSubConfigurationValidationResult(
-                new[]
-                {
+                [
                     NewIssue(PubSubConfigurationIssueSeverity.Warning, "PSC0900"),
                     NewIssue(PubSubConfigurationIssueSeverity.Error, "PSC0901"),
                     NewIssue(PubSubConfigurationIssueSeverity.Error, "PSC0902")
-                });
+                ]);
             PubSubConfigurationException ex =
                 Assert.Throws<PubSubConfigurationException>(result.ThrowIfInvalid)!;
             Assert.That(
@@ -115,11 +113,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ThrowIfInvalid_OnValid_DoesNotThrow()
         {
             var result = new PubSubConfigurationValidationResult(
-                new[]
-                {
+                [
                     NewIssue(PubSubConfigurationIssueSeverity.Warning),
                     NewIssue(PubSubConfigurationIssueSeverity.Info)
-                });
+                ]);
             Assert.DoesNotThrow(result.ThrowIfInvalid);
         }
 
@@ -140,13 +137,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void Exception_MessageSummarisesFirstErrors()
         {
-            var issues = new[]
-            {
+            PubSubConfigurationIssue[] issues =
+            [
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCAAA"),
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCBBB"),
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCCCC"),
                 NewIssue(PubSubConfigurationIssueSeverity.Error, "PSCDDD")
-            };
+            ];
             var ex = new PubSubConfigurationException(issues);
             Assert.That(ex.Message, Does.Contain("PSCAAA"));
             Assert.That(ex.Message, Does.Contain("PSCBBB"));
@@ -158,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void Exception_NoIssues_StillProducesMessage()
         {
             var ex = new PubSubConfigurationException(
-                Array.Empty<PubSubConfigurationIssue>());
+                []);
             Assert.That(ex.Message, Is.Not.Null);
             Assert.That(((PubSubConfigurationIssue[]?)ex.Issues) ?? [], Is.Empty);
         }

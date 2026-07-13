@@ -50,12 +50,13 @@ namespace Opc.Ua.PubSub.Tests.Security
     {
         private const uint TokenId = 1U;
 
-        private static readonly byte[] s_outerPrefix = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01 };
-        private static readonly byte[] s_innerPayload = new byte[]
-        {
+        private static readonly byte[] s_outerPrefix = [0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x01];
+
+        private static readonly byte[] s_innerPayload =
+        [
             0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE,
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
-        };
+        ];
 
         private static (UadpSecurityWrapper Sender, UadpSecurityWrapper Receiver)
             CreatePair(
@@ -107,7 +108,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .ConfigureAwait(false);
 
             UadpSecurityWrapper.UnwrapResult firstResult = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
             Assert.That(firstResult.IsSuccess, Is.True, firstResult.Reason);
 
@@ -118,7 +119,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                     .WrapAsync(s_outerPrefix, s_innerPayload)
                     .ConfigureAwait(false);
                 UadpSecurityWrapper.UnwrapResult ok = await receiver
-                    .TryUnwrapAsync(s_outerPrefix.AsMemory(), next.Slice(s_outerPrefix.Length))
+                    .TryUnwrapAsync(s_outerPrefix.AsMemory(), next[s_outerPrefix.Length..])
                     .ConfigureAwait(false);
                 Assert.That(ok.IsSuccess, Is.True, ok.Reason);
             }
@@ -126,14 +127,14 @@ namespace Opc.Ua.PubSub.Tests.Security
             // Replaying the captured frame is still rejected even though
             // its nonce was long since evicted from any bounded set.
             UadpSecurityWrapper.UnwrapResult replay = await receiver
-                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured.Slice(s_outerPrefix.Length))
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), captured[s_outerPrefix.Length..])
                 .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(replay.IsSuccess, Is.False);
                 Assert.That(
                     replay.Status,
-                    Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+                    Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             });
         }
 
@@ -180,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         private static (ulong SequenceNumber, byte[] Nonce) ReadNonce(
             ReadOnlyMemory<byte> wrapped)
         {
-            ReadOnlyMemory<byte> securityAndPayload = wrapped.Slice(s_outerPrefix.Length);
+            ReadOnlyMemory<byte> securityAndPayload = wrapped[s_outerPrefix.Length..];
             Assert.That(
                 UadpSecurityHeader.TryRead(
                     securityAndPayload.Span, out UadpSecurityHeader header, out _),

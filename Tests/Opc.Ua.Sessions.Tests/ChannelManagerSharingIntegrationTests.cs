@@ -51,13 +51,15 @@ namespace Opc.Ua.Sessions.Tests
     [NonParallelizable]
     public abstract class ChannelManagerIntegrationTestBase : ClientTestFramework
     {
-        // Upper bound for WaitForAsync polls (predicates return as soon as they
-        // are satisfied, so a larger budget never slows a healthy run). Sized to
-        // tolerate a server stop + restart + transparent reconnect on a heavily
-        // loaded CI agent: the macOS runners exceeded the previous 30s ceiling on
-        // the post-restart recovery step. Stays well within the per-test
-        // [CancelAfter(120_000..180_000)] budgets since only one poll per test is
-        // genuinely slow.
+        /// <summary>
+        /// Upper bound for WaitForAsync polls (predicates return as soon as they
+        /// are satisfied, so a larger budget never slows a healthy run). Sized to
+        /// tolerate a server stop + restart + transparent reconnect on a heavily
+        /// loaded CI agent: the macOS runners exceeded the previous 30s ceiling on
+        /// the post-restart recovery step. Stays well within the per-test
+        /// [CancelAfter(120_000..180_000)] budgets since only one poll per test is
+        /// genuinely slow.
+        /// </summary>
         protected static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(60);
         protected static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
 

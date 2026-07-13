@@ -127,7 +127,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static readonly ConditionalWeakTable<string, ModelDependencyV1> s_decoded
-            = new ConditionalWeakTable<string, ModelDependencyV1>();
+            = new();
 
         /// <inheritdoc/>
         public bool Equals(ModelDependencyReference other)

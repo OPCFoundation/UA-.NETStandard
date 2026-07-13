@@ -298,7 +298,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // minting a new partition past the cap.
             PlacementDecision decision = policy.Decide(
                 new V2Options(),
-                [(IManagedSubscription)p1, p2]);
+                [p1, p2]);
 
             Assert.That(decision.RejectMaxPartitionCountReached, Is.True);
             Assert.That(decision.RequiresNewPartition, Is.False);
@@ -322,7 +322,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // p1 has room (count=0, cap=5)
             PlacementDecision decision = policy.Decide(
                 new V2Options(),
-                [(IManagedSubscription)p1, p2]);
+                [p1, p2]);
 
             Assert.That(decision.UseExistingPartition, Is.True);
             Assert.That(decision.Partition, Is.SameAs(p1));
@@ -342,7 +342,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // 1 existing partition, full. Mint 2nd → allowed.
             PlacementDecision d2 = policy.Decide(
                 new V2Options(),
-                [(IManagedSubscription)p1]);
+                [p1]);
             Assert.That(d2.RequiresNewPartition, Is.True);
 
             FakeManagedSubscription p2 = NewFake(id: 2);
@@ -353,7 +353,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // (count==2 < cap==3).
             PlacementDecision d3 = policy.Decide(
                 new V2Options(),
-                [(IManagedSubscription)p1, p2]);
+                [p1, p2]);
             Assert.That(d3.RequiresNewPartition, Is.True);
 
             FakeManagedSubscription p3 = NewFake(id: 3);
@@ -364,7 +364,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // exceed cap → reject.
             PlacementDecision d4 = policy.Decide(
                 new V2Options(),
-                [(IManagedSubscription)p1, p2, p3]);
+                [p1, p2, p3]);
             Assert.That(d4.RejectMaxPartitionCountReached, Is.True);
         }
 

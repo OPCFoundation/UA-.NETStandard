@@ -110,7 +110,7 @@ namespace OpcUaPubSubJsonTests
                 .EncodeAsync(msg, ctx).ConfigureAwait(false);
             string text = JsonTestUtilities.ToText(bytes);
             string canonical = JsonTestUtilities.Canonicalise(text);
-            using JsonDocument document = JsonDocument.Parse(canonical);
+            using var document = JsonDocument.Parse(canonical);
             JsonElement root = document.RootElement;
             JsonElement messages = root.GetProperty("Messages");
             JsonElement payload = messages[0].GetProperty("Payload");
@@ -154,7 +154,7 @@ namespace OpcUaPubSubJsonTests
                 Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact);
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(msg, ctx).ConfigureAwait(false);
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             JsonElement root = document.RootElement;
             JsonElement payload = root.GetProperty("Messages")[0].GetProperty("Payload");
             // Compact mode must emit bare values - 'BoolField'
@@ -217,7 +217,7 @@ namespace OpcUaPubSubJsonTests
                 Opc.Ua.PubSub.Encoding.Json.JsonEncodingMode.Compact);
             ReadOnlyMemory<byte> bytes = await encoder
                 .EncodeAsync(msg, ctx).ConfigureAwait(false);
-            using JsonDocument document = JsonDocument.Parse(bytes);
+            using var document = JsonDocument.Parse(bytes);
             JsonElement root = document.RootElement;
             JsonElement payload = root.GetProperty("Messages")[0].GetProperty("Payload");
             JsonElement arr = payload.GetProperty("RawArr");

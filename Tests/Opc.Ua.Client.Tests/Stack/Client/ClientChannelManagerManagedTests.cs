@@ -618,7 +618,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 // before the hard assertions.
                 await WaitForConditionAsync(
                     () => oldLease.State == ChannelState.Closed &&
-                          oldTransport.CloseCount == 1,
+                        oldTransport.CloseCount == 1,
                     "oldLease.State == Closed && oldTransport.CloseCount == 1").ConfigureAwait(false);
                 Assert.That(oldLease.State, Is.EqualTo(ChannelState.Closed));
                 Assert.That(oldTransport.CloseCount, Is.EqualTo(1));
@@ -828,6 +828,219 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             }
         }
 
+        [Test]
+        public async Task SendRequestTransparentlyRetriesIdempotentRequestOnTransientDropAsync()
+        {
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero
+            };
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var participant = new TestParticipant("p1", endpoint);
+                IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
+
+                chMock.Setup(c => c.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+                chMock.Setup(c => c.ReconnectAsync(
+                        It.IsAny<ITransportWaitingConnection?>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask());
+
+                var sendCount = 0;
+                chMock.Setup(c => c.SendRequestAsync(
+                        It.IsAny<IServiceRequest>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<IServiceRequest, CancellationToken>((_, _) =>
+                    {
+                        if (Interlocked.Increment(ref sendCount) == 1)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadConnectionClosed, "simulated in-flight drop");
+                        }
+
+                        return new ValueTask<IServiceResponse>(new ReadResponse
+                        {
+                            ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                        });
+                    });
+
+                IServiceResponse response = await ch.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader() },
+                    default).ConfigureAwait(false);
+
+                Assert.That(response, Is.Not.Null);
+                Assert.That(
+                    sendCount,
+                    Is.EqualTo(2),
+                    "The idempotent request should be transparently resent after the channel recovered.");
+                chMock.Verify(c => c.ReconnectAsync(
+                    It.IsAny<ITransportWaitingConnection?>(),
+                    It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+                ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task SendRequestDoesNotRetryNonIdempotentRequestOnTransientDropAsync()
+        {
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero
+            };
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var participant = new TestParticipant("p1", endpoint);
+                IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
+
+                chMock.Setup(c => c.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+                chMock.Setup(c => c.ReconnectAsync(
+                        It.IsAny<ITransportWaitingConnection?>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask());
+
+                var sendCount = 0;
+                chMock.Setup(c => c.SendRequestAsync(
+                        It.IsAny<IServiceRequest>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<IServiceRequest, CancellationToken>((_, _) =>
+                    {
+                        Interlocked.Increment(ref sendCount);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadConnectionClosed, "simulated in-flight drop");
+                    });
+
+                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ch.SendRequestAsync(
+                        new WriteRequest { RequestHeader = new RequestHeader() },
+                        default).AsTask().ConfigureAwait(false));
+
+                Assert.That(ex, Is.Not.Null);
+                Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
+                Assert.That(
+                    sendCount,
+                    Is.EqualTo(1),
+                    "A non-idempotent request must not be resent; the error surfaces for higher-level recovery.");
+                chMock.Verify(c => c.ReconnectAsync(
+                    It.IsAny<ITransportWaitingConnection?>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+                ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task SendRequestDoesNotRetryNonTransientErrorAsync()
+        {
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero
+            };
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var participant = new TestParticipant("p1", endpoint);
+                IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
+
+                chMock.Setup(c => c.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+                chMock.Setup(c => c.ReconnectAsync(
+                        It.IsAny<ITransportWaitingConnection?>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask());
+
+                var sendCount = 0;
+                chMock.Setup(c => c.SendRequestAsync(
+                        It.IsAny<IServiceRequest>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<IServiceRequest, CancellationToken>((_, _) =>
+                    {
+                        Interlocked.Increment(ref sendCount);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNodeIdUnknown, "non-transient application error");
+                    });
+
+                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ch.SendRequestAsync(
+                        new ReadRequest { RequestHeader = new RequestHeader() },
+                        default).AsTask().ConfigureAwait(false));
+
+                Assert.That(ex, Is.Not.Null);
+                Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(
+                    sendCount,
+                    Is.EqualTo(1),
+                    "A non-transient error must surface immediately without a reconnect.");
+                chMock.Verify(c => c.ReconnectAsync(
+                    It.IsAny<ITransportWaitingConnection?>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+                ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task ReconnectGenerationIncrementsOnTransportReconnectingAsync()
+        {
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero
+            };
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var participant = new TestParticipant("p1", endpoint);
+                IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
+                object entry = GetLeaseEntry(ch);
+                long before = (long)GetInternalPropertyValue(entry, "ReconnectGeneration");
+
+                chMock.Setup(c => c.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+                chMock.Setup(c => c.ReconnectAsync(
+                        It.IsAny<ITransportWaitingConnection?>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask());
+
+                await sut.ReconnectAsync(ch, default).ConfigureAwait(false);
+
+                long after = (long)GetInternalPropertyValue(entry, "ReconnectGeneration");
+                Assert.That(
+                    after,
+                    Is.GreaterThan(before),
+                    "Entering TransportReconnecting must bump the reconnect generation.");
+                ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
         private static async Task WaitForMeasurementAsync(
             ChannelMetricListener metrics,
             string instrumentName,
@@ -959,7 +1172,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 // hard assertions.
                 await WaitForConditionAsync(
                     () => listener.EventNames.Contains("ParticipantDetached") &&
-                          listener.EventNames.Contains("ChannelClosed"),
+                        listener.EventNames.Contains("ChannelClosed"),
                     "ParticipantDetached + ChannelClosed events").ConfigureAwait(false);
 
                 Assert.That(listener.EventNames, Does.Contain("StateChanged"), listener.FormatEvents());
@@ -1687,6 +1900,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             }
 
             private readonly ActivityListener m_listener;
+
             private readonly TaskCompletionSource<Activity> m_stoppedActivity = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
         }
@@ -1708,10 +1922,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     builder.Append(record.Name);
                     if (record.Payload.Count > 0)
                     {
-                        builder.Append(' ');
-                        builder.Append(string.Join(
+                        builder.Append(' ')
+                            .AppendJoin(
                             ", ",
-                            record.Payload.Select(p => $"{p.Key}={p.Value}")));
+                            record.Payload.Select(p => $"{p.Key}={p.Value}"));
                     }
                     builder.AppendLine();
                 }
@@ -1880,6 +2094,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         {
             private readonly Func<IManagedTransportChannel, int, CancellationToken,
                 ParticipantReconnectResult>? m_onReconnect;
+
             private int m_notificationCount;
 
             public TestParticipant(

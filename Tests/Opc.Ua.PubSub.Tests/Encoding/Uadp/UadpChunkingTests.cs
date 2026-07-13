@@ -96,7 +96,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void TryParseChunk_RoundTripsHeader()
         {
             byte[] payload = new byte[100];
-            using (var rng = RandomNumberGenerator.Create()) { rng.GetBytes(payload); }
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(payload);
+            }
             var chunker = new UadpChunker();
             byte[] frame = chunker.Split(payload, 0xABCD, 200)[0];
 
@@ -148,7 +151,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void Reassemble_OutOfOrderChunks_ProducesOriginal()
         {
             byte[] payload = new byte[1500];
-            using (var rng = RandomNumberGenerator.Create()) { rng.GetBytes(payload); }
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(payload);
+            }
             var chunker = new UadpChunker();
             byte[][] chunks = [.. chunker.Split(payload, 9, 256)];
             // Reverse order
@@ -170,7 +176,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void Reassemble_DuplicateChunkRejected()
         {
             byte[] payload = new byte[512];
-            using (var rng = RandomNumberGenerator.Create()) { rng.GetBytes(payload); }
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(payload);
+            }
             var chunker = new UadpChunker();
             IReadOnlyList<byte[]> chunks = chunker.Split(payload, 4, 256);
             Assert.That(chunks, Has.Count.GreaterThanOrEqualTo(2));
@@ -211,7 +220,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             var reassembler = new UadpReassembler(clock, TimeSpan.FromSeconds(1));
 
             byte[] payload = new byte[2048];
-            using (var rng = RandomNumberGenerator.Create()) { rng.GetBytes(payload); }
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(payload);
+            }
             IReadOnlyList<byte[]> chunks = new UadpChunker().Split(payload, 7, 256);
 
             var pid = PublisherId.FromByte(7);
@@ -324,9 +336,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             // Build a synthetic chunk with offset > total.
             byte[] frame = new byte[UadpChunker.ChunkHeaderSize + 4];
             // seq=1, offset=100, total=10, payload=4 bytes
-            frame[0] = 0x01; frame[1] = 0x00;
-            frame[2] = 100; frame[3] = 0; frame[4] = 0; frame[5] = 0;
-            frame[6] = 10; frame[7] = 0; frame[8] = 0; frame[9] = 0;
+            frame[0] = 0x01;
+            frame[1] = 0x00;
+            frame[2] = 100;
+            frame[3] = 0;
+            frame[4] = 0;
+            frame[5] = 0;
+            frame[6] = 10;
+            frame[7] = 0;
+            frame[8] = 0;
+            frame[9] = 0;
 
             var reassembler = new UadpReassembler();
             bool ok = reassembler.TryAddChunk(

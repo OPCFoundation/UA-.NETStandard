@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,7 +37,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
@@ -76,14 +73,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             await using var listener = new HttpsTransportListener(
                 Utils.UriSchemeHttps,
                 new TestTelemetryContext());
-            var contributor = new RecordingContributor(appBuilder =>
-            {
-                appBuilder.Use(async (context, next) =>
+            var contributor = new RecordingContributor(appBuilder => appBuilder.Use(async (context, next) =>
                 {
                     context.Response.Headers["X-Contributor-Ran"] = "yes";
                     await next().ConfigureAwait(false);
-                });
-            });
+                }));
             listener.StartupContributors = [contributor];
 
             HttpContext context = await InvokeStartupPipelineAsync(listener).ConfigureAwait(false);

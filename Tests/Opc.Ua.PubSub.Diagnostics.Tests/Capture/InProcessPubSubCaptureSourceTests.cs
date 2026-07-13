@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Transports;
 
 namespace Opc.Ua.PubSub.Pcap.Tests
 {
@@ -50,16 +49,16 @@ namespace Opc.Ua.PubSub.Pcap.Tests
         {
             var registry = new PubSubCaptureRegistry();
             await using var source = new InProcessPubSubCaptureSource(registry);
-            await source.StartAsync();
+            await source.StartAsync().ConfigureAwait(false);
 
             Assert.That(registry.CurrentObserver, Is.SameAs(source));
 
             byte[] payload = [0xB1, 0x00, 0xDE, 0xAD, 0xBE, 0xEF];
             EmitFrame(registry, PubSubCaptureDirection.Outbound, payload, "239.0.0.1:4840");
 
-            await source.StopAsync();
+            await source.StopAsync().ConfigureAwait(false);
 
-            List<PubSubCaptureFrame> frames = await ReadAllAsync(source);
+            List<PubSubCaptureFrame> frames = await ReadAllAsync(source).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(frames, Has.Count.EqualTo(1));
@@ -76,8 +75,8 @@ namespace Opc.Ua.PubSub.Pcap.Tests
         {
             var registry = new PubSubCaptureRegistry();
             await using var source = new InProcessPubSubCaptureSource(registry);
-            await source.StartAsync();
-            await source.StopAsync();
+            await source.StartAsync().ConfigureAwait(false);
+            await source.StopAsync().ConfigureAwait(false);
 
             Assert.That(registry.CurrentObserver, Is.Null);
         }
@@ -87,9 +86,9 @@ namespace Opc.Ua.PubSub.Pcap.Tests
         {
             var registry = new PubSubCaptureRegistry();
             await using var source = new InProcessPubSubCaptureSource(registry);
-            await source.StartAsync();
+            await source.StartAsync().ConfigureAwait(false);
             IPubSubCaptureObserver observer = registry.CurrentObserver!;
-            await source.StopAsync();
+            await source.StopAsync().ConfigureAwait(false);
 
             // Observer reference held after stop must no-op.
             var context = new PubSubCaptureContext(
@@ -98,7 +97,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests
                 new DateTimeUtc(DateTime.UtcNow));
             observer.OnFrameCaptured(in context, [1, 2, 3]);
 
-            List<PubSubCaptureFrame> frames = await ReadAllAsync(source);
+            List<PubSubCaptureFrame> frames = await ReadAllAsync(source).ConfigureAwait(false);
             Assert.That(frames, Is.Empty);
         }
 
@@ -107,10 +106,10 @@ namespace Opc.Ua.PubSub.Pcap.Tests
         {
             var registry = new PubSubCaptureRegistry();
             await using var source = new InProcessPubSubCaptureSource(registry);
-            await source.StartAsync();
+            await source.StartAsync().ConfigureAwait(false);
 
             Assert.That(
-                async () => await source.StartAsync(),
+                async () => await source.StartAsync().ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 
@@ -120,14 +119,14 @@ namespace Opc.Ua.PubSub.Pcap.Tests
             var registry = new PubSubCaptureRegistry();
             await using var manager = new PubSubCaptureSessionManager(registry);
 
-            IPubSubCaptureSource source = await manager.StartAsync();
+            IPubSubCaptureSource source = await manager.StartAsync().ConfigureAwait(false);
             Assert.That(manager.ActiveSource, Is.SameAs(source));
             Assert.That(registry.CurrentObserver, Is.Not.Null);
 
             byte[] payload = [0x01, 0x02];
             EmitFrame(registry, PubSubCaptureDirection.Inbound, payload, null);
 
-            IPubSubCaptureSource? stopped = await manager.StopAsync();
+            IPubSubCaptureSource? stopped = await manager.StopAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(stopped, Is.SameAs(source));
@@ -135,7 +134,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests
                 Assert.That(registry.CurrentObserver, Is.Null);
             });
 
-            List<PubSubCaptureFrame> frames = await ReadAllAsync(source);
+            List<PubSubCaptureFrame> frames = await ReadAllAsync(source).ConfigureAwait(false);
             Assert.That(frames, Has.Count.EqualTo(1));
         }
 
@@ -144,10 +143,10 @@ namespace Opc.Ua.PubSub.Pcap.Tests
         {
             var registry = new PubSubCaptureRegistry();
             await using var manager = new PubSubCaptureSessionManager(registry);
-            await manager.StartAsync();
+            await manager.StartAsync().ConfigureAwait(false);
 
             Assert.That(
-                async () => await manager.StartAsync(),
+                async () => await manager.StartAsync().ConfigureAwait(false),
                 Throws.InvalidOperationException);
         }
 

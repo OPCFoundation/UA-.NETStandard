@@ -364,7 +364,7 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         private readonly Dictionary<NodeId, FileHandle> m_handles = [];
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
 
         /// <summary>
         /// Boxes a <see cref="FileSystemNodeId"/> for storage in

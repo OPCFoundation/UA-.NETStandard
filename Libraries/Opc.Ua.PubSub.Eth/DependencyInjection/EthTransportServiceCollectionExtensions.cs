@@ -68,6 +68,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional options callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IEthTransportBuilder AddEthTransport(
             this IPubSubBuilder builder,
             Action<EthTransportOptions>? configure = null)
@@ -94,6 +95,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configuration">Root configuration.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IEthTransportBuilder AddEthTransport(
             this IPubSubBuilder builder,
             IConfiguration configuration)
@@ -115,6 +117,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="section">Configuration section.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IEthTransportBuilder AddEthTransport(
             this IPubSubBuilder builder,
             IConfigurationSection section)
@@ -138,6 +141,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="services">Service collection.</param>
         /// <param name="configure">Optional Ethernet transport builder callback.</param>
         /// <returns>The same <paramref name="services"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddEthPubSub(
             this IServiceCollection services,
             Action<IEthTransportBuilder>? configure = null)
@@ -157,6 +161,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">OPC UA builder.</param>
         /// <param name="configure">Optional Ethernet transport builder callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddEthPubSub(
             this IOpcUaBuilder builder,
             Action<IEthTransportBuilder>? configure = null)

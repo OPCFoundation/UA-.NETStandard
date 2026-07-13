@@ -72,6 +72,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// <summary>
         /// Gets or sets an optional delay applied before reconnect behavior runs.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public TimeSpan? HangFor
         {
             get
@@ -114,6 +115,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// Configures the behavior returned from <see cref="OnReconnectAsync"/>.
         /// </summary>
         /// <param name="onReconnect">Delegate called for each reconnect attempt.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="onReconnect"/> is <c>null</c>.</exception>
         public void ConfigureOnReconnect(
             Func<int, CancellationToken, ValueTask<ParticipantReconnectResult>> onReconnect)
         {
@@ -129,6 +131,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// Configures the behavior returned from <see cref="OnReconnectAsync"/>.
         /// </summary>
         /// <param name="onReconnect">Delegate called for each reconnect attempt.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="onReconnect"/> is <c>null</c>.</exception>
         public void ConfigureOnReconnect(
             Func<IManagedTransportChannel, int, CancellationToken, ValueTask<ParticipantReconnectResult>> onReconnect)
         {
@@ -186,8 +189,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         }
 
         private readonly Lock m_lock = new();
+
         private Func<IManagedTransportChannel, int, CancellationToken, ValueTask<ParticipantReconnectResult>>
             m_onReconnect = ReactivatedAsync;
+
         private TimeSpan? m_hangFor;
         private int m_notificationCount;
         private int m_lastAttempt = -1;

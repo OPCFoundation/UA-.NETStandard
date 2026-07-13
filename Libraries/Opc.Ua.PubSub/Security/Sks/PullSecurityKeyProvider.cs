@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -59,11 +58,12 @@ namespace Opc.Ua.PubSub.Security.Sks
     {
         private readonly ISecurityKeyService m_sks;
         private readonly bool m_ownsSecurityKeyService;
+#pragma warning disable IDE0052 // Kept so future key derivation can validate SKS keys against the configured policy.
         private readonly IPubSubSecurityPolicy m_policy;
+#pragma warning restore IDE0052
         private readonly PullSecurityKeyProviderOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
-        private readonly PubSubSecurityKeyRing m_ring;
         private readonly CancellationTokenSource m_disposeCts = new();
         private readonly SemaphoreSlim m_refreshSemaphore = new(1, 1);
         private readonly Lock m_stateLock = new();
@@ -133,8 +133,8 @@ namespace Opc.Ua.PubSub.Security.Sks
             m_options = options;
             m_timeProvider = timeProvider;
             m_logger = telemetry.CreateLogger<PullSecurityKeyProvider>();
-            m_ring = new PubSubSecurityKeyRing(securityGroupId, timeProvider);
-            m_ring.Rotated += OnRingRotated;
+            Ring = new PubSubSecurityKeyRing(securityGroupId, timeProvider);
+            Ring.Rotated += OnRingRotated;
         }
 
         /// <inheritdoc/>
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// Underlying ring exposed for diagnostics. Tests may inspect
         /// the populated keys; do not mutate the ring directly.
         /// </summary>
-        internal PubSubSecurityKeyRing Ring => m_ring;
+        internal PubSubSecurityKeyRing Ring { get; }
 
         /// <summary>
         /// Performs the initial pull from the SKS and starts the
@@ -178,12 +178,9 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            PubSubSecurityKey? current = m_ring.Current;
-            if (current is null)
-            {
+            PubSubSecurityKey? current = Ring.Current ??
                 throw new InvalidOperationException(
                     $"No current key available for SecurityGroupId '{SecurityGroupId}'.");
-            }
             return new ValueTask<PubSubSecurityKey>(current);
         }
 
@@ -194,7 +191,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            PubSubSecurityKey? key = m_ring.TryGetByTokenId(tokenId);
+            PubSubSecurityKey? key = Ring.TryGetByTokenId(tokenId);
             if (key is not null)
             {
                 return key;
@@ -220,7 +217,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     tokenId);
                 return null;
             }
-            return m_ring.TryGetByTokenId(tokenId);
+            return Ring.TryGetByTokenId(tokenId);
         }
 
         /// <inheritdoc/>
@@ -258,8 +255,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                         "Background SKS refresh loop terminated with exception.");
                 }
             }
-            m_ring.Rotated -= OnRingRotated;
-            m_ring.Dispose();
+            Ring.Rotated -= OnRingRotated;
+            Ring.Dispose();
             m_disposeCts.Dispose();
             m_refreshSemaphore.Dispose();
             if (m_ownsSecurityKeyService && m_sks is IAsyncDisposable disposableSks)
@@ -284,16 +281,21 @@ namespace Opc.Ua.PubSub.Security.Sks
                         "Failed to compute next SKS refresh delay; falling back to ReconnectDelay.");
                     delay = m_options.ReconnectDelay;
                 }
-                if (delay > TimeSpan.Zero)
+                if (delay <= TimeSpan.Zero)
                 {
-                    try
-                    {
-                        await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        return;
-                    }
+                    // A successful lead-time refresh does not replace the still-active key.
+                    // Throttle subsequent pulls until time advances instead of spinning.
+                    delay = m_options.ReconnectDelay > TimeSpan.Zero
+                        ? m_options.ReconnectDelay
+                        : TimeSpan.FromMilliseconds(1);
+                }
+                try
+                {
+                    await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
                 }
 
                 int failures;
@@ -338,12 +340,12 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return m_options.ReconnectDelay;
             }
-            PubSubSecurityKey? current = m_ring.Current;
+            PubSubSecurityKey? current = Ring.Current;
             if (current is null)
             {
                 return m_options.ReconnectDelay;
             }
-            DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             DateTimeUtc refreshAt = current.IssuedAt + (current.Lifetime - m_options.RefreshLeadTime);
             TimeSpan remaining = refreshAt - now;
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
@@ -411,7 +413,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private void ApplyResponse(SksKeyResponse response)
         {
-            ArrayOf<PubSubSecurityKey> keys = response.Unpacked;
+            ArrayOf<PubSubSecurityKey> keys = response.Unpack(m_timeProvider);
             if (keys.Count == 0)
             {
                 m_logger.LogDebug(
@@ -433,13 +435,13 @@ namespace Opc.Ua.PubSub.Security.Sks
                 {
                     continue;
                 }
-                if (m_ring.Current is null)
+                if (Ring.Current is null)
                 {
-                    m_ring.SetCurrent(key);
+                    Ring.SetCurrent(key);
                 }
                 else
                 {
-                    m_ring.AddFuture(key);
+                    Ring.AddFuture(key);
                 }
                 lock (m_stateLock)
                 {
@@ -450,10 +452,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
             }
 
-            PubSubSecurityKey? current = m_ring.Current;
+            PubSubSecurityKey? current = Ring.Current;
             if (current is not null && current.IsExpired(m_timeProvider))
             {
-                m_ring.RotateToNextFuture();
+                Ring.RotateToNextFuture();
             }
         }
 

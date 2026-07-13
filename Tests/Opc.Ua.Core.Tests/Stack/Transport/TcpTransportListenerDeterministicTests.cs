@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var time = new FakeTimeProvider();
             using var tracker = new ActiveClientTracker(m_telemetry, time);
-            IPAddress ip = IPAddress.Parse("10.0.0.1");
+            var ip = IPAddress.Parse("10.0.0.1");
 
             // First three actions inside the 10s window stay under the block
             // threshold (block happens only once the count exceeds three).
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var time = new FakeTimeProvider();
             using var tracker = new ActiveClientTracker(m_telemetry, time);
-            IPAddress ip = IPAddress.Parse("10.0.0.2");
+            var ip = IPAddress.Parse("10.0.0.2");
 
             tracker.AddClientAction(ip);
             tracker.AddClientAction(ip);
@@ -122,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var time = new FakeTimeProvider();
             using var tracker = new ActiveClientTracker(m_telemetry, time);
-            IPAddress ip = IPAddress.Parse("10.0.0.3");
+            var ip = IPAddress.Parse("10.0.0.3");
 
             // Each action is more than the 10s window apart, so the counter keeps
             // resetting to one and the client is never blocked, however many
@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var time = new FakeTimeProvider();
             using var tracker = new ActiveClientTracker(m_telemetry, time);
-            IPAddress ip = IPAddress.Parse("10.0.0.4");
+            var ip = IPAddress.Parse("10.0.0.4");
 
             tracker.AddClientAction(ip);
             tracker.AddClientAction(ip);
@@ -165,7 +165,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var time = new FakeTimeProvider();
             using var tracker = new ActiveClientTracker(m_telemetry, time);
-            IPAddress ip = IPAddress.Parse("10.0.0.5");
+            var ip = IPAddress.Parse("10.0.0.5");
 
             tracker.AddClientAction(ip);
 

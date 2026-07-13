@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.StateMachine
     /// </para>
     /// <para>
     /// Threading: the machine serialises *all* state mutations through an
-    /// internal <see cref="System.Threading.Lock"/>; child registration,
+    /// internal <see cref="Lock"/>; child registration,
     /// parent propagation, and event raising are atomic with respect to one
     /// another from the caller's perspective. The lock is never exposed —
     /// callers cannot deadlock with it.
@@ -226,6 +226,7 @@ namespace Opc.Ua.PubSub.StateMachine
         /// Detaches a previously attached child. Has no effect if the child
         /// is not attached to this instance.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void DetachChild(PubSubStateMachine child)
         {
             if (child is null)
@@ -469,7 +470,7 @@ namespace Opc.Ua.PubSub.StateMachine
             StatusCode statusCode,
             Func<PubSubState, bool> allowed)
         {
-            PubSubStateChangedEventArgs? evt = null;
+            PubSubStateChangedEventArgs? evt;
             lock (m_lock)
             {
                 ThrowIfDisposedLocked();

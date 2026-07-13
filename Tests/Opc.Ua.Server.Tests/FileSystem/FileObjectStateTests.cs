@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 m_context, state.Open, state.NodeId, 0x2, ref fileHandle);
             Assert.That(ServiceResult.IsGood(openResult), Is.True);
 
-            ByteString payload = ByteString.From(Encoding.UTF8.GetBytes("written"));
+            var payload = ByteString.From(Encoding.UTF8.GetBytes("written"));
             ServiceResult writeResult = state.Write!.OnCall!(
                 m_context, state.Write, state.NodeId, fileHandle, payload);
             Assert.That(ServiceResult.IsGood(writeResult), Is.True);
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             FileObjectState state = CreateFileState("out.txt");
 
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3 });
             ServiceResult result = state.Write!.OnCall!(
                 m_context, state.Write, state.NodeId, 999u, payload);
 

@@ -44,6 +44,52 @@ hand-wired fluent simulation, and additionally exposes the OPC
 by an in-memory `ISoftwarePackageStore` seeded with two demo
 firmware payloads.
 
+## Running in Docker
+
+A [`Dockerfile`](./Dockerfile) is provided that builds the Release
+publish output on the .NET **AzureLinux 3** base images and runs it as a
+non-root user.
+
+> **Build from the repository root**, not from this folder. The image
+> needs the full source tree (`Stack/`, `Libraries/`, `Tools/`), so the
+> Docker build context must be the repo root and the Dockerfile is
+> selected with `-f`. Running `docker build .` from inside this folder
+> fails fast with a message telling you the correct command.
+
+```pwsh
+# from the repository root:
+docker build -f Applications/PumpDeviceIntegrationServer/Dockerfile `
+             -t pumpdeviceintegrationserver:local .
+```
+
+Run it, publishing the OPC UA port:
+
+```pwsh
+docker run --rm -p 62542:62542 pumpdeviceintegrationserver:local
+```
+
+Inside the container the endpoint binds to `0.0.0.0` so it is reachable
+from the host. Override the bind host and port via environment variables:
+
+```pwsh
+docker run --rm -p 62550:62550 `
+           -e host=0.0.0.0 -e port=62550 `
+           pumpdeviceintegrationserver:local
+```
+
+The server creates its certificate/PKI store under `/app` at runtime.
+To persist certificates across container restarts, mount a volume:
+
+```pwsh
+docker run --rm -p 62542:62542 `
+           -v pump-pki:/app/pki `
+           pumpdeviceintegrationserver:local
+```
+
+The image is built and published to the GitHub Container Registry by the
+[`pump-device-integration-server-docker.yml`](../../.github/workflows/pump-device-integration-server-docker.yml)
+workflow on every push to `master` and on manual dispatch.
+
 ## What the sample demonstrates
 
 | Feature | Where |

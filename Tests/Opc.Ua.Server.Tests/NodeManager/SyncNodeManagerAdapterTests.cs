@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -77,12 +76,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
             var adapter = new SyncNodeManagerAdapter(manager.Object);
-            var context = NewOpContext(RequestType.Read);
+            OperationContext context = NewOpContext(RequestType.Read);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             var references = new Dictionary<NodeId, IList<IReference>>();
             var nodeId = new NodeId(123, 2);
-            var handle = new object();
-            var sourceHandle = new object();
+            object handle = new();
+            object sourceHandle = new();
             var referenceTypeId = new NodeId(234, 2);
             var targetId = new ExpandedNodeId(new NodeId(345, 2));
             var metadata = new NodeMetadata(handle, nodeId);
@@ -107,7 +106,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var methodsToCall = new ArrayOf<CallMethodRequest>();
             var callResults = new List<CallMethodResult>();
             var callErrors = new List<ServiceResult>();
-            var monitoredItem = new Mock<IEventMonitoredItem>().Object;
+            IEventMonitoredItem monitoredItem = new Mock<IEventMonitoredItem>().Object;
             var eventItems = new List<IEventMonitoredItem>();
             var itemsToCreate = new ArrayOf<MonitoredItemCreateRequest>();
             var createErrors = new List<ServiceResult>();
@@ -115,7 +114,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var monitoredItems = new List<IMonitoredItem>();
             var idFactory = new MonitoredItemIdFactory();
             var itemsToRestore = new List<IStoredMonitoredItem>();
-            var ownerIdentity = new Mock<IUserIdentity>().Object;
+            IUserIdentity ownerIdentity = new Mock<IUserIdentity>().Object;
             var itemsToModify = new ArrayOf<MonitoredItemModifyRequest>();
             var modifyErrors = new List<ServiceResult>();
             var deleteProcessed = new List<bool>();
@@ -128,8 +127,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var permissionCache = new Dictionary<NodeId, Variant[]>();
             var methodToCall = new CallMethodRequest();
             var methodState = new MethodState(null);
-            var filterTarget = new Mock<IFilterTarget>().Object;
-            var namespaces = new[] { "urn:test" };
+            IFilterTarget filterTarget = new Mock<IFilterTarget>().Object;
+            string[] namespaces = ["urn:test"];
             var deleteReferenceResult = new ServiceResult(StatusCodes.BadNodeIdUnknown);
             var eventResult = new ServiceResult(StatusCodes.BadEventFilterInvalid);
             var allEventsResult = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
@@ -262,9 +261,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Composite interface for factory branch coverage.
         /// </summary>
-        public interface IAsyncAndSyncNodeManager : IAsyncNodeManager, INodeManager
-        {
-        }
+        public interface IAsyncAndSyncNodeManager : IAsyncNodeManager, INodeManager;
 
         private static void SetupAsyncMethods(
             Mock<IAsyncNodeManager> manager,

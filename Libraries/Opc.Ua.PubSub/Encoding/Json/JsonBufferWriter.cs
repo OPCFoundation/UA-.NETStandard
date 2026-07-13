@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             byte[]? buffer = m_buffer;
             if (buffer.Length > 0)
             {
-                m_buffer = Array.Empty<byte>();
+                m_buffer = [];
                 ArrayPool<byte>.Shared.Return(buffer, clearArray: false);
             }
         }
@@ -136,6 +136,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <paramref name="sizeHint"/> more bytes.
         /// </summary>
         /// <param name="sizeHint">Required free capacity.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private void EnsureCapacity(int sizeHint)
         {
             if (sizeHint < 0)

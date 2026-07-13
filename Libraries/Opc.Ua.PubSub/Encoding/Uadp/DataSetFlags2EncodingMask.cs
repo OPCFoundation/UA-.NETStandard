@@ -56,12 +56,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// No DataSetFlags2 bits set; the DataSetMessage is a KeyFrame
         /// (type value 0) with no per-message timestamp or picoseconds.
         /// </summary>
-        None = 0,
+        None = 0x00,
 
         /// <summary>
         /// Bit pattern <c>0000</c> — KeyFrame DataSetMessage.
         /// </summary>
-        KeyFrame = 0x00,
+        KeyFrame = None,
 
         /// <summary>
         /// Bit pattern <c>0001</c> — DeltaFrame DataSetMessage.
@@ -76,13 +76,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <summary>
         /// Bit pattern <c>0011</c> — KeepAlive DataSetMessage.
         /// </summary>
-        KeepAlive = 0x03,
+        KeepAlive = DeltaFrame | Event,
 
         /// <summary>
         /// Mask isolating the low 4 bits which encode the
         /// <see cref="PubSubDataSetMessageType"/> wire value.
         /// </summary>
+#pragma warning disable RCS1157 // Composite enum value contains undefined flag
         MessageTypeMask = 0x0F,
+#pragma warning restore RCS1157 // Composite enum value contains undefined flag
 
         /// <summary>
         /// Bit 4 — per-message Timestamp enabled (UA <c>DateTime</c>).
@@ -95,8 +97,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         PicoSecondsEnabled = 0x20
     }
-#pragma warning restore CA2217
-#pragma warning restore CA1069
+#pragma warning restore CA2217, CA1069
 
     /// <summary>
     /// Helpers for converting the DataSetMessage type nibble between
@@ -116,10 +117,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <see langword="true"/> when the bits encode a supported
         /// DataSetMessage type; <see langword="false"/> otherwise.
         /// </returns>
-        public static bool TryGetMessageType(byte raw, out PubSubDataSetMessageType messageType)
+        public static bool TryGetMessageType(this byte raw, out PubSubDataSetMessageType messageType)
         {
-            int bits = raw & (byte)DataSetFlags2EncodingMask.MessageTypeMask;
-            switch (bits)
+            switch (raw & (byte)DataSetFlags2EncodingMask.MessageTypeMask)
             {
                 case 0:
                     messageType = PubSubDataSetMessageType.KeyFrame;
@@ -146,7 +146,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <param name="messageType">Message type to translate.</param>
         /// <returns>The encoded bit pattern (0..3).</returns>
-        public static byte EncodeMessageType(PubSubDataSetMessageType messageType)
+        public static byte EncodeMessageType(this PubSubDataSetMessageType messageType)
         {
             return messageType switch
             {

@@ -36,7 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
-using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.Tests;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
@@ -75,9 +74,9 @@ namespace Opc.Ua.PubSub.Tests.Groups
             await group.PublishOnceAsync().ConfigureAwait(false);
             Assert.That(captured, Has.Count.EqualTo(1));
             Assert.That(captured[0], Is.InstanceOf<UadpNetworkMessageV2>());
-            UadpNetworkMessageV2 first = (UadpNetworkMessageV2)captured[0];
+            var first = (UadpNetworkMessageV2)captured[0];
             Assert.That(((PubSubDataSetMessage[]?)first.DataSetMessages) ?? [], Has.Length.EqualTo(1));
-            Assert.That(((UadpDataSetMessageV2)first.DataSetMessages[0]).MessageType,
+            Assert.That(first.DataSetMessages[0].MessageType,
                 Is.EqualTo(PubSubDataSetMessageType.KeyFrame));
 
             // Second publish without elapsed time → empty delta path returns
@@ -93,9 +92,9 @@ namespace Opc.Ua.PubSub.Tests.Groups
 
             Assert.That(captured, Has.Count.EqualTo(1),
                 "KeepAlive must be emitted once KeepAliveTime elapses.");
-            UadpNetworkMessageV2 keepAlive = (UadpNetworkMessageV2)captured[0];
+            var keepAlive = (UadpNetworkMessageV2)captured[0];
             Assert.That(((PubSubDataSetMessage[]?)keepAlive.DataSetMessages) ?? [], Has.Length.EqualTo(1));
-            UadpDataSetMessageV2 ds = (UadpDataSetMessageV2)keepAlive.DataSetMessages[0];
+            var ds = (UadpDataSetMessageV2)keepAlive.DataSetMessages[0];
             Assert.Multiple(() =>
             {
                 Assert.That(ds.MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));

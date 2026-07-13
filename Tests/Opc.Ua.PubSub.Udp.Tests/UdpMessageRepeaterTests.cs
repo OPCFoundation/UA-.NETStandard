@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             {
                 count++;
                 return default;
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(count, Is.EqualTo(1));
             Assert.That(repeater.RepeatCount, Is.Zero);
@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             {
                 count++;
                 return default;
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(count, Is.EqualTo(1));
             Assert.That(repeater.RepeatCount, Is.Zero);
@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 await Task.Yield();
             }
 
-            await sendTask;
+            await sendTask.ConfigureAwait(false);
 
             Assert.That(count, Is.EqualTo(4));
         }
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             {
                 count++;
                 return default;
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(count, Is.EqualTo(3));
             Assert.That(repeater.RepeatDelay, Is.EqualTo(TimeSpan.Zero));
@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             {
                 count++;
                 return default;
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(count, Is.EqualTo(2));
             Assert.That(repeater.RepeatDelay, Is.EqualTo(TimeSpan.Zero));
@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             var repeater = new UdpMessageRepeater(0, TimeSpan.Zero, TimeProvider.System);
 
             Assert.That(
-                async () => await repeater.SendWithRepeatsAsync(null!),
+                async () => await repeater.SendWithRepeatsAsync(null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -170,7 +170,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 {
                     count++;
                     return default;
-                }, cts.Token);
+                }, cts.Token).ConfigureAwait(false);
                 Assert.Fail("Expected OperationCanceledException.");
             }
             catch (OperationCanceledException)
@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await sendTask;
+                await sendTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -233,7 +233,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                         cts.Cancel();
                     }
                     return default;
-                }, cts.Token);
+                }, cts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

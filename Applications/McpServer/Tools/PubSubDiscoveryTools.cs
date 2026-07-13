@@ -108,7 +108,7 @@ namespace Opc.Ua.Mcp.Tools
                 DiscoveryType = discoveryType,
                 DataSetWriterIds = dataSetWriterIds is null ? [] : [.. dataSetWriterIds]
             };
-            TimeSpan timeout = TimeSpan.FromMilliseconds(timeoutMs <= 0 ? 2000 : timeoutMs);
+            var timeout = TimeSpan.FromMilliseconds(timeoutMs <= 0 ? 2000 : timeoutMs);
             return await manager.RequestDiscoveryAsync(request, timeout, ct).ConfigureAwait(false);
         }
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.Mcp.Tools
                     entry.DataSetWriterId,
                     entry.StatusCode.ToString(),
                     entry.DataSetMetaData?.Name,
-                    entry.DataSetMetaData is null ? 0 : entry.DataSetMetaData.Fields.Count);
+                    (entry.DataSetMetaData?.Fields.Count) ?? 0);
             }
 
             var writerConfigs = new PubSubDiscoveredWriterConfig[result.WriterConfigurations.Count];
@@ -138,7 +138,7 @@ namespace Opc.Ua.Mcp.Tools
                     entry.StatusCode.ToString());
             }
 
-            var endpoints = new string[result.PublisherEndpoints.Count];
+            string[] endpoints = new string[result.PublisherEndpoints.Count];
             for (int i = 0; i < result.PublisherEndpoints.Count; i++)
             {
                 endpoints[i] = result.PublisherEndpoints[i].EndpointUrl ?? string.Empty;

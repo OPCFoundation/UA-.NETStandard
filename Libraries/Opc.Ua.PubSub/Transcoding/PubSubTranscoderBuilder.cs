@@ -64,6 +64,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="sourceConnectionName">Source connection name.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscoderBuilder From(string sourceConnectionName)
         {
             m_source = sourceConnectionName
@@ -78,6 +79,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// <param name="targetConnectionName">Target connection name.</param>
         /// <param name="encoding">Target NetworkMessage encoding.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscoderBuilder To(
             string targetConnectionName,
             TranscodeEncoding encoding)
@@ -93,6 +95,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="transform">Transform to add.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscoderBuilder AddTransform(IPubSubMessageTransform transform)
         {
             m_transforms.Add(transform ?? throw new ArgumentNullException(nameof(transform)));
@@ -125,6 +128,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// <param name="from">Source field name.</param>
         /// <param name="to">Target field name.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscoderBuilder RenameField(string from, string to)
         {
             if (from is null)
@@ -219,6 +223,8 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="fieldNames">Field BrowseNames to promote.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public PubSubTranscoderBuilder PromoteFields(params string[] fieldNames)
         {
             if (fieldNames is null)
@@ -242,6 +248,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="prefix">Property key prefix.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscoderBuilder WithPromotedFieldPrefix(string prefix)
         {
             m_promotionPrefix = prefix ?? throw new ArgumentNullException(nameof(prefix));
@@ -300,6 +307,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="topic">Target topic.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscoderBuilder ToTopic(string topic)
         {
             if (topic is null)
@@ -315,6 +323,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="selector">Topic selector.</param>
         /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubTranscoderBuilder WithTopicSelector(
             Func<ReceivedNetworkMessage, string?> selector)
         {

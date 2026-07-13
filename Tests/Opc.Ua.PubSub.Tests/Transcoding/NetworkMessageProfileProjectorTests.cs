@@ -140,8 +140,8 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             JsonNetworkMessageV2 source = SampleJson() with
             {
                 SingleMessageMode = true,
-                ContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                    | JsonNetworkMessageContentMask.SingleDataSetMessage
+                ContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader |
+                    JsonNetworkMessageContentMask.SingleDataSetMessage
             };
             var options = new TranscodeTargetOptions { JsonSingleMessageMode = false };
 

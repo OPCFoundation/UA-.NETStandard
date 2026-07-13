@@ -116,6 +116,7 @@ namespace Opc.Ua
         /// <param name="delay">The reconnect delay produced by the policy.</param>
         /// <param name="serverRetryAfter">The server-provided retry-after hint.</param>
         /// <returns>The effective delay with the hint honored as a lower bound.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="policy"/> is <c>null</c>.</exception>
         public static TimeSpan ApplyReconnectDelayLowerBound(
             IChannelReconnectPolicy policy,
             TimeSpan delay,
@@ -144,8 +145,8 @@ namespace Opc.Ua
         /// <returns><c>true</c> when <paramref name="status"/> is a server-busy signal.</returns>
         public static bool IsServerBusyStatus(StatusCode status)
         {
-            return status == StatusCodes.BadTcpServerTooBusy
-                || status == StatusCodes.BadServerTooBusy;
+            return status == StatusCodes.BadTcpServerTooBusy ||
+                status == StatusCodes.BadServerTooBusy;
         }
 
         private static TimeSpan ClampToPolicyMax(IChannelReconnectPolicy policy, TimeSpan hint)

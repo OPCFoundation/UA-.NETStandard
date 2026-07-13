@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 await writer.BuildEventMessagesAsync().ConfigureAwait(false);
 
             Assert.That(messages, Has.Count.EqualTo(2));
-            Assert.That(((UadpDataSetMessageV2)messages[0]).MessageType,
+            Assert.That(messages[0].MessageType,
                 Is.EqualTo(PubSubDataSetMessageType.Event));
             Assert.That(((DataSetField[]?)messages[0].Fields) ?? [], Has.Length.EqualTo(2));
             Assert.That(messages[0].Fields[0].Value, Is.EqualTo(new Variant("A1")));
@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 await writer.BuildEventMessagesAsync().ConfigureAwait(false);
 
             Assert.That(messages, Has.Count.EqualTo(1));
-            UadpDataSetMessageV2 dsm = (UadpDataSetMessageV2)messages[0];
+            var dsm = (UadpDataSetMessageV2)messages[0];
             Assert.That(dsm.FieldContentMask & DataSetFieldContentMask.StatusCode,
                 Is.EqualTo(DataSetFieldContentMask.StatusCode));
         }
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 ContentFilter? filter,
                 CancellationToken cancellationToken = default)
             {
-                IReadOnlyList<IReadOnlyList<Variant>> copy = m_pending.ToArray();
+                IReadOnlyList<IReadOnlyList<Variant>> copy = [.. m_pending];
                 m_pending.Clear();
                 return new ValueTask<IReadOnlyList<IReadOnlyList<Variant>>>(copy);
             }

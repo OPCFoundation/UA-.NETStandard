@@ -189,6 +189,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// </summary>
         /// <param name="callerIdentity">Authenticated caller identity.</param>
         /// <returns>Updated group configuration.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public SksSecurityGroup WithAuthorizedCaller(string callerIdentity)
         {
             if (string.IsNullOrEmpty(callerIdentity))

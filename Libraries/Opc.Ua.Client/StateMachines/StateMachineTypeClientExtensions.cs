@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.StateMachines
         /// finite-state extension class.
         /// </summary>
         internal static async ValueTask<NodeId> ResolveChildNodeIdAsync(
-            StateMachineTypeClient client,
+            this StateMachineTypeClient client,
             string browseName,
             CancellationToken ct)
         {
@@ -260,7 +260,7 @@ namespace Opc.Ua.Client.StateMachines
         /// (e.g. "CurrentState/Id").
         /// </summary>
         internal static async ValueTask<NodeId> ResolveChildNodeIdAsync(
-            StateMachineTypeClient client,
+            this StateMachineTypeClient client,
             string parentBrowseName,
             string childBrowseName,
             CancellationToken ct)
@@ -311,7 +311,7 @@ namespace Opc.Ua.Client.StateMachines
         /// Reads the Value attribute of a single node.
         /// </summary>
         internal static async ValueTask<DataValue> ReadValueAsync(
-            StateMachineTypeClient client,
+            this StateMachineTypeClient client,
             NodeId nodeId,
             CancellationToken ct)
         {
@@ -334,7 +334,7 @@ namespace Opc.Ua.Client.StateMachines
             return response.Results[0];
         }
 
-        internal static DateTime ToTimestamp(DateTimeUtc sourceTimestamp)
+        internal static DateTime ToTimestamp(this DateTimeUtc sourceTimestamp)
         {
             var dt = (DateTime)sourceTimestamp;
             return dt == DateTime.MinValue ? DateTime.UtcNow : dt;

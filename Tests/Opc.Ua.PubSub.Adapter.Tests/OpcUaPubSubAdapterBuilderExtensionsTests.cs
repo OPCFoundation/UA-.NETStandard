@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -37,7 +36,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
 using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
@@ -59,7 +57,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             NewServices()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
             var factory = new Mock<IServerSessionFactory>();
@@ -170,11 +168,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             (ServiceCollection services, _) = NewServices();
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)))
-                });
+                ]);
             config.Connections = [];
 
             services.AddServerAdapterPubSub(
@@ -184,10 +181,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     publisher.Connection.EndpointUrl = "opc.tcp://localhost:4840";
                     publisher.ReadMode = ReadMode.Subscription;
                 },
-                subscriber =>
-                {
-                    subscriber.Connection.EndpointUrl = "opc.tcp://localhost:4840";
-                });
+                subscriber => subscriber.Connection.EndpointUrl = "opc.tcp://localhost:4840");
 
             await using ServiceProvider sp = services.BuildServiceProvider();
 
@@ -207,11 +201,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             (ServiceCollection services, _) = NewServices();
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
                 500,
-                new[]
-                {
+                [
                     AdapterTestHelpers.PublishedDataSet(
                         "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)))
-                });
+                ]);
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .UseConfiguration(config)
@@ -292,10 +285,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     o.Connection.EndpointUrl = "opc.tcp://localhost:4840";
                     o.AllowUnsecured = true;
                     o.MethodMap.Add("DoIt", new NodeId(1u), new NodeId(2u));
-                    o.Targets = new List<PubSubActionTarget>
-                    {
+                    o.Targets =
+                    [
                         new() { ActionName = "DoIt" }
-                    };
+                    ];
                 }));
             ServiceProvider sp = services.BuildServiceProvider();
 

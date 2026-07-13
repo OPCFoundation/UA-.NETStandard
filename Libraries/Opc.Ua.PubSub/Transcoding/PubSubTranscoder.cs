@@ -108,13 +108,13 @@ namespace Opc.Ua.PubSub.Transcoding
                 ?? throw new ArgumentException(
                     "TranscodeInput.Message must not be null.", nameof(input));
 
-            TranscodeEncoding sourceEncoding = TranscodeEncodingExtensions.EncodingOf(source);
+            TranscodeEncoding sourceEncoding = source.EncodingOf();
 
-            if (m_identity
-                && sourceEncoding == m_targetEncoding
-                && !input.SourceFrame.IsEmpty
-                && !input.SourceFrameSecured
-                && !m_security.IsTargetSecured)
+            if (m_identity &&
+                sourceEncoding == m_targetEncoding &&
+                !input.SourceFrame.IsEmpty &&
+                !input.SourceFrameSecured &&
+                !m_security.IsTargetSecured)
             {
                 return new TranscodeResult
                 {
@@ -129,11 +129,11 @@ namespace Opc.Ua.PubSub.Transcoding
                 m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
                 m_diagnostics.RecordError(
                     StatusCodes.BadSecurityModeRejected,
-                    "Refusing to transcode a secured message to an output without "
-                    + "message-layer security (set AllowInsecureCrossEncoding to override).");
+                    "Refusing to transcode a secured message to an output without " +
+                    "message-layer security (set AllowInsecureCrossEncoding to override).");
                 m_logger.LogWarning(
-                    "Dropping transcode: secured source would be downgraded to an "
-                    + "unsecured {Encoding} target.",
+                    "Dropping transcode: secured source would be downgraded to an " +
+                    "unsecured {Encoding} target.",
                     m_targetEncoding);
                 return TranscodeResult.Empty;
             }
@@ -182,8 +182,8 @@ namespace Opc.Ua.PubSub.Transcoding
             for (int n = 0; n < names.Count; n++)
             {
                 string fieldName = names[n];
-                if (string.IsNullOrEmpty(fieldName)
-                    || !TryFindField(targets, fieldName, out DataSetField field))
+                if (string.IsNullOrEmpty(fieldName) ||
+                    !TryFindField(targets, fieldName, out DataSetField field))
                 {
                     continue;
                 }
@@ -223,9 +223,9 @@ namespace Opc.Ua.PubSub.Transcoding
             INetworkMessageEncoder encoder,
             CancellationToken cancellationToken)
         {
-            if (m_targetEncoding == TranscodeEncoding.Uadp
-                && m_security.IsTargetSecured
-                && message is UadpNetworkMessage uadp)
+            if (m_targetEncoding == TranscodeEncoding.Uadp &&
+                m_security.IsTargetSecured &&
+                message is UadpNetworkMessage uadp)
             {
                 ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
                     uadp, m_context.EncodingContext, out int payloadOffset);
@@ -243,7 +243,7 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             foreach (KeyValuePair<string, INetworkMessageEncoder> entry in m_encoders)
             {
-                if (TranscodeEncodingExtensions.FromTransportProfileUri(entry.Key) == encoding)
+                if (entry.Key.FromTransportProfileUri() == encoding)
                 {
                     return entry.Value;
                 }

@@ -137,7 +137,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, _, BaseDataVariableState<bool> v) = CreateBuilder();
             IVariableBuilder<bool> vb = b.Variable<bool>(new NodeId("Root.Flag", kNs));
 
-            int rising = 0, falling = 0;
+            int rising = 0;
+            int falling = 0;
             vb.OnRisingEdge(_ => rising++).OnFallingEdge(_ => falling++);
 
             v.Value = false;
@@ -191,7 +192,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, _, BaseDataVariableState<bool> v) = CreateBuilder();
             IVariableBuilder<bool> vb = b.Variable<bool>(new NodeId("Root.Flag", kNs));
 
-            int handlerA = 0, handlerB = 0;
+            int handlerA = 0;
+            int handlerB = 0;
             vb.OnRisingEdge(_ => handlerA++)
               .OnRisingEdge(_ => handlerB++);
 

@@ -113,7 +113,7 @@ namespace Opc.Ua.Di.Client
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
 
-            ReferenceDescription[] snapshot =
+            var snapshot =
                 new ReferenceDescription[references.Count];
             for (int i = 0; i < references.Count; i++)
             {
@@ -124,7 +124,7 @@ namespace Opc.Ua.Di.Client
             {
                 ct.ThrowIfCancellationRequested();
 
-                NodeId targetId = ExpandedNodeId.ToNodeId(
+                var targetId = ExpandedNodeId.ToNodeId(
                     reference.NodeId, session.NamespaceUris);
 
                 if (reference.TypeDefinition == deviceTypeId)
@@ -192,7 +192,7 @@ namespace Opc.Ua.Di.Client
                 return string.Empty;
             }
 
-            NodeId targetId = ExpandedNodeId.ToNodeId(
+            var targetId = ExpandedNodeId.ToNodeId(
                 translateResponse.Results[0].Targets[0].TargetId,
                 session.NamespaceUris);
 

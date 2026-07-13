@@ -34,7 +34,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Publisher;
 using Opc.Ua.PubSub.Adapter.Session;
-using Opc.Ua.PubSub.DataSets;
 
 namespace Opc.Ua.PubSub.Adapter.Tests
 {
@@ -50,7 +49,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 ArrayOf<ReadValueId> nodesToRead,
                 CancellationToken cancellationToken = default)
             {
-                return new ValueTask<ArrayOf<DataValue>>(ArrayOf<DataValue>.Empty);
+                return new ValueTask<ArrayOf<DataValue>>([]);
             }
         }
 
@@ -81,8 +80,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 session.Object,
                 AdapterTestHelpers.Telemetry());
 
-            await builder.ResolveAsync();
-            await builder.ResolveAsync();
+            await builder.ResolveAsync().ConfigureAwait(false);
+            await builder.ResolveAsync().ConfigureAwait(false);
 
             session.Verify(
                 s => s.StartModelChangeMonitoringAsync(It.IsAny<CancellationToken>()),
@@ -119,14 +118,14 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 builder,
                 AdapterTestHelpers.Telemetry());
 
-            await builder.ResolveAsync();
+            await builder.ResolveAsync().ConfigureAwait(false);
 
             var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ((IMetaDataChangeNotifier)source).MetaDataChanged += (_, _) => changed.TrySetResult(true);
+            source.MetaDataChanged += (_, _) => changed.TrySetResult(true);
 
             session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
 
-            await changed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await changed.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
             DataSetMetaDataType metaData = builder.BuildMetaData();
             Assert.That(readCount, Is.GreaterThanOrEqualTo(2));
@@ -154,7 +153,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 session.Object,
                 AdapterTestHelpers.Telemetry());
 
-            await builder.ResolveAsync();
+            await builder.ResolveAsync().ConfigureAwait(false);
             session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
             await firstRefreshEntered.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 

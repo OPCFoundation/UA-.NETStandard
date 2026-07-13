@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.SoftwareUpdate;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Server.Builders
 {
@@ -79,7 +80,7 @@ namespace Opc.Ua.Di.Server.Builders
             ISoftwarePackageStore packageStore,
             SoftwareUpdateBuilder config)
         {
-            var context = manager.SystemContext;
+            ServerSystemContext context = manager.SystemContext;
             ushort diNs = manager.DiNamespaceIndex;
             ILogger logger = manager.Server.Telemetry.CreateLogger(
                 typeof(SoftwareUpdateFacetWiring));

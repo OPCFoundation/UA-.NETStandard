@@ -29,7 +29,6 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Diagnostics;
@@ -126,6 +125,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="context">Network message context.</param>
         /// <param name="payloadOffset">Boundary between outer prefix and inner payload.</param>
         /// <returns>The complete encoded buffer.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ReadOnlyMemory<byte> EncodeWithSecurityBoundary(
             UadpNetworkMessage networkMessage,
             PubSubNetworkMessageContext context,
@@ -154,6 +154,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="networkMessage">UADP data or action message.</param>
         /// <param name="context">Network message context.</param>
         /// <param name="payloadOffset">Boundary between outer prefix and inner payload.</param>
+        /// <exception cref="ArgumentException"></exception>
         public static ReadOnlyMemory<byte> EncodeWithSecurityBoundary(
             PubSubNetworkMessage networkMessage,
             PubSubNetworkMessageContext context,
@@ -202,6 +203,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// portion starts (i.e. immediately after the PayloadHeader
         /// sizes reservation).
         /// </param>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static byte[] EncodeData(
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
@@ -236,7 +238,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         rented = ArrayPool<byte>.Shared.Rent(rented.Length * 2);
                     }
                 }
-                var result = new byte[written];
+                byte[] result = new byte[written];
                 Buffer.BlockCopy(rented, 0, result, 0, written);
                 payloadOffset = localOffset;
                 return result;
@@ -247,6 +249,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
+#pragma warning disable IDE0051, RCS1213 // Kept as a test/debug helper for callers that do not need the payload offset.
         private static int EncodeIntoBuffer(
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
@@ -254,6 +257,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             return EncodeIntoBuffer(message, context, buffer, out _);
         }
+#pragma warning restore IDE0051, RCS1213
 
         private static int EncodeIntoBuffer(
             UadpNetworkMessage message,
@@ -296,14 +300,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             payloadOffset = writer.Position;
 
-            var sizes = new ushort[payloadCount];
+            ushort[] sizes = new ushort[payloadCount];
             for (int i = 0; i < payloadCount; i++)
             {
                 int beforeMessage = writer.Position;
                 if (message.DataSetMessages[i] is not UadpDataSetMessage uadpMsg)
                 {
                     throw new InvalidOperationException(
-                        "DataSetMessage at index " + i.ToString(
+                        "DataSetMessage at index " +
+                        i.ToString(
                             System.Globalization.CultureInfo.InvariantCulture) +
                         " is not a UadpDataSetMessage.");
                 }
@@ -337,14 +342,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             GroupFlagsEncodingMask groupFlags = 0;
             PublisherIdType publisherIdType = message.PublisherId.Type;
 
-            if ((message.ContentMask & UadpNetworkMessageContentMask.PublisherId) != 0
-                && !message.PublisherId.IsNull)
+            if ((message.ContentMask & UadpNetworkMessageContentMask.PublisherId) != 0 &&
+                !message.PublisherId.IsNull)
             {
                 uadpFlags |= UadpFlagsEncodingMask.PublisherIdEnabled;
                 if (publisherIdType != PublisherIdType.Byte)
                 {
                     ext1 |= (ExtendedFlags1EncodingMask)
-                        ExtendedFlags1EncodingMaskExtensions.EncodePublisherIdType(publisherIdType);
+                        publisherIdType.EncodePublisherIdType();
                 }
             }
 
@@ -426,8 +431,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             ExtendedFlags2EncodingMask ext2,
             PublisherIdType publisherIdType)
         {
-            writer.WriteByte(UadpFlagsEncodingMaskExtensions.Combine(
-                message.UadpVersion, uadpFlags));
+            writer.WriteByte(message.UadpVersion.Combine(
+uadpFlags));
 
             if ((uadpFlags & UadpFlagsEncodingMask.ExtendedFlags1Enabled) != 0)
             {
@@ -628,7 +633,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             DataSetFlags2EncodingMask flags2 = 0;
 
             flags1 |= (DataSetFlags1EncodingMask)
-                DataSetFlags1EncodingMaskExtensions.EncodeFieldEncoding(message.FieldEncoding);
+                message.FieldEncoding.EncodeFieldEncoding();
 
             if ((message.ContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
             {
@@ -656,7 +661,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 flags2 |= DataSetFlags2EncodingMask.PicoSecondsEnabled;
             }
             flags2 |= (DataSetFlags2EncodingMask)
-                DataSetFlags2EncodingMaskExtensions.EncodeMessageType(message.MessageType);
+                message.MessageType.EncodeMessageType();
 
             bool needFlags2 = flags2 != 0;
             if (needFlags2)
@@ -683,8 +688,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 message.MetaDataVersion.MajorVersion);
             MetaData.MetaDataMatchResult match =
                 context.MetaDataRegistry.TryGet(key, out DataSetMetaDataType? meta);
-            if (match == MetaData.MetaDataMatchResult.Match ||
-                match == MetaData.MetaDataMatchResult.MinorVersionMismatch)
+            if (match is MetaData.MetaDataMatchResult.Match or
+                MetaData.MetaDataMatchResult.MinorVersionMismatch)
             {
                 return meta;
             }
@@ -736,6 +741,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// optional GroupHeader. When <c>null</c> the GroupHeader is
         /// omitted.</param>
         /// <returns>The fully framed envelope plus chunk payload.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public static ReadOnlyMemory<byte> WriteChunkEnvelope(
             ReadOnlyMemory<byte> chunkFrame,
             PublisherId publisherId,
@@ -755,8 +761,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
 
             PublisherIdType pidType = publisherId.Type;
-            var uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled
-                | UadpFlagsEncodingMask.ExtendedFlags1Enabled;
+            UadpFlagsEncodingMask uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled |
+                UadpFlagsEncodingMask.ExtendedFlags1Enabled;
             if (writerGroupId.HasValue)
             {
                 uadpFlags |= UadpFlagsEncodingMask.GroupHeaderEnabled;
@@ -764,18 +770,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             byte ext1 = (byte)ExtendedFlags1EncodingMask.ExtendedFlags2Enabled;
             if (pidType != PublisherIdType.Byte)
             {
-                ext1 |= ExtendedFlags1EncodingMaskExtensions
-                    .EncodePublisherIdType(pidType);
+                ext1 |= pidType
+                    .EncodePublisherIdType();
             }
-            byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
+            const byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
 
-            int envelopeSize = 1 + 1 + 1
-                + EstimatePublisherIdSize(publisherId, pidType)
-                + (writerGroupId.HasValue ? 3 : 0);
+            int envelopeSize = 1 +
+                1 +
+                1 +
+                EstimatePublisherIdSize(publisherId, pidType) +
+                (writerGroupId.HasValue ? 3 : 0);
             byte[] result = new byte[envelopeSize + chunkFrame.Length];
             var writer = new UadpBinaryWriter(result, 0, result.Length);
 
-            byte version = 1;
+            const byte version = 1;
             writer.WriteByte(
                 (byte)((byte)uadpFlags | (version & 0x0F)));
             writer.WriteByte(ext1);

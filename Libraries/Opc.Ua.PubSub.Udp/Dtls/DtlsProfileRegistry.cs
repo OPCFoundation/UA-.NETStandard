@@ -81,6 +81,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Emits a startup diagnostic listing supported DTLS profiles.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void EmitStartupDiagnostic(ITelemetryContext telemetry)
         {
             if (telemetry is null)
@@ -101,6 +102,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Resolves a supported profile or throws a clear fail-closed error.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
         public DtlsProfile Resolve(string profileName)
         {
             if (string.IsNullOrEmpty(profileName))
@@ -228,6 +231,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Determines whether every primitive required by a profile is available.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public bool Supports(DtlsProfile profile)
         {
             if (profile is null)

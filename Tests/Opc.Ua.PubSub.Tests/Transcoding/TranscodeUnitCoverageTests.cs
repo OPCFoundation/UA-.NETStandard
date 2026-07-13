@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         [Test]
         public void Builder_AllFluentMethods_ComposeSpecAndDescriptor()
         {
-            var builder = new PubSubTranscoderBuilder()
+            PubSubTranscoderBuilder builder = new PubSubTranscoderBuilder()
                 .From("in")
                 .To("out", TranscodeEncoding.Json)
                 .AddTransform(new IdRemapTransform(PublisherId.FromByte(2)))
@@ -123,10 +123,10 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                     Is.EqualTo(Profiles.PubSubUdpUadpTransport));
                 Assert.That(TranscodeEncoding.Json.ToTransportProfileUri(),
                     Is.EqualTo(Profiles.PubSubMqttJsonTransport));
-                Assert.That(TranscodeEncodingExtensions.FromTransportProfileUri(
-                    Profiles.PubSubMqttJsonTransport), Is.EqualTo(TranscodeEncoding.Json));
-                Assert.That(TranscodeEncodingExtensions.FromTransportProfileUri(
-                    Profiles.PubSubUdpUadpTransport), Is.EqualTo(TranscodeEncoding.Uadp));
+                Assert.That(Profiles.PubSubMqttJsonTransport.FromTransportProfileUri(
+), Is.EqualTo(TranscodeEncoding.Json));
+                Assert.That(Profiles.PubSubUdpUadpTransport.FromTransportProfileUri(
+), Is.EqualTo(TranscodeEncoding.Uadp));
                 Assert.That(TranscodeEncodingExtensions.FromTransportProfileUri(null!),
                     Is.EqualTo(TranscodeEncoding.Uadp));
                 Assert.That(() => ((TranscodeEncoding)99).ToTransportProfileUri(),
@@ -212,12 +212,13 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             var classId = new Uuid(Guid.NewGuid());
             UadpNetworkMessageV2 uadp = NewUadpMessage(
                 PublisherId.FromByte(1), 10, 100, Field("v", new Variant(1)))
-                with { DataSetClassId = classId };
+                with
+            { DataSetClassId = classId };
 
             PubSubNetworkMessage projected = NetworkMessageProfileProjector.Instance.Project(
                 uadp, TranscodeEncoding.Json, TranscodeTargetOptions.Default, context);
 
-            var json = (Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage)projected;
+            var json = (PubSub.Encoding.Json.JsonNetworkMessage)projected;
             Assert.That(json.DataSetClassId, Is.EqualTo(classId));
         }
 

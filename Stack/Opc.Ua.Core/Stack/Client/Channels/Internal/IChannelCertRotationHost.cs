@@ -39,9 +39,11 @@ namespace Opc.Ua
         ILogger? Logger { get; }
         bool IsDisposed { get; }
         ChannelEntry[] SnapshotEntries();
+
         void ReplaceClientCertificate(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain);
+
         void SetCertificateRotationTask(Task? task);
     }
 }

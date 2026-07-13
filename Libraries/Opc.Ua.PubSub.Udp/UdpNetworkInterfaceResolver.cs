@@ -136,9 +136,9 @@ namespace Opc.Ua.PubSub.Udp
                 {
                     continue;
                 }
-                if (string.Equals(candidate.Name, preferred, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(candidate.Description, preferred, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(candidate.Id, preferred, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(candidate.Name, preferred, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(candidate.Description, preferred, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(candidate.Id, preferred, StringComparison.OrdinalIgnoreCase))
                 {
                     return candidate;
                 }

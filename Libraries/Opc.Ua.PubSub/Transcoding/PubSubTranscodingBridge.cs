@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Transcoding
         private readonly IPubSubTranscodeEgress m_egress;
         private readonly Func<ReceivedNetworkMessage, string?>? m_topicSelector;
         private readonly ILogger m_logger;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private IDisposable? m_registration;
 
         /// <summary>

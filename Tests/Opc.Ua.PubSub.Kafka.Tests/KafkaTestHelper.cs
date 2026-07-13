@@ -125,7 +125,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 conn,
                 KafkaEndpointParser.Parse(EndpointUrl),
                 direction,
-                options ?? new KafkaConnectionOptions
+                options ??
+                new KafkaConnectionOptions
                 {
                     Endpoint = EndpointUrl,
                     BootstrapServers = "broker.example.com:9092"

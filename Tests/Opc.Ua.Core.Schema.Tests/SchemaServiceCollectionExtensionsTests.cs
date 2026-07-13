@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 
@@ -46,14 +47,14 @@ namespace Opc.Ua.Schema.Tests
             services.AddOpcUa().AddSchemaGeneration();
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
-            var registry = serviceProvider.GetRequiredService<DataTypeDefinitionRegistry>();
+            DataTypeDefinitionRegistry registry = serviceProvider.GetRequiredService<DataTypeDefinitionRegistry>();
             UaTypeDescription type = SchemaTestData.Structure(
                 3001,
                 "SampleType",
                 SchemaTestData.Field("Id", SchemaTestData.BuiltIn(BuiltInType.Int32)));
             registry.Add(type);
 
-            var provider = serviceProvider.GetRequiredService<ISchemaProvider>();
+            ISchemaProvider provider = serviceProvider.GetRequiredService<ISchemaProvider>();
             bool resolved = provider.TryGetSchema(
                 type.TypeId,
                 UaSchemaFormat.JsonCompact,
@@ -69,13 +70,21 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public void AddSchemaGenerationThrowsForNullBuilder()
+        {
+            Assert.That(
+                () => SchemaServiceCollectionExtensions.AddSchemaGeneration(null!),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("builder"));
+        }
+
+        [Test]
         public void TryGetSchemaReturnsFalseForUnknownType()
         {
             var services = new ServiceCollection();
             services.AddOpcUa().AddSchemaGeneration();
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
-            var provider = serviceProvider.GetRequiredService<ISchemaProvider>();
+            ISchemaProvider provider = serviceProvider.GetRequiredService<ISchemaProvider>();
             bool resolved = provider.TryGetSchema(
                 new ExpandedNodeId(new NodeId(9999, 1)),
                 UaSchemaFormat.JsonCompact,

@@ -27,17 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
@@ -99,7 +97,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
 
             TcpChaosProxy proxy = await TcpChaosProxy.StartAsync(ServerUrl, telemetry: Telemetry)
                 .ConfigureAwait(false);
-            await using var proxyDispose = proxy.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable proxyDispose = proxy.ConfigureAwait(false);
             ClientChannelManager manager = CreateChannelManager(
                 new ExponentialBackoffChannelReconnectPolicy
                 {
@@ -107,7 +105,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                     MaxDelay = TimeSpan.FromSeconds(1),
                     MaxAttempts = 120
                 });
-            await using var managerDispose = manager.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable managerDispose = manager.ConfigureAwait(false);
 
             ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None, proxy.LocalUrl)
                 .ConfigureAwait(false);
@@ -144,7 +142,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                     concurrency: ReadConcurrency,
                     targetOpsPerSecond: ReadTargetOpsPerSecond,
                     telemetry: Telemetry);
-                await using var runnerDispose = runner.ConfigureAwait(false);
+                await using ConfiguredAsyncDisposable runnerDispose = runner.ConfigureAwait(false);
                 await runner.StartAsync(ct).ConfigureAwait(false);
 
                 try
@@ -163,7 +161,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                             manager,
                             sharedKey,
                             workerCt));
-                    await using var dispatcherDispose = dispatcher.ConfigureAwait(false);
+                    await using ConfiguredAsyncDisposable dispatcherDispose = dispatcher.ConfigureAwait(false);
 
                     await dispatcher.RunAsync(ct).ConfigureAwait(false);
                     await DelayRemainingChaosWindowAsync(started, ct).ConfigureAwait(false);
@@ -515,7 +513,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
         private static readonly TimeSpan MaxDropInterval = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan SettleAfterChaos = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan RecentNotificationWindow = TimeSpan.FromSeconds(2);
-        private static readonly TimeSpan RecentNotificationWait = TimeSpan.FromSeconds(2);
+        // Poll timeout for post-drop recovery validation (channel Ready,
+        // subscriptions re-created, notifications resumed). Recreating all
+        // SessionCount * SubscriptionsPerSession subscriptions and their
+        // monitored items on the server after a transport drop is not
+        // instantaneous - especially on a loaded CI agent - so this must be
+        // generous, while staying below MinDropInterval so recovery of one
+        // drop completes before the next drop fires (SettleAfterChaos + this
+        // wait stays under MinDropInterval).
+        private static readonly TimeSpan RecentNotificationWait = TimeSpan.FromSeconds(8);
         private long m_readIndex;
 
         private sealed record SubscriptionTracker(
@@ -528,7 +534,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             public string DisplayName => FormattableString.Invariant($"S{SessionIndex}/Sub{SubscriptionIndex}");
         }
 
-        private sealed class NotificationCounter : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+        private sealed class NotificationCounter : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             public long Count => Volatile.Read(ref m_count);
 
@@ -548,15 +554,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 int goodNotifications = 0;
-                ReadOnlySpan<Opc.Ua.Client.Subscriptions.DataValueChange> span = notification.Span;
+                ReadOnlySpan<Client.Subscriptions.DataValueChange> span = notification.Span;
                 for (int index = 0; index < span.Length; index++)
                 {
-                    Opc.Ua.Client.Subscriptions.DataValueChange change = span[index];
+                    Client.Subscriptions.DataValueChange change = span[index];
                     if (!change.Value.IsNull && StatusCode.IsGood(change.Value.StatusCode))
                     {
                         goodNotifications++;
@@ -576,8 +582,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 return default;
@@ -587,15 +593,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+                Client.Subscriptions.PublishState publishStateMask)
             {
                 return default;
             }
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;

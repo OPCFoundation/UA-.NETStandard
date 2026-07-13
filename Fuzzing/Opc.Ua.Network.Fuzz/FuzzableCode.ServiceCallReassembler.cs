@@ -48,8 +48,7 @@ namespace Opc.Ua.Fuzzing
                 reassembler.LoadKeyMaterial(TestKeyMaterial);
 
                 int offset = 0;
-                int frameIndex = 0;
-                while (offset < input.Length && frameIndex < 16)
+                for (int frameIndex = 0; offset < input.Length && frameIndex < 16; frameIndex++)
                 {
                     int length = Math.Min(input.Length - offset, 8 + (input[offset] & 0x3F));
                     if (length == 0)
@@ -61,7 +60,6 @@ namespace Opc.Ua.Fuzzing
                     bool fromClient = (frameIndex & 1) == 0;
                     reassembler.Push(CreateCaptureFrame(chunk, fromClient));
                     offset += length;
-                    frameIndex++;
                 }
 
                 if (input.IsEmpty)

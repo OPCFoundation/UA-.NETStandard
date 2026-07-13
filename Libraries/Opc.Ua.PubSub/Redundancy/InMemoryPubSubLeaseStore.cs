@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Redundancy
     public sealed class InMemoryPubSubLeaseStore : IPubSubLeaseStore
     {
         private readonly TimeProvider m_timeProvider;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<string, PubSubLease> m_leases = new(StringComparer.Ordinal);
         private long m_fencingToken;
 
@@ -78,15 +78,15 @@ namespace Opc.Ua.PubSub.Redundancy
             DateTimeOffset now = m_timeProvider.GetUtcNow();
             lock (m_gate)
             {
-                if (m_leases.TryGetValue(leaseKey, out PubSubLease existing)
-                    && existing.ExpiresAt > now
-                    && !string.Equals(existing.OwnerId, ownerId, StringComparison.Ordinal))
+                if (m_leases.TryGetValue(leaseKey, out PubSubLease existing) &&
+                    existing.ExpiresAt > now &&
+                    !string.Equals(existing.OwnerId, ownerId, StringComparison.Ordinal))
                 {
                     return new ValueTask<PubSubLease?>((PubSubLease?)null);
                 }
 
-                long token = string.Equals(existing.OwnerId, ownerId, StringComparison.Ordinal)
-                    && existing.ExpiresAt > now
+                long token = string.Equals(existing.OwnerId, ownerId, StringComparison.Ordinal) &&
+                    existing.ExpiresAt > now
                         ? existing.FencingToken
                         : ++m_fencingToken;
                 var lease = new PubSubLease(leaseKey, ownerId, token, now + duration);
@@ -105,10 +105,10 @@ namespace Opc.Ua.PubSub.Redundancy
             DateTimeOffset now = m_timeProvider.GetUtcNow();
             lock (m_gate)
             {
-                if (!m_leases.TryGetValue(lease.LeaseKey, out PubSubLease current)
-                    || current.FencingToken != lease.FencingToken
-                    || !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal)
-                    || current.ExpiresAt <= now)
+                if (!m_leases.TryGetValue(lease.LeaseKey, out PubSubLease current) ||
+                    current.FencingToken != lease.FencingToken ||
+                    !string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal) ||
+                    current.ExpiresAt <= now)
                 {
                     return new ValueTask<PubSubLease?>((PubSubLease?)null);
                 }
@@ -126,9 +126,9 @@ namespace Opc.Ua.PubSub.Redundancy
         {
             lock (m_gate)
             {
-                if (m_leases.TryGetValue(lease.LeaseKey, out PubSubLease current)
-                    && current.FencingToken == lease.FencingToken
-                    && string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal))
+                if (m_leases.TryGetValue(lease.LeaseKey, out PubSubLease current) &&
+                    current.FencingToken == lease.FencingToken &&
+                    string.Equals(current.OwnerId, lease.OwnerId, StringComparison.Ordinal))
                 {
                     m_leases.Remove(lease.LeaseKey);
                 }

@@ -197,8 +197,8 @@ namespace Opc.Ua.Client.StateMachines
             MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            NodeId currentStateIdNodeId = await StateMachineTypeClientExtensions
-                .ResolveChildNodeIdAsync(client, BrowseNames.CurrentState,
+            NodeId currentStateIdNodeId = await client
+                .ResolveChildNodeIdAsync(BrowseNames.CurrentState,
                     BrowseNames.Id, ct).ConfigureAwait(false);
             if (currentStateIdNodeId.IsNull)
             {
@@ -285,9 +285,8 @@ namespace Opc.Ua.Client.StateMachines
         }
 
         /// <summary>
-        /// Returns every <c>StateType</c> child of the state machine
-        /// instance. Useful for introspecting the machine's available
-        /// states at runtime.
+        /// Returns the states referenced by the optional
+        /// <c>AvailableStates</c> property of the state machine instance.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<FiniteStateInfo>> GetAvailableStatesAsync(
@@ -298,17 +297,17 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(client));
             }
-            return BrowseChildrenAsync(
+            return ReadAvailableNodesAsync(
                 client,
-                ObjectTypeIds.StateType,
+                BrowseNames.AvailableStates,
                 BrowseNames.StateNumber,
                 static (id, name, num) => new FiniteStateInfo(id, name, num),
                 ct);
         }
 
         /// <summary>
-        /// Returns every <c>TransitionType</c> child of the state
-        /// machine instance.
+        /// Returns the transitions referenced by the optional
+        /// <c>AvailableTransitions</c> property of the state machine instance.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         public static ValueTask<IReadOnlyList<FiniteTransitionInfo>> GetAvailableTransitionsAsync(
@@ -319,9 +318,9 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(client));
             }
-            return BrowseChildrenAsync(
+            return ReadAvailableNodesAsync(
                 client,
-                ObjectTypeIds.TransitionType,
+                BrowseNames.AvailableTransitions,
                 BrowseNames.TransitionNumber,
                 static (id, name, num) => new FiniteTransitionInfo(id, name, num),
                 ct);
@@ -411,66 +410,90 @@ namespace Opc.Ua.Client.StateMachines
             };
         }
 
-        private static async ValueTask<IReadOnlyList<T>> BrowseChildrenAsync<T>(
+        private static async ValueTask<IReadOnlyList<T>> ReadAvailableNodesAsync<T>(
             FiniteStateMachineTypeClient client,
-            NodeId typeDefinitionId,
+            string availablePropertyName,
             string numberPropertyName,
             Func<NodeId, QualifiedName, uint, T> factory,
             CancellationToken ct)
         {
-            var nodesToBrowse = ArrayOf.Wrapped(
+            ArrayOf<BrowsePath> availablePropertyPath =
             [
-                new BrowseDescription
+                new BrowsePath
                 {
-                    NodeId = client.ObjectId,
-                    BrowseDirection = BrowseDirection.Forward,
-                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                    IncludeSubtypes = true,
-                    NodeClassMask = (uint)NodeClass.Object,
-                    ResultMask = (uint)BrowseResultMask.All
+                    StartingNode = client.ObjectId,
+                    RelativePath = new RelativePath
+                    {
+                        Elements =
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                IsInverse = false,
+                                IncludeSubtypes = true,
+                                TargetName = new QualifiedName(availablePropertyName)
+                            }
+                        ]
+                    }
                 }
-            ]);
+            ];
 
-            BrowseResponse browse = await client.Session.BrowseAsync(
-                null, null, 0, nodesToBrowse, ct).ConfigureAwait(false);
-            ClientBase.ValidateResponse(
-                browse.Results, nodesToBrowse);
-
-            ArrayOf<ReferenceDescription> refs = browse.Results[0].References;
-            var results = new List<T>(refs.Count);
-            var childIds = new List<NodeId>(refs.Count);
-            var childNames = new List<QualifiedName>(refs.Count);
-
-            foreach (ReferenceDescription r in refs)
+            TranslateBrowsePathsToNodeIdsResponse propertyPathResponse =
+                await client.Session.TranslateBrowsePathsToNodeIdsAsync(
+                    null, availablePropertyPath, ct).ConfigureAwait(false);
+            if (propertyPathResponse.Results.Count == 0 ||
+                !StatusCode.IsGood(propertyPathResponse.Results[0].StatusCode) ||
+                propertyPathResponse.Results[0].Targets.Count == 0)
             {
-                if (r.TypeDefinition.IsNull)
-                {
-                    continue;
-                }
-                var typeDefNodeId = ExpandedNodeId.ToNodeId(
-                    r.TypeDefinition, client.Session.MessageContext.NamespaceUris);
-                if (typeDefNodeId != typeDefinitionId)
-                {
-                    continue;
-                }
-                childIds.Add(ExpandedNodeId.ToNodeId(
-                    r.NodeId, client.Session.MessageContext.NamespaceUris));
-                childNames.Add(r.BrowseName);
+                return [];
             }
 
-            if (childIds.Count == 0)
+            NodeId availablePropertyId = ExpandedNodeId.ToNodeId(
+                propertyPathResponse.Results[0].Targets[0].TargetId,
+                client.Session.MessageContext.NamespaceUris);
+            if (availablePropertyId.IsNull)
             {
-                return results;
+                return [];
             }
 
-            // Resolve and read the StateNumber/TransitionNumber property
-            // for each child (optional — defaults to zero on failure).
-            var pathRequestsArray = new BrowsePath[childIds.Count];
-            for (int i = 0; i < childIds.Count; i++)
-            {
-                pathRequestsArray[i] = new BrowsePath
+            ArrayOf<ReadValueId> propertyRead =
+            [
+                new ReadValueId
                 {
-                    StartingNode = childIds[i],
+                    NodeId = availablePropertyId,
+                    AttributeId = Attributes.Value
+                }
+            ];
+            ReadResponse propertyReadResponse = await client.Session.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, propertyRead, ct)
+                .ConfigureAwait(false);
+            if (propertyReadResponse.Results.Count == 0 ||
+                !StatusCode.IsGood(propertyReadResponse.Results[0].StatusCode) ||
+                !propertyReadResponse.Results[0].WrappedValue.TryGetValue(
+                    out ArrayOf<NodeId> availableNodeIds))
+            {
+                return [];
+            }
+
+            var nodeIds = new List<NodeId>(availableNodeIds.Count);
+            foreach (NodeId nodeId in availableNodeIds)
+            {
+                if (!nodeId.IsNull)
+                {
+                    nodeIds.Add(nodeId);
+                }
+            }
+            if (nodeIds.Count == 0)
+            {
+                return [];
+            }
+
+            var numberPathArray = new BrowsePath[nodeIds.Count];
+            for (int i = 0; i < nodeIds.Count; i++)
+            {
+                numberPathArray[i] = new BrowsePath
+                {
+                    StartingNode = nodeIds[i],
                     RelativePath = new RelativePath
                     {
                         Elements =
@@ -486,50 +509,78 @@ namespace Opc.Ua.Client.StateMachines
                     }
                 };
             }
-            var pathRequests = ArrayOf.Wrapped(pathRequestsArray);
-            TranslateBrowsePathsToNodeIdsResponse pathResp = await client.Session
-                .TranslateBrowsePathsToNodeIdsAsync(null, pathRequests, ct)
+            ArrayOf<BrowsePath> numberPaths = ArrayOf.Wrapped(numberPathArray);
+            TranslateBrowsePathsToNodeIdsResponse numberPathResponse = await client.Session
+                .TranslateBrowsePathsToNodeIdsAsync(null, numberPaths, ct)
                 .ConfigureAwait(false);
 
-            var numberReads = new List<ReadValueId>(childIds.Count);
-            var numberIndexes = new List<int>(childIds.Count);
-            for (int i = 0; i < pathResp.Results.Count; i++)
+            var detailReads = new List<ReadValueId>(nodeIds.Count * 2);
+            foreach (NodeId nodeId in nodeIds)
             {
-                BrowsePathResult pr = pathResp.Results[i];
+                detailReads.Add(new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.BrowseName
+                });
+            }
+
+            var numberIndexes = new List<int>(nodeIds.Count);
+            for (int i = 0; i < nodeIds.Count && i < numberPathResponse.Results.Count; i++)
+            {
+                BrowsePathResult pr = numberPathResponse.Results[i];
                 if (StatusCode.IsGood(pr.StatusCode) && pr.Targets.Count > 0)
                 {
-                    numberReads.Add(new ReadValueId
+                    NodeId numberPropertyId = ExpandedNodeId.ToNodeId(
+                        pr.Targets[0].TargetId,
+                        client.Session.MessageContext.NamespaceUris);
+                    if (numberPropertyId.IsNull)
                     {
-                        NodeId = ExpandedNodeId.ToNodeId(
-                            pr.Targets[0].TargetId,
-                            client.Session.MessageContext.NamespaceUris),
+                        continue;
+                    }
+                    detailReads.Add(new ReadValueId
+                    {
+                        NodeId = numberPropertyId,
                         AttributeId = Attributes.Value
                     });
                     numberIndexes.Add(i);
                 }
             }
 
-            uint[] numbers = new uint[childIds.Count];
-            if (numberReads.Count > 0)
+            ArrayOf<ReadValueId> wrappedDetailReads = ArrayOf.Wrapped(detailReads.ToArray());
+            ReadResponse detailReadResponse = await client.Session.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, wrappedDetailReads, ct)
+                .ConfigureAwait(false);
+
+            var names = new QualifiedName[nodeIds.Count];
+            for (int i = 0; i < nodeIds.Count && i < detailReadResponse.Results.Count; i++)
             {
-                var wrapped = ArrayOf.Wrapped(numberReads.ToArray());
-                ReadResponse readResp = await client.Session.ReadAsync(
-                    null, 0, TimestampsToReturn.Neither, wrapped, ct)
-                    .ConfigureAwait(false);
-                for (int i = 0; i < readResp.Results.Count; i++)
+                DataValue value = detailReadResponse.Results[i];
+                if (StatusCode.IsGood(value.StatusCode) &&
+                    value.WrappedValue.TryGetValue(out QualifiedName name))
                 {
-                    if (readResp.Results[i].WrappedValue.TryGetValue(out uint number))
-                    {
-                        numbers[numberIndexes[i]] = number;
-                    }
+                    names[i] = name;
                 }
             }
 
-            for (int i = 0; i < childIds.Count; i++)
+            var numbers = new uint[nodeIds.Count];
+            int readIndex = nodeIds.Count;
+            for (int i = 0;
+                i < numberIndexes.Count && readIndex < detailReadResponse.Results.Count;
+                i++, readIndex++)
             {
-                results.Add(factory(childIds[i], childNames[i], numbers[i]));
+                DataValue value = detailReadResponse.Results[readIndex];
+                if (StatusCode.IsGood(value.StatusCode) &&
+                    value.WrappedValue.TryGetValue(out uint number))
+                {
+                    numbers[numberIndexes[i]] = number;
+                }
             }
 
+            var results = new List<T>(nodeIds.Count);
+            for (int i = 0; i < nodeIds.Count; i++)
+            {
+                results.Add(factory(nodeIds[i], names[i], numbers[i]));
+            }
             return results;
         }
 

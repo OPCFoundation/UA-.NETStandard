@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests
                 ?? throw new InvalidOperationException(
                     $"Embedded NodeSet2 resource '{ResourceName}' was not found.");
 
-            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+            var nodeSet = Export.UANodeSet.Read(stream);
 
             // Ensure the model namespaces exist in the server namespace table so
             // the imported node ids map to the correct server indexes.

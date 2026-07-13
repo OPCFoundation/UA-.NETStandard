@@ -29,7 +29,9 @@
 
 #if NETSTANDARD2_0 || NETFRAMEWORK
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable IDE0060, RCS1163 // Unused parameter
@@ -150,6 +152,80 @@ namespace System
         public static TimeSpan Divide(this TimeSpan timespan, double factor)
         {
             return new TimeSpan((long)(timespan.Ticks / factor));
+        }
+
+        /// <summary>
+        /// Concatenates the string representations of the elements and appends the
+        /// result, using the specified separator between each member.
+        /// </summary>
+        /// <typeparam name="T">The type of the members to join.</typeparam>
+        public static StringBuilder AppendJoin<T>(
+            this StringBuilder target,
+            string separator,
+            IEnumerable<T> values)
+        {
+            return target.Append(string.Join(separator, values));
+        }
+
+        /// <summary>
+        /// Concatenates the string representations of the elements and appends the
+        /// result, using the specified separator between each member.
+        /// </summary>
+        /// <typeparam name="T">The type of the members to join.</typeparam>
+        public static StringBuilder AppendJoin<T>(
+            this StringBuilder target,
+            char separator,
+            IEnumerable<T> values)
+        {
+            return target.Append(string.Join(separator.ToString(), values));
+        }
+
+        /// <summary>
+        /// Concatenates the string representations of the values and appends the
+        /// result, using the specified separator between each member.
+        /// </summary>
+        public static StringBuilder AppendJoin(
+            this StringBuilder target,
+            string separator,
+            params object[] values)
+        {
+            return target.Append(string.Join(separator, values));
+        }
+
+        /// <summary>
+        /// Concatenates the string representations of the values and appends the
+        /// result, using the specified separator between each member.
+        /// </summary>
+        public static StringBuilder AppendJoin(
+            this StringBuilder target,
+            char separator,
+            params object[] values)
+        {
+            return target.Append(string.Join(separator.ToString(), values));
+        }
+
+        /// <summary>
+        /// Concatenates the strings and appends the result, using the specified
+        /// separator between each member.
+        /// </summary>
+        public static StringBuilder AppendJoin(
+            this StringBuilder target,
+            string separator,
+            params string[] values)
+        {
+            return target.Append(string.Join(separator, values));
+        }
+
+        /// <summary>
+        /// Concatenates the strings and appends the result, using the specified
+        /// separator between each member.
+        /// </summary>
+        public static StringBuilder AppendJoin(
+            this StringBuilder target,
+            char separator,
+            params string[] values)
+        {
+            return target.Append(string.Join(separator.ToString(), values));
         }
 #endif
     }

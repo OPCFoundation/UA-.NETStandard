@@ -36,8 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Di.Client;
 
-#nullable enable
-
 namespace Opc.Ua.Di.Tests
 {
     /// <summary>
@@ -50,7 +48,7 @@ namespace Opc.Ua.Di.Tests
     public sealed class DiTransferClientTests
     {
         private static readonly NodeId kTransferServicesId =
-            new NodeId("TransferServices", 2);
+            new("TransferServices", 2);
 
         private static Mock<ISession> CreateSessionMock()
         {
@@ -105,7 +103,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiTransferClient(
                 session.Object, kTransferServicesId, NullTelemetry());
 
-            int id = await client.TransferToDeviceAsync();
+            int id = await client.TransferToDeviceAsync().ConfigureAwait(false);
             Assert.That(id, Is.EqualTo(42));
         }
 
@@ -118,7 +116,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiTransferClient(
                 session.Object, kTransferServicesId, NullTelemetry());
 
-            int id = await client.TransferFromDeviceAsync();
+            int id = await client.TransferFromDeviceAsync().ConfigureAwait(false);
             Assert.That(id, Is.EqualTo(7));
         }
 
@@ -135,8 +133,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new CallMethodResult[]
                     {
-                        new CallMethodResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.BadInvalidArgument,
                             OutputArguments = global::Opc.Ua.ArrayOf.Empty<Variant>()
                         }
@@ -147,7 +144,7 @@ namespace Opc.Ua.Di.Tests
                 session.Object, kTransferServicesId, NullTelemetry());
 
             Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.TransferToDeviceAsync());
+                async () => await client.TransferToDeviceAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -166,17 +163,17 @@ namespace Opc.Ua.Di.Tests
                     call++;
                     if (call == 1)
                     {
-                        var data1 = new global::Opc.Ua.Di.TransferResultDataDataType
+                        var data1 = new TransferResultDataDataType
                         {
                             SequenceNumber = 2,
                             EndOfResults = false,
                             ParameterDefs = new[]
                             {
-                                new global::Opc.Ua.Di.ParameterResultDataType
+                                new ParameterResultDataType
                                 {
                                     StatusCode = StatusCodes.Good
                                 },
-                                new global::Opc.Ua.Di.ParameterResultDataType
+                                new ParameterResultDataType
                                 {
                                     StatusCode = StatusCodes.Good
                                 }
@@ -184,13 +181,13 @@ namespace Opc.Ua.Di.Tests
                         };
                         return CallResponseFor(data1);
                     }
-                    var data2 = new global::Opc.Ua.Di.TransferResultDataDataType
+                    var data2 = new TransferResultDataDataType
                     {
                         SequenceNumber = 3,
                         EndOfResults = true,
                         ParameterDefs = new[]
                         {
-                            new global::Opc.Ua.Di.ParameterResultDataType
+                            new ParameterResultDataType
                             {
                                 StatusCode = StatusCodes.BadInternalError
                             }
@@ -212,7 +209,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(StatusCode.IsGood(entries[0].StatusCode));
             Assert.That(StatusCode.IsGood(entries[1].StatusCode));
             Assert.That(entries[2].StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInternalError));
+                Is.EqualTo(StatusCodes.BadInternalError));
             Assert.That(call, Is.EqualTo(2));
         }
 
@@ -227,7 +224,7 @@ namespace Opc.Ua.Di.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
                 {
-                    var err = new global::Opc.Ua.Di.TransferResultErrorDataType
+                    var err = new TransferResultErrorDataType
                     {
                         Status = (int)(uint)StatusCodes.BadOutOfMemory
                     };
@@ -257,8 +254,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new CallMethodResult[]
                     {
-                        new CallMethodResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             // TransferToDevice / TransferFromDevice in OPC
                             // 10000-100 §10.4 return two output arguments:
@@ -267,8 +263,8 @@ namespace Opc.Ua.Di.Tests
                             OutputArguments =
                                 new Variant[]
                                 {
-                                    new Variant(transferId),
-                                    new Variant((int)0)
+                                    new(transferId),
+                                    new(0)
                                 }.ToArrayOf()
                         }
                     }.ToArrayOf()
@@ -282,11 +278,10 @@ namespace Opc.Ua.Di.Tests
             {
                 Results = new CallMethodResult[]
                 {
-                    new CallMethodResult
-                    {
+                    new() {
                         StatusCode = StatusCodes.Good,
                         OutputArguments =
-                            new Variant[] { new Variant(ext) }.ToArrayOf()
+                            new Variant[] { new(ext) }.ToArrayOf()
                     }
                 }.ToArrayOf()
             };

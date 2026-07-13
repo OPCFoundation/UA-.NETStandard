@@ -193,13 +193,18 @@ namespace Opc.Ua.Bindings.WebApi
             listener.WssBearerTokenValidator = ValidateWssBearerTokenAsync;
         }
 
-        // Validates the bearer token presented in the WSS
-        // opcua+openapi+<accesstoken> sub-protocol by delegating to the
-        // registered JwtBearer authentication scheme. Returns true only
-        // when the token authenticates; on success the resolved
-        // ClaimsPrincipal is published on HttpContext.User so downstream
-        // code (upstream-identity plumbing) can route it through the
-        // ISessionlessIdentityProvider hook.
+        /// <summary>
+        /// Validates the bearer token presented in the WSS
+        /// opcua+openapi+{accesstoken} sub-protocol by delegating to the
+        /// registered JwtBearer authentication scheme. Returns true only
+        /// when the token authenticates; on success the resolved
+        /// ClaimsPrincipal is published on HttpContext.User so downstream
+        /// code (upstream-identity plumbing) can route it through the
+        /// ISessionlessIdentityProvider hook.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="accessToken"></param>
+        /// <returns></returns>
         internal static async Task<bool> ValidateWssBearerTokenAsync(
             HttpContext context,
             string accessToken)
@@ -220,7 +225,7 @@ namespace Opc.Ua.Bindings.WebApi
             // Place the token in the Authorization header so JwtBearerHandler
             // resolves the credential from its standard location instead of
             // requiring a bespoke per-handler API.
-            context.Request.Headers["Authorization"] = $"Bearer {accessToken}";
+            context.Request.Headers.Authorization = $"Bearer {accessToken}";
             IAuthenticationService authService = context.RequestServices
                 .GetRequiredService<IAuthenticationService>();
             AuthenticateResult result = await authService
@@ -234,12 +239,16 @@ namespace Opc.Ua.Bindings.WebApi
             return false;
         }
 
-        // Resolves the AuthenticationOptions snapshot so that bindings
-        // composed without any AddWebApi*Auth() call don't pay the
-        // UseAuthentication() middleware cost (and don't change
-        // HttpContext.User semantics for the anonymous path). The
-        // options-based path keeps this purely synchronous — no
-        // sync-over-async on IAuthenticationSchemeProvider.
+        /// <summary>
+        /// Resolves the AuthenticationOptions snapshot so that bindings
+        /// composed without any AddWebApi*Auth() call don't pay the
+        /// UseAuthentication() middleware cost (and don't change
+        /// HttpContext.User semantics for the anonymous path). The
+        /// options-based path keeps this purely synchronous — no
+        /// sync-over-async on IAuthenticationSchemeProvider.
+        /// </summary>
+        /// <param name="services"></param>
+        /// <returns></returns>
         private static bool HasNonAnonymousAuthScheme(IServiceProvider services)
         {
             IOptions<AuthenticationOptions>? options = services

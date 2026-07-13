@@ -77,7 +77,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             var decoder = new JsonDecoder("{}", NewContext());
             decoder.Close();
-            Assert.Throws<ObjectDisposedException>(() => decoder.Close());
+            Assert.Throws<ObjectDisposedException>(decoder.Close);
         }
 
         [Test]

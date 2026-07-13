@@ -6552,7 +6552,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => decoder.ReadVariantValue(
                     null,
                     TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
-            Assert.That((StatusCode)sre.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
@@ -6574,7 +6574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => decoder.ReadVariantValue(
                     null,
                     TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
-            Assert.That((StatusCode)sre.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
@@ -6595,7 +6595,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => decoder.ReadVariantValue(
                     null,
                     TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
-            Assert.That((StatusCode)sre.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         private enum TestEnum

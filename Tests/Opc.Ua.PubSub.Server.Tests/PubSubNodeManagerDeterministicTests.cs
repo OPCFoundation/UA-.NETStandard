@@ -30,15 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
-using Opc.Ua.PubSub.Tests;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
 
@@ -134,12 +131,12 @@ namespace Opc.Ua.PubSub.Server.Tests
             MethodState read = FindConfigurationFileMethod(harness, "Read");
 
             ServiceResult missingArguments = read.OnCallMethod!(
-                harness.Context, read, BuildArray(Variant.From(1u)), new List<Variant>());
+                harness.Context, read, BuildArray(Variant.From(1u)), []);
             ServiceResult unknownHandle = read.OnCallMethod!(
                 harness.Context,
                 read,
                 BuildArray(Variant.From(4242u), Variant.From(1024)),
-                new List<Variant>());
+                []);
 
             Assert.Multiple(() =>
             {
@@ -194,7 +191,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 read,
                 BuildArray(Variant.From(handle), Variant.From(1024)),
-                new List<Variant>());
+                []);
             ServiceResult missingArguments = close.OnCallMethod!(
                 harness.Context, close, BuildArray(), []);
 
@@ -225,11 +222,11 @@ namespace Opc.Ua.PubSub.Server.Tests
                 []);
 
             ServiceResult missingArguments = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(), new List<Variant>());
+                harness.Context, closeAndUpdate, BuildArray(), []);
             ServiceResult unknownHandle = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(Variant.From(9999u)), new List<Variant>());
+                harness.Context, closeAndUpdate, BuildArray(Variant.From(9999u)), []);
             ServiceResult corruptPayload = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(Variant.From(writeHandle)), new List<Variant>());
+                harness.Context, closeAndUpdate, BuildArray(Variant.From(writeHandle)), []);
 
             Assert.Multiple(() =>
             {
@@ -251,7 +248,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 reserve,
                 BuildArray(Variant.From(Profiles.PubSubUdpUadpTransport), Variant.From((ushort)1)),
-                new List<Variant>());
+                []);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -265,9 +262,9 @@ namespace Opc.Ua.PubSub.Server.Tests
             MethodState addFolder = harness.AddDataSetFolderMethod;
 
             ServiceResult emptyName = addFolder.OnCallMethod!(
-                harness.Context, addFolder, BuildArray(Variant.From(string.Empty)), new List<Variant>());
+                harness.Context, addFolder, BuildArray(Variant.From(string.Empty)), []);
             ServiceResult missingArguments = addFolder.OnCallMethod!(
-                harness.Context, addFolder, BuildArray(), new List<Variant>());
+                harness.Context, addFolder, BuildArray(), []);
 
             Assert.Multiple(() =>
             {
@@ -308,7 +305,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 addPushTarget,
                 BuildArray(Variant.From("app"), Variant.From("endpoint")),
-                new List<Variant>());
+                []);
             ServiceResult emptyApplicationUri = addPushTarget.OnCallMethod!(
                 harness.Context,
                 addPushTarget,
@@ -319,7 +316,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     Variant.From(UserTokenType.Anonymous),
                     Variant.From((ushort)1),
                     Variant.From(1000.0)),
-                new List<Variant>());
+                []);
 
             Assert.Multiple(() =>
             {
@@ -450,7 +447,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Array.Empty<PubSubSecurityKey>())).ConfigureAwait(false);
             await harness.Manager.RebuildSksAddressSpaceForTestsAsync().ConfigureAwait(false);
             NodeId groupNodeId = harness.Manager.MethodHandlers
-                .TryGetSecurityGroupNodeId("grp-disconnect") ?? NodeId.Null;
+                .TryGetSecurityGroupNodeId("grp-disconnect") ??
+                NodeId.Null;
             NodeId targetNodeId = AddPushTarget(harness, "disconnect-app", "disconnect-endpoint");
             BaseObjectState targetNode = harness.Manager.FindPredefinedNode<BaseObjectState>(targetNodeId);
             ushort ns = harness.Manager.AddressSpaceNamespaceIndex;
@@ -463,7 +461,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                 harness.Context,
                 connect,
                 BuildArray(Variant.From(new ArrayOf<NodeId>(new[] { groupNodeId }))),
-                new List<Variant>());
+                []);
             var disconnectOutputs = new List<Variant>();
             ServiceResult disconnectResult = disconnect.OnCallMethod!(
                 harness.Context,
@@ -701,8 +699,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 m_queueFactory = new MonitoredItemQueueFactory(telemetry);
                 MockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
 
-                m_serverSystemContext = new ServerSystemContext(MockServer.Object);
-                MockServer.Setup(s => s.DefaultSystemContext).Returns(m_serverSystemContext);
+                Context = new ServerSystemContext(MockServer.Object);
+                MockServer.Setup(s => s.DefaultSystemContext).Returns(Context);
 
                 Configuration = new ApplicationConfiguration
                 {
@@ -842,7 +840,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             public BaseObjectState PublishedDataSetsObject { get; }
             public BaseObjectState SecurityGroupsObject { get; }
             public BaseObjectState KeyPushTargetsObject { get; }
-            public ServerSystemContext Context => m_serverSystemContext;
+            public ServerSystemContext Context { get; }
 
             public void Dispose()
             {
@@ -866,7 +864,6 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             private readonly bool m_ownsApplication;
             private readonly MonitoredItemQueueFactory m_queueFactory;
-            private readonly ServerSystemContext m_serverSystemContext;
 
             private sealed class StubTransportFactory : IPubSubTransportFactory
             {

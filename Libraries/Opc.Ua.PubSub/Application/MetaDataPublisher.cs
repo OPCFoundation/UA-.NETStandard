@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<MetaDataPublisher> m_logger;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
 
         private long m_messageIdSeed;
         private int m_disposed;
@@ -157,6 +157,7 @@ namespace Opc.Ua.PubSub.Application
         /// Idempotent.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ObjectDisposedException"></exception>
         public async ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -336,11 +337,11 @@ namespace Opc.Ua.PubSub.Application
                 ? Uuid.Empty
                 : new Uuid(metaData.DataSetClassId);
             ReadOnlyMemory<byte> payload;
-            string? topic = null;
+            string? topic;
             if (string.Equals(family, "Json", StringComparison.Ordinal))
             {
-                if (!TryResolveEncoder(profile, family, out INetworkMessageEncoder? encoder)
-                    || encoder is null)
+                if (!TryResolveEncoder(profile, family, out INetworkMessageEncoder? encoder) ||
+                    encoder is null)
                 {
                     m_logger.LogDebug(
                         "No JSON encoder registered for {Profile}; metadata publish skipped.",
@@ -444,9 +445,9 @@ namespace Opc.Ua.PubSub.Application
                 return null;
             }
             bool hasFields = !meta.Fields.IsNull && meta.Fields.Count > 0;
-            bool hasVersion = meta.ConfigurationVersion is not null
-                && (meta.ConfigurationVersion.MajorVersion != 0
-                    || meta.ConfigurationVersion.MinorVersion != 0);
+            bool hasVersion = meta.ConfigurationVersion is not null &&
+                (meta.ConfigurationVersion.MajorVersion != 0 ||
+                    meta.ConfigurationVersion.MinorVersion != 0);
             return hasFields || hasVersion ? meta : null;
         }
 

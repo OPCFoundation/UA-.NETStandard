@@ -110,13 +110,14 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TChannelFactory">The channel factory type.</typeparam>
         /// <param name="builder">The OPC UA builder.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddCustomTransport<
             [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
                 System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]
-            TListenerFactory,
+        TListenerFactory,
             [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
                 System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]
-            TChannelFactory>(
+        TChannelFactory>(
             this IOpcUaBuilder builder)
             where TListenerFactory : class, ITransportListenerFactory
             where TChannelFactory : class, ITransportChannelFactory
@@ -131,8 +132,8 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<TChannelFactory>();
             builder.Services.AddSingleton<ITransportBindingConfigurator>(provider =>
             {
-                var listenerFactory = provider.GetRequiredService<TListenerFactory>();
-                var channelFactory = provider.GetRequiredService<TChannelFactory>();
+                TListenerFactory listenerFactory = provider.GetRequiredService<TListenerFactory>();
+                TChannelFactory channelFactory = provider.GetRequiredService<TChannelFactory>();
                 return new TransportBindingConfigurator(registry =>
                 {
                     registry.RegisterListenerFactory(listenerFactory);
@@ -150,6 +151,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// order at first resolution time so subsequent
         /// <c>Add*Transport()</c> calls compose cleanly.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddTransportBindingRegistry(this IServiceCollection services)
         {
             if (services is null)

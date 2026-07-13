@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using BenchmarkDotNet.Attributes;
@@ -249,6 +250,75 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult2.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
+#pragma warning disable CS0618 // Test coverage for the obsolete compatibility constructor.
+        [Test]
+        public void ObsoleteConstructorDelegatesToAsyncConstructor()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock = CreateServerMock(telemetry, queueFactory);
+            var nodeManagerMock = new Mock<INodeManager>();
+
+            using var monitoredItem = new MonitoredItem(
+                serverMock.Object,
+                nodeManagerMock.Object,
+                managerHandle: null,
+                subscriptionId: 1,
+                id: 2,
+                itemToMonitor: new ReadValueId
+                {
+                    NodeId = new NodeId("Compatibility", 2),
+                    AttributeId = Attributes.Value
+                },
+                diagnosticsMasks: DiagnosticsMasks.All,
+                timestampsToReturn: TimestampsToReturn.Server,
+                monitoringMode: MonitoringMode.Reporting,
+                clientHandle: 3,
+                originalFilter: new MonitoringFilter(),
+                filterToUse: new MonitoringFilter(),
+                range: new Range(10, 4),
+                samplingInterval: 1000,
+                queueSize: 10,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(monitoredItem.Id, Is.EqualTo(2u));
+                Assert.That(monitoredItem.NodeId, Is.EqualTo(new NodeId("Compatibility", 2)));
+                Assert.That(monitoredItem.QueueSize, Is.EqualTo(10u));
+            });
+        }
+#pragma warning restore CS0618
+
+        [Test]
+        public void ConstructorThrowsForNullItemToMonitor()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock = CreateServerMock(telemetry, queueFactory);
+
+            Assert.Throws<ArgumentNullException>(() =>
+                new MonitoredItem(
+                    serverMock.Object,
+                    new Mock<IAsyncNodeManager>().Object,
+                    managerHandle: null,
+                    subscriptionId: 1,
+                    id: 2,
+                    itemToMonitor: null,
+                    diagnosticsMasks: DiagnosticsMasks.All,
+                    timestampsToReturn: TimestampsToReturn.Server,
+                    monitoringMode: MonitoringMode.Reporting,
+                    clientHandle: 3,
+                    originalFilter: new MonitoringFilter(),
+                    filterToUse: new MonitoringFilter(),
+                    range: null,
+                    samplingInterval: 1000,
+                    queueSize: 10,
+                    discardOldest: true,
+                    sourceSamplingInterval: 1000));
+        }
+
         private static MonitoredItem CreateMonitoredItem(
             ITelemetryContext telemetry,
             bool events = false,
@@ -285,6 +355,18 @@ namespace Opc.Ua.Server.Tests
                 queueSize,
                 discardOldest,
                 1000);
+        }
+
+        private static Mock<IServerInternal> CreateServerMock(
+            ITelemetryContext telemetry,
+            IMonitoredItemQueueFactory queueFactory)
+        {
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+            return serverMock;
         }
     }
 }

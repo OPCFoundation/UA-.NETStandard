@@ -31,11 +31,10 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.DependencyInjection;
-
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Capture
 {
@@ -49,7 +48,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
         [Test]
         public async Task TryStartFromEnvironmentReturnsNullAndInstallsNothingWhenUnset()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
 
             IAsyncDisposable? handle = await PcapServerCapture.TryStartFromEnvironmentAsync(
                 bindings,
@@ -60,7 +59,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
             Assert.That(handle, Is.Null,
                 "No env variables set must be a complete no-op.");
             Assert.That(
-                bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
                 Is.Not.InstanceOf<PcapTransportListenerBinding>(),
                 "Nothing must be installed when the env variables are unset.");
         }
@@ -68,7 +67,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
         [Test]
         public async Task TryStartFromEnvironmentInstallsServerBindingWhenPcapFileSet()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             string pcapPath = CreateTempPath("server-capture.pcap");
 
             IAsyncDisposable? handle = await PcapServerCapture.TryStartFromEnvironmentAsync(
@@ -82,11 +81,11 @@ namespace Opc.Ua.Pcap.Tests.Capture
                 Assert.That(handle, Is.Not.Null,
                     "A capture handle must be returned when OPCUA_PCAP_FILE is set.");
                 Assert.That(
-                    bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                    bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
                     Is.InstanceOf<PcapTransportListenerBinding>(),
                     "The server listener binding must be installed.");
                 Assert.That(
-                    bindings.GetChannelFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                    bindings.GetChannelFactory(Utils.UriSchemeOpcTcp),
                     Is.Not.InstanceOf<PcapTransportChannelBinding>(),
                     "The client channel binding must not be installed for a server.");
             }
@@ -102,7 +101,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
         [Test]
         public async Task TryStartFromEnvironmentInstallsServerBindingForKeyLogOnly()
         {
-            DefaultTransportBindingRegistry bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
+            var bindings = DefaultTransportBindingRegistry.WithDefaultTcp();
             string keyLogPath = CreateTempPath("server-keys.uakeys.json");
 
             IAsyncDisposable? handle = await PcapServerCapture.TryStartFromEnvironmentAsync(
@@ -116,7 +115,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
                 Assert.That(handle, Is.Not.Null,
                     "A handle must be returned when only OPCUA_KEYLOGFILE is set.");
                 Assert.That(
-                    bindings.GetListenerFactory(Opc.Ua.Utils.UriSchemeOpcTcp),
+                    bindings.GetListenerFactory(Utils.UriSchemeOpcTcp),
                     Is.InstanceOf<PcapTransportListenerBinding>(),
                     "The server listener binding must be installed so the keylog " +
                     "observer sees server channels.");

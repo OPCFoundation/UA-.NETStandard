@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -654,8 +652,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         }
 
         private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
+
         private static readonly FieldInfo s_clientCertificateVersionField =
             GetRequiredField("m_clientCertificateVersion");
+
         private static readonly FieldInfo s_certificateRotationTaskField =
             GetRequiredField("m_certificateRotationTask");
     }

@@ -82,6 +82,7 @@ namespace Opc.Ua.Client
         /// to bind a freshly constructed Session to its managed channel
         /// while the channel-manager participant factory is running.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal void BindManagedChannel(
             IClientChannelManager manager,
             IManagedTransportChannel channel)

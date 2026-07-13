@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             if (node is BaseVariableState pointVariable)
             {
-                ExpandedNodeId pointTypeId = NodeId.ToExpandedNodeId(
+                var pointTypeId = NodeId.ToExpandedNodeId(
                     new NodeId(
                         ServerComplexTypesTestNodeManager.TestPointDataType,
                         namespaceIndex),

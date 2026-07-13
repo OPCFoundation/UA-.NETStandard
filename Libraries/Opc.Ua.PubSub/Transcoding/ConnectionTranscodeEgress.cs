@@ -67,8 +67,8 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             m_connection = connection as PubSubConnection
                 ?? throw new ArgumentException(
-                    "ConnectionTranscodeEgress requires the default PubSubConnection "
-                    + "implementation.",
+                    "ConnectionTranscodeEgress requires the default PubSubConnection " +
+                    "implementation.",
                     nameof(connection));
         }
 

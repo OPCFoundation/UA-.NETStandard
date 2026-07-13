@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Server
         private readonly SksMethodHandler? m_sks;
         private readonly PushSecurityKeyProvider[] m_pushProviders;
         private readonly ILogger m_logger;
-        private readonly Dictionary<NodeId, string> m_securityGroupNodeIds = new();
+        private readonly Dictionary<NodeId, string> m_securityGroupNodeIds = [];
         private readonly System.Threading.Lock m_gate = new();
         private ushort m_securityGroupNamespaceIndex;
 
@@ -102,7 +102,7 @@ namespace Opc.Ua.PubSub.Server
             m_keyService = keyService;
             m_options = options;
             m_sks = keyService is null ? null : new SksMethodHandler(keyService, telemetry);
-            m_pushProviders = pushProviders?.ToArray() ?? Array.Empty<PushSecurityKeyProvider>();
+            m_pushProviders = pushProviders?.ToArray() ?? [];
             m_logger = telemetry.CreateLogger<PubSubMethodHandlers>();
         }
 
@@ -123,6 +123,7 @@ namespace Opc.Ua.PubSub.Server
         /// </summary>
         /// <param name="securityGroupId">SecurityGroup identifier.</param>
         /// <param name="nodeId">Routable SecurityGroup node id.</param>
+        /// <exception cref="ArgumentException"></exception>
         public void RegisterSecurityGroupNodeId(string securityGroupId, NodeId nodeId)
         {
             if (string.IsNullOrEmpty(securityGroupId))
@@ -275,8 +276,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveConnection expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
-                || connectionId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId) ||
+                connectionId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -561,8 +562,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemovePublishedDataSet expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId dataSetId)
-                || dataSetId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId dataSetId) ||
+                dataSetId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -620,8 +621,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddDataSetFolder expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out string folderName)
-                || string.IsNullOrEmpty(folderName))
+            if (!inputArguments[0].TryGetValue(out string folderName) ||
+                string.IsNullOrEmpty(folderName))
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -680,8 +681,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddWriterGroup expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
-                || connectionId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId) ||
+                connectionId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -751,8 +752,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddReaderGroup expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId connectionId)
-                || connectionId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId connectionId) ||
+                connectionId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -823,8 +824,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveGroup expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId groupId)
-                || groupId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId groupId) ||
+                groupId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -879,8 +880,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddDataSetWriter expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId writerGroupId)
-                || writerGroupId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId writerGroupId) ||
+                writerGroupId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -951,8 +952,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveDataSetWriter expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId writerId)
-                || writerId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId writerId) ||
+                writerId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -1007,8 +1008,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("AddDataSetReader expects 2 input arguments."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId readerGroupId)
-                || readerGroupId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId readerGroupId) ||
+                readerGroupId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -1079,8 +1080,8 @@ namespace Opc.Ua.PubSub.Server
                     StatusCodes.BadInvalidArgument,
                     new LocalizedText("RemoveDataSetReader expects 1 input argument."));
             }
-            if (!inputArguments[0].TryGetValue(out NodeId readerId)
-                || readerId.IsNull)
+            if (!inputArguments[0].TryGetValue(out NodeId readerId) ||
+                readerId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
@@ -1259,7 +1260,7 @@ namespace Opc.Ua.PubSub.Server
             try
             {
                 PubSubConfigurationDataType configuration = m_application.GetConfiguration();
-                PubSubConfigurationDataType clone = (PubSubConfigurationDataType)configuration.Clone();
+                var clone = (PubSubConfigurationDataType)configuration.Clone();
                 if (clone.PublishedDataSets.IsNull)
                 {
                     return new ServiceResult(StatusCodes.BadNodeIdUnknown);
@@ -1281,9 +1282,8 @@ namespace Opc.Ua.PubSub.Server
 
                 int resultCount = mutator(dataSet, items);
                 dataSet.DataSetSource = new ExtensionObject(items);
-                ArrayOf<StatusCode> replaceResults = m_application.ReplaceConfigurationAsync(clone)
+                _ = m_application.ReplaceConfigurationAsync(clone)
                     .AsTask().GetAwaiter().GetResult();
-                _ = replaceResults;
                 PublishedDataSetDataType? updated = FindPublishedDataSet(dataSetName);
                 outputArguments.Add(Variant.From(new ExtensionObject(
                     updated?.DataSetMetaData?.ConfigurationVersion ?? new ConfigurationVersionDataType())));
@@ -1473,7 +1473,7 @@ namespace Opc.Ua.PubSub.Server
             {
                 return [];
             }
-            var result = new string[values.Count];
+            string[] result = new string[values.Count];
             for (int i = 0; i < values.Count; i++)
             {
                 result[i] = values[i];
@@ -1612,8 +1612,8 @@ namespace Opc.Ua.PubSub.Server
                 maxFutureKeyCount: (int)Math.Min(maxFuture, int.MaxValue),
                 maxPastKeyCount: (int)Math.Min(maxPast, int.MaxValue),
                 keys: Array.Empty<PubSubSecurityKey>(),
-                rolePermissions: TryReadRolePermissions(inputArguments, 5),
-                authorizedCallerIdentities: TryReadAuthorizedCallers(inputArguments, 6));
+                authorizedCallerIdentities: TryReadAuthorizedCallers(inputArguments, 6),
+                rolePermissions: TryReadRolePermissions(inputArguments, 5));
 
             try
             {
@@ -1785,8 +1785,10 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            if (!inputArguments[0].TryGetValue(out string? securityGroupId) || string.IsNullOrEmpty(securityGroupId) ||
-                !inputArguments[1].TryGetValue(out string? policyUri) || string.IsNullOrEmpty(policyUri) ||
+            if (!inputArguments[0].TryGetValue(out string? securityGroupId) ||
+                string.IsNullOrEmpty(securityGroupId) ||
+                !inputArguments[1].TryGetValue(out string? policyUri) ||
+                string.IsNullOrEmpty(policyUri) ||
                 !inputArguments[2].TryGetValue(out uint currentTokenId) ||
                 !inputArguments[3].TryGetValue(out ByteString currentKey) ||
                 !inputArguments[4].TryGetValue(out ArrayOf<ByteString> futureKeys) ||

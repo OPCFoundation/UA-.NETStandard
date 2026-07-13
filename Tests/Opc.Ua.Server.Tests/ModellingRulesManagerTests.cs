@@ -119,8 +119,8 @@ namespace Opc.Ua.Server.Tests
             Mock<IServerInternal> server = CreateServerMock(out _);
             var manager = new ModellingRulesManager(server.Object);
 
-            Assert.DoesNotThrow(() => manager.Dispose());
-            Assert.DoesNotThrow(() => manager.Dispose());
+            Assert.DoesNotThrow(manager.Dispose);
+            Assert.DoesNotThrow(manager.Dispose);
         }
     }
 }

@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.TestFramework
         /// override the default <c>opc.tcp</c> factories without touching
         /// any process-wide state.
         /// </summary>
-        public Opc.Ua.Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
 
         private readonly ILogger<ClientTestFramework> m_logger;
 

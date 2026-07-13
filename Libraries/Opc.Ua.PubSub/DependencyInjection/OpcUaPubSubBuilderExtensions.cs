@@ -41,8 +41,6 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Encoding.Json;
-using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
@@ -89,6 +87,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="configure">Optional options callback.</param>
         /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             Action<PubSubApplicationOptions>? configure = null)
@@ -113,6 +112,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="configuration">Configuration root.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -134,6 +134,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="section">Configuration section to bind.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             IConfigurationSection section)
@@ -162,6 +163,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">OPC UA root builder.</param>
         /// <param name="configure">PubSub composition callback.</param>
         /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSub(
             this IOpcUaBuilder builder,
             Action<IPubSubBuilder> configure)
@@ -269,6 +271,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IPubSubRuntimeStateStore, InMemoryPubSubRuntimeStateStore>();
             services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
             services.TryAddSingleton<IPubSubActivationCoordinator>(AlwaysActiveCoordinator.Instance);
+            services.TryAddSingleton<IPubSubWriterCheckpointStore>(NullPubSubWriterCheckpointStore.Instance);
             services.TryAddSingleton<IDataSetSourceProvider, MutableDataSetSourceProvider>();
             services.TryAddSingleton<IDataSetSinkProvider, MutableDataSetSinkProvider>();
 
@@ -282,7 +285,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 PubSubConfigurationDataType config =
                     store.LoadAsync(CancellationToken.None)
                         .AsTask().GetAwaiter().GetResult();
-                PubSubConfigurationSnapshot snapshot =
+                var snapshot =
                     PubSubConfigurationSnapshot.Create(config, clock);
                 return new PubSubApplication(
                     snapshot,
@@ -304,7 +307,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     configurationStore: store,
                     runtimeStateStore: sp.GetRequiredService<IPubSubRuntimeStateStore>(),
                     activationCoordinator:
-                        sp.GetRequiredService<IPubSubActivationCoordinator>());
+                        sp.GetRequiredService<IPubSubActivationCoordinator>(),
+                    writerCheckpointStore:
+                        sp.GetRequiredService<IPubSubWriterCheckpointStore>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

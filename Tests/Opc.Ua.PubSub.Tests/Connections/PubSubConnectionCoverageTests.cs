@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         private const string UadpProfile = Profiles.PubSubUdpUadpTransport;
         private const string JsonProfile = Profiles.PubSubMqttJsonTransport;
 
-        private static readonly string[] s_nonMatchingProfiles = { "urn:does-not-match" };
+        private static readonly string[] s_nonMatchingProfiles = ["urn:does-not-match"];
 
         [Test]
         public async Task RequestDiscoveryAsyncWithNullRequestThrowsAsync()
@@ -254,22 +254,20 @@ namespace Opc.Ua.PubSub.Tests.Connections
             var transport = new AnnouncementHarnessTransport(UadpProfile);
             var encoder = new CapturingEncoder(UadpProfile);
             var scheduler = new ImmediateScheduler();
-            await using (PubSubConnection connection = CreateConnection(
+            await using PubSubConnection connection = CreateConnection(
                 Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
                 EncMap(UadpProfile, encoder), NoDecoders(),
-                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low), scheduler: scheduler))
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low), scheduler: scheduler);
+            await connection.EnableAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
             {
-                await connection.EnableAsync().ConfigureAwait(false);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(scheduler.ScheduleCalled, Is.True);
-                    Assert.That(scheduler.CallbackInvoked, Is.True);
-                    Assert.That(transport.AnnouncementCount, Is.GreaterThanOrEqualTo(3));
-                });
+                Assert.That(scheduler.ScheduleCalled, Is.True);
+                Assert.That(scheduler.CallbackInvoked, Is.True);
+                Assert.That(transport.AnnouncementCount, Is.GreaterThanOrEqualTo(3));
+            });
 
-                await connection.DisableAsync().ConfigureAwait(false);
-                Assert.That(scheduler.DisposeCalled, Is.True);
-            }
+            await connection.DisableAsync().ConfigureAwait(false);
+            Assert.That(scheduler.DisposeCalled, Is.True);
         }
 
         [Test]
@@ -375,19 +373,18 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
             await AwaitBoundedAsync(transport.WaitUntilSentAsync(3), "generic probe responses")
                 .ConfigureAwait(false);
-            UadpDiscoveryType[] types = encoder.Messages
+            UadpDiscoveryType[] types = [.. encoder.Messages
                 .Cast<UadpDiscoveryResponseMessage>()
-                .Select(m => m.DiscoveryType)
-                .ToArray();
+                .Select(m => m.DiscoveryType)];
             Assert.Multiple(() =>
             {
                 Assert.That(transport.SentPayloads, Has.Count.EqualTo(3));
-                Assert.That(types, Is.EquivalentTo(new[]
-                {
+                Assert.That(types, Is.EquivalentTo(
+                [
                     UadpDiscoveryType.ApplicationInformation,
                     UadpDiscoveryType.PublisherEndpoints,
                     UadpDiscoveryType.PubSubConnection
-                }));
+                ]));
             });
         }
 
@@ -504,7 +501,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -548,7 +545,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -603,7 +600,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 ActionTargetId = sentRequest.ActionTargetId,
                 RequestId = sentRequest.RequestId,
                 CorrelationData = sentRequest.CorrelationData,
-                Status = (StatusCode)StatusCodes.BadTimeout,
+                Status = StatusCodes.BadTimeout,
                 ActionState = ActionState.Executing
             });
 
@@ -638,7 +635,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -702,7 +699,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerSignal.TrySetResult(invocation);
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -738,7 +735,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     handlerInvoked = true;
                     return new ValueTask<PubSubActionHandlerResult>(
-                        new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good });
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
                 }),
                 allowUnsecured: true);
 
@@ -824,7 +821,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                         MessageType = "ua-action-response",
                         RequestId = requestId,
                         ActionState = ActionState.Done,
-                        Status = (StatusCode)StatusCodes.GoodClamped
+                        Status = StatusCodes.GoodClamped
                     })
                 ]
             };
@@ -905,7 +902,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static PubSubActionHandlerResult GoodHandlerResult()
         {
-            return new PubSubActionHandlerResult { StatusCode = (StatusCode)StatusCodes.Good };
+            return new PubSubActionHandlerResult { StatusCode = StatusCodes.Good };
         }
 
         private static ValueTask<PubSubActionHandlerResult> GoodHandler(
@@ -958,12 +955,12 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static Dictionary<string, INetworkMessageEncoder> NoEncoders()
         {
-            return new Dictionary<string, INetworkMessageEncoder>();
+            return [];
         }
 
         private static Dictionary<string, INetworkMessageDecoder> NoDecoders()
         {
-            return new Dictionary<string, INetworkMessageDecoder>();
+            return [];
         }
 
         private static PubSubConnection CreateConnection(
@@ -999,7 +996,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             PubSubNetworkMessage message)
         {
             decoder.Enqueue(message);
-            transport.PushFrame(new byte[] { 1 });
+            transport.PushFrame([1]);
         }
 
         private static async Task AwaitBoundedAsync(Task task, string what)
@@ -1018,7 +1015,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class CountLatch
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
             private readonly List<KeyValuePair<int, TaskCompletionSource<bool>>> m_waiters = [];
             private int m_count;
 
@@ -1079,7 +1076,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) => m_transport;
+                TimeProvider timeProvider)
+            {
+                return m_transport;
+            }
         }
 
         private sealed class ThrowingCreateTransportFactory : IPubSubTransportFactory
@@ -1089,15 +1089,18 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
-                TimeProvider timeProvider) =>
+                TimeProvider timeProvider)
+            {
                 throw new InvalidOperationException("transport creation failed");
+            }
         }
 
         private abstract class HarnessTransport : IPubSubTransport
         {
             private readonly Channel<byte[]> m_inbound =
                 Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleReader = true });
-            private readonly object m_sync = new();
+
+            private readonly Lock m_sync = new();
             private readonly List<byte[]> m_sentPayloads = [];
             private readonly List<string> m_sentTopics = [];
             private readonly CountLatch m_sentLatch = new();
@@ -1124,7 +1127,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     lock (m_sync)
                     {
-                        return m_sentPayloads.ToArray();
+                        return [.. m_sentPayloads];
                     }
                 }
             }
@@ -1135,7 +1138,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     lock (m_sync)
                     {
-                        return m_sentTopics.ToArray();
+                        return [.. m_sentTopics];
                     }
                 }
             }
@@ -1146,11 +1149,20 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 remove { }
             }
 
-            public void PushFrame(byte[] frame) => m_inbound.Writer.TryWrite(frame);
+            public void PushFrame(byte[] frame)
+            {
+                m_inbound.Writer.TryWrite(frame);
+            }
 
-            public Task WaitUntilSentAsync(int count) => m_sentLatch.WaitForAsync(count);
+            public Task WaitUntilSentAsync(int count)
+            {
+                return m_sentLatch.WaitForAsync(count);
+            }
 
-            public Task WaitUntilProcessedAsync(int count) => m_processedLatch.WaitForAsync(count);
+            public Task WaitUntilProcessedAsync(int count)
+            {
+                return m_processedLatch.WaitForAsync(count);
+            }
 
             public virtual ValueTask OpenAsync(CancellationToken cancellationToken = default)
             {
@@ -1217,15 +1229,23 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public string BuildMetaDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 ushort writerGroupId,
-                ushort dataSetWriterId) => $"meta/{writerGroupId}/{dataSetWriterId}";
+                ushort dataSetWriterId)
+            {
+                return $"meta/{writerGroupId}/{dataSetWriterId}";
+            }
 
             public string BuildDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 WriterGroupDataType writerGroup,
-                ushort? dataSetWriterId) => "data";
+                ushort? dataSetWriterId)
+            {
+                return "data";
+            }
 
             public string BuildDiscoveryTopic(PubSubEncodingPublisherId publisherId, string messageTypeSegment)
-                => $"disc/{messageTypeSegment}";
+            {
+                return $"disc/{messageTypeSegment}";
+            }
         }
 
         private sealed class LastWillHarnessTransport
@@ -1247,15 +1267,23 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public string BuildMetaDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 ushort writerGroupId,
-                ushort dataSetWriterId) => $"meta/{writerGroupId}/{dataSetWriterId}";
+                ushort dataSetWriterId)
+            {
+                return $"meta/{writerGroupId}/{dataSetWriterId}";
+            }
 
             public string BuildDataTopic(
                 PubSubEncodingPublisherId publisherId,
                 WriterGroupDataType writerGroup,
-                ushort? dataSetWriterId) => "data";
+                ushort? dataSetWriterId)
+            {
+                return "data";
+            }
 
             public string BuildDiscoveryTopic(PubSubEncodingPublisherId publisherId, string messageTypeSegment)
-                => $"disc/{messageTypeSegment}";
+            {
+                return $"disc/{messageTypeSegment}";
+            }
 
             public void ConfigureLastWill(string topic, ReadOnlyMemory<byte> payload, bool retain)
             {
@@ -1296,7 +1324,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
             }
 
             public override ValueTask OpenAsync(CancellationToken cancellationToken = default)
-                => throw new InvalidOperationException("transport open failed");
+            {
+                throw new InvalidOperationException("transport open failed");
+            }
         }
 
         private sealed class CloseThrowingHarnessTransport : HarnessTransport
@@ -1307,12 +1337,14 @@ namespace Opc.Ua.PubSub.Tests.Connections
             }
 
             public override ValueTask CloseAsync(CancellationToken cancellationToken = default)
-                => throw new InvalidOperationException("transport close failed");
+            {
+                throw new InvalidOperationException("transport close failed");
+            }
         }
 
         private sealed class CapturingEncoder : INetworkMessageEncoder
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
             private readonly List<PubSubNetworkMessage> m_messages = [];
             private readonly CountLatch m_latch = new();
 
@@ -1331,12 +1363,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     lock (m_sync)
                     {
-                        return m_messages.ToArray();
+                        return [.. m_messages];
                     }
                 }
             }
 
-            public Task WaitUntilCountAsync(int count) => m_latch.WaitForAsync(count);
+            public Task WaitUntilCountAsync(int count)
+            {
+                return m_latch.WaitForAsync(count);
+            }
 
             public ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
                 PubSubNetworkMessage networkMessage,
@@ -1348,13 +1383,13 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     m_messages.Add(networkMessage);
                 }
                 m_latch.Increment();
-                return new ValueTask<ReadOnlyMemory<byte>>(new ReadOnlyMemory<byte>(new byte[] { 1 }));
+                return new ValueTask<ReadOnlyMemory<byte>>(new ReadOnlyMemory<byte>([1]));
             }
         }
 
         private sealed class QueueDecoder : INetworkMessageDecoder
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
             private readonly Queue<PubSubNetworkMessage> m_queue = new();
 
             public QueueDecoder(string profile)
@@ -1387,7 +1422,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private sealed class ImmediateScheduler : IPubSubScheduler
         {
-            private readonly object m_sync = new();
+            private readonly Lock m_sync = new();
 
             public bool ScheduleCalled { get; private set; }
 
@@ -1448,9 +1483,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 m_now = base.GetUtcNow();
             }
 
-            public override long GetTimestamp() => m_timestamp;
+            public override long GetTimestamp()
+            {
+                return m_timestamp;
+            }
 
-            public override DateTimeOffset GetUtcNow() => m_now;
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_now;
+            }
         }
     }
 }

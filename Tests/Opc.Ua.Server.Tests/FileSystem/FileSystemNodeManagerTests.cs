@@ -32,6 +32,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -142,7 +143,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using FileSystemNodeManager manager = CreateManager(out _);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
 
-            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None);
+            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(externalReferences.ContainsKey(ObjectIds.FileSystem), Is.True);
             Assert.That(externalReferences[ObjectIds.FileSystem], Has.Count.EqualTo(1));
@@ -235,6 +236,156 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public async Task GetManagerHandleAsyncReturnsEmptyForNodesOutsideNamespaceAsync()
+        {
+            using FileSystemNodeManager manager = CreateManager(out _);
+
+            NodeHandle? handle = await GetManagerHandleAsync(manager, new NodeId("1:file.txt", 999))
+                .ConfigureAwait(false);
+
+            Assert.That(handle, Is.Null);
+        }
+
+        [Test]
+        public async Task GetManagerHandleAsyncReturnsParsedHandleForFileSystemNodeAsync()
+        {
+            using FileSystemNodeManager manager = CreateManager(out _);
+            NodeId fileId = FileSystemNodeId.BuildFile("file.txt", manager.NamespaceIndex);
+
+            NodeHandle? handle = await GetManagerHandleAsync(manager, fileId)
+                .ConfigureAwait(false);
+
+            Assert.That(handle, Is.Not.Null);
+            Assert.That(handle!.NodeId, Is.EqualTo(fileId));
+            Assert.That(handle.Validated, Is.False);
+            Assert.That(handle.ParsedNodeId, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task GetManagerHandleAsyncReturnsEmptyForMalformedFileSystemNodeAsync()
+        {
+            using FileSystemNodeManager manager = CreateManager(out _);
+
+            NodeHandle? handle = await GetManagerHandleAsync(manager, new NodeId("not-a-file-system-id", manager.NamespaceIndex))
+                .ConfigureAwait(false);
+
+            Assert.That(handle, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateNodeAsyncCreatesDirectoryAndFileStatesAsync()
+        {
+            Directory.CreateDirectory(Path.Combine(m_root, "folder"));
+            File.WriteAllText(Path.Combine(m_root, "file.txt"), "content");
+            using FileSystemNodeManager manager = CreateManager(out _);
+
+            NodeHandle? rootHandle = await GetManagerHandleAsync(
+                manager,
+                FileSystemNodeId.BuildRoot(manager.NamespaceIndex))
+                .ConfigureAwait(false);
+            NodeHandle? directoryHandle = await GetManagerHandleAsync(
+                manager,
+                FileSystemNodeId.BuildDirectory("folder", manager.NamespaceIndex))
+                .ConfigureAwait(false);
+            NodeHandle? fileHandle = await GetManagerHandleAsync(
+                manager,
+                FileSystemNodeId.BuildFile("file.txt", manager.NamespaceIndex))
+                .ConfigureAwait(false);
+
+            NodeState? root = await ValidateNodeAsync(manager, rootHandle!, new Dictionary<NodeId, NodeState>())
+                .ConfigureAwait(false);
+            NodeState? directory = await ValidateNodeAsync(
+                manager,
+                directoryHandle!,
+                new Dictionary<NodeId, NodeState>())
+                .ConfigureAwait(false);
+            NodeState? file = await ValidateNodeAsync(manager, fileHandle!, new Dictionary<NodeId, NodeState>())
+                .ConfigureAwait(false);
+
+            Assert.That(root, Is.TypeOf<DirectoryObjectState>());
+            Assert.That(directory, Is.TypeOf<DirectoryObjectState>());
+            Assert.That(file, Is.TypeOf<FileObjectState>());
+            Assert.That(rootHandle!.Validated, Is.True);
+            Assert.That(directoryHandle!.Validated, Is.True);
+            Assert.That(fileHandle!.Validated, Is.True);
+        }
+
+        [Test]
+        public async Task ValidateNodeAsyncReturnsCachedNodeAndNullCacheEntriesAsync()
+        {
+            using FileSystemNodeManager manager = CreateManager(out _);
+            NodeId fileId = FileSystemNodeId.BuildFile("file.txt", manager.NamespaceIndex);
+            NodeHandle? cachedHandle = await GetManagerHandleAsync(manager, fileId)
+                .ConfigureAwait(false);
+            var cachedNode = new BaseDataVariableState(parent: null)
+            {
+                NodeId = fileId,
+                BrowseName = new QualifiedName("Cached", manager.NamespaceIndex)
+            };
+            var cache = new Dictionary<NodeId, NodeState> { [fileId] = cachedNode };
+
+            NodeState? resolved = await ValidateNodeAsync(manager, cachedHandle!, cache)
+                .ConfigureAwait(false);
+
+            NodeHandle? nullHandle = await GetManagerHandleAsync(manager, fileId)
+                .ConfigureAwait(false);
+            cache[fileId] = null!;
+            NodeState? nullResolved = await ValidateNodeAsync(manager, nullHandle!, cache)
+                .ConfigureAwait(false);
+
+            Assert.That(resolved, Is.SameAs(cachedNode));
+            Assert.That(cachedHandle!.Validated, Is.True);
+            Assert.That(nullResolved, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateNodeAsyncReturnsNullForMissingEntryAndMissingComponentAsync()
+        {
+            File.WriteAllText(Path.Combine(m_root, "file.txt"), "content");
+            using FileSystemNodeManager manager = CreateManager(out _);
+
+            NodeHandle? missingEntryHandle = await GetManagerHandleAsync(
+                manager,
+                FileSystemNodeId.BuildFile("missing.txt", manager.NamespaceIndex))
+                .ConfigureAwait(false);
+            NodeId missingComponentId = new FileSystemNodeId(
+                FileSystemNodeId.File,
+                "file.txt",
+                manager.NamespaceIndex,
+                "MissingComponent").ToNodeId();
+            NodeHandle? missingComponentHandle = await GetManagerHandleAsync(manager, missingComponentId)
+                .ConfigureAwait(false);
+
+            NodeState? missingEntry = await ValidateNodeAsync(
+                manager,
+                missingEntryHandle!,
+                new Dictionary<NodeId, NodeState>())
+                .ConfigureAwait(false);
+            NodeState? missingComponent = await ValidateNodeAsync(
+                manager,
+                missingComponentHandle!,
+                new Dictionary<NodeId, NodeState>())
+                .ConfigureAwait(false);
+
+            Assert.That(missingEntry, Is.Null);
+            Assert.That(missingComponent, Is.Null);
+        }
+
+        [Test]
+        public async Task DeleteAddressSpaceAsyncDisposesAndClearsHandlesAsync()
+        {
+            using FileSystemNodeManager manager = CreateManager(out _);
+            NodeId nodeId = FileSystemNodeId.BuildFile("f.txt", manager.NamespaceIndex);
+            FileHandle? first = manager.GetOrCreateHandle(nodeId, "f.txt");
+
+            await manager.DeleteAddressSpaceAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            FileHandle? afterDelete = manager.GetOrCreateHandle(nodeId, "f.txt");
+
+            Assert.That(afterDelete, Is.Not.SameAs(first));
+        }
+
+        [Test]
         public void FactoryWithNullProviderThrows()
         {
             Assert.That(
@@ -278,9 +429,37 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var factory = new FileSystemNodeManagerFactory(provider);
 
             IAsyncNodeManager nodeManager = await factory.CreateAsync(
-                mockServer.Object, new ApplicationConfiguration());
+                mockServer.Object, new ApplicationConfiguration()).ConfigureAwait(false);
 
             Assert.That(nodeManager, Is.Not.Null);
+        }
+
+        private static async Task<NodeHandle?> GetManagerHandleAsync(
+            FileSystemNodeManager manager,
+            NodeId nodeId)
+        {
+            MethodInfo method = typeof(FileSystemNodeManager).GetMethod(
+                "GetManagerHandleAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var cache = new Dictionary<NodeId, NodeState>();
+            var result = (ValueTask<NodeHandle>)method.Invoke(
+                manager,
+                [manager.SystemContext, nodeId, cache, CancellationToken.None])!;
+            return await result.ConfigureAwait(false);
+        }
+
+        private static async Task<NodeState?> ValidateNodeAsync(
+            FileSystemNodeManager manager,
+            NodeHandle handle,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            MethodInfo method = typeof(FileSystemNodeManager).GetMethod(
+                "ValidateNodeAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var result = (ValueTask<NodeState>)method.Invoke(
+                manager,
+                [manager.SystemContext, handle, cache, CancellationToken.None])!;
+            return await result.ConfigureAwait(false);
         }
 
         /// <summary>

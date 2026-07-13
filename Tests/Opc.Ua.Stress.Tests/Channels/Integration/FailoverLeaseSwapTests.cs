@@ -27,9 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -220,7 +219,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             string key,
             string value)
         {
-            foreach (var tag in tags)
+            foreach (KeyValuePair<string, object?> tag in tags)
             {
                 if (tag.Key == key && string.Equals(tag.Value as string, value, StringComparison.Ordinal))
                 {
@@ -236,7 +235,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             string key,
             bool value)
         {
-            foreach (var tag in tags)
+            foreach (KeyValuePair<string, object?> tag in tags)
             {
                 if (tag.Key == key && tag.Value is bool tagValue && tagValue == value)
                 {

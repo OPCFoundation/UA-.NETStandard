@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Linq;
 using System.Net;
@@ -46,7 +44,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi.Authentication;
-using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
 {
@@ -126,10 +123,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
         [Test]
         public async Task ValidCredentialsProduceAuthenticatedPrincipal()
         {
-            using IHost host = await CreateHostAsync(options =>
-            {
-                options.ValidateCredentials = AcceptAliceAsync;
-            }).ConfigureAwait(false);
+            using IHost host = await CreateHostAsync(options => options.ValidateCredentials = AcceptAliceAsync).ConfigureAwait(false);
             using HttpClient client = host.GetTestClient();
 
             using var request = new HttpRequestMessage(HttpMethod.Get, "/");
@@ -145,10 +139,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
         [Test]
         public async Task WrongPasswordReturnsFail()
         {
-            using IHost host = await CreateHostAsync(options =>
-            {
-                options.ValidateCredentials = (_, _) => Task.FromResult<ClaimsPrincipal?>(null);
-            }).ConfigureAwait(false);
+            using IHost host = await CreateHostAsync(
+                options => options.ValidateCredentials =
+                    (_, _) => Task.FromResult<ClaimsPrincipal?>(null)).ConfigureAwait(false);
             using HttpClient client = host.GetTestClient();
 
             using var request = new HttpRequestMessage(HttpMethod.Get, "/");
@@ -194,8 +187,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseTestServer();
-                    webHost.ConfigureServices(services =>
+                    webHost.UseTestServer()
+                        .ConfigureServices(services =>
                     {
                         services.AddRouting();
                         services.AddAuthentication("Test")
@@ -214,11 +207,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Authentication
                         app.UseAuthentication();
                         app.UseAuthorization();
                         app.Use(ChallengeFailedAuthenticationAsync);
-                        app.UseEndpoints(endpoints =>
-                        {
-                            endpoints.MapGet("/", (HttpContext context) =>
-                                Results.Text(context.User.Identity?.Name ?? string.Empty));
-                        });
+                        app.UseEndpoints(endpoints => endpoints.MapGet("/", (HttpContext context) =>
+                                Results.Text(context.User.Identity?.Name ?? string.Empty)));
                     });
                 });
 
