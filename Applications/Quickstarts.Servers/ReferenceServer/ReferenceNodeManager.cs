@@ -2364,6 +2364,15 @@ namespace Quickstarts.ReferenceServer
                     arAllRW.AccessLevel = AccessLevels.CurrentReadOrWrite;
                     arAllRW.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     variables.Add(arAllRW);
+                    BaseDataVariableState arAllNoAccess = CreateVariable(
+                        folderAccessRightsAccessAll,
+                        accessRightsAccessAll + "NoAccess",
+                        "NoAccess",
+                        BuiltInType.Int16,
+                        ValueRanks.Scalar);
+                    arAllNoAccess.AccessLevel = AccessLevels.None;
+                    arAllNoAccess.UserAccessLevel = AccessLevels.None;
+                    variables.Add(arAllNoAccess);
                     BaseDataVariableState arAllRONotUser = CreateVariable(
                         folderAccessRightsAccessAll,
                         accessRightsAccessAll + "RO_NotUser",
@@ -5632,6 +5641,29 @@ namespace Quickstarts.ReferenceServer
             "Aggregates_String"
         ];
 
+        /// <summary>
+        /// Identifiers of the one-dimensional array nodes that support history
+        /// archiving. These map to the CTT "HA Profile &gt; Arrays" node ids and
+        /// mirror the element types historized for the scalar nodes.
+        /// </summary>
+        private static readonly string[] HistoricalArrayNodeNames =
+        [
+            "Scalar_Static_Arrays_Boolean",
+            "Scalar_Static_Arrays_SByte",
+            "Scalar_Static_Arrays_Byte",
+            "Scalar_Static_Arrays_Int16",
+            "Scalar_Static_Arrays_UInt16",
+            "Scalar_Static_Arrays_Int32",
+            "Scalar_Static_Arrays_UInt32",
+            "Scalar_Static_Arrays_Int64",
+            "Scalar_Static_Arrays_UInt64",
+            "Scalar_Static_Arrays_Float",
+            "Scalar_Static_Arrays_Double",
+            "Scalar_Static_Arrays_String",
+            "Scalar_Static_Arrays_DateTime",
+            "Scalar_Static_Arrays_ByteString"
+        ];
+
         /// <inheritdoc/>
         protected override IHistorianProvider? GetHistorianProvider(NodeState node)
         {
@@ -5673,7 +5705,7 @@ namespace Quickstarts.ReferenceServer
                 StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
             };
 
-            foreach (string name in HistoricalNodeNames)
+            foreach (string name in HistoricalNodeNames.Concat(HistoricalArrayNodeNames))
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
 
@@ -5692,7 +5724,7 @@ namespace Quickstarts.ReferenceServer
                 variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
                 m_historian.Register(nodeId, capabilities);
-                await SeedHistoricalNodeAsync(nodeId, TypeInfo.GetBuiltInType(variable.DataType), cancellationToken).ConfigureAwait(false);
+                await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
 
                 // Attach a HistoricalDataConfigurationType companion object
                 // (browse name "HA Configuration") and wire it via the
@@ -5706,32 +5738,19 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private async Task SeedHistoricalNodeAsync(NodeId nodeId, BuiltInType dataType, CancellationToken cancellationToken)
+        private async Task SeedHistoricalNodeAsync(BaseVariableState variable, CancellationToken cancellationToken)
         {
+            var nodeId = (NodeId)variable.NodeId;
+            BuiltInType dataType = TypeInfo.GetBuiltInType(variable.DataType);
+            bool isArray = variable.ValueRank >= ValueRanks.OneDimension;
             DateTime now = DateTime.UtcNow;
             var seed = new List<DataValue>(1001);
             for (int ii = 1000; ii >= 0; ii--)
             {
                 int value = 1000 - ii;
-                Variant variant = dataType switch
-                {
-                    BuiltInType.Boolean => new Variant((value & 1) == 0),
-                    BuiltInType.SByte => new Variant((sbyte)(value % 100)),
-                    BuiltInType.Byte => new Variant((byte)(value % 200)),
-                    BuiltInType.Int16 => new Variant((short)value),
-                    BuiltInType.UInt16 => new Variant((ushort)value),
-                    BuiltInType.Int32 => new Variant(value),
-                    BuiltInType.UInt32 => new Variant((uint)value),
-                    BuiltInType.Int64 => new Variant((long)value),
-                    BuiltInType.UInt64 => new Variant((ulong)value),
-                    BuiltInType.Float => new Variant((float)value),
-                    BuiltInType.Double => new Variant((double)value),
-                    BuiltInType.String => new Variant(value.ToString(CultureInfo.InvariantCulture)),
-                    BuiltInType.DateTime => new Variant(new DateTimeUtc(now.AddSeconds(value))),
-                    BuiltInType.Guid => new Variant(new Uuid(new Guid(value, 0, 0, new byte[8]))),
-                    BuiltInType.ByteString => new Variant(new ByteString(BitConverter.GetBytes(value))),
-                    _ => new Variant(value)
-                };
+                Variant variant = isArray
+                    ? CreateHistoricalArrayValue(dataType, value)
+                    : CreateHistoricalScalarValue(dataType, value, now);
                 seed.Add(new DataValue(
                     variant,
                     StatusCodes.Good,
@@ -5742,6 +5761,79 @@ namespace Quickstarts.ReferenceServer
             var systemContext = new ServerSystemContext(Server, opContext);
             var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
             _ = await m_historian!.InsertAsync(historianContext, nodeId, seed, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static Variant CreateHistoricalScalarValue(BuiltInType dataType, int value, DateTime now)
+        {
+            return dataType switch
+            {
+                BuiltInType.Boolean => new Variant((value & 1) == 0),
+                BuiltInType.SByte => new Variant((sbyte)(value % 100)),
+                BuiltInType.Byte => new Variant((byte)(value % 200)),
+                BuiltInType.Int16 => new Variant((short)value),
+                BuiltInType.UInt16 => new Variant((ushort)value),
+                BuiltInType.Int32 => new Variant(value),
+                BuiltInType.UInt32 => new Variant((uint)value),
+                BuiltInType.Int64 => new Variant((long)value),
+                BuiltInType.UInt64 => new Variant((ulong)value),
+                BuiltInType.Float => new Variant((float)value),
+                BuiltInType.Double => new Variant((double)value),
+                BuiltInType.String => new Variant(value.ToString(CultureInfo.InvariantCulture)),
+                BuiltInType.DateTime => new Variant(new DateTimeUtc(now.AddSeconds(value))),
+                BuiltInType.Guid => new Variant(new Uuid(new Guid(value, 0, 0, new byte[8]))),
+                BuiltInType.ByteString => new Variant(new ByteString(BitConverter.GetBytes(value))),
+                _ => new Variant(value)
+            };
+        }
+
+        private static Variant CreateHistoricalArrayValue(BuiltInType dataType, int value)
+        {
+            // Build a small, deterministic one-dimensional array per historical
+            // sample. Element values derive from the sample index so History Read
+            // Raw of the array nodes returns self-consistent data for the CTT.
+            const int length = 5;
+            return dataType switch
+            {
+                BuiltInType.Boolean => Variant.From(
+                    CreateArray(length, i => ((value + i) & 1) == 0).ToArrayOf()),
+                BuiltInType.SByte => Variant.From(
+                    CreateArray(length, i => (sbyte)((value + i) % 100)).ToArrayOf()),
+                BuiltInType.Byte => Variant.From(
+                    CreateArray(length, i => (byte)((value + i) % 200)).ToArrayOf()),
+                BuiltInType.Int16 => Variant.From(
+                    CreateArray(length, i => (short)(value + i)).ToArrayOf()),
+                BuiltInType.UInt16 => Variant.From(
+                    CreateArray(length, i => (ushort)(value + i)).ToArrayOf()),
+                BuiltInType.Int32 => Variant.From(
+                    CreateArray(length, i => value + i).ToArrayOf()),
+                BuiltInType.UInt32 => Variant.From(
+                    CreateArray(length, i => (uint)(value + i)).ToArrayOf()),
+                BuiltInType.Int64 => Variant.From(
+                    CreateArray(length, i => (long)(value + i)).ToArrayOf()),
+                BuiltInType.UInt64 => Variant.From(
+                    CreateArray(length, i => (ulong)(value + i)).ToArrayOf()),
+                BuiltInType.Float => Variant.From(
+                    CreateArray(length, i => (float)(value + i)).ToArrayOf()),
+                BuiltInType.Double => Variant.From(
+                    CreateArray(length, i => (double)(value + i)).ToArrayOf()),
+                BuiltInType.String => Variant.From(
+                    CreateArray(length, i => (value + i).ToString(CultureInfo.InvariantCulture)).ToArrayOf()),
+                BuiltInType.DateTime => Variant.From(
+                    CreateArray(length, i => new DateTimeUtc(DateTime.UtcNow.AddSeconds(value + i))).ToArrayOf()),
+                BuiltInType.ByteString => Variant.From(
+                    CreateArray(length, i => new ByteString(BitConverter.GetBytes(value + i))).ToArrayOf()),
+                _ => Variant.From(CreateArray(length, i => value + i).ToArrayOf())
+            };
+        }
+
+        private static T[] CreateArray<T>(int length, Func<int, T> factory)
+        {
+            var result = new T[length];
+            for (int i = 0; i < length; i++)
+            {
+                result[i] = factory(i);
+            }
+            return result;
         }
 
         private static readonly ArrayOf<double> s_doubleArray =
