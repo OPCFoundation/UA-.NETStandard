@@ -186,14 +186,8 @@ namespace Opc.Ua.Client.Tests.StateMachines
             FiniteStateMachineTypeClient client = CreateClient(sessionMock);
             ITelemetryContext tel = NUnitTelemetryContext.Create();
 
-            // BrowseAsync (called by GetAvailableStatesAsync) returns
-            // empty: no states, hence no sub-SMs to discover.
-            SetupBrowseEmpty(sessionMock);
-
-            // TranslateBrowsePathsToNodeIds (called by the parent
-            // ObserveFiniteTransitionsAsync's resolve step) returns
-            // empty results: parent CurrentState/Id won't resolve, so
-            // ObserveFiniteTransitionsAsync yields nothing.
+            // AvailableStates and the parent CurrentState/Id paths do not
+            // resolve, so no sub-state machines or transitions are observed.
             SetupTranslateAllEmpty(sessionMock);
 
             int yielded = 0;
@@ -213,24 +207,23 @@ namespace Opc.Ua.Client.Tests.StateMachines
             FiniteStateMachineTypeClient client = CreateClient(sessionMock);
             ITelemetryContext tel = NUnitTelemetryContext.Create();
 
-            // Make Browse honour cancellation: callers cancel the CT
-            // before discovery can complete.
-            sessionMock.Setup(s => s.BrowseAsync(
+            // Make TranslateBrowsePaths honour cancellation before
+            // AvailableStates discovery can complete.
+            sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
                     It.IsAny<RequestHeader>(),
-                    It.IsAny<ViewDescription>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
-                    (_, _, _, _, ct) =>
+                .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, _, ct) =>
                     {
                         ct.ThrowIfCancellationRequested();
-                        return new ValueTask<BrowseResponse>(new BrowseResponse
-                        {
-                            ResponseHeader = new ResponseHeader(),
-                            Results = ArrayOf.Wrapped(Array.Empty<BrowseResult>()),
-                            DiagnosticInfos = default
-                        });
+                        return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                            new TranslateBrowsePathsToNodeIdsResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = default,
+                                DiagnosticInfos = default
+                            });
                     });
 
             using var cts = new CancellationTokenSource();
@@ -247,35 +240,6 @@ namespace Opc.Ua.Client.Tests.StateMachines
                     }
                 },
                 Throws.InstanceOf<OperationCanceledException>());
-        }
-
-        private static void SetupBrowseEmpty(Mock<ISessionClient> sessionMock)
-        {
-            sessionMock.Setup(s => s.BrowseAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.IsAny<ViewDescription>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<ArrayOf<BrowseDescription>>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
-                    (_, _, _, descriptions, _) =>
-                    {
-                        var results = new BrowseResult[descriptions.Count];
-                        for (int i = 0; i < results.Length; i++)
-                        {
-                            results[i] = new BrowseResult
-                            {
-                                StatusCode = StatusCodes.Good,
-                                References = default
-                            };
-                        }
-                        return new ValueTask<BrowseResponse>(new BrowseResponse
-                        {
-                            ResponseHeader = new ResponseHeader(),
-                            Results = ArrayOf.Wrapped(results),
-                            DiagnosticInfos = default
-                        });
-                    });
         }
 
         private static void SetupTranslateAllEmpty(Mock<ISessionClient> sessionMock)

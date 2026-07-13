@@ -70,6 +70,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional options callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IUdpTransportBuilder AddUdpTransport(
             this IPubSubBuilder builder,
             Action<UdpTransportOptions>? configure = null)
@@ -97,6 +98,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configuration">Root configuration.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IUdpTransportBuilder AddUdpTransport(
             this IPubSubBuilder builder,
             IConfiguration configuration)
@@ -120,6 +122,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">PubSub builder.</param>
         /// <param name="section">Configuration section.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IUdpTransportBuilder AddUdpTransport(
             this IPubSubBuilder builder,
             IConfigurationSection section)
@@ -137,7 +140,6 @@ namespace Microsoft.Extensions.DependencyInjection
             return CreateUdpTransportBuilder(builder);
         }
 
-
         /// <summary>
         /// Registers DTLS 1.3 support for <c>opc.dtls://</c> unicast PubSub endpoints.
         /// </summary>
@@ -154,6 +156,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </remarks>
         /// <param name="builder">UDP transport builder.</param>
         /// <param name="configure">Optional DTLS options callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IUdpTransportBuilder WithDtls(
             this IUdpTransportBuilder builder,
             Action<DtlsTransportOptions>? configure = null)
@@ -183,6 +186,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">UDP transport builder.</param>
         /// <param name="configuration">Root configuration.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IUdpTransportBuilder WithDtls(
             this IUdpTransportBuilder builder,
             IConfiguration configuration)
@@ -201,6 +205,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">UDP transport builder.</param>
         /// <param name="section">Configuration section.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IUdpTransportBuilder WithDtls(
             this IUdpTransportBuilder builder,
             IConfigurationSection section)
@@ -227,6 +232,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="services">Service collection.</param>
         /// <param name="configure">Optional UDP transport builder callback.</param>
         /// <returns>The same <paramref name="services"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddUdpPubSub(
             this IServiceCollection services,
             Action<IUdpTransportBuilder>? configure = null)
@@ -246,6 +252,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">OPC UA builder.</param>
         /// <param name="configure">Optional UDP transport builder callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddUdpPubSub(
             this IOpcUaBuilder builder,
             Action<IUdpTransportBuilder>? configure = null)
@@ -276,6 +283,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configureTransport">Optional UDP transport builder callback.</param>
         /// <param name="configureKeyProvider">Optional SKS pull provider options callback.</param>
         /// <returns>The same <paramref name="services"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddSecureUdpPubSub(
             this IServiceCollection services,
             string securityGroupId,
@@ -308,6 +316,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configureTransport">Optional UDP transport builder callback.</param>
         /// <param name="configureKeyProvider">Optional SKS pull provider options callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddSecureUdpPubSub(
             this IOpcUaBuilder builder,
             string securityGroupId,

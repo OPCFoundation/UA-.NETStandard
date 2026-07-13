@@ -126,6 +126,7 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly IHttpClientFactory? m_httpClientFactory;
+
         private static readonly ConcurrentDictionary<string, Lazy<HttpClient>> s_fallbackClients = new(
             StringComparer.Ordinal);
     }

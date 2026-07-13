@@ -45,6 +45,50 @@ This document outlines the key differences in behavior and implementation betwee
   * **Browse**: Uses `NodeState.CreateBrowser`. Explicitly validates `PermissionType.Browse`. Supports Views (`IsNodeInView`).
   * **Translate**: Uses `CreateBrowser` to navigate path. Supports resolving targets in other node managers via `unresolvedTargetIds`.
 
+### Runtime subtype replacement (`IPredefinedNodeSubtypeReplacer`)
+
+`AsyncCustomNodeManager` implements the `IPredefinedNodeSubtypeReplacer` capability interface. It swaps an already-registered predefined instance node for a **differently-typed instance** (typically a generated subtype) at runtime, while preserving the node's identity in the address space:
+
+* the replacement inherits the existing node's `NodeId`, `BrowseName`, `SymbolicName`, `DisplayName` and `ReferenceTypeId`;
+* children shared by both types (matched by `BrowseName` at any depth) keep the existing child's `NodeId` and value, so well-known instance NodeIds survive the swap;
+* children that only exist on the replacement take their `NodeId` from a caller-supplied `BrowseName → NodeId` map, or a freshly minted one;
+* the old subtree is removed and the new one registered in the manager's `PredefinedNodes` index, and a `ModelChange` is emitted (subject to `ModelChangeEmissionEnabled`) so live clients observe the new type definition and members.
+
+**When to use it.** Reach for this capability when a well-known instance node's concrete type is a *runtime* decision — for example modelling `Server.ServerRedundancy` as `TransparentRedundancyType` vs `NonTransparentRedundancyType` from configuration, and changing that mode live (see `Opc.Ua.Redundancy.Server.ServerRedundancyController`). It is the right tool whenever you would otherwise mutate a node's `TypeDefinitionId` in place and hand-build the subtype-specific children.
+
+**When not to use it.** If you only need to re-index an already-reparented replacement of the *same* type (e.g. promoting a passive nodeset node to a typed proxy), the lighter `ReplacePredefinedNode(nodeId, node)` index-only swap is sufficient — this is what `RoleStateBinding` and the `ConfigurationNodeManager` passive→typed promotion do today. If you are *creating* a new node subtree, use `AddNodeAsync` / `AddPredefinedNodeAsync` or the fluent `CreateInstance<TState>(...)` builder instead.
+
+Create the replacement with the generated `CreateInstanceOf<Type>` factory, then hand it to the capability:
+
+```csharp
+// server.DiagnosticsNodeManager (or any AsyncCustomNodeManager) exposes the capability.
+if (server.DiagnosticsNodeManager is IPredefinedNodeSubtypeReplacer replacer)
+{
+    ISystemContext context = server.DefaultSystemContext;
+    ServerObjectState serverObject = server.ServerObject;
+    var existing = serverObject.ServerRedundancy;
+
+    // Build the target subtype instance (typed, generated).
+    NonTransparentRedundancyState subtype = context.CreateInstanceOfNonTransparentRedundancyType();
+
+    await replacer.ReplacePredefinedInstanceSubtypeAsync(
+        context,
+        existing,
+        subtype,
+        // well-known NodeIds for members that only exist on the subtype
+        newChildNodeIds: new Dictionary<QualifiedName, NodeId>
+        {
+            [new QualifiedName(BrowseNames.ServerUriArray, 0)]
+                = VariableIds.Server_ServerRedundancy_ServerUriArray
+        },
+        // keep the parent's typed backing slot in sync (setters don't reparent)
+        onReplaced: node => serverObject.ServerRedundancy = (ServerRedundancyState)node,
+        cancellationToken);
+}
+```
+
+The operation is deliberately exposed as a capability interface method rather than a construction-time fluent builder: the fluent `INodeBuilder` surface models building a node *before* it is registered, whereas subtype replacement mutates a node that is already live in the address space. Callers that already hold a fluent builder can still create the replacement instance with `CreateInstance<TState>(...)` and then pass the built node to the capability.
+
 ## 4. Monitoring & Subscriptions
 
 | Feature | CoreNodeManager | CustomNodeManager2 |

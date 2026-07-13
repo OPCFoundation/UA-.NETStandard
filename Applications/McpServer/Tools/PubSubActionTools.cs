@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -78,7 +77,7 @@ namespace Opc.Ua.Mcp.Tools
                 ResponseAddress = responseAddress ?? string.Empty,
                 TimeoutHint = timeoutMs <= 0 ? 2000 : timeoutMs
             };
-            TimeSpan timeout = TimeSpan.FromMilliseconds(timeoutMs <= 0 ? 2000 : timeoutMs);
+            var timeout = TimeSpan.FromMilliseconds(timeoutMs <= 0 ? 2000 : timeoutMs);
             PubSubActionResponse response = await manager.InvokeActionAsync(request, timeout, ct).ConfigureAwait(false);
             return Summarize(response);
         }
@@ -262,7 +261,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static ArrayOf<DataSetField> ParseJsonFields(string fieldText)
         {
-            using JsonDocument document = JsonDocument.Parse(fieldText);
+            using var document = JsonDocument.Parse(fieldText);
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 throw new ArgumentException("Action input fields JSON must be an object.", nameof(fieldText));
@@ -273,12 +272,12 @@ namespace Opc.Ua.Mcp.Tools
             {
                 string? dataType = null;
                 JsonElement value = property.Value;
-                if (property.Value.ValueKind == JsonValueKind.Object
-                    && property.Value.TryGetProperty("value", out JsonElement wrappedValue))
+                if (property.Value.ValueKind == JsonValueKind.Object &&
+                    property.Value.TryGetProperty("value", out JsonElement wrappedValue))
                 {
                     value = wrappedValue;
-                    if (property.Value.TryGetProperty("dataType", out JsonElement dataTypeElement)
-                        && dataTypeElement.ValueKind == JsonValueKind.String)
+                    if (property.Value.TryGetProperty("dataType", out JsonElement dataTypeElement) &&
+                        dataTypeElement.ValueKind == JsonValueKind.String)
                     {
                         dataType = dataTypeElement.GetString();
                     }

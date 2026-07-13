@@ -453,7 +453,6 @@ namespace Opc.Ua.SourceGeneration
                         ReaderMethod = MapReaderMethod(dotnetVar),
                         IsTwoStateVariableId = false
                     });
-                    continue;
                 }
 
                 // Objects (state machines, sub-objects) are not emitted as
@@ -558,7 +557,6 @@ namespace Opc.Ua.SourceGeneration
                 case "String":
                     return "string?";
                 case "DateTime":
-                    return "global::System.DateTime?";
                 case "UtcTime":
                     return "global::System.DateTime?";
                 case "Guid":

@@ -789,14 +789,10 @@ namespace Opc.Ua.WotCon.Tests
                 entry, td, persistOnSuccess: false, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            string?[] propNames = entry.Properties.Values
-                .Select(v => v.Variable.BrowseName.Name)
-                .ToArray();
+            string?[] propNames = [.. entry.Properties.Values.Select(v => v.Variable.BrowseName.Name)];
             Assert.That(propNames, Is.EquivalentTo(s_validPropertyAndActionMix_ExpectedProps));
 
-            string?[] actionNames = entry.Actions.Values
-                .Select(a => a.Method.BrowseName.Name)
-                .ToArray();
+            string?[] actionNames = [.. entry.Actions.Values.Select(a => a.Method.BrowseName.Name)];
             Assert.That(actionNames, Is.EquivalentTo(s_validPropertyAndActionMix_ExpectedActions));
         }
 
@@ -827,16 +823,16 @@ namespace Opc.Ua.WotCon.Tests
                 entry, td, persistOnSuccess: false, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            string?[] propNames = entry.Properties.Values
-                .Select(v => v.Variable.BrowseName.Name)
-                .ToArray();
+            string?[] propNames = [.. entry.Properties.Values.Select(v => v.Variable.BrowseName.Name)];
             Assert.That(propNames, Is.EquivalentTo(s_tooLongChildName_ExpectedProps));
         }
 
         private static readonly string[] s_validPropertyAndActionMix_ExpectedProps =
             ["Voltage", "Set-Point"];
+
         private static readonly string[] s_validPropertyAndActionMix_ExpectedActions =
             ["Reset"];
+
         private static readonly string[] s_tooLongChildName_ExpectedProps =
             ["Voltage"];
 

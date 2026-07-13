@@ -297,12 +297,12 @@ namespace Opc.Ua.Subscriptions.Tests
                 // server-side - so accept those transient statuses. The strict
                 // end-to-end proof is the load + transfer + data flow on the
                 // fresh target session below, which is unchanged.
-                bool closeAcceptable = ServiceResult.IsGood(originClose)
-                    || originClose.Code == (uint)StatusCodes.BadSessionIdInvalid
-                    || originClose.Code == (uint)StatusCodes.BadRequestInterrupted
-                    || originClose.Code == (uint)StatusCodes.BadConnectionClosed
-                    || originClose.Code == (uint)StatusCodes.BadSecureChannelClosed
-                    || originClose.Code == (uint)StatusCodes.BadServerHalted;
+                bool closeAcceptable = ServiceResult.IsGood(originClose) ||
+                    originClose.Code == (uint)StatusCodes.BadSessionIdInvalid ||
+                    originClose.Code == (uint)StatusCodes.BadRequestInterrupted ||
+                    originClose.Code == (uint)StatusCodes.BadConnectionClosed ||
+                    originClose.Code == (uint)StatusCodes.BadSecureChannelClosed ||
+                    originClose.Code == (uint)StatusCodes.BadServerHalted;
                 Assert.That(closeAcceptable, Is.True,
                     "Unexpected origin close status: " + originClose.ToString());
 

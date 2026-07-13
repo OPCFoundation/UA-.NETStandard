@@ -44,6 +44,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Encodes a certificate chain into a TLS 1.3 Certificate message body.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public static byte[] EncodeCertificate(IReadOnlyList<Certificate> chain)
         {
             if (chain is null || chain.Count == 0)
@@ -125,6 +126,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Signs the CertificateVerify content over the transcript hash with the local ECDSA key.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static byte[] SignCertificateVerify(
             Certificate certificate,
             DtlsCipherSuite cipherSuite,
@@ -162,6 +165,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Verifies a peer CertificateVerify signature against the transcript hash.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static void VerifyCertificateVerify(
             Certificate certificate,
             DtlsCipherSuite cipherSuite,
@@ -203,6 +208,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <summary>
         /// Validates the peer certificate chain through the supplied certificate validator.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="DtlsHandshakeException"></exception>
         public static async ValueTask ValidatePeerCertificateAsync(
             ICertificateValidatorEx validator,
             CertificateCollection chain,

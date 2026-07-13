@@ -208,6 +208,7 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// The idempotent fuzz target core for the JsonEncoder.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static void FuzzJsonEncoderIndempotentCore(
             string serialized,
             IEncodeable encodeable)

@@ -363,6 +363,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public void DetermineStoreTypeKvPrefixReturnsSharedKeyValue()
+        {
+            string result = CertificateStoreIdentifier
+                .DetermineStoreType("kv:pki/trusted");
+            Assert.That(result, Is.EqualTo(CertificateStoreType.SharedKeyValue));
+        }
+
+        [Test]
         public void CreateStoreNullTypeReturnsCertificateIdentifierCollectionStore()
         {
             using ICertificateStore store = CertificateStoreIdentifier

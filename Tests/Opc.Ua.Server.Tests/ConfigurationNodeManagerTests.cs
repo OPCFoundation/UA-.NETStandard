@@ -224,17 +224,20 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// <para>
         /// Issue #3768: Optional descendants of top-level singletons (Server,
         /// ServerConfiguration, HistoryServerCapabilities) that the SDK does
         /// not implement must not be exposed as null-valued nodes in the
         /// address space.
-        ///
+        /// </para>
+        /// <para>
         /// The generator now applies the suppression TRANSITIVELY to
         /// Variable/Method descendants. Optional Object instances are
         /// intentionally exempt: their subtrees use well-known instance
         /// NodeIds that the SDK / ConfigurationNodeManager bind against, so
         /// they are still emitted by the singleton-specific factory.
-        ///
+        /// </para>
+        /// <para>
         /// This test asserts:
         ///   - Optional Variables/Methods that the SDK does NOT implement
         ///     are absent (ServerConfiguration.ApplicationUri /
@@ -259,6 +262,7 @@ namespace Opc.Ua.Server.Tests
         ///     CertificateTypes Variable is resolvable (regression guard
         ///     for the failure described in DiagnosticsNodeManager and
         ///     ConfigurationNodeManager).
+        /// </para>
         /// </summary>
         [Test]
         public async Task ServerConfiguration_OptionalUnimplementedChildren_NotInAddressSpaceAsync()

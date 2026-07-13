@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptedSecret = CreateRsa();
             byte[] nonce = NonceBytes();
             byte[] encoded = encryptedSecret.EncryptRsa(SecretBytes(), nonce);
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
 
             Assert.That(
                 () => encryptedSecret.TryDecryptRsa(encoded, nonce, out _),
@@ -231,7 +231,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create("CN=EncryptedSecret Other Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            EncryptedSecret decryptor = EncryptedSecret.CreateForRsa(
+            var decryptor = EncryptedSecret.CreateForRsa(
                 m_context,
                 SecurityPolicies.Basic256Sha256,
                 otherCertificate);
@@ -398,7 +398,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Category("EncryptedSecretCoverage")]
         public void CreateForRsaSetsExpectedProperties()
         {
-            EncryptedSecret encryptor = EncryptedSecret.CreateForRsa(
+            var encryptor = EncryptedSecret.CreateForRsa(
                 m_context, SecurityPolicies.Basic256Sha256, m_certificate);
 
             Assert.Multiple(() =>
@@ -642,7 +642,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = CreateEccEncryptor(
                 policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
             byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
             Assert.That(
@@ -691,7 +691,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = CreateEccEncryptor(
                 policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
             byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
             bool ok = decryptor.TryDecrypt(encoded, NonceBytes(), out byte[] decrypted);
@@ -715,7 +715,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret encryptor = CreateEccEncryptor(
                 policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
             byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
-            encoded[encoded.Length - 1] ^= 0xFF;
+            encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
             (bool success, byte[] decrypted) = await decryptor
@@ -737,10 +737,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate receiverCertificate = CreateEccCertificate(curve);
             using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
             using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
-            EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
+            var encryptor = EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 receiverCertificate,
                 receiverEphemeralKey,
                 null!,
@@ -763,10 +763,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ECCurve curve = CurveForPolicy(policyUri);
             using Certificate senderCertificate = CreateEccCertificate(curve);
             using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
-            EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
+            var encryptor = EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 senderCertificate,
                 null!,
                 senderCertificate,
@@ -789,10 +789,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ECCurve curve = CurveForPolicy(policyUri);
             using Certificate senderCertificate = CreateEccCertificate(curve);
             using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
-            EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
+            var encryptor = EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 senderCertificate,
                 receiverEphemeralKey,
                 senderCertificate,
@@ -812,7 +812,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             const string policyUri = SecurityPolicies.ECC_nistP256;
             RequireEccPolicy(policyUri);
-            EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+            var encryptedSecret = EncryptedSecret.CreateForRsa(
                 m_context, policyUri, m_certificate);
 
             Assert.That(
@@ -828,7 +828,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             const string policyUri = SecurityPolicies.ECC_nistP256;
             RequireEccPolicy(policyUri);
-            EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
+            var encryptedSecret = EncryptedSecret.CreateForRsa(
                 m_context, policyUri, m_certificate);
 
             bool ok = encryptedSecret.TryDecryptRsa([1, 2, 3, 4, 5, 6, 7, 8], NonceBytes(), out byte[] decrypted);
@@ -896,7 +896,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 receiverCertificate,
                 receiverEphemeralKey,
                 senderCertificate,
@@ -914,7 +914,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return EncryptedSecret.CreateForEcc(
                 m_context,
                 policyUri,
-                new CertificateCollection(),
+                [],
                 receiverCertificate,
                 receiverEphemeralKey,
                 senderCertificate!,

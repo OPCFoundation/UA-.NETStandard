@@ -144,22 +144,22 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             MqttEndpoint wssEndpoint = MqttEndpointParser.Parse("wss://broker.example/mqtt");
 
 #if MQTTNET_V5
-            var wsOptions = MqttClientAdapter.ConfigureBrokerTransport(
+            MqttClientOptions wsOptions = MqttClientAdapter.ConfigureBrokerTransport(
                 new MqttClientOptionsBuilder(),
                 wsEndpoint).Build();
-            var wssOptions = MqttClientAdapter.ConfigureBrokerTransport(
+            MqttClientOptions wssOptions = MqttClientAdapter.ConfigureBrokerTransport(
                 new MqttClientOptionsBuilder(),
                 wssEndpoint).Build();
 
             Assert.Multiple(() =>
             {
-                Assert.That(wsOptions.ChannelOptions, Is.TypeOf<MQTTnet.MqttClientWebSocketOptions>());
-                Assert.That(wssOptions.ChannelOptions, Is.TypeOf<MQTTnet.MqttClientWebSocketOptions>());
+                Assert.That(wsOptions.ChannelOptions, Is.TypeOf<MqttClientWebSocketOptions>());
+                Assert.That(wssOptions.ChannelOptions, Is.TypeOf<MqttClientWebSocketOptions>());
                 Assert.That(
-                    ((MQTTnet.MqttClientWebSocketOptions)wsOptions.ChannelOptions).Uri,
+                    ((MqttClientWebSocketOptions)wsOptions.ChannelOptions).Uri,
                     Is.EqualTo("ws://broker.example/mqtt"));
                 Assert.That(
-                    ((MQTTnet.MqttClientWebSocketOptions)wssOptions.ChannelOptions).Uri,
+                    ((MqttClientWebSocketOptions)wssOptions.ChannelOptions).Uri,
                     Is.EqualTo("wss://broker.example/mqtt"));
             });
 #else
@@ -182,14 +182,14 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         public void ConfigureBrokerTransportMqttSchemesUseTcpChannel()
         {
             MqttEndpoint endpoint = MqttEndpointParser.Parse("mqtt://broker.example:1884");
-            var options = MqttClientAdapter.ConfigureBrokerTransport(
+            MqttClientOptions options = MqttClientAdapter.ConfigureBrokerTransport(
                 new MqttClientOptionsBuilder(),
                 endpoint).Build();
 
 #if MQTTNET_V5
-            Assert.That(options.ChannelOptions, Is.TypeOf<MQTTnet.MqttClientTcpOptions>());
+            Assert.That(options.ChannelOptions, Is.TypeOf<MqttClientTcpOptions>());
 #else
-            Assert.That(options.ChannelOptions, Is.TypeOf<MQTTnet.Client.MqttClientTcpOptions>());
+            Assert.That(options.ChannelOptions, Is.TypeOf<MqttClientTcpOptions>());
 #endif
         }
 
@@ -204,7 +204,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 AuthenticationProfileUri = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json",
                 ResourceUri = "urn:broker:resource"
             };
-            var mqttOptions = new MqttClientOptionsBuilder()
+            MqttClientOptions mqttOptions = new MqttClientOptionsBuilder()
                 .WithTcpServer("broker.example", 8883)
                 .Build();
 
@@ -239,7 +239,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
 
             var filters = new List<MqttTopicFilter>
             {
-                new MqttTopicFilter("test/topic", MqttQualityOfService.AtMostOnce)
+                new("test/topic", MqttQualityOfService.AtMostOnce)
             };
 
             Assert.ThrowsAsync<ObjectDisposedException>(

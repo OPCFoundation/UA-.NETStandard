@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         public void Encode_StatusApplicationInformation_RoundTrips()
         {
             PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
-            var now = DateTimeUtc.Now;
+            DateTimeUtc now = DateTimeUtc.Now;
             var response = new UadpDiscoveryResponseMessage
             {
                 PublisherId = PublisherId.FromUInt16(0x4242),

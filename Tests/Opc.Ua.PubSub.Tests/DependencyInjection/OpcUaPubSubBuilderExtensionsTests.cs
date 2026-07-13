@@ -34,10 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
@@ -47,6 +45,7 @@ using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests.Security;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {
@@ -63,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSub_RegistersCoreServices()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSub();
             ServiceProvider sp = services.BuildServiceProvider();
@@ -76,7 +75,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSub_RegistersHostedService()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSub();
@@ -91,7 +90,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSub_ResolvesIPubSubApplication()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSub();
@@ -104,7 +103,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubPublisher_RegistersServices()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSubPublisher();
@@ -116,7 +115,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubSubscriber_RegistersServices()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSubSubscriber();
@@ -137,7 +136,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubFluent_ResolvesIPubSubApplication()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             services.AddOpcUa().AddPubSub(pubsub => pubsub.AddPublisher());
             ServiceProvider sp = services.BuildServiceProvider();
@@ -148,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubFluent_NullConfigure_Throws()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             Assert.That(
                 () => builder.AddPubSub((Action<IPubSubBuilder>)null!),
@@ -168,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubFluent_ConfigureApplication_IsApplied()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             bool configureApplicationInvoked = false;
             services.AddOpcUa().AddPubSub(pubsub =>
@@ -188,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         {
             var keyProvider = new Mock<IPubSubSecurityKeyProvider>();
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             services.AddOpcUa().AddPubSub(pubsub =>
                 pubsub.AddSubscriber().AddSecurityKeyProvider(keyProvider.Object));
@@ -207,7 +206,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 .Setup(static p => p.GetCurrentKeyAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<PubSubSecurityKey>(TestSecurityKeyFactory.Create(1)));
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             services.AddPubSubTransportFactory(_ => new StubTransportFactory());
 
@@ -231,7 +230,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubFluent_ExposesServicesAndOpcUaBuilder()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IServiceCollection? captured = null;
             IOpcUaBuilder root = services.AddOpcUa();
             root.AddPubSub(pubsub =>
@@ -251,7 +250,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             var runtimeStateStore = new InMemoryPubSubRuntimeStateStore();
             var securityKeyStore = new InMemoryPubSubSecurityKeyStore();
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub
@@ -272,7 +271,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public async Task AddPubSubFluentConfigureConfigurationBuildsAndAppliesConfigurationAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
             services.AddOpcUa().AddPubSub(pubsub => pubsub.ConfigureConfiguration(configuration =>
@@ -311,7 +310,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubFluentConfigureConfigurationNullConfigureThrows()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IPubSubBuilder captured = null!;
             services.AddOpcUa().AddPubSub(pubsub => captured = pubsub);
 

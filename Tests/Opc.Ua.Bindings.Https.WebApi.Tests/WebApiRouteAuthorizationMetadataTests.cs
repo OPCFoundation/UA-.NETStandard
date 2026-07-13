@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -82,7 +80,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .GetRequiredService<EndpointDataSource>();
 
             string[] businessRoutes =
-            {
+            [
                 "/read", "/write", "/historyread", "/historyupdate", "/call",
                 "/browse", "/browsenext", "/translate", "/registernodes",
                 "/unregisternodes", "/createsession", "/activatesession",
@@ -91,7 +89,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 "/deletemonitoreditems", "/createsubscription",
                 "/modifysubscription", "/setpublishingmode", "/publish",
                 "/republish", "/transfersubscriptions", "/deletesubscriptions"
-            };
+            ];
 
             foreach (string route in businessRoutes)
             {
@@ -129,8 +127,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
                 {
-                    webHost.UseTestServer();
-                    webHost.ConfigureServices(services =>
+                    webHost.UseTestServer()
+                        .ConfigureServices(services =>
                     {
                         services.AddRouting();
                         services.AddAuthorization();

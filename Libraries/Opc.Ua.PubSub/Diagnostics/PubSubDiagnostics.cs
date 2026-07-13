@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Diagnostics
             Enum.GetValues<PubSubDiagnosticsCounterKind>().Length;
 #else
         private static readonly int s_counterCount =
-            ((PubSubDiagnosticsCounterKind[])Enum.GetValues(typeof(PubSubDiagnosticsCounterKind))).Length;
+            Enum.GetValues(typeof(PubSubDiagnosticsCounterKind)).Length;
 #endif
 
         private readonly Lock m_lock = new();
@@ -111,14 +111,14 @@ namespace Opc.Ua.PubSub.Diagnostics
             {
                 if (m_errorHistory == null)
                 {
-                    return ArrayOf<PubSubErrorEntry>.Empty;
+                    return [];
                 }
                 lock (m_lock)
                 {
                     int count = m_errorHistoryCount;
                     if (count == 0)
                     {
-                        return ArrayOf<PubSubErrorEntry>.Empty;
+                        return [];
                     }
                     var snapshot = new PubSubErrorEntry[count];
                     int head = m_errorHistoryHead;

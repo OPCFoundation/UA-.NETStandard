@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .LoadTypeAsync(structureNode.NodeId, false, true)
                 .ConfigureAwait(false);
 
-            ExpandedNodeId expectedId = NodeId.ToExpandedNodeId(
+            var expectedId = NodeId.ToExpandedNodeId(
                 structureNode.NodeId,
                 mockResolver.NamespaceUris);
             var expectedName = new XmlQualifiedName("CarType", Namespaces.MockResolverUrl);
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Assert.That(typeSystem.GetDefinedTypes(), Has.Member(expectedName));
                 Assert.That(
                     typeSystem.GetDefinedDataTypeIds(),
-                    Is.EqualTo(new[] { expectedId }));
+                    Is.EqualTo([expectedId]));
                 Assert.That(definitions, Has.Count.EqualTo(1));
                 Assert.That(definitions[structureNode.NodeId], Is.EqualTo(structureDefinition));
             });

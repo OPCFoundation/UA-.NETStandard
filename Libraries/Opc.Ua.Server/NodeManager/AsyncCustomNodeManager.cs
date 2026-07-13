@@ -52,7 +52,9 @@ namespace Opc.Ua.Server
     public class AsyncCustomNodeManager :
         IAsyncNodeManager,
         INodeIdFactory,
-        IDisposable
+        IDisposable,
+        ILocalAddressSpaceSource,
+        IPredefinedNodeSubtypeReplacer
     {
         /// <summary>
         /// Initializes the node manager.
@@ -241,6 +243,16 @@ namespace Opc.Ua.Server
             }
 
             return node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        ILocalAddressSpace ILocalAddressSpaceSource.CreateLocalAddressSpace()
+        {
+            return new PredefinedNodesAddressSpace(
+                SystemContext,
+                PredefinedNodes,
+                (node, cancellationToken) => AddPredefinedNodeAsync(SystemContext, node, cancellationToken),
+                (nodeId, cancellationToken) => DeleteNodeAsync(SystemContext, nodeId, cancellationToken));
         }
 
         /// <summary>
@@ -599,6 +611,190 @@ namespace Opc.Ua.Server
             }
             PredefinedNodes[nodeId] = node;
             return true;
+        }
+
+        /// <summary>
+        /// Replaces an already registered predefined instance node with a
+        /// differently-typed instance (for example a generated subtype) while
+        /// preserving the node's identity in the address space.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is a generic building block for materialising the correct
+        /// generated subtype of a well-known instance node whose concrete type
+        /// depends on runtime configuration (for example
+        /// <c>Server.ServerRedundancy</c>). The caller creates the replacement
+        /// via the generated <c>CreateInstanceOf&lt;Type&gt;</c> factory and this
+        /// method swaps it into the live address space.
+        /// </para>
+        /// <para>
+        /// The replacement inherits the existing node's <see cref="NodeState.NodeId"/>,
+        /// <see cref="NodeState.BrowseName"/>, <see cref="NodeState.SymbolicName"/>,
+        /// <see cref="NodeState.DisplayName"/> and
+        /// <see cref="BaseInstanceState.ReferenceTypeId"/>. Children shared by both
+        /// instances (matched by <see cref="NodeState.BrowseName"/> at any depth)
+        /// keep the existing child's NodeId and value, so well-known instance
+        /// NodeIds are preserved across the swap. Children that only exist on the
+        /// replacement (the subtype-specific members) take their NodeId from
+        /// <paramref name="newChildNodeIds"/> when supplied, otherwise a fresh
+        /// NodeId is minted via <see cref="New(ISystemContext, NodeState)"/>.
+        /// </para>
+        /// <para>
+        /// The old subtree is removed from and the new subtree added to the
+        /// manager's address-space index, and a <c>ModelChange</c> is emitted when
+        /// <see cref="ModelChangeEmissionEnabled"/> is <c>true</c> so live clients
+        /// observe the change. Use <paramref name="onReplaced"/> to update any
+        /// strongly-typed backing slot on the parent (the generated typed child
+        /// property setters do not reparent).
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <param name="existingNode">The registered predefined instance to replace.</param>
+        /// <param name="newInstance">The replacement instance (typically a subtype).</param>
+        /// <param name="newChildNodeIds">
+        /// Optional well-known NodeIds, keyed by BrowseName, for children that only
+        /// exist on <paramref name="newInstance"/>.
+        /// </param>
+        /// <param name="onReplaced">
+        /// Optional callback invoked with <paramref name="newInstance"/> after it is
+        /// attached, allowing the caller to update a typed parent slot.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The registered replacement instance.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="existingNode"/> or <paramref name="newInstance"/> is null.
+        /// </exception>
+        public async ValueTask<BaseInstanceState> ReplacePredefinedInstanceSubtypeAsync(
+            ISystemContext context,
+            BaseInstanceState existingNode,
+            BaseInstanceState newInstance,
+            IReadOnlyDictionary<QualifiedName, NodeId>? newChildNodeIds = null,
+            Action<BaseInstanceState>? onReplaced = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (existingNode == null)
+            {
+                throw new ArgumentNullException(nameof(existingNode));
+            }
+            if (newInstance == null)
+            {
+                throw new ArgumentNullException(nameof(newInstance));
+            }
+
+            NodeId nodeId = existingNode.NodeId;
+            NodeId oldTypeDefinition = existingNode.TypeDefinitionId;
+            NodeState? parent = existingNode.Parent;
+
+            // preserve the identity of the node in the address space.
+            newInstance.NodeId = nodeId;
+            newInstance.SymbolicName = existingNode.SymbolicName;
+            newInstance.BrowseName = existingNode.BrowseName;
+            newInstance.DisplayName = existingNode.DisplayName;
+            newInstance.ReferenceTypeId = existingNode.ReferenceTypeId;
+
+            // preserve child NodeIds and values for members shared by both types.
+            PreserveChildIdentities(context, existingNode, newInstance, newChildNodeIds);
+
+            // swap the subtree in the address-space index.
+            var referencesToRemove = new List<LocalReference>();
+            await RemovePredefinedNodeAsync(context, existingNode, referencesToRemove, cancellationToken)
+                .ConfigureAwait(false);
+
+            parent?.AddChild(newInstance);
+
+            await AddPredefinedNodeAsync(context, newInstance, cancellationToken).ConfigureAwait(false);
+
+            onReplaced?.Invoke(newInstance);
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeDeleted(nodeId, oldTypeDefinition);
+                ModelChangeAggregator.RecordNodeAdded(newInstance.NodeId, newInstance.TypeDefinitionId);
+                if (parent != null)
+                {
+                    ModelChangeAggregator.RecordReferenceAdded(parent.NodeId);
+                }
+                EmitModelChange(context);
+            }
+
+            return newInstance;
+        }
+
+        /// <summary>
+        /// Copies the NodeId (and, for variables, the value) of every child that
+        /// exists on both <paramref name="oldNode"/> and <paramref name="newNode"/>
+        /// (matched by BrowseName). Children present only on
+        /// <paramref name="newNode"/> receive a NodeId from
+        /// <paramref name="newChildNodeIds"/> or a freshly minted one.
+        /// </summary>
+        private void PreserveChildIdentities(
+            ISystemContext context,
+            NodeState oldNode,
+            NodeState newNode,
+            IReadOnlyDictionary<QualifiedName, NodeId>? newChildNodeIds)
+        {
+            var oldChildren = new List<BaseInstanceState>();
+            oldNode.GetChildren(context, oldChildren);
+
+            var oldByName = new Dictionary<QualifiedName, BaseInstanceState>();
+            foreach (BaseInstanceState oldChild in oldChildren)
+            {
+                oldByName[oldChild.BrowseName] = oldChild;
+            }
+
+            var newChildren = new List<BaseInstanceState>();
+            newNode.GetChildren(context, newChildren);
+
+            foreach (BaseInstanceState newChild in newChildren)
+            {
+                if (oldByName.TryGetValue(newChild.BrowseName, out BaseInstanceState? oldChild))
+                {
+                    newChild.NodeId = oldChild.NodeId;
+                    if (newChild is BaseVariableState newVariable &&
+                        oldChild is BaseVariableState oldVariable)
+                    {
+                        newVariable.WrappedValue = oldVariable.WrappedValue;
+                    }
+                    PreserveChildIdentities(context, oldChild, newChild, null);
+                }
+                else
+                {
+                    AssignSubtreeNodeIds(context, newChild, newChildNodeIds);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Assigns NodeIds to a newly introduced child subtree, preferring the
+        /// well-known NodeId supplied in <paramref name="newChildNodeIds"/> and
+        /// falling back to a minted NodeId.
+        /// </summary>
+        private void AssignSubtreeNodeIds(
+            ISystemContext context,
+            BaseInstanceState node,
+            IReadOnlyDictionary<QualifiedName, NodeId>? newChildNodeIds)
+        {
+            if (newChildNodeIds != null &&
+                newChildNodeIds.TryGetValue(node.BrowseName, out NodeId wellKnown) &&
+                !wellKnown.IsNull)
+            {
+                node.NodeId = wellKnown;
+            }
+            else
+            {
+                NodeId minted = New(context, node);
+                if (!minted.IsNull)
+                {
+                    node.NodeId = minted;
+                }
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                AssignSubtreeNodeIds(context, child, newChildNodeIds);
+            }
         }
 
         /// <summary>
@@ -1141,8 +1337,83 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
+            NodeState activeNode = await AddBehaviourToPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
+            IndexPredefinedNode(activeNode);
+
+            var children = new List<BaseInstanceState>();
+            activeNode.GetChildren(context, children);
+
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                // Propagate type hierarchy flag from parent to children
+                if (activeNode.IsPartOfTypeHierarchy)
+                {
+                    children[ii].IsPartOfTypeHierarchy = true;
+                }
+
+                await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Synchronously indexes a dynamically created node (and its
+        /// children) into the manager's address space.
+        /// </summary>
+        /// <remarks>
+        /// Used by fluent builder extensions (e.g.
+        /// <c>WithProperty</c>) that create nodes from inside synchronous
+        /// configuration callbacks after the predefined-node tree has
+        /// already been registered. Unlike
+        /// <see cref="AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>
+        /// this path does not invoke
+        /// <see cref="AddBehaviourToPredefinedNodeAsync"/> — it is intended
+        /// for plain instance nodes that carry no asynchronous behaviour
+        /// wiring. Registration is idempotent, so a subsequent tree
+        /// registration that includes the same node is safe.
+        /// </remarks>
+        /// <param name="node">The node subtree to register.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="node"/> is null.
+        /// </exception>
+        internal void AddPredefinedNodeSynchronously(NodeState node)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            AddPredefinedNodeSynchronously(SystemContext, node);
+        }
+
+        private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
+        {
+            IndexPredefinedNode(node);
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                // Propagate type hierarchy flag from parent to children
+                if (node.IsPartOfTypeHierarchy)
+                {
+                    children[ii].IsPartOfTypeHierarchy = true;
+                }
+
+                AddPredefinedNodeSynchronously(context, children[ii]);
+            }
+        }
+
+        /// <summary>
+        /// Indexes a single (already behaviour-resolved) node into the
+        /// <see cref="PredefinedNodes"/> table, the type tree, and the
+        /// root-notifier set. Shared by the asynchronous and synchronous
+        /// registration paths.
+        /// </summary>
+        private void IndexPredefinedNode(NodeState activeNode)
+        {
             // assign a default value to any variable in namespace 0
-            if (node is BaseVariableState nodeStateVar &&
+            if (activeNode is BaseVariableState nodeStateVar &&
                 nodeStateVar.NodeId.NamespaceIndex == 0 &&
                 nodeStateVar.Value.IsNull)
             {
@@ -1152,7 +1423,6 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            NodeState activeNode = await AddBehaviourToPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
             PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
 
             if (activeNode is BaseTypeState type)
@@ -1184,20 +1454,6 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-            }
-
-            var children = new List<BaseInstanceState>();
-            activeNode.GetChildren(context, children);
-
-            for (int ii = 0; ii < children.Count; ii++)
-            {
-                // Propagate type hierarchy flag from parent to children
-                if (activeNode.IsPartOfTypeHierarchy)
-                {
-                    children[ii].IsPartOfTypeHierarchy = true;
-                }
-
-                await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
             }
         }
 

@@ -50,7 +50,7 @@ namespace Opc.Ua.Bindings
         /// Invoked by <c>HttpsTransportListener</c>'s <c>Startup.Configure</c>
         /// after <see cref="WebSocketMiddlewareExtensions.UseWebSockets(IApplicationBuilder)"/>
         /// and before the terminal binary / JSON dispatcher
-        /// <see cref="Microsoft.AspNetCore.Builder.RunExtensions.Run"/>.
+        /// <see cref="RunExtensions.Run"/>.
         /// </summary>
         /// <param name="appBuilder">The Kestrel pipeline builder.</param>
         /// <param name="listener">The listener whose pipeline is being

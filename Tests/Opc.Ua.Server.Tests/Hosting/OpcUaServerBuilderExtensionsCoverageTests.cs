@@ -40,7 +40,6 @@ using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Identity;
-using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.Historian;
@@ -82,7 +81,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             var source = new MemoryConfigurationSource
             {
-                InitialData = new Dictionary<string, string?>()
+                InitialData = []
             };
 
             return new ConfigurationBuilder().Add(source).Build();

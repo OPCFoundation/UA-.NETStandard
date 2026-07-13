@@ -77,7 +77,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(Opc.Ua.ObjectIds.ObjectsFolder));
@@ -96,7 +96,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -118,8 +118,8 @@ namespace Opc.Ua.Di.Tests
             // a non-device. Subsequent browses (recursion into the
             // non-device) return empty.
             SetupBrowseSequential(sessionMock,
-                first: new[] { deviceRef, nonDeviceRef },
-                rest: Array.Empty<ReferenceDescription>());
+                first: [deviceRef, nonDeviceRef],
+                rest: []);
 
             // Stub the DeviceClass property lookup so it returns
             // empty (no targets → empty deviceClass).
@@ -127,7 +127,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].DeviceId, Is.EqualTo(deviceNodeId));
@@ -144,12 +144,12 @@ namespace Opc.Ua.Di.Tests
                 new ExpandedNodeId("FolderType", 2));
 
             SetupBrowseSequential(sessionMock,
-                first: new[] { nonDeviceRef },
-                rest: Array.Empty<ReferenceDescription>());
+                first: [nonDeviceRef],
+                rest: []);
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
         }
@@ -180,8 +180,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new BrowseResult[]
                     {
-                        new BrowseResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             References = new[] { nonDeviceRef }.ToArrayOf()
                         }
@@ -190,7 +189,7 @@ namespace Opc.Ua.Di.Tests
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry()));
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
             // Depth 0, 1, 2, 3 each invoke BrowseAsync once before the
@@ -255,8 +254,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     Results = new BrowseResult[]
                     {
-                        new BrowseResult
-                        {
+                        new() {
                             StatusCode = StatusCodes.Good,
                             References = global::Opc.Ua.ArrayOf.Empty<ReferenceDescription>()
                         }
@@ -286,8 +284,7 @@ namespace Opc.Ua.Di.Tests
                     {
                         Results = new BrowseResult[]
                         {
-                            new BrowseResult
-                            {
+                            new() {
                                 StatusCode = StatusCodes.Good,
                                 References = refs.ToArrayOf()
                             }

@@ -111,8 +111,8 @@ namespace Opc.Ua.Di.Tests
             var nsTable = new NamespaceTable();
             nsTable.Append(Opc.Ua.Di.Namespaces.OpcUaDi);
 
-            NodeId resolved = DeviceBuilderLifetimeExtensions
-                .ResolveIndicationTypeId(kind, nsTable);
+            NodeId resolved = kind
+                .ResolveIndicationTypeId(nsTable);
 
             Assert.That(resolved.IdentifierAsString,
                 Is.EqualTo(expectedId.ToString(System.Globalization.CultureInfo.InvariantCulture)));
@@ -123,8 +123,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ResolveIndicationTypeIdWithNullNamespaceTableThrows()
         {
-            Assert.That(() => DeviceBuilderLifetimeExtensions
-                .ResolveIndicationTypeId(LifetimeIndicationKind.Time, null!),
+            Assert.That(() => LifetimeIndicationKind.Time
+                .ResolveIndicationTypeId(null!),
                 Throws.ArgumentNullException);
         }
 

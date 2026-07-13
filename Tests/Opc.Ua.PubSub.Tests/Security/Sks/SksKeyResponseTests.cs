@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         [Test]
         public void Constructor_RecordsAllFields()
         {
-            var packed = new[] { new byte[] { 1, 2, 3 } };
+            byte[][] packed = [[1, 2, 3]];
             var response = new SksKeyResponse(
                 PubSubSecurityPolicyUri.None,
                 42U,
@@ -173,9 +173,29 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 TimeSpan.FromMinutes(1));
             ArrayOf<PubSubSecurityKey> first = response.Unpacked;
             ArrayOf<PubSubSecurityKey> second = response.Unpacked;
-            PubSubSecurityKey[]? firstKeys = (PubSubSecurityKey[]?)first;
-            PubSubSecurityKey[]? secondKeys = (PubSubSecurityKey[]?)second;
+            var firstKeys = (PubSubSecurityKey[]?)first;
+            var secondKeys = (PubSubSecurityKey[]?)second;
             Assert.That(secondKeys, Is.EqualTo(firstKeys));
+        }
+
+        [Test]
+        public void UnpackUsesSuppliedTimeProviderForIssuedAt()
+        {
+            IPubSubSecurityPolicy policy =
+                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
+            var response = new SksKeyResponse(
+                PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                1U,
+                new[] { new byte[total] },
+                TimeSpan.Zero,
+                TimeSpan.FromMinutes(1));
+            var expected = new DateTimeOffset(2035, 4, 3, 2, 1, 0, TimeSpan.Zero);
+            var timeProvider = new FakeTimeProvider(expected);
+
+            ArrayOf<PubSubSecurityKey> unpacked = response.Unpack(timeProvider);
+
+            Assert.That(unpacked[0].IssuedAt, Is.EqualTo(DateTimeUtc.From(expected.UtcDateTime)));
         }
     }
 }

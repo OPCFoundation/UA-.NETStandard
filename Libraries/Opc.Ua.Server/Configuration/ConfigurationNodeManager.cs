@@ -1048,8 +1048,8 @@ namespace Opc.Ua.Server
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState!.NamespaceUri!.Value = namespaceUri;
-                namespaceMetadataState.AddDefaultRolePermissions(SystemContext);
-                namespaceMetadataState.AddDefaultUserRolePermissions(SystemContext);
+                namespaceMetadataState.AddDefaultRolePermissions(SystemContext)
+                    .AddDefaultUserRolePermissions(SystemContext);
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
@@ -2175,7 +2175,7 @@ namespace Opc.Ua.Server
                         "No existing certificate found for the specified certificate type and subject name.");
                 }
 
-                newIssuerCollection = new CertificateCollection();
+                newIssuerCollection = [];
 
                 if (isApplicationCertificateGroup)
                 {
@@ -2531,7 +2531,7 @@ namespace Opc.Ua.Server
             using CertificateCollection validationChain = issuerCertificates.AddRef();
             validationChain.Insert(0, newCertificate);
 
-            using var validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
+            using CertificateManager validator = CertificateManagerFactory.Create(securityConfiguration, telemetry);
             var options = new Security.Certificates.CertificateValidationOptions
             {
                 AllowCertificateDownload = false,
@@ -3219,8 +3219,8 @@ namespace Opc.Ua.Server
             // acquired entry is disposed at method scope; the borrowed
             // certificate is only read.
             using CertificateEntry? currentEntry =
-                (m_configuration.CertificateManager as ICertificateRegistry)
-                    ?.AcquireApplicationCertificateByType(certificateTypeId);
+                (m_configuration.CertificateManager as ICertificateRegistry)?
+                    .AcquireApplicationCertificateByType(certificateTypeId);
             Certificate? currentCert = currentEntry?.Certificate;
 
             if (string.IsNullOrEmpty(subjectName))

@@ -109,6 +109,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="securityKeyServiceFactory">Security Key Service factory.</param>
         /// <param name="configure">Optional provider options callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddSecurityKeyServiceClient(
             this IPubSubBuilder builder,
             string securityGroupId,
@@ -183,6 +184,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="endpoint">Remote SKS endpoint description.</param>
         /// <param name="configure">Optional provider options callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddSecurityKeyServiceClient(
             this IPubSubBuilder builder,
             string securityGroupId,
@@ -267,6 +269,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">OPC UA builder.</param>
         /// <param name="securityGroupId">SecurityGroup identifier.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IOpcUaBuilder AddPubSubSecurityKeyPushTarget(
             this IOpcUaBuilder builder,
             string securityGroupId)
@@ -295,6 +299,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">PubSub builder.</param>
         /// <param name="securityGroupId">SecurityGroup identifier.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddSecurityKeyPushTarget(
             this IPubSubBuilder builder,
             string securityGroupId)
@@ -317,6 +322,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">OPC UA builder.</param>
         /// <param name="configure">Optional configuration callback.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddPubSubSecurityKeyServiceServer(
             this IOpcUaBuilder builder,
             Action<InMemoryPubSubKeyServiceServer>? configure = null)
@@ -346,6 +352,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Optional configuration callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder AddSecurityKeyServiceServer(
             this IPubSubBuilder builder,
             Action<InMemoryPubSubKeyServiceServer>? configure = null)

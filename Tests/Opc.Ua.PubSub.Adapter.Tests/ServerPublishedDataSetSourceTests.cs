@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ConstructorNullConfigurationThrows()
         {
-            var strategy = new RecordingReadStrategy(ArrayOf<DataValue>.Empty);
+            var strategy = new RecordingReadStrategy([]);
 
             Assert.That(
                 () => new ServerPublishedDataSetSource(
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ConstructorNullMetaDataBuilderThrows()
         {
-            var strategy = new RecordingReadStrategy(ArrayOf<DataValue>.Empty);
+            var strategy = new RecordingReadStrategy([]);
 
             Assert.That(
                 () => new ServerPublishedDataSetSource(
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(new DataSetMetaDataType { Name = "Delegated" });
             var source = new ServerPublishedDataSetSource(
                 new PublishedDataSetDataType(),
-                new RecordingReadStrategy(ArrayOf<DataValue>.Empty),
+                new RecordingReadStrategy([]),
                 builder.Object,
                 AdapterTestHelpers.Telemetry());
 
@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, MetaDataBuilder(), AdapterTestHelpers.Telemetry());
 
-            await source.SampleAsync(MetaWithFields("A", "B"));
+            await source.SampleAsync(MetaWithFields("A", "B")).ConfigureAwait(false);
 
             Assert.That(strategy.LastRead.Count, Is.EqualTo(2));
             Assert.That(strategy.LastRead[0].NodeId, Is.EqualTo(new NodeId(11u)));
@@ -174,13 +174,13 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, MetaDataBuilder(), AdapterTestHelpers.Telemetry());
 
-            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("Value1"));
+            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("Value1")).ConfigureAwait(false);
 
             DataSetField[] fields = (DataSetField[]?)snapshot.Fields ?? [];
             Assert.That(fields, Has.Length.EqualTo(1));
             Assert.That(fields[0].Name, Is.EqualTo("Value1"));
             Assert.That(fields[0].Value, Is.EqualTo(new Variant(99)));
-            Assert.That(fields[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(fields[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -197,11 +197,11 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, MetaDataBuilder(), AdapterTestHelpers.Telemetry());
 
-            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("A", "B"));
+            PublishedDataSetSnapshot snapshot = await source.SampleAsync(MetaWithFields("A", "B")).ConfigureAwait(false);
 
             DataSetField[] fields = (DataSetField[]?)snapshot.Fields ?? [];
             Assert.That(fields, Has.Length.EqualTo(2));
-            Assert.That(fields[1].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(fields[1].StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
 
         [Test]
@@ -219,8 +219,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var source = new ServerPublishedDataSetSource(
                 config, strategy, builder.Object, AdapterTestHelpers.Telemetry());
 
-            await source.SampleAsync(MetaWithFields("A"));
-            await source.SampleAsync(MetaWithFields("A"));
+            await source.SampleAsync(MetaWithFields("A")).ConfigureAwait(false);
+            await source.SampleAsync(MetaWithFields("A")).ConfigureAwait(false);
 
             // The source delegates resolution to the builder every cycle; the
             // builder owns caching/retry (see DataSetMetaDataBuilderTests) so a
@@ -236,17 +236,16 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 "PDS", AdapterTestHelpers.Variable.Value(new NodeId(11u)));
             var source = new ServerPublishedDataSetSource(
                 config,
-                new RecordingReadStrategy(ArrayOf<DataValue>.Empty),
+                new RecordingReadStrategy([]),
                 MetaDataBuilder(),
                 AdapterTestHelpers.Telemetry());
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
             Assert.That(
-                async () => await source.SampleAsync(MetaWithFields("A"), cts.Token),
+                async () => await source.SampleAsync(MetaWithFields("A"), cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
-
 
         [Test]
         public void SourceForwardsMetaDataChangedFromBuilder()
@@ -257,11 +256,11 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(new ValueTask<DataSetMetaDataType>(new DataSetMetaDataType()));
             var source = new ServerPublishedDataSetSource(
                 new PublishedDataSetDataType(),
-                new RecordingReadStrategy(ArrayOf<DataValue>.Empty),
+                new RecordingReadStrategy([]),
                 builder.Object,
                 AdapterTestHelpers.Telemetry());
             int changeCount = 0;
-            ((IMetaDataChangeNotifier)source).MetaDataChanged += (_, _) => changeCount++;
+            source.MetaDataChanged += (_, _) => changeCount++;
 
             builder.Raise(b => b.MetaDataChanged += null, EventArgs.Empty);
 

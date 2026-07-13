@@ -33,7 +33,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
@@ -121,7 +120,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             bool buildCalled = false;
             var factory = new FluentNodeManagerFactory(
                 TestNamespaceUri,
-                _ => { buildCalled = true; });
+                _ => buildCalled = true);
 
             IAsyncNodeManager manager = await factory.CreateAsync(
                 mockServer.Object,

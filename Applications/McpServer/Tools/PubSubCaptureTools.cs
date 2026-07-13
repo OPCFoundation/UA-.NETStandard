@@ -194,8 +194,9 @@ namespace Opc.Ua.Mcp.Tools
             }
 
             IPubSubCaptureSource? source = await GetLastSourceAsync(ct).ConfigureAwait(false);
-            return source ?? throw new PcapDiagnosticsException(
-                "No stopped PubSub capture is available. Start and stop a capture first.");
+            return source ??
+                throw new PcapDiagnosticsException(
+                    "No stopped PubSub capture is available. Start and stop a capture first.");
         }
 
         private static async ValueTask<IPubSubCaptureSource> GetStoppedSourceAsync(
@@ -281,7 +282,7 @@ namespace Opc.Ua.Mcp.Tools
 
         private static string GetPcapAllowedRoot(IServiceProvider services)
         {
-            OpcUaMcpServerOptions? mcpOptions =
+            var mcpOptions =
                 services.GetService(typeof(OpcUaMcpServerOptions)) as OpcUaMcpServerOptions;
             if (mcpOptions is not null &&
                 !string.IsNullOrWhiteSpace(mcpOptions.PcapBaseFolder))
@@ -289,7 +290,7 @@ namespace Opc.Ua.Mcp.Tools
                 return Path.GetFullPath(mcpOptions.PcapBaseFolder!);
             }
 
-            PcapOptions? options = services.GetService(typeof(PcapOptions)) as PcapOptions;
+            var options = services.GetService(typeof(PcapOptions)) as PcapOptions;
             return options?.BaseFolder ??
                 Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -481,5 +482,3 @@ namespace Opc.Ua.Mcp.Tools
         public long FramesWritten { get; init; }
     }
 }
-
-

@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Server
                 {
                     return new PubSubActionHandlerResult
                     {
-                        StatusCode = (StatusCode)StatusCodes.BadUnexpectedError
+                        StatusCode = StatusCodes.BadUnexpectedError
                     };
                 }
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.PubSub.Server
                 m_logger.LogWarning(ex, "PubSub Action server Method call failed unexpectedly.");
                 return new PubSubActionHandlerResult
                 {
-                    StatusCode = (StatusCode)StatusCodes.BadUnexpectedError
+                    StatusCode = StatusCodes.BadUnexpectedError
                 };
             }
         }
@@ -221,7 +221,7 @@ namespace Opc.Ua.PubSub.Server
                 {
                     Name = "OutputArgument" + i.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     Value = outputArguments[i],
-                    StatusCode = (StatusCode)StatusCodes.Good,
+                    StatusCode = StatusCodes.Good,
                     Encoding = PubSubFieldEncoding.Variant
                 };
             }

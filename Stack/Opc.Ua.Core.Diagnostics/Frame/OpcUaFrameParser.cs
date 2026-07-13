@@ -33,9 +33,8 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua.Pcap.Capture;
-
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Capture;
 
 namespace Opc.Ua.Pcap.Frame
 {
@@ -126,7 +125,7 @@ namespace Opc.Ua.Pcap.Frame
             {
                 return false;
             }
-            return port is 4840 or >= 48010 and <= 48020;
+            return port is 4840 or (>= 48010 and <= 48020);
         }
 
         private static int FindNextValidStart(ReadOnlySpan<byte> span)
@@ -317,11 +316,17 @@ namespace Opc.Ua.Pcap.Frame
         /// <summary>
         /// Equality comparison.
         /// </summary>
-        public static bool operator ==(OpcUaChunk left, OpcUaChunk right) => left.Equals(right);
+        public static bool operator ==(OpcUaChunk left, OpcUaChunk right)
+        {
+            return left.Equals(right);
+        }
 
         /// <summary>
         /// Inequality comparison.
         /// </summary>
-        public static bool operator !=(OpcUaChunk left, OpcUaChunk right) => !left.Equals(right);
+        public static bool operator !=(OpcUaChunk left, OpcUaChunk right)
+        {
+            return !left.Equals(right);
+        }
     }
 }

@@ -182,7 +182,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
                 PcapEnvironmentVariableNames.OpcuaKeyLogFile,
                 keyLogPath);
 
-            StandaloneKeyLogObserver observer = StandaloneKeyLogObserver.Create(
+            var observer = StandaloneKeyLogObserver.Create(
                 keyLogPath,
                 m_loggerFactory.CreateLogger<StandaloneKeyLogObserver>());
 

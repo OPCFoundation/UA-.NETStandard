@@ -43,6 +43,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">PubSub builder.</param>
         /// <param name="configure">Configuration builder callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubBuilder ConfigureConfiguration(
             this IPubSubBuilder builder,
             Action<PubSubConfigurationBuilder> configure)
@@ -56,7 +57,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            PubSubConfigurationBuilder configurationBuilder = PubSubConfigurationBuilder.Create();
+            var configurationBuilder = PubSubConfigurationBuilder.Create();
             configure(configurationBuilder);
             return builder.UseConfiguration(configurationBuilder.Build());
         }

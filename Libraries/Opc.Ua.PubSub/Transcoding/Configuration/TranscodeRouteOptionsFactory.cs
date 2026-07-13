@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Transcoding
                     $"Transcoding route '{route.Name}' requires a Target connection.");
             }
 
-            var builder = new PubSubTranscoderBuilder()
+            PubSubTranscoderBuilder builder = new PubSubTranscoderBuilder()
                 .From(route.Source!)
                 .To(route.Target!, route.TargetEncoding)
                 .PreserveMetaDataVersion(route.PreserveMetaDataVersion);
@@ -160,6 +160,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// Builds a deterministic signature of a route's declarative content
         /// so the reload coordinator can detect whether a route changed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static string ComputeSignature(TranscodeRouteOptions route)
         {
             if (route is null)

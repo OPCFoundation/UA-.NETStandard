@@ -462,16 +462,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Composite test interface for async branch coverage.
         /// </summary>
-        public interface INodeManagerWithAsync : INodeManager3, IAsyncNodeManager
-        {
-        }
+        public interface INodeManagerWithAsync : INodeManager3, IAsyncNodeManager;
 
         /// <summary>
         /// Composite test interface for dispose coverage.
         /// </summary>
-        public interface INodeManagerWithDisposable : INodeManager, IDisposable
-        {
-        }
+        public interface INodeManagerWithDisposable : INodeManager, IDisposable;
 
         private delegate void BrowseCallback(
             OperationContext context,
@@ -480,7 +476,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private static TestValues CreateTestValues()
         {
-            var handle = new object();
+            object handle = new();
             return new TestValues
             {
                 ExternalReferences = new Dictionary<NodeId, IList<IReference>>(),
@@ -495,45 +491,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Metadata = new NodeMetadata(handle, new NodeId(123, 2)),
                 ContinuationPoint = new ContinuationPoint(),
                 ReturnedContinuationPoint = new ContinuationPoint(),
-                ReferenceDescriptions = new List<ReferenceDescription>(),
+                ReferenceDescriptions = [],
                 RelativePath = new RelativePathElement(),
-                TargetIds = new List<ExpandedNodeId>(),
-                UnresolvedTargetIds = new List<NodeId>(),
+                TargetIds = [],
+                UnresolvedTargetIds = [],
                 ReadValues = new ArrayOf<ReadValueId>(),
-                DataValues = new List<DataValue>(),
-                ReadErrors = new List<ServiceResult>(),
+                DataValues = [],
+                ReadErrors = [],
                 HistoryReadDetails = new ReadRawModifiedDetails(),
                 HistoryReadValues = new ArrayOf<HistoryReadValueId>(),
-                HistoryReadResults = new List<HistoryReadResult>(),
-                HistoryReadErrors = new List<ServiceResult>(),
+                HistoryReadResults = [],
+                HistoryReadErrors = [],
                 WriteValues = new ArrayOf<WriteValue>(),
-                WriteErrors = new List<ServiceResult>(),
+                WriteErrors = [],
                 HistoryUpdates = new ArrayOf<HistoryUpdateDetails>(),
-                HistoryUpdateResults = new List<HistoryUpdateResult>(),
-                HistoryUpdateErrors = new List<ServiceResult>(),
+                HistoryUpdateResults = [],
+                HistoryUpdateErrors = [],
                 MethodsToCall = new ArrayOf<CallMethodRequest>(),
-                CallResults = new List<CallMethodResult>(),
-                CallErrors = new List<ServiceResult>(),
+                CallResults = [],
+                CallErrors = [],
                 EventMonitoredItem = new Mock<IEventMonitoredItem>().Object,
-                EventItems = new List<IEventMonitoredItem>(),
+                EventItems = [],
                 EventResult = new ServiceResult(StatusCodes.BadEventFilterInvalid),
                 AllEventsResult = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid),
                 ConditionResult = new ServiceResult(StatusCodes.BadConditionDisabled),
                 ItemsToCreate = new ArrayOf<MonitoredItemCreateRequest>(),
-                CreateErrors = new List<ServiceResult>(),
-                FilterErrors = new List<MonitoringFilterResult>(),
-                MonitoredItems = new List<IMonitoredItem>(),
+                CreateErrors = [],
+                FilterErrors = [],
+                MonitoredItems = [],
                 IdFactory = new MonitoredItemIdFactory(),
-                ItemsToRestore = new List<IStoredMonitoredItem>(),
+                ItemsToRestore = [],
                 OwnerIdentity = new Mock<IUserIdentity>().Object,
                 ItemsToModify = new ArrayOf<MonitoredItemModifyRequest>(),
-                ModifyErrors = new List<ServiceResult>(),
-                DeleteProcessed = new List<bool>(),
-                DeleteErrors = new List<ServiceResult>(),
-                TransferProcessed = new List<bool>(),
-                TransferErrors = new List<ServiceResult>(),
-                MonitoringProcessed = new List<bool>(),
-                MonitoringErrors = new List<ServiceResult>(),
+                ModifyErrors = [],
+                DeleteProcessed = [],
+                DeleteErrors = [],
+                TransferProcessed = [],
+                TransferErrors = [],
+                MonitoringProcessed = [],
+                MonitoringErrors = [],
                 SessionId = new NodeId(456, 2),
                 PermissionCache = [],
                 MethodToCall = new CallMethodRequest(),
@@ -750,13 +746,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.Context,
                     ref It.Ref<ContinuationPoint>.IsAny,
                     values.ReferenceDescriptions))
-                .Callback(new BrowseCallback((
-                    OperationContext _,
-                    ref ContinuationPoint cp,
-                    IList<ReferenceDescription> _) =>
-                {
-                    cp = values.ReturnedContinuationPoint;
-                }));
+                .Callback(new BrowseCallback(
+                    (_, ref cp, _) =>
+                        cp = values.ReturnedContinuationPoint));
             manager.Setup(m => m.TranslateBrowsePath(
                 values.Context,
                 values.SourceHandle,

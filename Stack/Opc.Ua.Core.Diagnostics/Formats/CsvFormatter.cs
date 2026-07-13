@@ -38,8 +38,6 @@ using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Formats
 {
     /// <summary>
@@ -97,8 +95,7 @@ namespace Opc.Ua.Pcap.Formats
                 builder.Append(',')
                     .Append(FrameFormatHelpers.GetChannelId(data)?.ToString(CultureInfo.InvariantCulture))
                     .Append(',')
-                    .Append(FrameFormatHelpers.GetTokenId(data)?.ToString(CultureInfo.InvariantCulture))
-                    .AppendLine();
+                    .AppendLine(FrameFormatHelpers.GetTokenId(data)?.ToString(CultureInfo.InvariantCulture));
                 count++;
             }
 

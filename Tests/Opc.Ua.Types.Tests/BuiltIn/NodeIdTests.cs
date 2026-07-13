@@ -509,7 +509,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new NodeId(Guid.NewGuid(), 0),
                 new NodeId(Guid.NewGuid(), 2),
                 new NodeId(ByteString.From(1, 2, 3, 4)),
-                new NodeId(ByteString.From(1, 2, 3, 4), 7),
+                new NodeId(ByteString.From(1, 2, 3, 4), 7)
             ];
 
             Span<char> buffer = stackalloc char[256];

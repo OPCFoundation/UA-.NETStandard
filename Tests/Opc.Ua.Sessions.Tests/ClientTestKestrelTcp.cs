@@ -73,7 +73,7 @@ namespace Opc.Ua.Sessions.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
-            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry
+            var registry = DefaultTransportBindingRegistry
                 .WithDefaultTcp();
             registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory());
             m_clientTest.TransportBindingRegistry = registry;

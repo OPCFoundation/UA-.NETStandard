@@ -183,10 +183,10 @@ namespace Opc.Ua.Lds.Tests.Hosting
                 });
 
             Assert.That(
-                () => builder.AddRegistrationStore((Func<IServiceProvider, IRegisteredServerStore>)null),
+                () => builder.AddRegistrationStore(null),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddMulticastDiscovery((Func<IServiceProvider, ILdsMulticastDiscoveryFactory>)null),
+                () => builder.AddMulticastDiscovery(null),
                 Throws.ArgumentNullException);
         }
 
@@ -246,7 +246,7 @@ namespace Opc.Ua.Lds.Tests.Hosting
 
         private sealed class TestLdsMulticastDiscoveryFactory : ILdsMulticastDiscoveryFactory
         {
-            public IMulticastDiscovery Create(Opc.Ua.Lds.Server.LdsServer server)
+            public IMulticastDiscovery Create(LdsServer server)
             {
                 throw new NotSupportedException();
             }

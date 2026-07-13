@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -292,6 +293,95 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Null);
             serverMock.Verify(s => s.ResourceManager, Times.Never);
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void ReportEventsWhenEnabledQueuesAllEventKindsAndDisableClearsQueue()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.That(GetQueuedEventCount(), Is.Zero);
+            var nodeId = new NodeId("event-node", 2);
+            var value = new DataValue(new Variant(42), StatusCodes.Good);
+            var filter = new DataChangeFilter();
+
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportWriteValue(nodeId, value, StatusCodes.BadOutOfRange);
+            ServerUtils.ReportQueuedValue(nodeId, 1, value);
+            ServerUtils.ReportFilteredValue(nodeId, 2, value);
+            ServerUtils.ReportDiscardedValue(nodeId, 3, value);
+            ServerUtils.ReportPublishValue(nodeId, 4, value);
+            ServerUtils.ReportCreateMonitoredItem(
+                nodeId,
+                5,
+                samplingInterval: 100,
+                queueSize: 10,
+                discardOldest: true,
+                filter,
+                MonitoringMode.Reporting);
+            ServerUtils.ReportModifyMonitoredItem(
+                nodeId,
+                6,
+                samplingInterval: 200,
+                queueSize: 20,
+                discardOldest: false,
+                filter,
+                MonitoringMode.Sampling);
+
+            Assert.That(GetQueuedEventCount(), Is.EqualTo(7));
+
+            ServerUtils.EventsEnabled = false;
+
+            Assert.That(GetQueuedEventCount(), Is.Zero);
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void ReportEventsWhenDisabledDoNotQueue()
+        {
+            ServerUtils.EventsEnabled = false;
+            var nodeId = new NodeId("disabled-event-node", 2);
+            var value = new DataValue(new Variant(42), StatusCodes.Good);
+
+            ServerUtils.ReportWriteValue(nodeId, value, StatusCodes.Good);
+            ServerUtils.ReportQueuedValue(nodeId, 1, value);
+            ServerUtils.ReportFilteredValue(nodeId, 2, value);
+            ServerUtils.ReportDiscardedValue(nodeId, 3, value);
+            ServerUtils.ReportPublishValue(nodeId, 4, value);
+            ServerUtils.ReportCreateMonitoredItem(
+                nodeId,
+                5,
+                samplingInterval: 100,
+                queueSize: 10,
+                discardOldest: true,
+                new DataChangeFilter(),
+                MonitoringMode.Reporting);
+            ServerUtils.ReportModifyMonitoredItem(
+                nodeId,
+                6,
+                samplingInterval: 200,
+                queueSize: 20,
+                discardOldest: false,
+                new DataChangeFilter(),
+                MonitoringMode.Sampling);
+
+            Assert.That(GetQueuedEventCount(), Is.Zero);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            ServerUtils.EventsEnabled = false;
+        }
+
+        private static int GetQueuedEventCount()
+        {
+            FieldInfo field = typeof(ServerUtils).GetField(
+                "s_events",
+                BindingFlags.NonPublic | BindingFlags.Static)!;
+            object queue = field.GetValue(null)!;
+            PropertyInfo countProperty = queue.GetType().GetProperty("Count")!;
+            return (int)countProperty.GetValue(queue)!;
         }
     }
 }

@@ -284,7 +284,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Ignore("Server has no TrustedIssuerCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            using Certificate issuer = Certificate.FromRawData(caCert.RawData);
+            using var issuer = Certificate.FromRawData(caCert.RawData);
             await s.AddAsync(issuer).ConfigureAwait(false);
         }
 
@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Ignore("Server has no TrustedUserCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            using Certificate trusted = Certificate.FromRawData(cert.RawData);
+            using var trusted = Certificate.FromRawData(cert.RawData);
             await s.AddAsync(trusted).ConfigureAwait(false);
         }
 

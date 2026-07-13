@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Tests.ModelChange
             var fake = new FakeStreamingSubscription();
             await using var tracker = new ModelChangeTracker(fake);
 
-            await tracker.StartTrackingAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
 
             Assert.That(tracker.IsTracking, Is.True);
         }
@@ -97,9 +97,9 @@ namespace Opc.Ua.Client.Tests.ModelChange
             var fake = new FakeStreamingSubscription();
             await using var tracker = new ModelChangeTracker(fake);
 
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
-            await tracker.StartTrackingAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
 
             Assert.That(tracker.IsTracking, Is.True);
 
@@ -114,9 +114,9 @@ namespace Opc.Ua.Client.Tests.ModelChange
             var fake = new FakeStreamingSubscription();
             await using var tracker = new ModelChangeTracker(fake);
 
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
-            await tracker.StopTrackingAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+            await tracker.StopTrackingAsync().ConfigureAwait(false);
 
             Assert.That(tracker.IsTracking, Is.False);
             Assert.That(fake.PumpCancellationObserved, Is.True);
@@ -127,11 +127,11 @@ namespace Opc.Ua.Client.Tests.ModelChange
         {
             var fake = new FakeStreamingSubscription();
             var tracker = new ModelChangeTracker(fake);
-            await tracker.StartTrackingAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
 
-            await tracker.DisposeAsync();
+            await tracker.DisposeAsync().ConfigureAwait(false);
             // Second dispose must be a no-op (does not throw).
-            await tracker.DisposeAsync();
+            await tracker.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(tracker.IsTracking, Is.False);
         }
@@ -141,10 +141,10 @@ namespace Opc.Ua.Client.Tests.ModelChange
         {
             var fake = new FakeStreamingSubscription();
             var tracker = new ModelChangeTracker(fake);
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
 
-            await tracker.DisposeAsync();
+            await tracker.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(tracker.IsTracking, Is.False);
             Assert.That(fake.PumpCancellationObserved, Is.True);
@@ -160,14 +160,14 @@ namespace Opc.Ua.Client.Tests.ModelChange
             int raised = 0;
             tracker.ModelChanged += (_, _) => Interlocked.Increment(ref raised);
 
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
 
             // Fields.Count < 3 — fast-path return, no event, no cache call.
             fake.Push(new EventNotification(
                 null, ArrayOf.Wrapped<Variant>(default, default)));
 
-            await fake.QuiesceAsync();
+            await fake.QuiesceAsync().ConfigureAwait(false);
 
             Assert.That(raised, Is.Zero);
             cache.VerifyNoOtherCalls();
@@ -183,8 +183,8 @@ namespace Opc.Ua.Client.Tests.ModelChange
             ModelChangedEventArgs? observed = null;
             tracker.ModelChanged += (_, e) => observed = e;
 
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
 
             // fields[2] is a scalar string — definitively NOT an
             // ExtensionObject[] of ModelChangeStructureDataType, so the
@@ -196,7 +196,7 @@ namespace Opc.Ua.Client.Tests.ModelChange
                     default,
                     Variant.From("not-an-extension-object-array"))));
 
-            await fake.QuiesceAsync();
+            await fake.QuiesceAsync().ConfigureAwait(false);
 
             cache.Verify(c => c.Clear(), Times.Once);
             cache.Verify(c => c.InvalidateNode(It.IsAny<NodeId>()), Times.Never);
@@ -218,14 +218,14 @@ namespace Opc.Ua.Client.Tests.ModelChange
             ModelChangedEventArgs? observed = null;
             tracker.ModelChanged += (_, e) => observed = e;
 
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
 
             fake.Push(new EventNotification(
                 null,
                 ArrayOf.Wrapped<Variant>(default, default, default)));
 
-            await fake.QuiesceAsync();
+            await fake.QuiesceAsync().ConfigureAwait(false);
 
             cache.Verify(c => c.Clear(), Times.Once);
             Assert.That(observed, Is.Not.Null);
@@ -245,8 +245,8 @@ namespace Opc.Ua.Client.Tests.ModelChange
             int raised = 0;
             tracker.ModelChanged += (_, _) => Interlocked.Increment(ref raised);
 
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
 
             // First malformed notification — Clear() throws, must be swallowed,
             // ModelChanged must still fire.
@@ -254,14 +254,14 @@ namespace Opc.Ua.Client.Tests.ModelChange
                 null,
                 ArrayOf.Wrapped(
                     default, default, Variant.From("garbage"))));
-            await fake.QuiesceAsync();
+            await fake.QuiesceAsync().ConfigureAwait(false);
 
             // Second notification — pump must still be alive.
             fake.Push(new EventNotification(
                 null,
                 ArrayOf.Wrapped(
                     default, default, Variant.From("garbage-2"))));
-            await fake.QuiesceAsync();
+            await fake.QuiesceAsync().ConfigureAwait(false);
 
             Assert.That(raised, Is.EqualTo(2));
             Assert.That(tracker.IsTracking, Is.True);
@@ -280,21 +280,21 @@ namespace Opc.Ua.Client.Tests.ModelChange
                 throw new InvalidOperationException("subscriber failure");
             };
 
-            await tracker.StartTrackingAsync();
-            await fake.WaitForSubscribeAsync();
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
 
             fake.Push(new EventNotification(
                 null,
                 ArrayOf.Wrapped(
                     default, default, Variant.From("garbage-1"))));
-            await fake.QuiesceAsync();
+            await fake.QuiesceAsync().ConfigureAwait(false);
 
             // Pump still alive — a second notification is delivered.
             fake.Push(new EventNotification(
                 null,
                 ArrayOf.Wrapped(
                     default, default, Variant.From("garbage-2"))));
-            await fake.QuiesceAsync();
+            await fake.QuiesceAsync().ConfigureAwait(false);
 
             Assert.That(raised, Is.EqualTo(2));
             Assert.That(tracker.IsTracking, Is.True);

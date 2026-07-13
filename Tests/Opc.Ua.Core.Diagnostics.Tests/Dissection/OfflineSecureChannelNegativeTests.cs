@@ -31,11 +31,10 @@ using System;
 using System.Buffers.Binary;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Dissection;
 using Opc.Ua.Pcap.KeyLog;
-
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Tests.Dissection
 {
@@ -222,6 +221,54 @@ namespace Opc.Ua.Pcap.Tests.Dissection
                 Throws.TypeOf<PcapDiagnosticsException>());
         }
 
+        [Test]
+        public void ConstructorRejectsUnsupportedSecurityPolicy()
+        {
+            ChannelKeyMaterial material = new(
+                channelId: 1,
+                tokenId: 2,
+                securityPolicyUri: "urn:unsupported",
+                securityMode: MessageSecurityMode.None,
+                createdAt: DateTime.UtcNow,
+                lifetime: 60000,
+                clientNonce: [],
+                serverNonce: [],
+                clientSigningKey: null,
+                clientEncryptingKey: null,
+                clientInitializationVector: null,
+                serverSigningKey: null,
+                serverEncryptingKey: null,
+                serverInitializationVector: null);
+
+            Assert.That(
+                () => new OfflineSecureChannel(material),
+                Throws.TypeOf<PcapDiagnosticsException>().With.Message.Contains("Unsupported SecurityPolicyUri"));
+        }
+
+        [TestCase(TcpMessageType.Open | TcpMessageType.Final, false)]
+        [TestCase(TcpMessageType.Open | TcpMessageType.Abort, true)]
+        public void ReadChunkReturnsAsymmetricOpenChunkMetadata(uint messageType, bool isAbort)
+        {
+            ChannelKeyMaterial material = PcapTestHelpers.CreateMaterial(
+                SecurityPolicies.None,
+                MessageSecurityMode.None,
+                channelId: 0x00ABCDEF,
+                tokenId: 1);
+            using var channel = new OfflineSecureChannel(material);
+            byte[] chunk = BuildOpenChunk(messageType, channelId: 0x12345678);
+
+            OfflineDecodedChunk decoded = channel.ReadChunk(chunk, fromClient: true);
+
+            Assert.That(decoded.MessageType, Is.EqualTo(messageType));
+            Assert.That(decoded.ChannelId, Is.EqualTo(0x12345678U));
+            Assert.That(decoded.TokenId, Is.Zero);
+            Assert.That(decoded.SequenceNumber, Is.Zero);
+            Assert.That(decoded.RequestId, Is.Zero);
+            Assert.That(decoded.IsFinal, Is.EqualTo(!isAbort));
+            Assert.That(decoded.IsAbort, Is.EqualTo(isAbort));
+            Assert.That(decoded.Body.Length, Is.EqualTo(chunk.Length - 16));
+        }
+
         private static byte[] BuildMsgChunk(uint channelId, uint tokenId, int paddingSize)
         {
             // 8-byte message header + 8-byte security header + N bytes of (encrypted)
@@ -233,6 +280,17 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(4), (uint)size);
             BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(8), channelId);
             BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(12), tokenId);
+            return chunk;
+        }
+
+        private static byte[] BuildOpenChunk(uint messageType, uint channelId)
+        {
+            byte[] chunk = new byte[32];
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk, messageType);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(4), (uint)chunk.Length);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(8), channelId);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(16), 0x11111111);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(20), 0x22222222);
             return chunk;
         }
     }

@@ -80,20 +80,20 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             var sink = new RecordingFrameCaptureSink();
             using var transport = new CapturingByteTransport(inner, registry);
 
-            inner.EnqueueReceive(new byte[] { 10, 20, 30 });
+            inner.EnqueueReceive([10, 20, 30]);
             ArraySegment<byte> received = await transport.ReceiveChunkAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(received, Has.Count.EqualTo(3));
             Assert.That(sink.ReceivedChunks, Is.Empty);
 
             registry.SetObserver(sink);
-            inner.EnqueueReceive(new byte[] { 40, 50 });
+            inner.EnqueueReceive([40, 50]);
             received = await transport.ReceiveChunkAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(received, Has.Count.EqualTo(2));
             Assert.That(sink.ReceivedChunks, Has.Count.EqualTo(1));
             Assert.That(sink.ReceivedChunks[0].ChannelId, Is.Zero);
-            Assert.That(sink.ReceivedChunks[0].Bytes, Is.EqualTo(new byte[] { 40, 50 }));
+            Assert.That(sink.ReceivedChunks[0].Bytes, Is.EqualTo("(2"u8.ToArray()));
         }
 
         [Test]
@@ -125,9 +125,15 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
 
-            public void EnqueueReceive(byte[] chunk) => m_inbound.Enqueue(chunk);
+            public void EnqueueReceive(byte[] chunk)
+            {
+                m_inbound.Enqueue(chunk);
+            }
 
-            public ValueTask ConnectAsync(Uri url, CancellationToken ct) => default;
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return default;
+            }
 
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
             {
@@ -163,9 +169,13 @@ namespace Opc.Ua.Pcap.Tests.Bindings
                 return new ValueTask<ArraySegment<byte>>(new ArraySegment<byte>(chunk));
             }
 
-            public void Close() { }
+            public void Close()
+            {
+            }
 
-            public void Dispose() { }
+            public void Dispose()
+            {
+            }
         }
 
         private sealed class RecordingFrameCaptureSink : IFrameCaptureSink
@@ -175,16 +185,22 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public List<(uint ChannelId, ChannelToken Current, ChannelToken? Previous)> Tokens { get; } = [];
 
             public void OnFrameSent(uint channelId, ReadOnlySpan<byte> chunk)
-                => SentChunks.Add((channelId, chunk.ToArray()));
+            {
+                SentChunks.Add((channelId, chunk.ToArray()));
+            }
 
             public void OnFrameReceived(uint channelId, ReadOnlySpan<byte> chunk)
-                => ReceivedChunks.Add((channelId, chunk.ToArray()));
+            {
+                ReceivedChunks.Add((channelId, chunk.ToArray()));
+            }
 
             public void OnTokenActivated(
                 uint channelId,
                 ChannelToken currentToken,
                 ChannelToken? previousToken)
-                => Tokens.Add((channelId, currentToken, previousToken));
+            {
+                Tokens.Add((channelId, currentToken, previousToken));
+            }
         }
     }
 }

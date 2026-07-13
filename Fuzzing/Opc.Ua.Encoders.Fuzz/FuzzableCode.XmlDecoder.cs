@@ -137,6 +137,7 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// The idempotent fuzz target core for the XmlEncoder.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         internal static void FuzzXmlEncoderIndempotentCore(
             string serialized,
             IEncodeable encodeable)

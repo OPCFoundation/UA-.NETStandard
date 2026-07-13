@@ -98,7 +98,7 @@ namespace Opc.Ua.Schema
             {
                 // Return a snapshot so a later registration cannot invalidate an
                 // in-progress namespace enumeration.
-                return list.ToArray();
+                return [.. list];
             }
             return [];
         }

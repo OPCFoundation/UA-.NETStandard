@@ -578,6 +578,10 @@ dotnet publish -c Release -r win-x64
 `Applications/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
 warnings** (~29 MB self-contained EXE).
 
+## Runtime NodeSet alternative
+
+When you want to host a NodeSet2 document without any source generation — for example a companion-spec XML received from a vendor, or a model that changes more frequently than you rebuild — use [AddRuntimeNodeSet](RuntimeNodeSets.md) instead. The runtime path loads a file or stream at server startup, imports nodes in topological dependency order, and exposes them through the same untyped `INodeManagerBuilder` surface as the `Configure` partial above. No rebuild is needed when the XML content changes; restart the server to pick up new content. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for a side-by-side comparison of the two paths.
+
 ## Building richer node managers — the fluent extension surface
 
 The Configure callback wires read/write/method/event hooks against
@@ -618,11 +622,12 @@ plain `BaseDataVariableState` nodes.
 
 ### Bulk property initialisation
 
-`INodeBuilder.WithProperty` resolves a property child by browse-name
-and writes its Value attribute. Typed overloads exist for every
-built-in OPC UA scalar (`string`, `int`, `uint`, `double`, `bool`,
-`DateTimeUtc`, `NodeId`, `LocalizedText`, `QualifiedName`, etc.) plus a
-generic `Variant` escape hatch.
+`INodeBuilder.WithProperty` writes the Value attribute of a property
+child, **creating the property first when it does not already exist**.
+Typed overloads exist for every built-in OPC UA scalar (`string`,
+`int`, `uint`, `double`, `bool`, `DateTimeUtc`, `NodeId`,
+`LocalizedText`, `QualifiedName`, etc.) plus a generic `Variant` escape
+hatch.
 
 ```csharp
 builder.Node("Pumps/Pump #1/Identification")
@@ -636,9 +641,35 @@ builder.Node("Pumps/Pump #1/Identification")
 
 Reference resolution is by browse-name only (case-sensitive,
 namespace-agnostic), matching the AOT-safe constraint of the rest of
-the fluent surface. Throws `BadNodeIdUnknown` when the property child
-is missing and `BadTypeMismatch` when the child exists but isn't a
-variable.
+the fluent surface. When the child exists it is updated; when it exists
+but isn't a variable the call throws `BadTypeMismatch`.
+
+When the child is **missing**, `WithProperty` materialises a new
+read-only `PropertyState` (data type inferred from the value) under the
+current node and registers it with the owning node manager. This makes
+the helper usable on freshly built nodes such as custom DI functional
+groups — not just on properties that come from a loaded model:
+
+```csharp
+// "Diagnostics" is a custom functional group with no model-defined
+// properties; WithProperty creates each one on the fly.
+node.WithProperty("LastError", string.Empty)
+    .WithProperty("ErrorCount", 0)
+    .WithProperty("LastSelfTest", (DateTimeUtc)DateTime.UtcNow);
+```
+
+Auto-created properties are read-only by default. Grant write access
+with the fluent `Writable()` helper — either standalone on a resolved
+variable, or inline via the `WithProperty(name, value, configure)`
+overload that positions a builder on the new property:
+
+```csharp
+node.WithProperty("LastError", Variant.From(string.Empty), p => p.Writable())
+    .WithProperty("ErrorCount", 0);
+
+// or, on an existing variable:
+builder.Node("Pumps/Pump #1/Operational/SetPoint").Writable();
+```
 
 ### References & dynamic child objects
 

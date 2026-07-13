@@ -119,7 +119,6 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
         [Test]
         public void GetRejectedListReturnsGoodForAdmin()
         {
@@ -167,8 +166,6 @@ namespace Opc.Ua.Server.Tests
         // and is out of scope to fix here (production code change required,
         // outside ConfigurationNodeManager.cs). The empty-store success path
         // and the non-admin failure path are still covered below.
-
-
 
         [Test]
         public void GetCertificatesForDefaultApplicationGroupReturnsGood()
@@ -228,8 +225,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
-
-
         [Test]
         public void CreateSelfSignedCertificateWithEmptyDnsAndIpAddressesThrowsBadInvalidArgument()
         {
@@ -248,8 +243,8 @@ namespace Opc.Ua.Server.Tests
                         string.Empty,
                         [],
                         [],
-                        (ushort)0,
-                        (ushort)0,
+                        0,
+                        0,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -329,8 +324,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         [],
                         [],
-                        (ushort)0,
-                        (ushort)0,
+                        0,
+                        0,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -352,8 +347,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         [],
                         [],
-                        (ushort)0,
-                        (ushort)0,
+                        0,
+                        0,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -948,8 +943,6 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
-
         [Test]
         public async Task CreateSigningRequestWithoutRegeneratePrivateKeyReturnsGoodAsync()
         {
@@ -1124,8 +1117,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
-
-
 
         [Test]
         public void UpdateCertificateWithEmptyCertificateThrowsArgumentNullException()
@@ -1506,7 +1497,7 @@ namespace Opc.Ua.Server.Tests
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
+            using var current = Certificate.FromRawData(currentCertificate);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
@@ -1539,7 +1530,7 @@ namespace Opc.Ua.Server.Tests
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
+            using var current = Certificate.FromRawData(currentCertificate);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
@@ -1572,7 +1563,7 @@ namespace Opc.Ua.Server.Tests
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
+            using var current = Certificate.FromRawData(currentCertificate);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
             using Certificate issuer = CertificateBuilder.Create("CN=ConfigurationNodeManager Push CA")
                 .SetCAConstraint(0)
@@ -1593,7 +1584,7 @@ namespace Opc.Ua.Server.Tests
             var request = new Pkcs10CertificationRequest(signingRequest.CertificateRequest.ToArray());
             Assert.That(request.Verify(), Is.True);
             using Certificate signedCertificate = CertificateBuilder.Create(request.Subject)
-                .AddExtension(new global::Opc.Ua.Security.Certificates.X509SubjectAltNameExtension(
+                .AddExtension(new X509SubjectAltNameExtension(
                     m_fixture.Config.ApplicationUri,
                     domainNames))
                 .SetNotBefore(DateTime.UtcNow.Date.AddDays(-1))
@@ -1625,7 +1616,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
             m_configManager.ApplyChangesGracePeriod = TimeSpan.FromMilliseconds(-1);
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResult result = await m_configNode.ApplyChanges.OnCallMethod2Async(
@@ -1647,7 +1638,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
             m_configManager.ApplyChangesGracePeriod = TimeSpan.FromMilliseconds(250);
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
             ServiceResult result = await m_configNode.ApplyChanges.OnCallMethod2Async(
                 context,
@@ -1693,7 +1684,7 @@ namespace Opc.Ua.Server.Tests
             // OPC 10000-12 §7.10.11: ApplyChanges returns BadNothingToDo
             // when no PushManagement transaction is active.
             ISystemContext context = CreateAdminContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResult result = await m_configNode.ApplyChanges.OnCallMethod2Async(
@@ -1711,7 +1702,7 @@ namespace Opc.Ua.Server.Tests
         public void ApplyChangesNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -1726,8 +1717,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
-
-
         [Test]
         public async Task DrainPendingApplyChangesAsyncWithNoPendingTaskCompletesImmediatelyAsync()
         {
@@ -1736,8 +1725,6 @@ namespace Opc.Ua.Server.Tests
             await m_configManager.DrainPendingApplyChangesAsync()
                 .ConfigureAwait(false);
         }
-
-
 
         [Test]
         public void ValidatePushCertificateAndIssuerChainWithNullCertificateThrowsArgumentNullException()
@@ -1804,8 +1791,6 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false));
         }
 
-
-
         [Test]
         public void StartAlarmMonitoringTwiceThenStopDoesNotThrow()
         {
@@ -1814,16 +1799,14 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
             Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
             // Stopping again must be a no-op.
-            Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
+            Assert.DoesNotThrow(m_configManager.StopAlarmMonitoring);
         }
-
-
 
         [Test]
         public async Task GetNamespaceMetadataStateWithNullUriReturnsNullAsync()
         {
             NamespaceMetadataState result = await m_configManager
-                .GetNamespaceMetadataStateAsync((string)null)
+                .GetNamespaceMetadataStateAsync(null)
                 .ConfigureAwait(false);
 
             Assert.That(result, Is.Null);
@@ -1875,8 +1858,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(second, Is.SameAs(created));
         }
 
-
-
         [Test]
         public void BindKeyCredentialPushWithNullSubjectThrowsArgumentNullException()
         {
@@ -1902,8 +1883,6 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             Assert.That(node, Is.TypeOf<KeyCredentialConfigurationFolderState>());
         }
-
-
 
         [Test]
         public void ConstructorWithLoggerOverloadCreatesUserAndHttpsCertificateGroups()
@@ -1961,8 +1940,6 @@ namespace Opc.Ua.Server.Tests
                 security.ApplicationCertificates = originalAppCertificates;
             }
         }
-
-
 
         [Test]
         public void SupportsTransactionsIsExposedAndTrue()
@@ -3616,7 +3593,6 @@ namespace Opc.Ua.Server.Tests
                 ServerUris = new StringTable()
             };
         }
-
         /// <summary>
         /// Creates an admin context bound to a specific, deterministic
         /// Session NodeId (unlike <see cref="CreateAdminContext"/>, which
@@ -3649,6 +3625,5 @@ namespace Opc.Ua.Server.Tests
                 ServerUris = new StringTable()
             };
         }
-
     }
 }

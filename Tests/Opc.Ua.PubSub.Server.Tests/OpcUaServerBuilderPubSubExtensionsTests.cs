@@ -36,9 +36,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security.Sks;
-using Opc.Ua.PubSub.Server;
 using Opc.Ua.PubSub.Server.Hosting;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Server.Hosting;
@@ -117,7 +115,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         public async Task AddPubSubServerOneShotRegistersRuntimeBeforeNodeManagerAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
 
             IPubSubServerBuilder builder = services
                 .AddOpcUa()
@@ -402,8 +400,8 @@ namespace Opc.Ua.PubSub.Server.Tests
         internal static ServiceCollection BuildServicesWithRuntime()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
-            services.AddSingleton<IPubSubApplication>(
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddSingleton(
                 _ => new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                     .WithApplicationId("test-pubsub-server")
                     .UseConfiguration(new PubSubConfigurationDataType

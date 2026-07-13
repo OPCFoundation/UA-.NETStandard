@@ -37,8 +37,6 @@ using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.Models;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Formats
 {
     /// <summary>
@@ -95,8 +93,7 @@ namespace Opc.Ua.Pcap.Formats
                     .Append(" channel=")
                     .Append(channelId)
                     .Append(" token=")
-                    .Append(tokenId)
-                    .AppendLine();
+                    .AppendLine(tokenId);
                 count++;
             }
 

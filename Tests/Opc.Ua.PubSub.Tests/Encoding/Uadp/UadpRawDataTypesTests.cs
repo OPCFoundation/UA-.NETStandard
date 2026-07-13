@@ -100,10 +100,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 UadpTestUtilities.NewContext(registry);
 
             var publisherId = PublisherId.FromByte(1);
-            ushort writerGroupId = 1;
-            ushort writerId = 100;
+            const ushort writerGroupId = 1;
+            const ushort writerId = 100;
             var classId = (Uuid)Guid.Empty;
-            uint majorVer = 1;
+            const uint majorVer = 1;
 
             var meta = new DataSetMetaDataType
             {
@@ -132,10 +132,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.GroupHeader
-                    | UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = publisherId,
                 WriterGroupId = writerGroupId,
                 DataSetMessages =
@@ -241,8 +241,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
             var msg = new UadpNetworkMessage
             {
-                ContentMask = UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader,
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromByte(2),
                 DataSetMessages =
                 [
@@ -255,7 +255,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                             new DataSetField
                             {
                                 Value = (Variant)42,
-                                StatusCode = (StatusCode)StatusCodes.Good,
+                                StatusCode = StatusCodes.Good,
                                 SourceTimestamp = (DateTimeUtc)new DateTime(
                                     2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks
                             }

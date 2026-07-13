@@ -896,15 +896,47 @@ namespace Opc.Ua.Core.Security.Tests
             ArrayOf<EndpointDescription> endpoints,
             MessageSecurityMode mode)
         {
+            EndpointDescription rsaEndpoint = FindMatchingEndpoint(
+                endpoints,
+                mode,
+                requireRsa: true);
+            if (rsaEndpoint != null)
+            {
+                return rsaEndpoint;
+            }
+
+            return FindMatchingEndpoint(
+                endpoints,
+                mode,
+                requireRsa: false);
+        }
+
+        private static EndpointDescription FindMatchingEndpoint(
+            ArrayOf<EndpointDescription> endpoints,
+            MessageSecurityMode mode,
+            bool requireRsa)
+        {
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.SecurityMode == mode)
+                if (ep.SecurityMode != mode)
                 {
-                    return ep;
+                    continue;
                 }
+
+                if (requireRsa && IsEccPolicy(ep.SecurityPolicyUri))
+                {
+                    continue;
+                }
+
+                return ep;
             }
 
             return null;
+        }
+
+        private static bool IsEccPolicy(string policyUri)
+        {
+            return CryptoUtils.IsEccPolicy(policyUri);
         }
 
         private static Certificate CreateSelfSignedUserCert(

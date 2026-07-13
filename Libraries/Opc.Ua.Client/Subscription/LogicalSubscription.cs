@@ -137,6 +137,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// Called by <see cref="SubscriptionManager.Add"/> when
         /// running in multi-partition mode.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal void AttachForwardingHandler(PartitionForwardingHandler handler)
         {
             m_forwardingHandler = handler ?? throw new ArgumentNullException(nameof(handler));
@@ -273,7 +274,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         return [m_partitions[0].Id];
                     }
-                    var ids = new uint[m_partitions.Count];
+                    uint[] ids = new uint[m_partitions.Count];
                     for (int i = 0; i < m_partitions.Count; i++)
                     {
                         ids[i] = m_partitions[i].Id;
@@ -406,6 +407,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// subscription. Use <see cref="SnapshotAllPartitions"/> when
         /// you need every partition's state.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public SubscriptionStateSnapshot Snapshot()
         {
             if (Primary is Subscription concrete)
@@ -510,8 +512,8 @@ namespace Opc.Ua.Client.Subscriptions
                 if (partition.MonitoredItems
                     .TryGetMonitoredItemByClientHandle(
                         item.ClientHandle,
-                        out IMonitoredItem? candidate)
-                    && ReferenceEquals(candidate, item))
+                        out IMonitoredItem? candidate) &&
+                    ReferenceEquals(candidate, item))
                 {
                     return partition;
                 }
@@ -537,7 +539,8 @@ namespace Opc.Ua.Client.Subscriptions
                         "Triggered item entries must not be null.");
                 }
                 IManagedSubscription? itemPartition = ResolveOwningPartition(
-                    item, partitions) ?? throw new ArgumentException(
+                    item, partitions) ??
+                    throw new ArgumentException(
                         "Monitored item is not part of this subscription.",
                         paramName);
                 if (!ReferenceEquals(itemPartition, owner))
@@ -629,6 +632,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// already-failed item itself is surfaced to the caller via
         /// the standard per-item error path.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         internal void OnPartitionCapReached(IManagedSubscription partition)
         {
             if (partition == null)
@@ -648,6 +652,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// request — satisfying OPC UA Part 4 §5.13.9 ordering. When
         /// no durable intent has been recorded the call is a no-op.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="partition"/> is <c>null</c>.</exception>
         internal void TryApplyDurableToNewPartition(IManagedSubscription partition)
         {
             if (partition == null)
@@ -716,13 +721,12 @@ namespace Opc.Ua.Client.Subscriptions
         private IManagedSubscription AppendPartition(
             Func<IManagedSubscription> innerFactory)
         {
-            IManagedSubscription added = innerFactory();
             // The actual List<T>.Add is performed by the composite under
             // the same m_partitionLock; this helper exists so future
             // milestones can hook side effects (notification handler
             // attach, durable apply, etc.) on append without changing
             // the composite contract.
-            return added;
+            return innerFactory();
         }
 
         /// <summary>

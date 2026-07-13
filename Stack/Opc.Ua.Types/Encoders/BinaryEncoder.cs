@@ -218,6 +218,7 @@ namespace Opc.Ua
         /// <summary>
         /// Completes writing and returns position in the stream.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public int Close()
         {
             if (m_writer == null)
@@ -240,6 +241,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the position in the stream.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public int Position
         {
             get
@@ -272,6 +274,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes raw bytes to the stream.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
         public void WriteRawBytes(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
@@ -838,7 +841,7 @@ namespace Opc.Ua
             // DataValue and ExtensionObject are excluded because they can recurse:
             // DataValue via WrappedValue (Variant -> DataValue -> Variant -> ...)
             // and ExtensionObject via IEncodeable.
-            var builtInType = value.TypeInfo.BuiltInType;
+            BuiltInType builtInType = value.TypeInfo.BuiltInType;
             if (value.TypeInfo.IsScalar &&
                 builtInType != BuiltInType.DataValue &&
                 builtInType != BuiltInType.ExtensionObject)
@@ -2434,7 +2437,7 @@ namespace Opc.Ua
             }
 
             ReadOnlySequence<byte> sequence = m_ownedBufferWriter.GetReadOnlySequence();
-            var buffer = new byte[m_bufferPosition];
+            byte[] buffer = new byte[m_bufferPosition];
             sequence.CopyTo(buffer);
             m_ownedBufferWriter.Dispose();
             m_ownedBufferWriter = null;
@@ -2449,7 +2452,7 @@ namespace Opc.Ua
         private byte[] GetOwnedBuffer()
         {
             ReadOnlySequence<byte> sequence = m_ownedBufferWriter!.GetReadOnlySequence();
-            var buffer = new byte[m_bufferPosition];
+            byte[] buffer = new byte[m_bufferPosition];
             sequence.CopyTo(buffer);
             return buffer;
         }

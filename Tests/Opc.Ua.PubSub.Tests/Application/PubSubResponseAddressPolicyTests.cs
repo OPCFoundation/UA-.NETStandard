@@ -30,7 +30,6 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Application
 {
@@ -76,7 +75,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         [Test]
         public void Matching_HonorsWildcardPatterns()
         {
-            PubSubResponseAddressPolicy policy =
+            var policy =
                 PubSubResponseAddressPolicy.Matching("responses/*", "exact/topic");
             Assert.Multiple(() =>
             {

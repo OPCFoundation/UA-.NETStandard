@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Fluent
 
         private readonly FluentNodeManagerBase m_owner;
         private readonly ILogger? m_logger;
-        private readonly object m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly List<SimulationLoop> m_loops = [];
         private CancellationTokenSource? m_cts;
         private bool m_started;

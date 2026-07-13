@@ -64,7 +64,8 @@ namespace OpcUaPubSubJsonTests
                 ServiceMessageContext.CreateEmpty(null!),
                 registry ?? new DataSetMetaDataRegistry(),
                 diagnostics ?? new PubSubDiagnostics(PubSubDiagnosticsLevel.High),
-                timeProvider ?? new FakeTimeProvider(
+                timeProvider ??
+                new FakeTimeProvider(
                     new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero)));
         }
 
@@ -174,7 +175,7 @@ namespace OpcUaPubSubJsonTests
         /// <returns>Canonical JSON text.</returns>
         public static string Canonicalise(string text)
         {
-            using JsonDocument document = JsonDocument.Parse(text);
+            using var document = JsonDocument.Parse(text);
             using var stream = new System.IO.MemoryStream();
             using (var writer = new Utf8JsonWriter(stream,
                 new JsonWriterOptions { Indented = false }))
@@ -191,10 +192,7 @@ namespace OpcUaPubSubJsonTests
                 case JsonValueKind.Object:
                     writer.WriteStartObject();
                     var props = new List<JsonProperty>();
-                    foreach (JsonProperty p in element.EnumerateObject())
-                    {
-                        props.Add(p);
-                    }
+                    props.AddRange(element.EnumerateObject());
                     props.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
                     foreach (JsonProperty p in props)
                     {

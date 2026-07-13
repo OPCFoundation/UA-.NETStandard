@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubSecurityKeyServiceClientWithEndpointRegistersProviderDescriptor()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             var endpoint = new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840" };
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddPubSubSecurityKeyServiceClientWithEndpointAndConfigureRegistersProviderDescriptor()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             var endpoint = new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840" };
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public void AddSecurityKeyServiceClientWithEndpointOnPubSubBuilderRegistersDescriptor()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             var endpoint = new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840" };
 
             services.AddOpcUa().AddPubSub(pubsub =>
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public async Task AddPubSubSecurityKeyPushTargetOnOpcUaBuilderRegistersProviderAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
 
             builder.AddPubSubSecurityKeyPushTarget(GroupId);
@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public async Task AddPubSubSecurityKeyPushTargetReturnsSameBuilderAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
 
             IOpcUaBuilder returned = builder.AddPubSubSecurityKeyPushTarget(GroupId);
@@ -234,7 +234,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public async Task AddSecurityKeyServiceServerOnPubSubBuilderReturnsSameBuilderAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IPubSubBuilder? captured = null;
             IPubSubBuilder? returned = null;
 
@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public async Task AddPubSubSecurityKeyServiceServerWithConfigureCallbackIsInvokedAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             bool callbackInvoked = false;
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public async Task AddPubSubSecurityKeyServiceClientWithConfigureRegistersProviderAndStarterAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
 
             builder.AddPubSubSecurityKeyServiceClient(
@@ -349,7 +349,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         public async Task AddPubSubSecurityKeyServiceClientWithoutConfigureStartsProviderAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSubSecurityKeyServiceClient(GroupId, PolicyUri, _ => CreateFake());
             await using ServiceProvider sp = services.BuildServiceProvider();

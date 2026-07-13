@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.DataSets
     /// Sealed wrapper exposing a configured
     /// <see cref="PublishedEventsDataType"/> together with the
     /// <see cref="IEventSampler"/> that produces the actual event
-    /// rows. Consumed by <see cref="Opc.Ua.PubSub.Groups.EventDataSetWriter"/>.
+    /// rows. Consumed by <see cref="Groups.EventDataSetWriter"/>.
     /// </summary>
     /// <remarks>
     /// Implements the publisher-side PublishedEventsDataSet model
@@ -53,8 +53,6 @@ namespace Opc.Ua.PubSub.DataSets
     public sealed class EventPublishedDataSet
     {
         private readonly IEventSampler m_sampler;
-        private readonly PublishedDataSetDataType m_configuration;
-        private readonly PublishedEventsDataType m_eventSource;
 
         /// <summary>
         /// Initializes a new <see cref="EventPublishedDataSet"/>.
@@ -77,18 +75,18 @@ namespace Opc.Ua.PubSub.DataSets
                 throw new ArgumentNullException(nameof(sampler));
             }
             ExtensionObject src = configuration.DataSetSource;
-            if (src.IsNull
-                || !src.TryGetValue(out PublishedEventsDataType? events)
-                || events is null)
+            if (src.IsNull ||
+                !src.TryGetValue(out PublishedEventsDataType? events) ||
+                events is null)
             {
                 throw new ArgumentException(
-                    "PublishedDataSet.DataSetSource must resolve to a "
-                    + "PublishedEventsDataType (Part 14 §6.2.4).",
+                    "PublishedDataSet.DataSetSource must resolve to a " +
+                    "PublishedEventsDataType (Part 14 §6.2.4).",
                     nameof(configuration));
             }
-            m_configuration = configuration;
+            Configuration = configuration;
             m_sampler = sampler;
-            m_eventSource = events;
+            EventSource = events;
             Name = configuration.Name ?? string.Empty;
             MetaData = configuration.DataSetMetaData
                 ?? new DataSetMetaDataType();
@@ -128,16 +126,16 @@ namespace Opc.Ua.PubSub.DataSets
         /// <summary>
         /// Raw configuration record.
         /// </summary>
-        public PublishedDataSetDataType Configuration => m_configuration;
+        public PublishedDataSetDataType Configuration { get; }
 
         /// <summary>
         /// Raw event-source descriptor.
         /// </summary>
-        public PublishedEventsDataType EventSource => m_eventSource;
+        public PublishedEventsDataType EventSource { get; }
 
         /// <summary>
         /// Samples pending events and converts each one to a list of
-        /// <see cref="Opc.Ua.PubSub.Encoding.DataSetField"/> ordered to
+        /// <see cref="Encoding.DataSetField"/> ordered to
         /// match <see cref="MetaData"/>. Returns an empty list when no
         /// event has fired since the previous call.
         /// </summary>
@@ -165,8 +163,8 @@ namespace Opc.Ua.PubSub.DataSets
                 var converted = new Encoding.DataSetField[columns];
                 for (int i = 0; i < columns; i++)
                 {
-                    string fieldName = !MetaData.Fields.IsNull
-                        && i < MetaData.Fields.Count
+                    string fieldName = !MetaData.Fields.IsNull &&
+                        i < MetaData.Fields.Count
                         ? MetaData.Fields[i]?.Name ?? string.Empty
                         : string.Empty;
                     converted[i] = new Encoding.DataSetField

@@ -1,0 +1,48 @@
+# Active/active eventual consistency (CRDT gossip). The server scales to any replica count
+# via DNS peer discovery; independent managed clients scale alongside it and each fail over
+# transparently. Dynamic Raft (strong) scaling is not supported here.
+#
+# Run from the repository root. Scale the servers, and with the clients profile the clients too:
+#   docker compose -f Applications/RedundantServer/Scale/docker-compose.yml up --build --scale server=5
+#   docker compose -f Applications/RedundantServer/Scale/docker-compose.yml --profile clients up --build --scale server=3 --scale client=2
+
+services:
+  server:
+    build:
+      context: ../../..
+      dockerfile: Applications/RedundantServer/Dockerfile
+    image: opcua-redundant-server
+    environment:
+      HA_MODE: aa
+      HA_CONSISTENCY: eventual
+      HA_PEER_DISCOVERY: dns
+      HA_SERVICE_NAME: server
+      HA_GOSSIP_PORT: "4840"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export HA_HOST="$$(hostname)"
+        export HA_NODE_ID="$${HA_NODE_ID:-$$(hostname)}"
+        exec dotnet RedundantServer.dll --port 62543
+
+  # Independent managed clients: each opts into WithServerRedundancy and fails over on its own,
+  # so this scales to any count with --scale client=N (no shared client store needed). A
+  # coordinated single-active client replica set instead uses AddRedundantClientSession + a
+  # Raft client store (fixed quorum); see Docs/HighAvailability.md. Part of the "clients"
+  # profile so `up` without a profile runs the servers only.
+  client:
+    profiles: ["clients"]
+    build:
+      context: ../../..
+      dockerfile: Applications/RedundantClient/Dockerfile
+    image: opcua-redundant-client
+    depends_on:
+      - server
+    command:
+      - "--server"
+      - "opc.tcp://server:62543/RedundantServer"
+      - "--autoaccept"
+      - "--nosecurity"
+      - "--duration"
+      - "00:10:00"

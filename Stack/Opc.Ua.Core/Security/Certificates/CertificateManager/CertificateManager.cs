@@ -425,8 +425,8 @@ namespace Opc.Ua
             lock (m_certificatesLock)
             {
                 return m_applicationCertificates
-                    .FirstOrDefault(e => e.CertificateType == certificateType)
-                    ?.AddRef();
+                    .FirstOrDefault(e => e.CertificateType == certificateType)?
+                    .AddRef();
             }
         }
 

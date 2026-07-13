@@ -104,7 +104,7 @@ namespace Opc.Ua.Di.Server
         public DiNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner)
+            Hosting.IDiPostSetupRunner? postSetupRunner)
             : base(
                   server,
                   configuration,
@@ -144,7 +144,7 @@ namespace Opc.Ua.Di.Server
         protected DiNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner,
+            Hosting.IDiPostSetupRunner? postSetupRunner,
             params string[] additionalNamespaceUris)
             : base(
                   server,
@@ -165,16 +165,16 @@ namespace Opc.Ua.Di.Server
         /// manually. Read-only on subclasses; exposed mostly for
         /// diagnostic / test inspection.
         /// </summary>
-        protected Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? PostSetupRunner { get; }
+        protected Hosting.IDiPostSetupRunner? PostSetupRunner { get; }
 
         private static string[] CombineNamespaces(string[] additional)
         {
             if (additional == null || additional.Length == 0)
             {
-                return new[] { DiNamespaceUri };
+                return [DiNamespaceUri];
             }
 
-            var combined = new string[additional.Length + 1];
+            string[] combined = new string[additional.Length + 1];
             additional.CopyTo(combined, 0);
             combined[^1] = DiNamespaceUri;
             return combined;
@@ -309,7 +309,7 @@ namespace Opc.Ua.Di.Server
         /// </returns>
         protected virtual NodeState? ResolveDefaultDeviceParent()
         {
-            NodeId deviceSetId = NodeId.Create(
+            var deviceSetId = NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
                 DiNamespaceUri,
                 Server.NamespaceUris);

@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var cp = new ContinuationPoint { Data = "not-disposable" };
 
-            Assert.DoesNotThrow(() => cp.Dispose());
+            Assert.DoesNotThrow(cp.Dispose);
         }
 
         private sealed class TrackingDisposable : IDisposable

@@ -57,7 +57,7 @@ namespace Opc.Ua.Bindings
         /// every listener the factory creates via the listener constructor.
         /// </summary>
         public IList<IHttpsListenerStartupContributor> StartupContributors { get; }
-            = new List<IHttpsListenerStartupContributor>();
+            = [];
 
         /// <summary>
         /// The OPC UA <c>TransportProfileUri</c> reported on the

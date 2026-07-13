@@ -55,11 +55,19 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             TimeProvider timeProvider)
         {
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
+#if NET8_0_OR_GREATER
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_certificateValidator = certificateValidator;
             m_role = role;
             m_endpoint = endpoint;
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+#else
+            _ = options ?? throw new ArgumentNullException(nameof(options));
+            _ = certificateValidator;
+            _ = role;
+            _ = endpoint;
+            _ = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+#endif
         }
 
         /// <inheritdoc/>
@@ -75,7 +83,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            using CancellationTokenSource handshakeCts = CreateHandshakeTimeoutCts(cancellationToken);
+            using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+            using ITimer? handshakeTimeout = CreateHandshakeTimeoutTimer(handshakeCts);
             try
             {
                 if (m_role == DtlsEndpointRole.Client)
@@ -479,34 +489,44 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 .ConfigureAwait(false);
             RequireMessage(certificateFrame, DtlsHandshakeType.Certificate);
             transcript.Append(ToCompleteFrame(certificateFrame));
-            using (CertificateCollection peerChain =
-                DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment))
-            {
-                await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
-                byte[] certificateVerifyTranscriptHash = transcript.GetHash();
-                DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(channel, cancellationToken)
-                    .ConfigureAwait(false);
-                RequireMessage(certificateVerifyFrame, DtlsHandshakeType.CertificateVerify);
-                DtlsCertificateAuthenticator.VerifyCertificateVerify(
-                    peerChain[0],
-                    Profile.CipherSuite,
-                    certificateVerifyTranscriptHash,
-                    certificateVerifyFrame.Fragment,
-                    isServer: false);
-                transcript.Append(ToCompleteFrame(certificateVerifyFrame));
-            }
+            using CertificateCollection peerChain =
+                DtlsCertificateAuthenticator.DecodeCertificate(certificateFrame.Fragment);
+            await ValidatePeerCertificateAsync(peerChain, cancellationToken).ConfigureAwait(false);
+            byte[] certificateVerifyTranscriptHash = transcript.GetHash();
+            DtlsHandshakeFrame certificateVerifyFrame = await ReceiveFrameAsync(channel, cancellationToken)
+                .ConfigureAwait(false);
+            RequireMessage(certificateVerifyFrame, DtlsHandshakeType.CertificateVerify);
+            DtlsCertificateAuthenticator.VerifyCertificateVerify(
+                peerChain[0],
+                Profile.CipherSuite,
+                certificateVerifyTranscriptHash,
+                certificateVerifyFrame.Fragment,
+                isServer: false);
+            transcript.Append(ToCompleteFrame(certificateVerifyFrame));
         }
 
-        private CancellationTokenSource CreateHandshakeTimeoutCts(CancellationToken cancellationToken)
+        private ITimer? CreateHandshakeTimeoutTimer(CancellationTokenSource handshakeCts)
         {
-            CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             TimeSpan timeout = ComputeHandshakeTimeout();
             if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
             {
-                linked.CancelAfter(timeout);
+                return m_timeProvider.CreateTimer(
+                    static state =>
+                    {
+                        try
+                        {
+                            ((CancellationTokenSource)state!).Cancel();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                        }
+                    },
+                    handshakeCts,
+                    timeout,
+                    Timeout.InfiniteTimeSpan);
             }
 
-            return linked;
+            return null;
         }
 
         private TimeSpan ComputeHandshakeTimeout()
@@ -691,11 +711,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 #endif
 
+#if NET8_0_OR_GREATER
         private readonly DtlsTransportOptions m_options;
         private readonly ICertificateValidatorEx? m_certificateValidator;
         private readonly DtlsEndpointRole m_role;
         private readonly UdpEndpoint m_endpoint;
         private readonly TimeProvider m_timeProvider;
+#endif
         private DtlsRecordProtection? m_writeProtection;
         private DtlsRecordProtection? m_readProtection;
         private DtlsHandshakeKeyingContext? m_keyingContext;

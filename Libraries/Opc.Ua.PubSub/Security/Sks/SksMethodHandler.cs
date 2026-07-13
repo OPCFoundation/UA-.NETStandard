@@ -93,6 +93,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <param name="inputArguments">Input argument list.</param>
         /// <param name="outputArguments">Output argument list.</param>
         /// <returns>Service result.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public ServiceResult HandleGetSecurityKeys(
             ISystemContext context,
             NodeId objectId,
@@ -172,10 +173,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                     new LocalizedText(ex.Message));
             }
 
-            ByteString[] keys = new ByteString[response.Keys.Count];
+            var keys = new ByteString[response.Keys.Count];
             for (int i = 0; i < response.Keys.Count; i++)
             {
-                byte[] entry = response.Keys[i] ?? Array.Empty<byte>();
+                byte[] entry = response.Keys[i] ?? [];
                 keys[i] = new ByteString(entry);
             }
             outputArguments.Add(Variant.From(response.SecurityPolicyUri));

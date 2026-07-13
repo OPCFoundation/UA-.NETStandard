@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.TestFramework
     /// </summary>
     public sealed class MockResponseController : IServiceResponseMutator
     {
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly List<Expectation> m_oneShot = [];
         private readonly List<Expectation> m_recurring = [];
 

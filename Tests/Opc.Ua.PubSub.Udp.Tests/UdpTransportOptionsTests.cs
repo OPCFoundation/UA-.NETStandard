@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         public void IConfiguration_Binding_EmptyConfigurationLeavesDefaults()
         {
             IConfiguration configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .AddInMemoryCollection([])
                 .Build();
 
             var options = new UdpTransportOptions();

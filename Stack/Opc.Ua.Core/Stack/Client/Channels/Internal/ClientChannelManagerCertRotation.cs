@@ -415,12 +415,14 @@ namespace Opc.Ua
         }
 
         private readonly Lock m_certificateRotationLock = new();
+
         [SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Disposed by DisposeCertificateRotation; " +
                 "TODO: inline if CA2213 learns Interlocked.Exchange disposal tracking.")]
         private IDisposable? m_certificateChangeSubscription;
+
         private CertificateChangeEvent? m_pendingCertificateChange;
         private Task? m_certificateRotationTask;
 

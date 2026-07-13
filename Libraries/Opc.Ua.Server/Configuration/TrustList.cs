@@ -841,7 +841,7 @@ namespace Opc.Ua.Server
                     issuerCertificates = [];
                     foreach (ByteString cert in trustList.IssuerCertificates)
                     {
-                        using Certificate certificate = Certificate.FromRawData(cert);
+                        using var certificate = Certificate.FromRawData(cert);
                         issuerCertificates.Add(certificate);
                     }
                 }
@@ -858,7 +858,7 @@ namespace Opc.Ua.Server
                     trustedCertificates = [];
                     foreach (ByteString cert in trustList.TrustedCertificates)
                     {
-                        using Certificate certificate = Certificate.FromRawData(cert);
+                        using var certificate = Certificate.FromRawData(cert);
                         trustedCertificates.Add(certificate);
                     }
                 }

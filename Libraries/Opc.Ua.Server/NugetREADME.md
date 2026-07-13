@@ -39,6 +39,19 @@ raw-socket `opc.tcp://` binding is built in; reference the
 `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package to additionally
 expose an `https://` endpoint.
 
+To expose a NodeSet2 XML document without generating a NodeManager, register it through the startup-time runtime loader:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => { /* server options */ })
+    .AddRuntimeNodeSet(
+        "Models/MyModel.NodeSet2.xml",
+        nodes => nodes.Variable<double>("Machines/Machine1/Temperature")
+            .OnRead(ReadTemperature));
+```
+
+The runtime loader supports grouped file and stream sources, orders included models by `RequiredModel`, and uses the server's default runtime complex-type support. See the [Runtime NodeSets guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/RuntimeNodeSets.md).
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,

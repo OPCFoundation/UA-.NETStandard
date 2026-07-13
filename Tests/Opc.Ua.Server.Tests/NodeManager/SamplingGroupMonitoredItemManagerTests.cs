@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             StatusCode result = manager.DeleteMonitoredItem(ctx, item.Object, null!);
 
-            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadMonitoredItemIdInvalid));
+            Assert.That(result, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
         [Test]
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             StatusCode result = manager.DeleteMonitoredItem(ctx, other.Object, null!);
 
-            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadMonitoredItemIdInvalid));
+            Assert.That(result, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
         [Test]
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             StatusCode result = manager.DeleteMonitoredItem(ctx, existing.Object, null!);
 
-            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(manager.MonitoredItems.ContainsKey(5), Is.False);
         }
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DiagnosticsMasks.None,
                 TimestampsToReturn.Both,
                 new MonitoringFilter(),
-                new Opc.Ua.Range(),
+                new Range(),
                 1000.0,
                 5,
                 item.Object,
@@ -139,8 +139,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(result, Is.Not.Null);
             Assert.That(
-                (StatusCode)result!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadMonitoredItemIdInvalid));
+                result!.StatusCode,
+                Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
         [Test]
@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 DiagnosticsMasks.None,
                 TimestampsToReturn.Both,
                 new MonitoringFilter(),
-                new Opc.Ua.Range(),
+                new Range(),
                 1000.0,
                 5,
                 other.Object,
@@ -164,8 +164,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(result, Is.Not.Null);
             Assert.That(
-                (StatusCode)result!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadMonitoredItemIdInvalid));
+                result!.StatusCode,
+                Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
         [Test]
@@ -179,8 +179,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
 
             Assert.That(
-                (StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadMonitoredItemIdInvalid));
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
             Assert.That(previous, Is.Null);
         }
 
@@ -197,8 +197,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
 
             Assert.That(
-                (StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadMonitoredItemIdInvalid));
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
             Assert.That(previous, Is.Null);
         }
 
@@ -217,7 +217,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .SetMonitoringModeAsync(ctx, item.Object, MonitoringMode.Reporting, null!)
                 .ConfigureAwait(false);
 
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(previous, Is.EqualTo(MonitoringMode.Disabled));
         }
 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .SetMonitoringModeAsync(ctx, item.Object, MonitoringMode.Reporting, null!)
                 .ConfigureAwait(false);
 
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(previous, Is.EqualTo(MonitoringMode.Sampling));
         }
 
@@ -253,8 +253,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(node, Is.Null);
             Assert.That(
-                (StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
     }
 }

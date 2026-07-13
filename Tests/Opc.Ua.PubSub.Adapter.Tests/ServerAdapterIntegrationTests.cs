@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .SampleAsync(metaDataBuilder.BuildMetaData())
                 .ConfigureAwait(false);
 
-            var fields = (DataSetField[]?)snapshot.Fields ?? [];
+            DataSetField[] fields = (DataSetField[]?)snapshot.Fields ?? [];
             Assert.That(fields, Has.Length.EqualTo(1));
             Assert.That(StatusCode.IsGood(fields[0].StatusCode), Is.True);
             Assert.That(fields[0].Value.TryGetValue(out int value), Is.True);
@@ -195,7 +195,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             PublishedDataSetDataType pds = AdapterTestHelpers.PublishedDataSet(
                 "SubPDS", AdapterTestHelpers.Variable.Value(nodeId));
             PubSubConfigurationDataType config = AdapterTestHelpers.Configuration(
-                200, new[] { pds });
+                200, [pds]);
 
             await using var coordinator = new SubscriptionCoordinator(
                 config, m_session, SubscriptionAffinity.WriterGroup, m_telemetry);
@@ -229,7 +229,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             NodeId methodId = ScalarNode("Methods_Add");
 
             string[] outputNames = ["Sum"];
-            var map = new ActionMethodMap()
+            ActionMethodMap map = new ActionMethodMap()
                 .Add(writerId, targetId, objectId, methodId, outputNames.ToArrayOf());
             var handler = new ServerActionHandler(m_session, map, m_telemetry);
 
@@ -299,7 +299,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .ConfigureAwait(false);
 
             if (!results[0].WrappedValue.TryGetValue(out ArrayOf<string> namespaces) ||
-                namespaces.IsNull || namespaces.Count == 0)
+                namespaces.IsNull ||
+                namespaces.Count == 0)
             {
                 throw new InvalidOperationException("Server namespace array is empty.");
             }

@@ -70,6 +70,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// </summary>
         /// <param name="requestNumber">The one-based request number to drop.</param>
         /// <returns>A fault mode for the requested drop point.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static FaultMode DropOnNthRequest(int requestNumber)
         {
             if (requestNumber <= 0)
@@ -117,6 +118,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// <summary>
         /// Gets or sets the delay applied before a successful open attempt.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public TimeSpan OpenDelay
         {
             get
@@ -660,10 +662,11 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
 
         private void CompleteOpen(Uri? url, TransportChannelSettings settings)
         {
-            EndpointDescription description = settings.Description ?? new EndpointDescription
-            {
-                EndpointUrl = url?.ToString() ?? "opc.tcp://localhost:4840/FakeTransport"
-            };
+            EndpointDescription description = settings.Description ??
+                new EndpointDescription
+                {
+                    EndpointUrl = url?.ToString() ?? "opc.tcp://localhost:4840/FakeTransport"
+                };
             EndpointConfiguration configuration = settings.Configuration ?? new EndpointConfiguration();
             ServiceMessageContext messageContext = new(m_telemetry!, settings.Factory ?? EncodeableFactory.Create())
             {

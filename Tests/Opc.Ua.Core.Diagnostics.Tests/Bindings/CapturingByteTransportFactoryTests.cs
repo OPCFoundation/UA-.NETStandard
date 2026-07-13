@@ -58,7 +58,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             var registry = new ChannelCaptureRegistry();
             var inner = new RecordingFactory();
             var factory = new CapturingByteTransportFactory(inner, registry);
-            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
             var buffers = new BufferManager("test", 8192, telemetry);
 
             IUaSCByteTransport transport = factory.Create(buffers, 8192, telemetry);
@@ -104,13 +104,34 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
-            public ValueTask ConnectAsync(Uri url, CancellationToken ct) => default;
-            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct) => default;
-            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct) => default;
+
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return default;
+            }
+
+            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            {
+                return default;
+            }
+
+            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+            {
+                return default;
+            }
+
             public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
-                => new(new ArraySegment<byte>([]));
-            public void Close() { }
-            public void Dispose() { }
+            {
+                return new(new ArraySegment<byte>([]));
+            }
+
+            public void Close()
+            {
+            }
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

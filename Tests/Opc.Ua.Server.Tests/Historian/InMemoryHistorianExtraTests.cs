@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             IReadOnlyDictionary<NodeId, IList<StatusCode>> result =
-                await provider.InsertBatchAsync(ctx, batch, CancellationToken.None);
+                await provider.InsertBatchAsync(ctx, batch, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result, Contains.Key(nodeId));
             Assert.That(result[nodeId], Is.Empty);
@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 (DateTimeUtc)BaseTime,
                 (DateTimeUtc)BaseTime.AddMinutes(1),
                 isDeleteModified: false,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(StatusCodes.GoodNoData));
         }
@@ -115,15 +115,15 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // Insert a value, then delete it to create a modified-log entry.
             await provider.InsertAsync(ctx, nodeId,
-                [MakeValue(t1, 1.0)], CancellationToken.None);
+                [MakeValue(t1, 1.0)], CancellationToken.None).ConfigureAwait(false);
             await provider.DeleteRawAsync(ctx, nodeId,
                 (DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddMinutes(1),
-                isDeleteModified: false, CancellationToken.None);
+                isDeleteModified: false, CancellationToken.None).ConfigureAwait(false);
 
             // Now delete from the modified log.
             StatusCode status = await provider.DeleteRawAsync(ctx, nodeId,
                 (DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddMinutes(1),
-                isDeleteModified: true, CancellationToken.None);
+                isDeleteModified: true, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(status), Is.True);
         }
@@ -137,11 +137,11 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext ctx = CreateContext();
             // Seed a raw value but never delete it (no modified-log entries).
-            await provider.InsertAsync(ctx, nodeId, [MakeValue(BaseTime.AddSeconds(1), 1.0)], CancellationToken.None);
+            await provider.InsertAsync(ctx, nodeId, [MakeValue(BaseTime.AddSeconds(1), 1.0)], CancellationToken.None).ConfigureAwait(false);
 
             StatusCode status = await provider.DeleteRawAsync(ctx, nodeId,
                 (DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddMinutes(1),
-                isDeleteModified: true, CancellationToken.None);
+                isDeleteModified: true, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(StatusCodes.GoodNoData));
         }
@@ -157,14 +157,14 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext ctx = CreateContext();
             DateTime ts = BaseTime.AddSeconds(5);
-            await provider.InsertAsync(ctx, nodeId, [MakeValue(ts, 99.0)], CancellationToken.None);
+            await provider.InsertAsync(ctx, nodeId, [MakeValue(ts, 99.0)], CancellationToken.None).ConfigureAwait(false);
 
             // Pass end < start; the dispatcher should swap them internally.
             StatusCode status = await provider.DeleteRawAsync(ctx, nodeId,
                 startTime: (DateTimeUtc)BaseTime.AddMinutes(1),
                 endTime: (DateTimeUtc)BaseTime,
                 isDeleteModified: false,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(status), Is.True);
         }
@@ -180,8 +180,8 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext ctx = CreateContext();
             IList<StatusCode> statuses = await provider.DeleteAtTimeAsync(
                 ctx, nodeId,
-                new DateTimeUtc[] { (DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddSeconds(1) },
-                CancellationToken.None);
+                [(DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddSeconds(1)],
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(2));
             Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
@@ -199,8 +199,8 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext ctx = CreateContext();
             IList<StatusCode> statuses = await provider.DeleteAnnotationsAsync(
                 ctx, nodeId,
-                new DateTimeUtc[] { (DateTimeUtc)BaseTime },
-                CancellationToken.None);
+                [(DateTimeUtc)BaseTime],
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(1));
             Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
@@ -218,11 +218,11 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext ctx = CreateContext();
             DateTime ts = BaseTime.AddSeconds(1);
             var annotation = new Annotation { AnnotationTime = (DateTimeUtc)ts, Message = "first" };
-            await provider.InsertAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None);
+            await provider.InsertAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
             // Second insert at same timestamp → BadEntryExists
             IList<StatusCode> statuses =
-                await provider.InsertAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None);
+                await provider.InsertAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadEntryExists));
         }
@@ -242,7 +242,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             IList<StatusCode> statuses =
-                await provider.ReplaceAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None);
+                await provider.ReplaceAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
@@ -257,11 +257,11 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext ctx = CreateContext();
             DateTime ts = BaseTime.AddSeconds(1);
             var original = new Annotation { AnnotationTime = (DateTimeUtc)ts, Message = "original" };
-            await provider.InsertAnnotationsAsync(ctx, nodeId, [original], CancellationToken.None);
+            await provider.InsertAnnotationsAsync(ctx, nodeId, [original], CancellationToken.None).ConfigureAwait(false);
 
             var replacement = new Annotation { AnnotationTime = (DateTimeUtc)ts, Message = "replaced" };
             IList<StatusCode> statuses =
-                await provider.ReplaceAnnotationsAsync(ctx, nodeId, [replacement], CancellationToken.None);
+                await provider.ReplaceAnnotationsAsync(ctx, nodeId, [replacement], CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses[0], Is.EqualTo(StatusCodes.GoodEntryReplaced));
         }
@@ -279,13 +279,13 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // Update on non-existing → GoodEntryInserted
             IList<StatusCode> statuses1 =
-                await provider.UpdateAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None);
+                await provider.UpdateAnnotationsAsync(ctx, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
             Assert.That(statuses1[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
 
             // Update on existing → GoodEntryReplaced
             var updated = new Annotation { AnnotationTime = (DateTimeUtc)ts, Message = "v2" };
             IList<StatusCode> statuses2 =
-                await provider.UpdateAnnotationsAsync(ctx, nodeId, [updated], CancellationToken.None);
+                await provider.UpdateAnnotationsAsync(ctx, nodeId, [updated], CancellationToken.None).ConfigureAwait(false);
             Assert.That(statuses2[0], Is.EqualTo(StatusCodes.GoodEntryReplaced));
         }
 
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server.Tests.Historian
             for (int i = 0; i < 5; i++)
             {
                 await provider.InsertAsync(ctx, nodeId,
-                    [MakeValue(BaseTime.AddSeconds(i), i)], CancellationToken.None);
+                    [MakeValue(BaseTime.AddSeconds(i), i)], CancellationToken.None).ConfigureAwait(false);
             }
 
             // Backward read: start > end + ReturnBounds
@@ -318,7 +318,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     ReturnBounds = true
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             // We get values in the window plus potential bounds.
             Assert.That(page.Values, Is.Not.Empty);

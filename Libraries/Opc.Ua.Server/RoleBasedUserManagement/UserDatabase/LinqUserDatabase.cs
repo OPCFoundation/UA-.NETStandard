@@ -59,6 +59,13 @@ namespace Opc.Ua.Server.UserDatabase
         private const int kKeySize = 32;
 
         /// <summary>
+        /// Upper bound for the persisted PBKDF2 iteration count accepted during
+        /// verification. Guards against corrupt or malicious hash records that would
+        /// otherwise cause unbounded key-derivation work.
+        /// </summary>
+        private const int kMaxIterations = 10_000_000;
+
+        /// <summary>
         /// The representation of a user in the Linq database.
         /// </summary>
         [DataContract(Namespace = Namespaces.UserDatabase)]
@@ -326,15 +333,33 @@ namespace Opc.Ua.Server.UserDatabase
                     "Unexpected hash format. Should be formatted as `{iterations}.{salt}.{hash}`");
             }
 
-            int iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);
+            if (!int.TryParse(
+                    parts[0],
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out int iterations) ||
+                iterations is <= 0 or > kMaxIterations)
+            {
+                // A non-positive or excessively large iteration count cannot come from
+                // Hash() and would either throw or cause unbounded CPU work below. Fail
+                // closed so a corrupt or malicious hash record cannot authenticate.
+                return false;
+            }
+
             byte[] salt = Convert.FromBase64String(parts[1]);
             byte[] key = Convert.FromBase64String(parts[2]);
+            if (key.Length == 0)
+            {
+                // An empty derived key cannot come from Hash() and would make the
+                // net10 span overload derive zero bytes; reject it explicitly.
+                return false;
+            }
 #if NET10_0_OR_GREATER
             // Use span overloads
             byte[] keyToCheck = Rfc2898DeriveBytes.Pbkdf2(
                 password,
                 salt,
-                kIterations,
+                iterations,
                 HashAlgorithmName.SHA512,
                 key.Length);
             return keyToCheck.SequenceEqual(key);

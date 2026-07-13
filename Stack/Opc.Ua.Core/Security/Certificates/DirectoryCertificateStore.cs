@@ -1032,9 +1032,9 @@ namespace Opc.Ua
                 }
 
                 var crls = new List<X509CRL>(files.Length);
-                var names = new string[files.Length];
-                var lengths = new long[files.Length];
-                var ticks = new long[files.Length];
+                string[] names = new string[files.Length];
+                long[] lengths = new long[files.Length];
+                long[] ticks = new long[files.Length];
 
                 for (int i = 0; i < files.Length; i++)
                 {
@@ -1057,7 +1057,7 @@ namespace Opc.Ua
                     }
                 }
 
-                var entry = new CrlCacheEntry(crls.ToArray(), names, lengths, ticks, nowTicks);
+                var entry = new CrlCacheEntry([.. crls], names, lengths, ticks, nowTicks);
                 m_crlCache = entry;
                 return entry.Crls;
             }

@@ -119,8 +119,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             try
             {
-                await subscriber.OpenAsync();
-                await publisher.OpenAsync();
+                await subscriber.OpenAsync().ConfigureAwait(false);
+                await publisher.OpenAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -157,8 +157,8 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Assert.That(received.Length, Is.EqualTo(datagram.Length));
 
                 int prefixLength = s_outerPrefix.Length;
-                ReadOnlyMemory<byte> prefix = received.Slice(0, prefixLength);
-                ReadOnlyMemory<byte> securityAndPayload = received.Slice(prefixLength);
+                ReadOnlyMemory<byte> prefix = received[..prefixLength];
+                ReadOnlyMemory<byte> securityAndPayload = received[prefixLength..];
 
                 UadpSecurityWrapper.UnwrapResult result = await subscriberWrapper
                     .TryUnwrapAsync(prefix, securityAndPayload)
@@ -233,15 +233,15 @@ namespace Opc.Ua.PubSub.Udp.Tests
             byte[] keyNonce = new byte[nonceLen];
             for (int i = 0; i < signing.Length; i++)
             {
-                signing[i] = (byte)((tokenId * 31u + (uint)i) & 0xFF);
+                signing[i] = (byte)(((tokenId * 31u) + (uint)i) & 0xFF);
             }
             for (int i = 0; i < encrypting.Length; i++)
             {
-                encrypting[i] = (byte)((tokenId * 17u + (uint)i + 1u) & 0xFF);
+                encrypting[i] = (byte)(((tokenId * 17u) + (uint)i + 1u) & 0xFF);
             }
             for (int i = 0; i < keyNonce.Length; i++)
             {
-                keyNonce[i] = (byte)((tokenId * 7u + (uint)i + 2u) & 0xFF);
+                keyNonce[i] = (byte)(((tokenId * 7u) + (uint)i + 2u) & 0xFF);
             }
 
             return new PubSubSecurityKey(

@@ -169,9 +169,13 @@ namespace Opc.Ua.Gds.Tests
 
                 // The default application group has a well-known NodeId (predefined in the GDS NodeSet)
                 // The custom group has a dynamically generated NodeId outside that namespace
-                var defaultGroupId = ExpandedNodeId.ToNodeId(
+                // ExpandedNodeId.ToNodeId is a known IDE0007/IDE0008 var-vs-explicit
+                // oscillation site; keep the explicit type and suppress IDE0007.
+#pragma warning disable IDE0007 // Use implicit type
+                NodeId defaultGroupId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
                     m_gdsClient.GDSClient.Session.NamespaceUris);
+#pragma warning restore IDE0007 // Use implicit type
 
                 // Verify the custom group NodeId is among the returned groups
                 NodeId customGroupNodeId = groups.ToList().FirstOrDefault(g => !Utils.IsEqual(g, defaultGroupId));

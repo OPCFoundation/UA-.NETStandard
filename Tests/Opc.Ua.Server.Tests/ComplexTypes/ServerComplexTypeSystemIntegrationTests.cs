@@ -35,7 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Encoders;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 
@@ -61,7 +60,7 @@ namespace Opc.Ua.Server.Tests
         private ServerFixture<ServerComplexTypesTestServer> m_serverFixture;
         private ClientFixture m_clientFixture;
         private ServerComplexTypesTestServer m_server;
-        private Opc.Ua.Client.ISession m_session;
+        private Client.ISession m_session;
         private string m_pkiRoot;
 
         /// <summary>
@@ -158,13 +157,13 @@ namespace Opc.Ua.Server.Tests
             IServerInternal server = m_server.CurrentInstance;
             ushort namespaceIndex = ServerNamespaceIndex(server);
 
-            ExpandedNodeId structureTypeId = NodeId.ToExpandedNodeId(
+            var structureTypeId = NodeId.ToExpandedNodeId(
                 new NodeId(ServerComplexTypesTestNodeManager.TestPointDataType, namespaceIndex),
                 server.NamespaceUris);
-            ExpandedNodeId binaryEncodingId = NodeId.ToExpandedNodeId(
+            var binaryEncodingId = NodeId.ToExpandedNodeId(
                 new NodeId(ServerComplexTypesTestNodeManager.TestPointBinaryEncoding, namespaceIndex),
                 server.NamespaceUris);
-            ExpandedNodeId enumTypeId = NodeId.ToExpandedNodeId(
+            var enumTypeId = NodeId.ToExpandedNodeId(
                 new NodeId(ServerComplexTypesTestNodeManager.TestColorDataType, namespaceIndex),
                 server.NamespaceUris);
 

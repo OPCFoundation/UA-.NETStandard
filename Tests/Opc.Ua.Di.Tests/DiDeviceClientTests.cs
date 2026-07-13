@@ -81,9 +81,9 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ConstructorExposesArgumentsAndCreatesProxy()
         {
-            var session = CreateSessionMock().Object;
+            ISession session = CreateSessionMock().Object;
             var nodeId = new NodeId("dev-1", 2);
-            var telemetry = NullTelemetry();
+            ITelemetryContext telemetry = NullTelemetry();
             var client = new DiDeviceClient(session, nodeId, telemetry);
 
             Assert.That(client.Session, Is.SameAs(session));
@@ -95,7 +95,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadIdentificationAsyncBuildsEightBrowsePathsAndPopulatesValues()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
 
             ArrayOf<BrowsePath> capturedPaths = default;
             sessionMock
@@ -115,7 +115,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiDeviceClient(
                 sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
 
-            DeviceIdentification id = await client.ReadIdentificationAsync();
+            DeviceIdentification id = await client.ReadIdentificationAsync().ConfigureAwait(false);
 
             Assert.That(capturedPaths.Count, Is.EqualTo(IdentificationCount));
             Assert.That(id.Manufacturer, Is.EqualTo("v0"));
@@ -140,7 +140,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadIdentificationAsyncBadValueReadIsNull()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
             SetupTranslateReturns(
                 sessionMock, BuildAllGoodBrowsePathResults(IdentificationCount));
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiDeviceClient(
                 sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
 
-            DeviceIdentification id = await client.ReadIdentificationAsync();
+            DeviceIdentification id = await client.ReadIdentificationAsync().ConfigureAwait(false);
             Assert.That(id.SerialNumber, Is.Null);
             Assert.That(id.Manufacturer, Is.EqualTo("v0"));
             Assert.That(id.Model, Is.EqualTo("v1"));
@@ -162,7 +162,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task ReadIdentificationAsyncReturnsAllNullsWhenAllBrowsePathsBad()
         {
-            var sessionMock = CreateSessionMock();
+            Mock<ISession> sessionMock = CreateSessionMock();
 
             var badResults = new BrowsePathResult[IdentificationCount];
             for (int i = 0; i < IdentificationCount; i++)
@@ -180,7 +180,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiDeviceClient(
                 sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
 
-            DeviceIdentification id = await client.ReadIdentificationAsync();
+            DeviceIdentification id = await client.ReadIdentificationAsync().ConfigureAwait(false);
 
             Assert.That(id.Manufacturer, Is.Null);
             Assert.That(id.Model, Is.Null);
@@ -204,35 +204,35 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ForDeviceAsyncThrowsBadNodeIdUnknownWhenReadStatusBad()
         {
-            var sessionMock = CreateSessionMock();
-            SetupReadReturns(sessionMock, new DataValue[]
-            {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            SetupReadReturns(sessionMock,
+            [
                 new DataValue(Variant.Null
                 , StatusCodes.BadNodeIdUnknown)
-            });
+            ]);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
                     sessionMock.Object,
                     new NodeId("dev-1", 2),
-                    NullTelemetry()))!;
+                    NullTelemetry()).ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
         public async Task ForDeviceAsyncReturnsClientWhenReadSucceeds()
         {
-            var sessionMock = CreateSessionMock();
-            SetupReadReturns(sessionMock, new DataValue[]
-            {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            SetupReadReturns(sessionMock,
+            [
                 new DataValue(new Variant((int)NodeClass.Object)
                 , StatusCodes.Good)
-            });
+            ]);
 
             DiDeviceClient client = await DiDeviceClient.ForDeviceAsync(
                 sessionMock.Object,
                 new NodeId("dev-1", 2),
-                NullTelemetry());
+                NullTelemetry()).ConfigureAwait(false);
 
             Assert.That(client, Is.Not.Null);
             Assert.That(client.DeviceNodeId, Is.EqualTo(new NodeId("dev-1", 2)));
@@ -243,17 +243,17 @@ namespace Opc.Ua.Di.Tests
         {
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
-                    null!, new NodeId("dev-1", 2), NullTelemetry()))!;
+                    null!, new NodeId("dev-1", 2), NullTelemetry()).ConfigureAwait(false))!;
             Assert.That(ex.ParamName, Is.EqualTo("session"));
         }
 
         [Test]
         public void ForDeviceAsyncThrowsOnNullDeviceNodeId()
         {
-            var session = CreateSessionMock().Object;
+            ISession session = CreateSessionMock().Object;
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
-                    session, NodeId.Null, NullTelemetry()))!;
+                    session, NodeId.Null, NullTelemetry()).ConfigureAwait(false))!;
             Assert.That(ex.ParamName, Is.EqualTo("deviceNodeId"));
         }
 
@@ -267,8 +267,7 @@ namespace Opc.Ua.Di.Tests
                     StatusCode = StatusCodes.Good,
                     Targets = new BrowsePathTarget[]
                     {
-                        new BrowsePathTarget
-                        {
+                        new() {
                             TargetId = new ExpandedNodeId("prop-" + i, 2),
                             RemainingPathIndex = uint.MaxValue
                         }

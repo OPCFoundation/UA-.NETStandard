@@ -216,7 +216,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidatedValidator();
 
-            List<ModelTableEntry> dependencies = validator.Dependencies.ToList();
+            List<ModelTableEntry> dependencies = [.. validator.Dependencies];
 
             Assert.That(dependencies, Has.Count.EqualTo(1));
             Assert.That(dependencies[0].ModelUri, Is.EqualTo(OpcUaNamespaceUri));

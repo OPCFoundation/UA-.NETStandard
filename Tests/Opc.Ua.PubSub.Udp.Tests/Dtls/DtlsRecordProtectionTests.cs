@@ -196,6 +196,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 DtlsNamedCurve.NistP256,
                 isMandatory: false);
         }
+
         private static void FillRandom(byte[] buffer)
         {
 #if NET8_0_OR_GREATER

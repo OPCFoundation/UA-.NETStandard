@@ -29,7 +29,6 @@
 
 using System;
 using Microsoft.Extensions.Logging;
-
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Bindings

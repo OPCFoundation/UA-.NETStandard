@@ -73,6 +73,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="encoding">Target encoding.</param>
         /// <returns>Transport profile URI.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static string ToTransportProfileUri(this TranscodeEncoding encoding)
         {
             return encoding switch
@@ -91,7 +92,7 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="transportProfileUri">Transport profile URI.</param>
         /// <returns>The encoding family.</returns>
-        public static TranscodeEncoding FromTransportProfileUri(string transportProfileUri)
+        public static TranscodeEncoding FromTransportProfileUri(this string transportProfileUri)
         {
             return transportProfileUri?.IndexOf("Json", StringComparison.OrdinalIgnoreCase) >= 0
                 ? TranscodeEncoding.Json
@@ -105,7 +106,8 @@ namespace Opc.Ua.PubSub.Transcoding
         /// </summary>
         /// <param name="message">Decoded NetworkMessage.</param>
         /// <returns>The encoding family.</returns>
-        public static TranscodeEncoding EncodingOf(Encoding.PubSubNetworkMessage message)
+        /// <exception cref="ArgumentNullException"></exception>
+        public static TranscodeEncoding EncodingOf(this Encoding.PubSubNetworkMessage message)
         {
             if (message is null)
             {
