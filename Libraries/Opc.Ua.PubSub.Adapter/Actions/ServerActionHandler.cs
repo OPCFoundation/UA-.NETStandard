@@ -104,10 +104,7 @@ namespace Opc.Ua.PubSub.Adapter.Actions
 
             if (!m_methodMap.TryResolve(invocation.Target, out ActionMethodBinding binding))
             {
-                m_logger.LogInformation(
-                    "No external method mapping for action target " +
-                    "(DataSetWriterId={DataSetWriterId}, ActionTargetId={ActionTargetId}, " +
-                    "ActionName={ActionName}); returning BadNodeIdUnknown.",
+                m_logger.NoExternalMethodMapping(
                     invocation.Target.DataSetWriterId,
                     invocation.Target.ActionTargetId,
                     invocation.Target.ActionName);
@@ -153,10 +150,8 @@ namespace Opc.Ua.PubSub.Adapter.Actions
             catch (Exception ex)
             {
                 m_metrics?.RecordCall(false);
-                m_logger.LogInformation(ex,
-                    "External method call failed for action target " +
-                    "(DataSetWriterId={DataSetWriterId}, ActionTargetId={ActionTargetId}); " +
-                    "returning BadUnexpectedError.",
+                m_logger.ExternalMethodCallFailed(
+                    ex,
                     invocation.Target.DataSetWriterId,
                     invocation.Target.ActionTargetId);
                 return new PubSubActionHandlerResult
@@ -207,4 +202,29 @@ namespace Opc.Ua.PubSub.Adapter.Actions
             return fields;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ServerActionHandler.
+    /// </summary>
+    internal static partial class ServerActionHandlerLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerActionHandler + 0, Level = LogLevel.Information,
+            Message = "No external method mapping for action target (DataSetWriterId={DataSetWriterId}, " +
+                "ActionTargetId={ActionTargetId}, ActionName={ActionName}); returning BadNodeIdUnknown.")]
+        public static partial void NoExternalMethodMapping(
+            this ILogger logger,
+            ushort dataSetWriterId,
+            ushort actionTargetId,
+            string actionName);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerActionHandler + 1, Level = LogLevel.Information,
+            Message = "External method call failed for action target (DataSetWriterId={DataSetWriterId}, " +
+                "ActionTargetId={ActionTargetId}); returning BadUnexpectedError.")]
+        public static partial void ExternalMethodCallFailed(
+            this ILogger logger,
+            Exception exception,
+            ushort dataSetWriterId,
+            ushort actionTargetId);
+    }
+
 }

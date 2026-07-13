@@ -152,12 +152,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 mqttOptions.WillQualityOfServiceLevel = MapQos(options.WillQos);
                 mqttOptions.WillRetain = options.WillRetain;
             }
-            m_logger.LogDebug(
-                "MQTT connecting to {Host}:{Port} (TLS={UseTls}, version={Version}).",
-                endpoint.Host,
-                endpoint.Port,
-                useTls,
-                options.ProtocolVersion);
+            m_logger.MqttConnecting(endpoint.Host, endpoint.Port, useTls, options.ProtocolVersion);
             await m_client.ConnectAsync(mqttOptions, ct).ConfigureAwait(false);
         }
 
@@ -242,7 +237,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "MQTT disconnect raised an exception.");
+                m_logger.MqttDisconnectRaisedException(ex);
             }
         }
 
@@ -269,7 +264,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                     MapQos(topic.Qos));
             }
             await m_client.SubscribeAsync(optionsBuilder.Build(), ct).ConfigureAwait(false);
-            m_logger.LogDebug("MQTT subscribed to {Count} topic(s).", topics.Count);
+            m_logger.MqttSubscribed(topics.Count);
         }
 
         /// <inheritdoc/>
@@ -379,7 +374,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "MQTT disconnect during dispose raised an exception.");
+                m_logger.MqttDisconnectDuringDisposeRaisedException(ex);
             }
 
             m_client.ApplicationMessageReceivedAsync -= OnApplicationMessageReceivedAsync;
@@ -443,7 +438,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to deliver inbound MQTT message.");
+                m_logger.FailedToDeliverInboundMqttMessage(ex);
             }
             return Task.CompletedTask;
         }
@@ -626,4 +621,38 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
         }
 #endif
     }
+
+    /// <summary>
+    /// Source-generated log messages for MqttClientAdapter.
+    /// </summary>
+    internal static partial class MqttClientAdapterLog
+    {
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttClientAdapter + 0, Level = LogLevel.Debug,
+            Message = "MQTT connecting to {Host}:{Port} (TLS={UseTls}, version={Version}).")]
+        public static partial void MqttConnecting(
+            this ILogger logger,
+            string host,
+            int port,
+            bool useTls,
+            MqttProtocolVersion version);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttClientAdapter + 1, Level = LogLevel.Debug,
+            Message = "MQTT disconnect raised an exception.")]
+        public static partial void MqttDisconnectRaisedException(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttClientAdapter + 2, Level = LogLevel.Debug,
+            Message = "MQTT subscribed to {Count} topic(s).")]
+        public static partial void MqttSubscribed(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttClientAdapter + 3, Level = LogLevel.Debug,
+            Message = "MQTT disconnect during dispose raised an exception.")]
+        public static partial void MqttDisconnectDuringDisposeRaisedException(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttClientAdapter + 4, Level = LogLevel.Warning,
+            Message = "Failed to deliver inbound MQTT message.")]
+        public static partial void FailedToDeliverInboundMqttMessage(this ILogger logger, Exception exception);
+    }
+
 }

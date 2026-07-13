@@ -306,11 +306,7 @@ namespace Opc.Ua.PubSub.Udp
                     m_receiveLoopTask = Task.Run(() => ReceiveLoopAsync(loopToken), CancellationToken.None);
                 }
                 m_isConnected = true;
-                m_logger.LogInformation(
-                    "UDP transport opened: connection='{Connection}' endpoint={Endpoint} direction={Direction}",
-                    m_connection.Name,
-                    Endpoint,
-                    Direction);
+                m_logger.UdpTransportOpened(m_connection.Name, Endpoint, Direction);
             }
             RaiseStateChanged(true, StatusCodes.Good, null);
             return default;
@@ -356,10 +352,7 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
                 {
-                    m_logger.LogDebug(ex,
-                        "Multicast drop on close for connection '{Connection}' raised {Type}.",
-                        m_connection.Name,
-                        ex.GetType().Name);
+                    m_logger.MulticastDropOnCloseRaised(ex, m_connection.Name, ex.GetType().Name);
                 }
                 try
                 {
@@ -367,9 +360,7 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (SocketException ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "Socket close for connection '{Connection}' raised SocketException.",
-                        m_connection.Name);
+                    m_logger.SocketCloseRaisedSocketException(ex, m_connection.Name);
                 }
                 socket.Dispose();
             }
@@ -384,9 +375,7 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "Receive loop terminated with exception for connection '{Connection}'.",
-                        m_connection.Name);
+                    m_logger.ReceiveLoopTerminatedWithException(ex, m_connection.Name);
                 }
             }
             channel?.Writer.TryComplete();
@@ -620,10 +609,10 @@ namespace Opc.Ua.PubSub.Udp
             }
             catch (SocketException ex)
             {
-                m_logger.LogWarning(ex,
-                    "UDP send failed on connection '{Connection}' to {Endpoint}.",
+                m_logger.UdpSendFailed(
+                    ex,
                     m_connection.Name,
-                    destination ?? (object)LocalSendStateLabel);
+                    destination?.ToString() ?? LocalSendStateLabel);
                 throw;
             }
         }
@@ -682,10 +671,7 @@ namespace Opc.Ua.PubSub.Udp
                     }
                     catch (SocketException ex)
                     {
-                        m_logger.LogWarning(ex,
-                            "UDP receive on connection '{Connection}' raised {Code}; continuing.",
-                            m_connection.Name,
-                            ex.SocketErrorCode);
+                        m_logger.UdpReceiveRaisedSocketError(ex, m_connection.Name, ex.SocketErrorCode);
                         continue;
                     }
                     if (result.ReceivedBytes <= 0)
@@ -745,7 +731,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             catch (SocketException ex)
             {
-                m_logger.LogDebug(ex, "Setting SO_SNDBUF failed for connection '{Connection}'.", m_connection.Name);
+                m_logger.SettingSendBufferFailed(ex, m_connection.Name);
             }
             try
             {
@@ -753,7 +739,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             catch (SocketException ex)
             {
-                m_logger.LogDebug(ex, "Setting SO_RCVBUF failed for connection '{Connection}'.", m_connection.Name);
+                m_logger.SettingReceiveBufferFailed(ex, m_connection.Name);
             }
             try
             {
@@ -761,7 +747,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             catch (SocketException ex)
             {
-                m_logger.LogDebug(ex, "Setting SO_REUSEADDR failed for connection '{Connection}'.", m_connection.Name);
+                m_logger.SettingReuseAddressFailed(ex, m_connection.Name);
             }
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -771,8 +757,7 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (SocketException ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "SIO_UDP_CONNRESET disable failed for connection '{Connection}'.", m_connection.Name);
+                    m_logger.DisableUdpConnResetFailed(ex, m_connection.Name);
                 }
             }
             if (Endpoint.AddressType is UdpAddressType.Broadcast or UdpAddressType.SubnetBroadcast)
@@ -783,8 +768,7 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (SocketException ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "Setting SO_BROADCAST failed for connection '{Connection}'.", m_connection.Name);
+                    m_logger.SettingBroadcastFailed(ex, m_connection.Name);
                 }
             }
             if (Endpoint.Address.AddressFamily == AddressFamily.InterNetwork)
@@ -801,8 +785,7 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (SocketException ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "Setting IPv4 TTL failed for connection '{Connection}'.", m_connection.Name);
+                    m_logger.SettingIpv4TtlFailed(ex, m_connection.Name);
                 }
             }
             else if (Endpoint.Address.AddressFamily == AddressFamily.InterNetworkV6)
@@ -819,8 +802,7 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (SocketException ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "Setting IPv6 hop limit failed for connection '{Connection}'.", m_connection.Name);
+                    m_logger.SettingIpv6HopLimitFailed(ex, m_connection.Name);
                 }
             }
             try
@@ -829,8 +811,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             catch (SocketException ex)
             {
-                m_logger.LogDebug(ex,
-                    "Setting IP_MULTICAST_LOOP failed for connection '{Connection}'.", m_connection.Name);
+                m_logger.SettingMulticastLoopbackFailed(ex, m_connection.Name);
             }
             ApplyQosCategory(socket);
         }
@@ -858,16 +839,11 @@ namespace Opc.Ua.PubSub.Udp
                         SocketOptionName.TypeOfService,
                         tos);
                 }
-                m_logger.LogInformation(
-                    "Applied QosCategory '{QosCategory}' (TOS={Tos:X2}) on connection '{Connection}' " +
-                    "per Part 14 §6.4.1.2.7 / Annex A.4.",
-                    m_v2Settings.QosCategory, tos, m_connection.Name);
+                m_logger.AppliedQosCategory(m_v2Settings.QosCategory, tos, m_connection.Name);
             }
             catch (SocketException ex)
             {
-                m_logger.LogDebug(ex,
-                    "Setting IP_TOS for QosCategory '{QosCategory}' failed for connection '{Connection}'.",
-                    m_v2Settings.QosCategory, m_connection.Name);
+                m_logger.SettingIpTosFailed(ex, m_v2Settings.QosCategory, m_connection.Name);
             }
         }
 
@@ -1088,9 +1064,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex,
-                    "StateChanged handler threw for connection '{Connection}'.",
-                    m_connection.Name);
+                m_logger.StateChangedHandlerThrew(ex, m_connection.Name);
             }
         }
 
@@ -1176,4 +1150,131 @@ namespace Opc.Ua.PubSub.Udp
             public string QosCategory { get; init; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for UdpDatagramTransport.
+    /// </summary>
+    internal static partial class UdpDatagramTransportLog
+    {
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 0, Level = LogLevel.Information,
+            Message = "UDP transport opened: connection='{Connection}' endpoint={Endpoint} direction={Direction}")]
+        public static partial void UdpTransportOpened(
+            this ILogger logger,
+            string? connection,
+            UdpEndpoint endpoint,
+            PubSubTransportDirection direction);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 1, Level = LogLevel.Debug,
+            Message = "Multicast drop on close for connection '{Connection}' raised {Type}.")]
+        public static partial void MulticastDropOnCloseRaised(
+            this ILogger logger,
+            Exception exception,
+            string? connection,
+            string type);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 2, Level = LogLevel.Debug,
+            Message = "Socket close for connection '{Connection}' raised SocketException.")]
+        public static partial void SocketCloseRaisedSocketException(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 3, Level = LogLevel.Debug,
+            Message = "Receive loop terminated with exception for connection '{Connection}'.")]
+        public static partial void ReceiveLoopTerminatedWithException(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 4, Level = LogLevel.Warning,
+            Message = "UDP send failed on connection '{Connection}' to {Endpoint}.")]
+        public static partial void UdpSendFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection,
+            string endpoint);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 5, Level = LogLevel.Warning,
+            Message = "UDP receive on connection '{Connection}' raised {Code}; continuing.")]
+        public static partial void UdpReceiveRaisedSocketError(
+            this ILogger logger,
+            Exception exception,
+            string? connection,
+            SocketError code);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 6, Level = LogLevel.Debug,
+            Message = "Setting SO_SNDBUF failed for connection '{Connection}'.")]
+        public static partial void SettingSendBufferFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 7, Level = LogLevel.Debug,
+            Message = "Setting SO_RCVBUF failed for connection '{Connection}'.")]
+        public static partial void SettingReceiveBufferFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 8, Level = LogLevel.Debug,
+            Message = "Setting SO_REUSEADDR failed for connection '{Connection}'.")]
+        public static partial void SettingReuseAddressFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 9, Level = LogLevel.Debug,
+            Message = "SIO_UDP_CONNRESET disable failed for connection '{Connection}'.")]
+        public static partial void DisableUdpConnResetFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 10, Level = LogLevel.Debug,
+            Message = "Setting SO_BROADCAST failed for connection '{Connection}'.")]
+        public static partial void SettingBroadcastFailed(this ILogger logger, Exception exception, string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 11, Level = LogLevel.Debug,
+            Message = "Setting IPv4 TTL failed for connection '{Connection}'.")]
+        public static partial void SettingIpv4TtlFailed(this ILogger logger, Exception exception, string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 12, Level = LogLevel.Debug,
+            Message = "Setting IPv6 hop limit failed for connection '{Connection}'.")]
+        public static partial void SettingIpv6HopLimitFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 13, Level = LogLevel.Debug,
+            Message = "Setting IP_MULTICAST_LOOP failed for connection '{Connection}'.")]
+        public static partial void SettingMulticastLoopbackFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 14, Level = LogLevel.Information,
+            Message = "Applied QosCategory '{QosCategory}' (TOS={Tos:X2}) on connection '{Connection}' " +
+                "per Part 14 §6.4.1.2.7 / Annex A.4.")]
+        public static partial void AppliedQosCategory(
+            this ILogger logger,
+            string? qosCategory,
+            int tos,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 15, Level = LogLevel.Debug,
+            Message = "Setting IP_TOS for QosCategory '{QosCategory}' failed for connection '{Connection}'.")]
+        public static partial void SettingIpTosFailed(
+            this ILogger logger,
+            Exception exception,
+            string? qosCategory,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 16, Level = LogLevel.Debug,
+            Message = "StateChanged handler threw for connection '{Connection}'.")]
+        public static partial void StateChangedHandlerThrew(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+    }
+
 }

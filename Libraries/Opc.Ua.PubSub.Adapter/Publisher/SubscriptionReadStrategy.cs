@@ -229,10 +229,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             // keys and is reported once to avoid log spam.
             if (Interlocked.Exchange(ref m_cacheFullLogged, 1) == 0)
             {
-                m_logger.LogWarning(
-                    "External subscription latest-value cache reached its bound of " +
-                    "{MaxEntries} entries; new node/attribute keys are dropped.",
-                    m_maxCacheEntries);
+                m_logger.ExternalSubscriptionCacheFull(m_maxCacheEntries);
             }
         }
 
@@ -290,4 +287,16 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         private int m_cacheFullLogged;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SubscriptionReadStrategy.
+    /// </summary>
+    internal static partial class SubscriptionReadStrategyLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.SubscriptionReadStrategy + 0, Level = LogLevel.Warning,
+            Message = "External subscription latest-value cache reached its bound of {MaxEntries} entries; " +
+                "new node/attribute keys are dropped.")]
+        public static partial void ExternalSubscriptionCacheFull(this ILogger logger, int maxEntries);
+    }
+
 }

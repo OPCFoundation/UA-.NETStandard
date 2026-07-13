@@ -1192,3 +1192,24 @@ dotnet_diagnostic.CA1873.severity = warning
 
 [Libraries/Opc.Ua.WotCon.Server/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub.Adapter/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub.Server/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub.Eth/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub.Udp/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub.Kafka/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub.Mqtt/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub.Diagnostics/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning

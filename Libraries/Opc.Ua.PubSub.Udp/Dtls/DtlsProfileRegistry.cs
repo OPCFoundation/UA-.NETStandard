@@ -90,13 +90,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             ILogger logger = telemetry.CreateLogger<DtlsProfileRegistry>();
-            string supported = SupportedProfiles.Count == 0
-                ? "none"
-                : string.Join(", ", SupportedProfiles.Select(profile => profile.Name));
-            logger.LogInformation(
-                "OPC UA PubSub DTLS 1.3 supported profiles: {Profiles}. Primitive support: {Support}.",
-                supported,
-                PrimitiveSupport);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                string supported = SupportedProfiles.Count == 0
+                    ? "none"
+                    : string.Join(", ", SupportedProfiles.Select(profile => profile.Name));
+                logger.SupportedDtlsProfiles(supported, PrimitiveSupport);
+            }
         }
 
         /// <summary>
@@ -307,4 +307,18 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 #endif
     }
+
+    /// <summary>
+    /// Source-generated log messages for DtlsProfileRegistry.
+    /// </summary>
+    internal static partial class DtlsProfileRegistryLog
+    {
+        [LoggerMessage(EventId = PubSubUdpEventIds.DtlsProfileRegistry + 0, Level = LogLevel.Information,
+            Message = "OPC UA PubSub DTLS 1.3 supported profiles: {Profiles}. Primitive support: {Support}.")]
+        public static partial void SupportedDtlsProfiles(
+            this ILogger logger,
+            string profiles,
+            DtlsPrimitiveSupport support);
+    }
+
 }

@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Pcap
                 throw new InvalidOperationException("Capture source already started.");
             }
             m_registry.SetObserver(this);
-            m_logger?.LogDebug("PubSub in-process capture started.");
+            m_logger?.PubSubInProcessCaptureStarted();
             return ValueTask.CompletedTask;
         }
 
@@ -108,9 +108,7 @@ namespace Opc.Ua.PubSub.Pcap
             }
             m_registry.TryClearObserver(this);
             m_frames.Writer.TryComplete();
-            m_logger?.LogDebug(
-                "PubSub in-process capture stopped after {FrameCount} frames.",
-                FrameCount);
+            m_logger?.PubSubInProcessCaptureStopped(FrameCount);
             return ValueTask.CompletedTask;
         }
 
@@ -217,4 +215,19 @@ namespace Opc.Ua.PubSub.Pcap
         private int m_started;
         private int m_stopped;
     }
+
+    /// <summary>
+    /// Source-generated log messages for InProcessPubSubCaptureSource.
+    /// </summary>
+    internal static partial class InProcessPubSubCaptureSourceLog
+    {
+        [LoggerMessage(EventId = PubSubDiagnosticsEventIds.InProcessPubSubCaptureSource + 0,
+            Level = LogLevel.Debug, Message = "PubSub in-process capture started.")]
+        public static partial void PubSubInProcessCaptureStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubDiagnosticsEventIds.InProcessPubSubCaptureSource + 1,
+            Level = LogLevel.Debug, Message = "PubSub in-process capture stopped after {FrameCount} frames.")]
+        public static partial void PubSubInProcessCaptureStopped(this ILogger logger, long frameCount);
+    }
+
 }

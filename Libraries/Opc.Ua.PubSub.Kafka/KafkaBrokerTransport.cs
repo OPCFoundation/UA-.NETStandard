@@ -273,12 +273,7 @@ namespace Opc.Ua.PubSub.Kafka
             {
                 m_isConnected = true;
             }
-            m_logger.LogInformation(
-                "Kafka transport opened: connection='{Connection}' bootstrap={Bootstrap} direction={Direction} profile={Profile}",
-                m_connection.Name,
-                Endpoint.BootstrapServers,
-                Direction,
-                TransportProfileUri);
+            m_logger.KafkaTransportOpened(m_connection.Name, Endpoint.BootstrapServers, Direction, TransportProfileUri);
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
 
@@ -308,10 +303,7 @@ namespace Opc.Ua.PubSub.Kafka
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(
-                        ex,
-                        "Kafka disconnect for connection '{Connection}' raised an exception.",
-                        m_connection.Name);
+                    m_logger.KafkaDisconnectRaisedException(ex, m_connection.Name);
                 }
                 await adapter.DisposeAsync().ConfigureAwait(false);
             }
@@ -534,9 +526,7 @@ namespace Opc.Ua.PubSub.Kafka
                 e.ReceivedAt);
             if (!channel.Writer.TryWrite(frame))
             {
-                m_logger.LogWarning(
-                    "Dropped inbound Kafka frame for connection '{Connection}': receive queue full.",
-                    m_connection.Name);
+                m_logger.DroppedInboundKafkaFrame(m_connection.Name);
                 return;
             }
             m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages, 1);
@@ -831,4 +821,32 @@ namespace Opc.Ua.PubSub.Kafka
             };
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for KafkaBrokerTransport.
+    /// </summary>
+    internal static partial class KafkaBrokerTransportLog
+    {
+        [LoggerMessage(EventId = PubSubKafkaEventIds.KafkaBrokerTransport + 0, Level = LogLevel.Information,
+            Message = "Kafka transport opened: connection='{Connection}' bootstrap={Bootstrap} direction={Direction} " +
+                "profile={Profile}")]
+        public static partial void KafkaTransportOpened(
+            this ILogger logger,
+            string? connection,
+            string bootstrap,
+            PubSubTransportDirection direction,
+            string profile);
+
+        [LoggerMessage(EventId = PubSubKafkaEventIds.KafkaBrokerTransport + 1, Level = LogLevel.Debug,
+            Message = "Kafka disconnect for connection '{Connection}' raised an exception.")]
+        public static partial void KafkaDisconnectRaisedException(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubKafkaEventIds.KafkaBrokerTransport + 2, Level = LogLevel.Warning,
+            Message = "Dropped inbound Kafka frame for connection '{Connection}': receive queue full.")]
+        public static partial void DroppedInboundKafkaFrame(this ILogger logger, string? connection);
+    }
+
 }
