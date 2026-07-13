@@ -78,7 +78,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             "UaPublisher",
             "IUaPubSubDataStore",
             "UaPubSubDataStore",
-            "UaPubSubConfigurator",
+            "UaPubSubConfigurator"
         ];
 
         private static readonly ImmutableHashSet<string> s_legacyFullNames =
@@ -90,7 +90,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             PubSubNamespace + ".UaPublisher",
             PubSubNamespace + ".IUaPubSubDataStore",
             PubSubNamespace + ".UaPubSubDataStore",
-            ConfigurationNamespace + ".UaPubSubConfigurator",
+            ConfigurationNamespace + ".UaPubSubConfigurator"
         ];
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
@@ -138,8 +138,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             // Skip identifier appearing on the right of a member access
             // ("foo.UaPubSubApplication") — only the left of a member access
             // or a bare identifier is a type reference.
-            if (identifier.Parent is MemberAccessExpressionSyntax memberAccess
-                && memberAccess.Name == identifier)
+            if (identifier.Parent is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Name == identifier)
             {
                 return;
             }
@@ -182,8 +182,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         {
             for (SyntaxNode? current = node; current is not null; current = current.Parent)
             {
-                if (current is BaseNamespaceDeclarationSyntax ns
-                    && ContainsPubSubUsing(ns.Usings))
+                if (current is BaseNamespaceDeclarationSyntax ns &&
+                    ContainsPubSubUsing(ns.Usings))
                 {
                     return true;
                 }
@@ -199,8 +199,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
         {
             foreach (UsingDirectiveSyntax @using in usings)
             {
-                if (@using.Alias is not null
-                    || @using.StaticKeyword.IsKind(SyntaxKind.StaticKeyword))
+                if (@using.Alias is not null ||
+                    @using.StaticKeyword.IsKind(SyntaxKind.StaticKeyword))
                 {
                     continue;
                 }
@@ -209,8 +209,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
                     continue;
                 }
                 string text = @using.Name.ToString();
-                if (string.Equals(text, PubSubNamespace, StringComparison.Ordinal)
-                    || text.StartsWith(PubSubNamespace + ".", StringComparison.Ordinal))
+                if (string.Equals(text, PubSubNamespace, StringComparison.Ordinal) ||
+                    text.StartsWith(PubSubNamespace + ".", StringComparison.Ordinal))
                 {
                     return true;
                 }

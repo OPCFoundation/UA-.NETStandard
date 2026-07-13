@@ -36,8 +36,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Pcap.Capture;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.KeyLog
 {
     /// <summary>
@@ -78,6 +76,7 @@ namespace Opc.Ua.Pcap.KeyLog
         /// <summary>
         /// Reads all key material from the bound file path.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public IAsyncEnumerable<ChannelKeyMaterial> ReadAllAsync(CancellationToken ct)
         {
             if (FilePath is null)
@@ -157,7 +156,8 @@ namespace Opc.Ua.Pcap.KeyLog
 
                     KeyLogRecord? record = JsonSerializer.Deserialize(
                         line,
-                        UaKeyLogJsonContext.Default.KeyLogRecord) ?? throw new PcapDiagnosticsException("Invalid OPC UA JSON key-log record.");
+                        UaKeyLogJsonContext.Default.KeyLogRecord) ??
+                        throw new PcapDiagnosticsException("Invalid OPC UA JSON key-log record.");
                     yield return record.ToMaterial();
                 }
             }

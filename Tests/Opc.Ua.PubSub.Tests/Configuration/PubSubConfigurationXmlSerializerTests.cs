@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             Assert.Throws<ArgumentNullException>(
                 () => PubSubConfigurationXmlSerializer.DecodeXml(
-                    ReadOnlySpan<byte>.Empty,
+                    [],
                     null!));
         }
 

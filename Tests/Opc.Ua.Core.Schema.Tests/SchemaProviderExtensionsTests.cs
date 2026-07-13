@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 
 namespace Opc.Ua.Schema.Tests
@@ -64,6 +65,20 @@ namespace Opc.Ua.Schema.Tests
             IUaSchema schema = provider.GetJsonSchema(type, verbose: true);
 
             Assert.That(schema.Format, Is.EqualTo(UaSchemaFormat.JsonVerbose));
+        }
+
+        [Test]
+        public void CreateSchemaThrowsWhenNoGeneratorSupportsFormat()
+        {
+            UaTypeDescription type = SchemaTestData.Structure(
+                3001,
+                "SampleType",
+                SchemaTestData.Field("Id", SchemaTestData.BuiltIn(BuiltInType.Int32)));
+            var provider = new DefaultSchemaProvider(new DataTypeDefinitionRegistry(), []);
+
+            Assert.That(
+                () => provider.CreateSchema(type, UaSchemaFormat.JsonCompact),
+                Throws.TypeOf<NotSupportedException>().With.Message.Contains("JsonCompact"));
         }
 
         [Test]

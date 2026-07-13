@@ -137,8 +137,8 @@ namespace Opc.Ua.PubSub.Udp
                 throw new NotSupportedException(
                     "PubSubConnection.Address is required for UDP transport.");
             }
-            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress)
-                || networkAddress is null)
+            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? networkAddress) ||
+                networkAddress is null)
             {
                 throw new NotSupportedException(
                     "UDP transport requires a NetworkAddressUrlDataType address payload.");
@@ -227,6 +227,7 @@ namespace Opc.Ua.PubSub.Udp
         /// profiles remain available a prominent warning is logged before one is selected. Fails closed
         /// when no candidate remains.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         // TODO: Full in-handshake cipher-suite negotiation (ClientHello offering multiple suites and
         // ServerHello selecting one) is a future enhancement. For now a single profile is selected here
         // at runtime and reused for the whole handshake.
@@ -235,16 +236,16 @@ namespace Opc.Ua.PubSub.Udp
             DtlsProfileRegistry registry = m_dtlsProfileRegistry!;
             ISet<string> disabled = m_dtlsOptions.DisabledProfiles;
 
-            if (!string.IsNullOrEmpty(endpoint.DtlsProfileName)
-                && IsProfileEnabled(disabled, endpoint.DtlsProfileName!)
-                && registry.TryResolve(endpoint.DtlsProfileName, out DtlsProfile? endpointProfile))
+            if (!string.IsNullOrEmpty(endpoint.DtlsProfileName) &&
+                IsProfileEnabled(disabled, endpoint.DtlsProfileName!) &&
+                registry.TryResolve(endpoint.DtlsProfileName, out DtlsProfile? endpointProfile))
             {
                 return endpointProfile!;
             }
 
-            if (!string.IsNullOrEmpty(m_dtlsOptions.PreferredProfileName)
-                && IsProfileEnabled(disabled, m_dtlsOptions.PreferredProfileName!)
-                && registry.TryResolve(m_dtlsOptions.PreferredProfileName, out DtlsProfile? preferredProfile))
+            if (!string.IsNullOrEmpty(m_dtlsOptions.PreferredProfileName) &&
+                IsProfileEnabled(disabled, m_dtlsOptions.PreferredProfileName!) &&
+                registry.TryResolve(m_dtlsOptions.PreferredProfileName, out DtlsProfile? preferredProfile))
             {
                 return preferredProfile!;
             }
@@ -335,8 +336,8 @@ namespace Opc.Ua.PubSub.Udp
                     {
                         continue;
                     }
-                    if (entry.Value.TryGetValue(out string? text)
-                        && !string.IsNullOrEmpty(text))
+                    if (entry.Value.TryGetValue(out string? text) &&
+                        !string.IsNullOrEmpty(text))
                     {
                         return text;
                     }
@@ -346,5 +347,3 @@ namespace Opc.Ua.PubSub.Udp
         }
     }
 }
-
-

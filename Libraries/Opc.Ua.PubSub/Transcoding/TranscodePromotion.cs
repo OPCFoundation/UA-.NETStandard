@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Transcoding
     /// </summary>
     /// <remarks>
     /// Only meaningful when the target transport implements
-    /// <see cref="Opc.Ua.PubSub.Transports.IPubSubHeaderTransport"/>; other
+    /// <see cref="Transports.IPubSubHeaderTransport"/>; other
     /// transports ignore the promoted properties. Field values are formatted
     /// as invariant strings.
     /// </remarks>
@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Transcoding
     {
         /// <summary>
         /// BrowseNames of the DataSet fields to promote, matched against
-        /// <see cref="Opc.Ua.PubSub.Encoding.DataSetField.Name"/>. The first
+        /// <see cref="Encoding.DataSetField.Name"/>. The first
         /// matching field across the message's DataSetMessages wins.
         /// </summary>
         public ArrayOf<string> FieldNames { get; init; } = [];

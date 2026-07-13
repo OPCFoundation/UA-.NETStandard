@@ -439,6 +439,121 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ReplacePredefinedInstanceSubtypeAsyncPreservesIdentityAndChildIdsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("Parent", nsIdx);
+            parent.BrowseName = new QualifiedName("Parent", nsIdx);
+            await manager.AddPredefinedNodeAsync(context, parent).ConfigureAwait(false);
+
+            var sharedId = new NodeId("Shared", nsIdx);
+            var oldOnlyId = new NodeId("OldOnly", nsIdx);
+            var newOnlyId = new NodeId("NewOnly", nsIdx);
+
+            var existing = new BaseObjectState(parent)
+            {
+                NodeId = new NodeId("Target", nsIdx),
+                BrowseName = new QualifiedName("Target", nsIdx),
+                SymbolicName = "Target",
+                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+            };
+            var sharedOld = new BaseDataVariableState(existing)
+            {
+                NodeId = sharedId,
+                BrowseName = new QualifiedName("Shared", nsIdx),
+                WrappedValue = new Variant(42)
+            };
+            var oldOnly = new BaseDataVariableState(existing)
+            {
+                NodeId = oldOnlyId,
+                BrowseName = new QualifiedName("OldOnly", nsIdx)
+            };
+            existing.AddChild(sharedOld);
+            existing.AddChild(oldOnly);
+            parent.AddChild(existing);
+            await manager.AddPredefinedNodeAsync(context, existing).ConfigureAwait(false);
+
+            // Build a replacement with a matching child (Shared) and a brand-new child (NewOnly).
+            var replacement = new FolderState(null)
+            {
+                TypeDefinitionId = ObjectTypeIds.FolderType
+            };
+            var sharedNew = new BaseDataVariableState(replacement)
+            {
+                NodeId = new NodeId("temp-shared", nsIdx),
+                BrowseName = new QualifiedName("Shared", nsIdx)
+            };
+            var newOnly = new BaseDataVariableState(replacement)
+            {
+                NodeId = new NodeId("temp-new", nsIdx),
+                BrowseName = new QualifiedName("NewOnly", nsIdx)
+            };
+            replacement.AddChild(sharedNew);
+            replacement.AddChild(newOnly);
+
+            var newChildNodeIds = new Dictionary<QualifiedName, NodeId>
+            {
+                [new QualifiedName("NewOnly", nsIdx)] = newOnlyId
+            };
+
+            BaseInstanceState replacedSlot = null!;
+            BaseInstanceState result = await acnm.ReplacePredefinedInstanceSubtypeAsync(
+                context,
+                existing,
+                replacement,
+                newChildNodeIds,
+                node => replacedSlot = node).ConfigureAwait(false);
+
+            // Identity preserved.
+            Assert.That(result, Is.SameAs(replacement));
+            Assert.That(replacedSlot, Is.SameAs(replacement));
+            Assert.That(replacement.NodeId, Is.EqualTo(existing.NodeId));
+            Assert.That(replacement.BrowseName, Is.EqualTo(new QualifiedName("Target", nsIdx)));
+            Assert.That(replacement.Parent, Is.SameAs(parent));
+
+            // Address-space index swapped in place.
+            Assert.That(manager.PredefinedNodes[existing.NodeId], Is.SameAs(replacement));
+
+            // Shared child keeps its well-known NodeId and value.
+            Assert.That(sharedNew.NodeId, Is.EqualTo(sharedId));
+            Assert.That(sharedNew.WrappedValue.GetInt32(), Is.EqualTo(42));
+            Assert.That(manager.PredefinedNodes[sharedId], Is.SameAs(sharedNew));
+
+            // Brand-new child receives the supplied well-known NodeId.
+            Assert.That(newOnly.NodeId, Is.EqualTo(newOnlyId));
+            Assert.That(manager.PredefinedNodes[newOnlyId], Is.SameAs(newOnly));
+
+            // The old-only child is removed from the address space.
+            Assert.That(manager.PredefinedNodes.ContainsKey(oldOnlyId), Is.False);
+        }
+
+        [Test]
+        public void ReplacePredefinedInstanceSubtypeAsyncThrowsOnNullArguments()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ServerSystemContext context = manager.SystemContext;
+            var node = new BaseObjectState(null);
+
+            Assert.That(
+                async () => await acnm.ReplacePredefinedInstanceSubtypeAsync(context, null!, node)
+                    .ConfigureAwait(false),
+                Throws.ArgumentNullException);
+            Assert.That(
+                async () => await acnm.ReplacePredefinedInstanceSubtypeAsync(context, node, null!)
+                    .ConfigureAwait(false),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
         public async Task DeleteAddressSpaceAsync_DoesNotDoubleFireOnChildrenAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -601,6 +716,54 @@ namespace Opc.Ua.Server.Tests
             Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(DateTime.MinValue));
             Assert.That(values[0].ServerTimestamp, Is.EqualTo(values[0].SourceTimestamp));
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task ReadAsync_StampsFreshServerTimestampForStaticNodeAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("StaleVar", nsIdx);
+            variable.BrowseName = new QualifiedName("StaleVar", nsIdx);
+            variable.Value = 42;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+
+            // simulate a static node whose value was produced in the past.
+            DateTimeUtc staleTimestamp = DateTimeUtc.Now - TimeSpan.FromMinutes(1);
+            variable.Timestamp = staleTimestamp;
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var readValueId = new ReadValueId
+            {
+                NodeId = variable.NodeId,
+                AttributeId = Attributes.Value
+            };
+            var nodesToRead = new List<ReadValueId> { readValueId };
+            var values = new List<DataValue> { default };
+            var errors = new List<ServiceResult> { null };
+
+            DateTimeUtc beforeRead = DateTimeUtc.Now;
+            await manager.ReadAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
+                0,
+                nodesToRead,
+                values,
+                errors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+
+            // SourceTimestamp reflects the (stale) time the value was produced.
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo(staleTimestamp));
+
+            // ServerTimestamp reflects when the server verified the value: the
+            // read time, so a MaxAge read is satisfied even for a static value.
+            Assert.That(values[0].ServerTimestamp, Is.GreaterThanOrEqualTo(beforeRead));
+            Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(values[0].SourceTimestamp));
         }
 
         [Test]
@@ -4546,6 +4709,10 @@ namespace Opc.Ua.Server.Tests
         public TimestampsToReturn TimestampsToReturn { get; set; }
 
         public int TypeMask { get; set; }
+
+        public IDataChangeMonitoredItemQueue RestoredDataChangeQueue { get; set; }
+
+        public IEventMonitoredItemQueue RestoredEventQueue { get; set; }
     }
 
     /// <summary>

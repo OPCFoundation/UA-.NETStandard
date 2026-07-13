@@ -137,6 +137,7 @@ namespace Opc.Ua.History.Tests
                 IgnoreIfNotGood(response.Results[0].StatusCode);
             }
             catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadInvalidTimestampArgument ||
+                ex.StatusCode == StatusCodes.BadHistoryOperationInvalid ||
                 ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported)
             {
                 Assert.Ignore("Historical access not supported or timestamp issue: " + ex.StatusCode);
@@ -384,31 +385,35 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public async Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
+        public Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
             DateTime endTime = DateTime.UtcNow;
             DateTime startTime = endTime.AddHours(-1);
-            HistoryReadResponse response = await Session.HistoryReadAsync(
-                null,
-                new ExtensionObject(new ReadRawModifiedDetails
-                {
-                    StartTime = startTime,
-                    EndTime = endTime,
-                    NumValuesPerNode = 100,
-                    IsReadModified = false,
-                    ReturnBounds = false
-                }),
-                TimestampsToReturn.Neither,
-                false,
-                new HistoryReadValueId[]
-                {
-                    new() { NodeId = nodeId }
-                }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            IgnoreIfNotGood(response.Results[0].StatusCode);
+            // TimestampsToReturn.Neither is invalid for HistoryRead: historical values always
+            // carry a source/server timestamp (OPC UA Part 11; CTT HA Read Raw Err-002).
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Session.HistoryReadAsync(
+                    null,
+                    new ExtensionObject(new ReadRawModifiedDetails
+                    {
+                        StartTime = startTime,
+                        EndTime = endTime,
+                        NumValuesPerNode = 100,
+                        IsReadModified = false,
+                        ReturnBounds = false
+                    }),
+                    TimestampsToReturn.Neither,
+                    false,
+                    new HistoryReadValueId[]
+                    {
+                        new() { NodeId = nodeId }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimestampsToReturnInvalid));
+            return Task.CompletedTask;
         }
 
         [Test]

@@ -244,7 +244,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var chain = new CertificateCollection();
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
@@ -269,7 +269,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using CertificateCollection chain = Chain(m_selfSignedApp);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
@@ -283,7 +283,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using CertificateCollection chain = Chain(m_leafUnderIntermediate);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(
@@ -294,12 +294,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncTrustedRootChainReturnsSuccessAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_leaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -308,13 +308,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncIntermediateChainReturnsSuccessAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
-            string issuerDir = await WriteStoreAsync(new[] { m_intermediateCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
+            string issuerDir = await WriteStoreAsync([m_intermediateCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir, issuerDir);
             using CertificateCollection chain = Chain(m_leafUnderIntermediate);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -323,12 +323,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncSelfSignedInTrustedStoreReturnsSuccessAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_selfSignedApp });
+            string trustedDir = await WriteStoreAsync([m_selfSignedApp]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_selfSignedApp);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -337,12 +337,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncExpiredLeafReturnsBadCertificateTimeInvalidAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_expiredLeaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
@@ -352,12 +352,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncNotYetValidLeafReturnsBadCertificateTimeInvalidAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_notYetValidLeaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
@@ -367,12 +367,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncExpiredIssuerReturnsBadCertificateIssuerTimeInvalidAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_expiredRootCa });
+            string trustedDir = await WriteStoreAsync([m_expiredRootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_leafUnderExpiredRoot);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(
@@ -382,12 +382,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncLeafWithoutDataEnciphermentReturnsBadCertificateUseNotAllowedAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_leafDigitalSignatureOnly);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUseNotAllowed));
@@ -397,12 +397,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncWeakIssuerKeyUsageReturnsBadCertificateIssuerUseNotAllowedAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_weakIssuerCa });
+            string trustedDir = await WriteStoreAsync([m_weakIssuerCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_leafUnderWeakIssuer);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(
@@ -412,13 +412,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncKeySizeBelowMinimumReturnsBadCertificatePolicyCheckFailedAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             core.MinimumCertificateKeySize = 3072;
             using CertificateCollection chain = Chain(m_leaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(
@@ -433,12 +433,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create(m_rootCa.SubjectName)
                 .AddRevokedCertificate(m_leaf)
                 .CreateForRSA(m_rootCa));
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa }, new[] { crl });
+            string trustedDir = await WriteStoreAsync([m_rootCa], [crl]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_leaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateRevoked));
@@ -448,13 +448,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncUnknownRevocationRejectedReturnsBadCertificateRevocationUnknownAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             core.RejectUnknownRevocationStatus = true;
             using CertificateCollection chain = Chain(m_leaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(
@@ -470,7 +470,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using CertificateCollection chain = Chain(m_selfSignedApp);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -491,7 +491,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     return true;
                 },
                 null,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(observed, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
@@ -507,7 +507,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 chain,
                 (_, _) => throw new InvalidOperationException("callback failure"),
                 null,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
@@ -517,20 +517,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncUsesValidatedCertificateFastPathAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             core.UseValidatedCertificates = true;
 
             using (CertificateCollection first = Chain(m_leaf))
             {
                 CertificateValidationResult firstResult = await core.ValidateAsync(
-                    first, null, null, CancellationToken.None);
+                    first, null, null, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(firstResult.IsValid, Is.True);
             }
 
             using CertificateCollection second = Chain(m_leaf);
             CertificateValidationResult secondResult = await core.ValidateAsync(
-                second, null, null, CancellationToken.None);
+                second, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(secondResult.IsValid, Is.True);
             Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -539,12 +539,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task GetIssuersAsyncWithTrustedRootReturnsTrueAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_rootCa });
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             var issuers = new List<CertificateIssuerReference>();
 
-            using Certificate leaf = Certificate.FromRawData(m_leaf.RawData);
-            bool trusted = await core.GetIssuersAsync(leaf, issuers, CancellationToken.None);
+            using var leaf = Certificate.FromRawData(m_leaf.RawData);
+            bool trusted = await core.GetIssuersAsync(leaf, issuers, CancellationToken.None).ConfigureAwait(false);
 
             try
             {
@@ -567,8 +567,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidationCore core = NewCore();
             var issuers = new List<CertificateIssuerReference>();
 
-            using Certificate app = Certificate.FromRawData(m_selfSignedApp.RawData);
-            bool trusted = await core.GetIssuersAsync(app, issuers, CancellationToken.None);
+            using var app = Certificate.FromRawData(m_selfSignedApp.RawData);
+            bool trusted = await core.GetIssuersAsync(app, issuers, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(trusted, Is.False);
             Assert.That(issuers, Is.Empty);
@@ -668,12 +668,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncEcdsaTrustedLeafReturnsSuccessAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_ecdsaTrustedLeaf });
+            string trustedDir = await WriteStoreAsync([m_ecdsaTrustedLeaf]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_ecdsaTrustedLeaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -682,12 +682,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncEcdsaWeakHashReturnsBadCertificatePolicyCheckFailedAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_ecdsaWeakHashLeaf });
+            string trustedDir = await WriteStoreAsync([m_ecdsaWeakHashLeaf]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_ecdsaWeakHashLeaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(
@@ -698,12 +698,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task ValidateAsyncEcdsaWithoutDigitalSignatureReturnsUseNotAllowedAsync()
         {
-            string trustedDir = await WriteStoreAsync(new[] { m_ecdsaNoDigitalSignatureLeaf });
+            string trustedDir = await WriteStoreAsync([m_ecdsaNoDigitalSignatureLeaf]).ConfigureAwait(false);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_ecdsaNoDigitalSignatureLeaf);
 
             CertificateValidationResult result = await core.ValidateAsync(
-                chain, null, null, CancellationToken.None);
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(
@@ -805,13 +805,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             store.Open(dir, noPrivateKeys: true);
             foreach (Certificate certificate in certificates)
             {
-                await store.AddAsync(certificate);
+                await store.AddAsync(certificate).ConfigureAwait(false);
             }
             if (crls != null)
             {
                 foreach (X509CRL crl in crls)
                 {
-                    await store.AddCRLAsync(crl);
+                    await store.AddCRLAsync(crl).ConfigureAwait(false);
                 }
             }
             return dir;

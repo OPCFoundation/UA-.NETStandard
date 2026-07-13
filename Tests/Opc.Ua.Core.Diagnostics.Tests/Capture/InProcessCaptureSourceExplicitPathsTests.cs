@@ -27,15 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Pcap.Bindings;
-using Opc.Ua.Pcap.Capture.Sources;
-using Opc.Ua.Pcap.Models;
-
 using Opc.Ua.Bindings;
+using Opc.Ua.Pcap.Bindings;
+using Opc.Ua.Pcap.Capture;
+using Opc.Ua.Pcap.Capture.Sources;
+using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Pcap.Models;
 
 namespace Opc.Ua.Pcap.Tests.Capture
 {
@@ -164,6 +167,110 @@ namespace Opc.Ua.Pcap.Tests.Capture
             Assert.That(File.Exists(nestedKeys), Is.True);
 
             await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+        [Test]
+        public void ConstructorRejectsNullRegistry()
+        {
+            Assert.That(
+                () => new InProcessClientCaptureSource(null!),
+                Throws.TypeOf<System.ArgumentNullException>().With.Property("ParamName").EqualTo("registry"));
+        }
+
+        [Test]
+        public async Task StartAsyncRejectsNullAndMissingSessionFolder()
+        {
+            var registry = new ChannelCaptureRegistry();
+            await using var source = new InProcessClientCaptureSource(registry);
+
+            Assert.That(
+                async () => await source.StartAsync(null!, CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>().With.Property("ParamName").EqualTo("request"));
+            Assert.That(
+                async () => await source.StartAsync(new StartCaptureRequest(), CancellationToken.None)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<PcapDiagnosticsException>().With.Message.Contains("sessionFolder"));
+        }
+
+        [Test]
+        public async Task StartAsyncTwiceThrowsAndStopAsyncIsIdempotent()
+        {
+            var registry = new ChannelCaptureRegistry();
+            await using var source = new InProcessClientCaptureSource(registry);
+            await source.StartAsync(
+                new StartCaptureRequest
+                {
+                    SessionFolder = TempDirectory
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await source.StartAsync(
+                    new StartCaptureRequest
+                    {
+                        SessionFolder = TempDirectory
+                    },
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<PcapDiagnosticsException>().With.Message.Contains("cannot be started twice"));
+
+            await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task FrameSinkWritesSentAndReceivedFramesToPcap()
+        {
+            var registry = new ChannelCaptureRegistry();
+            await using var source = new InProcessServerCaptureSource(registry);
+            await source.StartAsync(
+                new StartCaptureRequest
+                {
+                    SessionFolder = TempDirectory
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            var sink = (IFrameCaptureSink)source;
+            sink.OnFrameSent(0x11111111, new byte[] { 1, 2, 3 });
+            sink.OnFrameReceived(0x22222222, new byte[] { 4, 5 });
+            sink.OnFrameReceived(0x33333333, ReadOnlySpan<byte>.Empty);
+
+            await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            List<CaptureFrame> frames = await PcapTestHelpers.ToListAsync(
+                source.ReadCapturedFramesAsync(maxFrames: 2, CancellationToken.None)).ConfigureAwait(false);
+
+            Assert.That(registry.CurrentObserver, Is.Null);
+            Assert.That(source.FrameCount, Is.EqualTo(2));
+            Assert.That(source.ByteCount, Is.EqualTo(5));
+            Assert.That(frames, Has.Count.EqualTo(2));
+            Assert.That(frames[0].Data.Length, Is.GreaterThan(3));
+            Assert.That(frames[1].Data.Length, Is.GreaterThan(2));
+        }
+
+        [Test]
+        public async Task MaxFramesCapClearsObserverButFlushesQueuedFrame()
+        {
+            var registry = new ChannelCaptureRegistry();
+            await using var source = new InProcessClientCaptureSource(registry);
+            await source.StartAsync(
+                new StartCaptureRequest
+                {
+                    SessionFolder = TempDirectory,
+                    MaxFrames = 1
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            var sink = (IFrameCaptureSink)source;
+            sink.OnFrameSent(0x11111111, new byte[] { 1 });
+            sink.OnFrameSent(0x11111111, new byte[] { 2 });
+
+            await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            List<CaptureFrame> frames = await PcapTestHelpers.ToListAsync(
+                source.ReadCapturedFramesAsync(maxFrames: 1, CancellationToken.None)).ConfigureAwait(false);
+
+            Assert.That(registry.CurrentObserver, Is.Null);
+            Assert.That(source.FrameCount, Is.EqualTo(2));
+            Assert.That(source.ByteCount, Is.EqualTo(2));
+            Assert.That(frames, Has.Count.EqualTo(1));
         }
     }
 }

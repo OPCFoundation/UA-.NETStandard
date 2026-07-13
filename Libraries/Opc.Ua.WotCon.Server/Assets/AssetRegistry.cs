@@ -536,9 +536,9 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 if (td.Properties != null)
                 {
-                    var seen = new System.Collections.Generic.HashSet<string>(
-                        System.StringComparer.Ordinal);
-                    foreach (System.Collections.Generic.KeyValuePair<string, WotProperty> kv
+                    var seen = new HashSet<string>(
+                        StringComparer.Ordinal);
+                    foreach (KeyValuePair<string, WotProperty> kv
                         in td.Properties)
                     {
                         if (!TryValidateChildName(entry.Name, "property", kv.Key))
@@ -558,9 +558,9 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 if (td.Actions != null)
                 {
-                    var seen = new System.Collections.Generic.HashSet<string>(
-                        System.StringComparer.Ordinal);
-                    foreach (System.Collections.Generic.KeyValuePair<string, WotAction> kv
+                    var seen = new HashSet<string>(
+                        StringComparer.Ordinal);
+                    foreach (KeyValuePair<string, WotAction> kv
                         in td.Actions)
                     {
                         if (!TryValidateChildName(entry.Name, "action", kv.Key))
@@ -1132,9 +1132,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             return ex switch
             {
                 NotSupportedException => StatusCodes.BadNotSupported,
-                ArgumentException     => StatusCodes.BadInvalidArgument,
-                IOException           => StatusCodes.BadResourceUnavailable,
-                _                     => StatusCodes.BadInternalError
+                ArgumentException => StatusCodes.BadInvalidArgument,
+                IOException => StatusCodes.BadResourceUnavailable,
+                _ => StatusCodes.BadInternalError
             };
         }
 

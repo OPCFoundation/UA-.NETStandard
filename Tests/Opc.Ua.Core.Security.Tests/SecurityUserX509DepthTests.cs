@@ -222,8 +222,10 @@ namespace Opc.Ua.Core.Security.Tests
         {
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, securityPolicyUri).ConfigureAwait(false);
+            UserIdentity identity = await X509UserIdentityHelper
+                .CreateAsync(userCert, Telemetry).ConfigureAwait(false);
             return await ClientFixture
-                .ConnectAsync(endpoint, X509UserIdentityHelper.Create(userCert)).ConfigureAwait(false);
+                .ConnectAsync(endpoint, identity).ConfigureAwait(false);
         }
 
         private async Task<EndpointDescription> FindSecureEndpointAsync()
@@ -282,7 +284,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Ignore("Server has no TrustedIssuerCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            using Certificate issuer = Certificate.FromRawData(caCert.RawData);
+            using var issuer = Certificate.FromRawData(caCert.RawData);
             await s.AddAsync(issuer).ConfigureAwait(false);
         }
 
@@ -307,7 +309,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Ignore("Server has no TrustedUserCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            using Certificate trusted = Certificate.FromRawData(cert.RawData);
+            using var trusted = Certificate.FromRawData(cert.RawData);
             await s.AddAsync(trusted).ConfigureAwait(false);
         }
 

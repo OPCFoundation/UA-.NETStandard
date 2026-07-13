@@ -38,11 +38,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
-
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Pcap.Dissection
 {
@@ -478,16 +477,34 @@ namespace Opc.Ua.Pcap.Dissection
         private static int? GetCollectionCount(IEncodeable message, string propertyName)
         {
             object? value = message.GetType().GetProperty(propertyName)?.GetValue(message);
-            return value switch
+            if (value is ICollection collection)
             {
-                ICollection collection => collection.Count,
-                _ => null
-            };
+                return collection.Count;
+            }
+
+            if (value is IConvertableToArray)
+            {
+                var countProperty = value.GetType().GetProperty("Count");
+                if (countProperty?.CanRead == true &&
+                    countProperty.PropertyType == typeof(int) &&
+                    countProperty.GetIndexParameters().Length == 0 &&
+                    countProperty.GetValue(value) is int count)
+                {
+                    return count;
+                }
+            }
+
+            return null;
         }
 
         private static string? GetPropertyString(IEncodeable message, string propertyName)
         {
             object? value = message.GetType().GetProperty(propertyName)?.GetValue(message);
+            if (value is ViewDescription view)
+            {
+                return ViewDescription.IsDefault(view) ? "default" : view.ViewId.ToString();
+            }
+
             return value?.ToString();
         }
 

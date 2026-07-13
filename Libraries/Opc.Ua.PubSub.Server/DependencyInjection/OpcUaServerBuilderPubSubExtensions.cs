@@ -80,6 +80,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configurePubSub">Optional PubSub runtime callback.</param>
         /// <param name="configurePubSubServer">Optional PubSub server options callback.</param>
         /// <returns>An <see cref="IPubSubServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubServerBuilder AddPubSubServer(
             this IOpcUaBuilder builder,
             Action<OpcUaServerOptions> configureServer,
@@ -106,6 +107,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configuration">Root configuration.</param>
         /// <param name="configurePubSub">Optional PubSub runtime callback.</param>
         /// <returns>An <see cref="IPubSubServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IPubSubServerBuilder AddPubSubServer(
             this IOpcUaBuilder builder,
             IConfiguration configuration,
@@ -242,8 +244,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
             }
             throw new InvalidOperationException(
-                "AddPubSub(IOpcUaServerBuilder) requires the PubSub runtime to be registered first. "
-                + "Call IOpcUaBuilder.AddPubSub(...) on the same IServiceCollection before AddServer().AddPubSub().");
+                "AddPubSub(IOpcUaServerBuilder) requires the PubSub runtime to be registered first. " +
+                "Call IOpcUaBuilder.AddPubSub(...) on the same IServiceCollection before AddServer().AddPubSub().");
         }
 
         private static void EnsureFirstRegistration(IServiceCollection services)

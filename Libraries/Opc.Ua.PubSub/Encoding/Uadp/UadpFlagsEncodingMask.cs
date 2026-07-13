@@ -110,7 +110,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </param>
         /// <param name="flags">Flag set to combine with the version.</param>
         /// <returns>The combined header byte.</returns>
-        public static byte Combine(byte version, UadpFlagsEncodingMask flags)
+        public static byte Combine(this byte version, UadpFlagsEncodingMask flags)
         {
             return (byte)((version & VersionMask) | ((byte)flags & FlagsMask));
         }
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// nibble and the <see cref="UadpHeaderByteParts.Flags"/> set in
         /// the high nibble.
         /// </returns>
-        public static UadpHeaderByteParts Split(byte raw)
+        public static UadpHeaderByteParts Split(this byte raw)
         {
             return new UadpHeaderByteParts(
                 (byte)(raw & VersionMask),

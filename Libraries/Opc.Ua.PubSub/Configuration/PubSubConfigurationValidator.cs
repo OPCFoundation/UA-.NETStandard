@@ -87,6 +87,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="configuration">Configuration to validate.</param>
         /// <returns>The aggregated <see cref="PubSubConfigurationValidationResult"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PubSubConfigurationValidationResult Validate(
             PubSubConfigurationDataType configuration)
         {
@@ -434,8 +435,8 @@ namespace Opc.Ua.PubSub.Configuration
             string writerPath,
             List<PubSubConfigurationIssue> issues)
         {
-            if (((DataSetFieldContentMask)writer.DataSetFieldContentMask
-                & DataSetFieldContentMask.RawData) == 0)
+            if (((DataSetFieldContentMask)writer.DataSetFieldContentMask &
+                DataSetFieldContentMask.RawData) == 0)
             {
                 return;
             }
@@ -457,8 +458,8 @@ namespace Opc.Ua.PubSub.Configuration
                 bool isVariableLengthScalar =
                     field.ValueRank == ValueRanks.Scalar &&
                     (builtIn == BuiltInType.String ||
-                     builtIn == BuiltInType.ByteString ||
-                     builtIn == BuiltInType.XmlElement);
+                        builtIn == BuiltInType.ByteString ||
+                        builtIn == BuiltInType.XmlElement);
                 bool needsArrayDimensions =
                     field.ValueRank > 0 &&
                     (field.ArrayDimensions.IsNull || field.ArrayDimensions.Count == 0);
@@ -658,8 +659,8 @@ namespace Opc.Ua.PubSub.Configuration
                         issues.Add(new PubSubConfigurationIssue(
                             PubSubConfigurationIssueSeverity.Warning,
                             IssueCodes.SecurityModeInvalid,
-                            "SecurityMode is unset (Invalid) and is treated as None; "
-                                + "configure an explicit SecurityMode to silence this warning.",
+                            "SecurityMode is unset (Invalid) and is treated as None; " +
+                            "configure an explicit SecurityMode to silence this warning.",
                             path,
                             SpecClauses.PubSubSecurity));
                     }
@@ -727,18 +728,18 @@ namespace Opc.Ua.PubSub.Configuration
         {
             if (string.Equals(profile, Profiles.PubSubUdpUadpTransport, StringComparison.Ordinal))
             {
-                return new[] { (PubSubUdpScheme, "UDP unicast / multicast") };
+                return [(PubSubUdpScheme, "UDP unicast / multicast")];
             }
             if (string.Equals(profile, Profiles.PubSubMqttUadpTransport, StringComparison.Ordinal) ||
                 string.Equals(profile, Profiles.PubSubMqttJsonTransport, StringComparison.Ordinal))
             {
-                return new[]
-                {
+                return
+                [
                     (PubSubMqttScheme, "MQTT"),
                     (PubSubMqttsScheme, "MQTT over TLS")
-                };
+                ];
             }
-            return Array.Empty<(string, string)>();
+            return [];
         }
 
         private readonly HashSet<string> m_registeredTransportProfileUris;

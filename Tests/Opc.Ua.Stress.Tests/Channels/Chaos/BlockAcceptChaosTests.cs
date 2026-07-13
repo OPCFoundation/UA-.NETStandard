@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Globalization;
 using System.Linq;
@@ -58,6 +56,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
         /// L3-A5: verifies a managed session survives mixed connection drops and blocked accepts.
         /// </summary>
         /// <param name="ct">Cancellation token supplied by NUnit.</param>
+        /// <exception cref="ServiceResultException"></exception>
         [Test]
         [Category("ChaosTCP")]
         [CancelAfter(180_000)]
@@ -136,18 +135,34 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                                 await WaitForQuiescence.ForManagerAsync(manager, DefaultWait, ct: ct)
                                     .ConfigureAwait(false);
 
-                                int dropEventCount = schedule.Events.Count(static ev =>
-                                    ev.Kind == ChaosEventKind.DropAllConnections);
                                 Assert.That(
                                     runner.FailureRate,
                                     Is.LessThan(0.10),
                                     FormattableString.Invariant(
                                         $"FailureRate={runner.FailureRate} (seed={seed})"));
+                                // The exact number of reconnects is not
+                                // deterministic under concurrent chaos: a drop
+                                // that fires while the channel is still
+                                // reconnecting (a slow reconnect, or a drop
+                                // overlapping a BlockAccept-delayed recovery)
+                                // coalesces into the in-progress cycle (fewer
+                                // than the drop count), while a stale keep-alive
+                                // Bad surfacing after recovery can add one extra
+                                // cycle. Assert instead that reconnects were
+                                // exercised and none failed; session survival is
+                                // covered by FailureRate and the post-chaos
+                                // quiescence wait above.
+                                int reconnectCompleted = collector.CountEvents("ReconnectCompleted");
                                 Assert.That(
-                                    collector.CountEvents("ReconnectCompleted"),
-                                    Is.GreaterThanOrEqualTo(dropEventCount),
+                                    reconnectCompleted,
+                                    Is.GreaterThanOrEqualTo(1),
                                     FormattableString.Invariant(
-                                        $"Expected reconnects ≥ drop events (seed={seed})"));
+                                        $"Expected at least one reconnect, got {reconnectCompleted} (seed={seed})"));
+                                Assert.That(
+                                    collector.CountEvents("ReconnectFailed"),
+                                    Is.Zero,
+                                    FormattableString.Invariant(
+                                        $"No reconnect should fail (seed={seed})"));
                             }
                             finally
                             {

@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests
         {
             // endTime < startTime exercises the TimeFlowsBackward branches in the base class.
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 12);
-            DateTimeUtc endTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            var endTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
             var configuration = new AggregateConfiguration
             {
                 TreatUncertainAsBad = false,

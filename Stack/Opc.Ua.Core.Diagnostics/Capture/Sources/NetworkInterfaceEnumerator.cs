@@ -34,8 +34,6 @@ using System.Linq;
 using Opc.Ua.Pcap.Models;
 using SharpPcap.LibPcap;
 
-using Opc.Ua.Bindings;
-
 namespace Opc.Ua.Pcap.Capture.Sources
 {
     /// <summary>
@@ -58,9 +56,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
         {
             try
             {
-                return LibPcapLiveDeviceList.Instance
-                    .Select(CreateInfo)
-                    .ToArray();
+                return [.. LibPcapLiveDeviceList.Instance.Select(CreateInfo)];
             }
             catch (Exception ex) when (ex is not PcapDiagnosticsException)
             {

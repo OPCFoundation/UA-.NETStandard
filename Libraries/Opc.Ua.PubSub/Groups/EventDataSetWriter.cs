@@ -56,7 +56,6 @@ namespace Opc.Ua.PubSub.Groups
     /// </remarks>
     public sealed class EventDataSetWriter
     {
-        private readonly EventPublishedDataSet m_publishedDataSet;
         private readonly TimeProvider m_timeProvider;
         private uint m_sequenceNumber;
 
@@ -84,7 +83,7 @@ namespace Opc.Ua.PubSub.Groups
                 throw new ArgumentNullException(nameof(publishedDataSet));
             }
             Configuration = configuration;
-            m_publishedDataSet = publishedDataSet;
+            PublishedDataSet = publishedDataSet;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             EncodingProfile = encodingProfile ?? Profiles.PubSubUdpUadpTransport;
             Name = configuration.Name ?? string.Empty;
@@ -110,7 +109,7 @@ namespace Opc.Ua.PubSub.Groups
         /// <summary>
         /// Linked published event dataset.
         /// </summary>
-        public EventPublishedDataSet PublishedDataSet => m_publishedDataSet;
+        public EventPublishedDataSet PublishedDataSet { get; }
 
         /// <summary>
         /// Raw writer configuration record.
@@ -134,14 +133,14 @@ namespace Opc.Ua.PubSub.Groups
             BuildEventMessagesAsync(CancellationToken cancellationToken = default)
         {
             ArrayOf<ArrayOf<DataSetField>> rows =
-                await m_publishedDataSet.SampleAsync(cancellationToken)
+                await PublishedDataSet.SampleAsync(cancellationToken)
                     .ConfigureAwait(false);
             if (rows.IsEmpty)
             {
                 return [];
             }
             var messages = new List<PubSubDataSetMessage>(rows.Count);
-            ConfigurationVersionDataType version = m_publishedDataSet
+            ConfigurationVersionDataType version = PublishedDataSet
                 .MetaData.ConfigurationVersion
                 ?? new ConfigurationVersionDataType();
             bool json = string.Equals(
@@ -152,7 +151,7 @@ namespace Opc.Ua.PubSub.Groups
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 uint seq = ++m_sequenceNumber;
-                DateTimeUtc now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
+                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
                 if (json)
                 {
                     messages.Add(new JsonDataSetMessageV2

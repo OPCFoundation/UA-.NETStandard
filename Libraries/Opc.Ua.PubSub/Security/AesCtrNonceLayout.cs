@@ -78,8 +78,8 @@ namespace Opc.Ua.PubSub.Security
         public const int PublisherIdLength = 8;
 
         /// <summary>
-        /// Writes the 12-byte nonce <c>[messageRandom (4 BE) ||
-        /// messageSequenceNumber (8 LE)]</c> into
+        /// Writes the 12-byte nonce <code>[messageRandom (4 BE) ||
+        /// messageSequenceNumber (8 LE)]</code> into
         /// <paramref name="nonce"/>.
         /// </summary>
         /// <param name="messageRandom">Per-message random value.</param>
@@ -87,6 +87,7 @@ namespace Opc.Ua.PubSub.Security
         /// Monotonic per-key message sequence number.
         /// </param>
         /// <param name="nonce">Destination span (must be 12 bytes).</param>
+        /// <exception cref="ArgumentException"></exception>
         public static void Build(
             uint messageRandom,
             ulong messageSequenceNumber,
@@ -99,7 +100,7 @@ namespace Opc.Ua.PubSub.Security
                     nameof(nonce));
             }
             BinaryPrimitives.WriteUInt32BigEndian(
-                nonce.Slice(0, MessageRandomLength),
+                nonce[..MessageRandomLength],
                 messageRandom);
             BinaryPrimitives.WriteUInt64LittleEndian(
                 nonce.Slice(MessageRandomLength, SequenceNumberLength),
@@ -112,6 +113,7 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="nonce">Source span (must be 12 bytes).</param>
         /// <returns>The parsed components.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public static AesCtrNonceComponents Parse(
             ReadOnlySpan<byte> nonce)
         {
@@ -122,7 +124,7 @@ namespace Opc.Ua.PubSub.Security
                     nameof(nonce));
             }
             uint messageRandom = BinaryPrimitives.ReadUInt32BigEndian(
-                nonce.Slice(0, MessageRandomLength));
+                nonce[..MessageRandomLength]);
             ulong messageSequenceNumber = BinaryPrimitives.ReadUInt64LittleEndian(
                 nonce.Slice(MessageRandomLength, SequenceNumberLength));
             return new AesCtrNonceComponents(messageRandom, messageSequenceNumber);
@@ -191,7 +193,7 @@ namespace Opc.Ua.PubSub.Security
             written = SystemEncoding.UTF8.GetBytes(value.AsSpan(), buffer);
             if (written < PublisherIdLength)
             {
-                buffer.Slice(written).Clear();
+                buffer[written..].Clear();
             }
 #else
             byte[] utf8 = SystemEncoding.UTF8.GetBytes(value);
@@ -199,7 +201,7 @@ namespace Opc.Ua.PubSub.Security
             utf8.AsSpan(0, copy).CopyTo(buffer);
             if (copy < PublisherIdLength)
             {
-                buffer.Slice(copy).Clear();
+                buffer[copy..].Clear();
             }
             written = copy;
 #endif
@@ -221,7 +223,7 @@ namespace Opc.Ua.PubSub.Security
             guidBytes.AsSpan().CopyTo(buffer);
 #endif
             return BinaryPrimitives.ReadUInt64LittleEndian(
-                buffer.Slice(0, PublisherIdLength));
+                buffer[..PublisherIdLength]);
         }
 
         /// <summary>

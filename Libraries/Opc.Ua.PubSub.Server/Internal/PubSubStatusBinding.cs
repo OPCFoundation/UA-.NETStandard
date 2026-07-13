@@ -59,15 +59,15 @@ namespace Opc.Ua.PubSub.Server.Internal
     /// </remarks>
     internal sealed class PubSubStatusBinding : IDisposable
     {
-        private static readonly NodeId s_statusStateNodeId = new((uint)17406);
+        private static readonly NodeId s_statusStateNodeId = new(17406);
 
         private static readonly KeyValuePair<PubSubDiagnosticsCounterKind, NodeId>[] s_counterNodeIds =
         [
-            new(PubSubDiagnosticsCounterKind.StateOperationalByMethod, new NodeId((uint)17431)),
-            new(PubSubDiagnosticsCounterKind.StateOperationalByParent, new NodeId((uint)17436)),
-            new(PubSubDiagnosticsCounterKind.StateOperationalFromError, new NodeId((uint)17441)),
-            new(PubSubDiagnosticsCounterKind.StatePausedByParent, new NodeId((uint)17446)),
-            new(PubSubDiagnosticsCounterKind.StateDisabledByMethod, new NodeId((uint)17451))
+            new(PubSubDiagnosticsCounterKind.StateOperationalByMethod, new NodeId(17431)),
+            new(PubSubDiagnosticsCounterKind.StateOperationalByParent, new NodeId(17436)),
+            new(PubSubDiagnosticsCounterKind.StateOperationalFromError, new NodeId(17441)),
+            new(PubSubDiagnosticsCounterKind.StatePausedByParent, new NodeId(17446)),
+            new(PubSubDiagnosticsCounterKind.StateDisabledByMethod, new NodeId(17451))
         ];
 
         /// <summary>
@@ -203,10 +203,7 @@ namespace Opc.Ua.PubSub.Server.Internal
                 m_disposed = true;
             }
             m_application.State.StateChanged -= OnStateChanged;
-            if (m_stateVariable is not null)
-            {
-                m_stateVariable.OnSimpleReadValue = null;
-            }
+            m_stateVariable?.OnSimpleReadValue = null;
             foreach (BoundCounter bound in m_boundCounters)
             {
                 bound.Variable.OnSimpleReadValue = null;
@@ -216,7 +213,7 @@ namespace Opc.Ua.PubSub.Server.Internal
         private void BindCounter(BaseVariableState counter, PubSubDiagnosticsCounterKind kind)
         {
             counter.Value = Variant.From((uint)m_diagnostics.Read(kind));
-            counter.OnSimpleReadValue = (ISystemContext context, NodeState node, ref Variant value) =>
+            counter.OnSimpleReadValue = (context, node, ref value) =>
             {
                 long current = m_diagnostics.Read(kind);
                 value = Variant.From((uint)Math.Min(current, uint.MaxValue));

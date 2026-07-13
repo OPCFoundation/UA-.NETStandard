@@ -93,7 +93,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 Is.InstanceOf<DefaultSubscriptionEngineFactory>());
         }
 
-
         [Test]
         public void AddSubscriptionsAndPoolRegisterServices()
         {
@@ -224,6 +223,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     typeof(bool),
                     typeof(bool),
                     typeof(bool),
+                    typeof(bool),
+                    typeof(NetworkRedundancyOptions),
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
@@ -246,6 +247,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 false,
                 false,
                 false,
+                false,
+                null,
                 null,
                 null
             ]);

@@ -49,6 +49,9 @@ namespace Opc.Ua.Core.Security.Tests
         [OneTimeTearDown]
         public void GlobalTeardown()
         {
+            // Release the shared X509 user-identity signing provider/store so its
+            // private-key cache disposes the certificates it materialised.
+            X509UserIdentityHelper.DisposeSharedResources();
             LeakDetectionHelpers.AssertNoCertificateLeaks();
         }
     }

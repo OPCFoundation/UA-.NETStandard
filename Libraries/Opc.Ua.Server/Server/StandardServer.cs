@@ -82,6 +82,37 @@ namespace Opc.Ua.Server
         protected TimeProvider TimeProvider { get; }
 
         /// <summary>
+        /// Gets or sets the optional redundant server-set provider consulted by
+        /// <c>FindServers</c>.
+        /// </summary>
+        public IRedundantServerSetProvider? RedundantServerSetProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the optional load-direction seam consulted by
+        /// <c>GetEndpoints</c> to direct a Client to a peer Server (extension
+        /// beyond OPC 10000-4 §6.6; opt-in and gated).
+        /// </summary>
+        public IGetEndpointsDirector? GetEndpointsDirector { get; set; }
+
+        /// <summary>
+        /// An optional subscription store used to persist subscriptions and (for high
+        /// availability) restore monitored-item queues. When <c>null</c> (the default) no
+        /// subscription persistence is used unless a subclass overrides
+        /// <see cref="CreateSubscriptionStore"/>. Set this before the server starts (the
+        /// hosting layer wires it from dependency injection).
+        /// </summary>
+        public ISubscriptionStore? SubscriptionStore { get; set; }
+
+        /// <summary>
+        /// An optional monitored-item queue factory. When <c>null</c> (the default) the
+        /// built-in <see cref="Server.MonitoredItemQueueFactory"/> is used unless a
+        /// subclass overrides <see cref="CreateMonitoredItemQueueFactory"/>. Set this before
+        /// the server starts (the hosting layer wires it from dependency injection) to plug in
+        /// a custom factory, e.g. a shared-store mirror for high availability.
+        /// </summary>
+        public IMonitoredItemQueueFactory? MonitoredItemQueueFactory { get; set; }
+
+        /// <summary>
         /// The deterministic admission-control options used when no
         /// <see cref="RateLimiterProvider"/> is supplied. Rate limiting is ON by
         /// default with conservative limits; set this before the server starts to
@@ -246,6 +277,8 @@ namespace Opc.Ua.Server
                     // add to list of servers to return.
                     servers.Add(application);
                 }
+
+                AddRedundantServerSetDescriptions(serverUris, uniqueServers, servers);
             }
             finally
             {
@@ -257,6 +290,32 @@ namespace Opc.Ua.Server
                 ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
                 Servers = servers
             };
+        }
+
+        private void AddRedundantServerSetDescriptions(
+            ArrayOf<string> serverUris,
+            Dictionary<string, ApplicationDescription> uniqueServers,
+            List<ApplicationDescription> servers)
+        {
+            IRedundantServerSetProvider? provider = RedundantServerSetProvider;
+            if (provider == null)
+            {
+                return;
+            }
+
+            foreach (ApplicationDescription peer in provider.GetRedundantServerSet())
+            {
+                string? applicationUri = peer.ApplicationUri;
+                if (string.IsNullOrEmpty(applicationUri) ||
+                    uniqueServers.ContainsKey(applicationUri) ||
+                    (serverUris.Count > 0 && !serverUris.Contains(uri => uri == applicationUri)))
+                {
+                    continue;
+                }
+
+                uniqueServers.Add(applicationUri, peer);
+                servers.Add(peer);
+            }
         }
 
         /// <inheritdoc/>
@@ -284,6 +343,21 @@ namespace Opc.Ua.Server
             finally
             {
                 m_semaphoreSlim.Release();
+            }
+
+            // consult the optional load-direction seam; when it directs the
+            // Client to a peer it replaces the local endpoints (extension
+            // beyond OPC 10000-4 §6.6; opt-in and gated).
+            IGetEndpointsDirector? director = GetEndpointsDirector;
+            if (director != null)
+            {
+                (bool redirect, ArrayOf<EndpointDescription> directed) = await director
+                    .TryGetDirectedEndpointsAsync(endpointUrl, endpoints, requestLifetime.CancellationToken)
+                    .ConfigureAwait(false);
+                if (redirect)
+                {
+                    endpoints = directed;
+                }
             }
 
             return new GetEndpointsResponse
@@ -394,7 +468,6 @@ namespace Opc.Ua.Server
             ByteString serverNonce;
             ByteString serverCertificate = default;
             ArrayOf<EndpointDescription> serverEndpoints = default;
-            SignatureData? serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = await ValidateRequestAsync(
@@ -607,7 +680,7 @@ namespace Opc.Ua.Server
 
                 // The acquired certificate entry is a caller-owned ref-counted handle, so rotation cannot
                 // dispose the X509Certificate2 core while the signature is created outside the server lock.
-                serverSignature = CreateSessionServerSignature(
+                SignatureData? serverSignature = CreateSessionServerSignature(
                     context,
                     instanceCertificate,
                     parsedClientCertificate,
@@ -3271,6 +3344,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException">
         /// The server is too busy to admit the operation.
         /// </exception>
+        /// <exception cref="ServerBusyException"></exception>
         private IDisposable? BeginSessionEstablishmentOrThrow()
         {
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
@@ -3505,6 +3579,11 @@ namespace Opc.Ua.Server
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
                 ServerInternal.SetModellingRulesManager(
                     await CreateModellingRulesManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
+
+                // create the manager responsible for conformance units / server profiles.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateConformanceUnitsManager.");
+                ServerInternal.SetConformanceUnitsManager(
+                    await CreateConformanceUnitsManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // start the session manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
@@ -4087,6 +4166,45 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the conformance units manager used by the server.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation aggregates the conformance units and
+        /// server profiles from every registered node manager implementing
+        /// <see cref="IConformanceContributor"/> and publishes them to the
+        /// address space. Servers that advertise a fixed set may override this to
+        /// register additional units before publishing.
+        /// </remarks>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation Token</param>
+        /// <returns>The manager.</returns>
+        protected virtual async ValueTask<ConformanceUnitsManager> CreateConformanceUnitsManagerAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            var manager = new ConformanceUnitsManager(server);
+
+            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
+            {
+                // A natively-async node manager is the contributor itself; a
+                // wrapped synchronous node manager exposes it through its
+                // SyncNodeManager. Honour either shape.
+                if ((nodeManager as IConformanceContributor
+                    ?? nodeManager.SyncNodeManager as IConformanceContributor)
+                    is IConformanceContributor contributor)
+                {
+                    manager.Register(contributor);
+                }
+            }
+
+            await manager.PublishAsync(cancellationToken).ConfigureAwait(false);
+
+            return manager;
+        }
+
+        /// <summary>
         /// Creates the resource manager for the server.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -4183,6 +4301,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// An optional factory used to build the server's session manager. When
+        /// <c>null</c> (the default), the built-in <see cref="SessionManager"/>
+        /// is used. Set this before the server starts (the hosting layer wires
+        /// it from dependency injection) to plug in a custom session manager,
+        /// e.g. a distributed one for high availability.
+        /// </summary>
+        public ISessionManagerFactory? SessionManagerFactory { get; set; }
+
+        /// <summary>
         /// Creates the role manager for the server before the RoleSet address space is bound.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -4205,7 +4332,27 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
+            if (SessionManagerFactory != null)
+            {
+                return SessionManagerFactory.Create(
+                    server, configuration, TimeProvider, GetInstanceCertificateForPolicy);
+            }
             return new SessionManager(server, configuration, TimeProvider);
+        }
+
+        /// <summary>
+        /// Resolves the server's instance certificate for a security policy URI,
+        /// for use by a custom session manager factory.
+        /// </summary>
+        private Certificate? GetInstanceCertificateForPolicy(string securityPolicyUri)
+        {
+            // Acquire a caller-owned handle for the policy's instance certificate
+            // and return an independent ref-counted handle to the session manager,
+            // which disposes it after the restored session takes its own reference
+            // (the Session constructor AddRefs the server certificate).
+            using CertificateEntry? entry = CertificateManager?
+                .AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri);
+            return entry?.Certificate?.AddRef();
         }
 
         /// <summary>
@@ -4231,7 +4378,8 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new MonitoredItemQueueFactory(MessageContext.Telemetry);
+            return MonitoredItemQueueFactory
+                ?? new MonitoredItemQueueFactory(MessageContext.Telemetry);
         }
 
         /// <summary>
@@ -4244,7 +4392,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return null;
+            return SubscriptionStore;
         }
 
         /// <summary>

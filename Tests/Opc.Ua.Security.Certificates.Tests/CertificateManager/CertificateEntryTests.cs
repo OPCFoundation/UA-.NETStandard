@@ -255,7 +255,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             snapshot.Dispose();
             // A second dispose hits the early-return guard and must not throw.
-            Assert.That(() => snapshot.Dispose(), Throws.Nothing);
+            Assert.That(snapshot.Dispose, Throws.Nothing);
 
             // The source entry remains usable after the snapshot is disposed.
             Assert.That(entry.Certificate.RawData, Is.EqualTo(cert.RawData));

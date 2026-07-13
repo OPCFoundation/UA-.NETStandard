@@ -37,6 +37,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
+#if NET10_0_OR_GREATER
+using Opc.Ua.Pcap.Capture;
+#endif
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
@@ -162,6 +165,19 @@ namespace Quickstarts
                 // create the server.
                 Server ??= m_factory(m_telemetry);
 
+#if NET10_0_OR_GREATER
+                // Opt-in diagnostics: when OPCUA_PCAP_FILE / OPCUA_KEYLOGFILE are
+                // set, install server-side pcap capture into the transport
+                // bindings before the listeners open. Mirrors the client env-var
+                // path and honours the same variables; a complete no-op (nothing
+                // installed, no files written) when the variables are unset.
+                // The pcap capture package targets net8.0+ only.
+                m_pcapCapture = await PcapServerCapture.TryStartFromEnvironmentAsync(
+                    Server!.TransportBindings,
+                    m_telemetry.LoggerFactory,
+                    ct).ConfigureAwait(false);
+#endif
+
                 // start the server
                 await Application.StartAsync(Server, ct).ConfigureAwait(false);
 
@@ -210,6 +226,15 @@ namespace Quickstarts
                     // Stop server and dispose
                     await server.StopAsync(ct).ConfigureAwait(false);
                 }
+
+#if NET10_0_OR_GREATER
+                // Stop any env-var-driven pcap capture installed at start.
+                if (m_pcapCapture != null)
+                {
+                    await m_pcapCapture.DisposeAsync().ConfigureAwait(false);
+                    m_pcapCapture = null;
+                }
+#endif
 
                 ExitCode = ExitCode.Ok;
             }
@@ -360,5 +385,8 @@ namespace Quickstarts
         private readonly ILogger m_logger;
         private Task m_status = Task.CompletedTask;
         private DateTime m_lastEventTime;
+#if NET10_0_OR_GREATER
+        private IAsyncDisposable? m_pcapCapture;
+#endif
     }
 }

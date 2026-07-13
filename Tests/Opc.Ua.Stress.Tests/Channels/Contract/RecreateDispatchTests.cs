@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -124,6 +122,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
 
             private readonly TaskCompletionSource<bool> m_recreateInvoked = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_reconnectInvocationCount;
             private int m_recreateInvocationCount;
         }

@@ -1062,6 +1062,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
 
             DateTime resumeLocal = resumeAt;
+            DateTime lastEmitted = DateTime.MinValue;
+            bool capReached = false;
             foreach (KeyValuePair<DateTime, DataValue> entry in source)
             {
                 if (request.IsForward)
@@ -1095,13 +1097,18 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                 }
 
-                output.Add(new HistoricalDataValue(CloneValue(entry.Value)));
-                DateTime lastEmitted = entry.Key;
-
-                if (output.Count >= cap)
+                // The page is already full and here is another qualifying in-window value:
+                // this is the proof that more data remains, so page now with a resume token.
+                // Deferring the token until the next value is seen avoids emitting a spurious
+                // ContinuationPoint on the final page (OPC UA Part 11; CTT HA Read Raw 008/009).
+                if (capReached)
                 {
                     return new HistorianPage<HistoricalDataValue>(output, EncodeTimestamp(lastEmitted));
                 }
+
+                output.Add(new HistoricalDataValue(CloneValue(entry.Value)));
+                lastEmitted = entry.Key;
+                capReached = output.Count >= cap;
             }
 
             return new HistorianPage<HistoricalDataValue>(output);

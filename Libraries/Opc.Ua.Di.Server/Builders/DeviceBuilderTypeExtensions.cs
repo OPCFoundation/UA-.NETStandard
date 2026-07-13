@@ -93,7 +93,7 @@ namespace Opc.Ua.Di.Server.Builders
         }
 
         internal static T AddTypedInstance<TDevice, T>(
-            IDeviceBuilder<TDevice> device,
+            this IDeviceBuilder<TDevice> device,
             QualifiedName browseName,
             Func<NodeState, T> factory,
             Action<T>? configure)

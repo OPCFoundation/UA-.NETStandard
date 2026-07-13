@@ -1406,11 +1406,13 @@ namespace Opc.Ua
 
                         return default;
                     case DataTypes.BaseDataType:
-                        if (typeInfo.BuiltInType != BuiltInType.Variant)
-                        {
-                            return typeInfo;
-                        }
-                        break;
+                        // Every value is an instance of BaseDataType. This includes
+                        // Variant collections whose individual elements are themselves
+                        // arrays or matrices (e.g. a Variant array containing a
+                        // StatusCode[] element). Such nested collections must not be
+                        // rejected, so accept the value here instead of falling through
+                        // to the per-element scalar validation below.
+                        return typeInfo;
                 }
             }
 

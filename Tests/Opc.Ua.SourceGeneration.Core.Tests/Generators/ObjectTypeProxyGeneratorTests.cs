@@ -403,6 +403,37 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void EmitMethodWithDeclarationBackedInputUsesDeclarationArguments()
+        {
+            MethodDesign declaration = CreateMethod(
+                "AdjustDeclaration",
+                inputs:
+                [
+                    CreateParameter("setpoint", BasicDataType.Float)
+                ]);
+            MethodDesign method = CreateMethod("Adjust");
+            method.MethodDeclarationNode = declaration;
+            ObjectTypeDesign objectType = CreateObjectType("ControllerType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            using var stream = new MemoryStream();
+            m_mockFileSystem
+                .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
+                .Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain(
+                    "public async global::System.Threading.Tasks.ValueTask AdjustAsync("));
+                Assert.That(content, Does.Contain("float setpoint"));
+                Assert.That(content, Does.Contain("global::Opc.Ua.Variant.From(setpoint)"));
+            });
+        }
+
+        [Test]
         public void Emit_RootObjectType_DerivesFromObjectTypeClient()
         {
             // An ObjectType with no parent (BaseTypeNode == null) inherits

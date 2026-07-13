@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using Opc.Ua.PubSub.Security.Policies;
 
 namespace Opc.Ua.PubSub.Security.Sks
@@ -138,19 +137,25 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <see cref="InvalidOperationException"/> when a packed key
         /// has the wrong length for the resolved policy.
         /// </remarks>
-        public ArrayOf<PubSubSecurityKey> Unpacked
+        public ArrayOf<PubSubSecurityKey> Unpacked =>
+            m_unpacked ??= UnpackKeys(DateTimeUtc.From(DateTime.UtcNow));
+
+        /// <summary>
+        /// Unpacks the response using the supplied time provider to timestamp the keys.
+        /// </summary>
+        /// <param name="timeProvider">The time source used for key issue timestamps.</param>
+        /// <returns>The unpacked security keys.</returns>
+        internal ArrayOf<PubSubSecurityKey> Unpack(TimeProvider timeProvider)
         {
-            get
+            if (timeProvider is null)
             {
-                if (!m_unpacked.HasValue)
-                {
-                    m_unpacked = UnpackKeys();
-                }
-                return m_unpacked.Value;
+                throw new ArgumentNullException(nameof(timeProvider));
             }
+
+            return UnpackKeys(DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime));
         }
 
-        private ArrayOf<PubSubSecurityKey> UnpackKeys()
+        private ArrayOf<PubSubSecurityKey> UnpackKeys(DateTimeUtc issuedAt)
         {
             IPubSubSecurityPolicy? policy =
                 PubSubSecurityPolicyRegistry.GetByUri(SecurityPolicyUri);
@@ -166,12 +171,12 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 return [];
             }
-            DateTimeUtc issuedAt = DateTimeUtc.From(DateTime.UtcNow);
             var unpacked = new PubSubSecurityKey[Keys.Count];
             for (int i = 0; i < Keys.Count; i++)
             {
-                byte[] packed = Keys[i] ?? throw new InvalidOperationException(
-                    "Packed key material must not be null.");
+                byte[] packed = Keys[i] ??
+                    throw new InvalidOperationException(
+                        "Packed key material must not be null.");
                 if (packed.Length != totalLength)
                 {
                     throw new InvalidOperationException(

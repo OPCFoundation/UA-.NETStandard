@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 DateTime ts = HarnessFixture.BaseTime.AddSeconds(i);
                 samples.Add(new DataValue(new Variant((double)i), StatusCodes.Good, ts, ts));
             }
-            await h.Provider.InsertAsync(context, nodeId, samples, CancellationToken.None);
+            await h.Provider.InsertAsync(context, nodeId, samples, CancellationToken.None).ConfigureAwait(false);
 
             // Annotations: 3 in [0,10) s, 1 in [10,20) s, 0 in [20,30) s.
             var annotations = new List<Annotation>
@@ -299,7 +299,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new() { Message = "c", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(8) },
                 new() { Message = "d", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(15) }
             };
-            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None);
+            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None).ConfigureAwait(false);
 
             BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadProcessedDetails
@@ -318,7 +318,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
                 ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
-                result, CancellationToken.None);
+                result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -370,7 +370,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, bareProvider.Object, node, nodeToRead, details,
                 ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
-                result, CancellationToken.None);
+                result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
         }
@@ -390,7 +390,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new() { Message = "y", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(2) },
                 new() { Message = "z", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(3) }
             };
-            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None);
+            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None).ConfigureAwait(false);
 
             BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadProcessedDetails
@@ -409,7 +409,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
                 ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
-                result, CancellationToken.None);
+                result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -436,7 +436,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new() { Message = "c", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(8) },
                 new() { Message = "d", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(15) }
             };
-            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None);
+            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None).ConfigureAwait(false);
 
             BaseDataVariableState node = CreateVariable(nodeId);
             var details = new ReadProcessedDetails
@@ -455,7 +455,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
                 ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
-                result, CancellationToken.None);
+                result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
@@ -496,7 +496,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
                 ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
-                result, CancellationToken.None);
+                result, CancellationToken.None).ConfigureAwait(false);
 
             // §5.4.3.20: empty interval count is 0 with Good/Calculated status (never Bad_NoData).
             Assert.That(ServiceResult.IsGood(error), Is.True);

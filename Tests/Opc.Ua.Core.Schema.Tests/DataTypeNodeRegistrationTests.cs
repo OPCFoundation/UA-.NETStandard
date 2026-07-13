@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 
 namespace Opc.Ua.Schema.Tests
@@ -86,6 +87,23 @@ namespace Opc.Ua.Schema.Tests
             var registry = new DataTypeDefinitionRegistry();
 
             Assert.That(registry.TryAddDataType(node), Is.False);
+        }
+
+        [Test]
+        public void TryAddDataTypeThrowsForNullArguments()
+        {
+            var registry = new DataTypeDefinitionRegistry();
+            var node = new DataTypeNode();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => DataTypeDefinitionRegistryExtensions.TryAddDataType(null!, node),
+                    Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("registry"));
+                Assert.That(
+                    () => registry.TryAddDataType(null!),
+                    Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("node"));
+            });
         }
     }
 }

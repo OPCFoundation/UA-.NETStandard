@@ -157,7 +157,9 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
         }
 
         private readonly PubSubPcapEnvironmentOptions m_options;
+#pragma warning disable IDE0052 // Kept to document the injected logger factory that owns manager/logger creation.
         private readonly ILoggerFactory? m_loggerFactory;
+#pragma warning restore IDE0052
         private readonly ILogger? m_logger;
         private readonly PubSubCaptureSessionManager m_manager;
         private IPubSubCaptureSource? m_source;

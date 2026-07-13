@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Security;
@@ -51,6 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Security
     {
         private const string UdpProfile =
             "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+
         private const string DemoGroup = "DemoSecurityGroup";
 
         [Test]
@@ -206,7 +206,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .WrapAsync(prefix, plaintext, context.WrapOptions)
                 .ConfigureAwait(false);
 
-            ReadOnlyMemory<byte> body = wrapped.Slice(prefix.Length);
+            ReadOnlyMemory<byte> body = wrapped[prefix.Length..];
 
             Assert.Multiple(() =>
             {

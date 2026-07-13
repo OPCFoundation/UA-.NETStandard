@@ -85,7 +85,7 @@ namespace OpcUaPubSubJsonTests
             ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
                 .ConfigureAwait(false);
 
-            using JsonDocument doc = JsonDocument.Parse(bytes);
+            using var doc = JsonDocument.Parse(bytes);
             JsonElement root = doc.RootElement;
             Assert.That(root.TryGetProperty("Messages", out JsonElement messages), Is.True);
             Assert.That(messages.ValueKind, Is.EqualTo(JsonValueKind.Object),
@@ -210,7 +210,7 @@ namespace OpcUaPubSubJsonTests
 
             var asJson = decoded as JsonNetworkMessage;
             Assert.That(asJson, Is.Not.Null);
-            JsonDataSetMessage rt = (JsonDataSetMessage)asJson!.DataSetMessages[0];
+            var rt = (JsonDataSetMessage)asJson!.DataSetMessages[0];
             Assert.That(rt.DataSetWriterId, Is.EqualTo(7));
             Assert.That(((DataSetField[]?)rt.Fields) ?? [], Has.Length.EqualTo(3));
         }

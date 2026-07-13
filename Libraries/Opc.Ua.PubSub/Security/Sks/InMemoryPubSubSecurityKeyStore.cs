@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// </summary>
     public sealed class InMemoryPubSubSecurityKeyStore : IPubSubSecurityKeyStore
     {
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<string, SksSecurityGroup> m_groups = new(StringComparer.Ordinal);
 
         /// <inheritdoc/>
@@ -66,7 +66,9 @@ namespace Opc.Ua.PubSub.Security.Sks
         }
 
         /// <inheritdoc/>
-        public ValueTask SaveSecurityGroupAsync(SksSecurityGroup group, CancellationToken cancellationToken = default)
+        public ValueTask SaveSecurityGroupAsync(
+            SksSecurityGroup group,
+            CancellationToken cancellationToken = default)
         {
             if (group is null)
             {
@@ -79,6 +81,15 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
 
             return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SaveSecurityGroupAsync(
+            SksSecurityGroup group,
+            long fencingToken,
+            CancellationToken cancellationToken = default)
+        {
+            return SaveSecurityGroupAsync(group, cancellationToken);
         }
 
         /// <inheritdoc/>

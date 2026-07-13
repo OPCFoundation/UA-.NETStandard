@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.DataSets
             {
                 Name = "f",
                 Value = new Variant(1.0),
-                StatusCode = (StatusCode)StatusCodes.BadInternalError
+                StatusCode = StatusCodes.BadInternalError
             };
             bool passes = DeadbandFilter.PassesFilter(prev, curr,
                 new DeadbandDescriptor(DeadbandType.Absolute, 100, null));

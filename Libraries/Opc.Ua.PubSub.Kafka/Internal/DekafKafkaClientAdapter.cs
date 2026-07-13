@@ -59,9 +59,9 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
-        private readonly System.Threading.Lock m_sync = new();
+        private readonly Lock m_sync = new();
         private readonly SemaphoreSlim m_clientGate = new(1, 1);
-        private readonly List<string> m_subscribedTopics = new();
+        private readonly List<string> m_subscribedTopics = [];
 
         private KafkaConnectionOptions? m_options;
         private IKafkaProducer<byte[], byte[]>? m_producer;
@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 }
                 if (changed)
                 {
-                    consumer.Subscribe(m_subscribedTopics.ToArray());
+                    consumer.Subscribe([.. m_subscribedTopics]);
                 }
                 if (m_consumeTask is null)
                 {
@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     else
                     {
-                        m_consumer.Subscribe(m_subscribedTopics.ToArray());
+                        m_consumer.Subscribe([.. m_subscribedTopics]);
                     }
                 }
             }
@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
             Headers headers = CreateHeaders(message);
             byte[] key = message.Key.IsEmpty ? null! : message.Key.ToArray();
-            byte[] value = message.Value.IsEmpty ? Array.Empty<byte>() : message.Value.ToArray();
+            byte[] value = message.Value.IsEmpty ? [] : message.Value.ToArray();
             var record = new ProducerMessage<byte[], byte[]>
             {
                 Topic = message.Topic,
@@ -385,7 +385,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 return m_producer;
             }
-            ProducerBuilder<byte[], byte[]> builder = global::Dekaf.Kafka.CreateProducer<byte[], byte[]>();
+            ProducerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateProducer<byte[], byte[]>();
             ApplyProducerConfig(builder, m_options!);
             m_producer = await builder.BuildAsync(ct).ConfigureAwait(false);
             return m_producer;
@@ -397,7 +397,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 return m_consumer;
             }
-            ConsumerBuilder<byte[], byte[]> builder = global::Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
+            ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
             ApplyConsumerConfig(builder, m_options!);
             m_consumer = await builder.BuildAsync(ct).ConfigureAwait(false);
             return m_consumer;
@@ -462,8 +462,8 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
             byte[]? keyOrNull = result.Key;
             byte[]? valueOrNull = result.Value;
-            byte[] key = keyOrNull ?? Array.Empty<byte>();
-            byte[] value = valueOrNull ?? Array.Empty<byte>();
+            byte[] key = keyOrNull ?? [];
+            byte[] value = valueOrNull ?? [];
             var message = new KafkaMessage(result.Topic, key, value, contentType, extraHeaders);
             var args = new KafkaIncomingMessageEventArgs(
                 message,
@@ -481,7 +481,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private static Headers CreateHeaders(KafkaMessage message)
         {
-            Headers headers = Headers.Create();
+            var headers = Headers.Create();
             if (!string.IsNullOrEmpty(message.ContentType))
             {
                 headers.Add(ContentTypeHeader, message.ContentType);
@@ -502,9 +502,9 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         {
             ApplyProducerCommonConfig(builder, options);
             KafkaDeliveryGuarantee guarantee = options.DeliveryGuarantee.ToDeliveryGuarantee();
-            builder.WithAcks(MapAcks(guarantee.Acks));
-            builder.WithIdempotence(guarantee.EnableIdempotence);
-            builder.WithDeliveryTimeout(options.MessageTimeout);
+            builder.WithAcks(MapAcks(guarantee.Acks))
+                .WithIdempotence(guarantee.EnableIdempotence)
+                .WithDeliveryTimeout(options.MessageTimeout);
         }
 
         private static void ApplyConsumerConfig(
@@ -512,9 +512,9 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             KafkaConnectionOptions options)
         {
             ApplyConsumerCommonConfig(builder, options);
-            builder.WithGroupId(ResolveGroupId(options));
-            builder.WithAutoOffsetReset(MapAutoOffsetReset(options.AutoOffsetReset));
-            builder.WithOffsetCommitMode(options.EnableAutoCommit ? OffsetCommitMode.Auto : OffsetCommitMode.Manual);
+            builder.WithGroupId(ResolveGroupId(options))
+                .WithAutoOffsetReset(MapAutoOffsetReset(options.AutoOffsetReset))
+                .WithOffsetCommitMode(options.EnableAutoCommit ? OffsetCommitMode.Auto : OffsetCommitMode.Manual);
         }
 
         private static void ApplyProducerCommonConfig(
@@ -562,8 +562,6 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 case KafkaSaslMechanism.ScramSha512:
                     builder.WithSaslScramSha512(RequireUserName(options), ResolvePassword(options));
                     break;
-                case KafkaSaslMechanism.OAuthBearer:
-                    throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
                 default:
                     throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
             }
@@ -590,8 +588,6 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 case KafkaSaslMechanism.ScramSha512:
                     builder.WithSaslScramSha512(RequireUserName(options), ResolvePassword(options));
                     break;
-                case KafkaSaslMechanism.OAuthBearer:
-                    throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
                 default:
                     throw CreateUnsupportedSaslMechanismException(options.SaslMechanism);
             }
@@ -630,15 +626,15 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private static void ValidateCredentialTransport(KafkaConnectionOptions options)
         {
-            if (options.SaslMechanism == KafkaSaslMechanism.None
-                || string.IsNullOrEmpty(options.UserName))
+            if (options.SaslMechanism == KafkaSaslMechanism.None ||
+                string.IsNullOrEmpty(options.UserName))
             {
                 return;
             }
             bool useTls = options.SecurityProtocol
                     is KafkaSecurityProtocol.Ssl
-                    or KafkaSecurityProtocol.SaslSsl
-                || (options.Tls?.UseTls ?? false);
+                    or KafkaSecurityProtocol.SaslSsl ||
+                (options.Tls?.UseTls ?? false);
             if (!useTls && !options.AllowCredentialsOverPlaintext)
             {
                 throw new InvalidOperationException(
@@ -661,8 +657,8 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         {
             return options.SecurityProtocol
                     is KafkaSecurityProtocol.Ssl
-                    or KafkaSecurityProtocol.SaslSsl
-                || (options.Tls?.UseTls ?? false);
+                    or KafkaSecurityProtocol.SaslSsl ||
+                (options.Tls?.UseTls ?? false);
         }
 
         private static string RequireUserName(KafkaConnectionOptions options)

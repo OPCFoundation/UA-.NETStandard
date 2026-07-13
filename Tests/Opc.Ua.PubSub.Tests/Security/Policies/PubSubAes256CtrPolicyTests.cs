@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
@@ -84,7 +83,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void SignVerify_RoundTripsSignature()
         {
             byte[] signingKey = new byte[32];
-            byte[] data = new byte[] { 9, 8, 7, 6 };
+            byte[] data = [9, 8, 7, 6];
             byte[] signature = new byte[Policy.SignatureLength];
             Policy.Sign(data, signingKey, signature);
             Assert.That(Policy.Verify(data, signature, signingKey), Is.True);
@@ -96,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
             byte[] keyA = new byte[32];
             byte[] keyB = new byte[32];
             keyB[0] = 1;
-            byte[] data = new byte[] { 1, 2 };
+            byte[] data = [1, 2];
             byte[] sig = new byte[Policy.SignatureLength];
             Policy.Sign(data, keyA, sig);
             Assert.That(Policy.Verify(data, sig, keyB), Is.False);

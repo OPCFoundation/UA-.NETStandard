@@ -82,7 +82,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    buffers.ReturnBuffer(received.Array!, nameof(PairedInProcessTransportsRoundTripChunksAsync));
+                    buffers.ReturnBuffer(received.Array, nameof(PairedInProcessTransportsRoundTripChunksAsync));
                 }
             }
             finally
@@ -253,12 +253,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             try
             {
-                byte[] seg1 = { 1, 2, 3 };
-                byte[] seg2 = { 4, 5, 6 };
+                byte[] seg1 = [1, 2, 3];
+                byte[] seg2 = [4, 5, 6];
                 var col = new BufferCollection
                 {
                     new ArraySegment<byte>(seg1),
-                    new ArraySegment<byte>(seg2),
+                    new ArraySegment<byte>(seg2)
                 };
 
                 await client.SendChunkAsync(col, CancellationToken.None).ConfigureAwait(false);
@@ -276,7 +276,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    buffers.ReturnBuffer(received.Array!, nameof(SendChunkBufferCollectionRoundTripsAsync));
+                    buffers.ReturnBuffer(received.Array, nameof(SendChunkBufferCollectionRoundTripsAsync));
                 }
             }
             finally
@@ -382,9 +382,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             try
             {
                 client.Close();
-                Assert.That(() => client.Close(), Throws.Nothing,
+                Assert.That(client.Close, Throws.Nothing,
                     "Second Close() must be a no-op.");
-                Assert.That(() => client.Close(), Throws.Nothing,
+                Assert.That(client.Close, Throws.Nothing,
                     "Third Close() must also be a no-op.");
             }
             finally

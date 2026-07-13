@@ -139,108 +139,164 @@ namespace Microsoft.AspNetCore.Builder
         }
 
         private static Task ReadAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<ReadRequest, ReadResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<ReadRequest, ReadResponse>(ctx);
+        }
 
         private static Task WriteAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<WriteRequest, WriteResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<WriteRequest, WriteResponse>(ctx);
+        }
 
         private static Task HistoryReadAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<HistoryReadRequest, HistoryReadResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<HistoryReadRequest, HistoryReadResponse>(ctx);
+        }
 
         private static Task HistoryUpdateAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<HistoryUpdateRequest, HistoryUpdateResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<HistoryUpdateRequest, HistoryUpdateResponse>(ctx);
+        }
 
         private static Task CallAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<CallRequest, CallResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<CallRequest, CallResponse>(ctx);
+        }
 
         private static Task BrowseAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<BrowseRequest, BrowseResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<BrowseRequest, BrowseResponse>(ctx);
+        }
 
         private static Task BrowseNextAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<BrowseNextRequest, BrowseNextResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<BrowseNextRequest, BrowseNextResponse>(ctx);
+        }
 
         private static Task TranslateAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                TranslateBrowsePathsToNodeIdsRequest,
-                TranslateBrowsePathsToNodeIdsResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        TranslateBrowsePathsToNodeIdsRequest,
+                        TranslateBrowsePathsToNodeIdsResponse>(ctx);
+        }
 
         private static Task RegisterNodesAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<RegisterNodesRequest, RegisterNodesResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<RegisterNodesRequest, RegisterNodesResponse>(ctx);
+        }
 
         private static Task UnregisterNodesAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<UnregisterNodesRequest, UnregisterNodesResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<UnregisterNodesRequest, UnregisterNodesResponse>(ctx);
+        }
 
         private static Task FindServersAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<FindServersRequest, FindServersResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<FindServersRequest, FindServersResponse>(ctx);
+        }
 
         private static Task GetEndpointsAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<GetEndpointsRequest, GetEndpointsResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<GetEndpointsRequest, GetEndpointsResponse>(ctx);
+        }
 
         private static Task CreateSessionAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<CreateSessionRequest, CreateSessionResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<CreateSessionRequest, CreateSessionResponse>(ctx);
+        }
 
         private static Task ActivateSessionAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<ActivateSessionRequest, ActivateSessionResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<ActivateSessionRequest, ActivateSessionResponse>(ctx);
+        }
 
         private static Task CloseSessionAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<CloseSessionRequest, CloseSessionResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<CloseSessionRequest, CloseSessionResponse>(ctx);
+        }
 
         private static Task CancelAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<CancelRequest, CancelResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<CancelRequest, CancelResponse>(ctx);
+        }
 
         private static Task CreateMonitoredItemsAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                CreateMonitoredItemsRequest,
-                CreateMonitoredItemsResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        CreateMonitoredItemsRequest,
+                        CreateMonitoredItemsResponse>(ctx);
+        }
 
         private static Task ModifyMonitoredItemsAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                ModifyMonitoredItemsRequest,
-                ModifyMonitoredItemsResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        ModifyMonitoredItemsRequest,
+                        ModifyMonitoredItemsResponse>(ctx);
+        }
 
         private static Task SetMonitoringModeAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                SetMonitoringModeRequest,
-                SetMonitoringModeResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        SetMonitoringModeRequest,
+                        SetMonitoringModeResponse>(ctx);
+        }
 
         private static Task SetTriggeringAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<SetTriggeringRequest, SetTriggeringResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<SetTriggeringRequest, SetTriggeringResponse>(ctx);
+        }
 
         private static Task DeleteMonitoredItemsAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                DeleteMonitoredItemsRequest,
-                DeleteMonitoredItemsResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        DeleteMonitoredItemsRequest,
+                        DeleteMonitoredItemsResponse>(ctx);
+        }
 
         private static Task CreateSubscriptionAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                CreateSubscriptionRequest,
-                CreateSubscriptionResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        CreateSubscriptionRequest,
+                        CreateSubscriptionResponse>(ctx);
+        }
 
         private static Task ModifySubscriptionAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                ModifySubscriptionRequest,
-                ModifySubscriptionResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        ModifySubscriptionRequest,
+                        ModifySubscriptionResponse>(ctx);
+        }
 
         private static Task SetPublishingModeAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                SetPublishingModeRequest,
-                SetPublishingModeResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        SetPublishingModeRequest,
+                        SetPublishingModeResponse>(ctx);
+        }
 
         private static Task PublishAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<PublishRequest, PublishResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<PublishRequest, PublishResponse>(ctx);
+        }
 
         private static Task RepublishAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<RepublishRequest, RepublishResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<RepublishRequest, RepublishResponse>(ctx);
+        }
 
         private static Task TransferSubscriptionsAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                TransferSubscriptionsRequest,
-                TransferSubscriptionsResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        TransferSubscriptionsRequest,
+                        TransferSubscriptionsResponse>(ctx);
+        }
 
         private static Task DeleteSubscriptionsAsync(HttpContext ctx)
-            => WebApiEndpointDispatcher.HandleAsync<
-                DeleteSubscriptionsRequest,
-                DeleteSubscriptionsResponse>(ctx);
+        {
+            return WebApiEndpointDispatcher.HandleAsync<
+                        DeleteSubscriptionsRequest,
+                        DeleteSubscriptionsResponse>(ctx);
+        }
     }
 }
 #endif

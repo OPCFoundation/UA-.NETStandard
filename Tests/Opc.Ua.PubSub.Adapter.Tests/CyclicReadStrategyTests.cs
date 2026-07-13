@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         [Test]
         public void ConstructorNullTelemetryThrows()
         {
-            var session = new Mock<IServerSession>().Object;
+            IServerSession session = new Mock<IServerSession>().Object;
             Assert.That(
                 () => new CyclicReadStrategy(session, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("telemetry"));
@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             var strategy = new CyclicReadStrategy(session.Object, AdapterTestHelpers.Telemetry());
 
             ArrayOf<DataValue> result = await strategy
-                .ReadAsync(ArrayOf<ReadValueId>.Empty)
+                .ReadAsync([])
                 .ConfigureAwait(false);
 
             Assert.That(result.Count, Is.Zero);
@@ -81,7 +81,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         public async Task ReadAsyncDelegatesToSessionReadAsync()
         {
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
-            var values = new[]
+            ArrayOf<DataValue> values = new[]
             {
                 new DataValue(new Variant(11.0)),
                 new DataValue(new Variant(22.0))
@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(new ValueTask<ArrayOf<DataValue>>(values));
             var strategy = new CyclicReadStrategy(session.Object, AdapterTestHelpers.Telemetry());
 
-            var nodes = new[]
+            ArrayOf<ReadValueId> nodes = new[]
             {
                 new ReadValueId { NodeId = new NodeId(1u), AttributeId = Attributes.Value },
                 new ReadValueId { NodeId = new NodeId(2u), AttributeId = Attributes.Value }
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                     StatusCodes.BadSessionClosed, "boom"));
             var strategy = new CyclicReadStrategy(session.Object, AdapterTestHelpers.Telemetry());
 
-            var nodes = new[]
+            ArrayOf<ReadValueId> nodes = new[]
             {
                 new ReadValueId { NodeId = new NodeId(1u) },
                 new ReadValueId { NodeId = new NodeId(2u) },

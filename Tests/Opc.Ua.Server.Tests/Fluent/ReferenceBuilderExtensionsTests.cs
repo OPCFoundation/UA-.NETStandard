@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -401,6 +403,75 @@ namespace Opc.Ua.Server.Tests.Fluent
             child.OnNodeAdded((_, n) => captured = n);
 
             Assert.That(captured, Is.SameAs(child.Node));
+        }
+
+        [Test]
+        public void AddObjectAdHocChildBuildersWireCallbacksAndNoOpManagerHooks()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+            INodeBuilder<BaseObjectState> parent = nb.AddObject(new QualifiedName("Group1", kNs));
+            var variable = new BaseDataVariableState(parent.Node)
+            {
+                NodeId = new NodeId("Group1.Variable", kNs),
+                BrowseName = new QualifiedName("Variable", kNs),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            var method = new MethodState(parent.Node)
+            {
+                NodeId = new NodeId("Group1.Method", kNs),
+                BrowseName = new QualifiedName("Method", kNs)
+            };
+            parent.Node.AddChild(variable);
+            parent.Node.AddChild(method);
+
+            INodeBuilder<BaseDataVariableState> variableBuilder =
+                parent.Child<BaseDataVariableState>(variable.BrowseName);
+            INodeBuilder<MethodState> methodBuilder = parent.Child<MethodState>(method.BrowseName);
+
+            static ServiceResult read(
+                ISystemContext c,
+                NodeState n,
+                NumericRange range,
+                QualifiedName encoding,
+                ref Variant value,
+                ref StatusCode statusCode,
+                ref DateTimeUtc timestamp) =>
+                ServiceResult.Good;
+            static ValueTask<AttributeWriteResult> writeAsync(
+                ISystemContext c,
+                NodeState n,
+                Variant value,
+                CancellationToken ct) =>
+                new(new AttributeWriteResult(ServiceResult.Good));
+            static ValueTask<ServiceResult> callAsync(
+                ISystemContext c,
+                MethodState m,
+                NodeId objectId,
+                ArrayOf<Variant> inputArguments,
+                List<Variant> outputArguments,
+                CancellationToken ct) =>
+                new(ServiceResult.Good);
+
+            variableBuilder.OnRead(read)
+                .OnWrite(writeAsync)
+                .OnHistoryRead((c, n, d, t, r, ntr, res) => ServiceResult.Good)
+                .OnHistoryUpdate((c, n, details, result) => ServiceResult.Good)
+                .OnConditionRefresh((c, n, events) => { })
+                .OnMonitoredItemCreated((c, n, item) => { })
+                .OnNodeRemoved((c, n) => { });
+            methodBuilder.OnCall(callAsync);
+            parent.OnEvent((c, n, e) => { });
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => parent.AllowMultipleEventConsumers(enable: false))!;
+
+            Assert.That(variable.OnReadValue, Is.SameAs((NodeValueEventHandler)read));
+            Assert.That(variable.OnSimpleWriteValueAsync, Is.SameAs(
+                (NodeValueSimpleWriteEventHandlerAsync)writeAsync));
+            Assert.That(method.OnCallMethod2Async, Is.SameAs((GenericMethodCalledEventHandler2Async)callAsync));
+            Assert.That(parent.Node.OnReportEvent, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConfigurationError));
         }
     }
 }

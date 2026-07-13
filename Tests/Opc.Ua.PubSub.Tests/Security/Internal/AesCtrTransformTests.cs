@@ -42,21 +42,26 @@ namespace Opc.Ua.PubSub.Tests.Security.Internal
     [TestSpec("7.2.4.4.3.1", Summary = "AES-CTR known-answer test from NIST SP 800-38A F.5.1")]
     public class AesCtrTransformTests
     {
-        // NIST SP 800-38A appendix F.5.1 (CTR-AES128.Encrypt).
+        /// <summary>
+        /// NIST SP 800-38A appendix F.5.1 (CTR-AES128.Encrypt).
+        /// </summary>
         private static readonly byte[] s_key128 = HexToBytes(
             "2b7e151628aed2a6abf7158809cf4f3c");
+
         private static readonly byte[] s_initialCounter = HexToBytes(
             "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff");
+
         private static readonly byte[] s_plaintext = HexToBytes(
-            "6bc1bee22e409f96e93d7e117393172a"
-            + "ae2d8a571e03ac9c9eb76fac45af8e51"
-            + "30c81c46a35ce411e5fbc1191a0a52ef"
-            + "f69f2445df4f9b17ad2b417be66c3710");
+            "6bc1bee22e409f96e93d7e117393172a" +
+            "ae2d8a571e03ac9c9eb76fac45af8e51" +
+            "30c81c46a35ce411e5fbc1191a0a52ef" +
+            "f69f2445df4f9b17ad2b417be66c3710");
+
         private static readonly byte[] s_ciphertext = HexToBytes(
-            "874d6191b620e3261bef6864990db6ce"
-            + "9806f66b7970fdff8617187bb9fffdff"
-            + "5ae4df3edbd5d35e5b4f09020db03eab"
-            + "1e031dda2fbe03d1792170a0f3009cee");
+            "874d6191b620e3261bef6864990db6ce" +
+            "9806f66b7970fdff8617187bb9fffdff" +
+            "5ae4df3edbd5d35e5b4f09020db03eab" +
+            "1e031dda2fbe03d1792170a0f3009cee");
 
         [Test]
         [TestSpec("7.2.4.4.3.1", Summary = "NIST F.5.1 AES-128-CTR encrypt round-trip")]
@@ -90,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Internal
         {
             byte[] nonce = new byte[12];
             byte[] key = new byte[16];
-            byte[] plaintext = new byte[7] { 1, 2, 3, 4, 5, 6, 7 };
+            byte[] plaintext = [1, 2, 3, 4, 5, 6, 7];
             byte[] ciphertext = new byte[7];
             byte[] roundTrip = new byte[7];
             AesCtrTransform.EncryptOrDecrypt(key, nonce, plaintext, ciphertext);

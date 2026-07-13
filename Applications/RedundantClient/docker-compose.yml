@@ -1,0 +1,207 @@
+# RedundantClient + RedundantServer — ONE compose file, the full HA matrix, env-driven.
+#
+# Server consistency (eventual|strong) and client mode (independent|coordinated, and the
+# coordinated store's eventual|strong flavor) are chosen INDEPENDENTLY by an environment
+# variable, so any cell of the matrix runs from this single file — e.g. a strong server
+# against an eventual coordinated client. Eventual is the default. Both sides log their
+# failover / HA behavior, INCLUDING data loss.
+#
+# Selection is by Docker COMPOSE PROFILES (an env var). The adjacent `.env` sets the
+# eventual default, so a bare `up` needs no flags. Override the env var to pick any cell:
+#
+#   Profiles are two independent groups — pick one server + one client:
+#     server-eventual   scalable active/active servers, CRDT gossip + DNS discovery  (scales)
+#     server-strong     fixed 3-node active/passive Raft servers, no data loss       (no scale)
+#     client-independent  N managed clients, each fails over on its own              (scales)
+#     client-coordinated  fixed 3-node client replica set, one active client         (no scale)
+#
+#   For client-coordinated, CLIENT_CONSISTENCY (eventual|strong, default eventual) selects
+#   the shared-store flavor used to hand the session over to the promoted client.
+#
+# Run from the repository ROOT (the build context is the repo root):
+#
+#   # DEFAULT: 3 eventual servers + 2 independent clients (failover + data loss demoable).
+#   docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+#
+#   # Scale the eventual server and the independent clients independently:
+#   docker compose -f Applications/RedundantClient/docker-compose.yml up --build \
+#     --scale server=5 --scale client=3
+#
+#   # STRONG server (no data loss) x independent clients:
+#   COMPOSE_PROFILES=server-strong,client-independent \
+#     docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+#
+#   # Any matrix cell, e.g. STRONG server x EVENTUAL coordinated client:
+#   COMPOSE_PROFILES=server-strong,client-coordinated CLIENT_CONSISTENCY=eventual \
+#     docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+#
+# Only the eventual server (`server`) and the independent clients (`client`) are
+# --scale-able; the strong server and the coordinated client are fixed odd Raft quorums
+# (3 nodes) — a quorum needs stable identities, so they are named replicas.
+#
+# No host ports are published (so --scale works); clients run inside the compose network
+# and reach the servers through the `server` DNS name (the strong replicas alias it).
+
+x-server-image: &server-image
+  build:
+    context: ../..
+    dockerfile: Applications/RedundantServer/Dockerfile
+  image: opcua-redundant-server
+
+x-client-image: &client-image
+  build:
+    context: ../..
+    dockerfile: Applications/RedundantClient/Dockerfile
+  image: opcua-redundant-client
+  # Connect to the `server` name (the eventual service, or the strong server-a alias);
+  # WithServerRedundancy() discovers the redundant set from the connected server and fails
+  # over transparently. --duration 00:00:00 runs until the container is stopped.
+  command:
+    - "--server"
+    - "opc.tcp://server:62543/RedundantServer"
+    - "--autoaccept"
+    - "--nosecurity"
+    - "--duration"
+    - "00:00:00"
+
+# Shared environment for the three named strong (Raft) server replicas.
+x-strong-server-env: &strong-server-env
+  HA_MODE: ap
+  HA_CONSISTENCY: strong
+  REDUNDANCY_MODE: hot
+  # Isolated demo posture: run without record protection / gossip auth. For a secure run,
+  # REMOVE HA_INSECURE and configure gossip mutual TLS + HA_RECORD_KEY (see the READMEs).
+  HA_INSECURE: "true"
+  HA_RAFT_MEMBERS: "3"
+  HA_RAFT_BIND: "tcp://0.0.0.0:6560"
+
+# Shared environment for the three named coordinated client replicas. CLIENT_CONSISTENCY
+# picks the shared-store flavor (eventual = CRDT bulk + Raft strong keyspaces; strong = Raft).
+x-coordinated-client-env: &coordinated-client-env
+  CLIENT_MODE: "${CLIENT_CONSISTENCY:-eventual}"
+  CLIENT_RAFT_MEMBERS: "3"
+  CLIENT_RAFT_BIND: "tcp://0.0.0.0:6561"
+  CLIENT_GOSSIP_PORT: "4841"
+  CLIENT_INSECURE: "true"
+
+services:
+  # ----- SERVER: eventual, active/active, scalable (profile: server-eventual) -----
+  server:
+    <<: *server-image
+    profiles: ["server-eventual"]
+    deploy:
+      replicas: ${SERVER_REPLICAS:-3}
+    environment:
+      HA_MODE: aa
+      HA_CONSISTENCY: eventual
+      HA_PEER_DISCOVERY: dns
+      HA_SERVICE_NAME: server
+      HA_GOSSIP_PORT: "4840"
+      # Advertise the round-robin `server` endpoint (a DNS name), so the listener binds to
+      # all interfaces while returning opc.tcp://server:62543 to clients. Combined with the
+      # shared ApplicationUri, a session reconnect resolves `server` to a SURVIVING replica,
+      # so failover works over DNS. Each replica keeps a unique HA_NODE_ID for ActiveReplica.
+      HA_HOST: server
+      # The scalable `server` name round-robins across replicas, and CreateSession validates
+      # the client-supplied serverUri against the replica's ApplicationUri. Share ONE
+      # ApplicationUri so a connection landing on any replica is accepted (this demo uses
+      # SecurityMode None, so no shared certificate is required).
+      HA_APPLICATION_URI: urn:OPCFoundation:RedundantServer:eventual
+      HA_INSECURE: "true"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export HA_NODE_ID="$${HA_NODE_ID:-$$(hostname)}"
+        exec dotnet RedundantServer.dll --port 62543
+
+  # ----- SERVER: strong, active/passive 3-node Raft (profile: server-strong) -----
+  server-a:
+    <<: *server-image
+    profiles: ["server-strong"]
+    hostname: server-a
+    # Alias the `server` name onto server-a so the clients' opc.tcp://server URL resolves
+    # in the strong profile too (WithServerRedundancy discovers server-b / server-c).
+    networks:
+      default:
+        aliases:
+          - server
+    command: ["--port", "62543"]
+    environment:
+      <<: *strong-server-env
+      HA_HOST: server-a
+      HA_NODE_ID: replica-a
+      HA_RAFT_ID: "1"
+      HA_RAFT_PEERS: "tcp://server-b:6560,tcp://server-c:6560"
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://server-b:62543/RedundantServer,urn:localhost:OPCFoundation:RedundantServer:replica-c|RedundantServer replica-c|opc.tcp://server-c:62543/RedundantServer"
+
+  server-b:
+    <<: *server-image
+    profiles: ["server-strong"]
+    hostname: server-b
+    command: ["--port", "62543"]
+    environment:
+      <<: *strong-server-env
+      HA_HOST: server-b
+      HA_NODE_ID: replica-b
+      HA_RAFT_ID: "2"
+      HA_RAFT_PEERS: "tcp://server-a:6560,tcp://server-c:6560"
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://server-a:62543/RedundantServer,urn:localhost:OPCFoundation:RedundantServer:replica-c|RedundantServer replica-c|opc.tcp://server-c:62543/RedundantServer"
+
+  server-c:
+    <<: *server-image
+    profiles: ["server-strong"]
+    hostname: server-c
+    command: ["--port", "62543"]
+    environment:
+      <<: *strong-server-env
+      HA_HOST: server-c
+      HA_NODE_ID: replica-c
+      HA_RAFT_ID: "3"
+      HA_RAFT_PEERS: "tcp://server-a:6560,tcp://server-b:6560"
+      HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://server-a:62543/RedundantServer,urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://server-b:62543/RedundantServer"
+
+  # ----- CLIENT: independent managed clients, scalable (profile: client-independent) -----
+  client:
+    <<: *client-image
+    profiles: ["client-independent"]
+    deploy:
+      replicas: ${CLIENT_REPLICAS:-2}
+    environment:
+      CLIENT_MODE: independent
+
+  # ----- CLIENT: coordinated 3-node replica set (profile: client-coordinated) -----
+  # Exactly one client is active; the others are standby and take over on leader loss,
+  # continuing from the shared session state. Fixed odd Raft quorum (3), not --scale-able.
+  client-a:
+    <<: *client-image
+    profiles: ["client-coordinated"]
+    hostname: client-a
+    environment:
+      <<: *coordinated-client-env
+      CLIENT_NODE_ID: replica-a
+      CLIENT_RAFT_ID: "1"
+      CLIENT_RAFT_PEERS: "tcp://client-b:6561,tcp://client-c:6561"
+      CLIENT_GOSSIP_PEERS: "client-b:4841,client-c:4841"
+
+  client-b:
+    <<: *client-image
+    profiles: ["client-coordinated"]
+    hostname: client-b
+    environment:
+      <<: *coordinated-client-env
+      CLIENT_NODE_ID: replica-b
+      CLIENT_RAFT_ID: "2"
+      CLIENT_RAFT_PEERS: "tcp://client-a:6561,tcp://client-c:6561"
+      CLIENT_GOSSIP_PEERS: "client-a:4841,client-c:4841"
+
+  client-c:
+    <<: *client-image
+    profiles: ["client-coordinated"]
+    hostname: client-c
+    environment:
+      <<: *coordinated-client-env
+      CLIENT_NODE_ID: replica-c
+      CLIENT_RAFT_ID: "3"
+      CLIENT_RAFT_PEERS: "tcp://client-a:6561,tcp://client-b:6561"
+      CLIENT_GOSSIP_PEERS: "client-a:4841,client-b:4841"

@@ -150,6 +150,7 @@ namespace Opc.Ua.Server
                 RequestManager?.Dispose();
                 AggregateManager?.Dispose();
                 ModellingRulesManager?.Dispose();
+                ConformanceUnitsManager?.Dispose();
                 (NodeManager as IDisposable)?.Dispose();
                 SessionManager?.Dispose();
                 SubscriptionManager?.Dispose();
@@ -299,29 +300,20 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="sessionManager"/> is <c>null</c>.</exception>
         [MemberNotNull(nameof(SessionManager), nameof(SubscriptionManager))]
         public void SetSessionManager(
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
-            if (sessionManager == null)
-            {
-                throw new ArgumentNullException(nameof(sessionManager));
-            }
-
-            if (subscriptionManager == null)
-            {
-                throw new ArgumentNullException(nameof(subscriptionManager));
-            }
-
             if (SessionManager != null)
             {
                 SessionManager.SessionCreated -= OnSessionCountChanged;
                 SessionManager.SessionClosing -= OnSessionCountChanged;
             }
 
-            SessionManager = sessionManager;
-            SubscriptionManager = subscriptionManager;
+            SessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+            SubscriptionManager = subscriptionManager ?? throw new ArgumentNullException(nameof(subscriptionManager));
 
             SessionManager.SessionCreated += OnSessionCountChanged;
             SessionManager.SessionClosing += OnSessionCountChanged;
@@ -385,6 +377,16 @@ namespace Opc.Ua.Server
         public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
         {
             ModellingRulesManager = modellingRulesManager;
+        }
+
+        /// <summary>
+        /// Stores the ConformanceUnitsManager in the datastore.
+        /// </summary>
+        /// <param name="conformanceUnitsManager">The ConformanceUnitsManager.</param>
+        [MemberNotNull(nameof(ConformanceUnitsManager))]
+        public void SetConformanceUnitsManager(ConformanceUnitsManager conformanceUnitsManager)
+        {
+            ConformanceUnitsManager = conformanceUnitsManager;
         }
 
         /// <summary>
@@ -487,6 +489,13 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The modelling rules manager.</value>
         public ModellingRulesManager ModellingRulesManager { get; private set; } = null!;
+
+        /// <summary>
+        /// A manager for the conformance units and server profiles the server
+        /// advertises.
+        /// </summary>
+        /// <value>The conformance units manager.</value>
+        public ConformanceUnitsManager ConformanceUnitsManager { get; private set; } = null!;
 
         /// <summary>
         /// The manager for active sessions.
@@ -857,7 +866,7 @@ namespace Opc.Ua.Server
 
             // update server capabilities.
             ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
-            serverObject.ServiceLevel!.Value = (byte)255;
+            serverObject.ServiceLevel!.Value = 255;
             serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
             serverCapabilities.ServerProfileArray!.Value =

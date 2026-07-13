@@ -72,11 +72,13 @@ namespace Opc.Ua.Pcap.Capture.Sources
     }
 
     /// <summary>
-    /// In-process capture source for server-hosting scenarios. Same
-    /// behaviour as <see cref="InProcessClientCaptureSource"/> - the
-    /// distinction is preserved only for future server-side bindings;
-    /// today both sources just install an observer on the shared
-    /// registry.
+    /// In-process capture source for server-hosting scenarios. Installs the
+    /// active <see cref="IFrameCaptureSink"/> observer on the shared
+    /// <see cref="IChannelCaptureRegistry"/>; the server listener binding
+    /// (<see cref="PcapTransportListenerBinding"/>, installed via
+    /// <c>PcapBindings.InstallServer</c> / <c>AddPcap</c>) feeds wire chunks
+    /// and channel-token key material from every accepted server channel to
+    /// that observer.
     /// </summary>
     public sealed class InProcessServerCaptureSource : InProcessCaptureSourceBase
     {
@@ -116,32 +118,39 @@ namespace Opc.Ua.Pcap.Capture.Sources
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILoggerFactory m_loggerFactory;
 
-        // CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
-        // by the StopAsync lifecycle, not by a synchronous Dispose. They are
-        // atomically swapped out and AsyncDisposed in StopAsync (see lines
-        // ~268-282); a sync Dispose would have to bridge IAsyncDisposable
-        // with .GetAwaiter().GetResult(), which the repo's no-sync-over-async
-        // rule forbids. The base type intentionally exposes only the async
-        // lifecycle (Start/StopAsync).
+        /// <summary>
+        /// CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
+        /// by the StopAsync lifecycle, not by a synchronous Dispose. They are
+        /// atomically swapped out and AsyncDisposed in StopAsync (see lines
+        /// ~268-282); a sync Dispose would have to bridge IAsyncDisposable
+        /// with .GetAwaiter().GetResult(), which the repo's no-sync-over-async
+        /// rule forbids. The base type intentionally exposes only the async
+        /// lifecycle (Start/StopAsync).
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment above.")]
         private PcapFileWriter? m_pcapWriter;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment on m_pcapWriter.")]
         private UaKeyLogJsonWriter? m_jsonKeyWriter;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
             Justification = "Owned by StopAsync (async lifecycle); see comment on m_pcapWriter.")]
         private UaKeyLogTextWriter? m_textKeyWriter;
+
         private string? m_sessionFolder;
         private string? m_resolvedPcapPath;
         private string? m_resolvedJsonKeyLogPath;
+#pragma warning disable IDE0052 // Text key-log path is resolved for paired JSON/text key-log capture diagnostics.
         private string? m_resolvedTextKeyLogPath;
+#pragma warning restore IDE0052
         private Channel<CaptureWorkItem>? m_queue;
         private Task? m_workerTask;
         private long m_frameCount;

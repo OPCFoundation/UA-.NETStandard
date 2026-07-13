@@ -1,10 +1,12 @@
 # OPC UA .NET Standard — Diagnostics (packet capture, dissection, replay)
 
 `OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics` is an opt-in binding
-that captures, dissects, and replays the wire-level traffic of every
-OPC UA channel the host process opens. It composes with the existing
-`opc.tcp` channel as a transparent decorator — no application changes
-are needed beyond wiring the binding through DI.
+that captures, dissects, and replays the wire-level traffic of the
+OPC UA channels a host process opens — outbound client channels and/or
+inbound channels accepted by a hosted server. It composes with the
+existing `opc.tcp` transport as a transparent decorator — no application
+changes are needed beyond wiring the binding through DI (`AddPcap()`) or
+by hand (`PcapBindings.Install*`).
 
 ## Overview
 
@@ -12,7 +14,11 @@ The package contains:
 
 - `PcapTransportChannelBinding` — `ITransportChannelFactory` decorator
   installed via `AddPcap()` that wraps every
-  `TcpTransportChannel` with a capture-aware byte transport.
+  `TcpTransportChannel` with a capture-aware byte transport (outbound
+  client channels).
+- `PcapTransportListenerBinding` — `ITransportListenerFactory` decorator
+  that wraps a hosted server's `opc.tcp` listener so every accepted
+  inbound client→server channel is capture-aware.
 - `ChannelCaptureRegistry` + `CaptureSessionManager` — runtime control
   surface to start / stop a capture, manage rolling files, and emit
   pcap + keylog artifacts.
@@ -34,6 +40,26 @@ services.AddPcap(opts =>
     opts.MaxActiveSessions = 4;
 });
 ```
+
+### Without dependency injection
+
+Install the binding by hand, then start a capture session sharing the
+same `IChannelCaptureRegistry`. Installing a binding only makes channels
+capture-*aware*; nothing is recorded until a session is running.
+
+```csharp
+using Opc.Ua.Pcap.Bindings;
+
+// server (inbound): install before the server starts its listeners
+IChannelCaptureRegistry registry =
+    PcapBindings.InstallServer(server.Server!.TransportBindings);
+
+// client (outbound): install into the process-wide client default
+// PcapBindings.InstallClient(ClientChannelManager.DefaultChannelBindings, registry);
+```
+
+See the [Diagnostics guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Diagnostics.md#enabling-pcap-capture-without-dependency-injection)
+for the full non-DI recipe (server, client, and both directions).
 
 ## Target frameworks
 

@@ -29,11 +29,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Schema.Model;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
@@ -289,6 +293,49 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void DeclarationBackedInputOnlyMethodEmitsTypedOnCallOverloads()
+        {
+            string fb = GenerateForDeclarationBackedModel();
+            const string methodWrapper = @"(?s)internal\s+sealed\s+class\s+AdjustMethodBuilder\b.*?";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fb, Does.Match(
+                    methodWrapper +
+                    @"public\s+AdjustMethodBuilder\s+OnCall\s*\(" +
+                    @"\s*global::System\.Action<float>\s+handler\s*\)"),
+                    "The declaration-backed Adjust method should expose OnCall(Action<float>).");
+                Assert.That(fb, Does.Match(
+                    methodWrapper +
+                    @"public\s+AdjustMethodBuilder\s+OnCall\s*\(" +
+                    @"\s*global::System\.Func<float,\s*" +
+                    @"global::System\.Threading\.CancellationToken,\s*" +
+                    @"global::System\.Threading\.Tasks\.ValueTask>\s+handler\s*\)"),
+                    "The declaration-backed Adjust method should expose the async input-only OnCall overload.");
+                Assert.That(fb, Does.Match(
+                    methodWrapper +
+                    @"if\s*\(!__inputs\[0\]\.TryGetValue\(out\s+float\s+__a0\)\)"),
+                    "Generated dispatch should unpack the declaration-backed Float input from the Variant list.");
+                Assert.That(fb, Does.Match(
+                    methodWrapper + @"handler\(__a0\);"),
+                    "Generated dispatch should pass the unpacked Float value to the sync handler.");
+            });
+        }
+
+        [Test]
+        public void DeclarationBackedNodeSetFixtureCarriesDeclarationInputArgument()
+        {
+            Dictionary<string, string> files = GenerateForDeclarationBackedNodeSet();
+            string values = files.Single(kv => kv.Key.EndsWith(".NodeStates.i.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(values, Does.Contain("AdjustDeclaration_InputArguments"));
+                Assert.That(values, Does.Contain("<uax:Name>setpoint</uax:Name>"));
+            });
+        }
+
+        [Test]
         public void EmittedNodeManager_InvokesBothPlainAndTypedConfigurePartials()
         {
             Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
@@ -495,6 +542,133 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return fileSystem.CreatedFiles
                 .Where(c => Path.GetExtension(c) == ".cs")
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
+        }
+
+        private static Dictionary<string, string> GenerateForDeclarationBackedNodeSet()
+        {
+            const string nodeSetFile = "DeclarationBackedMethod.NodeSet2.xml";
+            const string namespaceUri = "http://test.org/UA/DeclarationBackedMethod/";
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            using var fileSystem = new VirtualFileSystem();
+            string resources = Path.Combine(Directory.GetCurrentDirectory(), "Resources");
+            string path = Path.Combine(resources, nodeSetFile);
+
+            var nodesets = new NodesetFileCollection(
+                ImmutableArray.Create(
+                    (path, new NodesetFileOptions
+                    {
+                        ModelUri = namespaceUri,
+                        Name = "DeclarationBackedMethod",
+                        Prefix = "DeclarationBackedMethod"
+                    })),
+                fileSystem,
+                telemetry);
+
+            nodesets.GenerateCode(
+                fileSystem,
+                string.Empty,
+                telemetry,
+                new GeneratorOptions
+                {
+                    OmitFluentApi = false
+                },
+                nodeManagerBindings:
+                [
+                    new NodeManagerAttributeBinding
+                    {
+                        NamespaceUri = namespaceUri,
+                        TargetNamespace = "DeclarationBackedMethod",
+                        TargetClassName = "DeclarationBackedMethodNodeManager",
+                        GenerateFactory = false
+                    }
+                ]);
+
+            return fileSystem.CreatedFiles
+                .Where(c => Path.GetExtension(c) == ".cs")
+                .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
+        }
+
+        private static string GenerateForDeclarationBackedModel()
+        {
+            const string namespaceUri = "http://test.org/UA/DeclarationBackedMethod/";
+            var targetNamespace = new Namespace
+            {
+                Value = namespaceUri,
+                Prefix = "DeclarationBackedMethod",
+                Name = "DeclarationBackedMethod"
+            };
+            var floatType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                SymbolicId = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                BasicDataType = BasicDataType.Float
+            };
+            var declaration = new MethodDesign
+            {
+                SymbolicName = new XmlQualifiedName("AdjustDeclaration", namespaceUri),
+                SymbolicId = new XmlQualifiedName("AdjustDeclaration", namespaceUri),
+                InputArguments =
+                [
+                    new Parameter
+                    {
+                        Name = "setpoint",
+                        DataTypeNode = floatType,
+                        DataType = floatType.SymbolicId,
+                        ValueRank = ValueRank.Scalar
+                    }
+                ],
+                OutputArguments = []
+            };
+            var method = new MethodDesign
+            {
+                SymbolicName = new XmlQualifiedName("Adjust", namespaceUri),
+                SymbolicId = new XmlQualifiedName("Device_Adjust", namespaceUri),
+                InputArguments = [],
+                OutputArguments = [],
+                MethodDeclarationNode = declaration
+            };
+            var root = new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName("Device", namespaceUri),
+                SymbolicId = new XmlQualifiedName("Device", namespaceUri)
+            };
+            root.Hierarchy = new Hierarchy();
+            root.Hierarchy.Nodes[string.Empty] = new HierarchyNode
+            {
+                RelativePath = string.Empty,
+                Instance = root
+            };
+            root.Hierarchy.Nodes["Adjust"] = new HierarchyNode
+            {
+                RelativePath = "Adjust",
+                Instance = method
+            };
+
+            var model = new Mock<IModelDesign>();
+            model.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            model.Setup(m => m.Namespaces).Returns([targetNamespace]);
+            model.Setup(m => m.GetNodeDesigns()).Returns([root, declaration]);
+            model.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = string.Empty,
+                ModelDesign = model.Object,
+                Telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error),
+                Options = new GeneratorOptions()
+            };
+            new FluentBuilderGenerator(context)
+            {
+                GenerateManagerWrappers = true,
+                EmitFluentAccessors = false
+            }.Emit();
+
+            return fileSystem.CreatedFiles
+                .Where(c => c.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c)))
+                .Single();
         }
     }
 }

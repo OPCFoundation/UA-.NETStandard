@@ -86,7 +86,7 @@ namespace Opc.Ua.Di.Tests
             SoftwareUpdateClient client = CreateClient();
             Assert.That(
                 () => client.UploadPackageAsync(
-                    Array.Empty<byte>(), chunkSizeBytes: 0),
+                    [], chunkSizeBytes: 0),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 
@@ -96,7 +96,7 @@ namespace Opc.Ua.Di.Tests
             SoftwareUpdateClient client = CreateClient();
             Assert.That(
                 () => client.UploadPackageAsync(
-                    Array.Empty<byte>(), chunkSizeBytes: -1),
+                    [], chunkSizeBytes: -1),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 

@@ -29,7 +29,6 @@
 
 using System;
 using System.Buffers;
-using System.Security.Cryptography;
 using Opc.Ua.PubSub.Security.Internal;
 
 namespace Opc.Ua.PubSub.Security.Policies

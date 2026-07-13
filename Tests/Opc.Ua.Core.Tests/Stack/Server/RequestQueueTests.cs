@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 ProcessingCompleted.TrySetResult(true);
             }
 
-            private readonly RequestParkSink m_parkSink = new RequestParkSink();
+            private readonly RequestParkSink m_parkSink = new();
         }
 
         private sealed class TestServer : ServerBase
@@ -398,7 +398,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         private static async Task AwaitOrFailAsync(Task task, string what, int timeoutMs = 5000)
         {
             using var cts = new CancellationTokenSource();
-            Task delay = Task.Delay(timeoutMs, cts.Token);
+            var delay = Task.Delay(timeoutMs, cts.Token);
             if (await Task.WhenAny(task, delay).ConfigureAwait(false) != task)
             {
                 Assert.Fail($"Timed out waiting for {what}.");
@@ -410,7 +410,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         private static async Task<bool> CompletedWithinAsync(Task task, int timeoutMs)
         {
             using var cts = new CancellationTokenSource();
-            Task delay = Task.Delay(timeoutMs, cts.Token);
+            var delay = Task.Delay(timeoutMs, cts.Token);
             Task completed = await Task.WhenAny(task, delay).ConfigureAwait(false);
             cts.Cancel();
             return completed == task;

@@ -1705,55 +1705,90 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Read Value of a multi-dimensional array for each data-type.")]
+        [Description("Read Value of a multi-dimensional (2D) array for each data-type. " +
+            "Each node returns Good and a rank-2 matrix value.")]
         [Test]
         public async Task AttributeRead030ReadMultiDimensionalArrayValueAsync()
         {
-            ReadResponse readResponse = await Session.ReadAsync(
-                null, 0, TimestampsToReturn.Both,
-                new ReadValueId[]
-                {
-                    new() { NodeId = ToNodeId(Constants.ScalarStaticInt32), AttributeId = Attributes.Value }
-                }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+            foreach (ExpandedNodeId node in Constants.ScalarStaticArrays2DNodes)
+            {
+                ReadResponse readResponse = await Session.ReadAsync(
+                    null, 0, TimestampsToReturn.Both,
+                    new ReadValueId[]
+                    {
+                        new() { NodeId = ToNodeId(node), AttributeId = Attributes.Value }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(readResponse.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
+                Assert.That(readResponse.Results.Count, Is.EqualTo(1));
+                Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True,
+                    $"Read of 2D array node '{node}' should return Good.");
+                Assert.That(readResponse.Results[0].WrappedValue.TypeInfo.ValueRank,
+                    Is.EqualTo(ValueRanks.TwoDimensions),
+                    $"Node '{node}' must return a rank-2 matrix value.");
+            }
         }
 
-        [Description("Read Value of multiple multi-dimensional array nodes.")]
+        [Description("Read Value of multiple multi-dimensional array nodes in a single request. " +
+            "All return Good.")]
         [Test]
         public async Task AttributeRead031ReadMultipleMultiDimensionalArraysAsync()
         {
+            var readValueIds = Constants.ScalarStaticArrays2DNodes
+                .Select(n => new ReadValueId { NodeId = ToNodeId(n), AttributeId = Attributes.Value })
+                .ToArrayOf();
+
             ReadResponse readResponse = await Session.ReadAsync(
-                null, 0, TimestampsToReturn.Both,
-                new ReadValueId[]
-                {
-                    new() { NodeId = ToNodeId(Constants.ScalarStaticInt32), AttributeId = Attributes.Value }
-                }.ToArrayOf(),
+                null, 0, TimestampsToReturn.Both, readValueIds,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(readResponse.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(Constants.ScalarStaticArrays2DNodes.Length));
+            for (int i = 0; i < readResponse.Results.Count; i++)
+            {
+                Assert.That(StatusCode.IsGood(readResponse.Results[i].StatusCode), Is.True,
+                    $"Batch read of 2D array node index {i} should return Good.");
+            }
         }
 
-        [Description("IndexRange reading a single element of a multi-dimensional array.")]
+        [Description("A multi-dimensional array node exposes concrete, non-zero ArrayDimensions " +
+            "and an IndexRange read of a single element returns Good.")]
         [Test]
         public async Task AttributeRead032IndexRangeSingleElementMultiDimAsync()
         {
-            ReadResponse readResponse = await Session.ReadAsync(
+            NodeId nodeId = ToNodeId(Constants.ScalarStaticArrays2DInt32);
+
+            ReadResponse dimensionsResponse = await Session.ReadAsync(
                 null, 0, TimestampsToReturn.Both,
                 new ReadValueId[]
                 {
-                    new() { NodeId = ToNodeId(Constants.ScalarStaticInt32), AttributeId = Attributes.Value }
+                    new() { NodeId = nodeId, AttributeId = Attributes.ArrayDimensions }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(readResponse.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
+            Assert.That(StatusCode.IsGood(dimensionsResponse.Results[0].StatusCode), Is.True);
+            ArrayOf<uint> arrayDimensions =
+                dimensionsResponse.Results[0].GetValue(default(ArrayOf<uint>));
+            Assert.That(arrayDimensions.Count, Is.EqualTo(2),
+                "A multi-dimensional array must report two ArrayDimensions.");
+            Assert.That(arrayDimensions[0], Is.GreaterThan(0u),
+                "The first dimension length must be concrete (non-zero).");
+            Assert.That(arrayDimensions[1], Is.GreaterThan(1u),
+                "The second dimension length must be at least two for an index-range read.");
+
+            ReadResponse valueResponse = await Session.ReadAsync(
+                null, 0, TimestampsToReturn.Both,
+                new ReadValueId[]
+                {
+                    new() { NodeId = nodeId, AttributeId = Attributes.Value, IndexRange = "0,1" }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(valueResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(StatusCode.IsGood(valueResponse.Results[0].StatusCode), Is.True,
+                "IndexRange read of a single 2D element should return Good.");
         }
 
-        [Description("IndexRange reading a range from a multi-dimensional array.")]
+        [Description("IndexRange reading a sub-range of a multi-dimensional array returns Good.")]
         [Test]
         public async Task AttributeRead033IndexRangeMultiDimAsync()
         {
@@ -1761,15 +1796,21 @@ namespace Opc.Ua.InformationModel.Tests
                 null, 0, TimestampsToReturn.Both,
                 new ReadValueId[]
                 {
-                    new() { NodeId = ToNodeId(Constants.ScalarStaticInt32), AttributeId = Attributes.Value }
+                    new()
+                    {
+                        NodeId = ToNodeId(Constants.ScalarStaticArrays2DInt32),
+                        AttributeId = Attributes.Value,
+                        IndexRange = "0:1,0:1"
+                    }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(readResponse.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
+            Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True,
+                "IndexRange sub-range read of a 2D array should return Good.");
         }
 
-        [Description("IndexRange reading last 3 elements of last dimension.")]
+        [Description("IndexRange reading a range from the last dimension of a 2D array returns Good.")]
         [Test]
         public async Task AttributeRead034IndexRangeLastThreeMultiDimAsync()
         {
@@ -1777,12 +1818,18 @@ namespace Opc.Ua.InformationModel.Tests
                 null, 0, TimestampsToReturn.Both,
                 new ReadValueId[]
                 {
-                    new() { NodeId = ToNodeId(Constants.ScalarStaticInt32), AttributeId = Attributes.Value }
+                    new()
+                    {
+                        NodeId = ToNodeId(Constants.ScalarStaticArrays2DInt32),
+                        AttributeId = Attributes.Value,
+                        IndexRange = "0,1:2"
+                    }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(readResponse.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
+            Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True,
+                "IndexRange read of the last dimension of a 2D array should return Good.");
         }
 
         [Description("IndexRange lower bound within array but exceeding upper bound.")]

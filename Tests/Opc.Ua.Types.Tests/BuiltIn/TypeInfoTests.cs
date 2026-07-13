@@ -1776,6 +1776,75 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.ValueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 
+        [Test]
+        public void IsInstanceOfDataTypeVariantArrayWithArrayElementsMatchesBaseDataType()
+        {
+            // A Variant array whose individual elements are themselves arrays
+            // (e.g. a Variant[] containing an Int32[] element) is a valid instance
+            // of BaseDataType. Regression test for a CTT write/monitored-item
+            // failure where such values were rejected with BadTypeMismatch.
+            int[] ints = [1, 2, 3];
+            string[] strings = ["a", "b"];
+            Variant[] elements =
+            [
+                new Variant(42),
+                Variant.From(ints.ToArrayOf()),
+                Variant.From(strings.ToArrayOf())
+            ];
+            var value = Variant.From(elements.ToArrayOf());
+
+            Assert.That(value.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
+            Assert.That(value.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+
+            var result = TypeInfo.IsInstanceOfDataType(
+                value,
+                new NodeId(24u), // DataTypes.BaseDataType
+                ValueRanks.OneDimension,
+                new NamespaceTable(),
+                new Mock<ITypeTable>().Object);
+
+            Assert.That(result.IsUnknown, Is.False);
+            Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.Variant));
+        }
+
+        [Test]
+        public void IsInstanceOfDataTypeVariantArrayOfScalarsMatchesBaseDataType()
+        {
+            Variant[] elements =
+            [
+                new Variant(1),
+                new Variant("text"),
+                new Variant(true)
+            ];
+            var value = Variant.From(elements.ToArrayOf());
+
+            var result = TypeInfo.IsInstanceOfDataType(
+                value,
+                new NodeId(24u), // DataTypes.BaseDataType
+                ValueRanks.OneDimension,
+                new NamespaceTable(),
+                new Mock<ITypeTable>().Object);
+
+            Assert.That(result.IsUnknown, Is.False);
+        }
+
+        [Test]
+        public void IsInstanceOfDataTypeTypedArrayMatchesBaseDataType()
+        {
+            int[] ints = [1, 2, 3];
+            var value = Variant.From(ints.ToArrayOf());
+
+            var result = TypeInfo.IsInstanceOfDataType(
+                value,
+                new NodeId(24u), // DataTypes.BaseDataType
+                ValueRanks.OneDimension,
+                new NamespaceTable(),
+                new Mock<ITypeTable>().Object);
+
+            Assert.That(result.IsUnknown, Is.False);
+            Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+        }
+
         [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes",
             Justification = "Test fixture type used only for reflection-based type detection via typeof().")]
         private sealed class GenericEncodeable<T> : IEncodeable

@@ -164,6 +164,13 @@ namespace Opc.Ua
                 return CertificateStoreType.X509Store;
             }
 
+            if (storePath.StartsWith(
+                CertificateStoreType.SharedKeyValueScheme,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return CertificateStoreType.SharedKeyValue;
+            }
+
             foreach (string storeTypeName in CertificateStoreType.RegisteredStoreTypeNames)
             {
                 ICertificateStoreType? storeType = CertificateStoreType
@@ -347,6 +354,19 @@ namespace Opc.Ua
         /// A directory certificate store.
         /// </summary>
         public const string Directory = "Directory";
+
+        /// <summary>
+        /// A certificate store backed by a shared key/value store, distributed
+        /// across a redundant server set (extension beyond OPC 10000-4 §6.6).
+        /// </summary>
+        public const string SharedKeyValue = "SharedKeyValue";
+
+        /// <summary>
+        /// The store-path scheme prefix that identifies a
+        /// <see cref="SharedKeyValue"/> store (for example
+        /// <c>kv:pki/trusted</c>).
+        /// </summary>
+        public const string SharedKeyValueScheme = "kv:";
 
         private static readonly Dictionary<string, ICertificateStoreType> s_registeredStoreTypes = [];
     }

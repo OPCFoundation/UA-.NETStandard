@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.Fluent
             // "{parentIdentifier}_{childBrowseName}" in the parent's namespace.
             string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
             child.NodeId = new NodeId(
-                string.Concat(parentIdentifier, "_", symbolicName),
+                $"{parentIdentifier}_{symbolicName}",
                 parent.Node.NodeId.NamespaceIndex);
 
             parent.Node.AddChild(child);

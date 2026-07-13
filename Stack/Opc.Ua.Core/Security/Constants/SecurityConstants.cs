@@ -257,7 +257,7 @@ namespace Opc.Ua
         /// <c>{TypeId, Body}</c> OPC UA JSON envelope per WebSocket text frame;
         /// the OpenAPI sub-protocol is distinguished from
         /// <see cref="OpcUaWsSubProtocolUaJson"/> by the
-        /// <see cref="Profiles.WssOpenApiTransport"/> profile URI
+        /// <see cref="WssOpenApiTransport"/> profile URI
         /// advertised on discovery and by the server-side request handler
         /// (which routes via <c>WebApiServiceRoutes</c> and uses the
         /// <c>WebApiBodyCodec</c> compact / verbose encoder options).

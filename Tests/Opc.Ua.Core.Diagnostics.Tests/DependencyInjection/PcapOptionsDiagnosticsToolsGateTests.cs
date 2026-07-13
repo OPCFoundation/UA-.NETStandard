@@ -41,7 +41,6 @@ namespace Opc.Ua.Pcap.Tests.DependencyInjection
     [TestFixture]
     public sealed class PcapOptionsDiagnosticsToolsGateTests
     {
-
         [Test]
         public void PcapOptionsEnableDiagnosticsToolsDefaultsToFalse()
         {

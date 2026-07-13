@@ -40,6 +40,8 @@ you need finer control.
 | `Opc.Ua.Client.ComplexTypes`   | `builder.AddComplexTypes()`              | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client.Alarms` (within `Opc.Ua.Client`) | `builder.AddAlarms()`        | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Server`                | `builder.AddServer(opt => …)`            | `IOpcUaServerBuilder`    | yes     | `OpcUa:Server`           |
+| `Opc.Ua.Server` (node manager)| `builder.AddNodeManager<T>()`            | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Server` (runtime NodeSet) | `builder.AddRuntimeNodeSet(…)`       | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
@@ -53,6 +55,8 @@ you need finer control.
 | `Opc.Ua.PubSub.Udp`            | `pubSub.AddUdpTransport()`               | `IPubSubBuilder`         | —       | —                        |
 | `Opc.Ua.PubSub.Mqtt`           | `pubSub.AddMqttTransport()`              | `IPubSubBuilder`         | —       | —                        |
 | `Opc.Ua.PubSub.Server`         | `serverBuilder.AddPubSubAddressSpace(...)` | `IPubSubServerBuilder` | yes     | `OpcUa:PubSub:AddressSpace` |
+| `Opc.Ua.Redundancy.Server`     | `serverBuilder.UseDistributedAddressSpace(...)` / `UseReplicatedAddressSpace(...)` / `UseActiveActiveRedundancy(...)` / `UsePeerDiscovery(...)` / `AddServerRedundancy(...)` | `IOpcUaServerBuilder` | yes (via `AddServer`) | see [HighAvailability.md](HighAvailability.md) |
+| `Opc.Ua.Redundancy.Kubernetes` | `serverBuilder.UseKubernetesRaftConsensus(...)` | `IOpcUaServerBuilder`    | yes (via `AddServer`) | see [Kubernetes.md](Kubernetes.md) |
 
 Identity-provider extensions hang off `IOpcUaServerBuilder`,
 `IOpcUaClientBuilder`, and `IGdsServerBuilder`:

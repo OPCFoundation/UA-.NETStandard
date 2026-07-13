@@ -84,7 +84,8 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 ISession session = await ClientFixture.ConnectAsync(
                     ServerUrl, ep.SecurityPolicyUri,
-                    userIdentity: X509UserIdentityHelper.Create(userCert))
+                    userIdentity: await X509UserIdentityHelper
+                        .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 try
                 {
@@ -98,7 +99,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException sre)
             {
-                Assert.Ignore($"X509 activation requires v1.6 ICertificateProvider; pending migration ({sre.StatusCode}).");
+                Assert.Fail($"X509 user-token activation should succeed but failed: {sre.StatusCode}.");
             }
             finally
             {
@@ -134,7 +135,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    X509UserIdentityHelper.Create(expiredCert))
+                    await X509UserIdentityHelper.CreateAsync(expiredCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -173,7 +174,8 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 ISession session = await ClientFixture.ConnectAsync(
                     ServerUrl, SecurityPolicies.None,
-                    userIdentity: X509UserIdentityHelper.Create(userCert))
+                    userIdentity: await X509UserIdentityHelper
+                        .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 try
                 {
@@ -229,12 +231,13 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: X509UserIdentityHelper.Create(userCert))
+                        userIdentity: await X509UserIdentityHelper
+                            .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
-                    Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration.");
+                    Assert.Fail("X509 user-token activation should succeed but failed unexpectedly.");
                     return;
                 }
 
@@ -296,12 +299,13 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: X509UserIdentityHelper.Create(userCert))
+                        userIdentity: await X509UserIdentityHelper
+                            .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
-                    Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration.");
+                    Assert.Fail("X509 user-token activation should succeed but failed unexpectedly.");
                     return;
                 }
 
@@ -366,12 +370,13 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: X509UserIdentityHelper.Create(userCert))
+                        userIdentity: await X509UserIdentityHelper
+                            .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
-                    Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration.");
+                    Assert.Fail("X509 user-token activation should succeed but failed unexpectedly.");
                     return;
                 }
 
@@ -430,13 +435,13 @@ namespace Opc.Ua.Core.Security.Tests
                     try
                     {
                         await session.UpdateSessionAsync(
-                            X509UserIdentityHelper.Create(userCert),
+                            await X509UserIdentityHelper.CreateAsync(userCert, Telemetry).ConfigureAwait(false),
                             session.PreferredLocales).ConfigureAwait(false);
                     }
                     catch (ServiceResultException sre)
                     {
-                        Assert.Ignore(
-                            $"X509 activation requires v1.6 ICertificateProvider; pending migration ({sre.StatusCode}).");
+                        Assert.Fail(
+                            $"X509 user-token activation should succeed but failed: {sre.StatusCode}.");
                         return;
                     }
                     Assert.That(session.Connected, Is.True);
@@ -478,7 +483,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    X509UserIdentityHelper.Create(untrustedCert))
+                    await X509UserIdentityHelper.CreateAsync(untrustedCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -524,16 +529,18 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     session1 = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: X509UserIdentityHelper.Create(userCert))
+                        userIdentity: await X509UserIdentityHelper
+                            .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                     session2 = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: X509UserIdentityHelper.Create(userCert))
+                        userIdentity: await X509UserIdentityHelper
+                            .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
-                    Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration.");
+                    Assert.Fail("X509 user-token activation should succeed but failed unexpectedly.");
                     return;
                 }
 
@@ -569,7 +576,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             using Certificate userCert = CreateSelfSignedUserCert();
-            UserIdentity identity = X509UserIdentityHelper.Create(userCert);
+            UserIdentity identity = await X509UserIdentityHelper.CreateAsync(userCert, Telemetry).ConfigureAwait(false);
 
             Assert.That(identity.TokenType,
                 Is.EqualTo(UserTokenType.Certificate));
@@ -605,12 +612,13 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: X509UserIdentityHelper.Create(userCert))
+                        userIdentity: await X509UserIdentityHelper
+                            .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
-                    Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration.");
+                    Assert.Fail("X509 user-token activation should succeed but failed unexpectedly.");
                     return;
                 }
 
@@ -672,7 +680,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    X509UserIdentityHelper.Create(wrongKuCert))
+                    await X509UserIdentityHelper.CreateAsync(wrongKuCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -744,7 +752,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    X509UserIdentityHelper.Create(sanCert))
+                    await X509UserIdentityHelper.CreateAsync(sanCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 try
                 {
@@ -774,15 +782,14 @@ namespace Opc.Ua.Core.Security.Tests
         }
 
         [Test]
-        public Task X509UserCertDnAccessible()
+        public async Task X509UserCertDnAccessible()
         {
             using Certificate userCert = CreateSelfSignedUserCert(
                 cn: "CN=DnCheckUser, O=OPC Foundation, C=US");
-            UserIdentity identity = X509UserIdentityHelper.Create(userCert);
+            UserIdentity identity = await X509UserIdentityHelper.CreateAsync(userCert, Telemetry).ConfigureAwait(false);
 
             Assert.That(identity.DisplayName, Is.Not.Null.And.Not.Empty,
                 "X509 user identity should have a display name derived from cert DN.");
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -810,12 +817,13 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: X509UserIdentityHelper.Create(userCert))
+                        userIdentity: await X509UserIdentityHelper
+                            .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
-                    Assert.Ignore("X509 activation requires v1.6 ICertificateProvider; pending migration.");
+                    Assert.Fail("X509 user-token activation should succeed but failed unexpectedly.");
                     return;
                 }
 
@@ -888,15 +896,47 @@ namespace Opc.Ua.Core.Security.Tests
             ArrayOf<EndpointDescription> endpoints,
             MessageSecurityMode mode)
         {
+            EndpointDescription rsaEndpoint = FindMatchingEndpoint(
+                endpoints,
+                mode,
+                requireRsa: true);
+            if (rsaEndpoint != null)
+            {
+                return rsaEndpoint;
+            }
+
+            return FindMatchingEndpoint(
+                endpoints,
+                mode,
+                requireRsa: false);
+        }
+
+        private static EndpointDescription FindMatchingEndpoint(
+            ArrayOf<EndpointDescription> endpoints,
+            MessageSecurityMode mode,
+            bool requireRsa)
+        {
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.SecurityMode == mode)
+                if (ep.SecurityMode != mode)
                 {
-                    return ep;
+                    continue;
                 }
+
+                if (requireRsa && IsEccPolicy(ep.SecurityPolicyUri))
+                {
+                    continue;
+                }
+
+                return ep;
             }
 
             return null;
+        }
+
+        private static bool IsEccPolicy(string policyUri)
+        {
+            return CryptoUtils.IsEccPolicy(policyUri);
         }
 
         private static Certificate CreateSelfSignedUserCert(

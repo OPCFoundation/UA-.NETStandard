@@ -28,10 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -57,9 +54,9 @@ namespace Opc.Ua.Client.WebApi
     /// the HTTP path + response type, the body is encoded with
     /// <see cref="WebApiBodyCodec"/>, POSTed via the inner
     /// <see cref="WebApiClient"/>, and the response is decoded via
-    /// the non-generic <c>WebApiBodyCodec.DecodeBodyAsync(Type,
+    /// the non-generic <code>WebApiBodyCodec.DecodeBodyAsync(Type,
     /// Stream, IServiceMessageContext, JsonDecoderOptions?,
-    /// CancellationToken)</c> overload.
+    /// CancellationToken)</code> overload.
     /// </para>
     /// <para>
     /// The channel is stateless on the OPC UA layer: there is no secure
@@ -179,14 +176,11 @@ namespace Opc.Ua.Client.WebApi
             {
                 throw new ArgumentNullException(nameof(url));
             }
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+
             ThrowIfDisposed();
 
             m_url = NormalizeUrl(url);
-            m_settings = settings;
+            m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             OperationTimeout = settings.Configuration?.OperationTimeout ?? 60000;
 
             m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)
@@ -209,7 +203,7 @@ namespace Opc.Ua.Client.WebApi
             };
 
             WebApiClientOptions clientOptions = BuildClientOptions(settings);
-            m_client = WebApiClient.Create(m_url, clientOptions);
+            m_client = CreateClient(m_url, clientOptions, settings);
 
             // The Web API binding is selected by transport profile URI on a
             // caller-supplied EndpointDescription that typically lacks
@@ -244,7 +238,7 @@ namespace Opc.Ua.Client.WebApi
             {
                 RequestHeader = new RequestHeader
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = m_timeProvider.GetUtcNow().UtcDateTime,
                     RequestHandle = 1,
                     TimeoutHint = (uint)OperationTimeout
                 },
@@ -361,7 +355,8 @@ namespace Opc.Ua.Client.WebApi
                 if (m_client != null && m_url != null)
                 {
                     m_client.Dispose();
-                    m_client = WebApiClient.Create(m_url, BuildClientOptions(m_settings!));
+                    WebApiClientOptions clientOptions = BuildClientOptions(m_settings!);
+                    m_client = CreateClient(m_url, clientOptions, m_settings!);
                 }
             }
             return default;
@@ -493,6 +488,58 @@ namespace Opc.Ua.Client.WebApi
                 BasicCredentials = m_userOptions.BasicCredentials,
                 RequestTimeout = m_userOptions.RequestTimeout
             };
+        }
+
+        private WebApiClient CreateClient(
+            Uri baseAddress,
+            WebApiClientOptions options,
+            TransportChannelSettings settings)
+        {
+            if (CanUseHttpClientFactory(options, settings))
+            {
+                string clientName = ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared)
+                    ? baseAddress.AbsoluteUri
+                    : OpcUaHttpClientDefaults.ClientName;
+                HttpClient httpClient = m_httpClientFactory!.CreateClient(clientName);
+                httpClient.BaseAddress = NormalizeHttpUrl(baseAddress);
+                return new WebApiClient(httpClient, options);
+            }
+
+            return WebApiClient.Create(baseAddress, options);
+        }
+
+        private bool CanUseHttpClientFactory(
+            WebApiClientOptions options,
+            TransportChannelSettings settings)
+        {
+            if (m_httpClientFactory == null || options.HttpMessageHandler != null)
+            {
+                return false;
+            }
+
+            if (settings.ClientCertificate != null || settings.CertificateValidator != null)
+            {
+                m_logger.LogWarning(
+                    "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
+                    "CertificateValidator or client certificate is configured; using a direct HttpClient so " +
+                    "OPC UA TLS validation and mTLS are applied.",
+                    nameof(WebApiTransportChannel));
+                return false;
+            }
+
+            return true;
+        }
+
+        private static Uri NormalizeHttpUrl(Uri url)
+        {
+            if (string.Equals(url.Scheme, Utils.UriSchemeOpcHttpsWebApi, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(url.Scheme, Utils.UriSchemeOpcHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                var builder = new UriBuilder(url) { Scheme = Utils.UriSchemeHttps };
+                return builder.Uri;
+            }
+
+            return url;
         }
 
         private HttpClientHandler CreateTlsHandler(TransportChannelSettings settings)

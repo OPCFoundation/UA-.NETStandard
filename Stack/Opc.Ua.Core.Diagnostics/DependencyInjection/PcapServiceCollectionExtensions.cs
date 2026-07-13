@@ -35,7 +35,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Pcap.Audit;
 using Opc.Ua.Pcap.Bindings;
@@ -58,7 +57,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// Pcap transport channel binding into the host's
         /// <see cref="ITransportBindingRegistry"/>. After this call
         /// every OPC UA client channel created through
-        /// <see cref="Opc.Ua.ClientChannelManager"/> uses a capture-aware
+        /// <see cref="ClientChannelManager"/> uses a capture-aware
         /// socket; the actual recording is gated by the
         /// <see cref="IChannelCaptureRegistry"/> and turned on or off by
         /// a <see cref="CaptureSessionManager"/>.
@@ -97,6 +96,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// Registers the Pcap capture services with caller-supplied
         /// configuration.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public static IServiceCollection AddPcap(
             this IServiceCollection services,
             Action<PcapOptions> configure)
@@ -116,9 +116,9 @@ namespace Opc.Ua.Pcap.DependencyInjection
             var registry = new ChannelCaptureRegistry();
 
             services.AddTransportBindingRegistry();
-            services.AddSingleton<ITransportBindingConfigurator>(
+            services.AddSingleton<ITransportBindingConfigurator>(sp =>
                 new TransportBindingConfigurator(bindingRegistry =>
-                    PcapBindings.Install(bindingRegistry, registry)));
+                    InstallBindingsForApplicationType(bindingRegistry, registry, sp)));
 
             services.AddSingleton(options);
             // LoggerPcapAuditSink (and HashChainedAuditFileSink when
@@ -175,6 +175,42 @@ namespace Opc.Ua.Pcap.DependencyInjection
             });
 
             return services;
+        }
+
+        /// <summary>
+        /// Installs the pcap transport binding(s) appropriate for the host's
+        /// <see cref="ApplicationConfiguration.ApplicationType"/> when it can be
+        /// resolved from <paramref name="serviceProvider"/>: a client installs
+        /// only the channel binding, a server (or discovery server) only the
+        /// listener binding, and a combined application both. When neither the
+        /// configuration nor its <c>ApplicationType</c> is available the historic
+        /// behaviour is preserved by installing both bindings (this stays safe
+        /// because <see cref="PcapBindings.InstallServer(ITransportBindingRegistry, IChannelCaptureRegistry)"/>
+        /// is a no-op without an <c>opc.tcp</c> listener factory).
+        /// </summary>
+        private static void InstallBindingsForApplicationType(
+            ITransportBindingRegistry bindingRegistry,
+            IChannelCaptureRegistry registry,
+            IServiceProvider serviceProvider)
+        {
+            ApplicationType? applicationType = serviceProvider
+                .GetService<ApplicationConfiguration>()?.ApplicationType;
+
+            switch (applicationType)
+            {
+                case ApplicationType.Client:
+                    PcapBindings.InstallClient(bindingRegistry, registry);
+                    break;
+                case ApplicationType.Server:
+                case ApplicationType.DiscoveryServer:
+                    PcapBindings.InstallServer(bindingRegistry, registry);
+                    break;
+                default:
+                    // ClientAndServer, or the ApplicationType/configuration is
+                    // not resolvable from DI: install both (historic default).
+                    PcapBindings.Install(bindingRegistry, registry);
+                    break;
+            }
         }
 
         /// <summary>

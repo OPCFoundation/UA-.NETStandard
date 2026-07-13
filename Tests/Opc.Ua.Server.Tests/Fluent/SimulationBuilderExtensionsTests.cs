@@ -161,7 +161,8 @@ namespace Opc.Ua.Server.Tests.Fluent
         public async Task MultipleOnTickHandlersAllFire()
         {
             using var h = SimulationHarness.Create();
-            int handlerA = 0, handlerB = 0;
+            int handlerA = 0;
+            int handlerB = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerA))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerB));

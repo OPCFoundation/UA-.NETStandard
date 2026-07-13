@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.IO;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Types
 {
@@ -76,6 +78,72 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 ServiceResult.IsGood(WriteValue.Validate(writeValue)),
                 Is.True,
                 "WriteValue.Validate result was not Good");
+        }
+
+        /// <summary>
+        /// Reproduces the CTT Multi-Dimensional-Arrays write failure: a matrix value
+        /// written to a multi-dimensional node must be recognised as an instance of the
+        /// node's data type / value rank (otherwise WriteValueAttribute returns
+        /// BadTypeMismatch).
+        /// </summary>
+        [Test]
+        public void IsInstanceOfDataTypeAcceptsMultiDimensionalMatrix()
+        {
+            MatrixOf<int> int3x3Matrix = new int[,]
+            {
+                { 1, 2, 3 },
+                { 4, 5, 6 },
+                { 7, 8, 9 }
+            };
+            var value = Variant.From(int3x3Matrix);
+
+            var namespaceUris = new NamespaceTable();
+            var typeTree = new TypeTable(namespaceUris);
+
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
+                value,
+                DataTypeIds.Int32,
+                ValueRanks.TwoDimensions,
+                namespaceUris,
+                typeTree);
+
+            Assert.That(
+                typeInfo.IsUnknown,
+                Is.False,
+                "A 3x3 Int32 matrix must be an instance of Int32 with ValueRank 2 (value rank = " +
+                value.TypeInfo.ValueRank +
+                ").");
+
+            // A client WriteValue arrives binary-encoded; verify the value still passes
+            // the node-level type check after a server-side encode/decode round-trip.
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.Create(telemetry);
+            Variant decoded;
+            using (var stream = new MemoryStream())
+            {
+                using (var encoder = new BinaryEncoder(stream, context, leaveOpen: true))
+                {
+                    encoder.WriteVariant(null, value);
+                }
+                stream.Position = 0;
+                using var decoder = new BinaryDecoder(stream, context);
+                decoded = decoder.ReadVariant(null);
+            }
+
+            var roundTripTypeInfo = TypeInfo.IsInstanceOfDataType(
+                decoded,
+                DataTypeIds.Int32,
+                ValueRanks.TwoDimensions,
+                namespaceUris,
+                typeTree);
+
+            Assert.That(
+                roundTripTypeInfo.IsUnknown,
+                Is.False,
+                "A binary-encoded/decoded 3x3 Int32 matrix must still be an instance of Int32 with " +
+                "ValueRank 2 (decoded rank = " +
+                decoded.TypeInfo.ValueRank +
+                ").");
         }
 
         /// <summary>

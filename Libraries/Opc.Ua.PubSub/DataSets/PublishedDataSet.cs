@@ -30,8 +30,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.DataSets
 {
@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.DataSets
     public sealed class PublishedDataSet : IPublishedDataSet
     {
         private readonly IPublishedDataSetSource m_source;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private DataSetMetaDataType m_metaData;
 
         /// <summary>
@@ -77,8 +77,9 @@ namespace Opc.Ua.PubSub.DataSets
             Configuration = configuration;
             m_source = source;
             DataSetMetaDataType? sourceMetaData = source.BuildMetaData();
-            m_metaData = sourceMetaData ?? configuration.DataSetMetaData
-                ?? new DataSetMetaDataType();
+            m_metaData = sourceMetaData ??
+                configuration.DataSetMetaData
+                    ?? new DataSetMetaDataType();
             if (m_metaData.ConfigurationVersion is null ||
                 m_metaData.ConfigurationVersion.MajorVersion == 0)
             {
@@ -167,7 +168,7 @@ namespace Opc.Ua.PubSub.DataSets
             if (!ReferenceEquals(previous, rebuilt))
             {
                 var key = new DataSetMetaDataKey(
-                    PubSub.Encoding.PublisherId.Null,
+                    Encoding.PublisherId.Null,
                     0,
                     0,
                     DataSetClassId,

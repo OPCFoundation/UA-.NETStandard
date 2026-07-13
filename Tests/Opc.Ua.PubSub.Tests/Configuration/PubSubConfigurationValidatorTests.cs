@@ -47,11 +47,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     public class PubSubConfigurationValidatorTests
     {
         private static readonly string[] s_allProfiles =
-        {
+        [
             Profiles.PubSubUdpUadpTransport,
             Profiles.PubSubMqttUadpTransport,
             Profiles.PubSubMqttJsonTransport
-        };
+        ];
 
         private static PubSubConfigurationValidator NewValidator()
         {
@@ -211,7 +211,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.4.1", Summary = "Connection.Name presence")]
         public void Validate_MissingConnectionName_EmitsError()
         {
-            var conn = NewUdpConnection(string.Empty);
+            PubSubConnectionDataType conn = NewUdpConnection(string.Empty);
             var config = new PubSubConfigurationDataType
             {
                 Connections = new ArrayOf<PubSubConnectionDataType>(new[] { conn })
@@ -332,7 +332,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.6", Summary = "WriterGroupId must be non-zero")]
         public void Validate_WriterGroupIdZero_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].WriterGroupId = 0;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -344,7 +344,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.6", Summary = "WriterGroupId uniqueness within connection")]
         public void Validate_DuplicateWriterGroupId_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups = new ArrayOf<WriterGroupDataType>(
                 new[]
                 {
@@ -361,7 +361,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.6", Summary = "PublishingInterval must be > 0")]
         public void Validate_PublishingIntervalZero_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].PublishingInterval = 0.0;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -373,7 +373,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.6", Summary = "KeepAliveTime >= PublishingInterval")]
         public void Validate_KeepAliveBelowPublishingInterval_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].PublishingInterval = 1000.0;
             config.Connections[0].WriterGroups[0].KeepAliveTime = 500.0;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
@@ -386,7 +386,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.7", Summary = "DataSetWriterId must be non-zero")]
         public void Validate_DataSetWriterIdZero_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].DataSetWriters[0].DataSetWriterId = 0;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -398,7 +398,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.7", Summary = "DataSetWriterId uniqueness within WriterGroup")]
         public void Validate_DuplicateDataSetWriterId_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].DataSetWriters = new ArrayOf<DataSetWriterDataType>(
                 new[]
                 {
@@ -415,7 +415,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.7", Summary = "DataSetWriter.DataSetName must reference existing PublishedDataSet")]
         public void Validate_DataSetNameUnresolved_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].DataSetWriters[0].DataSetName = "DSDoesNotExist";
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -427,7 +427,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.7", Summary = "DataSetWriter.DataSetName must not be empty")]
         public void Validate_DataSetNameMissing_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].DataSetWriters[0].DataSetName = string.Empty;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -439,7 +439,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.7", Summary = "KeyFrameCount zero emits warning")]
         public void Validate_KeyFrameCountZero_EmitsWarning()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].DataSetWriters[0].KeyFrameCount = 0;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             PubSubConfigurationIssue? issue = (((PubSubConfigurationIssue[]?)result.Issues) ?? []).FirstOrDefault(
@@ -453,7 +453,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.8", Summary = "ReaderGroup.Name presence")]
         public void Validate_MissingReaderGroupName_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].ReaderGroups[0].Name = string.Empty;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -465,7 +465,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.8", Summary = "ReaderGroup name uniqueness (defensive warning)")]
         public void Validate_DuplicateReaderGroupName_EmitsWarning()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].ReaderGroups = new ArrayOf<ReaderGroupDataType>(
                 new[]
                 {
@@ -483,7 +483,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.9", Summary = "DataSetReader.DataSetWriterId must be non-zero")]
         public void Validate_ReaderDataSetWriterIdZero_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].ReaderGroups[0].DataSetReaders[0].DataSetWriterId = 0;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -495,7 +495,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.9", Summary = "DataSetReader.MessageReceiveTimeout must be > 0")]
         public void Validate_MessageReceiveTimeoutZero_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].ReaderGroups[0].DataSetReaders[0].MessageReceiveTimeout = 0.0;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
@@ -507,7 +507,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.9", Summary = "DataSetReader.SubscribedDataSet presence")]
         public void Validate_MissingSubscribedDataSet_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].ReaderGroups[0].DataSetReaders[0].SubscribedDataSet =
                 ExtensionObject.Null;
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
@@ -520,7 +520,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("6.2.5.4", Summary = "SecurityMode != None requires SecurityGroupId")]
         public void Validate_SignWithoutSecurityGroup_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             WriterGroupDataType wg = config.Connections[0].WriterGroups[0];
             wg.SecurityMode = MessageSecurityMode.Sign;
             wg.SecurityKeyServices = new ArrayOf<EndpointDescription>(
@@ -535,7 +535,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("6.2.5.4", Summary = "SecurityMode != None requires at least one SKS endpoint")]
         public void Validate_SignAndEncryptWithoutSks_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             WriterGroupDataType wg = config.Connections[0].WriterGroups[0];
             wg.SecurityMode = MessageSecurityMode.SignAndEncrypt;
             wg.SecurityGroupId = "Group1";
@@ -549,7 +549,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("6.2.5.4", Summary = "SecurityMode == None forbids SecurityGroupId")]
         public void Validate_NoneWithSecurityGroup_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             WriterGroupDataType wg = config.Connections[0].WriterGroups[0];
             wg.SecurityMode = MessageSecurityMode.None;
             wg.SecurityGroupId = "Group1";
@@ -563,7 +563,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("6.2.5.4", Summary = "SecurityMode == None forbids SecurityKeyServices")]
         public void Validate_NoneWithSks_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             WriterGroupDataType wg = config.Connections[0].WriterGroups[0];
             wg.SecurityMode = MessageSecurityMode.None;
             wg.SecurityKeyServices = new ArrayOf<EndpointDescription>(
@@ -607,7 +607,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("6.2.5", Part = 14, Summary = "SecurityMode Invalid (unset) emits warning")]
         public void ValidateSecurityModeInvalidEmitsWarning()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.Connections[0].WriterGroups[0].SecurityMode = MessageSecurityMode.Invalid;
 
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
@@ -686,7 +686,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("6.2.5.4", Summary = "Sign with both SecurityGroupId and SKS is valid")]
         public void Validate_SignWithGroupAndSks_NoSecurityIssue()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             WriterGroupDataType wg = config.Connections[0].WriterGroups[0];
             wg.SecurityMode = MessageSecurityMode.Sign;
             wg.SecurityGroupId = "Group1";
@@ -697,17 +697,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
                 Has.None.Matches<PubSubConfigurationIssue>(
                     static i =>
-                        i.Code == "PSC0050"
-                        || i.Code == "PSC0051"
-                        || i.Code == "PSC0052"
-                        || i.Code == "PSC0053"));
+                        i.Code is "PSC0050" or
+                        "PSC0051" or
+                        "PSC0052" or
+                        "PSC0053"));
         }
 
         [Test]
         [TestSpec("9.1.4", Summary = "PublishedDataSet name uniqueness")]
         public void Validate_DuplicatePublishedDataSetName_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.PublishedDataSets = new ArrayOf<PublishedDataSetDataType>(
                 new[]
                 {
@@ -724,7 +724,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [TestSpec("9.1.4", Summary = "PublishedDataSet name presence")]
         public void Validate_MissingPublishedDataSetName_EmitsError()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             config.PublishedDataSets = new ArrayOf<PublishedDataSetDataType>(
                 new[] { new PublishedDataSetDataType { Name = string.Empty } });
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
@@ -760,7 +760,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void Validate_NoRegisteredProfiles_SkipsTransportProfileCheck()
         {
-            var validator = new PubSubConfigurationValidator(Array.Empty<string>());
+            var validator = new PubSubConfigurationValidator([]);
             PubSubConnectionDataType conn = NewUdpConnection();
             conn.TransportProfileUri = "http://example.com/unknown";
             conn.Address = new ExtensionObject(
@@ -780,7 +780,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Summary = "RawData encoding requires MaxStringLength / ArrayDimensions")]
         public void Validate_RawDataWithMaxStringLength_NoPaddingWarning()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             var publishedDataSet = new PublishedDataSetDataType
             {
                 Name = "DS1",
@@ -817,7 +817,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Summary = "RawData String field without MaxStringLength must warn")]
         public void Validate_RawDataStringFieldWithoutMaxStringLength_EmitsWarning()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             var publishedDataSet = new PublishedDataSetDataType
             {
                 Name = "DS1",
@@ -859,7 +859,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Summary = "RawData array field without ArrayDimensions must warn")]
         public void Validate_RawDataArrayFieldWithoutArrayDimensions_EmitsWarning()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             var publishedDataSet = new PublishedDataSetDataType
             {
                 Name = "DS1",
@@ -899,7 +899,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Summary = "Non-RawData encoding suppresses PSC0025")]
         public void Validate_VariantEncodingWithoutBounds_NoPaddingWarning()
         {
-            var config = NewMinimalValidConfig();
+            PubSubConfigurationDataType config = NewMinimalValidConfig();
             var publishedDataSet = new PublishedDataSetDataType
             {
                 Name = "DS1",

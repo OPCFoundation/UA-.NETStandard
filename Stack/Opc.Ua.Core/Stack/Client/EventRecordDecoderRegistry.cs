@@ -70,7 +70,7 @@ namespace Opc.Ua
             new(CreateDefault, LazyThreadSafetyMode.ExecutionAndPublication);
 
         private readonly EventRecordDecoderRegistry? m_parent;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly Dictionary<NodeId, Entry> m_decoders = [];
         private QualifiedName[][]? m_composedFields;
 

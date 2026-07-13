@@ -58,7 +58,7 @@ namespace Opc.Ua.Bindings
         /// that require mutual TLS authentication; set by
         /// <see cref="WssTransportChannel"/> after channel settings are bound.
         /// </summary>
-        internal Opc.Ua.Security.Certificates.Certificate? ClientTlsCertificate { get; set; }
+        internal Security.Certificates.Certificate? ClientTlsCertificate { get; set; }
 
         /// <inheritdoc/>
         public IUaSCByteTransport Create(

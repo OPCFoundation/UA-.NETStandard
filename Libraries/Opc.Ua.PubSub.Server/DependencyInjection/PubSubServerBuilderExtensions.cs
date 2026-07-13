@@ -98,6 +98,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="builder">PubSub server builder.</param>
         /// <param name="securityGroupId">SecurityGroup identifier.</param>
         /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public static IPubSubServerBuilder WithSecurityKeyPushTarget(
             this IPubSubServerBuilder builder,
             string securityGroupId)

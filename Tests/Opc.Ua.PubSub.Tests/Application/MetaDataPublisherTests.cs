@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             PubSubNetworkMessage? decoded = UadpDecoder.Decode(payload, ctx);
 
             Assert.That(decoded, Is.InstanceOf<UadpDiscoveryResponseMessage>());
-            UadpDiscoveryResponseMessage response = (UadpDiscoveryResponseMessage)decoded!;
+            var response = (UadpDiscoveryResponseMessage)decoded!;
             Assert.That(
                 response.DiscoveryType,
                 Is.EqualTo(UadpDiscoveryType.DataSetMetaData));
@@ -351,7 +351,7 @@ namespace Opc.Ua.PubSub.Tests.Application
             public bool IsConnected { get; private set; }
 
             public List<(ReadOnlyMemory<byte> Payload, string? Topic)> Sends { get; }
-                = new();
+                = [];
 
             public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
             {

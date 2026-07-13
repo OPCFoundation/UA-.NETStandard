@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using Moq;
 using NUnit.Framework;
@@ -197,12 +196,9 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void CustomRoleAllowsCustomRoleDeniesOthers()
         {
-            using var harness = new PolicyHarness(_tempFolder, opts =>
+            using var harness = new PolicyHarness(_tempFolder, opts => opts.ManagementAccess = new WotManagementAccessPolicy
             {
-                opts.ManagementAccess = new WotManagementAccessPolicy
-                {
-                    RequiredRoleId = global::Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin
-                };
+                RequiredRoleId = Ua.ObjectIds.WellKnownRole_ConfigureAdmin
             });
 
             // SecurityAdmin no longer enough.
@@ -226,14 +222,11 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void AllowAnonymousPolicyAcceptsAnonymousWhenSecure()
         {
-            using var harness = new PolicyHarness(_tempFolder, opts =>
+            using var harness = new PolicyHarness(_tempFolder, opts => opts.ManagementAccess = new WotManagementAccessPolicy
             {
-                opts.ManagementAccess = new WotManagementAccessPolicy
-                {
-                    AllowAnonymous = true,
-                    // anonymous can't have a role, so widen role to a built-in.
-                    RequiredRoleId = global::Opc.Ua.ObjectIds.WellKnownRole_Anonymous
-                };
+                AllowAnonymous = true,
+                // anonymous can't have a role, so widen role to a built-in.
+                RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
             });
 
             // Anonymous identity with the well-known anonymous role granted.
@@ -248,12 +241,14 @@ namespace Opc.Ua.WotCon.Tests
                 () => harness.Manager.EnforceManagementAccess(context, "CreateAsset"));
         }
 
-        // ----------------------------------------------------------------
-        // Harness — minimal IServerInternal mock just sufficient to
-        // instantiate WotConnectivityNodeManager (no address-space load
-        // needed because EnforceManagementAccess does not touch
-        // m_registry).
-        // ----------------------------------------------------------------
+        /// <summary>
+        /// ----------------------------------------------------------------
+        /// Harness — minimal IServerInternal mock just sufficient to
+        /// instantiate WotConnectivityNodeManager (no address-space load
+        /// needed because EnforceManagementAccess does not touch
+        /// m_registry).
+        /// ----------------------------------------------------------------
+        /// </summary>
         private sealed class PolicyHarness : IDisposable
         {
             public PolicyHarness(

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -69,6 +68,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="writePayloadWrapper">When <see langword="true"/>,
         /// writes the fields under a <c>Payload</c> property; otherwise
         /// writes fields directly into the current object.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void EncodeFields(
             Utf8JsonWriter writer,
             ArrayOf<DataSetField> fields,
@@ -123,9 +123,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return field.Name;
             }
-            if (metaData is not null
-                && metaData.Fields.Count > index
-                && metaData.Fields[index].Name is { Length: > 0 } resolvedName)
+            if (metaData is not null &&
+                metaData.Fields.Count > index &&
+                metaData.Fields[index].Name is { Length: > 0 } resolvedName)
             {
                 return resolvedName;
             }
@@ -171,7 +171,6 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         mode,
                         context);
                     break;
-                case PubSubFieldEncoding.Variant:
                 default:
                     JsonVariantEncoder.WriteVariantProperty(
                         writer,

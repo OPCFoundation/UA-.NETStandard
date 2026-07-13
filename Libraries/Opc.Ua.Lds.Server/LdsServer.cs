@@ -95,6 +95,7 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// In-memory database of registered servers and network records.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public RegisteredServerStore Store => RegistrationStore as RegisteredServerStore
             ?? throw new InvalidOperationException("The LDS is using a custom IRegisteredServerStore.");
 
@@ -591,13 +592,11 @@ namespace Opc.Ua.Lds.Server
                     continue;
                 }
 
-                ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme);
-                if (binding == null)
-                {
+                ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme) ??
                     throw new InvalidOperationException(
                         $"No OPC UA transport listener is registered for endpoint scheme '{scheme}'. " +
-                        $"Register the matching transport binding, for example by calling Add{GetTransportName(scheme)}Transport().");
-                }
+                        "Register the matching transport binding, for example by calling " +
+                        $"Add{GetTransportName(scheme)}Transport().");
 
                 List<EndpointDescription> endpointsForHost = await binding.CreateServiceHostAsync(
                     this,

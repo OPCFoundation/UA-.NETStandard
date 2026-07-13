@@ -103,8 +103,8 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 return new ValueTask<ReadOnlyMemory<byte>>(encoded);
             }
-            ReadOnlyMemory<byte> prefix = encoded.Slice(0, payloadOffset);
-            ReadOnlyMemory<byte> inner = encoded.Slice(payloadOffset);
+            ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
+            ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
             return TargetWrapper.WrapAsync(
                 prefix, inner, TargetWrapOptions, cancellationToken);
         }

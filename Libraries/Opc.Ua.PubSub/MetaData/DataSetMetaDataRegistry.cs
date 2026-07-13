@@ -176,8 +176,9 @@ namespace Opc.Ua.PubSub.MetaData
             {
                 throw new ArgumentNullException(nameof(metaData));
             }
-            DataSetMetaDataChangedEventArgs? evt = null;
+
             var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+            DataSetMetaDataChangedEventArgs? evt;
             lock (m_lock)
             {
                 m_entries.TryGetValue(identity, out RegisteredEntry existing);

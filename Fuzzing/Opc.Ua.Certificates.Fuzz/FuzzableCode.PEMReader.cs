@@ -40,8 +40,11 @@ namespace Opc.Ua.Fuzzing
     /// </summary>
     public static partial class FuzzableCode
     {
-        // AOT consideration: keep the fuzz surface on public certificate APIs; net48 uses
-        // the BouncyCastle PEMReader implementation behind the same byte-array call shape.
+        /// <summary>
+        /// AOT consideration: keep the fuzz surface on public certificate APIs; net48 uses
+        /// the BouncyCastle PEMReader implementation behind the same byte-array call shape.
+        /// </summary>
+        /// <param name="text"></param>
         public static void AflfuzzPemImportCertificate(string text)
         {
             FuzzPemImportCertificateCore(Encoding.UTF8.GetBytes(text));

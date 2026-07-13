@@ -33,7 +33,9 @@ using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server.Tests.Alarms
 {
-    [TestFixture, Category("AlarmMetrics"), Parallelizable]
+    [TestFixture]
+    [Category("AlarmMetrics")]
+    [Parallelizable]
     public class AlarmRateTrackerTests
     {
         [Test]
@@ -94,7 +96,9 @@ namespace Opc.Ua.Server.Tests.Alarms
         }
     }
 
-    [TestFixture, Category("ModelChangeAggregator"), Parallelizable]
+    [TestFixture]
+    [Category("ModelChangeAggregator")]
+    [Parallelizable]
     public class ModelChangeAggregatorTests
     {
         [Test]

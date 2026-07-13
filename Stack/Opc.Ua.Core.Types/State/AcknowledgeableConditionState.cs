@@ -484,7 +484,10 @@ namespace Opc.Ua
         /// </remarks>
         private static bool CanSetComment(LocalizedText comment)
         {
-            return true;
+            // Per OPC UA Part 9, a Null comment (no translation and empty/absent
+            // text) passed to Acknowledge or Confirm must not overwrite the
+            // Condition's existing Comment.
+            return !comment.IsNullOrEmpty;
         }
 
         private static LocalizedText NormalizeMethodComment(LocalizedText comment)

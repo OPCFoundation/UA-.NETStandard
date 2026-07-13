@@ -111,12 +111,12 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             ValidatePrefix(prefix);
             string publisherToken = ToPublisherIdToken(publisherId);
-            var sb = new StringBuilder(prefix.Length + 64);
-            sb.Append(prefix);
-            sb.Append('/').Append(encoding.ToTopicSegment());
-            sb.Append('/').Append(DataSegment);
-            sb.Append('/').Append(publisherToken);
-            sb.Append('/').Append(writerGroupId.ToString(CultureInfo.InvariantCulture));
+            StringBuilder sb = new StringBuilder(prefix.Length + 64)
+                .Append(prefix)
+                .Append('/').Append(encoding.ToTopicSegment())
+                .Append('/').Append(DataSegment)
+                .Append('/').Append(publisherToken)
+                .Append('/').Append(writerGroupId.ToString(CultureInfo.InvariantCulture));
             if (dataSetWriterId is ushort writerId)
             {
                 sb.Append('/').Append(writerId.ToString(CultureInfo.InvariantCulture));
@@ -143,14 +143,14 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             ValidatePrefix(prefix);
             string publisherToken = ToPublisherIdToken(publisherId);
-            var sb = new StringBuilder(prefix.Length + 64);
-            sb.Append(prefix);
-            sb.Append('/').Append(encoding.ToTopicSegment());
-            sb.Append('/').Append(MetaDataSegment);
-            sb.Append('/').Append(publisherToken);
-            sb.Append('/').Append(writerGroupId.ToString(CultureInfo.InvariantCulture));
-            sb.Append('/').Append(dataSetWriterId.ToString(CultureInfo.InvariantCulture));
-            return sb.ToString();
+            return new StringBuilder(prefix.Length + 64)
+                .Append(prefix)
+                .Append('/').Append(encoding.ToTopicSegment())
+                .Append('/').Append(MetaDataSegment)
+                .Append('/').Append(publisherToken)
+                .Append('/').Append(writerGroupId.ToString(CultureInfo.InvariantCulture))
+                .Append('/').Append(dataSetWriterId.ToString(CultureInfo.InvariantCulture))
+                .ToString();
         }
 
         /// <summary>
@@ -170,12 +170,12 @@ namespace Opc.Ua.PubSub.Mqtt
             ValidatePrefix(prefix);
             ValidateTopicSegment(messageTypeSegment, nameof(messageTypeSegment));
             string publisherToken = ToPublisherIdToken(publisherId);
-            var sb = new StringBuilder(prefix.Length + 64);
-            sb.Append(prefix);
-            sb.Append('/').Append(encoding.ToTopicSegment());
-            sb.Append('/').Append(messageTypeSegment);
-            sb.Append('/').Append(publisherToken);
-            return sb.ToString();
+            return new StringBuilder(prefix.Length + 64)
+                .Append(prefix)
+                .Append('/').Append(encoding.ToTopicSegment())
+                .Append('/').Append(messageTypeSegment)
+                .Append('/').Append(publisherToken)
+                .ToString();
         }
 
         /// <summary>
@@ -240,7 +240,7 @@ namespace Opc.Ua.PubSub.Mqtt
             {
                 throw new ArgumentException("Prefix cannot be empty.", nameof(prefix));
             }
-            if (prefix[0] == '/' || prefix[prefix.Length - 1] == '/')
+            if (prefix[0] == '/' || prefix[^1] == '/')
             {
                 throw new ArgumentException(
                     "Prefix must not start or end with a '/' character.",
@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Mqtt
             for (int i = 0; i < value.Length; i++)
             {
                 char c = value[i];
-                if (c == '#' || c == '+')
+                if (c is '#' or '+')
                 {
                     throw new ArgumentException(
                         "MQTT topic wildcard characters '#' and '+' are not allowed in topic-builder inputs.",

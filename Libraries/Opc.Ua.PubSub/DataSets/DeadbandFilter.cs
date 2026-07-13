@@ -38,11 +38,11 @@ namespace Opc.Ua.PubSub.DataSets
     /// previously published value to warrant a new delta-frame entry.
     /// </summary>
     /// <param name="DeadbandType">Deadband mode
-    /// (<see cref="Opc.Ua.DeadbandType"/>).</param>
+    /// (<see cref="Ua.DeadbandType"/>).</param>
     /// <param name="DeadbandValue">Deadband magnitude. For
-    /// <see cref="Opc.Ua.DeadbandType.Absolute"/> this is an absolute
+    /// <see cref="DeadbandType.Absolute"/> this is an absolute
     /// difference. For
-    /// <see cref="Opc.Ua.DeadbandType.Percent"/> this is a percentage
+    /// <see cref="DeadbandType.Percent"/> this is a percentage
     /// (0..100) of the engineering-unit range when one is supplied
     /// via <paramref name="EuRange"/>, otherwise it is interpreted as
     /// a percentage of the previous value's magnitude.</param>
@@ -103,20 +103,21 @@ namespace Opc.Ua.PubSub.DataSets
             {
                 return true;
             }
-            if (!previous.SourceTimestamp.Equals(current.SourceTimestamp)
-                && deadband.DeadbandType != DeadbandType.None
-                && deadband.DeadbandValue > 0 && TryGetDouble(previous.Value, out double prev)
-                    && TryGetDouble(current.Value, out double now))
+            if (!previous.SourceTimestamp.Equals(current.SourceTimestamp) &&
+                deadband.DeadbandType != DeadbandType.None &&
+                deadband.DeadbandValue > 0 &&
+                TryGetDouble(previous.Value, out double prev) &&
+                TryGetDouble(current.Value, out double now))
             {
                 return PassesNumeric(prev, now, deadband);
             }
-            if (deadband.DeadbandType == DeadbandType.None
-                || deadband.DeadbandValue <= 0)
+            if (deadband.DeadbandType == DeadbandType.None ||
+                deadband.DeadbandValue <= 0)
             {
                 return !previous.Value.Equals(current.Value);
             }
-            if (TryGetDouble(previous.Value, out double oldVal)
-                && TryGetDouble(current.Value, out double newVal))
+            if (TryGetDouble(previous.Value, out double oldVal) &&
+                TryGetDouble(current.Value, out double newVal))
             {
                 return PassesNumeric(oldVal, newVal, deadband);
             }
@@ -133,7 +134,7 @@ namespace Opc.Ua.PubSub.DataSets
                     return diff > deadband.DeadbandValue;
                 case DeadbandType.Percent:
                     double scale;
-                    if (deadband.EuRange.HasValue && deadband.EuRange.Value > 0)
+                    if (deadband.EuRange > 0)
                     {
                         scale = deadband.EuRange.Value;
                     }

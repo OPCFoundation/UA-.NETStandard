@@ -38,7 +38,6 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security;
-using Opc.Ua.PubSub.Security.Policies;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Transports;
@@ -78,7 +77,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
             UdpTransportOptions options =
                 serviceProvider.GetRequiredService<IOptions<UdpTransportOptions>>().Value;
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
 
             Assert.Multiple(() =>
             {
@@ -95,8 +94,6 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 Assert.That(factories[0], Is.InstanceOf<UdpPubSubTransportFactory>());
             });
         }
-
-
 
         [Test]
         [TestSpec("7.3.2.4")]
@@ -187,7 +184,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             IPubSubTransportFactory[] factories =
-                serviceProvider.GetServices<IPubSubTransportFactory>().ToArray();
+                [.. serviceProvider.GetServices<IPubSubTransportFactory>()];
             DtlsTransportOptions dtlsOptions =
                 serviceProvider.GetRequiredService<IOptions<DtlsTransportOptions>>().Value;
 
@@ -204,7 +201,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         public async Task AddUdpPubSubWithSecurityKeyProviderBuildsSecuredApplicationAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
 
             services.AddOpcUa().AddUdpPubSub(udp => udp
                 .UseConfiguration(CreateSecuredConfiguration())
@@ -223,7 +220,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
         public async Task AddSecureUdpPubSubBuildsSecuredApplicationAsync()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
 
             services.AddSecureUdpPubSub(
                 "group-1",

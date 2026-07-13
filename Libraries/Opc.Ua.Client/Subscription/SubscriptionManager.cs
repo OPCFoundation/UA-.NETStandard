@@ -910,6 +910,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// <see cref="SubscriptionManagerSerializer.LoadAsync"/>
         /// which performs the validation before dispatching here.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="handler"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal async ValueTask<ISubscription> RestoreGroupAsync(
             ISubscriptionNotificationHandler handler,
             IReadOnlyList<SubscriptionStateSnapshot> snapshots,
@@ -1010,7 +1013,8 @@ namespace Opc.Ua.Client.Subscriptions
             // non-zero AND the caller asked for transfer, issue
             // TransferSubscriptions; on failure fall back to recreate
             // via the partition's own state machine.
-            if (transferSubscriptions && snap.ServerId != 0 &&
+            if (transferSubscriptions &&
+                snap.ServerId != 0 &&
                 partition is Subscription concrete)
             {
                 bool transferred = false;
@@ -1022,9 +1026,9 @@ namespace Opc.Ua.Client.Subscriptions
                             new uint[] { snap.ServerId }.ToArrayOf(),
                             sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
                             ct).ConfigureAwait(false);
-                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult)
-                        && response.Results.Count > 0
-                        && StatusCode.IsGood(response.Results[0].StatusCode))
+                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
+                        response.Results.Count > 0 &&
+                        StatusCode.IsGood(response.Results[0].StatusCode))
                     {
                         transferred = await concrete.TryCompleteTransferAsync(
                             response.Results[0].AvailableSequenceNumbers.IsNull
@@ -1874,14 +1878,18 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();
-        // Dispatch registry: every partition subscription this manager
-        // owns, including the primaries of logical wrappers. Publish
-        // dispatch (GetById), acknowledgement routing, recreate, and
-        // transfer iterate this set so they remain partition-aware.
+        /// <summary>
+        /// Dispatch registry: every partition subscription this manager
+        /// owns, including the primaries of logical wrappers. Publish
+        /// dispatch (GetById), acknowledgement routing, recreate, and
+        /// transfer iterate this set so they remain partition-aware.
+        /// </summary>
         private readonly HashSet<IManagedSubscription> m_subscriptions = [];
-        // Public registry: logical wrappers returned to callers from
-        // ISubscriptionManager.Items / Add. One wrapper per logical
-        // subscription regardless of how many partitions back it.
+        /// <summary>
+        /// Public registry: logical wrappers returned to callers from
+        /// ISubscriptionManager.Items / Add. One wrapper per logical
+        /// subscription regardless of how many partitions back it.
+        /// </summary>
         private readonly HashSet<LogicalSubscription> m_logicals = [];
         private readonly CancellationTokenSource m_cts = new();
         private readonly ISubscriptionManagerContext m_session;

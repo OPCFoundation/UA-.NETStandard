@@ -109,8 +109,11 @@ namespace Opc.Ua.Server
             m_keepAliveCounter = maxKeepAliveCount;
             m_lifetimeCounter = 0;
             m_waitingForPublish = false;
-            m_maxMessageCount = maxMessageCount;
-            m_sentMessages = [];
+            m_messageQueue = new SentMessageQueue(
+                () => Id,
+                maxMessageCount,
+                m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
+                m_logger);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
 
@@ -118,10 +121,6 @@ namespace Opc.Ua.Server
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
             m_itemsToPublish = new LinkedList<IMonitoredItem>();
             m_itemsToTrigger = [];
-
-            // m_itemsReadyToPublish         = new Queue<IMonitoredItem>();
-            // m_itemsNotificationsAvailable = new LinkedList<IMonitoredItem>();
-            m_sequenceNumber = 1;
 
             // initialize diagnostics.
             Diagnostics = new SubscriptionDiagnosticsDataType
@@ -154,7 +153,7 @@ namespace Opc.Ua.Server
                 MonitoredItemCount = 0,
                 DisabledMonitoredItemCount = 0,
                 MonitoringQueueOverflowCount = 0,
-                NextSequenceNumber = m_sequenceNumber
+                NextSequenceNumber = m_messageQueue.NextSequenceNumber
             };
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(session);
@@ -189,6 +188,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             var subscription = new Subscription(server, storedSubscription, timeProvider);
+            await subscription.LoadRetransmissionStateAsync(cancellationToken).ConfigureAwait(false);
 
             await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
                 .ConfigureAwait(false);
@@ -237,8 +237,14 @@ namespace Opc.Ua.Server
                 (long)storedSubscription.PublishingInterval;
             m_keepAliveCounter = 0;
             m_waitingForPublish = false;
-            m_maxMessageCount = storedSubscription.MaxMessageCount;
-            m_sentMessages = storedSubscription.SentMessages;
+            m_messageQueue = SentMessageQueue.CreateRestored(
+                () => Id,
+                storedSubscription.MaxMessageCount,
+                m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
+                m_logger,
+                storedSubscription.SentMessages,
+                storedSubscription.SequenceNumber,
+                storedSubscription.LastSentMessage);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             // UserIdentityToken is null for anonymous sessions; preserve the saved-owner
@@ -246,8 +252,6 @@ namespace Opc.Ua.Server
             m_savedOwnerIdentity = storedSubscription.UserIdentityToken != null
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
                 : null;
-            m_sequenceNumber = storedSubscription.SequenceNumber;
-            m_lastSentMessage = storedSubscription.LastSentMessage;
 
             m_monitoredItems = [];
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
@@ -284,7 +288,7 @@ namespace Opc.Ua.Server
                 MonitoredItemCount = 0,
                 DisabledMonitoredItemCount = 0,
                 MonitoringQueueOverflowCount = 0,
-                NextSequenceNumber = m_sequenceNumber
+                NextSequenceNumber = m_messageQueue.NextSequenceNumber
             };
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy();
@@ -321,11 +325,7 @@ namespace Opc.Ua.Server
                     }
 
                     m_monitoredItems.Clear();
-                    for (int ii = 0; ii < m_sentMessages.Count; ii++)
-                    {
-                        ReuseNotificationPayloads(m_sentMessages[ii]);
-                    }
-                    m_sentMessages.Clear();
+                    m_messageQueue.Clear();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
                 }
@@ -775,20 +775,9 @@ namespace Opc.Ua.Server
                 ResetLifetimeCount();
 
                 // find message in queue.
-                for (int ii = 0; ii < m_sentMessages.Count; ii++)
+                if (m_messageQueue.TryAcknowledge(sequenceNumber))
                 {
-                    if (m_sentMessages[ii].SequenceNumber == sequenceNumber)
-                    {
-                        if (m_lastSentMessage > ii)
-                        {
-                            m_lastSentMessage--;
-                        }
-
-                        NotificationMessage removed = m_sentMessages[ii];
-                        m_sentMessages.RemoveAt(ii);
-                        ReuseNotificationPayloads(removed);
-                        return null;
-                    }
+                    return null;
                 }
 
                 if (sequenceNumber == 0)
@@ -876,14 +865,12 @@ namespace Opc.Ua.Server
                 m_expired = true;
 
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-                message.SequenceNumber = m_sequenceNumber;
+                message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
                 message.PublishTime = DateTimeUtc.Now;
-
-                Utils.IncrementIdentifier(ref m_sequenceNumber);
 
                 lock (DiagnosticsWriteLock)
                 {
-                    Diagnostics.NextSequenceNumber = m_sequenceNumber;
+                    Diagnostics.NextSequenceNumber = m_messageQueue.NextSequenceNumber;
                 }
 
                 var notification = (StatusChangeNotification)StatusChangeNotificationActivator.Instance.CreateInstance();
@@ -905,14 +892,12 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-                message.SequenceNumber = m_sequenceNumber;
+                message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
                 message.PublishTime = DateTimeUtc.Now;
-
-                Utils.IncrementIdentifier(ref m_sequenceNumber);
 
                 lock (DiagnosticsWriteLock)
                 {
-                    Diagnostics.NextSequenceNumber = m_sequenceNumber;
+                    Diagnostics.NextSequenceNumber = m_messageQueue.NextSequenceNumber;
                 }
 
                 var notification = (StatusChangeNotification)StatusChangeNotificationActivator.Instance.CreateInstance();
@@ -944,20 +929,17 @@ namespace Opc.Ua.Server
 
             moreNotifications = false;
 
-            if (m_lastSentMessage < m_sentMessages.Count)
+            NotificationMessage? queuedMessage = m_messageQueue.TryDequeueQueued(
+                availableSequenceNumberList,
+                m_itemsToPublish.Count > 0,
+                out moreNotifications);
+            if (queuedMessage != null)
             {
-                // return the available sequence numbers.
-                for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
-                {
-                    availableSequenceNumberList.Add(m_sentMessages[ii].SequenceNumber);
-                }
-
-                moreNotifications = m_waitingForPublish = (m_lastSentMessage < m_sentMessages.Count - 1) ||
-                    m_itemsToPublish.Count > 0;
+                m_waitingForPublish = moreNotifications;
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH QUEUED MESSAGE");
                 availableSequenceNumbers = availableSequenceNumberList;
-                return m_sentMessages[m_lastSentMessage++];
+                return queuedMessage;
             }
 
             var messages = new List<NotificationMessage>();
@@ -1040,8 +1022,8 @@ namespace Opc.Ua.Server
                         }
 
                         //stop fetching messages from MIs when message queue is full to avoid discards
-                        // use m_maxMessageCount - 2 to put remaining values into the last allowed message (each MI is allowed to publish 3 up to messages at once)
-                        if (messages.Count >= m_maxMessageCount - 2)
+                        // use MaxMessageCount - 2 to put remaining values into the last allowed message (each MI is allowed to publish 3 up to messages at once)
+                        if (messages.Count >= m_messageQueue.MaxMessageCount - 2)
                         {
                             break;
                         }
@@ -1104,78 +1086,41 @@ namespace Opc.Ua.Server
             {
                 // create a keep alive message.
                 var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-                message.SequenceNumber = m_sequenceNumber;
+                message.SequenceNumber = m_messageQueue.NextSequenceNumber;
                 message.PublishTime = DateTimeUtc.Now;
 
                 // return the available sequence numbers.
-                for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
-                {
-                    availableSequenceNumberList.Add(m_sentMessages[ii].SequenceNumber);
-                }
+                m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
                 availableSequenceNumbers = availableSequenceNumberList;
                 return message;
             }
 
-            // have to drop unsent messages if out of queue space.
-            int overflowCount = messages.Count - (int)m_maxMessageCount;
-            if (overflowCount > 0)
-            {
-                m_logger.LogWarning(
-                    "WARNING: QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}",
-                    overflowCount,
-                    Id,
-                    m_maxMessageCount);
-                for (int ii = 0; ii < overflowCount; ii++)
-                {
-                    ReuseNotificationPayloads(messages[ii]);
-                }
-                messages.RemoveRange(0, overflowCount);
-            }
+            NotificationMessage newMessage = m_messageQueue.Enqueue(
+                messages,
+                availableSequenceNumberList,
+                out moreNotifications,
+                out uint newlyUnacknowledgedCount);
 
-            // remove old messages if queue is full.
-            if (m_sentMessages.Count > m_maxMessageCount - messages.Count)
+            if (newlyUnacknowledgedCount > 0)
             {
                 lock (DiagnosticsWriteLock)
                 {
-                    Diagnostics.UnacknowledgedMessageCount += (uint)messages.Count;
-                }
-
-                if (m_maxMessageCount <= messages.Count)
-                {
-                    for (int ii = 0; ii < m_sentMessages.Count; ii++)
-                    {
-                        ReuseNotificationPayloads(m_sentMessages[ii]);
-                    }
-                    m_sentMessages.Clear();
-                }
-                else
-                {
-                    for (int ii = 0; ii < messages.Count; ii++)
-                    {
-                        ReuseNotificationPayloads(m_sentMessages[ii]);
-                    }
-                    m_sentMessages.RemoveRange(0, messages.Count);
+                    Diagnostics.UnacknowledgedMessageCount += newlyUnacknowledgedCount;
                 }
             }
 
-            // save new message
-            m_lastSentMessage = m_sentMessages.Count;
-            m_sentMessages.AddRange(messages);
-
-            // check if there are more notifications to send.
-            moreNotifications = m_waitingForPublish = messages.Count > 1;
-
-            // return the available sequence numbers.
-            for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
-            {
-                availableSequenceNumberList.Add(m_sentMessages[ii].SequenceNumber);
-            }
+            m_waitingForPublish = moreNotifications;
 
             // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH NEW MESSAGE");
             availableSequenceNumbers = availableSequenceNumberList;
-            return m_sentMessages[m_lastSentMessage++];
+            return newMessage;
+        }
+
+        private ValueTask LoadRetransmissionStateAsync(CancellationToken cancellationToken)
+        {
+            return m_messageQueue.LoadRetransmissionStateAsync(cancellationToken);
         }
 
         /// <summary>
@@ -1184,15 +1129,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public ArrayOf<uint> AvailableSequenceNumbersForRetransmission()
         {
-            var availableSequenceNumbers = new List<uint>();
-            // Assumption we do not check lastSentMessage < sentMessages.Count because
-            // in case of subscription transfer original client might have crashed by handling message,
-            // therefor new client should have to chance to process all available messages
-            for (int ii = 0; ii < m_sentMessages.Count; ii++)
-            {
-                availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
-            }
-            return availableSequenceNumbers;
+            return m_messageQueue.AvailableSequenceNumbersForRetransmission();
         }
 
         /// <summary>
@@ -1207,14 +1144,12 @@ namespace Opc.Ua.Server
             notificationCount = 0;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-            message.SequenceNumber = m_sequenceNumber;
+            message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
             message.PublishTime = DateTimeUtc.Now;
-
-            Utils.IncrementIdentifier(ref m_sequenceNumber);
 
             lock (DiagnosticsWriteLock)
             {
-                Diagnostics.NextSequenceNumber = m_sequenceNumber;
+                Diagnostics.NextSequenceNumber = m_messageQueue.NextSequenceNumber;
             }
 
             // add events.
@@ -1300,17 +1235,15 @@ namespace Opc.Ua.Server
                 }
 
                 // find message.
-                foreach (NotificationMessage sentMessage in m_sentMessages)
+                NotificationMessage? sentMessage = m_messageQueue.FindForRepublish(retransmitSequenceNumber);
+                if (sentMessage != null)
                 {
-                    if (sentMessage.SequenceNumber == retransmitSequenceNumber)
+                    lock (DiagnosticsWriteLock)
                     {
-                        lock (DiagnosticsWriteLock)
-                        {
-                            Diagnostics.RepublishMessageCount++;
-                        }
-
-                        return sentMessage;
+                        Diagnostics.RepublishMessageCount++;
                     }
+
+                    return sentMessage;
                 }
 
                 // message not available.
@@ -2613,14 +2546,14 @@ namespace Opc.Ua.Server
 
             return new StoredSubscription
             {
-                SentMessages = m_sentMessages,
+                SentMessages = m_messageQueue.SentMessages,
                 Id = Id,
-                SequenceNumber = m_sequenceNumber,
-                LastSentMessage = m_lastSentMessage,
+                SequenceNumber = m_messageQueue.NextSequenceNumber,
+                LastSentMessage = m_messageQueue.LastSentMessage,
                 LifetimeCounter = m_lifetimeCounter,
                 MaxKeepaliveCount = m_maxKeepAliveCount,
                 MaxLifetimeCount = m_maxLifetimeCount,
-                MaxMessageCount = m_maxMessageCount,
+                MaxMessageCount = m_messageQueue.MaxMessageCount,
                 MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
                 Priority = Priority,
                 PublishingInterval = PublishingInterval,
@@ -2737,11 +2670,11 @@ namespace Opc.Ua.Server
             // save counters
             Monitor.Enter(m_lock);
 
-            long sequenceNumber = m_sequenceNumber;
+            long sequenceNumber = m_messageQueue.NextSequenceNumber;
             int itemsToCheck = m_itemsToCheck.Count;
             int monitoredItems = m_monitoredItems.Count;
             int itemsToPublish = m_itemsToPublish.Count;
-            int sentMessages = m_sentMessages.Count;
+            int sentMessages = m_messageQueue.SentCount;
             bool publishingEnabled = m_publishingEnabled;
             bool waitingForPublish = m_waitingForPublish;
 
@@ -2818,10 +2751,7 @@ namespace Opc.Ua.Server
         private uint m_keepAliveCounter;
         private uint m_lifetimeCounter;
         private bool m_waitingForPublish;
-        private readonly List<NotificationMessage> m_sentMessages;
-        private int m_lastSentMessage;
-        private uint m_sequenceNumber;
-        private readonly uint m_maxMessageCount;
+        private readonly SentMessageQueue m_messageQueue;
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
         private readonly LinkedList<IMonitoredItem> m_itemsToPublish;
@@ -2831,39 +2761,5 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;
-
-        /// <summary>
-        /// Walk a <see cref="NotificationMessage"/> that is being
-        /// discarded (acknowledged or evicted from the retransmission
-        /// queue) and return every pooled notification payload to its
-        /// activator's pool via <see cref="IPooledEncodeable.Reuse"/>.
-        /// </summary>
-        private static void ReuseNotificationPayloads(NotificationMessage message)
-        {
-            ReadOnlySpan<ExtensionObject> data = message.NotificationData.Span;
-            for (int i = 0; i < data.Length; i++)
-            {
-                if (data[i].TryGetValue(out DataChangeNotification? dcn))
-                {
-                    ReadOnlySpan<MonitoredItemNotification> items =
-                        dcn.MonitoredItems.Span;
-                    for (int j = 0; j < items.Length; j++)
-                    {
-                        (items[j] as IPooledEncodeable)?.Reuse();
-                    }
-                    (dcn as IPooledEncodeable)?.Reuse();
-                }
-                else if (data[i].TryGetValue(out EventNotificationList? enl))
-                {
-                    ReadOnlySpan<EventFieldList> events = enl.Events.Span;
-                    for (int j = 0; j < events.Length; j++)
-                    {
-                        (events[j] as IPooledEncodeable)?.Reuse();
-                    }
-                    (enl as IPooledEncodeable)?.Reuse();
-                }
-            }
-            (message as IPooledEncodeable)?.Reuse();
-        }
     }
 }
