@@ -157,21 +157,16 @@ namespace Opc.Ua.Pcap.Capture
                     await Source.StartAsync(Request, ct).ConfigureAwait(false);
                     StartedAt = DateTimeOffset.UtcNow;
                     State = CaptureSessionState.Running;
-                    m_logger.LogInformation(
-                        "Capture session {SessionId} started ({Source}).",
-                        Id,
-                        SourceKind);
+                    m_logger.CaptureSessionStarted(Id, SourceKind);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     Error = ex.Message;
                     State = CaptureSessionState.Failed;
-                    m_logger.LogError(
-                        ex,
-                        "Capture session {SessionId} failed to start.",
-                        Id);
+                    m_logger.CaptureSessionStartFailed(ex, Id);
                     throw;
                 }
+
             }
             finally
             {
@@ -199,21 +194,13 @@ namespace Opc.Ua.Pcap.Capture
                     await Source.StopAsync(ct).ConfigureAwait(false);
                     StoppedAt = DateTimeOffset.UtcNow;
                     State = CaptureSessionState.Completed;
-                    m_logger.LogInformation(
-                        "Capture session {SessionId} stopped " +
-                        "({FrameCount} frames, {ByteCount} bytes).",
-                        Id,
-                        Source.FrameCount,
-                        Source.ByteCount);
+                    m_logger.CaptureSessionStopped(Id, Source.FrameCount, Source.ByteCount);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     Error = ex.Message;
                     State = CaptureSessionState.Failed;
-                    m_logger.LogError(
-                        ex,
-                        "Capture session {SessionId} failed to stop.",
-                        Id);
+                    m_logger.CaptureSessionStopFailed(ex, Id);
                     throw;
                 }
             }
@@ -284,4 +271,40 @@ namespace Opc.Ua.Pcap.Capture
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="CaptureSession"/>.
+    /// </summary>
+    internal static partial class CaptureSessionLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CaptureSession + 0, Level = LogLevel.Information,
+            Message = "Capture session {SessionId} started ({Source}).")]
+        public static partial void CaptureSessionStarted(
+            this ILogger logger,
+            string sessionId,
+            CaptureSourceKind source);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CaptureSession + 1, Level = LogLevel.Error,
+            Message = "Capture session {SessionId} failed to start.")]
+        public static partial void CaptureSessionStartFailed(
+            this ILogger logger,
+            Exception exception,
+            string sessionId);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CaptureSession + 2, Level = LogLevel.Information,
+            Message = "Capture session {SessionId} stopped ({FrameCount} frames, {ByteCount} bytes).")]
+        public static partial void CaptureSessionStopped(
+            this ILogger logger,
+            string sessionId,
+            long frameCount,
+            long byteCount);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CaptureSession + 3, Level = LogLevel.Error,
+            Message = "Capture session {SessionId} failed to stop.")]
+        public static partial void CaptureSessionStopFailed(
+            this ILogger logger,
+            Exception exception,
+            string sessionId);
+    }
+
 }

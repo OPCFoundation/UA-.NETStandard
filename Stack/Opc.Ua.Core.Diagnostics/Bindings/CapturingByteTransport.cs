@@ -184,9 +184,7 @@ namespace Opc.Ua.Pcap.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "CapturingByteTransport: observer.OnFrameReceived threw.");
+                m_logger.ObserverOnFrameReceivedFailed(ex);
             }
         }
 
@@ -198,10 +196,24 @@ namespace Opc.Ua.Pcap.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "CapturingByteTransport: observer.OnFrameSent threw.");
+                m_logger.ObserverOnFrameSentFailed(ex);
             }
+
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="CapturingByteTransport"/>.
+    /// </summary>
+    internal static partial class CapturingByteTransportLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CapturingByteTransport + 0, Level = LogLevel.Warning,
+            Message = "CapturingByteTransport: observer.OnFrameReceived threw.")]
+        public static partial void ObserverOnFrameReceivedFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CapturingByteTransport + 1, Level = LogLevel.Warning,
+            Message = "CapturingByteTransport: observer.OnFrameSent threw.")]
+        public static partial void ObserverOnFrameSentFailed(this ILogger logger, Exception exception);
+    }
+
 }

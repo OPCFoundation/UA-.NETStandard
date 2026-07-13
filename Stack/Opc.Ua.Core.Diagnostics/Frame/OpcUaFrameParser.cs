@@ -90,9 +90,10 @@ namespace Opc.Ua.Pcap.Frame
 
                 int resyncOffset = FindNextValidStart(span[1..]);
                 int consume = resyncOffset < 0 ? Math.Max(1, buffer.Length - HeaderLength + 1) : resyncOffset + 1;
-                m_logger.LogWarning("Skipped {ByteCount} bytes while resynchronizing OPC UA chunk stream.", consume);
+                m_logger.SkippedBytesWhileResynchronizing(consume);
                 buffer.Consume(consume);
             }
+
         }
 
         private FlowBuffer GetBuffer(string flowKey)
@@ -329,4 +330,15 @@ namespace Opc.Ua.Pcap.Frame
             return !left.Equals(right);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="OpcUaFrameParser"/>.
+    /// </summary>
+    internal static partial class OpcUaFrameParserLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.OpcUaFrameParser + 0, Level = LogLevel.Warning,
+            Message = "Skipped {ByteCount} bytes while resynchronizing OPC UA chunk stream.")]
+        public static partial void SkippedBytesWhileResynchronizing(this ILogger logger, int byteCount);
+    }
+
 }

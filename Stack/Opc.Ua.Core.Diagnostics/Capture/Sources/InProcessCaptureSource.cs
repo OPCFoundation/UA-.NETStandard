@@ -265,8 +265,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             IFrameCaptureSink? previous = m_registry.SetObserver(this);
             if (previous is not null)
             {
-                Logger.LogWarning(
-                    "InProcessCaptureSource: an observer was already installed in the registry; it has been replaced.");
+                Logger.ObserverAlreadyInstalled();
             }
 
             ct.ThrowIfCancellationRequested();
@@ -439,7 +438,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
             catch (Exception ex)
             {
-                Logger.LogWarning(ex, "Failed to snapshot channel token material.");
+                Logger.SnapshotChannelTokenMaterialFailed(ex);
                 return;
             }
             queue.Writer.TryWrite(CaptureWorkItem.ForKey(material));
@@ -490,7 +489,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "In-process capture queue worker terminated unexpectedly.");
+                Logger.QueueWorkerTerminatedUnexpectedly(ex);
             }
         }
 
@@ -510,7 +509,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarning(ex, "Failed to write captured frame to pcap.");
+                    Logger.WriteCapturedFrameFailed(ex);
                 }
                 return;
             }
@@ -531,8 +530,9 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarning(ex, "Failed to persist key material snapshot.");
+                    Logger.PersistKeyMaterialSnapshotFailed(ex);
                 }
+
             }
         }
 
@@ -602,4 +602,32 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for InProcessCaptureSource.
+    /// </summary>
+    internal static partial class InProcessCaptureSourceLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.InProcessCaptureSource + 0, Level = LogLevel.Warning,
+            Message = "InProcessCaptureSource: an observer was already installed in the registry; it has been " +
+                "replaced.")]
+        public static partial void ObserverAlreadyInstalled(this ILogger logger);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.InProcessCaptureSource + 1, Level = LogLevel.Warning,
+            Message = "Failed to snapshot channel token material.")]
+        public static partial void SnapshotChannelTokenMaterialFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.InProcessCaptureSource + 2, Level = LogLevel.Error,
+            Message = "In-process capture queue worker terminated unexpectedly.")]
+        public static partial void QueueWorkerTerminatedUnexpectedly(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.InProcessCaptureSource + 3, Level = LogLevel.Warning,
+            Message = "Failed to write captured frame to pcap.")]
+        public static partial void WriteCapturedFrameFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.InProcessCaptureSource + 4, Level = LogLevel.Warning,
+            Message = "Failed to persist key material snapshot.")]
+        public static partial void PersistKeyMaterialSnapshotFailed(this ILogger logger, Exception exception);
+    }
+
 }

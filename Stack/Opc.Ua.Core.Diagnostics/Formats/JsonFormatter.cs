@@ -71,7 +71,7 @@ namespace Opc.Ua.Pcap.Formats
         {
             ArgumentNullException.ThrowIfNull(source);
 
-            m_logger.LogDebug("Formatting capture as JSON.");
+            m_logger.FormattingCaptureAsJson();
             List<FrameJsonDto> frames = [];
             await foreach (CaptureFrame frame in source.ReadCapturedFramesAsync(maxFrames, ct)
                 .WithCancellation(ct)
@@ -92,6 +92,7 @@ namespace Opc.Ua.Pcap.Formats
             };
         }
     }
+
 
     internal sealed record FrameJsonDto(
         string Timestamp,
@@ -119,4 +120,15 @@ namespace Opc.Ua.Pcap.Formats
 
     [JsonSerializable(typeof(List<FrameJsonDto>))]
     internal sealed partial class FrameJsonSerializerContext : JsonSerializerContext;
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="JsonFormatter"/>.
+    /// </summary>
+    internal static partial class JsonFormatterLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.JsonFormatter + 0, Level = LogLevel.Debug,
+            Message = "Formatting capture as JSON.")]
+        public static partial void FormattingCaptureAsJson(this ILogger logger);
+    }
+
 }
