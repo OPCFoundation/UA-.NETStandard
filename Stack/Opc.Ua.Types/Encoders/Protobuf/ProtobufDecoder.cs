@@ -243,13 +243,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public float ReadFloat(string? fieldName)
         {
-            return BitConverter.UInt32BitsToSingle(Get(fieldName).Fixed32);
+            return EncoderCompat.UInt32BitsToSingle(Get(fieldName).Fixed32);
         }
 
         /// <inheritdoc/>
         public double ReadDouble(string? fieldName)
         {
-            return BitConverter.UInt64BitsToDouble(Get(fieldName).Fixed64);
+            return EncoderCompat.UInt64BitsToDouble(Get(fieldName).Fixed64);
         }
 
         /// <inheritdoc/>
@@ -498,13 +498,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<float> ReadFloatArray(string? fieldName)
         {
-            return ReadArray(fieldName, x => BitConverter.UInt32BitsToSingle(x.Fixed32));
+            return ReadArray(fieldName, x => EncoderCompat.UInt32BitsToSingle(x.Fixed32));
         }
 
         /// <inheritdoc/>
         public ArrayOf<double> ReadDoubleArray(string? fieldName)
         {
-            return ReadArray(fieldName, x => BitConverter.UInt64BitsToDouble(x.Fixed64));
+            return ReadArray(fieldName, x => EncoderCompat.UInt64BitsToDouble(x.Fixed64));
         }
 
         /// <inheritdoc/>
@@ -1083,8 +1083,8 @@ namespace Opc.Ua
                 BuiltInType.UInt32 => (uint)fieldName.Varint,
                 BuiltInType.Int64 => (long)fieldName.Varint,
                 BuiltInType.UInt64 => fieldName.Varint,
-                BuiltInType.Float => BitConverter.UInt32BitsToSingle(fieldName.Fixed32),
-                BuiltInType.Double => BitConverter.UInt64BitsToDouble(fieldName.Fixed64),
+                BuiltInType.Float => EncoderCompat.UInt32BitsToSingle(fieldName.Fixed32),
+                BuiltInType.Double => EncoderCompat.UInt64BitsToDouble(fieldName.Fixed64),
                 BuiltInType.String => Proto.Parse(fieldName.Bytes).First(1) is var sf && sf.HasValue
                     ? Proto.String(sf.Value.Bytes)
                     : null,

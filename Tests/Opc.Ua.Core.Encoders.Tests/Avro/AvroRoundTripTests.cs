@@ -84,15 +84,15 @@ namespace Opc.Ua.Core.Tests
                 RoundTrip(e => e.WriteUInt64(null, ulong.MaxValue), d => d.ReadUInt64(null)),
                 Is.EqualTo(ulong.MaxValue));
             Assert.That(
-                BitConverter.SingleToInt32Bits(RoundTrip(e => e.WriteFloat(null, -0.0f), d => d.ReadFloat(null))),
-                Is.EqualTo(BitConverter.SingleToInt32Bits(-0.0f)));
+                EncoderCompat.SingleToInt32Bits(RoundTrip(e => e.WriteFloat(null, -0.0f), d => d.ReadFloat(null))),
+                Is.EqualTo(EncoderCompat.SingleToInt32Bits(-0.0f)));
             Assert.That(float.IsNaN(RoundTrip(e => e.WriteFloat(null, float.NaN), d => d.ReadFloat(null))), Is.True);
             Assert.That(
                 RoundTrip(e => e.WriteDouble(null, double.NegativeInfinity), d => d.ReadDouble(null)),
                 Is.EqualTo(double.NegativeInfinity));
             Assert.That(
-                BitConverter.DoubleToInt64Bits(RoundTrip(e => e.WriteDouble(null, -0.0d), d => d.ReadDouble(null))),
-                Is.EqualTo(BitConverter.DoubleToInt64Bits(-0.0d)));
+                EncoderCompat.DoubleToInt64Bits(RoundTrip(e => e.WriteDouble(null, -0.0d), d => d.ReadDouble(null))),
+                Is.EqualTo(EncoderCompat.DoubleToInt64Bits(-0.0d)));
             Assert.That(
                 RoundTrip(e => e.WriteDateTime(null, DateTimeUtc.MinValue), d => d.ReadDateTime(null)),
                 Is.EqualTo(DateTimeUtc.MinValue));
@@ -165,8 +165,8 @@ namespace Opc.Ua.Core.Tests
             Variant matrix2 = RoundTrip(e => e.WriteVariant(null, matrix), d => d.ReadVariant(null));
             Assert.That(matrix2.TypeInfo, Is.EqualTo(matrix.TypeInfo));
             Assert.That(
-                BitConverter.DoubleToInt64Bits(matrix2.GetDoubleMatrix().Span[1]),
-                Is.EqualTo(BitConverter.DoubleToInt64Bits(-0.0)));
+                EncoderCompat.DoubleToInt64Bits(matrix2.GetDoubleMatrix().Span[1]),
+                Is.EqualTo(EncoderCompat.DoubleToInt64Bits(-0.0)));
             var ext = new ExtensionObject(new ExpandedNodeId(new NodeId(9001u, 2)), ByteString.From(9, 8, 7));
             Assert.That(
                 RoundTrip(e => e.WriteExtensionObject(null, ext), d => d.ReadExtensionObject(null)),

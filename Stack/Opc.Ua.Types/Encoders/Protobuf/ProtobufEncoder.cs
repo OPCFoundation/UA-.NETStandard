@@ -115,7 +115,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public string? CloseAndReturnText()
         {
-            return Convert.ToHexString(ToArray()).ToLowerInvariant();
+            return EncoderCompat.ToLowerHexString(ToArray());
         }
 
         /// <inheritdoc/>
@@ -212,13 +212,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteFloat(string? fieldName, float value)
         {
-            WriteFixed32(fieldName, BitConverter.SingleToUInt32Bits(value));
+            WriteFixed32(fieldName, EncoderCompat.SingleToUInt32Bits(value));
         }
 
         /// <inheritdoc/>
         public void WriteDouble(string? fieldName, double value)
         {
-            WriteFixed64(fieldName, BitConverter.DoubleToUInt64Bits(value));
+            WriteFixed64(fieldName, EncoderCompat.DoubleToUInt64Bits(value));
         }
 
         /// <inheritdoc/>
@@ -633,7 +633,7 @@ namespace Opc.Ua
                 x =>
                 {
                     Proto.WriteTag(Current, 1, 5);
-                    Proto.WriteFixed32(Current, BitConverter.SingleToUInt32Bits(x));
+                    Proto.WriteFixed32(Current, EncoderCompat.SingleToUInt32Bits(x));
                 }
             );
         }
@@ -647,7 +647,7 @@ namespace Opc.Ua
                 x =>
                 {
                     Proto.WriteTag(Current, 1, 1);
-                    Proto.WriteFixed64(Current, BitConverter.DoubleToUInt64Bits(x));
+                    Proto.WriteFixed64(Current, EncoderCompat.DoubleToUInt64Bits(x));
                 }
             );
         }

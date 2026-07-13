@@ -87,11 +87,11 @@ namespace Opc.Ua.Core.Tests
             Assert.That(d.ReadInt64("i64"), Is.EqualTo(long.MinValue));
             Assert.That(d.ReadUInt64("u64"), Is.EqualTo(ulong.MaxValue));
             Assert.That(
-                BitConverter.SingleToUInt32Bits(d.ReadFloat("f")),
-                Is.EqualTo(BitConverter.SingleToUInt32Bits(-0.0f)));
+                EncoderCompat.SingleToUInt32Bits(d.ReadFloat("f")),
+                Is.EqualTo(EncoderCompat.SingleToUInt32Bits(-0.0f)));
             Assert.That(
-                BitConverter.DoubleToUInt64Bits(d.ReadDouble("d")),
-                Is.EqualTo(BitConverter.DoubleToUInt64Bits(double.NaN)));
+                EncoderCompat.DoubleToUInt64Bits(d.ReadDouble("d")),
+                Is.EqualTo(EncoderCompat.DoubleToUInt64Bits(double.NaN)));
             Assert.That(d.ReadString("sn"), Is.Null);
             Assert.That(d.ReadString("se"), Is.EqualTo(string.Empty));
             Assert.That(d.ReadDateTime("dt0"), Is.EqualTo(DateTimeUtc.MinValue));

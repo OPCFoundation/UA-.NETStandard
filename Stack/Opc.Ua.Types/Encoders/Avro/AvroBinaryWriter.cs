@@ -115,7 +115,7 @@ namespace Opc.Ua
         public void WriteFloat(float value)
         {
             Span<byte> b = stackalloc byte[4];
-            BinaryPrimitives.WriteInt32LittleEndian(b, BitConverter.SingleToInt32Bits(value));
+            BinaryPrimitives.WriteInt32LittleEndian(b, EncoderCompat.SingleToInt32Bits(value));
             WriteRaw(b);
         }
 
@@ -126,7 +126,7 @@ namespace Opc.Ua
         public void WriteDouble(double value)
         {
             Span<byte> b = stackalloc byte[8];
-            BinaryPrimitives.WriteInt64LittleEndian(b, BitConverter.DoubleToInt64Bits(value));
+            BinaryPrimitives.WriteInt64LittleEndian(b, EncoderCompat.DoubleToInt64Bits(value));
             WriteRaw(b);
         }
 

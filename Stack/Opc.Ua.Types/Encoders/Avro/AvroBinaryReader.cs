@@ -118,7 +118,7 @@ namespace Opc.Ua
         {
             Span<byte> b = stackalloc byte[4];
             ReadExactly(b);
-            return BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(b));
+            return EncoderCompat.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(b));
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Opc.Ua
         {
             Span<byte> b = stackalloc byte[8];
             ReadExactly(b);
-            return BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64LittleEndian(b));
+            return EncoderCompat.Int64BitsToDouble(BinaryPrimitives.ReadInt64LittleEndian(b));
         }
 
         /// <summary>
