@@ -151,7 +151,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 // Mirroring is best-effort; never fail an otherwise-valid session
                 // because the shared store is unavailable.
-                m_logger.LogWarning(ex, "Failed to mirror created session to the shared store.");
+                m_logger.FailedToMirrorCreatedSessionToSharedStore(ex);
             }
 
             return result;
@@ -186,7 +186,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to mirror activated session to the shared store.");
+                m_logger.FailedToMirrorActivatedSessionToSharedStore(ex);
             }
 
             return result;
@@ -205,7 +205,7 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Failed to remove mirrored session from the shared store.");
+                    m_logger.FailedToRemoveMirroredSessionFromSharedStore(ex);
                 }
             }
 
@@ -233,10 +233,7 @@ namespace Opc.Ua.Redundancy.Server
 
             if (IsRestoreExpired(entry))
             {
-                m_logger.LogWarning(
-                    "Distributed session restore for {Token} rejected: {Reason}.",
-                    TokenDigest(authenticationToken),
-                    RestoreDecision.Expired);
+                m_logger.DistributedSessionRestoreRejected(TokenDigest(authenticationToken), RestoreDecision.Expired);
                 return null;
             }
 
@@ -248,10 +245,7 @@ namespace Opc.Ua.Redundancy.Server
                 cancellationToken).ConfigureAwait(false);
             if (decision != RestoreDecision.Authorized)
             {
-                m_logger.LogWarning(
-                    "Distributed session restore for {Token} rejected: {Reason}.",
-                    TokenDigest(authenticationToken),
-                    decision);
+                m_logger.DistributedSessionRestoreRejected(TokenDigest(authenticationToken), decision);
                 return null;
             }
 
@@ -273,10 +267,7 @@ namespace Opc.Ua.Redundancy.Server
                     session.Dispose();
                     throw;
                 }
-                m_logger.LogInformation(
-                    "Distributed session restored from shared store for {Token} (session {SessionId}).",
-                    TokenDigest(authenticationToken),
-                    session.Id);
+                m_logger.DistributedSessionRestoredFromSharedStore(TokenDigest(authenticationToken), session.Id);
                 m_tokensBySession[session.Id] = authenticationToken;
 
                 // Security-relevant provenance: a session materialized on this
@@ -349,7 +340,7 @@ namespace Opc.Ua.Redundancy.Server
             if (requiresClientCertificate &&
                 (entry.ClientCertificateChain.IsNull || entry.ClientCertificateChain.IsEmpty))
             {
-                m_logger.LogWarning("Mirrored session has no client certificate; cannot restore.");
+                m_logger.MirroredSessionHasNoClientCertificate();
                 return null;
             }
 
@@ -359,9 +350,7 @@ namespace Opc.Ua.Redundancy.Server
             using Certificate? serverCertificate = m_serverCertificateProvider(entry.SecurityPolicyUri);
             if (serverCertificate == null)
             {
-                m_logger.LogWarning(
-                    "No server certificate available for policy {Policy}; cannot restore session.",
-                    entry.SecurityPolicyUri);
+                m_logger.NoServerCertificateAvailableForPolicy(entry.SecurityPolicyUri);
                 return null;
             }
 
@@ -518,4 +507,51 @@ namespace Opc.Ua.Redundancy.Server
         private readonly TimeProvider m_restoreTimeProvider;
         private readonly ConcurrentDictionary<NodeId, NodeId> m_tokensBySession = new();
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DistributedSessionManager"/>.
+    /// </summary>
+    internal static partial class DistributedSessionManagerLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 0, Level = LogLevel.Warning,
+            Message = "Failed to mirror created session to the shared store.")]
+        public static partial void FailedToMirrorCreatedSessionToSharedStore(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 1, Level = LogLevel.Warning,
+            Message = "Failed to mirror activated session to the shared store.")]
+        public static partial void FailedToMirrorActivatedSessionToSharedStore(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 2, Level = LogLevel.Warning,
+            Message = "Failed to remove mirrored session from the shared store.")]
+        public static partial void FailedToRemoveMirroredSessionFromSharedStore(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 3, Level = LogLevel.Warning,
+            Message = "Distributed session restore for {Token} rejected: {Reason}.")]
+        public static partial void DistributedSessionRestoreRejected(
+            this ILogger logger,
+            string token,
+            DistributedSessionManager.RestoreDecision reason);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 4, Level = LogLevel.Information,
+            Message = "Distributed session restored from shared store for {Token} (session {SessionId}).")]
+        public static partial void DistributedSessionRestoredFromSharedStore(
+            this ILogger logger,
+            string token,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 5, Level = LogLevel.Warning,
+            Message = "Mirrored session has no client certificate; cannot restore.")]
+        public static partial void MirroredSessionHasNoClientCertificate(this ILogger logger);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 6, Level = LogLevel.Warning,
+            Message = "No server certificate available for policy {Policy}; cannot restore session.")]
+        public static partial void NoServerCertificateAvailableForPolicy(this ILogger logger, string policy);
+    }
+
 }

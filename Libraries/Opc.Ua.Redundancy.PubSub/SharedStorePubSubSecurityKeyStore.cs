@@ -103,9 +103,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
             if (!m_protector.TryUnprotect(protectedPayload, out ByteString plaintext))
             {
-                m_logger.LogWarning(
-                    "Unable to unprotect shared PubSub SecurityGroup record for {SecurityGroupId}.",
-                    securityGroupId);
+                m_logger.UnableToUnprotectSharedPubSubSecurityGroupRecord(securityGroupId);
                 return null;
             }
 
@@ -392,4 +390,18 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly IServiceMessageContext m_context;
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SharedStorePubSubSecurityKeyStore"/>.
+    /// </summary>
+    internal static partial class SharedStorePubSubSecurityKeyStoreLog
+    {
+        [LoggerMessage(EventId = RedundancyPubSubEventIds.SharedStorePubSubSecurityKeyStore + 0,
+            Level = LogLevel.Warning,
+            Message = "Unable to unprotect shared PubSub SecurityGroup record for {SecurityGroupId}.")]
+        public static partial void UnableToUnprotectSharedPubSubSecurityGroupRecord(
+            this ILogger logger,
+            string securityGroupId);
+    }
+
 }
