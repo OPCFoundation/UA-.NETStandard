@@ -367,6 +367,36 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task CreateAsyncCancellationStopsStartedConnectAttemptAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            var gate = new BlockingConnectGate();
+            using var cancellation = new CancellationTokenSource();
+
+            Task<Client.ManagedSession> creation = Client.ManagedSession.CreateAsync(
+                configuration,
+                endpoint,
+                new DefaultSessionFactory(telemetry),
+                connectGate: gate,
+                ct: cancellation.Token);
+
+            await gate.Started.ConfigureAwait(false);
+            cancellation.Cancel();
+
+            OperationCanceledException exception =
+                Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await creation.ConfigureAwait(false))!;
+            Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
+
+            Task completed = await Task.WhenAny(
+                gate.Stopped,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(gate.Stopped));
+        }
+
+        [Test]
         public void CreateAsyncThrowsOnNullConfiguration()
         {
             var mockFactory = new Mock<ISessionFactory>();
@@ -507,6 +537,41 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return managedSession;
         }
 #pragma warning restore IDE0051, RCS1213
+
+        private sealed class BlockingConnectGate : IClientConnectGate
+        {
+            public Task Started => m_started.Task;
+
+            public Task Stopped => m_stopped.Task;
+
+            public async ValueTask<IDisposable> AcquireAsync(
+                CancellationToken ct = default)
+            {
+                m_started.TrySetResult(null);
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_stopped.TrySetResult(null);
+                }
+
+                return new EmptyLease();
+            }
+
+            private readonly TaskCompletionSource<object?> m_started =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<object?> m_stopped =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private sealed class EmptyLease : IDisposable
+        {
+            public void Dispose()
+            {
+            }
+        }
 
 #pragma warning disable IDE0051, RCS1213 // Test scaffold kept for ManagedSession construction tests.
         private static ApplicationConfiguration CreateClientConfiguration(
