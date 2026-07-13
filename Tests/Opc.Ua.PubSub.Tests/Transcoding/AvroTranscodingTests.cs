@@ -33,6 +33,8 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transcoding;
 using static Opc.Ua.PubSub.Tests.Transcoding.TranscodingTestUtilities;
+using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
+using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
 namespace Opc.Ua.PubSub.Tests.Transcoding
 {
@@ -182,6 +184,58 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             Assert.That(
                 decoded.DataSetMessages[0].Fields[0].Value,
                 Is.EqualTo(new Variant(42)));
+        }
+
+        [Test]
+        public async Task Transcode_UadpToAvro_ProducesDecodableAvroFrame()
+        {
+            TranscodeContext context = NewContext();
+            var spec = new TranscodeSpec { TargetEncoding = TranscodeEncoding.Avro };
+            var transcoder = new PubSubTranscoder(spec, TranscodingTestUtilities.Encoders(), context);
+            UadpNetworkMessageV2 message = NewUadpMessage(
+                PublisherId.FromByte(3), 7, 55, Field("x", new Variant(9)));
+
+            TranscodeResult result = await transcoder
+                .TranscodeAsync(new TranscodeInput(message))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Dropped, Is.False);
+            Assert.That(result.Frames.Count, Is.EqualTo(1));
+            Assert.That(result.Messages[0], Is.InstanceOf<AvroNetworkMessage>());
+
+            AvroNetworkMessage decoded = await DecodeAvroAsync(result.Frames[0], context)
+                .ConfigureAwait(false);
+            Assert.That(decoded.PublisherId, Is.EqualTo(PublisherId.FromByte(3)));
+            Assert.That(
+                decoded.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant(9)));
+        }
+
+        [Test]
+        public void Project_AvroToUadp_PreservesIdentityAndFields()
+        {
+            AvroNetworkMessage source = NewAvroMessage(1, Field("x", new Variant(9)));
+
+            PubSubNetworkMessage projected = NetworkMessageProfileProjector.Instance.Project(
+                source, TranscodeEncoding.Uadp, TranscodeTargetOptions.Default, NewContext());
+
+            var uadp = (UadpNetworkMessageV2)projected;
+            Assert.That(uadp.PublisherId, Is.EqualTo(PublisherId.FromByte(3)));
+            Assert.That(uadp.WriterGroupId, Is.EqualTo((ushort)7));
+            Assert.That(uadp.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant(9)));
+        }
+
+        [Test]
+        public void Project_AvroToJson_PreservesIdentityAndFields()
+        {
+            AvroNetworkMessage source = NewAvroMessage(1, Field("x", new Variant(9)));
+
+            PubSubNetworkMessage projected = NetworkMessageProfileProjector.Instance.Project(
+                source, TranscodeEncoding.Json, TranscodeTargetOptions.Default, NewContext());
+
+            var json = (JsonNetworkMessageV2)projected;
+            Assert.That(json.PublisherId, Is.EqualTo(PublisherId.FromByte(3)));
+            Assert.That(json.WriterGroupId, Is.EqualTo((ushort)7));
+            Assert.That(json.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant(9)));
         }
     }
 }

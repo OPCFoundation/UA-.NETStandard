@@ -39,6 +39,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
@@ -69,6 +70,27 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(sp.GetService<IDataSetMetaDataRegistry>(), Is.Not.Null);
             Assert.That(sp.GetService<IPubSubDiagnostics>(), Is.Not.Null);
             Assert.That(sp.GetService<IPubSubScheduler>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddPubSub_RegistersAvroNetworkMessageEncoderAndDecoder()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSub();
+            ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(
+                sp.GetServices<INetworkMessageEncoder>()
+                    .Any(e => e.TransportProfileUri == AvroNetworkMessage.PubSubMqttAvroTransport),
+                Is.True,
+                "The Avro NetworkMessage encoder should be registered for transcoding.");
+            Assert.That(
+                sp.GetServices<INetworkMessageDecoder>()
+                    .Any(d => d.TransportProfileUri == AvroNetworkMessage.PubSubMqttAvroTransport),
+                Is.True,
+                "The Avro NetworkMessage decoder should be registered for transcoding.");
         }
 
         [Test]

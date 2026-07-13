@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Runtime.CompilerServices;
 
 namespace Opc.Ua
@@ -39,7 +38,7 @@ namespace Opc.Ua
     /// .NET code paths allocation-free and intrinsic-friendly. The bit-cast
     /// helpers use <see cref="Unsafe"/> reinterpretation, which lowers to the
     /// same reinterpret operation the JIT emits for the corresponding
-    /// <see cref="BitConverter"/> intrinsics on the modern frameworks, so no
+    /// <see cref="System.BitConverter"/> intrinsics on the modern frameworks, so no
     /// runtime performance is lost on .NET 8 and later.
     /// </summary>
     internal static class EncoderCompat
@@ -114,31 +113,6 @@ namespace Opc.Ua
         public static double UInt64BitsToDouble(ulong value)
         {
             return Unsafe.As<ulong, double>(ref value);
-        }
-
-        /// <summary>
-        /// Formats the bytes as a lower-case hexadecimal string.
-        /// </summary>
-        public static string ToLowerHexString(ReadOnlySpan<byte> value)
-        {
-#if NET5_0_OR_GREATER
-            return Convert.ToHexString(value).ToLowerInvariant();
-#else
-            if (value.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            const string hex = "0123456789abcdef";
-            char[] chars = new char[value.Length * 2];
-            for (int i = 0; i < value.Length; i++)
-            {
-                byte b = value[i];
-                chars[i * 2] = hex[b >> 4];
-                chars[(i * 2) + 1] = hex[b & 0xF];
-            }
-            return new string(chars);
-#endif
         }
     }
 }
