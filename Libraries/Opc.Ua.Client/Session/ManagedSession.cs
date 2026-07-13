@@ -278,7 +278,9 @@ namespace Opc.Ua.Client
                 catch (Exception disposeException) when (
                     disposeException is not OutOfMemoryException)
                 {
-                    // Preserve the connection failure or cancellation reported to the caller.
+                    logger.LogError(
+                        disposeException,
+                        "ManagedSession: Disposal after initial connection failure failed.");
                 }
                 throw;
             }
