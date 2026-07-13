@@ -83,9 +83,19 @@ namespace Opc.Ua.Server.Tests
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry);
 
-            foreach (DataValue value in values)
+            if (endTime < startTime)
             {
-                calculator.QueueRawValue(value);
+                for (int ii = values.Count - 1; ii >= 0; ii--)
+                {
+                    Assert.That(calculator.QueueRawValue(values[ii]), Is.True);
+                }
+            }
+            else
+            {
+                foreach (DataValue value in values)
+                {
+                    Assert.That(calculator.QueueRawValue(value), Is.True);
+                }
             }
 
             var results = new List<DataValue>();
@@ -173,6 +183,160 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result.WrappedValue.TryGetValue(out StatusCode worst), Is.True);
             Assert.That(StatusCode.IsUncertain(worst), Is.True);
+        }
+
+        [Test]
+        public void WorstQualityPreservesFirstGoodStatusCode()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(2000);
+            List<DataValue> values = CreateDataValues(
+                startTime,
+                [
+                    (1, StatusCodes.GoodClamped),
+                    (2, StatusCodes.Good),
+                    (3, StatusCodes.Good)
+                ]);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_WorstQuality, values, startTime, endTime, 2000);
+
+            Assert.That(result.WrappedValue.TryGetValue(out StatusCode worst), Is.True);
+            Assert.That(worst, Is.EqualTo(StatusCodes.GoodClamped));
+            Assert.That(
+                result.StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
+        }
+
+        [Test]
+        public void WorstQualityPreservesFirstUncertainStatusCodeAfterGood()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(4000);
+            List<DataValue> values = CreateDataValues(
+                startTime,
+                [
+                    (1, StatusCodes.GoodClamped),
+                    (2, StatusCodes.Good),
+                    (3, StatusCodes.UncertainLastUsableValue),
+                    (4, StatusCodes.UncertainDataSubNormal),
+                    (5, StatusCodes.Good)
+                ]);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_WorstQuality, values, startTime, endTime, 4000);
+
+            Assert.That(result.WrappedValue.TryGetValue(out StatusCode worst), Is.True);
+            Assert.That(worst, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+            Assert.That(
+                result.StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
+        }
+
+        [Test]
+        public void WorstQualityPreservesFirstBadStatusCodeAfterUncertain()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(6000);
+            List<DataValue> values = CreateDataValues(
+                startTime,
+                [
+                    (1, StatusCodes.GoodClamped),
+                    (2, StatusCodes.Good),
+                    (3, StatusCodes.UncertainLastUsableValue),
+                    (4, StatusCodes.UncertainDataSubNormal),
+                    (5, StatusCodes.BadOutOfRange),
+                    (6, StatusCodes.BadSensorFailure),
+                    (7, StatusCodes.Good)
+                ]);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_WorstQuality, values, startTime, endTime, 6000);
+
+            Assert.That(result.WrappedValue.TryGetValue(out StatusCode worst), Is.True);
+            Assert.That(worst, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(
+                result.StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void WorstQuality2IncludesRequestStartAndExcludesRequestEnd(bool reverse)
+        {
+            var baseTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc startTime = baseTime.AddMilliseconds(reverse ? 8000 : 2000);
+            DateTimeUtc endTime = baseTime.AddMilliseconds(reverse ? 2000 : 8000);
+            List<DataValue> values = reverse
+                ?
+                [
+                    new DataValue(
+                        Variant.From(1),
+                        StatusCodes.BadOutOfRange,
+                        baseTime.AddMilliseconds(2000)),
+                    new DataValue(
+                        Variant.From(2),
+                        StatusCodes.Good,
+                        baseTime.AddMilliseconds(4000)),
+                    new DataValue(
+                        Variant.From(3),
+                        StatusCodes.UncertainLastUsableValue,
+                        baseTime.AddMilliseconds(10000))
+                ]
+                :
+                [
+                    new DataValue(
+                        Variant.From(1),
+                        StatusCodes.UncertainLastUsableValue,
+                        baseTime),
+                    new DataValue(
+                        Variant.From(2),
+                        StatusCodes.Good,
+                        baseTime.AddMilliseconds(4000)),
+                    new DataValue(
+                        Variant.From(3),
+                        StatusCodes.BadSensorFailure,
+                        baseTime.AddMilliseconds(8000))
+                ];
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_WorstQuality2, values, startTime, endTime, 6000);
+
+            Assert.That(result.WrappedValue.TryGetValue(out StatusCode worst), Is.True);
+            Assert.That(worst, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(startTime));
+            Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void WorstQuality2SetsMultipleValuesForRequestStartAndInteriorWorstQuality(bool reverse)
+        {
+            var earlyTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc lateTime = earlyTime.AddMilliseconds(10000);
+            StatusCode earlyStatus = reverse ? StatusCodes.Good : StatusCodes.BadOutOfRange;
+            StatusCode lateStatus = reverse ? StatusCodes.BadSensorFailure : StatusCodes.Good;
+            List<DataValue> values = CreateDataValues(
+                earlyTime,
+                [
+                    (1, earlyStatus),
+                    (2, StatusCodes.BadOutOfRange),
+                    (3, lateStatus)
+                ],
+                5000);
+            DateTimeUtc startTime = reverse ? lateTime : earlyTime;
+            DateTimeUtc endTime = reverse ? earlyTime : lateTime;
+            StatusCode expected = reverse ? StatusCodes.BadSensorFailure : StatusCodes.BadOutOfRange;
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_WorstQuality2, values, startTime, endTime, 10000);
+
+            Assert.That(result.WrappedValue.TryGetValue(out StatusCode worst), Is.True);
+            Assert.That(worst, Is.EqualTo(expected));
+            Assert.That(
+                result.StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
         }
 
         [Test]

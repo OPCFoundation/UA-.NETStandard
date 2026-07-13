@@ -250,6 +250,22 @@ namespace Opc.Ua
                     cert,
                     dataToVerify);
             }
+            catch (ServiceResultException sre)
+                when (sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+            {
+                // SecurityPolicies.VerifySignatureData is shared with the
+                // channel-level signature checks and throws the channel-level
+                // BadSecurityChecksFailed when the SignatureData carries an
+                // unexpected/mismatched signature algorithm. For a user identity
+                // token that is a token-level fault, so surface it as
+                // BadIdentityTokenInvalid per OPC UA Part 4 (ActivateSession
+                // user identity token validation) rather than leaking a
+                // channel-security status out of the user-token path.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    sre,
+                    "User identity token signature uses an unexpected algorithm.");
+            }
             catch (Exception e) when (e is not ServiceResultException)
             {
                 throw ServiceResultException.Create(

@@ -379,6 +379,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task HistoryReadProcessedWithEqualStartAndEndTimeReturnsBadInvalidArgumentPerNodeAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+
+            BaseDataVariableState node1 = CreateHistoryReadVariable(h, "EqualTimesA");
+            BaseDataVariableState node2 = CreateHistoryReadVariable(h, "EqualTimesB");
+            await h.Manager.AddNodeAsync(h.Context, default, node1).ConfigureAwait(false);
+            await h.Manager.AddNodeAsync(h.Context, default, node2).ConfigureAwait(false);
+
+            var provider = new InMemoryHistorianProvider();
+            h.RegisterProvider(node1.NodeId, provider);
+            h.RegisterProvider(node2.NodeId, provider);
+            provider.Register(node1.NodeId);
+            provider.Register(node2.NodeId);
+
+            // Part 11 v1.05.07 §6.5.4.2: startTime == endTime is a zero-width time domain that
+            // "has no meaningful way to interpret", so the Server shall return Bad_InvalidArgument.
+            // This reproduces CTT aggregate_002_01 (multi-node): each per-node operation result
+            // must carry Bad_InvalidArgument while the HistoryRead service call itself succeeds.
+            var details = new ReadProcessedDetails
+            {
+                StartTime = BaseTime,
+                EndTime = BaseTime,
+                ProcessingInterval = 1000,
+                AggregateType = [ObjectIds.AggregateFunction_Average, ObjectIds.AggregateFunction_Average]
+            };
+
+            var nodesToRead = new List<HistoryReadValueId>
+            {
+                new() { NodeId = node1.NodeId },
+                new() { NodeId = node2.NodeId }
+            };
+            var results = new List<HistoryReadResult> { null!, null! };
+            var errors = new List<ServiceResult> { null!, null! };
+
+            await h.Manager.HistoryReadAsync(
+                h.OperationContext, details, TimestampsToReturn.Source,
+                false, nodesToRead, results, errors).ConfigureAwait(false);
+
+            Assert.That(errors, Has.Count.EqualTo(2));
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public async Task HistoryUpdateInsertDataDispatchesToProviderAsync()
         {
             using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
