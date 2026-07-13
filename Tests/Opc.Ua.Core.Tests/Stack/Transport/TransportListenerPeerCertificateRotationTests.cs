@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
-#if NET8_0_OR_GREATER
+#if HAS_KESTREL_TCP_LISTENER
         /// <summary>
         /// The Kestrel-hosted opc.tcp listener also implements the peer-trust
         /// rotation capability with the <see cref="TrustListIdentifier.Peers"/>
@@ -315,7 +315,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             SetChannelMap(typeof(TcpTransportListener), listener, map);
         }
 
-#if NET8_0_OR_GREATER
+#if HAS_KESTREL_TCP_LISTENER
         private static void InjectKestrelChannels(
             KestrelTcpTransportListener listener,
             params (uint Id, TcpListenerChannel Channel)[] channels)
