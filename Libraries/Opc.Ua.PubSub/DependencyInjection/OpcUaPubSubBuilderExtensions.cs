@@ -237,9 +237,12 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Json.JsonDecoder());
 
             // Experimental Avro NetworkMessage encoder/decoder (Part 14 draft) so routes can
-            // transcode to and from the Avro mapping alongside UADP and JSON.
-            services.AddSingleton<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageEncoder());
-            services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageDecoder());
+            // transcode to and from the Avro mapping alongside UADP and JSON. Registered transient so
+            // each transcoding bridge gets its own progressive-schema state, which resets naturally
+            // when a route is reloaded (the bridge is recreated); SchemaCache.Reset provides an
+            // explicit reset, and a DataSet MetaData version change re-announces automatically.
+            services.AddTransient<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageEncoder());
+            services.AddTransient<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageDecoder());
 
             // Security policies.
             foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.All)

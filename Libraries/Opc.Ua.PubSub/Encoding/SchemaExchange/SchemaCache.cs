@@ -128,6 +128,17 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
+        /// Clears every cached schema and all per-destination announcement state so that subsequent
+        /// encodes regenerate and re-announce their schemas. Used to reset progressive schema
+        /// generation, for example when a transcoding route is reloaded.
+        /// </summary>
+        public void Reset()
+        {
+            _announced.Clear();
+            _schemas.Clear();
+        }
+
+        /// <summary>
         /// Resolves a cached schema or invokes the supplied resolver on a cache miss.
         /// </summary>
         /// <param name="schemaId">The raw schema identifier.</param>
