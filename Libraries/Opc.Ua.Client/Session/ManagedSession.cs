@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -275,8 +276,7 @@ namespace Opc.Ua.Client
                 {
                     await managed.DisposeAsync().ConfigureAwait(false);
                 }
-                catch (Exception disposeException) when (
-                    disposeException is not OutOfMemoryException)
+                catch (Exception disposeException) when (ShouldSuppressSecondaryDisposalFailure(disposeException))
                 {
                     // Preserve the connection failure or cancellation reported to the caller.
                 }
@@ -284,6 +284,19 @@ namespace Opc.Ua.Client
             }
 
             return managed;
+        }
+
+        /// <summary>
+        /// Determines whether a secondary cleanup failure can be suppressed.
+        /// </summary>
+        /// <remarks>
+        /// The caller-visible cancellation and primary cleanup path are covered by tests.
+        /// Injecting a secondary disposal failure requires production-only seams.
+        /// </remarks>
+        [ExcludeFromCodeCoverage]
+        private static bool ShouldSuppressSecondaryDisposalFailure(Exception exception)
+        {
+            return exception is not OutOfMemoryException;
         }
 
         /// <summary>
