@@ -284,11 +284,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
-        [TestCase(65535, 65536)]
-        [TestCase(65536, 65536)]
+        [TestCase(65535)]
+        [TestCase(65536)]
         public async Task NegotiatedMaxBufferSizeUsesBucketSafeRentalSizeAsync(
-            int negotiatedMaxBufferSize,
-            int expectedRequestedMinimumLength)
+            int negotiatedMaxBufferSize)
         {
             var pool = new TrackingArrayPool();
             using TestServerChannel channel = CreateOpenChannel(pool, negotiatedMaxBufferSize);
@@ -301,6 +300,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
                 Is.True);
             Assert.That(pool.RentCount, Is.EqualTo(1));
+#if DEBUG
+            const int expectedRequestedMinimumLength = 64 * 1024;
+#else
+            int expectedRequestedMinimumLength = negotiatedMaxBufferSize;
+#endif
             Assert.That(pool.LastMinimumLength, Is.EqualTo(expectedRequestedMinimumLength));
             Assert.That(pool.OutstandingCount, Is.EqualTo(1));
 
@@ -311,6 +315,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Is.True);
             Assert.That(pool.ReturnCount, Is.EqualTo(1));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public void ChannelRejectsChunkAboveNegotiatedReceiveSize()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.SetReceiveBufferSizeForTest(16);
+            byte[] buffer = channel.TakeBufferForTest(17);
+            BitConverter.GetBytes(TcpMessageType.Message).CopyTo(buffer, 0);
+            BitConverter.GetBytes(17).CopyTo(buffer, 4);
+
+            channel.FeedReceivedChunk(new ArraySegment<byte>(buffer, 0, 17));
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(
+                channel.LastTransportError.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
         }
 
         private static TestServerChannel CreateOpenChannel(
@@ -428,6 +451,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
             }
 
+            public TcpChannelState CurrentState => State;
+
+            public ServiceResult LastTransportError { get; private set; } = ServiceResult.Good;
+
             public void OpenForTest()
             {
                 State = TcpChannelState.Open;
@@ -457,6 +484,27 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void SetMaxResponseMessageSizeForTest(int maxResponseMessageSize)
             {
                 MaxResponseMessageSize = maxResponseMessageSize;
+            }
+
+            public void SetReceiveBufferSizeForTest(int receiveBufferSize)
+            {
+                ReceiveBufferSize = receiveBufferSize;
+            }
+
+            public byte[] TakeBufferForTest(int size)
+            {
+                return BufferManager.TakeBuffer(size, nameof(TakeBufferForTest));
+            }
+
+            public void FeedReceivedChunk(ArraySegment<byte> chunk)
+            {
+                OnChunkReceived(chunk);
+            }
+
+            protected override void OnTransportError(ServiceResult result)
+            {
+                LastTransportError = result;
+                base.OnTransportError(result);
             }
         }
 

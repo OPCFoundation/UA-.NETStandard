@@ -429,7 +429,7 @@ The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12
 
 ### Subscription transport buffer pooling
 
-`BufferManager` stores a one-byte ownership cookie after the usable transport data. Before the issue #3988 fix, configuring `TransportQuotas.MaxBufferSize` to an exact power of two such as 65,536 could therefore call `ArrayPool<byte>.Rent(65,537)`, selecting the 131,072-byte bucket. The secure-channel limits were adjusted for outgoing messages, but the client and accepted-server TCP transports still received the raw quota and continued making the larger rental on every received chunk.
+`BufferManager` previously stored a one-byte ownership cookie after the usable transport data in all builds. Configuring `TransportQuotas.MaxBufferSize` to an exact power of two such as 65,536 could therefore call `ArrayPool<byte>.Rent(65,537)`, selecting the 131,072-byte bucket. The cookie is now enabled in Debug builds (and explicit `TRACK_MEMORY` diagnostic builds) but removed from normal Release builds; the secure-channel normalization still keeps data plus any active diagnostic cookie in the same bucket.
 
 Channels now normalize their advertised send and receive limits to the largest protocol-safe value that keeps the data plus cookie in the same `ArrayPool` bucket (while preserving the OPC UA 8,192-byte minimum), and both TCP transport creation paths receive that normalized limit. A configured value of either 65,535 or 65,536 consequently uses 65,536-byte arrays instead of 131,072-byte arrays.
 

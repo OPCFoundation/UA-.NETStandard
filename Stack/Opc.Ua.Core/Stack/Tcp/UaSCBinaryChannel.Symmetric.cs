@@ -411,10 +411,8 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                // Sending a slightly smaller chunk keeps the cookie in the same ArrayPool bucket.
-                int sendBufferSize = Math.Max(
-                    TcpMessageLimits.MinBufferSize,
-                    BufferManager.GetSuggestedBufferSize(SendBufferSize));
+                // SendBufferSize is normalized when the channel is created or negotiated.
+                int sendBufferSize = SendBufferSize;
 
                 // calculate chunk sizes.
                 int maxCipherTextSize = sendBufferSize - TcpMessageLimits.SymmetricHeaderSize;

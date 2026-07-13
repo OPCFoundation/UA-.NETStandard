@@ -146,6 +146,11 @@ namespace Opc.Ua.Bindings
         void Close();
     }
 
+    internal interface IUaSCByteTransportLimits
+    {
+        void SetReceiveBufferSize(int receiveBufferSize);
+    }
+
     /// <summary>
     /// Factory used by client-side transport channels to create an
     /// unconnected <see cref="IUaSCByteTransport"/> instance configured with

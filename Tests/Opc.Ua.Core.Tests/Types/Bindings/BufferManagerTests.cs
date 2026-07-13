@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 buffer,
                 nameof(SuggestedSizeAvoidsCrossingArrayPoolBucket));
 
-            Assert.That(suggestedSize, Is.EqualTo((64 * 1024) - 1));
+            Assert.That(suggestedSize, Is.EqualTo((64 * 1024) - kCookieLength));
             Assert.That(pool.LastMinimumLength, Is.EqualTo(64 * 1024));
             Assert.That(pool.RentCount, Is.EqualTo(1));
             Assert.That(pool.ReturnCount, Is.EqualTo(1));
@@ -81,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
 
             Assert.That(
                 manager.GetSuggestedBufferSize(8 * 1024),
-                Is.EqualTo((8 * 1024) - 1));
+                Is.EqualTo((8 * 1024) - kCookieLength));
             Assert.That(
                 manager.GetSuggestedBufferSize((8 * 1024) - 1),
                 Is.EqualTo((8 * 1024) - 1));
@@ -170,5 +170,11 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             private readonly Lock m_lock = new();
             private readonly HashSet<byte[]> m_outstanding = [];
         }
+
+#if DEBUG
+        private const int kCookieLength = 1;
+#else
+        private const int kCookieLength = 0;
+#endif
     }
 }

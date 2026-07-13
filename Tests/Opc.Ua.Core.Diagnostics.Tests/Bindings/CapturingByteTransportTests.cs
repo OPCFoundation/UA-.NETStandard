@@ -115,7 +115,23 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             Assert.That(transport.Implementation, Is.EqualTo("UA-TEST+pcap"));
         }
 
-        private sealed class RecordingByteTransport : IUaSCByteTransport, IDisposable
+        [Test]
+        public void ReceiveBufferSizeUpdateForwardsToInnerTransport()
+        {
+            using var inner = new RecordingByteTransport();
+            using var transport = new CapturingByteTransport(
+                inner,
+                new ChannelCaptureRegistry());
+
+            ((IUaSCByteTransportLimits)transport).SetReceiveBufferSize(12345);
+
+            Assert.That(inner.ReceiveBufferSize, Is.EqualTo(12345));
+        }
+
+        private sealed class RecordingByteTransport :
+            IUaSCByteTransport,
+            IUaSCByteTransportLimits,
+            IDisposable
         {
             public List<byte[]> SentChunks { get; } = [];
             private readonly Queue<byte[]> m_inbound = new();
@@ -124,6 +140,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
+            public int ReceiveBufferSize { get; private set; }
 
             public void EnqueueReceive(byte[] chunk)
             {
@@ -171,6 +188,11 @@ namespace Opc.Ua.Pcap.Tests.Bindings
 
             public void Close()
             {
+            }
+
+            void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+            {
+                ReceiveBufferSize = receiveBufferSize;
             }
 
             public void Dispose()

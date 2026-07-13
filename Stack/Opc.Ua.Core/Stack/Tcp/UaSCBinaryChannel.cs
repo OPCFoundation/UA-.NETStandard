@@ -570,10 +570,23 @@ namespace Opc.Ua.Bindings
         /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
         /// transport's receive loop into the channel pipeline.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnChunkReceived(ArraySegment<byte> message)
         {
             try
             {
+                if (message.Count > ReceiveBufferSize)
+                {
+                    var result = ServiceResult.Create(
+                        StatusCodes.BadTcpMessageTooLarge,
+                        "Message size {0} bytes exceeds the negotiated receive buffer size of {1} bytes.",
+                        message.Count,
+                        ReceiveBufferSize);
+                    BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
+                    OnTransportError(result);
+                    return;
+                }
+
                 uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
 
                 if (!HandleIncomingMessage(messageType, message))

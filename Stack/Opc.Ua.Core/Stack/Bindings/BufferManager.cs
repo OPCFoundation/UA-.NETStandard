@@ -30,6 +30,10 @@
 //#define TRACE_MEMORY
 //#define TRACK_MEMORY
 
+#if DEBUG || TRACK_MEMORY
+#define BUFFER_COOKIE
+#endif
+
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -130,7 +134,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="maxBufferSize">Max size of the buffer.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="telemetry">The telemetry context used to create observability instruments.</param>
         public BufferManager(string name, int maxBufferSize, ITelemetryContext telemetry)
             : this(name, maxBufferSize, telemetry, CreateArrayPool(maxBufferSize))
         {
@@ -200,7 +204,9 @@ namespace Opc.Ua.Bindings
                 owner,
                 ++m_buffersTaken);
 #endif
+#if BUFFER_COOKIE
             buffer[^1] = kCookieUnlocked;
+#endif
 
             return buffer;
         }
@@ -257,6 +263,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="InvalidOperationException"></exception>
         public static void LockBuffer(byte[] buffer)
         {
+#if BUFFER_COOKIE
             if (buffer[^1] != kCookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer is already locked.");
@@ -265,6 +272,7 @@ namespace Opc.Ua.Bindings
             m_logger.LogDebug("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[^1] = kCookieLocked;
+#endif
         }
 
         /// <summary>
@@ -274,6 +282,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="InvalidOperationException"></exception>
         public static void UnlockBuffer(byte[] buffer)
         {
+#if BUFFER_COOKIE
             if (buffer[^1] != kCookieLocked)
             {
                 throw new InvalidOperationException("Buffer is not locked.");
@@ -282,6 +291,7 @@ namespace Opc.Ua.Bindings
             m_logger.LogDebug("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[^1] = kCookieUnlocked;
+#endif
         }
 
         /// <summary>
@@ -308,6 +318,7 @@ namespace Opc.Ua.Bindings
                 owner,
                 --m_buffersTaken);
 #endif
+#if BUFFER_COOKIE
             if (buffer[^1] != kCookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer has been locked.");
@@ -315,6 +326,7 @@ namespace Opc.Ua.Bindings
 
             // destroy cookie
             buffer[^1] = kCookieUnlocked ^ kCookieLocked;
+#endif
 
 #if TRACK_MEMORY
             lock (m_lock)
@@ -444,7 +456,7 @@ namespace Opc.Ua.Bindings
 
         private static ArrayPool<byte> CreateArrayPool(int maxBufferSize)
         {
-            return maxBufferSize <= 1024 * 1024
+            return maxBufferSize <= (1024 * 1024) - kCookieLength
                 ? ArrayPool<byte>.Shared
                 : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
         }
@@ -471,8 +483,10 @@ namespace Opc.Ua.Bindings
         private int m_buffersTaken = 0;
 #endif
         private readonly ArrayPool<byte> m_arrayPool;
+#if BUFFER_COOKIE
         private const byte kCookieLocked = 0xa5;
         private const byte kCookieUnlocked = 0x5a;
+#endif
 #if TRACK_MEMORY
         private const byte kCookieLength = 5;
 
@@ -490,8 +504,10 @@ namespace Opc.Ua.Bindings
         private int m_allocated;
         private int m_id;
         private SortedDictionary<int, Allocation> m_allocations = new SortedDictionary<int, Allocation>();
-#else
+#elif BUFFER_COOKIE
         private const byte kCookieLength = 1;
+#else
+        private const byte kCookieLength = 0;
 #endif
     }
 }

@@ -325,6 +325,10 @@ namespace Opc.Ua.Bindings
                         ChannelId);
 
                     // replace the transport and (re)start the receive loop on it.
+                    if (transport is IUaSCByteTransportLimits transportLimits)
+                    {
+                        transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
+                    }
                     Transport = transport;
                     StartReceiveLoop();
 

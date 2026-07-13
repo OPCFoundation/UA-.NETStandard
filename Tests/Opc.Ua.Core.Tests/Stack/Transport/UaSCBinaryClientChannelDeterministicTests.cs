@@ -267,14 +267,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
                 Is.True,
                 "channel never sent the Hello message");
-            Assert.That(factory.LastReceiveBufferSize, Is.EqualTo(configuredBufferSize - 1));
+            Assert.That(
+                factory.LastReceiveBufferSize,
+                Is.EqualTo(configuredBufferSize - kCookieLength));
 
             channel.FeedIncomingMessage(
                 TcpMessageType.Acknowledge,
                 new ArraySegment<byte>(BuildAcknowledge(64 * 1024, 64 * 1024)));
 
-            Assert.That(channel.TestSendBufferSize, Is.EqualTo((64 * 1024) - 1));
-            Assert.That(channel.TestReceiveBufferSize, Is.EqualTo((64 * 1024) - 1));
+            Assert.That(
+                channel.TestSendBufferSize,
+                Is.EqualTo((64 * 1024) - kCookieLength));
+            Assert.That(
+                channel.TestReceiveBufferSize,
+                Is.EqualTo(64 * 1024));
+            Assert.That(
+                channel.TestTransportReceiveBufferSize,
+                Is.EqualTo((64 * 1024) - kCookieLength));
 
             channel.FeedIncomingMessage(
                 TcpMessageType.Error,
@@ -566,6 +575,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public int TestSendBufferSize => SendBufferSize;
 
+            public int TestTransportReceiveBufferSize => TransportReceiveBufferSize;
+
             public void SetupReverseTransport(IUaSCByteTransport transport)
             {
                 ReverseSocket = true;
@@ -723,5 +734,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 m_firstSend.TrySetResult(true);
             }
         }
+
+#if DEBUG
+        private const int kCookieLength = 1;
+#else
+        private const int kCookieLength = 0;
+#endif
     }
 }

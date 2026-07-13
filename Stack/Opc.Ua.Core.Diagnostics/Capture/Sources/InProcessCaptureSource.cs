@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -105,9 +104,9 @@ namespace Opc.Ua.Pcap.Capture.Sources
     /// bounded <see cref="Channel{T}"/> to a
     /// single background writer task so the
     /// <see cref="IFrameCaptureSink"/> hot path (which runs inside the
-    /// channel's send / receive callback) never blocks on I/O. Overflow
-    /// uses <see cref="BoundedChannelFullMode.DropOldest"/>
-    /// so the source degrades gracefully under sustained load.
+    /// channel's send / receive callback) never blocks on I/O. When the
+    /// queue is full a non-blocking write drops the complete newest chunk,
+    /// so partial synthetic TCP sequences are never enqueued.
     /// </para>
     /// </remarks>
     public abstract class InProcessCaptureSourceBase : ICaptureSource, IFrameCaptureSink
@@ -118,7 +117,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
 
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILoggerFactory m_loggerFactory;
-        private readonly ConcurrentDictionary<ulong, uint> m_sequenceNumbers = new();
+        private readonly Dictionary<ulong, uint> m_sequenceNumbers = [];
 
         /// <summary>
         /// CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
@@ -253,7 +252,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 {
                     SingleReader = true,
                     SingleWriter = false,
-                    FullMode = BoundedChannelFullMode.DropOldest
+                    FullMode = BoundedChannelFullMode.Wait
                 });
             m_workerTask = Task.Run(
                 () => RunQueueWorkerAsync(m_queue.Reader),
@@ -469,31 +468,25 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 }
                 return;
             }
-            uint sequenceNumber = ReserveSequenceNumber(
-                channelId,
-                fromClient,
-                chunk.Length);
-            byte[][] packets = LoopbackFrameBuilder.BuildPackets(
-                fromClient: fromClient,
-                channelId: channelId,
-                sequenceNumber: sequenceNumber,
-                chunkBytes: chunk);
-            DateTimeOffset timestamp = DateTimeOffset.UtcNow;
-            foreach (byte[] packet in packets)
-            {
-                queue.Writer.TryWrite(CaptureWorkItem.ForFrame(timestamp, packet));
-            }
+            queue.Writer.TryWrite(
+                CaptureWorkItem.ForFrame(
+                    DateTimeOffset.UtcNow,
+                    channelId,
+                    fromClient,
+                    chunk.ToArray()));
         }
 
         private uint ReserveSequenceNumber(uint channelId, bool fromClient, int length)
         {
             ulong key = ((ulong)(channelId & 0x3FFFU) << 1) | (fromClient ? 1UL : 0UL);
             uint increment = (uint)length;
-            uint end = m_sequenceNumbers.AddOrUpdate(
-                key,
-                increment,
-                (_, current) => unchecked(current + increment));
-            return unchecked(end - increment);
+            if (!m_sequenceNumbers.TryGetValue(key, out uint sequenceNumber))
+            {
+                m_sequenceNumbers.Add(key, increment);
+                return 0;
+            }
+            m_sequenceNumbers[key] = unchecked(sequenceNumber + increment);
+            return sequenceNumber;
         }
 
         private async Task RunQueueWorkerAsync(ChannelReader<CaptureWorkItem> reader)
@@ -516,7 +509,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
 
         private async Task ProcessWorkItemAsync(CaptureWorkItem item)
         {
-            if (item.Packet is not null)
+            if (item.Chunk is not null)
             {
                 PcapFileWriter? writer = m_pcapWriter;
                 if (writer is null)
@@ -525,8 +518,20 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 }
                 try
                 {
-                    await writer.WriteAsync(item.Timestamp, item.Packet, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    uint sequenceNumber = ReserveSequenceNumber(
+                        item.ChannelId,
+                        item.FromClient,
+                        item.Chunk.Length);
+                    byte[][] packets = LoopbackFrameBuilder.BuildPackets(
+                        item.FromClient,
+                        item.ChannelId,
+                        sequenceNumber,
+                        item.Chunk);
+                    foreach (byte[] packet in packets)
+                    {
+                        await writer.WriteAsync(item.Timestamp, packet, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -599,26 +604,46 @@ namespace Opc.Ua.Pcap.Capture.Sources
         {
             private CaptureWorkItem(
                 DateTimeOffset timestamp,
-                byte[]? packet,
+                uint channelId,
+                bool fromClient,
+                byte[]? chunk,
                 ChannelKeyMaterial? keyMaterial)
             {
                 Timestamp = timestamp;
-                Packet = packet;
+                ChannelId = channelId;
+                FromClient = fromClient;
+                Chunk = chunk;
                 KeyMaterial = keyMaterial;
             }
 
             public DateTimeOffset Timestamp { get; }
-            public byte[]? Packet { get; }
+            public uint ChannelId { get; }
+            public bool FromClient { get; }
+            public byte[]? Chunk { get; }
             public ChannelKeyMaterial? KeyMaterial { get; }
 
-            public static CaptureWorkItem ForFrame(DateTimeOffset timestamp, byte[] packet)
+            public static CaptureWorkItem ForFrame(
+                DateTimeOffset timestamp,
+                uint channelId,
+                bool fromClient,
+                byte[] chunk)
             {
-                return new CaptureWorkItem(timestamp, packet, keyMaterial: null);
+                return new CaptureWorkItem(
+                    timestamp,
+                    channelId,
+                    fromClient,
+                    chunk,
+                    keyMaterial: null);
             }
 
             public static CaptureWorkItem ForKey(ChannelKeyMaterial material)
             {
-                return new CaptureWorkItem(DateTimeOffset.UtcNow, packet: null, material);
+                return new CaptureWorkItem(
+                    DateTimeOffset.UtcNow,
+                    channelId: 0,
+                    fromClient: false,
+                    chunk: null,
+                    material);
             }
         }
     }

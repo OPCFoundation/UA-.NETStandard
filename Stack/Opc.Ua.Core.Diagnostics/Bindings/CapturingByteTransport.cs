@@ -71,7 +71,10 @@ namespace Opc.Ua.Pcap.Bindings
     /// id via <see cref="ChannelToken.ChannelId"/>).
     /// </para>
     /// </remarks>
-    public sealed class CapturingByteTransport : IUaSCByteTransport, IDisposable
+    public sealed class CapturingByteTransport :
+        IUaSCByteTransport,
+        IUaSCByteTransportLimits,
+        IDisposable
     {
         private readonly IUaSCByteTransport m_inner;
         private readonly IChannelCaptureRegistry m_registry;
@@ -166,6 +169,14 @@ namespace Opc.Ua.Pcap.Bindings
         public void Close()
         {
             m_inner.Close();
+        }
+
+        void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+        {
+            if (m_inner is IUaSCByteTransportLimits transportLimits)
+            {
+                transportLimits.SetReceiveBufferSize(receiveBufferSize);
+            }
         }
 
         /// <inheritdoc/>
