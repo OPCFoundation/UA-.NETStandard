@@ -87,9 +87,19 @@ namespace Opc.Ua.Server
 
             char[]? password = context.PasswordProvider?.GetPassword(
                 CreatePasswordIdentifier(context, pendingStore));
-            await store.AddAsync(certificateWithPrivateKey, password, cancellationToken)
-                .ConfigureAwait(false);
-            return true;
+            try
+            {
+                await store.AddAsync(certificateWithPrivateKey, password, cancellationToken)
+                    .ConfigureAwait(false);
+                return true;
+            }
+            finally
+            {
+                if (password != null)
+                {
+                    Array.Clear(password, 0, password.Length);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -124,9 +134,10 @@ namespace Opc.Ua.Server
                 return null;
             }
 
+            char[]? password = null;
             try
             {
-                char[]? password = context.PasswordProvider?.GetPassword(
+                password = context.PasswordProvider?.GetPassword(
                     CreatePasswordIdentifier(context, pendingStore));
 
                 // NodeId.Null bypasses LoadPrivateKeyAsync's certificate-type
@@ -152,6 +163,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                if (password != null)
+                {
+                    Array.Clear(password, 0, password.Length);
+                }
                 pendingEntry.Dispose();
             }
         }

@@ -109,13 +109,18 @@ namespace Opc.Ua.Server.Tests
             {
                 var inputArguments = ArrayOf<Variant>.Empty;
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                await m_configNode.CancelChanges.OnCallMethod2Async(
+                ServiceResult result = await m_configNode.CancelChanges.OnCallMethod2Async(
                     CreateAdminContext(),
                     m_configNode.CancelChanges,
                     m_configNode.NodeId,
                     inputArguments,
                     outputArguments,
                     CancellationToken.None).ConfigureAwait(false);
+
+                if (result.StatusCode == StatusCodes.BadSessionIdInvalid)
+                {
+                    GetCoordinatorField(m_configManager).Reset();
+                }
             }
         }
 

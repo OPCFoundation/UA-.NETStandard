@@ -706,6 +706,27 @@ namespace Opc.Ua.Server.Tests
             Assert.That(snapshot.Errors.Count, Is.EqualTo(1));
             Assert.That(snapshot.Errors[0].TargetId, Is.EqualTo(trustListId));
             Assert.That(snapshot.Errors[0].Error, Is.EqualTo((StatusCode)StatusCodes.BadCertificateInvalid));
+            Assert.That(snapshot.Errors[0].Message.Text, Is.EqualTo("invalid payload"));
+        }
+
+        [Test]
+        public async Task GetSnapshotRedactsUnexpectedExceptionDetailsAsync()
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            const string sensitiveMessage = @"Access denied to C:\private\pki\pending-key.pfx";
+
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                AffectedTrustList = new NodeId(Guid.NewGuid(), 1),
+                CommitAsync = _ => throw new InvalidOperationException(sensitiveMessage)
+            });
+
+            await coordinator.ApplyChangesAsync(s_sessionA, CancellationToken.None).ConfigureAwait(false);
+
+            PushConfigurationTransactionSnapshot snapshot = coordinator.GetSnapshot();
+            Assert.That(snapshot.Errors, Has.Count.EqualTo(1));
+            Assert.That(snapshot.Errors[0].Message.Text, Is.EqualTo("PushManagement operation failed."));
+            Assert.That(snapshot.Errors[0].Message.Text, Does.Not.Contain(sensitiveMessage));
         }
 
         [Test]

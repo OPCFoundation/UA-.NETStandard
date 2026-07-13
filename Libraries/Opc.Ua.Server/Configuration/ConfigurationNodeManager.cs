@@ -1466,6 +1466,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reserves cross-replica ownership of the server-wide PushManagement
+        /// transaction at an <see langword="await"/> boundary before the
+        /// synchronous <see cref="IPushConfigurationTransactionCoordinator.Stage"/>
+        /// call that follows. The default per-server coordinator does not
+        /// implement <see cref="IPushConfigurationTransactionOwnershipGate"/>,
+        /// so this is a no-op for the non-distributed server; a distributed
+        /// coordinator acquires or renews a shared lease so only one replica
+        /// owns the transaction at a time.
+        /// </summary>
+        private ValueTask AcquireTransactionOwnershipAsync(
+            NodeId sessionId,
+            CancellationToken cancellationToken)
+        {
+            return m_coordinator is IPushConfigurationTransactionOwnershipGate gate
+                ? gate.AcquireTransactionOwnershipAsync(sessionId, cancellationToken)
+                : default;
+        }
+
+        /// <summary>
         /// Applies a single certificate-group slot mutation: removes
         /// <paramref name="removeThumbprint"/> (if any) from the
         /// application store, adds <paramref name="addCertificateWithKey"/>
@@ -2111,6 +2130,7 @@ namespace Opc.Ua.Server
                 bool isApplicationCertificateGroup = IsApplicationCertificateGroup(certificateGroup);
 
                 NodeId sessionId = GetSessionId(context);
+                await AcquireTransactionOwnershipAsync(sessionId, ct).ConfigureAwait(false);
                 m_coordinator.ValidateSessionCanParticipate(sessionId);
 
                 try
@@ -2881,6 +2901,7 @@ namespace Opc.Ua.Server
             ValidateKeySizeForCertificateType(certificateTypeId, isRsaCertificateType, keySizeInBits);
 
             NodeId sessionId = GetSessionId(context);
+            await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
             m_coordinator.ValidateSessionCanParticipate(sessionId);
 
             CertificateIdentifier existingCertIdentifier =
@@ -3077,6 +3098,7 @@ namespace Opc.Ua.Server
                 certificateTypeId)!;
 
             NodeId sessionId = GetSessionId(context);
+            await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
             m_coordinator.ValidateSessionCanParticipate(sessionId);
 
             CertificateIdentifier existingCertIdentifier =

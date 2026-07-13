@@ -334,7 +334,7 @@ namespace Opc.Ua.Server
                                 ? operation.AffectedTrustList
                                 : operation.AffectedCertificateGroup,
                             Error = result.StatusCode,
-                            Message = LocalizedText.From(ex.Message)
+                            Message = CreateClientDiagnosticMessage(ex)
                         });
                         break;
                     }
@@ -359,7 +359,7 @@ namespace Opc.Ua.Server
                                     ? operation.AffectedTrustList
                                     : operation.AffectedCertificateGroup,
                                 Error = result.StatusCode,
-                                Message = LocalizedText.From(ex.Message)
+                                Message = CreateClientDiagnosticMessage(ex)
                             });
                             break;
                         }
@@ -397,7 +397,7 @@ namespace Opc.Ua.Server
                                     ? operation.AffectedTrustList
                                     : operation.AffectedCertificateGroup,
                                 Error = new ServiceResult(rollbackException).StatusCode,
-                                Message = LocalizedText.From(rollbackException.Message)
+                                Message = CreateClientDiagnosticMessage(rollbackException)
                             });
                         }
                     }
@@ -693,6 +693,20 @@ namespace Opc.Ua.Server
                 m_lastErrors = ArrayOf<TransactionErrorType>.Empty;
                 m_hasCompletedTransaction = true;
             }
+        }
+
+        private static LocalizedText CreateClientDiagnosticMessage(Exception exception)
+        {
+            if (exception is ServiceResultException serviceResultException)
+            {
+                LocalizedText message = serviceResultException.Result.LocalizedText;
+                if (!message.IsNull && !string.IsNullOrEmpty(message.Text))
+                {
+                    return message;
+                }
+            }
+
+            return LocalizedText.From("PushManagement operation failed.");
         }
 
         private readonly Lock m_lock = new();

@@ -43,7 +43,7 @@ namespace Opc.Ua.Redundancy
     /// rotation). Each member key is identified by its <c>keyId</c>, so a record
     /// is only ever decrypted by the key version that produced it.
     /// </summary>
-    public sealed class KeyRingRecordProtector : IRecordProtector, IDisposable
+    public sealed class KeyRingRecordProtector : IOwnedRecordProtector, IDisposable
     {
         /// <summary>
         /// Creates a key ring.
@@ -94,6 +94,29 @@ namespace Opc.Ua.Redundancy
                 }
             }
             plaintext = default;
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
+        {
+            // As with TryUnprotect, each member fails closed on a record it did
+            // not produce, so the first member that accepts owns the plaintext.
+            foreach (IRecordProtector protector in m_all)
+            {
+                if (protector is IOwnedRecordProtector ownedProtector &&
+                    ownedProtector.TryUnprotectOwned(protectedRecord, out plaintext))
+                {
+                    return true;
+                }
+
+                if (protector.TryUnprotect(protectedRecord, out ByteString unprotected))
+                {
+                    plaintext = unprotected.ToArray();
+                    return true;
+                }
+            }
+            plaintext = [];
             return false;
         }
 

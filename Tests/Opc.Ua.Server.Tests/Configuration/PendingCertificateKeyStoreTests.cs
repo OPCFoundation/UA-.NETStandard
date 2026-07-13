@@ -127,6 +127,27 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task DirectoryStoreClearsPasswordBuffersAfterSaveAndTakeAsync()
+        {
+            var store = new DirectoryPendingCertificateKeyStore();
+            var passwordProvider = new TrackingPasswordProvider();
+            PendingCertificateKeyContext context = CreateContext(passwordProvider: passwordProvider);
+            using Certificate original = CreateTestCertificateWithKey();
+
+            Assert.That(
+                await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false),
+                Is.True);
+            Assert.That(passwordProvider.ReturnedPasswords, Has.Count.EqualTo(1));
+            Assert.That(passwordProvider.ReturnedPasswords[0], Is.All.EqualTo('\0'));
+
+            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(taken, Is.Not.Null);
+            Assert.That(passwordProvider.ReturnedPasswords, Has.Count.EqualTo(2));
+            Assert.That(passwordProvider.ReturnedPasswords[1], Is.All.EqualTo('\0'));
+        }
+
+        [Test]
         public async Task DirectoryStoreScopesEntriesByGroupAndTypeAsync()
         {
             var store = new DirectoryPendingCertificateKeyStore();
@@ -226,13 +247,14 @@ namespace Opc.Ua.Server.Tests
 
         private PendingCertificateKeyContext CreateContext(
             NodeId certificateGroupId = default,
-            NodeId certificateTypeId = default)
+            NodeId certificateTypeId = default,
+            ICertificatePasswordProvider passwordProvider = null)
         {
             return new PendingCertificateKeyContext(
                 new CertificateStoreIdentifier(m_basePath, CertificateStoreType.Directory),
                 certificateGroupId.IsNull ? new NodeId(Guid.NewGuid(), 1) : certificateGroupId,
                 certificateTypeId.IsNull ? new NodeId(Guid.NewGuid(), 1) : certificateTypeId,
-                null,
+                passwordProvider,
                 m_telemetry);
         }
 
@@ -242,6 +264,19 @@ namespace Opc.Ua.Server.Tests
                 .Create("CN=PendingKey " + Guid.NewGuid().ToString("N")[..8])
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
+        }
+
+        private sealed class TrackingPasswordProvider : ICertificatePasswordProvider
+        {
+            public System.Collections.Generic.List<char[]> ReturnedPasswords { get; } = [];
+
+            public char[] GetPassword(CertificateIdentifier certificateIdentifier)
+            {
+                _ = certificateIdentifier;
+                char[] password = "pending-key-password".ToCharArray();
+                ReturnedPasswords.Add(password);
+                return password;
+            }
         }
     }
 }

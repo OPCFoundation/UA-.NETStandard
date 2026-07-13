@@ -284,6 +284,25 @@ namespace Opc.Ua.Server
             return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
         }
 
+        /// <summary>
+        /// Reserves cross-replica ownership of the server-wide PushManagement
+        /// transaction at an <see langword="await"/> boundary before the
+        /// synchronous <see cref="IPushConfigurationTransactionCoordinator.Stage"/>
+        /// call that follows. A no-op for the non-distributed server (the
+        /// default coordinator does not implement
+        /// <see cref="IPushConfigurationTransactionOwnershipGate"/>); a
+        /// distributed coordinator acquires or renews a shared lease so only
+        /// one replica owns the transaction at a time.
+        /// </summary>
+        private ValueTask AcquireTransactionOwnershipAsync(
+            NodeId sessionId,
+            CancellationToken cancellationToken)
+        {
+            return m_coordinator is IPushConfigurationTransactionOwnershipGate gate
+                ? gate.AcquireTransactionOwnershipAsync(sessionId, cancellationToken)
+                : default;
+        }
+
         private ServiceResult Open(
             ISystemContext context,
             MethodState method,
@@ -782,6 +801,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
                 catch (ServiceResultException ex)
@@ -1180,6 +1200,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
                 catch (ServiceResultException ex)
@@ -1354,6 +1375,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
                 catch (ServiceResultException ex)

@@ -55,5 +55,19 @@ namespace Opc.Ua.Redundancy
         /// <param name="protectedRecord">The protected envelope.</param>
         /// <param name="plaintext">The recovered plaintext on success.</param>
         bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext);
+
+    }
+
+    /// <summary>
+    /// Optional extension for protectors that can transfer ownership of a
+    /// decrypted plaintext buffer to the caller.
+    /// </summary>
+    public interface IOwnedRecordProtector : IRecordProtector
+    {
+        /// <summary>
+        /// Verifies and decrypts a protected envelope into an independent,
+        /// caller-owned plaintext buffer that is safe to wipe.
+        /// </summary>
+        bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext);
     }
 }
