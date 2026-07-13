@@ -191,12 +191,15 @@ The conventions are:
   This both removes duplication and avoids ambiguous call resolution:
   identical `this ILogger` extension overloads declared in several classes
   of the same namespace collide (CS0121).
-- **Central per-project `EventIds`.** Each project has one
-  `internal static class EventIds` at its root holding a `public const int`
-  offset per log class. Every log method sets
-  `EventId = EventIds.<Class> + <zero-based message index>`. Each offset
-  block reserves at least five spare slots for future messages and is then
-  rounded up to the next multiple of ten, so ids stay documented and
+- **Central per-project event-id class.** Each project has one
+  `internal static class <Assembly>EventIds` at its root (e.g. `TypesEventIds`,
+  `CoreTypesEventIds`) holding a `public const int` offset per log class. The
+  name is prefixed with the assembly token because the stack uses
+  `InternalsVisibleTo`: two `internal` classes with the same name in the same
+  namespace collide across an IVT boundary (CS0436). Every log method sets
+  `EventId = <Assembly>EventIds.<Class> + <zero-based message index>`. Each
+  offset block reserves at least five spare slots for future messages and is
+  then rounded up to the next multiple of ten, so ids stay documented and
   managed from one place.
 - **Named, static message templates.** Placeholders must be named
   (`{ChannelId}`) and match a method parameter of the same name; an
@@ -204,8 +207,9 @@ The conventions are:
   (`$"..."`) a log message.
 
 ```csharp
-// EventIds.cs (project root)
-internal static class EventIds
+// EventIds.cs (project root) — name is prefixed with the assembly token to
+// avoid CS0436 collisions across InternalsVisibleTo boundaries.
+internal static class TypesEventIds
 {
     public const int Encoding = 20;   // shared codec block (reserves 20)
     public const int Matrix = 50;     // per-file block (reserves 10)
@@ -214,7 +218,7 @@ internal static class EventIds
 // end of Matrix.cs
 internal static partial class MatrixLog
 {
-    [LoggerMessage(EventId = EventIds.Matrix + 0, Level = LogLevel.Debug,
+    [LoggerMessage(EventId = TypesEventIds.Matrix + 0, Level = LogLevel.Debug,
         Message = "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.")]
     public static partial void ReadArrayZeroDimension(this ILogger logger, int index, int[] dimensions);
 }

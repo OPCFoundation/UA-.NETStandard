@@ -1147,3 +1147,6 @@ dotnet_diagnostic.CA2000.severity = none
 # once the whole code base is migrated.
 [Stack/Opc.Ua.Types/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
+
+[Stack/Opc.Ua.Core.Types/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning

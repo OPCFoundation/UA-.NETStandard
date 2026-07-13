@@ -864,7 +864,7 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class LocalizedTextLog
     {
-        [LoggerMessage(EventId = EventIds.LocalizedText + 0, Level = LogLevel.Debug,
+        [LoggerMessage(EventId = TypesEventIds.LocalizedText + 0, Level = LogLevel.Debug,
             Message = "Failed to parse mul locale JSON text: {Text}")]
         public static partial void FailedToParseMultiLocaleJson(this ILogger logger, string text);
     }

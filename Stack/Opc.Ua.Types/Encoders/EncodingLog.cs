@@ -40,29 +40,29 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class EncodingLog
     {
-        [LoggerMessage(EventId = EventIds.Encoding + 0, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 0, Level = LogLevel.Warning,
             Message = "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.")]
         public static partial void InnerDiagnosticInfoDropped(this ILogger logger, int maxInnerDepth);
 
-        [LoggerMessage(EventId = EventIds.Encoding + 1, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 1, Level = LogLevel.Warning,
             Message = "Cannot deserialize extension objects if the NamespaceUri is not in the " +
                 "NamespaceTable: Type = {Type}")]
         public static partial void CannotDeserializeExtensionObject(this ILogger logger, NodeId type);
 
-        [LoggerMessage(EventId = EventIds.Encoding + 2, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 2, Level = LogLevel.Warning,
             Message = "Cannot deserialize extension objects if the NamespaceUri is not in the " +
                 "NamespaceTable: Type = {Type}")]
         public static partial void CannotDeserializeExtensionObject(this ILogger logger, ExpandedNodeId type);
 
-        [LoggerMessage(EventId = EventIds.Encoding + 3, Level = LogLevel.Information,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 3, Level = LogLevel.Information,
             Message = "Cannot deserialize extension object from body.")]
         public static partial void CannotDeserializeExtensionObjectBody(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = EventIds.Encoding + 4, Level = LogLevel.Debug,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 4, Level = LogLevel.Debug,
             Message = "Failed to retrieve activator for extension object.")]
         public static partial void ActivatorNotFound(this ILogger logger);
 
-        [LoggerMessage(EventId = EventIds.Encoding + 5, Level = LogLevel.Error,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 5, Level = LogLevel.Error,
             Message = "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}")]
         public static partial void CouldNotDecodeKnownTypeXml(
             this ILogger logger,
@@ -70,7 +70,7 @@ namespace Opc.Ua
             string message,
             string? outerXml);
 
-        [LoggerMessage(EventId = EventIds.Encoding + 6, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 6, Level = LogLevel.Warning,
             Message = "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. " +
                 "BinaryDecoder recovered.")]
         public static partial void DecodeEncodeableRecovered(
@@ -80,7 +80,7 @@ namespace Opc.Ua
             XmlQualifiedName name,
             ExpandedNodeId nodeId);
 
-        [LoggerMessage(EventId = EventIds.Encoding + 7, Level = LogLevel.Error,
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 7, Level = LogLevel.Error,
             Message = "Error reading variant.")]
         public static partial void ErrorReadingVariant(this ILogger logger, Exception ex);
     }

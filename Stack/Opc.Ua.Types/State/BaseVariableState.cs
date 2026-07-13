@@ -2310,7 +2310,7 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class BaseVariableStateLog
     {
-        [LoggerMessage(EventId = EventIds.BaseVariableState + 0, Level = LogLevel.Error,
+        [LoggerMessage(EventId = TypesEventIds.BaseVariableState + 0, Level = LogLevel.Error,
             Message = "Unexpected error exporting node")]
         public static partial void ExportNodeError(this ILogger logger, Exception exception);
     }

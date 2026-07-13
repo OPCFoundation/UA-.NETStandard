@@ -504,7 +504,7 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class MatrixLog
     {
-        [LoggerMessage(EventId = EventIds.Matrix + 0, Level = LogLevel.Debug,
+        [LoggerMessage(EventId = TypesEventIds.Matrix + 0, Level = LogLevel.Debug,
             Message = "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.")]
         public static partial void ReadArrayZeroDimension(this ILogger logger, int index, int[] dimensions);
     }

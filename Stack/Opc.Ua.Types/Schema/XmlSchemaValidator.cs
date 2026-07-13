@@ -160,7 +160,7 @@ namespace Opc.Ua.Schema.Xml
     /// </summary>
     internal static partial class XmlSchemaValidatorLog
     {
-        [LoggerMessage(EventId = EventIds.XmlSchemaValidator + 0, Level = LogLevel.Error,
+        [LoggerMessage(EventId = TypesEventIds.XmlSchemaValidator + 0, Level = LogLevel.Error,
             Message = "Error in XML schema validation: {Message}")]
         public static partial void SchemaValidationError(this ILogger logger, string message);
     }

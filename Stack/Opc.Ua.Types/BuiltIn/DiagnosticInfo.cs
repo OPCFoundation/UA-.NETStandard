@@ -585,7 +585,7 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class DiagnosticInfoLog
     {
-        [LoggerMessage(EventId = EventIds.DiagnosticInfo + 0, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = TypesEventIds.DiagnosticInfo + 0, Level = LogLevel.Warning,
             Message = "Inner diagnostics truncated. Max depth of {MaxInnerDepth} exceeded.")]
         public static partial void InnerDiagnosticsTruncated(this ILogger logger, int maxInnerDepth);
     }
