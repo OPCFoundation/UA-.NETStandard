@@ -226,10 +226,19 @@ whose BuiltInType was `Variant`, `Number`, `Integer`, or `UInteger` through `Get
 For a matrix TypeInfo that array accessor returns a null `ArrayOf<Variant>`, so the copy retained a
 rank-2 TypeInfo but no longer contained a shaped `MatrixOf<Variant>`.
 
-Before the fix, binary encoding that corrupted copy used the matrix Variant mask
-(`Variant | Array | ArrayDimensions`) with a null flattened array and no dimensions. This is not a
-valid matrix encoding. Per **OPC UA Part 6 §5.2.2.16, Table 26 (Variant Binary DataEncoding)** a
-multi-dimensional array Variant is encoded, in this order:
+Before the fix, binary encoding that corrupted copy produced:
+
+```
+D8                          EncodingMask = Variant(24) | Array(0x80) | ArrayDimensions(0x40)
+FF FF FF FF                 ArrayLength = -1 (null flattened array)
+01 00 00 00                 ArrayDimensionsLength = 1
+00 00 00 00                 ArrayDimensions = [0]
+```
+
+This is not a valid matrix encoding: dimensions are present but the rank is less than 2, the
+dimension is not greater than zero, and its product cannot equal `ArrayLength = -1`. Per
+**OPC UA Part 6 §5.2.2.16, Table 26 (Variant Binary DataEncoding)** a multi-dimensional array
+Variant is encoded, in this order:
 
 1. `EncodingMask` (Byte) — bits 0:5 = BuiltInTypeId, **bit 6 = ArrayDimensions present**, **bit 7 = array**.
 2. `ArrayLength` (Int32) — the **total** element count of the flattened array.
