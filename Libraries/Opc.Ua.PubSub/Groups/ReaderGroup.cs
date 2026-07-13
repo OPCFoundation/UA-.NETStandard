@@ -186,8 +186,7 @@ namespace Opc.Ua.PubSub.Groups
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex,
-                            "Reader {Reader} dispatch threw.", reader.Name);
+                        m_logger.ReaderDispatchThrew(ex, reader.Name);
                     }
                 }
             }
@@ -351,4 +350,15 @@ namespace Opc.Ua.PubSub.Groups
             return DisableAsync(CancellationToken.None);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ReaderGroup"/>.
+    /// </summary>
+    internal static partial class ReaderGroupLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.ReaderGroup + 0, Level = LogLevel.Error,
+            Message = "Reader {Reader} dispatch threw.")]
+        public static partial void ReaderDispatchThrew(this ILogger logger, Exception exception, string reader);
+    }
+
 }

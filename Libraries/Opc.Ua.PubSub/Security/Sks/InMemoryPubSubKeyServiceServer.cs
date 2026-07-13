@@ -156,10 +156,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     currentIndex: 0);
                 m_groups[group.SecurityGroupId] = state;
                 snapshot = SnapshotLocked(state);
-                m_logger.LogInformation(
-                    "Registered SKS SecurityGroup {GroupId} with policy {PolicyUri}.",
-                    group.SecurityGroupId,
-                    group.SecurityPolicyUri);
+                m_logger.RegisteredSksSecurityGroup(group.SecurityGroupId, group.SecurityPolicyUri);
             }
             return snapshot is null
                 ? default
@@ -233,7 +230,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to restore persisted SKS SecurityGroups.");
+                m_logger.FailedToRestorePersistedSksSecurityGroups(ex);
             }
         }
 
@@ -278,7 +275,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to restore persisted SKS SecurityGroups.");
+                m_logger.FailedToRestorePersistedSksSecurityGroups(ex);
             }
         }
 
@@ -418,12 +415,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     timeToNextKey,
                     state.Group.KeyLifetime);
                 snapshot = SnapshotLocked(state);
-                m_logger.LogDebug(
-                    "Issued {Count} key(s) for {GroupId} starting at TokenId {TokenId} to {Caller}.",
-                    packed.Count,
-                    request.SecurityGroupId,
-                    actualFirst,
-                    callerIdentity);
+                m_logger.IssuedKeys(packed.Count, request.SecurityGroupId, actualFirst, callerIdentity);
                 EmitSecurityEvent(new PubSubSecurityEvent(
                     PubSubSecurityEventKind.SksKeysIssued,
                     DateTimeOffset.UtcNow,
@@ -559,7 +551,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "PubSub security event sink raised an exception.");
+                m_logger.PubSubSecurityEventSinkRaisedException(ex);
             }
         }
 
@@ -679,4 +671,33 @@ namespace Opc.Ua.PubSub.Security.Sks
             public int CurrentIndex { get; set; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="InMemoryPubSubKeyServiceServer"/>.
+    /// </summary>
+    internal static partial class InMemoryPubSubKeyServiceServerLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.InMemoryPubSubKeyServiceServer + 0, Level = LogLevel.Information,
+            Message = "Registered SKS SecurityGroup {GroupId} with policy {PolicyUri}.")]
+        public static partial void RegisteredSksSecurityGroup(
+            this ILogger logger,
+            string groupId,
+            string policyUri);
+
+        [LoggerMessage(EventId = PubSubEventIds.InMemoryPubSubKeyServiceServer + 1, Level = LogLevel.Debug,
+            Message = "Failed to restore persisted SKS SecurityGroups.")]
+        public static partial void FailedToRestorePersistedSksSecurityGroups(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.InMemoryPubSubKeyServiceServer + 2, Level = LogLevel.Debug,
+            Message = "Issued {Count} key(s) for {GroupId} starting at TokenId {TokenId} to {Caller}.")]
+        public static partial void IssuedKeys(
+            this ILogger logger,
+            int count,
+            string groupId,
+            uint tokenId,
+            string? caller);
+    }
+
 }

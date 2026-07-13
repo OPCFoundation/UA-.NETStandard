@@ -1165,3 +1165,6 @@ dotnet_diagnostic.CA1873.severity = warning
 
 [Libraries/Opc.Ua.Client/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.PubSub/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning

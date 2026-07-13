@@ -147,8 +147,7 @@ namespace Opc.Ua.PubSub.Scheduling
                     }
                     if (!m_currentRun.IsCompleted)
                     {
-                        m_logger.LogDebug(
-                            "Scheduler tick skipped — prior callback still running.");
+                        m_logger.SchedulerTickSkippedPriorCallbackStillRunning();
                         return;
                     }
                     previous = m_currentRun;
@@ -169,7 +168,7 @@ namespace Opc.Ua.PubSub.Scheduling
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex, "Scheduled callback threw.");
+                    m_logger.ScheduledCallbackThrew(ex);
                 }
             }
 
@@ -210,4 +209,19 @@ namespace Opc.Ua.PubSub.Scheduling
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubScheduler"/>.
+    /// </summary>
+    internal static partial class PubSubSchedulerLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubScheduler + 0, Level = LogLevel.Debug,
+            Message = "Scheduler tick skipped — prior callback still running.")]
+        public static partial void SchedulerTickSkippedPriorCallbackStillRunning(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubScheduler + 1, Level = LogLevel.Error,
+            Message = "Scheduled callback threw.")]
+        public static partial void ScheduledCallbackThrew(this ILogger logger, Exception exception);
+    }
+
 }
