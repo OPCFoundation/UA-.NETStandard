@@ -124,40 +124,16 @@ namespace Opc.Ua.Di.Server.Builders
             su.Confirmation = CreateConfirmation(
                 context, su, diNs, config, callbackContext, logger);
 
-            // Assign per-instance NodeIds to every descendant of the SU
-            // subtree. The generator-emitted CreateInstanceOf factories stamp
-            // TYPE NodeIds on nested children (state variables, method
-            // InputArguments, ConfirmationTimeout, CurrentVersion,
-            // ErrorMessage, ...). Without per-instance NodeIds those nodes
-            // collide across multiple SU devices in PredefinedNodes and are
-            // not covered by the instance's declarations (GEN-05).
-            AssignInstanceNodeIds(context, su);
-
             // Link the SU node into the device subtree and register
-            // recursively with the manager.
+            // recursively with the manager. Per-instance NodeIds for the SU
+            // subtree are assigned by the generated CreateInstanceOf factories
+            // (via NodeInstanceExtensions.AssignInstanceChildNodeIds) and, for
+            // the explicitly added optional method children, by FinaliseChild.
             device.AddChild(su);
             manager.AddPredefinedNodeAsync(su, CancellationToken.None)
                 .AsTask().GetAwaiter().GetResult();
 
             return su;
-        }
-
-        /// <summary>
-        /// Recursively assigns per-instance NodeIds (top-down, so each
-        /// child's id derives from its already-assigned parent) to every
-        /// descendant of <paramref name="parent"/>.
-        /// </summary>
-        private static void AssignInstanceNodeIds(
-            ISystemContext context,
-            NodeState parent)
-        {
-            var children = new List<BaseInstanceState>();
-            parent.GetChildren(context, children);
-            foreach (BaseInstanceState child in children)
-            {
-                child.NodeId = context.NodeIdFactory.New(context, child);
-                AssignInstanceNodeIds(context, child);
-            }
         }
 
         private const string FileTransferBrowseName = "FileTransfer";
@@ -251,17 +227,13 @@ namespace Opc.Ua.Di.Server.Builders
                 context.CreateInstanceOfPrepareForUpdateStateMachineType(parent, browseName);
             FinaliseChild(context, sm, browseName);
 
-            // CreateInstanceOf already populated Prepare + Abort; only the
-            // Resume slot is left empty by the source-gen factory.
-            sm.Resume ??= CreateMethodChild(context, sm,
-                new QualifiedName("Resume", diNs));
-
-            // The Resume method is an Optional child of
-            // PrepareForUpdateStateMachineType; point its declaration at the
-            // in-type method node (i=230) so its TypeDefinition/declaration
-            // resolves (GEN-03) rather than staying null.
-            sm.Resume.MethodDeclarationId = new NodeId(
-                Opc.Ua.Di.Methods.PrepareForUpdateStateMachineType_Resume, diNs);
+            // CreateInstanceOf already populated Prepare + Abort; the optional
+            // Resume method is materialised via the in-type child factory so
+            // it carries the correct in-type MethodDeclarationId (i=230) and
+            // per-instance NodeIds for its subtree.
+            sm.Resume ??= context.CreatePrepareForUpdateStateMachineType_Resume(
+                sm, forInstance: true);
+            FinaliseChild(context, sm.Resume, new QualifiedName("Resume", diNs));
 
             if (sm.Prepare != null)
             {
@@ -302,17 +274,13 @@ namespace Opc.Ua.Di.Server.Builders
 
             // CreateInstanceOf only adds CurrentState + Resume. Materialise
             // the optional InstallSoftwarePackage / InstallFiles / Uninstall
-            // method children explicitly.
+            // method children via the in-type child factories, which carry
+            // the correct in-type MethodDeclarationId and per-instance NodeIds.
             var installPkgBn = new QualifiedName("InstallSoftwarePackage", diNs);
             InstallSoftwarePackageMethodState installPkg =
-                context.CreateInstanceOfInstallSoftwarePackageMethodType(sm, installPkgBn);
+                context.CreateInstallationStateMachineType_InstallSoftwarePackage(
+                    sm, forInstance: true);
             FinaliseChild(context, installPkg, installPkgBn);
-            // The source-gen factory stamps the standalone MethodType id
-            // (i=389) as the declaration; re-point it at the method declared
-            // inside InstallationStateMachineType (i=265) so it matches the
-            // instance declaration (GEN-03).
-            installPkg.MethodDeclarationId = new NodeId(
-                Opc.Ua.Di.Methods.InstallationStateMachineType_InstallSoftwarePackage, diNs);
             sm.AddChild(installPkg);
             sm.InstallSoftwarePackage = installPkg;
             installPkg.OnCallMethod2Async =
@@ -322,10 +290,9 @@ namespace Opc.Ua.Di.Server.Builders
 
             var installFilesBn = new QualifiedName("InstallFiles", diNs);
             InstallFilesMethodState installFiles =
-                context.CreateInstanceOfInstallFilesMethodType(sm, installFilesBn);
+                context.CreateInstallationStateMachineType_InstallFiles(
+                    sm, forInstance: true);
             FinaliseChild(context, installFiles, installFilesBn);
-            installFiles.MethodDeclarationId = new NodeId(
-                Opc.Ua.Di.Methods.InstallationStateMachineType_InstallFiles, diNs);
             sm.AddChild(installFiles);
             sm.InstallFiles = installFiles;
             installFiles.OnCallMethod2Async =
@@ -333,11 +300,9 @@ namespace Opc.Ua.Di.Server.Builders
                     InvokeInstallFilesAsync(config, callbackContext, sm, diNs, logger, ct);
 
             var uninstallBn = new QualifiedName("Uninstall", diNs);
-            MethodState uninstall = CreateMethodChild(context, sm, uninstallBn);
-            // Point the bare Uninstall method at its in-type declaration
-            // (i=407) so its declaration resolves (GEN-03).
-            uninstall.MethodDeclarationId = new NodeId(
-                Opc.Ua.Di.Methods.InstallationStateMachineType_Uninstall, diNs);
+            MethodState uninstall =
+                context.CreateInstallationStateMachineType_Uninstall(sm, forInstance: true);
+            FinaliseChild(context, uninstall, uninstallBn);
             sm.Uninstall = uninstall;
             uninstall.OnCallMethod2Async =
                 (ctx, m, oid, ins, outs, ct) =>
@@ -409,28 +374,11 @@ namespace Opc.Ua.Di.Server.Builders
         }
 
         /// <summary>
-        /// Creates a bare <see cref="MethodState"/> child with a
-        /// per-instance NodeId and the supplied browse name. Used for
-        /// inherited methods (Resume / Uninstall) that aren't typed
-        /// in the source-generated model.
-        /// </summary>
-        private static MethodState CreateMethodChild(
-            ISystemContext context,
-            NodeState parent,
-            QualifiedName browseName)
-        {
-            var method = new MethodState(parent);
-            FinaliseChild(context, method, browseName);
-            method.Executable = true;
-            method.UserExecutable = true;
-            return method;
-        }
-
-        /// <summary>
         /// Common finalisation step for an SU child: assign a per-instance
         /// NodeId via the manager's <see cref="INodeIdFactory"/>, set the
-        /// HasComponent reference, and clear the type's modelling rule
-        /// so the instance isn't treated as a placeholder.
+        /// HasComponent reference, clear the type's modelling rule so the
+        /// instance isn't treated as a placeholder, and rebase the child's
+        /// whole subtree onto per-instance NodeIds.
         /// </summary>
         private static void FinaliseChild(
             ISystemContext context,
@@ -443,6 +391,7 @@ namespace Opc.Ua.Di.Server.Builders
             child.NodeId = context.NodeIdFactory.New(context, child);
             child.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
             child.ModellingRuleId = NodeId.Null;
+            context.AssignInstanceChildNodeIds(child);
         }
 
         private static async ValueTask<ServiceResult> InvokePrepareAsync(

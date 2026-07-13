@@ -459,33 +459,10 @@ namespace Opc.Ua.Di.Server
 
             effectiveParent.AddChild(device);
 
-            // The generator-emitted CreateInstanceOfXxx factories stamp the
-            // TYPE NodeId on every materialised child; walk the subtree to
-            // assign per-instance NodeIds before AddPredefinedNodeAsync uses
-            // them as the PredefinedNodes dictionary key, otherwise multiple
-            // instances of the same type collide on those NodeIds.
-            AssignChildNodeIds(device);
-
             await AddPredefinedNodeAsync(SystemContext, device, cancellationToken)
                 .ConfigureAwait(false);
 
             return new DeviceBuilder<TDevice>(this, device, GetOrCreateBuilder());
-        }
-
-        /// <summary>
-        /// Recursively assigns per-instance NodeIds to the children of
-        /// <paramref name="parent"/> via the active
-        /// <see cref="ISystemContext.NodeIdFactory"/>.
-        /// </summary>
-        private void AssignChildNodeIds(NodeState parent)
-        {
-            var children = new List<BaseInstanceState>();
-            parent.GetChildren(SystemContext, children);
-            foreach (BaseInstanceState child in children)
-            {
-                child.NodeId = SystemContext.NodeIdFactory.New(SystemContext, child);
-                AssignChildNodeIds(child);
-            }
         }
 
         /// <summary>
