@@ -2419,6 +2419,20 @@ namespace Opc.Ua
                     PushNamespace(Namespaces.OpcUaXsd);
 
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
+
+                    // A multi-dimensional Variant must carry Dimensions with at
+                    // least two entries, each greater than zero (Part 6 5.2.2.16);
+                    // the product-versus-length consistency is enforced by
+                    // MatrixOf<T> below. Reject an absent, too-short, zero or
+                    // negative dimension here so an empty matrix (which would
+                    // otherwise satisfy the product check) is rejected.
+                    if (!MatrixOf.IsValidMatrix(dimensions))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Variant matrix Dimensions [{0}] are inconsistent.",
+                            string.Join(",", dimensions));
+                    }
                     if (BeginField("Elements", true))
                     {
                         value = ReadMatrix(dimensions);
@@ -2429,6 +2443,18 @@ namespace Opc.Ua
 
                     EndField(fieldName);
                 }
+            }
+            catch (ArgumentException ex)
+            {
+                // MatrixOf<T>(values, dimensions) throws ArgumentException when
+                // the decoded dimensions are inconsistent with the value payload
+                // (a length mismatch or an Int32-overflowing product). Convert to
+                // the standard decoder rejection channel so callers treat it as
+                // malformed input.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Invalid variant matrix dimensions.");
             }
             finally
             {

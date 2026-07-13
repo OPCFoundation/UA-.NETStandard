@@ -1767,7 +1767,27 @@ namespace Opc.Ua
                 }
                 // read the dimensions for variant encoding after the array.
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
-                int[] ReadDims() => dim ?? ReadInt32Array(null).ToArray() ?? [];
+                int[] ReadDims()
+                {
+                    int[] dimensions = dim ?? ReadInt32Array(null).ToArray() ?? [];
+                    // A multi-dimensional Variant (Part 6 5.2.2.16) must carry
+                    // ArrayDimensions with at least two entries, each greater than
+                    // zero. The product-versus-length consistency is checked by
+                    // MatrixOf<T> below; reject the shape here so a zero or absent
+                    // dimension is rejected even when the flattened array is empty
+                    // (which would otherwise satisfy the product check). This does
+                    // not apply to the raw value encoding (Part 6 5.2.5) used for
+                    // structure fields, where an empty multi-dimensional value is
+                    // represented with a single zero dimension.
+                    if (!readRawValue && !MatrixOf.IsValidMatrix(dimensions))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Variant matrix ArrayDimensions [{0}] are inconsistent.",
+                            string.Join(",", dimensions));
+                    }
+                    return dimensions;
+                }
                 try
                 {
                     switch (typeInfo.BuiltInType)

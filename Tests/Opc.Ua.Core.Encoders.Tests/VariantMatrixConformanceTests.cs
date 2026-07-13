@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -247,8 +248,9 @@ namespace Opc.Ua.Core.Encoders.Tests
                 {
                     return jsonObject;
                 }
-                foreach ((_, JsonNode child) in jsonObject)
+                foreach (KeyValuePair<string, JsonNode> property in jsonObject)
                 {
+                    JsonNode child = property.Value;
                     if (child != null && FindJsonDimensionsOwner(child) is JsonObject owner)
                     {
                         return owner;
