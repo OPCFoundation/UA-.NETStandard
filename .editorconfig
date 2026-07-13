@@ -1156,3 +1156,9 @@ dotnet_diagnostic.CA1873.severity = warning
 
 [Stack/Opc.Ua.Bindings.Https/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
+
+[Stack/Opc.Ua.Core.Diagnostics/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.Server/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning

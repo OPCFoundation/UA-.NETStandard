@@ -917,9 +917,10 @@ namespace Opc.Ua.Server
                                     .ConfigureAwait(false))
                                 {
                                     // intentionally ignore errors, try best effort
-                                    m_logger.LogError(
-                                        "RemoveCertificate: Failed to delete CRL {Crl}.",
-                                        crl.ToString());
+                                    if (m_logger.IsEnabled(LogLevel.Error))
+                                    {
+                                        m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl.ToString());
+                                    }
                                 }
                             }
                         }
@@ -1112,4 +1113,15 @@ namespace Opc.Ua.Server
         private readonly int m_maxTrustListSize;
         private long m_totalBytesProcessed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for TrustList.
+    /// </summary>
+    internal static partial class TrustListLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 0, Level = LogLevel.Error,
+            Message = "RemoveCertificate: Failed to delete CRL {Crl}.")]
+        public static partial void RemoveCertificateFailedToDeleteCRLCrl(this ILogger logger, string? crl);
+    }
+
 }

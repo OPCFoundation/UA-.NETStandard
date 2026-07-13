@@ -637,9 +637,7 @@ namespace Opc.Ua.Server
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
-                        m_logger.LogWarning(
-                            "Server - Client connects with an endpointUrl [{EndpointUrl}] which does not match Server hostnames.",
-                            endpointUrl);
+                        m_logger.ServerClientConnectsWithAnEndpointUrlEndpointUrl(endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
                             context.AuditEntryId!,
                             session,
@@ -693,7 +691,7 @@ namespace Opc.Ua.Server
                     ServerInternal.ServerDiagnostics.CumulatedSessionCount++;
                 }
 
-                m_logger.LogInformation("Server - SESSION CREATED. SessionId={SessionId}", sessionId);
+                m_logger.ServerSESSIONCREATEDSessionIdSessionId(sessionId);
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
@@ -724,7 +722,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                m_logger.LogError("Server - SESSION CREATE failed. {ErrorMessage}", e.Message);
+                m_logger.ServerSESSIONCREATEFailedErrorMessage(e.Message);
 
                 // report the failed AuditCreateSessionEvent
                 ServerInternal.ReportAuditCreateSessionEvent(
@@ -907,7 +905,7 @@ namespace Opc.Ua.Server
                     session,
                     requestHeader.AdditionalHeader);
 
-                m_logger.LogInformation("Server - SESSION ACTIVATED.");
+                m_logger.ServerSESSIONACTIVATED();
 
                 // report the audit event for session activate
                 ServerInternal.ReportAuditActivateSessionEvent(
@@ -937,7 +935,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                m_logger.LogInformation("Server - SESSION ACTIVATE failed. {ErrorMessage}", e.Message);
+                m_logger.ServerSESSIONACTIVATEFailedErrorMessage(e.Message);
 
                 // report the audit event for failed session activate
                 ISession? session = ServerInternal.SessionManager
@@ -2080,19 +2078,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                /*
-                // check if there is an odd delay.
-                if (DateTime.UtcNow > requestHeader.Timestamp.AddMilliseconds(100))
-                {
-                    m_logger.LogTrace(m_eventId,
-                        "WARNING. Unexpected delay receiving Publish request. Time={0:hh:mm:ss.fff}, ReceiveTime={1:hh:mm:ss.fff}",
-                        DateTime.UtcNow,
-                        requestHeader.Timestamp);
-                }
-                */
-
-                m_logger.LogTrace(
-                    "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}",
+                m_logger.PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
@@ -2103,18 +2089,6 @@ namespace Opc.Ua.Server
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
-
-                /*
-                if (response.NotificationMessage != null)
-                {
-                    m_logger.LogTrace(m_eventId,
-                        "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
-                        subscriptionId,
-                        notificationMessage.SequenceNumber,
-                        notificationMessage.PublishTime,
-                        DateTime.UtcNow);
-                }
-                */
 
                 return response;
             }
@@ -2787,8 +2761,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            m_logger.LogWarning(
-                                "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
+                            m_logger.RegisterServerApiFailedForEndpointUrlException(
                                 m_useRegisterServer2 ? "2" : string.Empty,
                                 endpoint.EndpointUrl,
                                 e.Message);
@@ -2805,9 +2778,7 @@ namespace Opc.Ua.Server
                                 }
                                 catch (Exception e)
                                 {
-                                    m_logger.LogWarning(
-                                        "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
-                                        e.Message);
+                                    m_logger.NotCleanlyCloseConnectionWithLDSException(e.Message);
                                 }
                             }
                         }
@@ -2850,8 +2821,7 @@ namespace Opc.Ua.Server
                                 Timeout.InfiniteTimeSpan);
 
                             m_lastRegistrationInterval = m_minRegistrationInterval;
-                            m_logger.LogInformation(
-                                "Register server succeeded. Registering again in {RegistrationInterval} ms",
+                            m_logger.RegisterServerSucceededRegisteringAgainInRegistrationInterval(
                                 m_maxRegistrationInterval);
                         }
                     }
@@ -2870,9 +2840,7 @@ namespace Opc.Ua.Server
                                 m_lastRegistrationInterval = m_maxRegistrationInterval;
                             }
 
-                            m_logger.LogInformation(
-                                "Register server failed. Trying again in {RegistrationInterval} ms",
-                                m_lastRegistrationInterval);
+                            m_logger.RegisterServerFailedTryingAgainInRegistrationInterval(m_lastRegistrationInterval);
 
                             // create timer.
                             m_registrationTimer = TimeProvider.CreateTimer(
@@ -2886,7 +2854,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected exception handling registration timer.");
+                m_logger.UnexpectedExceptionHandlingRegistrationTimer(e);
             }
         }
 
@@ -2950,7 +2918,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Enter {State} state.", state);
+                m_logger.ServerEnterStateState(state);
 
                 ServerInternal.CurrentState = state;
             }
@@ -3036,7 +3004,7 @@ namespace Opc.Ua.Server
                    context.RequestType);
                 ServerUtils.EventLog.ServerCall(requestTypeString!, context.RequestId);
             }
-            m_logger.LogTrace("Server Call={RequestType}, Id={RequestId}", context.RequestType, context.RequestId);
+            m_logger.ServerCallRequestTypeIdRequestId(context.RequestType, context.RequestId);
 
             // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);
@@ -3220,7 +3188,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Could not load updated configuration file from: {FilePath}", args.FilePath);
+                m_logger.NotLoadUpdatedConfigurationFileFromFilePath(e, args.FilePath);
             }
         }
 
@@ -3269,7 +3237,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Failed to update configuration.");
+                m_logger.FailedToUpdateConfiguration(e);
             }
             finally
             {
@@ -3504,10 +3472,7 @@ namespace Opc.Ua.Server
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                m_logger.LogInformation(
-                    Utils.TraceMasks.StartStop,
-                    "Server - Start application {ApplicationName}.",
-                    configuration.ApplicationName);
+                m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
 
                 // Setup the minimum nonce length
                 Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
@@ -3522,13 +3487,13 @@ namespace Opc.Ua.Server
                 ServerInternal.SetRoleManager(CreateRoleManager(m_serverInternal, configuration));
 
                 // create the manager responsible for providing localized string resources.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
+                m_logger.ServerCreateResourceManager();
                 ResourceManager resourceManager = CreateResourceManager(
                     m_serverInternal,
                     configuration);
 
                 // create the manager responsible for incoming requests.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateRequestManager.");
+                m_logger.ServerCreateRequestManager();
                 RequestManager requestManager = CreateRequestManager(
                     m_serverInternal,
                     configuration);
@@ -3539,7 +3504,7 @@ namespace Opc.Ua.Server
                 ServerInternal.SetMainNodeManagerFactory(mainNodeManagerFactory);
 
                 // create the master node manager.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
+                m_logger.ServerCreateMasterNodeManager();
                 IMasterNodeManager masterNodeManager = CreateMasterNodeManager(
                     m_serverInternal,
                     configuration);
@@ -3552,7 +3517,7 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 // create the manager responsible for handling events.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateEventManager.");
+                m_logger.ServerCreateEventManager();
                 EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                 // creates the server object.
@@ -3571,22 +3536,22 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 // create the manager responsible for aggregates.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
+                m_logger.ServerCreateAggregateManager();
                 ServerInternal.SetAggregateManager(
                     await CreateAggregateManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // create the manager responsible for modelling rules.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
+                m_logger.ServerCreateModellingRulesManager();
                 ServerInternal.SetModellingRulesManager(
                     await CreateModellingRulesManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // create the manager responsible for conformance units / server profiles.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateConformanceUnitsManager.");
+                m_logger.ServerCreateConformanceUnitsManager();
                 ServerInternal.SetConformanceUnitsManager(
                     await CreateConformanceUnitsManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // start the session manager.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
+                m_logger.ServerCreateSessionManager();
                 ISessionManager sessionManager = CreateSessionManager(
                     m_serverInternal,
                     configuration);
@@ -3614,7 +3579,7 @@ namespace Opc.Ua.Server
                 ServerInternal.SetSubscriptionStore(subscriptionStore!);
 
                 // start the subscription manager.
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
+                m_logger.ServerCreateSubscriptionManager();
                 ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
                     m_serverInternal,
                     configuration);
@@ -3698,7 +3663,7 @@ namespace Opc.Ua.Server
 
                     if (m_maxRegistrationInterval > 0)
                     {
-                        m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
+                        m_logger.ServerRegistrationTimerStarted();
                         m_registrationTimer = TimeProvider.CreateTimer(
                             OnRegisterServerAsync,
                             this,
@@ -3710,7 +3675,7 @@ namespace Opc.Ua.Server
             catch (Exception e)
             {
                 const string message = "Unexpected error starting application";
-                m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
+                m_logger.Message(e, message);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
@@ -3726,7 +3691,7 @@ namespace Opc.Ua.Server
             SetServerState(ServerState.Running);
 
             // all initialization is complete.
-            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
+            m_logger.ServerStarted();
 
             // Surface the live transport listener registry through the
             // ITransportListenerRegistryProvider so consumers such as
@@ -3739,7 +3704,7 @@ namespace Opc.Ua.Server
             // monitor the configuration file.
             if (!string.IsNullOrEmpty(configuration.SourceFilePath))
             {
-                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
+                m_logger.ServerConfigurationWatcherStarted();
                 m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
                 m_configurationWatcher!.Changed += OnConfigurationChangedAsync;
             }
@@ -3747,9 +3712,7 @@ namespace Opc.Ua.Server
             // Log availability of the new CertificateManager
             if (CertificateManager != null)
             {
-                m_logger.LogInformation(Utils.TraceMasks.StartStop,
-                    "CertificateManager initialized with {Count} trust lists.",
-                    CertificateManager.TrustLists.Count);
+                m_logger.CertificateManagerInitializedWithCountTrustLists(CertificateManager.TrustLists.Count);
 
                 // Subscribe to CertificateManager change notifications and
                 // fan-out to OnCertificateUpdateAsync so endpoint descriptions
@@ -3762,7 +3725,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
-            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Stopping.");
+            m_logger.ServerStopping();
 
             ShutDownDelay();
 
@@ -3895,11 +3858,7 @@ namespace Opc.Ua.Server
                             break;
                         }
 
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.StartStop,
-                            "{SessionCount} active sessions. Seconds until shutdown: {TimeTillShutdown}s",
-                            sessionCount,
-                            timeTillShutdown);
+                        m_logger.SessionCountActiveSessionsSecondsUntilShutdown(sessionCount, timeTillShutdown);
 
                         Thread.Sleep(1000);
                     }
@@ -4529,9 +4488,7 @@ namespace Opc.Ua.Server
             {
                 if (value.Kind == CertificateChangeKind.ApplicationCertificateUpdated)
                 {
-                    _logger.LogInformation(
-                        "CertificateManager: Application certificate updated for type {CertType}.",
-                        value.CertificateType);
+                    _logger.CertificateManagerApplicationCertificateUpdated(value.CertificateType);
 
                     // Fan-out the cert update to endpoint descriptions and
                     // transport listeners. The reload itself was performed by
@@ -4548,8 +4505,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex,
-                            "CertificateManager change observer failed to fan-out cert update.");
+                        _logger.CertificateManagerChangeObserverFailedToFanOut(ex);
                     }
                 }
             }
@@ -4563,4 +4519,174 @@ namespace Opc.Ua.Server
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for StandardServer.
+    /// </summary>
+    internal static partial class StandardServerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 0, Level = LogLevel.Warning,
+            Message = "Server - Client connects with an endpointUrl [{EndpointUrl}] which does not match " +
+                "Server hostnames.")]
+        public static partial void ServerClientConnectsWithAnEndpointUrlEndpointUrl(
+            this ILogger logger,
+            string? endpointUrl);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 1, Level = LogLevel.Information,
+            Message = "Server - SESSION CREATED. SessionId={SessionId}")]
+        public static partial void ServerSESSIONCREATEDSessionIdSessionId(this ILogger logger, NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 2, Level = LogLevel.Error,
+            Message = "Server - SESSION CREATE failed. {ErrorMessage}")]
+        public static partial void ServerSESSIONCREATEFailedErrorMessage(this ILogger logger, string? errorMessage);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 3, Level = LogLevel.Information,
+            Message = "Server - SESSION ACTIVATED.")]
+        public static partial void ServerSESSIONACTIVATED(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 4, Level = LogLevel.Information,
+            Message = "Server - SESSION ACTIVATE failed. {ErrorMessage}")]
+        public static partial void ServerSESSIONACTIVATEFailedErrorMessage(this ILogger logger, string? errorMessage);
+
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 5, Level = LogLevel.Trace,
+            Message = "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}")]
+        public static partial void PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
+            this ILogger logger,
+            uint requestHandle,
+            DateTimeUtc timestamp);
+
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 6, Level = LogLevel.Warning,
+            Message = "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}")]
+        public static partial void RegisterServerApiFailedForEndpointUrlException(
+            this ILogger logger,
+            string? api,
+            Uri? endpointUrl,
+            string? errorMessage);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 7, Level = LogLevel.Warning,
+            Message = "Could not cleanly close connection with LDS. Exception={ErrorMessage}")]
+        public static partial void NotCleanlyCloseConnectionWithLDSException(this ILogger logger, string? errorMessage);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 8, Level = LogLevel.Information,
+            Message = "Register server succeeded. Registering again in {RegistrationInterval} ms")]
+        public static partial void RegisterServerSucceededRegisteringAgainInRegistrationInterval(
+            this ILogger logger,
+            double registrationInterval);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 9, Level = LogLevel.Information,
+            Message = "Register server failed. Trying again in {RegistrationInterval} ms")]
+        public static partial void RegisterServerFailedTryingAgainInRegistrationInterval(
+            this ILogger logger,
+            double registrationInterval);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 10, Level = LogLevel.Error,
+            Message = "Unexpected exception handling registration timer.")]
+        public static partial void UnexpectedExceptionHandlingRegistrationTimer(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 11, Level = LogLevel.Information,
+            Message = "Server - Enter {State} state.")]
+        public static partial void ServerEnterStateState(this ILogger logger, ServerState state);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 12, Level = LogLevel.Trace,
+            Message = "Server Call={RequestType}, Id={RequestId}")]
+        public static partial void ServerCallRequestTypeIdRequestId(
+            this ILogger logger,
+            RequestType requestType,
+            uint requestId);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 13, Level = LogLevel.Error,
+            Message = "Could not load updated configuration file from: {FilePath}")]
+        public static partial void NotLoadUpdatedConfigurationFileFromFilePath(
+            this ILogger logger,
+            Exception ex,
+            string? filePath);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 14, Level = LogLevel.Error,
+            Message = "Failed to update configuration.")]
+        public static partial void FailedToUpdateConfiguration(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 15, Level = LogLevel.Information,
+            Message = "Server - Start application {ApplicationName}.")]
+        public static partial void ServerStartApplicationApplicationName(this ILogger logger, string? applicationName);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 16, Level = LogLevel.Information,
+            Message = "Server - CreateResourceManager.")]
+        public static partial void ServerCreateResourceManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 17, Level = LogLevel.Information,
+            Message = "Server - CreateRequestManager.")]
+        public static partial void ServerCreateRequestManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 18, Level = LogLevel.Information,
+            Message = "Server - CreateMasterNodeManager.")]
+        public static partial void ServerCreateMasterNodeManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 19, Level = LogLevel.Information,
+            Message = "Server - CreateEventManager.")]
+        public static partial void ServerCreateEventManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 20, Level = LogLevel.Information,
+            Message = "Server - CreateAggregateManager.")]
+        public static partial void ServerCreateAggregateManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 21, Level = LogLevel.Information,
+            Message = "Server - CreateModellingRulesManager.")]
+        public static partial void ServerCreateModellingRulesManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 22, Level = LogLevel.Information,
+            Message = "Server - CreateConformanceUnitsManager.")]
+        public static partial void ServerCreateConformanceUnitsManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 23, Level = LogLevel.Information,
+            Message = "Server - CreateSessionManager.")]
+        public static partial void ServerCreateSessionManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 24, Level = LogLevel.Information,
+            Message = "Server - CreateSubscriptionManager.")]
+        public static partial void ServerCreateSubscriptionManager(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 25, Level = LogLevel.Information,
+            Message = "Server - Registration Timer started.")]
+        public static partial void ServerRegistrationTimerStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 26, Level = LogLevel.Critical,
+            Message = "{Message}")]
+        public static partial void Message(this ILogger logger, Exception ex, string? message);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 27, Level = LogLevel.Information,
+            Message = "Server - Started.")]
+        public static partial void ServerStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 28, Level = LogLevel.Information,
+            Message = "Server - Configuration watcher started.")]
+        public static partial void ServerConfigurationWatcherStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 29, Level = LogLevel.Information,
+            Message = "CertificateManager initialized with {Count} trust lists.")]
+        public static partial void CertificateManagerInitializedWithCountTrustLists(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 30, Level = LogLevel.Information,
+            Message = "Server - Stopping.")]
+        public static partial void ServerStopping(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 31, Level = LogLevel.Information,
+            Message = "{SessionCount} active sessions. Seconds until shutdown: {TimeTillShutdown}s")]
+        public static partial void SessionCountActiveSessionsSecondsUntilShutdown(
+            this ILogger logger,
+            int sessionCount,
+            int timeTillShutdown);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 32, Level = LogLevel.Information,
+            Message = "CertificateManager: Application certificate updated for type {CertType}.")]
+        public static partial void CertificateManagerApplicationCertificateUpdated(
+            this ILogger logger,
+            NodeId? certType);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 33, Level = LogLevel.Error,
+            Message = "CertificateManager change observer failed to fan-out cert update.")]
+        public static partial void CertificateManagerChangeObserverFailedToFanOut(this ILogger logger, Exception ex);
+    }
+
 }

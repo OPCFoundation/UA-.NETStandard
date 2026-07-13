@@ -814,18 +814,19 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
+            string sessionId = Id.ToString();
+
             // Legacy event source logging
             ServerUtils.EventLog.SessionState(
                 context,
-                Id.ToString(),
+                sessionId,
                 m_sessionName,
                 SecureChannelId,
                 Identity?.DisplayName ?? "(none)");
 
-            m_logger.LogInformation(
-                "Session {Context}, Id={SessionId}, Name={Name}, ChannelId={ChannelId}, User={User}",
+            m_logger.SessionContextIdSessionIdNameNameChannelId(
                 context,
-                Id.ToString(),
+                sessionId,
                 m_sessionName,
                 SecureChannelId,
                 Identity?.DisplayName ?? "(none)");
@@ -1333,4 +1334,21 @@ namespace Opc.Ua.Server
         private long m_lastContactTickCount;
         private int m_identityStale;
     }
+
+    /// <summary>
+    /// Source-generated log messages for Session.
+    /// </summary>
+    internal static partial class SessionLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.Session + 0, Level = LogLevel.Information,
+            Message = "Session {Context}, Id={SessionId}, Name={Name}, ChannelId={ChannelId}, User={User}")]
+        public static partial void SessionContextIdSessionIdNameNameChannelId(
+            this ILogger logger,
+            string context,
+            string? sessionId,
+            string? name,
+            string channelId,
+            string? user);
+    }
+
 }

@@ -458,9 +458,7 @@ namespace Opc.Ua.Server
                 if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                     is not NamespacesState serverNamespacesNode)
                 {
-                    m_logger.LogError(
-                        "Cannot create NamespaceMetadataState for namespace '{NamespaceUri}'.",
-                        namespaceUri);
+                    m_logger.CreateNamespaceMetadataStateForNamespaceNamespaceUri(namespaceUri);
                     return null!;
                 }
 
@@ -729,11 +727,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(
-                            Utils.TraceMasks.Security,
-                            ex,
-                            "Failed to verify integrity of the new certificate {Certificate} and the issuer list.",
-                            newCert);
+                        m_logger.FailedToVerifyIntegrityOfTheNew(ex, newCert);
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "Failed to verify integrity of the new certificate and the issuer list.",
@@ -811,11 +805,7 @@ namespace Opc.Ua.Server
                                     }
                                     catch (Exception ex) when (ShouldRetry(attempt, ex))
                                     {
-                                        m_logger.LogDebug(
-                                            Utils.TraceMasks.Security,
-                                            ex,
-                                            "Failed to update certificate {Certificate}. Retrying...",
-                                            newCert);
+                                        m_logger.FailedToUpdateCertificateCertificateRetrying(ex, newCert);
                                     }
                                 }
                                 finally
@@ -858,11 +848,7 @@ namespace Opc.Ua.Server
                                 }
                                 catch (Exception ex) when (ShouldRetry(attempt, ex))
                                 {
-                                    m_logger.LogDebug(
-                                        Utils.TraceMasks.Security,
-                                        ex,
-                                        "Failed to update certificate {Certificate} with PFX private key. Retrying...",
-                                        newCert);
+                                    m_logger.FailedToUpdateCertificateCertificateWithPFX(ex, newCert);
                                 }
                             }
                             break;
@@ -885,11 +871,7 @@ namespace Opc.Ua.Server
                                 }
                                 catch (Exception ex) when (ShouldRetry(attempt, ex))
                                 {
-                                    m_logger.LogDebug(
-                                        Utils.TraceMasks.Security,
-                                        ex,
-                                        "Failed to update certificate {Certificate} with PEM private key. Retrying...",
-                                        newCert);
+                                    m_logger.FailedToUpdateCertificateCertificateWithPEM(ex, newCert);
                                 }
                             }
                             break;
@@ -1012,10 +994,7 @@ namespace Opc.Ua.Server
                                 "Failed to open application certificate store.");
                         }
 
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.Security,
-                            "Delete application certificate {Thumbprint}",
-                            thumbprintToDelete);
+                        m_logger.DeleteApplicationCertificateThumbprint(thumbprintToDelete);
                         if (!string.IsNullOrEmpty(thumbprintToDelete))
                         {
                             await appStore.DeleteAsync(
@@ -1026,10 +1005,7 @@ namespace Opc.Ua.Server
                         ICertificatePasswordProvider? passwordProvider = m_configuration
                             .SecurityConfiguration
                             .CertificatePasswordProvider;
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.Security,
-                            "Add new application certificate {Certificate}",
-                            updateCertificate.CertificateWithPrivateKey);
+                        m_logger.AddNewApplicationCertificateCertificate(updateCertificate.CertificateWithPrivateKey);
                         Debug.Assert(updateCertificate.CertificateWithPrivateKey.HasPrivateKey);
                         await appStore.AddAsync(
                             updateCertificate.CertificateWithPrivateKey,
@@ -1071,10 +1047,7 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "Add new issuer certificate {Certificate}",
-                                    issuer);
+                                m_logger.AddNewIssuerCertificateCertificate(issuer);
                                 await issuerStore.AddAsync(issuer, ct: ct).ConfigureAwait(false);
                             }
                             catch (ArgumentException)
@@ -1102,11 +1075,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
-                        Utils.TraceMasks.Security,
-                        ex,
-                        "Failed to update certificate {Certificate}.",
-                        newCert);
+                    m_logger.FailedToUpdateCertificateCertificate(ex, newCert);
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
                         "Failed to update certificate.",
@@ -1264,9 +1233,7 @@ namespace Opc.Ua.Server
 
             existingIdent?.RawData = certificate.RawData;
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Created self-signed certificate {Subject} for {Group}/{Type}.",
+            m_logger.CreatedSelfSignedCertificateSubjectForGroup(
                 certificate.Subject,
                 certificateGroupId,
                 certificateTypeId);
@@ -1351,10 +1318,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "Create signing request {Certificate}",
-                    certWithPrivateKey);
+                m_logger.CreateSigningRequestCertificate(certWithPrivateKey);
                 var certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
                     certWithPrivateKey,
                     X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
@@ -1438,10 +1402,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "Apply Changes for certificate {Certificate}",
-                    updateCertificate.CertificateWithPrivateKey);
+                m_logger.ApplyChangesForCertificateCertificate(updateCertificate.CertificateWithPrivateKey);
 
                 // Hand off ownership of OriginalCertificate to the
                 // deferred task. The reference on the group is then
@@ -1519,10 +1480,7 @@ namespace Opc.Ua.Server
                         gracePeriod = TimeSpan.Zero;
                     }
 
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Apply Changes for application certificate scheduled in {Grace} ms...",
-                        gracePeriod.TotalMilliseconds);
+                    m_logger.ApplyChangesForApplicationCertificateScheduled(gracePeriod.TotalMilliseconds);
 
                     // Give the client a chance to receive the
                     // ApplyChanges response before cutting its channel.
@@ -1538,9 +1496,7 @@ namespace Opc.Ua.Server
                     await m_timeProvider.Delay(gracePeriod)
                         .ConfigureAwait(false);
 
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Apply Changes for application certificate running...");
+                    m_logger.ApplyChangesForApplicationCertificateRunning();
 
                     if (m_configuration.CertificateManager != null)
                     {
@@ -1581,28 +1537,21 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
-                                m_logger.LogWarning(
+                                m_logger.ListenerListenerFailedToCloseChannelsFor(
                                     ex,
-                                    "Listener {Listener} failed to close channels for {CertType}.",
                                     listener.ListenerId,
                                     rotation.CertificateType);
                             }
                         }
                     }
 
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Apply Changes for application certificate completed: {Count} SecureChannel(s) cut.",
-                        totalCut);
+                    m_logger.ApplyChangesForApplicationCertificateCompleted(totalCut);
 
                     completion.TrySetResult(null);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogCritical(
-                        ex,
-                        "Apply Changes for application certificate update failed. " +
-                        "Server could be in a faulted state.");
+                    m_logger.ApplyChangesForApplicationCertificateUpdateFailed(ex);
                     completion.TrySetException(ex);
                 }
                 finally
@@ -1804,7 +1753,7 @@ namespace Opc.Ua.Server
                 if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                     is not NamespacesState serverNamespacesNode)
                 {
-                    m_logger.LogError("Cannot find ObjectIds.Server_Namespaces node.");
+                    m_logger.FindObjectIdsServerNamespacesNode();
                     return null;
                 }
 
@@ -1853,10 +1802,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "Error searching NamespaceMetadata for namespaceUri {NamespaceUri}.",
-                    namespaceUri);
+                m_logger.ErrorSearchingNamespaceMetadataForNamespaceUri(ex, namespaceUri);
                 return null;
             }
         }
@@ -1989,7 +1935,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogWarning(ex, "Alarm evaluation tick failed.");
+                        m_logger.AlarmEvaluationTickFailed(ex);
                     }
                 },
                 null,
@@ -2049,10 +1995,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to evaluate CertificateExpired alarm for group {Group}.",
-                        certGroup.BrowseName);
+                    m_logger.FailedToEvaluateCertificateExpiredAlarmForGroup(ex, certGroup.BrowseName);
                 }
 
                 try
@@ -2070,10 +2013,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to evaluate TrustListOutOfDate alarm for group {Group}.",
-                        certGroup.BrowseName);
+                    m_logger.FailedToEvaluateTrustListOutOfDateAlarmForGroup(ex, certGroup.BrowseName);
                 }
             }
         }
@@ -2136,4 +2076,133 @@ namespace Opc.Ua.Server
 
         private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
     }
+
+    /// <summary>
+    /// Source-generated log messages for ConfigurationNodeManager.
+    /// </summary>
+    internal static partial class ConfigurationNodeManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 0, Level = LogLevel.Error,
+            Message = "Cannot create NamespaceMetadataState for namespace '{NamespaceUri}'.")]
+        public static partial void CreateNamespaceMetadataStateForNamespaceNamespaceUri(
+            this ILogger logger,
+            string namespaceUri);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 1, Level = LogLevel.Error,
+            Message = "Failed to verify integrity of the new certificate {Certificate} and the issuer list.")]
+        public static partial void FailedToVerifyIntegrityOfTheNew(
+            this ILogger logger,
+            Exception ex,
+            Certificate certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 2, Level = LogLevel.Debug,
+            Message = "Failed to update certificate {Certificate}. Retrying...")]
+        public static partial void FailedToUpdateCertificateCertificateRetrying(
+            this ILogger logger,
+            Exception ex,
+            Certificate certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 3, Level = LogLevel.Debug,
+            Message = "Failed to update certificate {Certificate} with PFX private key. Retrying...")]
+        public static partial void FailedToUpdateCertificateCertificateWithPFX(
+            this ILogger logger,
+            Exception ex,
+            Certificate certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 4, Level = LogLevel.Debug,
+            Message = "Failed to update certificate {Certificate} with PEM private key. Retrying...")]
+        public static partial void FailedToUpdateCertificateCertificateWithPEM(
+            this ILogger logger,
+            Exception ex,
+            Certificate certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 5, Level = LogLevel.Information,
+            Message = "Delete application certificate {Thumbprint}")]
+        public static partial void DeleteApplicationCertificateThumbprint(this ILogger logger, string? thumbprint);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 6, Level = LogLevel.Information,
+            Message = "Add new application certificate {Certificate}")]
+        public static partial void AddNewApplicationCertificateCertificate(this ILogger logger, Certificate? certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 7, Level = LogLevel.Information,
+            Message = "Add new issuer certificate {Certificate}")]
+        public static partial void AddNewIssuerCertificateCertificate(this ILogger logger, Certificate certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 8, Level = LogLevel.Error,
+            Message = "Failed to update certificate {Certificate}.")]
+        public static partial void FailedToUpdateCertificateCertificate(
+            this ILogger logger,
+            Exception ex,
+            Certificate? certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 9, Level = LogLevel.Information,
+            Message = "Created self-signed certificate {Subject} for {Group}/{Type}.")]
+        public static partial void CreatedSelfSignedCertificateSubjectForGroup(
+            this ILogger logger,
+            string? subject,
+            NodeId group,
+            NodeId type);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 10, Level = LogLevel.Information,
+            Message = "Create signing request {Certificate}")]
+        public static partial void CreateSigningRequestCertificate(this ILogger logger, Certificate certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 11, Level = LogLevel.Information,
+            Message = "Apply Changes for certificate {Certificate}")]
+        public static partial void ApplyChangesForCertificateCertificate(this ILogger logger, Certificate? certificate);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 12, Level = LogLevel.Information,
+            Message = "Apply Changes for application certificate scheduled in {Grace} ms...")]
+        public static partial void ApplyChangesForApplicationCertificateScheduled(this ILogger logger, double grace);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 13, Level = LogLevel.Information,
+            Message = "Apply Changes for application certificate running...")]
+        public static partial void ApplyChangesForApplicationCertificateRunning(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 14, Level = LogLevel.Warning,
+            Message = "Listener {Listener} failed to close channels for {CertType}.")]
+        public static partial void ListenerListenerFailedToCloseChannelsFor(
+            this ILogger logger,
+            Exception ex,
+            string listener,
+            NodeId certType);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 15, Level = LogLevel.Information,
+            Message = "Apply Changes for application certificate completed: {Count} SecureChannel(s) cut.")]
+        public static partial void ApplyChangesForApplicationCertificateCompleted(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 16, Level = LogLevel.Critical,
+            Message = "Apply Changes for application certificate update failed. Server could be in a faulted state.")]
+        public static partial void ApplyChangesForApplicationCertificateUpdateFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 17, Level = LogLevel.Error,
+            Message = "Cannot find ObjectIds.Server_Namespaces node.")]
+        public static partial void FindObjectIdsServerNamespacesNode(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 18, Level = LogLevel.Error,
+            Message = "Error searching NamespaceMetadata for namespaceUri {NamespaceUri}.")]
+        public static partial void ErrorSearchingNamespaceMetadataForNamespaceUri(
+            this ILogger logger,
+            Exception ex,
+            string namespaceUri);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 19, Level = LogLevel.Warning,
+            Message = "Alarm evaluation tick failed.")]
+        public static partial void AlarmEvaluationTickFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 20, Level = LogLevel.Warning,
+            Message = "Failed to evaluate CertificateExpired alarm for group {Group}.")]
+        public static partial void FailedToEvaluateCertificateExpiredAlarmForGroup(
+            this ILogger logger,
+            Exception ex,
+            string group);
+
+        [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 21, Level = LogLevel.Warning,
+            Message = "Failed to evaluate TrustListOutOfDate alarm for group {Group}.")]
+        public static partial void FailedToEvaluateTrustListOutOfDateAlarmForGroup(
+            this ILogger logger,
+            Exception ex,
+            string group);
+    }
+
 }
