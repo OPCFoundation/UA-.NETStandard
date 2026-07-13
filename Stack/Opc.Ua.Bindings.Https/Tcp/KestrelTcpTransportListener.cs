@@ -284,18 +284,11 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarning(
-                        ex,
-                        "KestrelTcp failed to close channel for certificate rotation (thumbprint {Thumbprint}).",
-                        oldThumbprint);
+                    Logger.FailedToCloseChannelForCertificateRotation(ex, oldThumbprint);
                 }
             }
 
-            Logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "KestrelTcp closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).",
-                closed.Count,
-                oldThumbprint);
+            Logger.ClosedSecureChannelsForCertificateRotation(closed.Count, oldThumbprint);
 
             return new ValueTask<IReadOnlyList<string>>(closed);
         }
@@ -527,7 +520,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "KestrelTcp request processing failed.");
+                Logger.RequestProcessingFailed(ex);
                 try
                 {
                     ServiceFault fault = EndpointBase.CreateFault(Logger, request, ex);
@@ -535,7 +528,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception faultEx)
                 {
-                    Logger.LogError(faultEx, "KestrelTcp failed to send fault response.");
+                    Logger.FailedToSendFaultResponse(faultEx);
                 }
             }
         }
@@ -607,6 +600,34 @@ namespace Opc.Ua.Bindings
             token.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetResult(true), tcs);
             return tcs.Task;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="KestrelTcpTransportListener"/>.
+    /// </summary>
+    internal static partial class KestrelTcpTransportListenerLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 0, Level = LogLevel.Warning,
+            Message = "KestrelTcp failed to close channel for certificate rotation (thumbprint {Thumbprint}).")]
+        public static partial void FailedToCloseChannelForCertificateRotation(
+            this ILogger logger,
+            Exception exception,
+            string thumbprint);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 1, Level = LogLevel.Information,
+            Message = "KestrelTcp closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).")]
+        public static partial void ClosedSecureChannelsForCertificateRotation(
+            this ILogger logger,
+            int count,
+            string thumbprint);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 2, Level = LogLevel.Error,
+            Message = "KestrelTcp request processing failed.")]
+        public static partial void RequestProcessingFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 3, Level = LogLevel.Error,
+            Message = "KestrelTcp failed to send fault response.")]
+        public static partial void FailedToSendFaultResponse(this ILogger logger, Exception exception);
     }
 }
 #endif // NET8_0_OR_GREATER

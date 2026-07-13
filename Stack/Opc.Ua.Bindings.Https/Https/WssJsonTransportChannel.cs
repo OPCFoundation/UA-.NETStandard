@@ -263,7 +263,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex) when (ex is not ServiceResultException)
             {
-                m_logger.LogError(ex, "WSS+JSON request failed.");
+                m_logger.WssJsonRequestFailed(ex);
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnknownResponse,
                     ex,
@@ -383,9 +383,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "WssJsonTransportChannel: failed to validate server TLS certificate.");
+                m_logger.WssJsonFailedToValidateServerTlsCertificate(ex);
                 return false;
             }
         }
@@ -422,5 +420,21 @@ namespace Opc.Ua.Bindings
         {
             return new WssJsonTransportChannel(telemetry);
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="WssJsonTransportChannel"/>.
+    /// </summary>
+    internal static partial class WssJsonTransportChannelLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WssJsonTransportChannel + 0, Level = LogLevel.Error,
+            Message = "WSS+JSON request failed.")]
+        public static partial void WssJsonRequestFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WssJsonTransportChannel + 1, Level = LogLevel.Error,
+            Message = "WssJsonTransportChannel: failed to validate server TLS certificate.")]
+        public static partial void WssJsonFailedToValidateServerTlsCertificate(
+            this ILogger logger,
+            Exception exception);
     }
 }

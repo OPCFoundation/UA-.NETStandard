@@ -231,7 +231,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "PipeByteTransport: pipe read error.");
+                m_logger.PipeReadError(ex);
                 throw ServiceResultException.Create(
                     StatusCodes.BadConnectionClosed,
                     ex,
@@ -297,6 +297,16 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_sendLock;
         private int m_closed;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PipeByteTransport"/>.
+    /// </summary>
+    internal static partial class PipeByteTransportLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.PipeByteTransport + 0, Level = LogLevel.Debug,
+            Message = "PipeByteTransport: pipe read error.")]
+        public static partial void PipeReadError(this ILogger logger, Exception exception);
     }
 }
 #endif // NET8_0_OR_GREATER
