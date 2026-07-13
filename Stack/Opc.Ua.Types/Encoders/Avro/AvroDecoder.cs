@@ -753,17 +753,22 @@ namespace Opc.Ua
         {
             BuiltInType type = (BuiltInType)ReadInt32(null);
             int? valueRank = ReadNullableValue<int?>(() => ReadInt32(null), null);
-            int[]? dimensions = valueRank.HasValue && valueRank.Value >= 0 ? ReadInt32Array(null).ToArray() : null;
-            return ReadVariantBody(type, valueRank, dimensions);
+            if (valueRank.HasValue && valueRank.Value >= 0)
+            {
+                // Consume the header dimensions written by WriteVariant; matrices additionally carry
+                // their own dimensions in the body and arrays write an empty dimensions array.
+                _ = ReadInt32Array(null);
+            }
+            return ReadVariantBody(type, valueRank);
         }
 
         /// <inheritdoc/>
         public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
-            return ReadVariantBody(typeInfo.BuiltInType, typeInfo.ValueRank, null);
+            return ReadVariantBody(typeInfo.BuiltInType, typeInfo.ValueRank);
         }
 
-        private Variant ReadVariantBody(BuiltInType expectedType, int? valueRank, int[]? dimensions)
+        private Variant ReadVariantBody(BuiltInType expectedType, int? valueRank)
         {
             long branch = m_reader.ReadLong();
             if (branch == 0 || expectedType == BuiltInType.Null)
@@ -784,7 +789,11 @@ namespace Opc.Ua
                     return ReadScalarVariant(expectedType);
                 }
 
-                if (dimensions == null || dimensions.Length <= 1)
+                // ValueRank 0/1 => array, ValueRank > 1 => matrix (mirrors TypeInfo.IsArray/IsMatrix
+                // and the WriteVariantBody dispatch on the encoder side). The prior implementation
+                // routed on a dimensions array that ReadVariantValue always passed as null, so every
+                // matrix was mis-decoded as an array and ran past the end of the stream.
+                if (valueRank.Value <= 1)
                 {
                     return ReadArrayVariant(expectedType);
                 }
