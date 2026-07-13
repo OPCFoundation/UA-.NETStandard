@@ -118,32 +118,32 @@ namespace Opc.Ua.Gds.Server
                     null!,
                     default,
                     out DateTimeUtc lastResetTime);
-                m_logger.LogInformation("QueryServers Returned: {Count} records", results?.Length ?? 0);
+                m_logger.QueryServersReturned(results?.Length ?? 0);
 
                 if (results != null)
                 {
                     foreach (ServerOnNetwork result in results)
                     {
-                        m_logger.LogInformation("Server Found at {DiscoveryUrl}", result.DiscoveryUrl);
+                        m_logger.ServerFound(result.DiscoveryUrl);
                     }
                 }
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Could not connect to the Database!");
+                m_logger.CouldNotConnectToDatabase(e);
 
                 Exception? ie = e.InnerException;
 
                 while (ie != null)
                 {
-                    m_logger.LogInformation(ie, "Exception");
+                    m_logger.Exception(ie);
                     ie = ie.InnerException;
                 }
 
-                m_logger.LogInformation("Initialize Database tables!");
+                m_logger.InitializeDatabaseTables();
                 m_database.Initialize();
 
-                m_logger.LogInformation("Database Initialized!");
+                m_logger.DatabaseInitialized();
             }
         }
 
@@ -246,11 +246,7 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Unexpected error revoking certificate. {Subject} for Authority={CertificateGroupId}",
-                            x509.Subject,
-                            certificateGroup.Id);
+                        m_logger.UnexpectedErrorRevokingCertificate(e, x509.Subject, certificateGroup.Id);
                     }
                 }
             }
@@ -323,10 +319,7 @@ namespace Opc.Ua.Gds.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Failed to build issuer chain for {Subject}; falling back to the immediate issuing CA.",
-                    certificate.Subject);
+                m_logger.FailedToBuildIssuerChain(ex, certificate.Subject);
             }
             finally
             {
@@ -465,10 +458,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(
-                        e,
-                        "Unexpected error initializing certificateGroup: {CertificateGroupId}",
-                        certificateGroupConfiguration.Id);
+                    m_logger.UnexpectedErrorInitializingCertificateGroup(e, certificateGroupConfiguration.Id);
                     // make sure gds server doesn't start without cert groups!
                     throw;
                 }
@@ -809,7 +799,7 @@ namespace Opc.Ua.Gds.Server
             ref DateTimeUtc lastCounterResetTime,
             ref ArrayOf<ServerOnNetwork> servers)
         {
-            m_logger.LogInformation("QueryServers: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
+            m_logger.QueryServers(applicationUri, applicationName);
 
             servers = m_database.QueryServers(
                 startingRecordId,
@@ -838,7 +828,7 @@ namespace Opc.Ua.Gds.Server
             ref uint nextRecordId,
             ref ArrayOf<ApplicationDescription> applications)
         {
-            m_logger.LogInformation("QueryApplications: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
+            m_logger.QueryApplications(applicationUri, applicationName);
 
             applications = m_database.QueryApplications(
                 startingRecordId,
@@ -864,7 +854,7 @@ namespace Opc.Ua.Gds.Server
                 context,
                 AuthorizationHelper.DiscoveryAdminOrAppAdmin);
 
-            m_logger.LogInformation("OnRegisterApplication: {ApplicationUri}", application.ApplicationUri);
+            m_logger.OnRegisterApplication(application.ApplicationUri);
 
             try
             {
@@ -900,7 +890,7 @@ namespace Opc.Ua.Gds.Server
                 AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                 application.ApplicationId);
 
-            m_logger.LogInformation("OnUpdateApplication: {ApplicationUri}", application.ApplicationUri);
+            m_logger.OnUpdateApplication(application.ApplicationUri);
 
             ApplicationRecordDataType? record = m_database.GetApplication(application.ApplicationId);
 
@@ -944,7 +934,7 @@ namespace Opc.Ua.Gds.Server
                 AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
-            m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
+            m_logger.OnUnregisterApplication(applicationId.ToString());
 
             if (m_database.GetApplication(applicationId) == null)
             {
@@ -972,7 +962,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Failed to revoke: {CertificateType}", certType.Value);
+                    m_logger.FailedToRevoke(ex, certType.Value);
                 }
             }
 
@@ -1091,7 +1081,7 @@ namespace Opc.Ua.Gds.Server
             ref ArrayOf<ApplicationRecordDataType> applications)
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
-            m_logger.LogInformation("OnFindApplications: {ApplicationUri}", applicationUri);
+            m_logger.OnFindApplications(applicationUri);
             applications = m_database.FindApplications(applicationUri) ?? [];
             return ServiceResult.Good;
         }
@@ -1107,7 +1097,7 @@ namespace Opc.Ua.Gds.Server
                 context,
                 AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
                 applicationId);
-            m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
+            m_logger.OnGetApplication(applicationId);
             try
             {
                 application = m_database.GetApplication(applicationId)
@@ -2276,10 +2266,7 @@ namespace Opc.Ua.Gds.Server
 
                 certificateGroup.DefaultTrustList = customGroupNode.TrustList!;
 
-                m_logger.LogInformation(
-                    "Created custom certificate group node: {Id} with NodeId {NodeId}",
-                    groupId,
-                    certificateGroup.Id);
+                m_logger.CreatedCustomCertificateGroupNode(groupId, certificateGroup.Id);
             }
 
             certificateGroup.DefaultTrustList?.Handle = new TrustList(
@@ -2578,7 +2565,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
 
-            m_logger.LogInformation("OnKeyCredentialStartRequest: {ApplicationUri}", applicationUri);
+            m_logger.OnKeyCredentialStartRequest(applicationUri);
 
             NodeId requestId = await KeyCredentialRequestStore.StartRequestAsync(
                 applicationUri,
@@ -2608,7 +2595,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
 
-            m_logger.LogInformation("OnKeyCredentialFinishRequest: {RequestId}", requestId);
+            m_logger.OnKeyCredentialFinishRequest(requestId);
 
             FinishKeyCredentialRequestResult finished = await KeyCredentialRequestStore.FinishRequestAsync(
                 requestId,
@@ -2647,7 +2634,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
 
-            m_logger.LogInformation("OnKeyCredentialRevoke: {CredentialId}", credentialId);
+            m_logger.OnKeyCredentialRevoke(credentialId);
 
             await KeyCredentialRequestStore.RevokeAsync(credentialId, cancellationToken).ConfigureAwait(false);
 
@@ -2702,5 +2689,102 @@ namespace Opc.Ua.Gds.Server
         /// built-in handlers return <c>Bad_NotSupported</c>.
         /// </summary>
         public IAccessTokenProvider? AccessTokenProvider { get; set; }
+    }
+
+    internal static partial class ApplicationsNodeManagerLog
+    {
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 0, Level = LogLevel.Information,
+            Message = "QueryServers Returned: {Count} records")]
+        public static partial void QueryServersReturned(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 1, Level = LogLevel.Information,
+            Message = "Server Found at {DiscoveryUrl}")]
+        public static partial void ServerFound(this ILogger logger, string? discoveryUrl);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 2, Level = LogLevel.Error,
+            Message = "Could not connect to the Database!")]
+        public static partial void CouldNotConnectToDatabase(this ILogger logger, Exception e);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 3, Level = LogLevel.Information,
+            Message = "Exception")]
+        public static partial void Exception(this ILogger logger, Exception ie);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 4, Level = LogLevel.Information,
+            Message = "Initialize Database tables!")]
+        public static partial void InitializeDatabaseTables(this ILogger logger);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 5, Level = LogLevel.Information,
+            Message = "Database Initialized!")]
+        public static partial void DatabaseInitialized(this ILogger logger);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 6, Level = LogLevel.Error,
+            Message = "Unexpected error revoking certificate. {Subject} for Authority={CertificateGroupId}")]
+        public static partial void UnexpectedErrorRevokingCertificate(
+            this ILogger logger,
+            Exception e,
+            string subject,
+            NodeId certificateGroupId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 7, Level = LogLevel.Warning,
+            Message = "Failed to build issuer chain for {Subject}; falling back to the immediate issuing CA.")]
+        public static partial void FailedToBuildIssuerChain(this ILogger logger, Exception ex, string subject);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 8, Level = LogLevel.Error,
+            Message = "Unexpected error initializing certificateGroup: {CertificateGroupId}")]
+        public static partial void UnexpectedErrorInitializingCertificateGroup(
+            this ILogger logger,
+            Exception e,
+            string? certificateGroupId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 9, Level = LogLevel.Information,
+            Message = "QueryServers: {ApplicationUri} {ApplicationName}")]
+        public static partial void QueryServers(this ILogger logger, string applicationUri, string applicationName);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 10, Level = LogLevel.Information,
+            Message = "QueryApplications: {ApplicationUri} {ApplicationName}")]
+        public static partial void QueryApplications(
+            this ILogger logger,
+            string applicationUri,
+            string applicationName);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 11, Level = LogLevel.Information,
+            Message = "OnRegisterApplication: {ApplicationUri}")]
+        public static partial void OnRegisterApplication(this ILogger logger, string? applicationUri);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 12, Level = LogLevel.Information,
+            Message = "OnUpdateApplication: {ApplicationUri}")]
+        public static partial void OnUpdateApplication(this ILogger logger, string? applicationUri);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 13, Level = LogLevel.Information,
+            Message = "OnUnregisterApplication: {ApplicationId}")]
+        public static partial void OnUnregisterApplication(this ILogger logger, string applicationId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 14, Level = LogLevel.Warning,
+            Message = "Failed to revoke: {CertificateType}")]
+        public static partial void FailedToRevoke(this ILogger logger, Exception ex, string certificateType);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 15, Level = LogLevel.Information,
+            Message = "OnFindApplications: {ApplicationUri}")]
+        public static partial void OnFindApplications(this ILogger logger, string applicationUri);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 16, Level = LogLevel.Information,
+            Message = "OnGetApplication: {ApplicationId}")]
+        public static partial void OnGetApplication(this ILogger logger, NodeId applicationId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 17, Level = LogLevel.Information,
+            Message = "Created custom certificate group node: {Id} with NodeId {NodeId}")]
+        public static partial void CreatedCustomCertificateGroupNode(this ILogger logger, string id, NodeId nodeId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 18, Level = LogLevel.Information,
+            Message = "OnKeyCredentialStartRequest: {ApplicationUri}")]
+        public static partial void OnKeyCredentialStartRequest(this ILogger logger, string applicationUri);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 19, Level = LogLevel.Information,
+            Message = "OnKeyCredentialFinishRequest: {RequestId}")]
+        public static partial void OnKeyCredentialFinishRequest(this ILogger logger, NodeId requestId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 20, Level = LogLevel.Information,
+            Message = "OnKeyCredentialRevoke: {CredentialId}")]
+        public static partial void OnKeyCredentialRevoke(this ILogger logger, string credentialId);
     }
 }

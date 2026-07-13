@@ -405,7 +405,7 @@ namespace Opc.Ua.Gds.Client
                     e.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     lastException = e;
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    m_logger.FailedToConnect(e, attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
                         await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
@@ -439,7 +439,7 @@ namespace Opc.Ua.Gds.Client
                     e.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     lastException = e;
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    m_logger.FailedToConnect(e, attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
                         await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
@@ -562,7 +562,7 @@ namespace Opc.Ua.Gds.Client
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogDebug(ex, "Failed to close trust list file handle.");
+                            m_logger.FailedToCloseTrustListFileHandle(ex);
                         }
                     }
                 }
@@ -953,7 +953,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Error reverting to normal permissions.");
+                m_logger.ErrorRevertingToNormalPermissions(e);
             }
         }
 
@@ -975,7 +975,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                m_logger.LogError(exception, "Subscriber threw in KeepAlive handler.");
+                m_logger.SubscriberThrewInKeepAliveHandler(exception);
             }
         }
 
@@ -991,9 +991,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    m_logger.LogError(
-                        exception,
-                        "Unexpected error raising ConnectionStatusChanged event.");
+                    m_logger.UnexpectedErrorRaisingConnectionStatusChangedEvent(exception);
                 }
             }
         }
@@ -1051,7 +1049,7 @@ namespace Opc.Ua.Gds.Client
                     ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
                     MessageContext.Telemetry);
 
-                m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
+                m_logger.ConnectedToEndpoint(EndpointUrl);
             }
             finally
             {
@@ -1095,5 +1093,22 @@ namespace Opc.Ua.Gds.Client
         private ConfiguredEndpoint? m_endpoint;
         private ServerConfigurationTypeClient? m_serverConfiguration;
         private bool m_disposed;
+    }
+
+    internal static partial class ServerPushConfigurationClientLog
+    {
+        [LoggerMessage(EventId = GdsClientCommonEventIds.ServerPushConfigurationClient + 0, Level = LogLevel.Debug,
+            Message = "Failed to close trust list file handle.")]
+        public static partial void FailedToCloseTrustListFileHandle(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.ServerPushConfigurationClient + 1, Level = LogLevel.Error,
+            Message = "Error reverting to normal permissions.")]
+        public static partial void ErrorRevertingToNormalPermissions(this ILogger logger, Exception e);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.ServerPushConfigurationClient + 2, Level = LogLevel.Error,
+            Message = "Unexpected error raising ConnectionStatusChanged event.")]
+        public static partial void UnexpectedErrorRaisingConnectionStatusChangedEvent(
+            this ILogger logger,
+            Exception exception);
     }
 }

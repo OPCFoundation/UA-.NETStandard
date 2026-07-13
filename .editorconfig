@@ -1177,3 +1177,18 @@ dotnet_diagnostic.CA1873.severity = warning
 
 [Libraries/Opc.Ua.Configuration/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.Gds.Client.Common/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.Gds.Server.Common/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.Di.Server/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.Lds.Server/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Libraries/Opc.Ua.WotCon.Server/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
