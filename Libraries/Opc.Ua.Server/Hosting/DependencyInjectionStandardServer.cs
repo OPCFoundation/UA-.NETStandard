@@ -142,11 +142,11 @@ namespace Opc.Ua.Server.Hosting
 
             // Resolve the Optional §7.10.3 ServerConfiguration surface. The
             // value options (HasSecureElement/InApplicationSetup/timers) come
-            // from IOptions or a directly-registered instance; the providers may
-            // be registered either as standalone DI services or set on the
-            // options. A DI-registered provider takes precedence.
+            // from a directly-registered instance or the options pattern; the
+            // providers may be registered either as standalone DI services or
+            // set on the options. A DI-registered provider takes precedence.
             ServerConfigurationOptions? serverConfigurationOptions =
-                ResolveServerConfigurationOptions();
+                ResolveServerConfigurationOptions(m_services);
 
             bool hasSurface = serverConfigurationOptions != null;
 
@@ -165,22 +165,49 @@ namespace Opc.Ua.Server.Hosting
 
         /// <summary>
         /// Builds the <see cref="ServerConfigurationOptions"/> for the
-        /// configuration node manager by merging directly-registered value
-        /// options (via <see cref="IOptions{TOptions}"/> or a registered
-        /// instance) with any standalone provider services. Returns
+        /// configuration node manager by selecting the value options and merging
+        /// any standalone provider services into them. Returns
         /// <see langword="null"/> when nothing configures the Optional surface,
         /// so the default (identity Properties only) behaviour is preserved.
         /// </summary>
-        private ServerConfigurationOptions? ResolveServerConfigurationOptions()
+        /// <param name="services">
+        /// The service provider that supplies the options and providers.
+        /// </param>
+        /// <remarks>
+        /// The value options are selected using the following precedence:
+        /// <list type="number">
+        /// <item>
+        /// a directly-registered <see cref="ServerConfigurationOptions"/>
+        /// instance (for example via <c>AddSingleton</c>);
+        /// </item>
+        /// <item>
+        /// the options-pattern value resolved from
+        /// <see cref="IOptions{TOptions}"/> (for example via the fluent
+        /// <c>ConfigureServerConfiguration</c>);
+        /// </item>
+        /// <item>
+        /// a new default options object, created only when a standalone
+        /// <see cref="IServerConfigurationResetProvider"/> or
+        /// <see cref="IApplicationConfigurationFileProvider"/> is registered and
+        /// needs a container to be merged into.
+        /// </item>
+        /// </list>
+        /// A directly-registered instance is resolved before
+        /// <see cref="IOptions{TOptions}.Value"/> so a host that registers its
+        /// own configured instance is not shadowed by a default
+        /// <see cref="IOptions{TOptions}"/> materialised by the options
+        /// infrastructure that is typically present in a host.
+        /// </remarks>
+        internal static ServerConfigurationOptions? ResolveServerConfigurationOptions(IServiceProvider services)
         {
             ServerConfigurationOptions? options =
-                m_services.GetService<IOptions<ServerConfigurationOptions>>()?.Value
-                ?? m_services.GetService<ServerConfigurationOptions>();
+                services.GetService<ServerConfigurationOptions>()
+                ?? services.GetService<IOptions<ServerConfigurationOptions>>()?.Value;
 
             IServerConfigurationResetProvider? resetProvider =
-                m_services.GetService<IServerConfigurationResetProvider>();
+                services.GetService<IServerConfigurationResetProvider>();
             IApplicationConfigurationFileProvider? configurationFileProvider =
-                m_services.GetService<IApplicationConfigurationFileProvider>();
+                services.GetService<IApplicationConfigurationFileProvider>();
 
             if (options == null && resetProvider == null && configurationFileProvider == null)
             {

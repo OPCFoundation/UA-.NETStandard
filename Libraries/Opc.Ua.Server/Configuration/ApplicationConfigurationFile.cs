@@ -160,12 +160,40 @@ namespace Opc.Ua.Server
         /// Discards the open handle when the <c>ActivityTimeout</c> elapses with
         /// no intervening Method call (§7.8.5.1). Any buffered changes are lost.
         /// </summary>
+        /// <remarks>
+        /// Exposed for tests as an explicit inactivity-expiry hook. It is routed
+        /// through the same generation-aware path the timer callback uses so a
+        /// test cannot bypass the guard that prevents a superseded or a
+        /// different Session's timer from closing a refreshed handle.
+        /// </remarks>
         internal void ExpireForInactivity()
+        {
+            long generation;
+            lock (m_lock)
+            {
+                generation = m_activityGeneration;
+            }
+
+            OnActivityTimerExpired(generation);
+        }
+
+        /// <summary>
+        /// Handles an <c>ActivityTimeout</c> firing. The open handle is only
+        /// discarded when <paramref name="generation"/> still matches the
+        /// current activity generation and a handle is open, so a callback
+        /// queued by a superseded or disposed timer - including one armed for a
+        /// previous Session or before the handle was refreshed - is ignored
+        /// instead of closing a live handle.
+        /// </summary>
+        /// <param name="generation">
+        /// The activity generation captured when the firing timer was armed.
+        /// </param>
+        private void OnActivityTimerExpired(long generation)
         {
             bool wasWriting;
             lock (m_lock)
             {
-                if (m_sessionId.IsNull)
+                if (m_sessionId.IsNull || generation != m_activityGeneration)
                 {
                     return;
                 }
@@ -190,6 +218,10 @@ namespace Opc.Ua.Server
             CancelPendingRevert();
             lock (m_lock)
             {
+                // Supersede the current activity generation so a callback still
+                // queued by the timer disposed here cannot run against the
+                // disposed handler.
+                m_activityGeneration++;
                 m_activityTimer?.Dispose();
                 m_activityTimer = null;
                 m_strm?.Dispose();
@@ -694,6 +726,10 @@ namespace Opc.Ua.Server
             m_strm = null;
             m_totalBytesProcessed = 0;
             m_node.OpenCount!.Value = 0;
+            // Supersede the current activity generation so a callback already
+            // queued by the timer disposed here cannot close a handle that is
+            // later reopened for the same or a different Session.
+            m_activityGeneration++;
             m_activityTimer?.Dispose();
             m_activityTimer = null;
         }
@@ -726,10 +762,18 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            // Advance the generation and capture it in the immutable timer state
+            // so a callback queued by the timer superseded here is recognised as
+            // stale and ignored once this newer timer is armed.
+            long generation = ++m_activityGeneration;
             m_activityTimer?.Dispose();
             m_activityTimer = m_timeProvider.CreateTimer(
-                static state => ((ApplicationConfigurationFile)state!).ExpireForInactivity(),
-                this,
+                static state =>
+                {
+                    var activityState = (ActivityTimerState)state!;
+                    activityState.Owner.OnActivityTimerExpired(activityState.Generation);
+                },
+                new ActivityTimerState(this, generation),
                 TimeSpan.FromMilliseconds(m_activityTimeout),
                 Timeout.InfiniteTimeSpan);
         }
@@ -880,6 +924,25 @@ namespace Opc.Ua.Server
             return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
         }
 
+        /// <summary>
+        /// Immutable state passed to the inactivity timer callback so the
+        /// callback can recognise (and ignore) a firing from a superseded or
+        /// disposed timer by comparing the captured generation against the
+        /// current one.
+        /// </summary>
+        private sealed class ActivityTimerState
+        {
+            public ActivityTimerState(ApplicationConfigurationFile owner, long generation)
+            {
+                Owner = owner;
+                Generation = generation;
+            }
+
+            public ApplicationConfigurationFile Owner { get; }
+
+            public long Generation { get; }
+        }
+
         private readonly Lock m_lock = new();
         private readonly ApplicationConfigurationFileState m_node;
         private readonly IApplicationConfigurationFileProvider m_provider;
@@ -895,6 +958,7 @@ namespace Opc.Ua.Server
         private bool m_writing;
         private long m_totalBytesProcessed;
         private ITimer? m_activityTimer;
+        private long m_activityGeneration;
         private Uuid m_pendingUpdateId;
         private CancellationTokenSource? m_pendingRevertCts;
     }

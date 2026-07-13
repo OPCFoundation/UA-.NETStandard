@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -701,6 +702,277 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [Test]
+        public async Task ConfigurationFileStaleInactivityCallbackDoesNotCloseRefreshedHandleAsync()
+        {
+            var timeProvider = new ControllableTimeProvider();
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions
+                {
+                    ConfigurationFileProvider = provider,
+                    ConfigurationFileActivityTimeout = 1000.0
+                },
+                timeProvider).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(2001, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(open.ServiceResult), Is.True);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.True);
+
+                ControllableTimer[] armed = ActivityTimers(timeProvider);
+                Assert.That(armed, Has.Length.EqualTo(1), "Open must arm exactly one inactivity timer");
+                ControllableTimer t1 = armed[0];
+
+                // Activity supersedes T1 and arms T2.
+                GetPositionMethodStateResult pos = await file.GetPosition!.OnCallAsync!(
+                    ctx, file.GetPosition, file.NodeId, open.FileHandle, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(pos.ServiceResult), Is.True);
+                Assert.That(t1.IsDisposed, Is.True, "activity must dispose the superseded timer");
+
+                // A callback still queued by the superseded T1 must not touch the
+                // live handle refreshed by the activity above.
+                t1.Fire();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)1),
+                        "a stale timer callback must not close the refreshed handle");
+                    Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.True,
+                        "a stale timer callback must not clear the write-open flag");
+                });
+
+                // The current timer callback still closes the (now inactive) handle.
+                ControllableTimer t2 = ActivityTimers(timeProvider)[^1];
+                t2.Fire();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(file.OpenCount!.Value, Is.Zero,
+                        "the current timer must close the inactive handle");
+                    Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False,
+                        "closing on inactivity must clear the write-open flag");
+                });
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileStaleInactivityCallbackDoesNotCloseOtherSessionHandleAsync()
+        {
+            var timeProvider = new ControllableTimeProvider();
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions
+                {
+                    ConfigurationFileProvider = provider,
+                    ConfigurationFileActivityTimeout = 1000.0
+                },
+                timeProvider).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext sessionA = CreateAdminContextForSession(new NodeId(3001, 1));
+                SessionSystemContext sessionB = CreateAdminContextForSession(new NodeId(3002, 1));
+
+                OpenMethodStateResult openA = await OpenAsync(file, sessionA, OpenFileMode.Read)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(openA.ServiceResult), Is.True);
+                ControllableTimer t1 = ActivityTimers(timeProvider)[^1];
+
+                // Session B opens; last-open-wins evicts A's handle and arms a new
+                // timer for B.
+                OpenMethodStateResult openB = await OpenAsync(file, sessionB, OpenFileMode.Read)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(openB.ServiceResult), Is.True);
+                Assert.That(t1.IsDisposed, Is.True);
+
+                // Session A's stale timer callback must not close Session B's handle.
+                t1.Fire();
+
+                ReadMethodStateResult readB = await file.Read!.OnCallAsync!(
+                    sessionB, file.Read, file.NodeId, openB.FileHandle, 4, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)1),
+                        "Session A's stale callback must not close Session B's handle");
+                    Assert.That(ServiceResult.IsGood(readB.ServiceResult), Is.True,
+                        "Session B's handle must stay usable after Session A's stale callback");
+                });
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileCurrentInactivityCallbackClosesHandleAsync()
+        {
+            var timeProvider = new ControllableTimeProvider();
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions
+                {
+                    ConfigurationFileProvider = provider,
+                    ConfigurationFileActivityTimeout = 1000.0
+                },
+                timeProvider).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(4001, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.True);
+
+                ControllableTimer current = ActivityTimers(timeProvider)[^1];
+                current.Fire();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(file.OpenCount!.Value, Is.Zero,
+                        "the current inactivity timer must close the open handle");
+                    Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False,
+                        "inactivity close must clear the coordinator write-open flag");
+                });
+
+                // The handle is gone: a Read with the old handle now fails.
+                ReadMethodStateResult read = await file.Read!.OnCallAsync!(
+                    ctx, file.Read, file.NodeId, open.FileHandle, 4, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileCloseInvalidatesQueuedInactivityCallbackAsync()
+        {
+            var timeProvider = new ControllableTimeProvider();
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions
+                {
+                    ConfigurationFileProvider = provider,
+                    ConfigurationFileActivityTimeout = 1000.0
+                },
+                timeProvider).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(5001, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                ControllableTimer t1 = ActivityTimers(timeProvider)[^1];
+
+                CloseMethodStateResult close = await file.Close!.OnCallAsync!(
+                    ctx, file.Close, file.NodeId, open.FileHandle, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(close.ServiceResult), Is.True);
+                Assert.That(t1.IsDisposed, Is.True);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+
+                // A callback queued before Close must be an inert no-op.
+                Assert.That(() => t1.Fire(), Throws.Nothing);
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+
+                // Reopen: the superseded callback must not close the new handle.
+                OpenMethodStateResult reopen = await OpenAsync(file, ctx, OpenFileMode.Read)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(reopen.ServiceResult), Is.True);
+
+                t1.Fire();
+                Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)1),
+                    "a callback queued before Close must not close a later reopened handle");
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileDisposeInvalidatesQueuedInactivityCallbackAsync()
+        {
+            var timeProvider = new ControllableTimeProvider();
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions
+                {
+                    ConfigurationFileProvider = provider,
+                    ConfigurationFileActivityTimeout = 1000.0
+                },
+                timeProvider).ConfigureAwait(false);
+
+            ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+            SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(6001, 1));
+
+            OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(open.ServiceResult), Is.True);
+            ControllableTimer t1 = ActivityTimers(timeProvider)[^1];
+
+            // Disposing the manager disposes the ApplicationConfigurationFile.
+            harness.Manager.Dispose();
+            Assert.That(t1.IsDisposed, Is.True);
+
+            // A callback queued before Dispose must be a harmless no-op.
+            Assert.That(() => t1.Fire(), Throws.Nothing);
+        }
+
+        [Test]
+        public async Task ConfigurationFileRepeatedActivityDoesNotLeakTimersOrChangeOpenCountAsync()
+        {
+            var timeProvider = new ControllableTimeProvider();
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions
+                {
+                    ConfigurationFileProvider = provider,
+                    ConfigurationFileActivityTimeout = 1000.0
+                },
+                timeProvider).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(7001, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read).ConfigureAwait(false);
+                Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)1));
+
+                for (int i = 0; i < 5; i++)
+                {
+                    GetPositionMethodStateResult pos = await file.GetPosition!.OnCallAsync!(
+                        ctx, file.GetPosition, file.NodeId, open.FileHandle, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(pos.ServiceResult), Is.True);
+                }
+
+                ControllableTimer[] activity = ActivityTimers(timeProvider);
+                int undisposed = activity.Count(t => !t.IsDisposed);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(activity, Has.Length.EqualTo(6),
+                        "each Open/activity arms exactly one timer (1 Open + 5 activities)");
+                    Assert.That(undisposed, Is.EqualTo(1),
+                        "only the most recently armed timer may remain live - no timer leak");
+                    Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)1),
+                        "repeated activity must not change OpenCount");
+                });
+            }
+        }
+
+        private static ControllableTimer[] ActivityTimers(ControllableTimeProvider timeProvider)
+        {
+            // The ApplicationConfigurationFile arms its inactivity timer with an
+            // ActivityTimerState; filter on it so any unrelated node-manager
+            // timer created through the same provider is ignored.
+            return [.. timeProvider.Timers.Where(
+                t => string.Equals(t.State?.GetType().Name, "ActivityTimerState", StringComparison.Ordinal))];
+        }
+
         private static ValueTask<OpenMethodStateResult> OpenAsync(
             ApplicationConfigurationFileState file, ISystemContext ctx, OpenFileMode mode)
         {
@@ -735,7 +1007,9 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None);
         }
 
-        private async Task<Harness> CreateHarnessAsync(ServerConfigurationOptions options)
+        private async Task<Harness> CreateHarnessAsync(
+            ServerConfigurationOptions options,
+            TimeProvider? timeProvider = null)
         {
             IServerInternal serverInternal = m_server.CurrentInstance;
             var coordinator = new PushConfigurationTransactionCoordinator(serverInternal.Telemetry);
@@ -743,7 +1017,7 @@ namespace Opc.Ua.Server.Tests
                 serverInternal,
                 m_fixture.Config,
                 serverInternal.Telemetry.CreateLogger<ConfigurationNodeManager>(),
-                timeProvider: null,
+                timeProvider: timeProvider,
                 coordinator,
                 pendingKeyStore: null,
                 keyGenerator: null,
@@ -890,6 +1164,87 @@ namespace Opc.Ua.Server.Tests
             public ValueTask ResetToServerDefaultsAsync(CancellationToken cancellationToken = default)
             {
                 InvocationCount++;
+                return default;
+            }
+        }
+
+        /// <summary>
+        /// A <see cref="TimeProvider"/> whose timers never fire on their own:
+        /// every created timer is recorded and only fires when a test invokes
+        /// <see cref="ControllableTimer.Fire"/>. This makes inactivity-timer
+        /// behaviour fully deterministic and lets a test deliberately fire a
+        /// superseded or disposed timer to simulate a callback that was already
+        /// queued when the timer was replaced.
+        /// </summary>
+        private sealed class ControllableTimeProvider : TimeProvider
+        {
+            private readonly List<ControllableTimer> m_timers = [];
+            private readonly Lock m_sync = new();
+
+            public IReadOnlyList<ControllableTimer> Timers
+            {
+                get
+                {
+                    lock (m_sync)
+                    {
+                        return [.. m_timers];
+                    }
+                }
+            }
+
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                var timer = new ControllableTimer(callback, state);
+                lock (m_sync)
+                {
+                    m_timers.Add(timer);
+                }
+                return timer;
+            }
+        }
+
+        /// <summary>
+        /// A test <see cref="ITimer"/> that captures its callback and state and
+        /// fires only when a test calls <see cref="Fire"/>, deliberately even
+        /// after <see cref="Dispose"/>, so a queued callback from a superseded
+        /// timer can be simulated.
+        /// </summary>
+        private sealed class ControllableTimer : ITimer
+        {
+            private readonly TimerCallback m_callback;
+
+            public ControllableTimer(TimerCallback callback, object? state)
+            {
+                m_callback = callback;
+                State = state;
+            }
+
+            public object? State { get; }
+
+            public bool IsDisposed { get; private set; }
+
+            public void Fire()
+            {
+                m_callback(State);
+            }
+
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                return !IsDisposed;
+            }
+
+            public void Dispose()
+            {
+                IsDisposed = true;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                IsDisposed = true;
                 return default;
             }
         }
