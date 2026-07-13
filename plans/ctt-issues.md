@@ -967,3 +967,55 @@ The server fixes (not CTT issues) cover:
 - exclusion of synthetic `BadBoundNotFound` protocol markers from AtTime interpolation input.
 
 These behaviors are covered by historian provider/dispatcher and end-to-end tests on net10 and net48.
+
+## 9. Node Management AddNodes — invalid reference and requested-NodeId CTT configuration
+
+Run 17 (`NewCTT2.results 17 1.xml`) contains 17 AddNodes failures. Three exposed server validation
+gaps (now fixed), while fourteen are CTT project/script configuration defects.
+
+### `002.js` enables references that cannot add a Variable under the configured parent
+
+`Node Management Add Node/Test Cases/002.js` loops every ReferenceType enabled under:
+
+`/Server Test/NodeIds/NodeManagement/SupportedReferences`
+
+and always adds a **Variable**, expecting `Good`. The project enabled all candidates. The 13 reported
+`BadReferenceNotAllowed` results correspond exactly, in loop order, to the non-hierarchical references:
+
+`HasModellingRule`, `HasEncoding`, `HasDescription`, `HasTypeDefinition`, `GeneratesEvent`,
+`AlwaysGeneratesEvent`, `FromState`, `HasCause`, `HasEffect`, `HasSubStateMachine`,
+`HasTrueSubState`, `HasFalseSubState`, and `HasCondition`.
+
+OPC UA Part 4 §5.8.2 requires the new Node to be the target of a **HierarchicalReference**.
+`BadReferenceNotAllowed` is therefore correct. In addition, `HasSubtype` is hierarchical but is a
+type-system reference whose source and target must be compatible Type Nodes; it is not valid for the
+Variable instance created by this script.
+
+**Recommended CTT project fix:** restrict the configured set to reference types compatible with the
+configured parent and a Variable target—typically `Organizes`, `HasProperty`, and `HasComponent`.
+Do not mark every known ReferenceType as supported merely because the server supports that
+ReferenceType elsewhere in its information model.
+
+### `Err-008.js` tests duplicate NodeIds while client-specified NodeIds are disabled
+
+`Err-008.js` sends the same AddNodes item twice and expects the second call to return
+`BadNodeIdExists`. In this project `/NodeManagement/RequestedNodeId` is disabled, so
+`CUVariables.RequestedNewNodeId()` returns a null NodeId. Each call legitimately asks the server to
+allocate a fresh NodeId; the second `Good` result represents a different node and is spec-correct.
+
+**Recommended CTT fix:** skip `Err-008.js` when client-specified NodeIds are disabled, or enable the
+setting and configure a concrete NodeId in a writable namespace owned by a NodeManager that supports
+NodeManagement before testing duplication.
+
+### Run 17 server defects now fixed
+
+The server fixes (not CTT issues) are:
+
+- return `BadNodeIdRejected`, rather than `BadUserAccessDenied`, when a client-requested NodeId targets
+  a namespace where the Server does not allow client-specified NodeIds (Part 4 §5.8.2);
+- validate hierarchical ReferenceType source/target NodeClass constraints, rejecting invalid
+  `HasSubtype` instance relationships with `BadReferenceNotAllowed`;
+- retain successful behavior for valid instance-hierarchy references and requested NodeIds in owned,
+  opted-in namespaces.
+
+These paths are covered by MasterNodeManager and AsyncCustomNodeManager tests on net10 and net48.
