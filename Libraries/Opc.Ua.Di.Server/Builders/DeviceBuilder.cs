@@ -455,6 +455,14 @@ namespace Opc.Ua.Di.Server.Builders
             PropertyState<TValue> typed,
             TValue value)
         {
+            // NodeState.AddProperty stamps a namespace-0 BrowseName; the DI
+            // nameplate properties are declared in the DI namespace, so
+            // re-qualify the BrowseName before the node is registered
+            // (otherwise the instance carries e.g. 0:DeviceClass instead of
+            // 4:DeviceClass and fails GEN-14 / GEN-05).
+            created.BrowseName = new QualifiedName(
+                created.BrowseName.Name,
+                Manager.DiNamespaceIndex);
             created.NodeId = Context.NodeIdFactory.New(Context, created);
             typed.Value = value;
 

@@ -337,15 +337,22 @@ namespace Opc.Ua.Di.Server
             NodeState? parent = null,
             CancellationToken cancellationToken = default)
         {
-            return CreateDeviceAsync(
-                browseName,
-                NodeId.Create(
-                    Opc.Ua.Di.ObjectTypes.DeviceType,
-                    DiNamespaceUri,
-                    Server.NamespaceUris),
-                static p => new DeviceState(p),
-                parent,
-                cancellationToken);
+            if (browseName.IsNull)
+            {
+                throw new System.ArgumentNullException(nameof(browseName));
+            }
+            NodeState effectiveParent = ResolveAndValidateParent(browseName, parent);
+
+            // Materialise through the source-generated DeviceType factory so
+            // the instance carries the type's mandatory children (the eight
+            // DI nameplate variables) with correct DI-namespace BrowseNames
+            // and the type's HasInterface references — a bare
+            // new DeviceState(parent) would omit all of these and fail the
+            // DI companion-spec compliance rules (GEN-01, DI-01, DI-05).
+            DeviceState device = SystemContext
+                .CreateInstanceOfDeviceType(effectiveParent, browseName);
+
+            return RegisterDeviceAsync(device, browseName, effectiveParent, cancellationToken);
         }
 
         /// <summary>
@@ -372,7 +379,7 @@ namespace Opc.Ua.Di.Server
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <exception cref="System.ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public async ValueTask<IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
+        public ValueTask<IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
             QualifiedName browseName,
             NodeId typeDefinitionId,
             System.Func<NodeState, TDevice> factory,
@@ -392,13 +399,33 @@ namespace Opc.Ua.Di.Server
             {
                 throw new System.ArgumentNullException(nameof(factory));
             }
+            NodeState effectiveParent = ResolveAndValidateParent(browseName, parent);
+
+            TDevice device = factory(effectiveParent)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "Factory returned null for device '{0}'.",
+                    browseName);
+
+            device.TypeDefinitionId = typeDefinitionId;
+
+            return RegisterDeviceAsync(device, browseName, effectiveParent, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resolves the effective device parent (explicit or default) and
+        /// fails fast when the browse name is already present under it.
+        /// </summary>
+        private NodeState ResolveAndValidateParent(
+            QualifiedName browseName,
+            NodeState? parent)
+        {
             NodeState effectiveParent = parent ??
                 ResolveDefaultDeviceParent()
                     ?? throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         "No default device parent could be resolved. Override DiNodeManager.ResolveDefaultDeviceParent or supply an explicit parent.");
 
-            // Fail fast on duplicate browse names under the parent.
             NodeState? existing = effectiveParent.FindChild(SystemContext, browseName);
             if (existing != null)
             {
@@ -408,26 +435,57 @@ namespace Opc.Ua.Di.Server
                     effectiveParent.BrowseName,
                     browseName);
             }
+            return effectiveParent;
+        }
 
-            TDevice device = factory(effectiveParent)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadInvalidArgument,
-                    "Factory returned null for device '{0}'.",
-                    browseName);
-
+        /// <summary>
+        /// Normalises the device's identity, attaches it to the parent,
+        /// assigns per-instance NodeIds to the whole subtree, and registers
+        /// it with the manager.
+        /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
+        private async ValueTask<IDeviceBuilder<TDevice>> RegisterDeviceAsync<TDevice>(
+            TDevice device,
+            QualifiedName browseName,
+            NodeState effectiveParent,
+            CancellationToken cancellationToken)
+            where TDevice : ComponentState
+        {
             device.SymbolicName = browseName.Name ?? string.Empty;
             device.BrowseName = browseName;
             device.DisplayName = new LocalizedText(browseName.Name);
-            device.TypeDefinitionId = typeDefinitionId;
             device.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
             device.NodeId = SystemContext.NodeIdFactory.New(SystemContext, device);
 
             effectiveParent.AddChild(device);
 
+            // The generator-emitted CreateInstanceOfXxx factories stamp the
+            // TYPE NodeId on every materialised child; walk the subtree to
+            // assign per-instance NodeIds before AddPredefinedNodeAsync uses
+            // them as the PredefinedNodes dictionary key, otherwise multiple
+            // instances of the same type collide on those NodeIds.
+            AssignChildNodeIds(device);
+
             await AddPredefinedNodeAsync(SystemContext, device, cancellationToken)
                 .ConfigureAwait(false);
 
             return new DeviceBuilder<TDevice>(this, device, GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Recursively assigns per-instance NodeIds to the children of
+        /// <paramref name="parent"/> via the active
+        /// <see cref="ISystemContext.NodeIdFactory"/>.
+        /// </summary>
+        private void AssignChildNodeIds(NodeState parent)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                child.NodeId = SystemContext.NodeIdFactory.New(SystemContext, child);
+                AssignChildNodeIds(child);
+            }
         }
 
         /// <summary>

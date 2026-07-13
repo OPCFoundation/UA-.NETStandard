@@ -102,9 +102,10 @@ builder.Services
         // builder for ad-hoc groups not covered by the 8 well-known
         // DI typed extensions (WithMaintenanceGroup, WithOperationalGroup,
         // ...). Pump #2 exposes a custom "Diagnostics" group that
-        // surfaces the supervision flags as plain properties so clients
+        // surfaces diagnostic signals as plain properties so clients
         // get a single browsable folder of operational signals without
-        // having to chase the supervision alarm tree.
+        // having to chase the supervision alarm tree. WithProperty
+        // creates the property when it does not yet exist.
         pump.WithFunctionalGroup(
             new QualifiedName("Diagnostics", ctx.Manager.DiNamespaceIndex),
             fg => fg.Configure(node =>

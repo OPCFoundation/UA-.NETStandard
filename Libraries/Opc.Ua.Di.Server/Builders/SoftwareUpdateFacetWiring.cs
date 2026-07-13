@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -122,6 +123,15 @@ namespace Opc.Ua.Di.Server.Builders
             su.Confirmation = CreateConfirmation(
                 context, su, diNs, config, callbackContext, logger);
 
+            // Assign per-instance NodeIds to every descendant of the SU
+            // subtree. The generator-emitted CreateInstanceOf factories stamp
+            // TYPE NodeIds on nested children (state variables, method
+            // InputArguments, ConfirmationTimeout, CurrentVersion,
+            // ErrorMessage, ...). Without per-instance NodeIds those nodes
+            // collide across multiple SU devices in PredefinedNodes and are
+            // not covered by the instance's declarations (GEN-05).
+            AssignInstanceNodeIds(context, su);
+
             // Link the SU node into the device subtree and register
             // recursively with the manager.
             device.AddChild(su);
@@ -129,6 +139,24 @@ namespace Opc.Ua.Di.Server.Builders
                 .AsTask().GetAwaiter().GetResult();
 
             return su;
+        }
+
+        /// <summary>
+        /// Recursively assigns per-instance NodeIds (top-down, so each
+        /// child's id derives from its already-assigned parent) to every
+        /// descendant of <paramref name="parent"/>.
+        /// </summary>
+        private static void AssignInstanceNodeIds(
+            ISystemContext context,
+            NodeState parent)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                child.NodeId = context.NodeIdFactory.New(context, child);
+                AssignInstanceNodeIds(context, child);
+            }
         }
 
         private const string FileTransferBrowseName = "FileTransfer";
@@ -227,6 +255,13 @@ namespace Opc.Ua.Di.Server.Builders
             sm.Resume ??= CreateMethodChild(context, sm,
                 new QualifiedName("Resume", diNs));
 
+            // The Resume method is an Optional child of
+            // PrepareForUpdateStateMachineType; point its declaration at the
+            // in-type method node (i=230) so its TypeDefinition/declaration
+            // resolves (GEN-03) rather than staying null.
+            sm.Resume.MethodDeclarationId = new NodeId(
+                Opc.Ua.Di.Methods.PrepareForUpdateStateMachineType_Resume, diNs);
+
             if (sm.Prepare != null)
             {
                 FinaliseChild(context, sm.Prepare,
@@ -271,6 +306,12 @@ namespace Opc.Ua.Di.Server.Builders
             InstallSoftwarePackageMethodState installPkg =
                 context.CreateInstanceOfInstallSoftwarePackageMethodType(sm, installPkgBn);
             FinaliseChild(context, installPkg, installPkgBn);
+            // The source-gen factory stamps the standalone MethodType id
+            // (i=389) as the declaration; re-point it at the method declared
+            // inside InstallationStateMachineType (i=265) so it matches the
+            // instance declaration (GEN-03).
+            installPkg.MethodDeclarationId = new NodeId(
+                Opc.Ua.Di.Methods.InstallationStateMachineType_InstallSoftwarePackage, diNs);
             sm.AddChild(installPkg);
             sm.InstallSoftwarePackage = installPkg;
             installPkg.OnCallMethod2Async =
@@ -282,6 +323,8 @@ namespace Opc.Ua.Di.Server.Builders
             InstallFilesMethodState installFiles =
                 context.CreateInstanceOfInstallFilesMethodType(sm, installFilesBn);
             FinaliseChild(context, installFiles, installFilesBn);
+            installFiles.MethodDeclarationId = new NodeId(
+                Opc.Ua.Di.Methods.InstallationStateMachineType_InstallFiles, diNs);
             sm.AddChild(installFiles);
             sm.InstallFiles = installFiles;
             installFiles.OnCallMethod2Async =
@@ -290,6 +333,10 @@ namespace Opc.Ua.Di.Server.Builders
 
             var uninstallBn = new QualifiedName("Uninstall", diNs);
             MethodState uninstall = CreateMethodChild(context, sm, uninstallBn);
+            // Point the bare Uninstall method at its in-type declaration
+            // (i=407) so its declaration resolves (GEN-03).
+            uninstall.MethodDeclarationId = new NodeId(
+                Opc.Ua.Di.Methods.InstallationStateMachineType_Uninstall, diNs);
             sm.Uninstall = uninstall;
             uninstall.OnCallMethod2Async =
                 (ctx, m, oid, ins, outs, ct) =>
