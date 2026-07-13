@@ -179,13 +179,15 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            m_logger.LogDebug(
-                "{0:X}:TakeBuffer({1:X},{2:X},{3},{4})",
-                this.GetHashCode(),
-                buffer.GetHashCode(),
-                buffer.Length,
-                owner,
-                ++m_buffersTaken);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                                m_logger.BufferManagerLogMessage0(
+                                    this.GetHashCode(),
+                                    buffer.GetHashCode(),
+                                    buffer.Length,
+                                    owner,
+                                    ++m_buffersTaken);
+            }
 #endif
             buffer[^1] = kCookieUnlocked;
 
@@ -217,23 +219,27 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        m_logger.LogDebug(
-                            "{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
-                            m_name,
-                            allocation.Id,
-                            allocation.Owner,
-                            allocation.Buffer.Length / 1024);
+                                                if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                                                        m_logger.BufferManagerLogMessage1(
+                                                            m_name,
+                                                            allocation.Id,
+                                                            allocation.Owner,
+                                                            allocation.Buffer.Length / 1024);
+                        }
                     }
                 }
             }
 #endif
 #if TRACE_MEMORY
-            m_logger.LogDebug(
-                "{0:X}:TransferBuffer({1:X},{2:X},{3})",
-                this.GetHashCode(),
-                buffer.GetHashCode(),
-                buffer.Length,
-                owner);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                                m_logger.BufferManagerLogMessage2(
+                                    this.GetHashCode(),
+                                    buffer.GetHashCode(),
+                                    buffer.Length,
+                                    owner);
+            }
 #endif
         }
 
@@ -249,7 +255,10 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
-            m_logger.LogDebug("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.BufferManagerLogMessage3(buffer.GetHashCode(), buffer.Length);
+            }
 #endif
             buffer[^1] = kCookieLocked;
         }
@@ -266,7 +275,10 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
-            m_logger.LogDebug("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.BufferManagerLogMessage4(buffer.GetHashCode(), buffer.Length);
+            }
 #endif
             buffer[^1] = kCookieUnlocked;
         }
@@ -287,13 +299,15 @@ namespace Opc.Ua.Bindings
             Debug.Assert(owner != null);
 
 #if TRACE_MEMORY
-            m_logger.LogDebug(
-                "{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})",
-                this.GetHashCode(),
-                buffer.GetHashCode(),
-                buffer.Length,
-                owner,
-                --m_buffersTaken);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                                m_logger.BufferManagerLogMessage5(
+                                    this.GetHashCode(),
+                                    buffer.GetHashCode(),
+                                    buffer.Length,
+                                    owner,
+                                    --m_buffersTaken);
+            }
 #endif
             if (buffer[^1] != kCookieUnlocked)
             {
@@ -318,19 +332,24 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        m_logger.LogDebug(
-                            "{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
-                            m_name,
-                            allocation.Id,
-                            allocation.Owner,
-                            allocation.ReleasedBy,
-                            allocation.Buffer.Length / 1024);
+                                                if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                                                        m_logger.BufferManagerLogMessage6(
+                                                            m_name,
+                                                            allocation.Id,
+                                                            allocation.Owner,
+                                                            allocation.ReleasedBy,
+                                                            allocation.Buffer.Length / 1024);
+                        }
                     }
                 }
 
                 m_allocations.Remove(id);
 
-                m_logger.LogDebug("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
+                                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.BufferManagerLogMessage7(id, buffer.Length, m_allocated);
+                }
 
                 foreach (KeyValuePair<int, Allocation> current in m_allocations)
                 {
@@ -349,13 +368,15 @@ namespace Opc.Ua.Bindings
                     {
                         if (allocation.Reported < age)
                         {
-                            m_logger.LogDebug(
-                                "{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
-                                m_name,
-                                allocation.Id,
-                                allocation.Owner,
-                                allocation.Buffer.Length / 1024,
-                                age);
+                                                        if (m_logger.IsEnabled(LogLevel.Debug))
+                            {
+                                                                m_logger.BufferManagerLogMessage8(
+                                                                    m_name,
+                                                                    allocation.Id,
+                                                                    allocation.Owner,
+                                                                    allocation.Buffer.Length / 1024,
+                                                                    age);
+                            }
 
                             allocation.Reported = (int)age;
                         }
@@ -389,10 +410,10 @@ namespace Opc.Ua.Bindings
             int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
             if (bufferArrayPoolSize != maxDataRentSize)
             {
-                logger.LogWarning(
-                    "BufferManager: Max buffer size {MaxBufferSize} + cookie length {Cookie} may waste memory because it allocates buffers in the next bucket!",
-                    maxBufferSize,
-                    kCookieLength);
+                if (logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.BufferManagerLogMessage9(maxBufferSize, kCookieLength);
+                }
                 return bufferArrayPoolSize - kCookieLength;
             }
             return maxBufferSize;
@@ -458,4 +479,100 @@ namespace Opc.Ua.Bindings
         private const byte kCookieLength = 1;
 #endif
     }
+
+    /// <summary>
+    /// Source-generated log messages for BufferManager.
+    /// </summary>
+    internal static partial class BufferManagerLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 0, Level = LogLevel.Debug,
+            Message = "{ManagerHashCode:X}:TakeBuffer({BufferHashCode:X},{Length:X},{Owner},{BuffersTaken})")]
+        public static partial void BufferManagerLogMessage0(
+            this ILogger logger,
+            int managerHashCode,
+            int bufferHashCode,
+            int length,
+            string owner,
+            int buffersTaken);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 1, Level = LogLevel.Debug,
+            Message = "{MName}: Id={Id}; Owner={Owner}; Size={Length1024} KB; *** TRANSFERRED ***")]
+        public static partial void BufferManagerLogMessage1(
+            this ILogger logger,
+            string mName,
+            int id,
+            string owner,
+            int length1024);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 2, Level = LogLevel.Debug,
+            Message = "{ManagerHashCode:X}:TransferBuffer({BufferHashCode:X},{Length:X},{Owner})")]
+        public static partial void BufferManagerLogMessage2(
+            this ILogger logger,
+            int managerHashCode,
+            int bufferHashCode,
+            int length,
+            string owner);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 3, Level = LogLevel.Debug,
+            Message = "LockBuffer({BufferHashCode:X},{Length:X})")]
+        public static partial void BufferManagerLogMessage3(
+            this ILogger logger,
+            int bufferHashCode,
+            int length);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 4, Level = LogLevel.Debug,
+            Message = "UnlockBuffer({BufferHashCode:X},{Length:X})")]
+        public static partial void BufferManagerLogMessage4(
+            this ILogger logger,
+            int bufferHashCode,
+            int length);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 5, Level = LogLevel.Debug,
+            Message = "{ManagerHashCode:X}:ReturnBuffer({BufferHashCode:X},{Length:X},{Owner},{BuffersTaken})")]
+        public static partial void BufferManagerLogMessage5(
+            this ILogger logger,
+            int managerHashCode,
+            int bufferHashCode,
+            int length,
+            string owner,
+            int buffersTaken);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 6, Level = LogLevel.Debug,
+            Message = "{MName}: Id={Id}; Owner={Owner}; ReleasedBy={ReleasedBy}; Size={Length1024} KB; " +
+                "*** RETURNED ***")]
+        public static partial void BufferManagerLogMessage6(
+            this ILogger logger,
+            string mName,
+            int id,
+            string owner,
+            string releasedBy,
+            int length1024);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 7, Level = LogLevel.Debug,
+            Message = "Deallocated ID {Id}: {Length}/{MAllocated}")]
+        public static partial void BufferManagerLogMessage7(
+            this ILogger logger,
+            int id,
+            int length,
+            int mAllocated);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 8, Level = LogLevel.Debug,
+            Message = "{MName}: Id={Id}; Owner={Owner}; Size={Length1024} KB; Age={Age}")]
+        public static partial void BufferManagerLogMessage8(
+            this ILogger logger,
+            string mName,
+            int id,
+            string owner,
+            int length1024,
+            double age);
+
+        [LoggerMessage(EventId = CoreEventIds.BufferManager + 9, Level = LogLevel.Warning,
+            Message = "BufferManager: Max buffer size {MaxBufferSize} + cookie length {Cookie} may " +
+                "waste memory because it allocates buffers in the next bucket!")]
+        public static partial void BufferManagerLogMessage9(
+            this ILogger logger,
+            int maxBufferSize,
+            int cookie);
+    }
+
 }

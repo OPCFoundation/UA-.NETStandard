@@ -141,11 +141,9 @@ namespace Opc.Ua
             }
 
             if (!m_trustLists.TryAdd(trustList, new TrustListEntry(
-                    trustedStorePath, issuerStorePath, StoreType: null)))
+                                    trustedStorePath, issuerStorePath, StoreType: null)))
             {
-                m_logger.LogDebug(
-                    "Trust list '{TrustList}' is already registered, skipping.",
-                    trustList);
+                m_logger.CertificateManagerLogMessage0(trustList.ToString());
             }
         }
 
@@ -599,11 +597,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Failed to resolve issuer chain for application certificate " +
-                    "{Certificate}; sending leaf certificate only.",
-                    certificate);
+                m_logger.CertificateManagerLogMessage1(ex, certificate);
             }
             finally
             {
@@ -1436,4 +1430,23 @@ namespace Opc.Ua
         private readonly CertificateProvider m_certificateProvider;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for CertificateManager.
+    /// </summary>
+    internal static partial class CertificateManagerLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.CertificateManager + 0, Level = LogLevel.Debug,
+            Message = "Trust list '{TrustList}' is already registered, skipping.")]
+        public static partial void CertificateManagerLogMessage0(this ILogger logger, string? trustList);
+
+        [LoggerMessage(EventId = CoreEventIds.CertificateManager + 1, Level = LogLevel.Warning,
+            Message = "Failed to resolve issuer chain for application certificate {Certificate}; " +
+                "sending leaf certificate only.")]
+        public static partial void CertificateManagerLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+    }
+
 }

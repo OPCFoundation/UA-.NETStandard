@@ -187,9 +187,7 @@ namespace Opc.Ua.Bindings
             await m_connecting.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                m_logger.LogInformation(
-                    "TransportChannel RECONNECT: Reconnecting to {Url}.",
-                    m_url);
+                m_logger.UaSCTransportLog0(m_url);
 
                 // the new channel must be connected first because WinSock
                 // will reuse sockets and this can result in messages sent
@@ -208,9 +206,7 @@ namespace Opc.Ua.Bindings
                     ct).ConfigureAwait(false);
 
                 m_channel = newChannel;
-                m_logger.LogInformation(
-                    "TransportChannel RECONNECT: Reconnected to {Url}.",
-                    m_url);
+                m_logger.UaSCTransportLog1(m_url);
             }
             finally
             {
@@ -219,9 +215,7 @@ namespace Opc.Ua.Bindings
                 // close previous channel.
                 if (previousChannel != null)
                 {
-                    m_logger.LogDebug(
-                       "TransportChannel RECONNECT: Closing old channel to {Url}.",
-                       m_url);
+                    m_logger.UaSCTransportLog2(m_url);
                     try
                     {
                         await previousChannel.CloseAsync(
@@ -231,9 +225,7 @@ namespace Opc.Ua.Bindings
                     catch (Exception e)
                     {
                         // do nothing.
-                        m_logger.LogDebug(
-                            e,
-                            "Exception while closing old channel during Reconnect.");
+                        m_logger.UaSCTransportLog3(e);
                     }
                     previousChannel.Dispose();
                 }
@@ -264,7 +256,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(e, "Ignoring error during close of channel.");
+                        m_logger.UaSCTransportLog4(e);
                     }
                     finally
                     {
@@ -617,9 +609,7 @@ namespace Opc.Ua.Bindings
             }
 
             Interlocked.Exchange(ref m_serverRetryAfterHintTicks, serverRetryAfter.Value.Ticks);
-            m_logger.LogInformation(
-                "TransportChannel: received UA-TCP server retry-after hint {Delay} ms.",
-                serverRetryAfter.Value.TotalMilliseconds);
+            m_logger.UaSCTransportLog5(serverRetryAfter.Value.TotalMilliseconds);
         }
 
         private ServiceResultException BadNotConnected()
@@ -644,4 +634,39 @@ namespace Opc.Ua.Bindings
         private readonly TimeProvider m_timeProvider;
         private long m_serverRetryAfterHintTicks;
     }
+
+    /// <summary>
+    /// Source-generated log messages for UaSCBinaryTransportChannel.
+    /// </summary>
+    internal static partial class UaSCBinaryTransportChannelLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 0, Level = LogLevel.Information,
+            Message = "TransportChannel RECONNECT: Reconnecting to {Url}.")]
+        public static partial void UaSCTransportLog0(this ILogger logger, global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 1, Level = LogLevel.Information,
+            Message = "TransportChannel RECONNECT: Reconnected to {Url}.")]
+        public static partial void UaSCTransportLog1(this ILogger logger, global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 2, Level = LogLevel.Debug,
+            Message = "TransportChannel RECONNECT: Closing old channel to {Url}.")]
+        public static partial void UaSCTransportLog2(this ILogger logger, global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 3, Level = LogLevel.Debug,
+            Message = "Exception while closing old channel during Reconnect.")]
+        public static partial void UaSCTransportLog3(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 4, Level = LogLevel.Error,
+            Message = "Ignoring error during close of channel.")]
+        public static partial void UaSCTransportLog4(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 5, Level = LogLevel.Information,
+            Message = "TransportChannel: received UA-TCP server retry-after hint {Delay} ms.")]
+        public static partial void UaSCTransportLog5(this ILogger logger, double delay);
+    }
+
 }

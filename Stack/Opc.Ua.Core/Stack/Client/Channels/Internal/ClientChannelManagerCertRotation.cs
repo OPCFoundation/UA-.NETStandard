@@ -157,9 +157,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger?.LogWarning(
-                        ex,
-                        "ClientChannelManager: application certificate rotation reconnect failed.");
+                    m_host.Logger?.CertRotationLog0(ex);
                 }
             }
         }
@@ -216,10 +214,10 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger?.LogDebug(
-                        ex,
-                        "ClientChannelManager: application certificate reload for {SecurityPolicy} failed.",
-                        securityPolicy);
+                    m_host.Logger
+                        ?.CertRotationLog1(
+                            ex,
+                            securityPolicy);
                 }
             }
 
@@ -341,12 +339,7 @@ namespace Opc.Ua
             // shared-CertificateManager scenarios). The application MUST
             // declare its identity via at least one of Thumbprint /
             // RawData / SubjectName for cert rotation to apply.
-            logger?.LogWarning(
-                "ClientChannelManager: ApplicationCertificate has no Thumbprint, RawData, " +
-                "or SubjectName configured. Ignoring CertificateChangeEvent because the " +
-                "rotated certificate cannot be matched to this application's identity. " +
-                "Configure ApplicationCertificate.SubjectName (at minimum) to enable " +
-                "secure cert-rotation adoption.");
+            logger?.CertRotationLog2();
             return false;
         }
 
@@ -428,4 +421,33 @@ namespace Opc.Ua
 
         private readonly IChannelCertRotationHost m_host;
     }
+
+    /// <summary>
+    /// Source-generated log messages for ClientChannelManagerCertRotation.
+    /// </summary>
+    internal static partial class ClientChannelManagerCertRotationLog
+    {
+
+        [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 0, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: application certificate rotation reconnect failed.")]
+        public static partial void CertRotationLog0(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 1, Level = LogLevel.Debug,
+            Message = "ClientChannelManager: application certificate reload for {SecurityPolicy} failed.")]
+        public static partial void CertRotationLog1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? securityPolicy);
+
+        [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 2, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: ApplicationCertificate has no Thumbprint, RawData, or " +
+                "SubjectName configured. Ignoring CertificateChangeEvent because the rotated " +
+                "certificate cannot be matched to this application's identity. Configure " +
+                "ApplicationCertificate.SubjectName (at minimum) to enable secure cert-rotation " +
+                "adoption.")]
+        public static partial void CertRotationLog2(this ILogger logger);
+    }
+
 }

@@ -169,10 +169,10 @@ namespace Opc.Ua
             await m_store
                 .SetAsync(key, EncodeCertificate(certificate), ct)
                 .ConfigureAwait(false);
-            m_logger.LogDebug(
-                "Certificate {Thumbprint} added to shared store {StorePath}.",
-                certificate.Thumbprint,
-                m_storePath);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.SharedKeyValueStoreLog0(certificate.Thumbprint, m_storePath);
+            }
         }
 
         /// <inheritdoc/>
@@ -383,10 +383,12 @@ namespace Opc.Ua
             await m_store
                 .SetAsync(CrlKey(crl.RawData), m_protector.Protect(new ByteString(crl.RawData)), ct)
                 .ConfigureAwait(false);
-            m_logger.LogDebug(
-                "CRL for issuer {Issuer} added to shared store {StorePath}.",
-                crl.IssuerName,
-                m_storePath);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.SharedKeyValueStoreLog1(
+                    crl.IssuerName.ToString(),
+                    m_storePath);
+            }
         }
 
         /// <inheritdoc/>
@@ -478,10 +480,10 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Skipping an undecodable certificate record in shared store {StorePath}.",
-                    m_storePath);
+                if (m_logger.IsEnabled(LogLevel.Warning))
+                {
+                    m_logger.SharedKeyValueStoreLog2(ex, m_storePath);
+                }
                 return false;
             }
         }
@@ -501,10 +503,10 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Skipping an undecodable CRL record in shared store {StorePath}.",
-                    m_storePath);
+                if (m_logger.IsEnabled(LogLevel.Warning))
+                {
+                    m_logger.SharedKeyValueStoreLog3(ex, m_storePath);
+                }
                 return false;
             }
         }
@@ -518,9 +520,10 @@ namespace Opc.Ua
 
             // Fail-closed: a record that fails the integrity check is never
             // trusted. This defends the shared trust list against forgery.
-            m_logger.LogWarning(
-                "Rejected a certificate record that failed integrity verification in shared store {StorePath}.",
-                m_storePath);
+            if (m_logger.IsEnabled(LogLevel.Warning))
+            {
+                m_logger.SharedKeyValueStoreLog4(m_storePath);
+            }
             return false;
         }
 
@@ -561,4 +564,43 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private string m_storePath;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SharedKeyValueCertificateStore.
+    /// </summary>
+    internal static partial class SharedKeyValueCertificateStoreLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 0, Level = LogLevel.Debug,
+            Message = "Certificate {Thumbprint} added to shared store {StorePath}.")]
+        public static partial void SharedKeyValueStoreLog0(
+            this ILogger logger,
+            string? thumbprint,
+            string? storePath);
+
+        [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 1, Level = LogLevel.Debug,
+            Message = "CRL for issuer {Issuer} added to shared store {StorePath}.")]
+        public static partial void SharedKeyValueStoreLog1(
+            this ILogger logger,
+            string? issuer,
+            string? storePath);
+
+        [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 2, Level = LogLevel.Warning,
+            Message = "Skipping an undecodable certificate record in shared store {StorePath}.")]
+        public static partial void SharedKeyValueStoreLog2(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? storePath);
+
+        [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 3, Level = LogLevel.Warning,
+            Message = "Skipping an undecodable CRL record in shared store {StorePath}.")]
+        public static partial void SharedKeyValueStoreLog3(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? storePath);
+
+        [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 4, Level = LogLevel.Warning,
+            Message = "Rejected a certificate record that failed integrity verification in shared store {StorePath}.")]
+        public static partial void SharedKeyValueStoreLog4(this ILogger logger, string? storePath);
+    }
+
 }

@@ -174,12 +174,14 @@ namespace Opc.Ua.Bindings
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
-            m_logger.LogInformation(
-                "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
-                Id,
-                token.CreatedAt,
-                token.CreatedAtTimestamp,
-                token.Lifetime);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCChannelLog9(
+                    Id,
+                    token.CreatedAt,
+                    token.CreatedAtTimestamp,
+                    token.Lifetime);
+            }
 
             return token;
         }
@@ -199,13 +201,15 @@ namespace Opc.Ua.Bindings
 
             TokenActivatedCallback?.Invoke(token, PreviousToken);
 
-            m_logger.LogInformation(
-                "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
-                Id,
-                token.TokenId,
-                token.CreatedAt,
-                token.CreatedAtTimestamp,
-                token.Lifetime);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCChannelLog10(
+                    Id,
+                    token.TokenId,
+                    token.CreatedAt,
+                    token.CreatedAtTimestamp,
+                    token.Lifetime);
+            }
         }
 
         /// <summary>
@@ -215,13 +219,15 @@ namespace Opc.Ua.Bindings
         {
             RenewedToken?.Dispose();
             RenewedToken = token;
-            m_logger.LogInformation(
-                "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
-                Id,
-                token.TokenId,
-                token.CreatedAt,
-                token.CreatedAtTimestamp,
-                token.Lifetime);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCChannelLog11(
+                    Id,
+                    token.TokenId,
+                    token.CreatedAt,
+                    token.CreatedAtTimestamp,
+                    token.Lifetime);
+            }
         }
 
         /// <summary>
@@ -673,10 +679,7 @@ namespace Opc.Ua.Bindings
                 CurrentToken.IsActivationRequired(TimeProvider))
             {
                 ActivateToken(RenewedToken);
-                m_logger.LogInformation(
-                    "ChannelId {Id}: Token #{TokenId} activated forced.",
-                    Id,
-                    CurrentToken.TokenId);
+                m_logger.UaSCChannelLog12(Id, CurrentToken.TokenId);
             }
 
             // check for valid token.

@@ -435,31 +435,24 @@ namespace Opc.Ua
                     sre.StatusCode == StatusCodes.BadServerHalted)
                 {
                     // Log debug instead of warning for expected disconnection scenarios
-                    logger.LogDebug(
-                        "SERVER - Service Fault Occurred. Reason={StatusCode}",
-                        result.StatusCode);
+                    logger.EndpointBaseLogMessage0(result.StatusCode);
                 }
                 else if (sre.StatusCode == StatusCodes.BadUnexpectedError)
                 {
-                    logger.LogWarning(
-                        Utils.TraceMasks.StackTrace,
-                        sre,
-                        "SERVER - Service Fault Occurred due to unexpected state");
+                    logger.EndpointBaseLogMessage1(sre);
                 }
                 else
                 {
-                    logger.LogWarning(
-                        "SERVER - Service Fault Occurred. Reason={StatusCode}",
-                        result.StatusCode);
+                    logger.EndpointBaseLogMessage2(result.StatusCode);
                 }
             }
             else
             {
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
-                logger.LogError(
-                    exception,
-                    "SERVER - Unexpected Service Fault: {Message}",
-                    exception.Message);
+                if (logger.IsEnabled(LogLevel.Error))
+                {
+                    logger.EndpointBaseLogMessage3(exception, exception.Message);
+                }
             }
 
             fault.ResponseHeader.ServiceResult = result.Code;
@@ -562,4 +555,30 @@ namespace Opc.Ua
         private IServiceHostBase? m_host;
         private IServerBase? m_server;
     }
+
+    /// <summary>
+    /// Source-generated log messages for EndpointBase.
+    /// </summary>
+    internal static partial class EndpointBaseLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.EndpointBase + 0, Level = LogLevel.Debug,
+            Message = "SERVER - Service Fault Occurred. Reason={StatusCode}")]
+        public static partial void EndpointBaseLogMessage0(this ILogger logger, global::Opc.Ua.StatusCode statusCode);
+
+        [LoggerMessage(EventId = CoreEventIds.EndpointBase + 1, Level = LogLevel.Warning,
+            Message = "SERVER - Service Fault Occurred due to unexpected state")]
+        public static partial void EndpointBaseLogMessage1(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.EndpointBase + 2, Level = LogLevel.Warning,
+            Message = "SERVER - Service Fault Occurred. Reason={StatusCode}")]
+        public static partial void EndpointBaseLogMessage2(this ILogger logger, global::Opc.Ua.StatusCode statusCode);
+
+        [LoggerMessage(EventId = CoreEventIds.EndpointBase + 3, Level = LogLevel.Error,
+            Message = "SERVER - Unexpected Service Fault: {Message}")]
+        public static partial void EndpointBaseLogMessage3(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? message);
+    }
+
 }

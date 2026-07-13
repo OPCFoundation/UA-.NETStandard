@@ -94,7 +94,10 @@ namespace Opc.Ua
                 catch (Exception)
                 {
                     ILogger<CertificateTrustList> logger = telemetry.CreateLogger<CertificateTrustList>();
-                    logger.LogError("Could not load certificates from store: {StorePath}.", StorePath);
+                    if (logger.IsEnabled(LogLevel.Error))
+                    {
+                        logger.CertificateTrustListLogMessage0(StorePath);
+                    }
                 }
                 finally
                 {
@@ -126,4 +129,15 @@ namespace Opc.Ua
             return collection;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for CertificateTrustList.
+    /// </summary>
+    internal static partial class CertificateTrustListLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.CertificateTrustList + 0, Level = LogLevel.Error,
+            Message = "Could not load certificates from store: {StorePath}.")]
+        public static partial void CertificateTrustListLogMessage0(this ILogger logger, string? storePath);
+    }
+
 }
