@@ -512,6 +512,73 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task DispatchProcessedReadWithEqualStartAndEndTimeReturnsBadInvalidArgumentAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            // Part 11 v1.05.07 §6.5.4.2: a zero-width time domain (StartTime == EndTime) has no
+            // meaningful interpretation, so the Server shall return Bad_InvalidArgument. The guard
+            // fires before aggregate/config resolution, so even a valid aggregate is rejected.
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime,
+                ProcessingInterval = 10000
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, node, nodeToRead, details,
+                ObjectIds.AggregateFunction_Average, TimestampsToReturn.Source,
+                result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public async Task DispatchProcessedReadWithReverseTimeRangeIsNotRejectedAsInvalidArgumentAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            // Part 11 v1.05.07 §6.5.4.2 explicitly permits a reverse time domain (EndTime less than
+            // StartTime). The zero-width-domain guard must only trigger on equality, so a reverse
+            // range must fall through to normal aggregate resolution (here Bad_AggregateNotSupported
+            // because no factory is registered in this harness) rather than Bad_InvalidArgument.
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime.AddMinutes(1),
+                EndTime = HarnessFixture.BaseTime,
+                ProcessingInterval = 10000
+            };
+
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, node, nodeToRead, details,
+                ObjectIds.AggregateFunction_Average, TimestampsToReturn.Source,
+                result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.Not.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
+        }
+
+        [Test]
         public async Task DispatchAtTimeReadInterpolatesBetweenSamplesAsync()
         {
             HarnessFixture h = CreateHarness();
