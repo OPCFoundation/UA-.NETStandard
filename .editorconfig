@@ -1184,6 +1184,33 @@ dotnet_diagnostic.CA1873.severity = warning
 [Applications/Quickstarts.Servers/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
 
+[Applications/ConsoleReferenceServer/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/ConsoleReferenceClient/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/ConsoleLdsServer/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/RedundantPubSub/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/McpServer/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/ConsoleReferencePubSubClient/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/PumpDeviceIntegrationServer/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/RedundantServer/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
+[Applications/MinimalBoilerServer/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
+
 [Stack/Opc.Ua.Core/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
 

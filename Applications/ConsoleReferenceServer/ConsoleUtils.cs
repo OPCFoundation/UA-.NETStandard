@@ -219,9 +219,8 @@ namespace Quickstarts
             object? sender,
             UnhandledExceptionEventArgs args)
         {
-            m_logger.LogCritical(
+            m_logger.UnhandledException(
                 args.ExceptionObject as Exception,
-                "Unhandled Exception: (IsTerminating: {IsTerminating})",
                 args.IsTerminating);
         }
 
@@ -229,9 +228,8 @@ namespace Quickstarts
             object? sender,
             UnobservedTaskExceptionEventArgs args)
         {
-            m_logger.LogCritical(
+            m_logger.UnobservedTaskException(
                 args.Exception,
-                "Unobserved Task Exception (Observed: {Observed})",
                 args.Observed);
         }
 
@@ -374,4 +372,22 @@ namespace Quickstarts
             return quitEvent;
         }
     }
+
+    internal static partial class ConsoleTelemetryLog
+    {
+        [LoggerMessage(EventId = 9000, Level = LogLevel.Critical,
+            Message = "Unhandled Exception: (IsTerminating: {IsTerminating})")]
+        public static partial void UnhandledException(
+            this Microsoft.Extensions.Logging.ILogger logger,
+            Exception? exception,
+            bool isTerminating);
+
+        [LoggerMessage(EventId = 9001, Level = LogLevel.Critical,
+            Message = "Unobserved Task Exception (Observed: {Observed})")]
+        public static partial void UnobservedTaskException(
+            this Microsoft.Extensions.Logging.ILogger logger,
+            AggregateException exception,
+            bool observed);
+    }
+
 }

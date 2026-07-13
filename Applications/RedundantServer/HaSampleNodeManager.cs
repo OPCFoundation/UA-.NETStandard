@@ -269,9 +269,7 @@ namespace RedundantServer
                     if (wasLeader)
                     {
                         // A failover moved the write role away from this replica.
-                        m_logger.LogInformation(
-                            "HA: replica {ReplicaId} became STANDBY (no longer the active writer).",
-                            m_replicaInfo.NodeId);
+                        m_logger.ReplicaBecameStandby(m_replicaInfo.NodeId);
                     }
                     wasLeader = false;
                     UpdateActiveReplica("standby");
@@ -285,8 +283,7 @@ namespace RedundantServer
                     // last value shared through the distributed store instead of
                     // restarting from the local count.
                     await SeedCounterFromCacheAsync(cancellationToken).ConfigureAwait(false);
-                    m_logger.LogInformation(
-                        "HA: replica {ReplicaId} became ACTIVE writer (Counter={Counter}).",
+                    m_logger.ReplicaBecameActiveWriter(
                         m_replicaInfo.NodeId,
                         Volatile.Read(ref m_counterValue));
                     wasLeader = true;
@@ -302,8 +299,7 @@ namespace RedundantServer
                 if (now - lastHeartbeat >= TimeSpan.FromSeconds(5))
                 {
                     lastHeartbeat = now;
-                    m_logger.LogInformation(
-                        "HA: replica {ReplicaId} ACTIVE, Counter={Counter}.",
+                    m_logger.ReplicaActive(
                         m_replicaInfo.NodeId,
                         Volatile.Read(ref m_counterValue));
                 }
@@ -401,5 +397,20 @@ namespace RedundantServer
                 activeReplica.ClearChangeMasks(SystemContext, false);
             }
         }
+    }
+
+    internal static partial class HaSampleNodeManagerLog
+    {
+        [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 0, Level = LogLevel.Information,
+            Message = "HA: replica {ReplicaId} became STANDBY (no longer the active writer).")]
+        public static partial void ReplicaBecameStandby(this ILogger logger, string replicaId);
+
+        [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 1, Level = LogLevel.Information,
+            Message = "HA: replica {ReplicaId} became ACTIVE writer (Counter={Counter}).")]
+        public static partial void ReplicaBecameActiveWriter(this ILogger logger, string replicaId, int counter);
+
+        [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 2, Level = LogLevel.Information,
+            Message = "HA: replica {ReplicaId} ACTIVE, Counter={Counter}.")]
+        public static partial void ReplicaActive(this ILogger logger, string replicaId, int counter);
     }
 }

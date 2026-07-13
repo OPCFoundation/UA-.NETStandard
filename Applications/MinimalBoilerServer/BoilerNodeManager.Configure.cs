@@ -115,10 +115,7 @@ namespace Boiler
             builder
                 .NodeFromTypeId(ExpandedNodeId.ToNodeId(ObjectTypeIds.BoilerType, Server.NamespaceUris))
                 .OnNodeAdded((context, node) => Server.Telemetry.CreateLogger<BoilerNodeManager>()
-                        .LogInformation(
-                            "Boiler instance materialized: {NodeId} ({BrowseName})",
-                            node.NodeId,
-                            node.BrowseName));
+                    .BoilerInstanceMaterialized(node.NodeId, node.BrowseName));
         }
 
         /// <summary>
@@ -190,7 +187,7 @@ namespace Boiler
             await Task.Yield();
             cancellationToken.ThrowIfCancellationRequested();
             Server.Telemetry.CreateLogger<BoilerNodeManager>()
-                .LogInformation("Boiler simulation halted.");
+                .BoilerSimulationHalted();
         }
 
         /// <summary>
@@ -286,5 +283,21 @@ namespace Boiler
             long t = Interlocked.Increment(ref m_pipeFlowTicks);
             return 105.0 + (25.0 * Math.Cos(t * 0.07));
         }
+    }
+
+    internal static partial class BoilerNodeManagerLog
+    {
+        [LoggerMessage(EventId = MinimalBoilerServerEventIds.BoilerNodeManager + 0,
+            Level = LogLevel.Information,
+            Message = "Boiler instance materialized: {NodeId} ({BrowseName})")]
+        public static partial void BoilerInstanceMaterialized(
+            this ILogger logger,
+            NodeId nodeId,
+            QualifiedName browseName);
+
+        [LoggerMessage(EventId = MinimalBoilerServerEventIds.BoilerNodeManager + 1,
+            Level = LogLevel.Information,
+            Message = "Boiler simulation halted.")]
+        public static partial void BoilerSimulationHalted(this ILogger logger);
     }
 }
