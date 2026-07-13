@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public EncodingType EncodingType
         {
-            get { return AvroEncoder.AvroEncodingType; }
+            get { return EncodingType.Avro; }
         }
 
         /// <inheritdoc/>

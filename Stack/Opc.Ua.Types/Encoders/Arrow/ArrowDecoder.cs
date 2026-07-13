@@ -88,7 +88,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public EncodingType EncodingType
         {
-            get { return EncodingType.Binary; }
+            get { return EncodingType.Arrow; }
         }
 
         /// <inheritdoc/>

@@ -74,7 +74,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public EncodingType EncodingType
         {
-            get { return EncodingType.Json; }
+            get { return EncodingType.Protobuf; }
         }
 
         /// <inheritdoc/>

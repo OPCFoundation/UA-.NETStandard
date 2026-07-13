@@ -39,10 +39,6 @@ namespace Opc.Ua
     /// </summary>
     public sealed class AvroEncoder : IEncoder
     {
-        /// <summary>
-        /// Identifies the experimental Avro encoding value used by this encoder.
-        /// </summary>
-        public const EncodingType AvroEncodingType = (EncodingType)3;
         private readonly Stream m_stream;
         private readonly AvroBinaryWriter m_writer;
         private readonly bool m_leaveOpen;
@@ -72,7 +68,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public EncodingType EncodingType
         {
-            get { return AvroEncodingType; }
+            get { return EncodingType.Avro; }
         }
 
         /// <inheritdoc/>
