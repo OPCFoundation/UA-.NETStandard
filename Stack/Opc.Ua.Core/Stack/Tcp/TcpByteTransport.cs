@@ -313,10 +313,11 @@ namespace Opc.Ua.Bindings
             int receiveBufferSize = Volatile.Read(ref m_receiveBufferSize);
             byte[] buffer = m_bufferManager.TakeBuffer(
                 receiveBufferSize,
-                nameof(ReceiveChunkAsync));
+                nameof(ReceiveChunkAsync),
+                ct);
             try
             {
-                BufferManager.LockBuffer(buffer);
+                m_bufferManager.Lock(buffer);
                 try
                 {
                     // Read the 8-byte UASC chunk header (message type + chunk size).
@@ -353,7 +354,7 @@ namespace Opc.Ua.Bindings
                         .ConfigureAwait(false);
 
                     var segment = new ArraySegment<byte>(buffer, 0, messageSize);
-                    BufferManager.UnlockBuffer(buffer);
+                    m_bufferManager.Unlock(buffer);
                     buffer = null!; // ownership transferred to caller
                     return segment;
                 }
@@ -361,7 +362,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (buffer != null)
                     {
-                        BufferManager.UnlockBuffer(buffer);
+                        m_bufferManager.Unlock(buffer);
                     }
                     throw;
                 }

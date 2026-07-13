@@ -37,6 +37,9 @@ namespace Opc.Ua.Pcap.Frame
     /// </summary>
     public static class LoopbackFrameBuilder
     {
+        /// <summary>
+        /// Maximum TCP payload that fits the IPv4 and pcap snap-length limits.
+        /// </summary>
         internal const int MaxTcpPayloadSize =
             ushort.MaxValue -
             kLoopbackHeaderSize -
@@ -54,6 +57,9 @@ namespace Opc.Ua.Pcap.Frame
             return BuildPacket(fromClient, channelId, sequenceNumber: 0, chunkBytes);
         }
 
+        /// <summary>
+        /// Builds one or more sequential synthetic TCP packets for a chunk.
+        /// </summary>
         internal static byte[][] BuildPackets(
             bool fromClient,
             uint channelId,
@@ -76,6 +82,9 @@ namespace Opc.Ua.Pcap.Frame
             return packets;
         }
 
+        /// <summary>
+        /// Returns the synthetic TCP packet count required for a payload.
+        /// </summary>
         internal static int GetPacketCount(int payloadLength)
         {
             if (payloadLength < 0)

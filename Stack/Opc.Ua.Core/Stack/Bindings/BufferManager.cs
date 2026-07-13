@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -30,15 +31,9 @@
 //#define TRACE_MEMORY
 //#define TRACK_MEMORY
 
-#if DEBUG || TRACK_MEMORY
-#define BUFFER_COOKIE
-#endif
-
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -100,7 +95,6 @@ namespace Opc.Ua.Bindings
             }
 
             Clear();
-
             return count;
         }
 
@@ -125,9 +119,9 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
-    /// A thread safe wrapper for the buffer manager class.
+    /// A compatibility facade for the stack buffer manager implementation.
     /// </summary>
-    public class BufferManager
+    public class BufferManager : IBufferManager
     {
         /// <summary>
         /// Constructs the buffer manager.
@@ -136,8 +130,17 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         /// <param name="telemetry">The telemetry context used to create observability instruments.</param>
         public BufferManager(string name, int maxBufferSize, ITelemetryContext telemetry)
-            : this(name, maxBufferSize, telemetry, CreateArrayPool(maxBufferSize))
+            : this(CreateDefaultBufferManager(name, maxBufferSize, telemetry))
         {
+        }
+
+        /// <summary>
+        /// Constructs the buffer manager with an explicit implementation.
+        /// </summary>
+        /// <param name="bufferManager">The implementation to wrap.</param>
+        public BufferManager(IBufferManager bufferManager)
+        {
+            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
         }
 
         /// <summary>
@@ -152,12 +155,8 @@ namespace Opc.Ua.Bindings
             int maxBufferSize,
             ITelemetryContext telemetry,
             ArrayPool<byte> arrayPool)
+            : this(CreateDefaultBufferManager(name, maxBufferSize, telemetry, arrayPool))
         {
-            m_logger = telemetry.CreateLogger<BufferManager>();
-            Name = name;
-            m_arrayPool = arrayPool ?? throw new ArgumentNullException(nameof(arrayPool));
-            m_maxBufferSize = maxBufferSize;
-            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize, m_logger);
         }
 
         /// <summary>
@@ -166,49 +165,18 @@ namespace Opc.Ua.Bindings
         /// <param name="size">The size.</param>
         /// <param name="owner">The owner.</param>
         /// <returns>The buffer content</returns>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public byte[] TakeBuffer(int size, string owner)
         {
-            if (size > m_maxBufferSize)
-            {
-                throw new ArgumentOutOfRangeException(nameof(size));
-            }
+            return m_bufferManager.TakeBuffer(size, owner);
+        }
 
-            Debug.Assert(owner != null);
-
-            byte[] buffer = m_arrayPool.Rent(size + kCookieLength);
-#if TRACK_MEMORY
-            lock (m_lock)
-            {
-                byte[] bytes = BitConverter.GetBytes(++m_id);
-                Array.Copy(bytes, 0, buffer, buffer.Length - 5, bytes.Length);
-
-                m_allocated += buffer.Length;
-
-                Allocation allocation = new Allocation();
-
-                allocation.Id = m_id;
-                allocation.Buffer = buffer;
-                allocation.Timestamp = DateTime.UtcNow;
-                allocation.Owner = owner;
-
-                m_allocations[m_id] = allocation;
-            }
-#endif
-#if TRACE_MEMORY
-            m_logger.LogDebug(
-                "{0:X}:TakeBuffer({1:X},{2:X},{3},{4})",
-                this.GetHashCode(),
-                buffer.GetHashCode(),
-                buffer.Length,
-                owner,
-                ++m_buffersTaken);
-#endif
-#if BUFFER_COOKIE
-            buffer[^1] = kCookieUnlocked;
-#endif
-
-            return buffer;
+        /// <inheritdoc/>
+        public byte[] TakeBuffer(
+            int size,
+            string owner,
+            System.Threading.CancellationToken ct)
+        {
+            return m_bufferManager.TakeBuffer(size, owner, ct);
         }
 
         /// <summary>
@@ -218,60 +186,29 @@ namespace Opc.Ua.Bindings
         /// <param name="owner">The owner.</param>
         public void TransferBuffer(byte[]? buffer, string owner)
         {
-#if TRACK_MEMORY
-            if (buffer == null)
-            {
-                return;
-            }
+            m_bufferManager.TransferBuffer(buffer, owner);
+        }
 
-            lock (m_lock)
-            {
-                int id = BitConverter.ToInt32(buffer, buffer.Length - 5);
+        /// <inheritdoc/>
+        public void Lock(byte[] buffer)
+        {
+            m_bufferManager.Lock(buffer);
+        }
 
-                Allocation allocation = null;
-
-                if (m_allocations.TryGetValue(id, out allocation))
-                {
-                    allocation.Owner = Utils.Format("{0}/{1}", allocation.Owner, owner);
-
-                    if (allocation.Reported > 0)
-                    {
-                        m_logger.LogDebug(
-                            "{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
-                            m_name,
-                            allocation.Id,
-                            allocation.Owner,
-                            allocation.Buffer.Length / 1024);
-                    }
-                }
-            }
-#endif
-#if TRACE_MEMORY
-            m_logger.LogDebug(
-                "{0:X}:TransferBuffer({1:X},{2:X},{3})",
-                this.GetHashCode(),
-                buffer.GetHashCode(),
-                buffer.Length,
-                owner);
-#endif
+        /// <inheritdoc/>
+        public void Unlock(byte[] buffer)
+        {
+            m_bufferManager.Unlock(buffer);
         }
 
         /// <summary>
         /// Locks the buffer (used for debugging only).
         /// </summary>
         /// <param name="buffer">The buffer.</param>
-        /// <exception cref="InvalidOperationException"></exception>
         public static void LockBuffer(byte[] buffer)
         {
-#if BUFFER_COOKIE
-            if (buffer[^1] != kCookieUnlocked)
-            {
-                throw new InvalidOperationException("Buffer is already locked.");
-            }
-#if TRACE_MEMORY
-            m_logger.LogDebug("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
-#endif
-            buffer[^1] = kCookieLocked;
+#if TRACK_MEMORY || DEBUG
+            BufferCookie.Lock(buffer);
 #endif
         }
 
@@ -279,18 +216,10 @@ namespace Opc.Ua.Bindings
         /// Unlocks the buffer (used for debugging only).
         /// </summary>
         /// <param name="buffer">The buffer.</param>
-        /// <exception cref="InvalidOperationException"></exception>
         public static void UnlockBuffer(byte[] buffer)
         {
-#if BUFFER_COOKIE
-            if (buffer[^1] != kCookieLocked)
-            {
-                throw new InvalidOperationException("Buffer is not locked.");
-            }
-#if TRACE_MEMORY
-            m_logger.LogDebug("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
-#endif
-            buffer[^1] = kCookieUnlocked;
+#if TRACK_MEMORY || DEBUG
+            BufferCookie.Unlock(buffer);
 #endif
         }
 
@@ -299,108 +228,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="buffer">The buffer.</param>
         /// <param name="owner">The owner.</param>
-        /// <exception cref="InvalidOperationException"></exception>
         public void ReturnBuffer(byte[]? buffer, string owner)
         {
-            if (buffer == null)
-            {
-                return;
-            }
-
-            Debug.Assert(owner != null);
-
-#if TRACE_MEMORY
-            m_logger.LogDebug(
-                "{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})",
-                this.GetHashCode(),
-                buffer.GetHashCode(),
-                buffer.Length,
-                owner,
-                --m_buffersTaken);
-#endif
-#if BUFFER_COOKIE
-            if (buffer[^1] != kCookieUnlocked)
-            {
-                throw new InvalidOperationException("Buffer has been locked.");
-            }
-
-            // destroy cookie
-            buffer[^1] = kCookieUnlocked ^ kCookieLocked;
-#endif
-
-#if TRACK_MEMORY
-            lock (m_lock)
-            {
-                m_allocated -= buffer.Length;
-
-                int id = BitConverter.ToInt32(buffer, buffer.Length - 5);
-
-                Allocation allocation = null;
-
-                if (m_allocations.TryGetValue(id, out allocation))
-                {
-                    allocation.ReleasedBy = owner;
-
-                    if (allocation.Reported > 0)
-                    {
-                        m_logger.LogDebug(
-                            "{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
-                            m_name,
-                            allocation.Id,
-                            allocation.Owner,
-                            allocation.ReleasedBy,
-                            allocation.Buffer.Length / 1024);
-                    }
-                }
-
-                m_allocations.Remove(id);
-
-                m_logger.LogDebug("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
-
-                foreach (KeyValuePair<int, Allocation> current in m_allocations)
-                {
-                    allocation = current.Value;
-
-                    if (allocation.ReleasedBy != null)
-                    {
-                        continue;
-                    }
-
-                    long ticks = allocation.Timestamp.Ticks;
-
-                    double age = Math.Truncate(new TimeSpan(DateTime.UtcNow.Ticks - ticks).TotalSeconds);
-
-                    if (age > 3 && Math.Truncate(age) % 3 == 0)
-                    {
-                        if (allocation.Reported < age)
-                        {
-                            m_logger.LogDebug(
-                                "{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
-                                m_name,
-                                allocation.Id,
-                                allocation.Owner,
-                                allocation.Buffer.Length / 1024,
-                                age);
-
-                            allocation.Reported = (int)age;
-                        }
-                    }
-                }
-
-                for (int ii = 0; ii < buffer.Length - 5; ii++)
-                {
-                    if (m_name == "Server")
-                    {
-                        buffer[ii] = 0xFA;
-                    }
-                    else
-                    {
-                        buffer[ii] = 0xFC;
-                    }
-                }
-            }
-#endif
-            m_arrayPool.Return(buffer);
+            m_bufferManager.ReturnBuffer(buffer, owner);
         }
 
         /// <summary>
@@ -408,57 +238,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="size">The requested amount of data.</param>
         /// <returns>The suggested rent size.</returns>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        internal int GetSuggestedBufferSize(int size)
+        public int GetSuggestedBufferSize(int size)
         {
-            if (size > m_maxBufferSize)
-            {
-                throw new ArgumentOutOfRangeException(nameof(size));
-            }
-
-            return DetermineSuggestedBufferSize(size, logger: null);
+            return m_bufferManager.GetSuggestedBufferSize(size);
         }
 
         /// <summary>
-        /// Returns the suggested max rent size for data in the buffers.
+        /// Returns the conservative expected array length for the requested amount of data.
         /// </summary>
-        /// <param name="maxBufferSize">The max buffer size configured.</param>
-        /// <param name="logger">A contextual logger to log to</param>
-        private static int DetermineSuggestedBufferSize(int maxBufferSize, ILogger? logger)
+        /// <param name="size">The requested amount of data.</param>
+        /// <returns>The expected array length.</returns>
+        public int GetExpectedBufferSize(int size)
         {
-            int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
-            int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
-            if (bufferArrayPoolSize != maxDataRentSize)
-            {
-                logger?.LogWarning(
-                    "BufferManager: Max buffer size {MaxBufferSize} + cookie length {Cookie} may waste memory because it allocates buffers in the next bucket!",
-                    maxBufferSize,
-                    kCookieLength);
-                return bufferArrayPoolSize - kCookieLength;
-            }
-            return maxBufferSize;
-        }
-
-        /// <summary>
-        /// Helper to round up to the next power of two.
-        /// </summary>
-        private static int RoundUpToPowerOfTwo(int value)
-        {
-            int result = 1;
-
-            while (result < value && result != 0)
-            {
-                result <<= 1;
-            }
-
-            return result;
-        }
-
-        private static ArrayPool<byte> CreateArrayPool(int maxBufferSize)
-        {
-            return maxBufferSize <= (1024 * 1024) - kCookieLength
-                ? ArrayPool<byte>.Shared
-                : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
+            return m_bufferManager.GetExpectedBufferSize(size);
         }
 
         /// <summary>
@@ -470,44 +262,50 @@ namespace Opc.Ua.Bindings
         /// To avoid memory waste, use this value as a guideline
         /// for the maximum buffer size when taking buffers.
         /// </remarks>
-        public int MaxSuggestedBufferSize { get; }
+        public int MaxSuggestedBufferSize => m_bufferManager.MaxSuggestedBufferSize;
 
         /// <summary>
-        /// Debug view
+        /// Gets the diagnostic name.
         /// </summary>
-        internal string Name { get; }
+        public string Name => m_bufferManager.Name;
 
-        private readonly ILogger m_logger;
-        private readonly int m_maxBufferSize;
-#if TRACE_MEMORY
-        private int m_buffersTaken = 0;
-#endif
-        private readonly ArrayPool<byte> m_arrayPool;
-#if BUFFER_COOKIE
-        private const byte kCookieLocked = 0xa5;
-        private const byte kCookieUnlocked = 0x5a;
-#endif
-#if TRACK_MEMORY
-        private const byte kCookieLength = 5;
-
-        class Allocation
+        /// <summary>
+        /// Returns the build-specific default implementation kind.
+        /// </summary>
+        /// <returns>The default implementation kind.</returns>
+        internal static BufferManagerImplementationKind GetDefaultImplementationKind()
         {
-            public int Id;
-            public byte[] Buffer;
-            public DateTime Timestamp;
-            public string Owner;
-            public string ReleasedBy;
-            public int Reported;
+#if TRACK_MEMORY
+            return BufferManagerImplementationKind.MemoryTracing;
+#elif DEBUG
+            return BufferManagerImplementationKind.Cookie;
+#else
+            return BufferManagerImplementationKind.Fast;
+#endif
         }
 
-        private readonly object m_lock = new object();
-        private int m_allocated;
-        private int m_id;
-        private SortedDictionary<int, Allocation> m_allocations = new SortedDictionary<int, Allocation>();
-#elif BUFFER_COOKIE
-        private const byte kCookieLength = 1;
-#else
-        private const byte kCookieLength = 0;
-#endif
+        private static IBufferManager CreateDefaultBufferManager(
+            string name,
+            int maxBufferSize,
+            ITelemetryContext telemetry,
+            ArrayPool<byte>? arrayPool = null)
+        {
+            return GetDefaultImplementationKind() switch
+            {
+                BufferManagerImplementationKind.Fast => arrayPool == null
+                    ? new FastBufferManager(name, maxBufferSize, telemetry)
+                    : new FastBufferManager(name, maxBufferSize, telemetry, arrayPool),
+                BufferManagerImplementationKind.Cookie => arrayPool == null
+                    ? new CookieBufferManager(name, maxBufferSize, telemetry)
+                    : new CookieBufferManager(name, maxBufferSize, telemetry, arrayPool),
+                BufferManagerImplementationKind.MemoryTracing => arrayPool == null
+                    ? new TracingBufferManager(name, maxBufferSize, telemetry)
+                    : new TracingBufferManager(name, maxBufferSize, telemetry, arrayPool),
+                _ => throw new InvalidOperationException(
+                    "The build-specific default buffer manager implementation kind is invalid.")
+            };
+        }
+
+        private readonly IBufferManager m_bufferManager;
     }
 }

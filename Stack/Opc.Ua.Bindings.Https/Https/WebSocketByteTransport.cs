@@ -120,7 +120,10 @@ namespace Opc.Ua.Bindings
                 // WebSocket does not support a vectored send out of the box; concat the
                 // gathered segments into a single contiguous chunk for the frame.
                 int totalSize = buffers.TotalSize;
-                byte[] frame = m_bufferManager.TakeBuffer(totalSize, nameof(SendChunkAsync));
+                byte[] frame = m_bufferManager.TakeBuffer(
+                    totalSize,
+                    nameof(SendChunkAsync),
+                    ct);
                 try
                 {
                     int offset = 0;
@@ -167,7 +170,10 @@ namespace Opc.Ua.Bindings
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
             WebSocket socket = RequireOpenSocket();
-            byte[] buffer = m_bufferManager.TakeBuffer(m_receiveBufferSize, nameof(ReceiveChunkAsync));
+            byte[] buffer = m_bufferManager.TakeBuffer(
+                m_receiveBufferSize,
+                nameof(ReceiveChunkAsync),
+                ct);
             int totalRead = 0;
             try
             {

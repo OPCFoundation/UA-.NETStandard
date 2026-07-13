@@ -217,10 +217,14 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static void RegisterWssFactories(ITransportBindingRegistry registry, IServiceProvider provider)
         {
+            IBufferManagerFactory bufferManagerFactory =
+                provider.GetRequiredService<IBufferManagerFactory>();
             RegisterHttpsListener(registry, provider, new WssTransportListenerFactory());
             RegisterHttpsListener(registry, provider, new OpcWssTransportListenerFactory());
-            registry.RegisterChannelFactory(new WssTransportChannelFactory());
-            registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
+            registry.RegisterChannelFactory(
+                new WssTransportChannelFactory(bufferManagerFactory));
+            registry.RegisterChannelFactory(
+                new OpcWssTransportChannelFactory(bufferManagerFactory));
             registry.RegisterChannelFactory(new WssJsonTransportChannelFactory());
         }
 
@@ -229,6 +233,9 @@ namespace Microsoft.Extensions.DependencyInjection
             IServiceProvider provider,
             HttpsServiceHost factory)
         {
+            factory.BufferManagerFactory =
+                provider.GetService<IBufferManagerFactory>() ??
+                DefaultBufferManagerFactory.Instance;
             foreach (IHttpsListenerStartupContributor contributor in
                 provider.GetServices<IHttpsListenerStartupContributor>())
             {

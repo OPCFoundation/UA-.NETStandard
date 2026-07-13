@@ -146,8 +146,15 @@ namespace Opc.Ua.Bindings
         void Close();
     }
 
+    /// <summary>
+    /// Updates mutable limits on a byte transport after channel negotiation.
+    /// </summary>
     internal interface IUaSCByteTransportLimits
     {
+        /// <summary>
+        /// Updates the maximum accepted UASC chunk size.
+        /// </summary>
+        /// <param name="receiveBufferSize">The negotiated receive-buffer size.</param>
         void SetReceiveBufferSize(int receiveBufferSize);
     }
 

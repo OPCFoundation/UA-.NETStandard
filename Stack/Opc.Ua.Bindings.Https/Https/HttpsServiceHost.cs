@@ -60,6 +60,12 @@ namespace Opc.Ua.Bindings
             = [];
 
         /// <summary>
+        /// Gets or sets the factory used to create listener buffer managers.
+        /// </summary>
+        internal IBufferManagerFactory BufferManagerFactory { get; set; } =
+            DefaultBufferManagerFactory.Instance;
+
+        /// <summary>
         /// The OPC UA <c>TransportProfileUri</c> reported on the
         /// <see cref="EndpointDescription.TransportProfileUri"/> emitted for
         /// this factory's base addresses. Defaults to the HTTPS binary
