@@ -153,7 +153,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e) when (!throwOnError)
                 {
-                    logger.LogWarning(e, "Could not validate XML schema, error is ignored.");
+                    logger.CouldNotValidateXmlSchema(e);
                 }
 
                 m_validator = validator;
@@ -173,7 +173,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e) when (!throwOnError)
                 {
-                    logger.LogWarning(e, "Could not validate binary schema, error is ignored.");
+                    logger.CouldNotValidateBinarySchema(e);
                 }
 
                 m_validator = validator;
@@ -182,5 +182,19 @@ namespace Opc.Ua
         }
 
         private SchemaValidator? m_validator;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DataDictionary"/>.
+    /// </summary>
+    internal static partial class DataDictionaryLog
+    {
+        [LoggerMessage(EventId = CoreSchemaEventIds.DataDictionary + 0, Level = LogLevel.Warning,
+            Message = "Could not validate XML schema, error is ignored.")]
+        public static partial void CouldNotValidateXmlSchema(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.DataDictionary + 1, Level = LogLevel.Warning,
+            Message = "Could not validate binary schema, error is ignored.")]
+        public static partial void CouldNotValidateBinarySchema(this ILogger logger, Exception exception);
     }
 }

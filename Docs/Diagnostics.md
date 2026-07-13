@@ -205,6 +205,13 @@ The conventions are:
   (`{ChannelId}`) and match a method parameter of the same name; an
   `Exception` argument is detected by its type. Never interpolate
   (`$"..."`) a log message.
+- **Guard expensive arguments.** If a log call passes an expensive computed
+  argument (e.g. `string.Join(...)`, a LINQ projection), wrap the call in an
+  `if (logger.IsEnabled(<level>))` check. Source generation alone does not
+  suppress the eager evaluation, and CA1873 flags it.
+- **Nullable parameters.** When the original argument is a nullable value
+  (`string?`, `item.Name`), declare the generated parameter nullable too,
+  otherwise the compiler reports CS8604.
 
 ```csharp
 // EventIds.cs (project root) — name is prefixed with the assembly token to

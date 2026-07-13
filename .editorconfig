@@ -1150,3 +1150,6 @@ dotnet_diagnostic.CA1873.severity = warning
 
 [Stack/Opc.Ua.Core.Types/**/*.cs]
 dotnet_diagnostic.CA1873.severity = warning
+
+[Stack/Opc.Ua.Core.Schema/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning
