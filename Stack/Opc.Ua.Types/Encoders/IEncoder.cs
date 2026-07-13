@@ -494,11 +494,6 @@ namespace Opc.Ua
         Avro,
 
         /// <summary>
-        /// The experimental Protobuf encoding (OPC UA Part 6 draft).
-        /// </summary>
-        Protobuf,
-
-        /// <summary>
         /// The experimental Apache Arrow columnar encoding (OPC UA Part 6 draft).
         /// </summary>
         Arrow

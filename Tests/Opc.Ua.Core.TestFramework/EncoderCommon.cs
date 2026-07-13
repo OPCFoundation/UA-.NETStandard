@@ -185,7 +185,12 @@ namespace Opc.Ua.Core.TestFramework
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
+            // Experimental encodings are exercised by the same shared round-trip matrix.
+            new EncodingTypeGroup(EncodingType.Avro),
+#if NET8_0_OR_GREATER
+            new EncodingTypeGroup(EncodingType.Arrow)
+#endif
         ];
 
         public static readonly EncodingTypeGroup[] EncodingTypesAll =
@@ -194,7 +199,12 @@ namespace Opc.Ua.Core.TestFramework
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose),
+            // Experimental encodings are exercised by the same shared round-trip matrix.
+            new EncodingTypeGroup(EncodingType.Avro),
+#if NET8_0_OR_GREATER
+            new EncodingTypeGroup(EncodingType.Arrow)
+#endif
         ];
 
         /// <summary>
@@ -592,6 +602,12 @@ namespace Opc.Ua.Core.TestFramework
                         stream,
                         context,
                         jsonEncoding == JsonEncodingType.Verbose ? JsonEncoderOptions.Verbose : JsonEncoderOptions.Compact);
+                case EncodingType.Avro:
+                    return new AvroEncoder(stream, context, true);
+#if NET8_0_OR_GREATER
+                case EncodingType.Arrow:
+                    return new ArrowEncoder(stream, context, true);
+#endif
                 default:
                     throw new ArgumentOutOfRangeException(
                         nameof(encoderType),
@@ -621,6 +637,12 @@ namespace Opc.Ua.Core.TestFramework
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
                     return new JsonDecoder(stream, context);
+                case EncodingType.Avro:
+                    return new AvroDecoder(stream, context, true);
+#if NET8_0_OR_GREATER
+                case EncodingType.Arrow:
+                    return new ArrowDecoder(stream, context);
+#endif
                 default:
                     return null;
             }
