@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -90,6 +92,75 @@ namespace Opc.Ua.Pcap.Tests.Capture
 
                 Assert.That(new System.IO.FileInfo(path).Length, Is.GreaterThan(24));
                 Assert.That(records, Has.Count.EqualTo(2));
+            }
+            finally
+            {
+                await source.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task MaximumUaChunkWritesSequentialTcpFrames()
+        {
+            var registry = new ChannelCaptureRegistry();
+            var source = new InProcessClientCaptureSource(registry);
+            try
+            {
+                await source.StartAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(false);
+                byte[] chunk = new byte[ushort.MaxValue];
+                for (int ii = 0; ii < chunk.Length; ii++)
+                {
+                    chunk[ii] = (byte)ii;
+                }
+                ((IFrameCaptureSink)source).OnFrameSent(0x1234, chunk);
+                await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+                string path = source.GetRawPcapFilePath() ??
+                    throw new AssertionException("Missing pcap path.");
+                List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
+                    PcapFileReader.ReadAllAsync(path, CancellationToken.None),
+                    maxCount: 2).ConfigureAwait(false);
+                var reassembler = new TcpStreamReassembler();
+                byte[] reassembled = [.. records
+                    .SelectMany(reassembler.Process)
+                    .SelectMany(static segment => segment.Data.ToArray())];
+
+                Assert.That(source.FrameCount, Is.EqualTo(1));
+                Assert.That(records, Has.Count.EqualTo(2));
+                Assert.That(reassembled, Is.EqualTo(chunk).AsCollection);
+            }
+            finally
+            {
+                await source.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task CollidingSyntheticChannelIdsShareSequenceSpace()
+        {
+            var registry = new ChannelCaptureRegistry();
+            var source = new InProcessClientCaptureSource(registry);
+            try
+            {
+                await source.StartAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(false);
+                IFrameCaptureSink sink = source;
+                sink.OnFrameSent(0x1234, [1, 2, 3]);
+                sink.OnFrameSent(0x5234, [4, 5]);
+                await source.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+                string path = source.GetRawPcapFilePath() ??
+                    throw new AssertionException("Missing pcap path.");
+                List<PcapRecord> records = await PcapTestHelpers.ToListAsync(
+                    PcapFileReader.ReadAllAsync(path, CancellationToken.None),
+                    maxCount: 2).ConfigureAwait(false);
+
+                Assert.That(records, Has.Count.EqualTo(2));
+                Assert.That(
+                    BinaryPrimitives.ReadUInt32BigEndian(records[0].Data.Span[28..]),
+                    Is.Zero);
+                Assert.That(
+                    BinaryPrimitives.ReadUInt32BigEndian(records[1].Data.Span[28..]),
+                    Is.EqualTo(3));
             }
             finally
             {

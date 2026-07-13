@@ -37,11 +37,73 @@ namespace Opc.Ua.Pcap.Frame
     /// </summary>
     public static class LoopbackFrameBuilder
     {
+        internal const int MaxTcpPayloadSize =
+            ushort.MaxValue -
+            kLoopbackHeaderSize -
+            kIpHeaderSize -
+            kTcpHeaderSize;
+
         /// <summary>
         /// Builds a BSD-loopback packet containing a fake IPv4/TCP segment.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The chunk is too large for one IPv4/TCP packet.
+        /// </exception>
         public static byte[] Build(bool fromClient, uint channelId, ReadOnlySpan<byte> chunkBytes)
         {
+            return BuildPacket(fromClient, channelId, sequenceNumber: 0, chunkBytes);
+        }
+
+        internal static byte[][] BuildPackets(
+            bool fromClient,
+            uint channelId,
+            uint sequenceNumber,
+            ReadOnlySpan<byte> chunkBytes)
+        {
+            int packetCount = GetPacketCount(chunkBytes.Length);
+            byte[][] packets = new byte[packetCount][];
+            int offset = 0;
+            for (int ii = 0; ii < packetCount; ii++)
+            {
+                int count = Math.Min(MaxTcpPayloadSize, chunkBytes.Length - offset);
+                packets[ii] = BuildPacket(
+                    fromClient,
+                    channelId,
+                    unchecked(sequenceNumber + (uint)offset),
+                    chunkBytes.Slice(offset, count));
+                offset += count;
+            }
+            return packets;
+        }
+
+        internal static int GetPacketCount(int payloadLength)
+        {
+            if (payloadLength < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(payloadLength));
+            }
+            int packetCount = payloadLength / MaxTcpPayloadSize;
+            if (payloadLength % MaxTcpPayloadSize != 0)
+            {
+                packetCount++;
+            }
+            return Math.Max(1, packetCount);
+        }
+
+        private static byte[] BuildPacket(
+            bool fromClient,
+            uint channelId,
+            uint sequenceNumber,
+            ReadOnlySpan<byte> chunkBytes)
+        {
+            if (chunkBytes.Length > MaxTcpPayloadSize)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(chunkBytes),
+                    chunkBytes.Length,
+                    $"TCP payload cannot exceed {MaxTcpPayloadSize} bytes in a synthetic IPv4 frame.");
+            }
+
             byte host = (byte)(channelId & 0xFFU);
             Span<byte> clientAddress = [127, 0, 1, host];
             Span<byte> serverAddress = [127, 0, 2, host];
@@ -51,14 +113,14 @@ namespace Opc.Ua.Pcap.Frame
             ReadOnlySpan<byte> destinationAddress = fromClient ? serverAddress : clientAddress;
             ushort sourcePort = fromClient ? clientPort : serverPort;
             ushort destinationPort = fromClient ? serverPort : clientPort;
-            int tcpLength = 20 + chunkBytes.Length;
-            int ipLength = 20 + tcpLength;
-            byte[] packet = new byte[4 + ipLength];
+            int tcpLength = kTcpHeaderSize + chunkBytes.Length;
+            int ipLength = kIpHeaderSize + tcpLength;
+            byte[] packet = new byte[kLoopbackHeaderSize + ipLength];
 
-            BinaryPrimitives.WriteUInt32LittleEndian(packet.AsSpan(0, 4), 2);
-            Span<byte> ip = packet.AsSpan(4, 20);
+            BinaryPrimitives.WriteUInt32LittleEndian(packet.AsSpan(0, kLoopbackHeaderSize), 2);
+            Span<byte> ip = packet.AsSpan(kLoopbackHeaderSize, kIpHeaderSize);
             ip[0] = 0x45;
-            BinaryPrimitives.WriteUInt16BigEndian(ip[2..], checked((ushort)ipLength));
+            BinaryPrimitives.WriteUInt16BigEndian(ip[2..], (ushort)ipLength);
             BinaryPrimitives.WriteUInt16BigEndian(ip[6..], 0x4000);
             ip[8] = 64;
             ip[9] = 6;
@@ -66,14 +128,22 @@ namespace Opc.Ua.Pcap.Frame
             destinationAddress.CopyTo(ip[16..20]);
             BinaryPrimitives.WriteUInt16BigEndian(ip[10..], ComputeOnesComplement(ip));
 
-            Span<byte> tcp = packet.AsSpan(24, 20);
+            Span<byte> tcp = packet.AsSpan(
+                kLoopbackHeaderSize + kIpHeaderSize,
+                kTcpHeaderSize);
             BinaryPrimitives.WriteUInt16BigEndian(tcp, sourcePort);
             BinaryPrimitives.WriteUInt16BigEndian(tcp[2..], destinationPort);
+            BinaryPrimitives.WriteUInt32BigEndian(tcp[4..], sequenceNumber);
             tcp[12] = 0x50;
             tcp[13] = 0x18;
             BinaryPrimitives.WriteUInt16BigEndian(tcp[14..], 0xFFFF);
-            chunkBytes.CopyTo(packet.AsSpan(44));
-            BinaryPrimitives.WriteUInt16BigEndian(tcp[16..], ComputeTcpChecksum(sourceAddress, destinationAddress, packet.AsSpan(24)));
+            chunkBytes.CopyTo(packet.AsSpan(kLoopbackHeaderSize + kIpHeaderSize + kTcpHeaderSize));
+            BinaryPrimitives.WriteUInt16BigEndian(
+                tcp[16..],
+                ComputeTcpChecksum(
+                    sourceAddress,
+                    destinationAddress,
+                    packet.AsSpan(kLoopbackHeaderSize + kIpHeaderSize)));
             return packet;
         }
 
@@ -118,5 +188,9 @@ namespace Opc.Ua.Pcap.Frame
             }
             return (ushort)~sum;
         }
+
+        private const int kLoopbackHeaderSize = 4;
+        private const int kIpHeaderSize = 20;
+        private const int kTcpHeaderSize = 20;
     }
 }

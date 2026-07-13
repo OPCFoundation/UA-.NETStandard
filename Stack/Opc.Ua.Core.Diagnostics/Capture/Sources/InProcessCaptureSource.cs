@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -117,6 +118,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
 
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILoggerFactory m_loggerFactory;
+        private readonly ConcurrentDictionary<ulong, uint> m_sequenceNumbers = new();
 
         /// <summary>
         /// CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
@@ -467,13 +469,31 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 }
                 return;
             }
-            // Copy the chunk bytes; the underlying buffer is pooled and
-            // only valid for the duration of this call.
-            byte[] packet = LoopbackFrameBuilder.Build(
+            uint sequenceNumber = ReserveSequenceNumber(
+                channelId,
+                fromClient,
+                chunk.Length);
+            byte[][] packets = LoopbackFrameBuilder.BuildPackets(
                 fromClient: fromClient,
                 channelId: channelId,
+                sequenceNumber: sequenceNumber,
                 chunkBytes: chunk);
-            queue.Writer.TryWrite(CaptureWorkItem.ForFrame(DateTimeOffset.UtcNow, packet));
+            DateTimeOffset timestamp = DateTimeOffset.UtcNow;
+            foreach (byte[] packet in packets)
+            {
+                queue.Writer.TryWrite(CaptureWorkItem.ForFrame(timestamp, packet));
+            }
+        }
+
+        private uint ReserveSequenceNumber(uint channelId, bool fromClient, int length)
+        {
+            ulong key = ((ulong)(channelId & 0x3FFFU) << 1) | (fromClient ? 1UL : 0UL);
+            uint increment = (uint)length;
+            uint end = m_sequenceNumbers.AddOrUpdate(
+                key,
+                increment,
+                (_, current) => unchecked(current + increment));
+            return unchecked(end - increment);
         }
 
         private async Task RunQueueWorkerAsync(ChannelReader<CaptureWorkItem> reader)
