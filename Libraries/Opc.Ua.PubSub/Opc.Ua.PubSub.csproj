@@ -22,14 +22,13 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
   </ItemGroup>
-  <!-- The Avro and Arrow PubSub adapters require modern .NET (net5+ BCL APIs and,
-       for Arrow, Apache.Arrow); exclude them on the legacy target frameworks
-       (net472/net48/netstandard2.1). -->
+  <!-- The Arrow PubSub adapter requires Apache.Arrow and modern .NET; it stays
+       excluded on the legacy target frameworks (net472/net48/netstandard2.1). The
+       Avro PubSub adapter and the shared schema-exchange support are available on
+       every target framework; Arrow-specific members in the shared files are gated
+       with #if NET8_0_OR_GREATER. -->
   <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
-    <Compile Remove="Encoding\Avro\**\*.cs" />
     <Compile Remove="Encoding\Arrow\**\*.cs" />
-    <Compile Remove="Encoding\SchemaExchange\**\*.cs" />
-    <Compile Remove="Encoding\PubSubMessageEncoding.cs" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

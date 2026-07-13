@@ -66,6 +66,7 @@ namespace Opc.Ua.PubSub.Encoding
             return new AvroSchemaAnnouncement(schemaId, schemaJson, null);
         }
 
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Creates an Arrow announcement for the current PubSub schema shape. The SchemaId and Schema
         /// are derived from the internal descriptor (see the type remarks), not yet the canonical
@@ -80,6 +81,7 @@ namespace Opc.Ua.PubSub.Encoding
             ByteString schemaId = SchemaCache.ComputeSchemaId(schema, SchemaCache.ArrowFormat);
             return new ArrowSchemaAnnouncement(schemaId, schema, null);
         }
+#endif
 
         /// <summary>
         /// Writes a deterministic schema descriptor for announcement change tracking. This is an
@@ -101,10 +103,12 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     writer.WriteString("dataSetClassId", avro.DataSetClassId.ToString());
                 }
+#if NET8_0_OR_GREATER
                 if (message is ArrowNetworkMessage arrow)
                 {
                     writer.WriteString("dataSetClassId", arrow.DataSetClassId.ToString());
                 }
+#endif
                 writer.WriteStartArray("messages");
                 for (int i = 0; i < message.DataSetMessages.Count; i++)
                 {
@@ -144,7 +148,9 @@ namespace Opc.Ua.PubSub.Encoding
             return message switch
             {
                 AvroDataSetMessage avro => (uint)avro.FieldContentMask,
+#if NET8_0_OR_GREATER
                 ArrowDataSetMessage arrow => (uint)arrow.FieldContentMask,
+#endif
                 _ => 0
             };
         }

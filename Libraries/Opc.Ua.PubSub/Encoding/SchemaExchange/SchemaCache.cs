@@ -96,6 +96,7 @@ namespace Opc.Ua.PubSub.Encoding
             Add(announcement.SchemaId, schema, AvroFormat);
         }
 
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Adds an Arrow schema announcement after verifying the announced SchemaId.
         /// </summary>
@@ -108,6 +109,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             Add(announcement.SchemaId, announcement.Schema, ArrowFormat);
         }
+#endif
 
         /// <summary>
         /// Marks a schema as announced to a destination if this is the first announcement.
@@ -189,7 +191,13 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 return string.Empty;
             }
-            return Convert.ToHexString(schemaId.Span).ToLower(CultureInfo.InvariantCulture);
+#if NETFRAMEWORK
+            // Utils.ToHexString only exposes the ReadOnlySpan overload on .NET Standard 2.1
+            // and .NET 6+; the .NET Framework targets fall back to the array overload.
+            return Utils.ToHexString(schemaId.Span.ToArray()).ToLower(CultureInfo.InvariantCulture);
+#else
+            return Utils.ToHexString(schemaId.Span).ToLower(CultureInfo.InvariantCulture);
+#endif
         }
 
         /// <summary>
@@ -207,7 +215,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             try
             {
-                schemaId = ByteString.From(Convert.FromHexString(text));
+                schemaId = ByteString.From(Utils.FromHexString(text)!);
                 return true;
             }
             catch (FormatException)
