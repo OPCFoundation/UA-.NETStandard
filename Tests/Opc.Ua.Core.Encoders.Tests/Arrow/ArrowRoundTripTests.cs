@@ -58,6 +58,18 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        public void ArrowEncoderAndDecoderReportArrowEncodingType()
+        {
+            using var stream = new MemoryStream();
+            using var encoder = new ArrowEncoder(stream, Context, true);
+            Assert.That(encoder.EncodingType, Is.EqualTo(EncodingType.Arrow));
+
+            byte[] bytes = Encode(e => e.WriteInt32(null, 7));
+            using var decoder = new ArrowDecoder(bytes, Context);
+            Assert.That(decoder.EncodingType, Is.EqualTo(EncodingType.Arrow));
+        }
+
+        [Test]
         public void ArrowBuiltInsRoundTripWithFloatBits()
         {
             Assert.That(RoundTrip(e => e.WriteBoolean(null, true), d => d.ReadBoolean(null)), Is.True);

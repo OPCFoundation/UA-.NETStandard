@@ -88,6 +88,36 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         }
 
         [Test]
+        public void SchemaCache_TryParseKey_RoundTripsToKeyAndRejectsInvalid()
+        {
+            var raw = ByteString.From(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 });
+            string key = SchemaCache.ToKey(raw);
+
+            Assert.That(SchemaCache.TryParseKey(key, out ByteString parsed), Is.True);
+            Assert.That(parsed.Span.SequenceEqual(raw.Span), Is.True);
+
+            Assert.That(SchemaCache.TryParseKey(null, out _), Is.False);
+            Assert.That(SchemaCache.TryParseKey("zzzzzzzzzzzzzzzz", out _), Is.False);
+        }
+
+        [Test]
+        public void FromTransportProfileUri_ClassifiesEncodingFamily()
+        {
+            Assert.That(
+                ((string)null!).FromTransportProfileUri(),
+                Is.EqualTo(TranscodeEncoding.Uadp));
+            Assert.That(
+                Profiles.PubSubUdpUadpTransport.FromTransportProfileUri(),
+                Is.EqualTo(TranscodeEncoding.Uadp));
+            Assert.That(
+                Profiles.PubSubMqttJsonTransport.FromTransportProfileUri(),
+                Is.EqualTo(TranscodeEncoding.Json));
+            Assert.That(
+                AvroNetworkMessage.PubSubMqttAvroTransport.FromTransportProfileUri(),
+                Is.EqualTo(TranscodeEncoding.Avro));
+        }
+
+        [Test]
         public void Project_UadpToAvro_PreservesIdentityAndFields()
         {
             var source = NewUadpMessage(
@@ -113,6 +143,36 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 source, TranscodeEncoding.Avro, TranscodeTargetOptions.Default, NewContext());
 
             Assert.That(projected, Is.SameAs(source));
+        }
+
+        [Test]
+        public void Project_AvroToAvro_FieldEncodingOption_RebuildsAndPreservesFieldContentMask()
+        {
+            var source = new AvroNetworkMessage
+            {
+                PublisherId = PublisherId.FromByte(3),
+                WriterGroupId = 7,
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 55,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        FieldContentMask = DataSetFieldContentMask.StatusCode,
+                        Fields = [Field("x", new Variant(9))]
+                    }
+                ]
+            };
+            var options = new TranscodeTargetOptions { FieldEncoding = PubSubFieldEncoding.RawData };
+
+            PubSubNetworkMessage projected = NetworkMessageProfileProjector.Instance.Project(
+                source, TranscodeEncoding.Avro, options, NewContext());
+
+            Assert.That(projected, Is.Not.SameAs(source));
+            var dsm = (AvroDataSetMessage)projected.DataSetMessages[0];
+            Assert.That(dsm.FieldContentMask, Is.EqualTo(DataSetFieldContentMask.StatusCode));
+            Assert.That(dsm.Fields[0].Encoding, Is.EqualTo(PubSubFieldEncoding.RawData));
+            Assert.That(dsm.Fields[0].Value, Is.EqualTo(new Variant(9)));
         }
 
         [Test]

@@ -62,24 +62,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reinterprets a single-precision float as its 32-bit unsigned integer bit pattern.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint SingleToUInt32Bits(float value)
-        {
-            return Unsafe.As<float, uint>(ref value);
-        }
-
-        /// <summary>
-        /// Reinterprets a 32-bit unsigned integer bit pattern as a single-precision float.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float UInt32BitsToSingle(uint value)
-        {
-            return Unsafe.As<uint, float>(ref value);
-        }
-
-        /// <summary>
         /// Reinterprets a double-precision float as its 64-bit signed integer bit pattern.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -95,24 +77,6 @@ namespace Opc.Ua
         public static double Int64BitsToDouble(long value)
         {
             return Unsafe.As<long, double>(ref value);
-        }
-
-        /// <summary>
-        /// Reinterprets a double-precision float as its 64-bit unsigned integer bit pattern.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong DoubleToUInt64Bits(double value)
-        {
-            return Unsafe.As<double, ulong>(ref value);
-        }
-
-        /// <summary>
-        /// Reinterprets a 64-bit unsigned integer bit pattern as a double-precision float.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double UInt64BitsToDouble(ulong value)
-        {
-            return Unsafe.As<ulong, double>(ref value);
         }
     }
 }

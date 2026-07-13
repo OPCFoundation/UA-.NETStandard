@@ -56,6 +56,17 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        public void AvroEncoderAndDecoderReportAvroEncodingType()
+        {
+            using var stream = new MemoryStream();
+            using var encoder = new AvroEncoder(stream, Context, true);
+            Assert.That(encoder.EncodingType, Is.EqualTo(EncodingType.Avro));
+
+            using var decoder = new AvroDecoder(new byte[] { 0 }, Context);
+            Assert.That(decoder.EncodingType, Is.EqualTo(EncodingType.Avro));
+        }
+
+        [Test]
         public void AvroBuiltInEdgesRoundTrip()
         {
             Assert.That(RoundTrip(e => e.WriteBoolean(null, true), d => d.ReadBoolean(null)), Is.True);
