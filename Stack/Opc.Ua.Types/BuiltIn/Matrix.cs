@@ -325,10 +325,7 @@ namespace Opc.Ua
                 if (zeroCompFails)
                 {
                     /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                    logger.LogDebug(
-                        "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.",
-                        i,
-                        dimCollection);
+                    logger.ReadArrayZeroDimension(i, dimCollection);
                     dimCollection[i] = 0;
                     return false;
                 }
@@ -500,5 +497,15 @@ namespace Opc.Ua
 
             return flatArray;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="Matrix"/>.
+    /// </summary>
+    internal static partial class MatrixLog
+    {
+        [LoggerMessage(EventId = EventIds.Matrix + 0, Level = LogLevel.Debug,
+            Message = "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.")]
+        public static partial void ReadArrayZeroDimension(this ILogger logger, int index, int[] dimensions);
     }
 }

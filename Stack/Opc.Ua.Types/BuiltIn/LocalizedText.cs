@@ -829,7 +829,7 @@ namespace Opc.Ua
             {
                 // TODO: Need to wire a logger here
                 ILogger logger = AmbientMessageContext.Telemetry.CreateLogger<LocalizedText>();
-                logger.LogDebug("Failed to parse mul locale JSON text: {Text}", encodedText);
+                logger.FailedToParseMultiLocaleJson(encodedText);
                 return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);
@@ -857,5 +857,15 @@ namespace Opc.Ua
         private const string kMulLocale = "mul";
         private const string kQstLocale = "qst";
         private const string kMulLocaleDictionaryKey = "t";
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="LocalizedText"/>.
+    /// </summary>
+    internal static partial class LocalizedTextLog
+    {
+        [LoggerMessage(EventId = EventIds.LocalizedText + 0, Level = LogLevel.Debug,
+            Message = "Failed to parse mul locale JSON text: {Text}")]
+        public static partial void FailedToParseMultiLocaleJson(this ILogger logger, string text);
     }
 }

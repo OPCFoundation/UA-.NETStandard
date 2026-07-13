@@ -708,7 +708,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Unexpected error exporting node");
+                    m_logger.ExportNodeError(e);
                 }
             }
         }
@@ -2303,5 +2303,15 @@ namespace Opc.Ua
         /// Data is copied when it is written and when it is read.
         /// </summary>
         Always = CopyOnWrite | CopyOnRead
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="BaseVariableState"/>.
+    /// </summary>
+    internal static partial class BaseVariableStateLog
+    {
+        [LoggerMessage(EventId = EventIds.BaseVariableState + 0, Level = LogLevel.Error,
+            Message = "Unexpected error exporting node")]
+        public static partial void ExportNodeError(this ILogger logger, Exception exception);
     }
 }

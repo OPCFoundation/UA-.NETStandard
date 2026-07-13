@@ -363,9 +363,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        logger.LogWarning(
-                            "Inner diagnostics truncated. Max depth of {MaxInnerDepth} exceeded.",
-                            MaxInnerDepth);
+                        logger.InnerDiagnosticsTruncated(MaxInnerDepth);
                     }
                 }
             }
@@ -580,5 +578,15 @@ namespace Opc.Ua
 
             return false;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DiagnosticInfo"/>.
+    /// </summary>
+    internal static partial class DiagnosticInfoLog
+    {
+        [LoggerMessage(EventId = EventIds.DiagnosticInfo + 0, Level = LogLevel.Warning,
+            Message = "Inner diagnostics truncated. Max depth of {MaxInnerDepth} exceeded.")]
+        public static partial void InnerDiagnosticsTruncated(this ILogger logger, int maxInnerDepth);
     }
 }

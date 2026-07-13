@@ -1139,3 +1139,11 @@ dotnet_diagnostic.CA2000.severity = none
 [Fuzzing/**/*.Fuzz.Tests/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.CA2000.severity = none
+
+# Source-generated logging (issue #3908): projects that have been fully migrated
+# to source-generated [LoggerMessage] logging enable CA1873 ("Avoid potentially
+# expensive logging") so any regression back to direct ILogger.Log* calls is
+# flagged. Enabled per project as each one is migrated; a global enable follows
+# once the whole code base is migrated.
+[Stack/Opc.Ua.Types/**/*.cs]
+dotnet_diagnostic.CA1873.severity = warning

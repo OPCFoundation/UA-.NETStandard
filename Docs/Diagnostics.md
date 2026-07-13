@@ -172,24 +172,61 @@ pattern end-to-end.
 
 ### High-speed logging and source generators
 
-The repository uses [`LoggerMessageAttribute`](https://learn.microsoft.com/dotnet/core/extensions/logger-message-generator)
-source-generated logging in hot paths. New logging additions in
-hot paths should follow the same pattern:
+The stack uses [`LoggerMessageAttribute`](https://learn.microsoft.com/dotnet/core/extensions/logger-message-generator)
+source-generated logging **everywhere**. It avoids boxing of value-type
+arguments, caches the message formatter, and emits an efficient
+`IsEnabled` check so a disabled log level costs nothing. All new logging
+must follow this pattern; direct `ILogger.LogInformation/LogError/...`
+calls are not allowed.
+
+The conventions are:
+
+- **One log class per file.** Add an `internal static partial class
+  <ClassName>Log` at the end of the file that owns the log call. It holds
+  `[LoggerMessage]` **extension methods on `ILogger`**, so call sites keep
+  the natural `logger.SomeEvent(...)` shape.
+- **Share one log class across closely-related files** when they emit the
+  same messages. For example the binary, JSON and XML encoders, decoders
+  and parsers in `Opc.Ua.Types` all share a single `EncodingLog` class.
+  This both removes duplication and avoids ambiguous call resolution:
+  identical `this ILogger` extension overloads declared in several classes
+  of the same namespace collide (CS0121).
+- **Central per-project `EventIds`.** Each project has one
+  `internal static class EventIds` at its root holding a `public const int`
+  offset per log class. Every log method sets
+  `EventId = EventIds.<Class> + <zero-based message index>`. Each offset
+  block reserves at least five spare slots for future messages and is then
+  rounded up to the next multiple of ten, so ids stay documented and
+  managed from one place.
+- **Named, static message templates.** Placeholders must be named
+  (`{ChannelId}`) and match a method parameter of the same name; an
+  `Exception` argument is detected by its type. Never interpolate
+  (`$"..."`) a log message.
 
 ```csharp
-internal static partial class Log
+// EventIds.cs (project root)
+internal static class EventIds
 {
-    [LoggerMessage(
-        EventId = 4201,
-        Level = LogLevel.Warning,
-        Message = "Token activation failed for channelId={ChannelId}.")]
-    public static partial void TokenActivationFailed(ILogger logger, uint channelId, Exception ex);
+    public const int Encoding = 20;   // shared codec block (reserves 20)
+    public const int Matrix = 50;     // per-file block (reserves 10)
 }
+
+// end of Matrix.cs
+internal static partial class MatrixLog
+{
+    [LoggerMessage(EventId = EventIds.Matrix + 0, Level = LogLevel.Debug,
+        Message = "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.")]
+    public static partial void ReadArrayZeroDimension(this ILogger logger, int index, int[] dimensions);
+}
+
+// call site
+logger.ReadArrayZeroDimension(index, dimensions);
 ```
 
-Source-generated logging avoids boxing of value-type arguments and
-emits efficient `IsEnabled` checks. Where present, Roslyn analyzers
-will warn if new ad-hoc logging is added in instrumented areas.
+Once a project is fully migrated, `CA1873` ("Avoid potentially expensive
+logging") is enabled for it (path-scoped in `.editorconfig`) so any
+regression back to a direct `ILogger.Log*` call is flagged. A global
+enable follows once the whole code base is migrated.
 
 ### Extensibility patterns
 
