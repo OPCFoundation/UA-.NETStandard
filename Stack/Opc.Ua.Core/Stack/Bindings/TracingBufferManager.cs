@@ -64,8 +64,30 @@ namespace Opc.Ua.Bindings
             int maxBufferSize,
             ITelemetryContext telemetry,
             ArrayPool<byte> arrayPool)
+            : this(name, maxBufferSize, telemetry, arrayPool, GetUtcNow)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with a caller-supplied pool and clock.
+        /// </summary>
+        /// <param name="name">The diagnostic name.</param>
+        /// <param name="maxBufferSize">The maximum payload size.</param>
+        /// <param name="telemetry">The telemetry context used for diagnostics.</param>
+        /// <param name="arrayPool">The array pool to use.</param>
+        /// <param name="utcNow">Returns the current UTC time.</param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="utcNow"/> is <see langword="null"/>.
+        /// </exception>
+        internal TracingBufferManager(
+            string name,
+            int maxBufferSize,
+            ITelemetryContext telemetry,
+            ArrayPool<byte> arrayPool,
+            Func<DateTime> utcNow)
             : base(name, maxBufferSize, telemetry, arrayPool, kMetadataByteCount)
         {
+            m_utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
         }
 
         /// <inheritdoc/>
@@ -97,7 +119,7 @@ namespace Opc.Ua.Bindings
                     Buffer = buffer,
                     Id = allocationId,
                     Owner = owner ?? string.Empty,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = m_utcNow()
                 };
             }
 
@@ -116,7 +138,8 @@ namespace Opc.Ua.Bindings
             {
                 int allocationId = ReadAllocationId(buffer);
 
-                if (m_allocations.TryGetValue(allocationId, out Allocation? allocation))
+                Allocation? allocation = FindAllocation(buffer, ref allocationId);
+                if (allocation != null)
                 {
                     allocation.Owner = Utils.Format("{0}/{1}", allocation.Owner, owner);
 
@@ -140,24 +163,21 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                m_allocatedBytes -= buffer.Length;
-
                 int allocationId = ReadAllocationId(buffer);
+                Allocation? allocation = FindAllocation(buffer, ref allocationId) ?? throw new InvalidOperationException("The returned buffer is not tracked.");
 
-                if (m_allocations.TryGetValue(allocationId, out Allocation? allocation))
+                m_allocatedBytes -= buffer.Length;
+                allocation.ReleasedBy = owner ?? string.Empty;
+
+                if (allocation.ReportedAgeSeconds > 0)
                 {
-                    allocation.ReleasedBy = owner ?? string.Empty;
-
-                    if (allocation.ReportedAgeSeconds > 0)
-                    {
-                        Logger.LogDebug(
-                            "{Name}: Id={AllocationId}; Owner={Owner}; ReleasedBy={ReleasedBy}; Size={SizeKb} KB; *** RETURNED ***",
-                            Name,
-                            allocation.Id,
-                            allocation.Owner,
-                            allocation.ReleasedBy,
-                            allocation.Buffer.Length / 1024);
-                    }
+                    Logger.LogDebug(
+                        "{Name}: Id={AllocationId}; Owner={Owner}; ReleasedBy={ReleasedBy}; Size={SizeKb} KB; *** RETURNED ***",
+                        Name,
+                        allocation.Id,
+                        allocation.Owner,
+                        allocation.ReleasedBy,
+                        allocation.Buffer.Length / 1024);
                 }
 
                 m_allocations.Remove(allocationId);
@@ -178,7 +198,8 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
-                    double ageSeconds = Math.Truncate((DateTime.UtcNow - trackedAllocation.Timestamp).TotalSeconds);
+                    double ageSeconds = Math.Truncate(
+                        (m_utcNow() - trackedAllocation.Timestamp).TotalSeconds);
 
                     if (ageSeconds > 3 &&
                         Math.Truncate(ageSeconds) % 3 == 0 &&
@@ -211,7 +232,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="buffer">The traced buffer.</param>
         /// <returns>The allocation identifier.</returns>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when <paramref name="buffer"/> does not contain tracing metadata.
+        /// </exception>
         internal static int ReadAllocationId(byte[] buffer)
         {
             if (buffer.Length < kMetadataByteCount)
@@ -220,6 +243,31 @@ namespace Opc.Ua.Bindings
             }
 
             return BitConverter.ToInt32(buffer, buffer.Length - kMetadataByteCount);
+        }
+
+        private Allocation? FindAllocation(byte[] buffer, ref int allocationId)
+        {
+            if (m_allocations.TryGetValue(allocationId, out Allocation? allocation) &&
+                ReferenceEquals(allocation.Buffer, buffer))
+            {
+                return allocation;
+            }
+
+            foreach (KeyValuePair<int, Allocation> current in m_allocations)
+            {
+                if (ReferenceEquals(current.Value.Buffer, buffer))
+                {
+                    allocationId = current.Key;
+                    return current.Value;
+                }
+            }
+
+            return null;
+        }
+
+        private static DateTime GetUtcNow()
+        {
+            return DateTime.UtcNow;
         }
 
         private const int kMetadataByteCount = 5;
@@ -236,6 +284,7 @@ namespace Opc.Ua.Bindings
 
         private readonly Lock m_lock = new();
         private readonly SortedDictionary<int, Allocation> m_allocations = [];
+        private readonly Func<DateTime> m_utcNow = GetUtcNow;
         private int m_allocatedBytes;
         private int m_nextAllocationId;
     }

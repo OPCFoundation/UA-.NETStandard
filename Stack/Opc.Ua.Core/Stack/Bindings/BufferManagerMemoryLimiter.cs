@@ -373,6 +373,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Replaces the outstanding byte count for defensive accounting tests.
+        /// </summary>
+        /// <param name="outstandingBytes">The temporary outstanding byte count.</param>
+        /// <returns>The previous outstanding byte count.</returns>
+        internal long SetOutstandingBytesForTesting(long outstandingBytes)
+        {
+            lock (m_lock)
+            {
+                long previousOutstandingBytes = m_outstandingBytes;
+                m_outstandingBytes = outstandingBytes;
+                return previousOutstandingBytes;
+            }
+        }
+
+        /// <summary>
         /// Stores per-buffer accounting data.
         /// </summary>
         internal sealed class Reservation

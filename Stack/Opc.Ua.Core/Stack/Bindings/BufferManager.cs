@@ -290,7 +290,32 @@ namespace Opc.Ua.Bindings
             ITelemetryContext telemetry,
             ArrayPool<byte>? arrayPool = null)
         {
-            return GetDefaultImplementationKind() switch
+            return CreateImplementation(
+                name,
+                maxBufferSize,
+                telemetry,
+                GetDefaultImplementationKind(),
+                arrayPool);
+        }
+
+        /// <summary>
+        /// Creates a specific compatibility facade implementation.
+        /// </summary>
+        /// <param name="name">The diagnostic name.</param>
+        /// <param name="maxBufferSize">The maximum payload size.</param>
+        /// <param name="telemetry">The telemetry context used for diagnostics.</param>
+        /// <param name="implementationKind">The implementation to create.</param>
+        /// <param name="arrayPool">The optional array pool to use.</param>
+        /// <returns>The created buffer manager.</returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        internal static IBufferManager CreateImplementation(
+            string name,
+            int maxBufferSize,
+            ITelemetryContext telemetry,
+            BufferManagerImplementationKind implementationKind,
+            ArrayPool<byte>? arrayPool = null)
+        {
+            return implementationKind switch
             {
                 BufferManagerImplementationKind.Fast => arrayPool == null
                     ? new FastBufferManager(name, maxBufferSize, telemetry)
@@ -302,7 +327,7 @@ namespace Opc.Ua.Bindings
                     ? new TracingBufferManager(name, maxBufferSize, telemetry)
                     : new TracingBufferManager(name, maxBufferSize, telemetry, arrayPool),
                 _ => throw new InvalidOperationException(
-                    "The build-specific default buffer manager implementation kind is invalid.")
+                    "The buffer manager implementation kind is invalid.")
             };
         }
 
