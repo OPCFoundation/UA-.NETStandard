@@ -146,7 +146,7 @@ namespace Opc.Ua.Bindings
                 }
                 else if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.TcpServiceHostLogMessage0((Redaction.Redact.Create(uri)).ToString());
+                    logger.TcpServiceHostLogMessage0(Redaction.Redact.Create(uri));
                 }
             }
 
@@ -162,7 +162,9 @@ namespace Opc.Ua.Bindings
     {
         [LoggerMessage(EventId = CoreEventIds.TcpServiceHost + 0, Level = LogLevel.Error,
             Message = "Failed to create endpoint {Uri} because the transport profile is unsupported.")]
-        public static partial void TcpServiceHostLogMessage0(this ILogger logger, string? uri);
+        public static partial void TcpServiceHostLogMessage0(
+            this ILogger logger,
+            global::Opc.Ua.Redaction.RedactionWrapper<global::System.UriBuilder> uri);
     }
 
 }

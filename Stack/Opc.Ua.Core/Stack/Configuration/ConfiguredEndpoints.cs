@@ -231,7 +231,7 @@ namespace Opc.Ua
                 ILogger logger = telemetry.CreateLogger<ConfiguredEndpointCollection>();
                 if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.ConfiguredEndpointsLogMessage0((Redaction.Redact.Create(e)).ToString());
+                    logger.ConfiguredEndpointsLogMessage0(Redaction.Redact.Create(e));
                 }
                 throw;
             }
@@ -1579,7 +1579,9 @@ namespace Opc.Ua
     {
         [LoggerMessage(EventId = CoreEventIds.ConfiguredEndpoints + 0, Level = LogLevel.Error,
             Message = "Unexpected error loading ConfiguredEndpoints: {Message}")]
-        public static partial void ConfiguredEndpointsLogMessage0(this ILogger logger, string? message);
+        public static partial void ConfiguredEndpointsLogMessage0(
+            this ILogger logger,
+            global::Opc.Ua.Redaction.RedactionWrapper<global::System.Exception> message);
     }
 
 }

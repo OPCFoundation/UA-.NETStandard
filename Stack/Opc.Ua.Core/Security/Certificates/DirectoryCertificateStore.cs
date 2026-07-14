@@ -292,7 +292,7 @@ namespace Opc.Ua
                     m_logger.DirectoryStoreLog1(
                         ex,
                         certificate.Thumbprint,
-                        (Redact.Create(StorePath)).ToString());
+                        Redact.Create(StorePath));
                 }
                 throw;
             }
@@ -1391,7 +1391,7 @@ namespace Opc.Ua
             if (m_logger.IsEnabled(LogLevel.Information))
             {
                 m_logger.DirectoryStoreLog23(
-                    (Redact.Create(StorePath)).ToString(),
+                    Redact.Create(StorePath),
                     m_certificates.Count);
             }
 
@@ -1662,7 +1662,7 @@ namespace Opc.Ua
             this ILogger logger,
             global::System.Exception? exception,
             string? thumbprint,
-            string? storePath);
+            global::Opc.Ua.Redaction.RedactionWrapper<string> storePath);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 2, Level = LogLevel.Debug,
             Message = "Failed to delete {FileName} - force reload.")]
@@ -1799,7 +1799,7 @@ namespace Opc.Ua
             Message = "Certificate store reloaded from {Path}, {Count} entries.")]
         public static partial void DirectoryStoreLog23(
             this ILogger logger,
-            string? path,
+            global::Opc.Ua.Redaction.RedactionWrapper<string> path,
             int count);
     }
 

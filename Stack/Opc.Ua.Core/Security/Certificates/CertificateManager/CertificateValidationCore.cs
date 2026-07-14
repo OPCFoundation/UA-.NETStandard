@@ -633,14 +633,14 @@ namespace Opc.Ua
                     {
                         m_logger
                             .CertificateValidationLog2(
-                                Redact.Create(endpointUrl).ToString());
+                                Redact.Create(endpointUrl));
                     }
                     else
                     {
                         m_logger
                             .CertificateValidationLog3(
                                 serverCertificate,
-                                Redact.Create(serviceResult).ToString());
+                                Redact.Create(serviceResult));
                     }
 
                     throw serviceResult;
@@ -683,7 +683,7 @@ namespace Opc.Ua
                     m_logger
                         .CertificateValidationLog5(
                             serverCertificate,
-                            Redact.Create(serviceResult).ToString());
+                            Redact.Create(serviceResult));
 
                     throw new ServiceResultException(serviceResult);
                 }
@@ -1104,7 +1104,7 @@ namespace Opc.Ua
             // check for errors that may be suppressed.
             if (ContainsUnsuppressibleSC(se.Result))
             {
-                m_logger.CertificateValidationLog8(Redact.Create(certificate).ToString(), se.Result);
+                m_logger.CertificateValidationLog8(Redact.Create(certificate), se.Result);
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
 
@@ -1141,7 +1141,7 @@ namespace Opc.Ua
                     serviceResult!.StatusCode == StatusCodes.BadCertificateUntrusted)
                 {
                     accept = true;
-                    m_logger.CertificateValidationLog10(Redact.Create(certificate).ToString());
+                    m_logger.CertificateValidationLog10(Redact.Create(certificate));
                 }
 
                 if (accept)
@@ -1160,7 +1160,7 @@ namespace Opc.Ua
                 if (m_logger.IsEnabled(LogLevel.Error))
                 {
                     m_logger.CertificateValidationLog11(
-                        Redact.Create(certificate).ToString(),
+                        Redact.Create(certificate),
                         se.Result.ToLongString());
                 }
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
@@ -1416,7 +1416,7 @@ namespace Opc.Ua
                 {
                     if (m_logger.IsEnabled(LogLevel.Warning))
                     {
-                        m_logger.CertificateValidationLog12((Redact.Create(certificateStore)).ToString());
+                        m_logger.CertificateValidationLog12(Redact.Create(certificateStore));
                     }
                     // not a trusted issuer.
                     return (null, null);
@@ -1819,14 +1819,16 @@ namespace Opc.Ua
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 2, Level = LogLevel.Error,
             Message = "The domain '{Url}' is not listed in the server certificate.")]
-        public static partial void CertificateValidationLog2(this ILogger logger, string url);
+        public static partial void CertificateValidationLog2(
+            this ILogger logger,
+            global::Opc.Ua.Redaction.RedactionWrapper<global::System.Uri> url);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 3, Level = LogLevel.Error,
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog3(
             this ILogger logger,
             global::Opc.Ua.Security.Certificates.Certificate? certificate,
-            string serviceResult);
+            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.ServiceResultException> serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 4, Level = LogLevel.Error,
             Message = "AcceptError callback threw; treating as reject.")]
@@ -1839,7 +1841,7 @@ namespace Opc.Ua
         public static partial void CertificateValidationLog5(
             this ILogger logger,
             global::Opc.Ua.Security.Certificates.Certificate? certificate,
-            string serviceResult);
+            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.ServiceResult> serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 6, Level = LogLevel.Error,
             Message = "Unexpected status {ChainStatus} processing certificate chain.")]
@@ -1855,7 +1857,7 @@ namespace Opc.Ua
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog8(
             this ILogger logger,
-            string certificate,
+            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.Security.Certificates.Certificate> certificate,
             global::Opc.Ua.ServiceResult serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 9, Level = LogLevel.Error,
@@ -1868,19 +1870,21 @@ namespace Opc.Ua
             Message = "Auto accepted certificate {Certificate}")]
         public static partial void CertificateValidationLog10(
             this ILogger logger,
-            string certificate);
+            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.Security.Certificates.Certificate> certificate);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 11, Level = LogLevel.Error,
             Message = "Certificate {Certificate} validation failed with suppressible errors but was " +
                 "rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog11(
             this ILogger logger,
-            string certificate,
+            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.Security.Certificates.Certificate> certificate,
             string serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 12, Level = LogLevel.Warning,
             Message = "Failed to open issuer store: {CertificateStore}")]
-        public static partial void CertificateValidationLog12(this ILogger logger, string? certificateStore);
+        public static partial void CertificateValidationLog12(
+            this ILogger logger,
+            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.CertificateStoreIdentifier> certificateStore);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 13, Level = LogLevel.Warning,
             Message = "Error suppressed: {Status}: {Information}")]
