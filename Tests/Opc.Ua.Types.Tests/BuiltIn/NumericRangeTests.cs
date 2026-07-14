@@ -565,6 +565,17 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.Throws<ServiceResultException>(() => NumericRange.Parse("10:5"));
         }
 
+        [TestCase(" 1:3")]
+        [TestCase("1:3 ")]
+        [TestCase("\t1:3")]
+        [TestCase("1:\t3")]
+        public void ParseThrowsServiceResultExceptionForWhitespace(string text)
+        {
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => NumericRange.Parse(text))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
+        }
+
         [Test]
         public void ParseMultidimensionalRange()
         {

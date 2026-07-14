@@ -182,6 +182,82 @@ namespace Opc.Ua.History.Tests
                 $"Scalar_Static_Arrays_{typeName} history values should be arrays.");
         }
 
+        [Test]
+        public async Task HistoryReadRawDataRejectsWhitespaceIndexRangeAsync()
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId("Scalar_Static_Arrays_Int32", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = endTime.AddHours(-4),
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() {
+                        NodeId = nodeId,
+                        IndexRange = " 1:3"
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
+        }
+
+        [Test]
+        public async Task HistoryReadRawDataReportsOutOfRangeAtValueLevelAsync()
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId("Scalar_Static_Arrays_Int32", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = endTime.AddHours(-4),
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() {
+                        NodeId = nodeId,
+                        IndexRange = "15"
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            bool hasBadIndexRangeNoData = false;
+            for (int ii = 0; ii < historyData!.DataValues.Count; ii++)
+            {
+                if (historyData.DataValues[ii].StatusCode == StatusCodes.BadIndexRangeNoData)
+                {
+                    hasBadIndexRangeNoData = true;
+                    break;
+                }
+            }
+            Assert.That(hasBadIndexRangeNoData, Is.True);
+        }
+
         [TestCase("Boolean")]
         [TestCase("SByte")]
         [TestCase("Byte")]
