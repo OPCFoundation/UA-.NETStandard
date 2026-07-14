@@ -180,6 +180,61 @@ namespace Opc.Ua
             return new($"OPC UA Arrow reference encoder does not yet support {member}.");
         }
 
+        private ExtensionObject NormalizeExtension(ExtensionObject value)
+        {
+            if (value.IsNull || !value.TryGetValue(out IEncodeable? body) || body is null)
+            {
+                return value;
+            }
+
+            using var encoder = new BinaryEncoder(Context);
+            body.Encode(encoder);
+            return new ExtensionObject(value.TypeId, ByteString.From(encoder.CloseAndReturnBuffer() ?? []));
+        }
+
+        private ByteString EncodeBody(IEncodeable value)
+        {
+            using var encoder = new BinaryEncoder(Context);
+            value.Encode(encoder);
+            return ByteString.From(encoder.CloseAndReturnBuffer() ?? []);
+        }
+
+        private Variant NormalizeVariant(Variant value)
+        {
+            if (value.TypeInfo.BuiltInType != BuiltInType.ExtensionObject)
+            {
+                return value;
+            }
+
+            if (value.TypeInfo.IsArray)
+            {
+                return new Variant(value.GetExtensionObjectArray().ConvertAll(NormalizeExtension));
+            }
+
+            if (value.TypeInfo.IsMatrix)
+            {
+                return new Variant(value.GetExtensionObjectMatrix().ConvertAll(NormalizeExtension));
+            }
+
+            return new Variant(NormalizeExtension(value.GetExtensionObject()));
+        }
+
+        private DataValue NormalizeDataValue(DataValue value)
+        {
+            if (value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.ExtensionObject)
+            {
+                return value;
+            }
+
+            return new DataValue(
+                NormalizeVariant(value.WrappedValue),
+                value.StatusCode,
+                value.SourceTimestamp,
+                value.ServerTimestamp,
+                value.SourcePicoseconds,
+                value.ServerPicoseconds);
+        }
+
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message)
             where T : IEncodeable, new()
@@ -337,35 +392,33 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariant(string? fieldName, in Variant value)
         {
-            Variant v = value;
-            Put(fieldName, A.Variant(v));
+            Put(fieldName, A.Variant(NormalizeVariant(value)));
         }
 
         /// <inheritdoc/>
         public void WriteDataValue(string? fieldName, in DataValue value)
         {
-            DataValue v = value;
-            Put(fieldName, A.DataValue(v));
+            Put(fieldName, A.DataValue(NormalizeDataValue(value)));
         }
 
         /// <inheritdoc/>
         public void WriteExtensionObject(string? fieldName, ExtensionObject value)
         {
-            Put(fieldName, A.Extension(value));
+            Put(fieldName, A.Extension(NormalizeExtension(value)));
         }
 
         /// <inheritdoc/>
         public void WriteEncodeable<T>(string? fieldName, T value)
             where T : IEncodeable, new()
         {
-            throw Unsupported(nameof(WriteEncodeable));
+            Put(fieldName, A.Bytes(EncodeBody(value ?? new T())));
         }
 
         /// <inheritdoc/>
         public void WriteEncodeable<T>(string? fieldName, T value, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            throw Unsupported(nameof(WriteEncodeable));
+            Put(fieldName, A.Bytes(value is null ? default : EncodeBody(value)));
         }
 
         /// <inheritdoc/>
@@ -487,13 +540,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteNodeIdArray(string? fieldName, ArrayOf<NodeId> values)
         {
-            Put(fieldName, A.ListStruct(values, A.NodeId));
+            Put(fieldName, A.List(values, A.NodeIdManySlot));
         }
 
         /// <inheritdoc/>
         public void WriteExpandedNodeIdArray(string? fieldName, ArrayOf<ExpandedNodeId> values)
         {
-            Put(fieldName, A.ListStruct(values, A.ExpandedNodeId));
+            Put(fieldName, A.List(values, A.ExpandedNodeIdManySlot));
         }
 
         /// <inheritdoc/>
@@ -511,45 +564,45 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteQualifiedNameArray(string? fieldName, ArrayOf<QualifiedName> values)
         {
-            Put(fieldName, A.ListStruct(values, A.QualifiedName));
+            Put(fieldName, A.List(values, A.QualifiedNameManySlot));
         }
 
         /// <inheritdoc/>
         public void WriteLocalizedTextArray(string? fieldName, ArrayOf<LocalizedText> values)
         {
-            Put(fieldName, A.ListStruct(values, A.LocalizedText));
+            Put(fieldName, A.List(values, A.LocalizedTextManySlot));
         }
 
         /// <inheritdoc/>
         public void WriteVariantArray(string? fieldName, ArrayOf<Variant> values)
         {
-            Put(fieldName, A.ListStruct(values, A.Variant));
+            Put(fieldName, A.ListStruct(values.ConvertAll(NormalizeVariant), A.Variant));
         }
 
         /// <inheritdoc/>
         public void WriteDataValueArray(string? fieldName, ArrayOf<DataValue> values)
         {
-            Put(fieldName, A.ListStruct(values, A.DataValue));
+            Put(fieldName, A.ListStruct(values.ConvertAll(NormalizeDataValue), A.DataValue));
         }
 
         /// <inheritdoc/>
         public void WriteExtensionObjectArray(string? fieldName, ArrayOf<ExtensionObject> values)
         {
-            Put(fieldName, A.ListStruct(values, A.Extension));
+            Put(fieldName, A.List(values.ConvertAll(NormalizeExtension), A.ExtensionManySlot));
         }
 
         /// <inheritdoc/>
         public void WriteEncodeableArray<T>(string? fieldName, ArrayOf<T> values)
             where T : IEncodeable, new()
         {
-            throw Unsupported(nameof(WriteEncodeableArray));
+            Put(fieldName, A.List(values.ConvertAll(v => EncodeBody(v ?? new T())), A.BytesMany));
         }
 
         /// <inheritdoc/>
         public void WriteEncodeableArray<T>(string? fieldName, ArrayOf<T> values, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            throw Unsupported(nameof(WriteEncodeableArray));
+            Put(fieldName, A.List(values.ConvertAll(v => v is null ? default : EncodeBody(v)), A.BytesMany));
         }
 
         /// <inheritdoc/>
@@ -575,22 +628,21 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            Variant v = value;
-            Put(fieldName, A.Variant(v));
+            Put(fieldName, A.Variant(NormalizeVariant(value)));
         }
 
         /// <inheritdoc/>
         public void WriteEncodeableMatrix<T>(string? fieldName, MatrixOf<T> values)
             where T : IEncodeable, new()
         {
-            throw Unsupported(nameof(WriteEncodeableMatrix));
+            Put(fieldName, A.Matrix(values.ConvertAll(v => EncodeBody(v ?? new T())), A.BytesMany));
         }
 
         /// <inheritdoc/>
         public void WriteEncodeableMatrix<T>(string? fieldName, MatrixOf<T> values, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            throw Unsupported(nameof(WriteEncodeableMatrix));
+            Put(fieldName, A.Matrix(values.ConvertAll(v => v is null ? default : EncodeBody(v)), A.BytesMany));
         }
 
         /// <inheritdoc/>

@@ -564,9 +564,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
-            Assume.That(
-                !(encoderType == EncodingType.Arrow && builtInType == BuiltInType.Enumeration),
-                "Arrow Enumeration Variant is not yet implemented (tracked).");
             int arrayDimension = RandomSource.NextInt32(99) + 1;
             Variant randomData = DataGenerator.GetRandomArray(
                 builtInType,
@@ -709,9 +706,6 @@ namespace Opc.Ua.Core.Encoders.Tests
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
-            Assume.That(
-                !(encoderType == EncodingType.Arrow && builtInType == BuiltInType.Enumeration),
-                "Arrow Enumeration Variant is not yet implemented (tracked).");
             int matrixDimension = RandomSource.NextInt32(3) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);

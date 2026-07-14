@@ -587,7 +587,8 @@ namespace Opc.Ua
 
         private static bool IsVariantBodyType(BuiltInType type)
         {
-            return type >= BuiltInType.Boolean && type <= BuiltInType.ExtensionObject;
+            return (type >= BuiltInType.Boolean && type <= BuiltInType.ExtensionObject)
+                || type == BuiltInType.Enumeration;
         }
 
         private static Slot VariantBranch(int selected, Slot value, string shape, BuiltInType type)
@@ -627,6 +628,7 @@ namespace Opc.Ua
                 BuiltInType.QualifiedName => QualifiedName(value.GetQualifiedName()),
                 BuiltInType.LocalizedText => LocalizedText(value.GetLocalizedText()),
                 BuiltInType.ExtensionObject => Extension(value.GetExtensionObject()),
+                BuiltInType.Enumeration => I32(value.GetEnumeration().Value),
                 _ => throw new NotSupportedException($"Variant scalar {type} is not supported by the Arrow encoder."),
             };
         }
@@ -657,6 +659,7 @@ namespace Opc.Ua
                 BuiltInType.QualifiedName => List(value.GetQualifiedNameArray(), QualifiedNameManySlot),
                 BuiltInType.LocalizedText => List(value.GetLocalizedTextArray(), LocalizedTextManySlot),
                 BuiltInType.ExtensionObject => List(value.GetExtensionObjectArray(), ExtensionManySlot),
+                BuiltInType.Enumeration => List(value.GetEnumerationArray().ConvertAll(e => e.Value), I32Many),
                 _ => throw new NotSupportedException($"Variant array {type} is not supported by the Arrow encoder."),
             };
         }
@@ -687,6 +690,7 @@ namespace Opc.Ua
                 BuiltInType.QualifiedName => Matrix(value.GetQualifiedNameMatrix(), QualifiedNameManySlot),
                 BuiltInType.LocalizedText => Matrix(value.GetLocalizedTextMatrix(), LocalizedTextManySlot),
                 BuiltInType.ExtensionObject => Matrix(value.GetExtensionObjectMatrix(), ExtensionManySlot),
+                BuiltInType.Enumeration => Matrix(value.GetEnumerationMatrix().ConvertAll(e => e.Value), I32Many),
                 _ => throw new NotSupportedException($"Variant matrix {type} is not supported by the Arrow encoder."),
             };
         }
@@ -1016,7 +1020,7 @@ namespace Opc.Ua
             return U32Many(values);
         }
 
-        private static Slot NodeIdManySlot(ReadOnlyMemory<NodeId> v)
+        public static Slot NodeIdManySlot(ReadOnlyMemory<NodeId> v)
         {
             ushort[] namespaces = new ushort[v.Length];
             byte[] types = new byte[v.Length];
@@ -1044,7 +1048,7 @@ namespace Opc.Ua
             );
         }
 
-        private static Slot ExpandedNodeIdManySlot(ReadOnlyMemory<ExpandedNodeId> v)
+        public static Slot ExpandedNodeIdManySlot(ReadOnlyMemory<ExpandedNodeId> v)
         {
             NodeId[] nodeIds = new NodeId[v.Length];
             string[] namespaceUris = new string[v.Length];
@@ -1066,7 +1070,7 @@ namespace Opc.Ua
             );
         }
 
-        private static Slot QualifiedNameManySlot(ReadOnlyMemory<QualifiedName> v)
+        public static Slot QualifiedNameManySlot(ReadOnlyMemory<QualifiedName> v)
         {
             ushort[] namespaces = new ushort[v.Length];
             string[] names = new string[v.Length];
@@ -1082,7 +1086,7 @@ namespace Opc.Ua
             return StructMany(new() { U16Many(namespaces), StrMany(names) }, new() { "namespace", "name" }, valid);
         }
 
-        private static Slot LocalizedTextManySlot(ReadOnlyMemory<LocalizedText> v)
+        public static Slot LocalizedTextManySlot(ReadOnlyMemory<LocalizedText> v)
         {
             string[] locales = new string[v.Length];
             string[] texts = new string[v.Length];
@@ -1098,7 +1102,7 @@ namespace Opc.Ua
             return StructMany(new() { StrMany(locales), StrMany(texts) }, new() { "locale", "text" }, valid);
         }
 
-        private static Slot ExtensionManySlot(ReadOnlyMemory<ExtensionObject> v)
+        public static Slot ExtensionManySlot(ReadOnlyMemory<ExtensionObject> v)
         {
             ExpandedNodeId[] typeIds = new ExpandedNodeId[v.Length];
             byte[] bodyTypeIds = new byte[v.Length];
@@ -1285,17 +1289,20 @@ namespace Opc.Ua
                 return Opc.Ua.Variant.Null;
             }
 
-            if (code >= (int)BuiltInType.Boolean && code <= (int)BuiltInType.ExtensionObject)
+            if ((code >= (int)BuiltInType.Boolean && code <= (int)BuiltInType.ExtensionObject)
+                || code == (int)BuiltInType.Enumeration)
             {
                 return ReadScalarVariant((BuiltInType)code, u.Fields[1], off);
             }
 
-            if (code > VariantArrayCodeBase && code <= VariantArrayCodeBase + (int)BuiltInType.ExtensionObject)
+            if ((code > VariantArrayCodeBase && code <= VariantArrayCodeBase + (int)BuiltInType.ExtensionObject)
+                || code == VariantArrayCodeBase + (int)BuiltInType.Enumeration)
             {
                 return ReadArrayVariant((BuiltInType)(code - VariantArrayCodeBase), u.Fields[1]);
             }
 
-            if (code > VariantMatrixCodeBase && code <= VariantMatrixCodeBase + (int)BuiltInType.ExtensionObject)
+            if ((code > VariantMatrixCodeBase && code <= VariantMatrixCodeBase + (int)BuiltInType.ExtensionObject)
+                || code == VariantMatrixCodeBase + (int)BuiltInType.Enumeration)
             {
                 return ReadMatrixVariant((BuiltInType)(code - VariantMatrixCodeBase), u.Fields[1], off);
             }
@@ -1329,6 +1336,7 @@ namespace Opc.Ua
                 BuiltInType.QualifiedName => new Opc.Ua.Variant(ReadQualifiedName(a, i)),
                 BuiltInType.LocalizedText => new Opc.Ua.Variant(ReadLocalizedText(a, i)),
                 BuiltInType.ExtensionObject => new Opc.Ua.Variant(ReadExtension(a, i)),
+                BuiltInType.Enumeration => Opc.Ua.Variant.From(new EnumValue(((Int32Array)a).GetValue(i) ?? 0)),
                 _ => throw new NotSupportedException($"Variant scalar {type} is not supported by the Arrow decoder."),
             };
         }
@@ -1361,6 +1369,8 @@ namespace Opc.Ua
                 BuiltInType.QualifiedName => new Opc.Ua.Variant(ReadList((null!, a), ReadQualifiedNameMany)),
                 BuiltInType.LocalizedText => new Opc.Ua.Variant(ReadList((null!, a), ReadLocalizedTextMany)),
                 BuiltInType.ExtensionObject => new Opc.Ua.Variant(ReadList((null!, a), ReadExtensionMany)),
+                BuiltInType.Enumeration => Opc.Ua.Variant.From(
+                    ReadList((null!, a), ReadI32Many).ConvertAll(x => new EnumValue(x))),
                 _ => throw new NotSupportedException($"Variant array {type} is not supported by the Arrow decoder."),
             };
         }
@@ -1393,11 +1403,13 @@ namespace Opc.Ua
                 BuiltInType.QualifiedName => new Opc.Ua.Variant(ReadMatrix(a, i, ReadQualifiedNameMany)),
                 BuiltInType.LocalizedText => new Opc.Ua.Variant(ReadMatrix(a, i, ReadLocalizedTextMany)),
                 BuiltInType.ExtensionObject => new Opc.Ua.Variant(ReadMatrix(a, i, ReadExtensionMany)),
+                BuiltInType.Enumeration => Opc.Ua.Variant.From(
+                    ReadMatrix(a, i, ReadI32Many).ConvertAll(x => new EnumValue(x))),
                 _ => throw new NotSupportedException($"Variant matrix {type} is not supported by the Arrow decoder."),
             };
         }
 
-        private static MatrixOf<T> ReadMatrix<T>(IArrowArray a, int i, Func<IArrowArray, int, int, T[]> read)
+        public static MatrixOf<T> ReadMatrix<T>(IArrowArray a, int i, Func<IArrowArray, int, int, T[]> read)
         {
             var s = (StructArray)a;
             if (s.IsNull(i))

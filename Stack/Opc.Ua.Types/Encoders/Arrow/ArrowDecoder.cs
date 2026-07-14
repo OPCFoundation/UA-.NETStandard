@@ -136,6 +136,98 @@ namespace Opc.Ua
             return (_batch.Schema.GetFieldByIndex(index), _batch.Column(index));
         }
 
+        private ExtensionObject ResolveExtension(ExtensionObject value)
+        {
+            if (value.IsNull
+                || value.TypeId.IsNull
+                || !value.TryGetAsBinary(out ByteString body)
+                || body.IsNull)
+            {
+                return value;
+            }
+
+            if (!Context.Factory.TryGetEncodeableType(value.TypeId, out IEncodeableType? activator))
+            {
+                return value;
+            }
+
+            IEncodeable instance = activator.CreateInstance();
+            using var decoder = new BinaryDecoder(body.ToArray(), Context);
+            instance.Decode(decoder);
+            return new ExtensionObject(value.TypeId, instance);
+        }
+
+        private Variant ResolveVariant(Variant value)
+        {
+            if (value.TypeInfo.BuiltInType != BuiltInType.ExtensionObject)
+            {
+                return value;
+            }
+
+            if (value.TypeInfo.IsArray)
+            {
+                return new Variant(value.GetExtensionObjectArray().ConvertAll(ResolveExtension));
+            }
+
+            if (value.TypeInfo.IsMatrix)
+            {
+                return new Variant(value.GetExtensionObjectMatrix().ConvertAll(ResolveExtension));
+            }
+
+            return new Variant(ResolveExtension(value.GetExtensionObject()));
+        }
+
+        private DataValue ResolveDataValue(DataValue value)
+        {
+            if (value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.ExtensionObject)
+            {
+                return value;
+            }
+
+            return new DataValue(
+                ResolveVariant(value.WrappedValue),
+                value.StatusCode,
+                value.SourceTimestamp,
+                value.ServerTimestamp,
+                value.SourcePicoseconds,
+                value.ServerPicoseconds);
+        }
+
+        private T DecodeEncodeableBody<T>(ByteString body, Func<T> factory)
+            where T : IEncodeable
+        {
+            T instance = factory();
+            if (!body.IsNull)
+            {
+                using var decoder = new BinaryDecoder(body.ToArray(), Context);
+                instance.Decode(decoder);
+            }
+
+            return instance;
+        }
+
+        private T CreateEncodeable<T>(ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (!Context.Factory.TryGetEncodeableType(encodeableTypeId, out IEncodeableType? activator))
+            {
+                throw new NotSupportedException($"Cannot decode Arrow encodeable type {encodeableTypeId}.");
+            }
+
+            return (T)activator.CreateInstance();
+        }
+
+        private static T ExtractEncodeable<T>(ExtensionObject value)
+            where T : IEncodeable
+        {
+            if (value.TryGetValue(out IEncodeable? body) && body is T typed)
+            {
+                return typed;
+            }
+
+            throw new NotSupportedException($"Cannot decode Arrow encodeable {typeof(T).Name}.");
+        }
+
         /// <inheritdoc/>
         public T DecodeMessage<T>()
             where T : IEncodeable
@@ -281,40 +373,40 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Variant ReadVariant(string? fieldName)
         {
-            return A.ReadVariant(Col(fieldName).Array, 0);
+            return ResolveVariant(A.ReadVariant(Col(fieldName).Array, 0));
         }
 
         /// <inheritdoc/>
         public DataValue ReadDataValue(string? fieldName)
         {
-            return A.ReadDataValue(Col(fieldName).Array, 0);
+            return ResolveDataValue(A.ReadDataValue(Col(fieldName).Array, 0));
         }
 
         /// <inheritdoc/>
         public ExtensionObject ReadExtensionObject(string? fieldName)
         {
-            return A.ReadExtension(Col(fieldName).Array, 0);
+            return ResolveExtension(A.ReadExtension(Col(fieldName).Array, 0));
         }
 
         /// <inheritdoc/>
         public T ReadEncodeable<T>(string? fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            throw new NotSupportedException("Arrow encodeable decode by type id is not supported yet.");
+            return DecodeEncodeableBody(A.ReadBytes(Col(fieldName).Array, 0), () => CreateEncodeable<T>(encodeableTypeId));
         }
 
         /// <inheritdoc/>
         public T ReadEncodeable<T>(string? fieldName)
             where T : IEncodeable, new()
         {
-            throw new NotSupportedException("Arrow encodeable decode is not supported yet.");
+            return DecodeEncodeableBody(A.ReadBytes(Col(fieldName).Array, 0), () => new T());
         }
 
         /// <inheritdoc/>
         public T ReadEncodeableAsExtensionObject<T>(string? fieldName)
             where T : IEncodeable
         {
-            throw new NotSupportedException("Arrow abstract encodeable decode is not supported yet.");
+            return ExtractEncodeable<T>(ReadExtensionObject(fieldName));
         }
 
         /// <inheritdoc/>
@@ -465,19 +557,19 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<Variant> ReadVariantArray(string? fieldName)
         {
-            return A.ReadList(Col(fieldName), A.ReadVariantMany);
+            return A.ReadList(Col(fieldName), A.ReadVariantMany).ConvertAll(ResolveVariant);
         }
 
         /// <inheritdoc/>
         public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
-            return A.ReadList(Col(fieldName), A.ReadDataValueMany);
+            return A.ReadList(Col(fieldName), A.ReadDataValueMany).ConvertAll(ResolveDataValue);
         }
 
         /// <inheritdoc/>
         public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName)
         {
-            return A.ReadList(Col(fieldName), A.ReadExtensionMany);
+            return A.ReadList(Col(fieldName), A.ReadExtensionMany).ConvertAll(ResolveExtension);
         }
 
         /// <summary>
@@ -489,7 +581,7 @@ namespace Opc.Ua
         public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName)
             where T : IEncodeable, new()
         {
-            throw new NotSupportedException("Arrow encodeable arrays are not supported yet.");
+            return A.ReadList(Col(fieldName), A.ReadBytesMany).ConvertAll(b => DecodeEncodeableBody(b, () => new T()));
         }
 
         /// <summary>
@@ -503,7 +595,8 @@ namespace Opc.Ua
         public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            throw new NotSupportedException("Arrow encodeable arrays are not supported yet.");
+            return A.ReadList(Col(fieldName), A.ReadBytesMany)
+                .ConvertAll(b => DecodeEncodeableBody(b, () => CreateEncodeable<T>(encodeableTypeId)));
         }
 
         /// <summary>
@@ -515,7 +608,7 @@ namespace Opc.Ua
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {
-            throw new NotSupportedException("Arrow abstract encodeable arrays are not supported yet.");
+            return ReadExtensionObjectArray(fieldName).ConvertAll(ExtractEncodeable<T>);
         }
 
         /// <summary>
@@ -528,7 +621,8 @@ namespace Opc.Ua
         public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            throw new NotSupportedException("Arrow encodeable matrices are not supported yet.");
+            return A.ReadMatrix(Col(fieldName).Array, 0, A.ReadBytesMany)
+                .ConvertAll(b => DecodeEncodeableBody(b, () => CreateEncodeable<T>(encodeableTypeId)));
         }
 
         /// <summary>
@@ -540,7 +634,8 @@ namespace Opc.Ua
         public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName)
             where T : IEncodeable, new()
         {
-            throw new NotSupportedException("Arrow encodeable matrices are not supported yet.");
+            return A.ReadMatrix(Col(fieldName).Array, 0, A.ReadBytesMany)
+                .ConvertAll(b => DecodeEncodeableBody(b, () => new T()));
         }
 
         /// <inheritdoc/>
