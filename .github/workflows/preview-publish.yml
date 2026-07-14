@@ -89,7 +89,7 @@ jobs:
           dotnet tool install --version 3.0.45 --tool-path "$env:TOOLS_DIR" NuGetKeyVaultSignTool
 
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+        uses: NuGet/setup-nuget@v4
         with:
           nuget-version: '>=7.0.0'
 
