@@ -212,6 +212,22 @@ The conventions are:
 - **Nullable parameters.** When the original argument is a nullable value
   (`string?`, `item.Name`), declare the generated parameter nullable too,
   otherwise the compiler reports CS8604.
+- **Dynamic log levels stay hand-written.** `[LoggerMessage]` requires a
+  compile-time `Level`. A call whose level is only known at runtime keeps the
+  structured `logger.Log(logLevel, "{Template}", args)` form, wrapped in an
+  `if (logger.IsEnabled(logLevel))` guard. These are the only remaining direct
+  `ILogger.Log` calls.
+- **Shared/linked source files use self-contained event ids.** A file that is
+  `<Compile Include>`-d into more than one project (for example a sample file
+  linked into a test project) cannot reference another assembly's
+  `<Assembly>EventIds` class, which is not compiled into every consumer. Give
+  its log class literal `EventId` integers in a high, dedicated range instead.
+- **Avoid the duplicate generator on netstandard.** Projects that also pull in
+  an R9 package (`Microsoft.Extensions.Http.Resilience`, `.Compliance`,
+  `.Telemetry`, …) get the `Microsoft.Gen.Logging` generator in addition to the
+  in-box one. On `netstandard` both implement every partial method (CS0757). The
+  repo's `Directory.Build.targets` removes the R9 analyzer on `netstandard`
+  only, leaving a single generator on every TFM.
 
 ```csharp
 // EventIds.cs (project root) — name is prefixed with the assembly token to
