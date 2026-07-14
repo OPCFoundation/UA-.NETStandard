@@ -242,7 +242,7 @@ namespace Opc.Ua.Server.Tests
         ///   - Optional Variables/Methods that the SDK does NOT implement
         ///     are absent (ServerConfiguration.ApplicationUri /
         ///     ProductUri / ApplicationType / HasSecureElement, the
-        ///     CancelChanges / ResetToServerDefaults methods, Server's
+        ///     ResetToServerDefaults method, Server's
         ///     UrisVersion / EstimatedReturnTime / LocalTime, the unimplemented
         ///     PublishSubscribe.AddConnection / RemoveConnection methods);
         ///   - Optional Variables/Methods that the SDK DOES implement are
@@ -251,7 +251,11 @@ namespace Opc.Ua.Server.Tests
         ///     their argument variables; HistoryServerCapabilities.
         ///     ServerTimestampSupported; the ServerCapabilities and
         ///     OperationLimits Optional Property surface area; ServerRedundancy.
-        ///     RedundantServerArray);
+        ///     RedundantServerArray; ServerConfiguration's PushManagement
+        ///     transaction surface — SupportsTransactions, DeleteCertificate,
+        ///     CancelChanges, and TransactionDiagnostics with its mandatory
+        ///     children — added by ConfigurationNodeManager per OPC 10000-12
+        ///     §§7.10.2-7.10.11);
         ///   - The CertificateGroups Optional Object exemption keeps the
         ///     DefaultHttpsGroup / DefaultUserTokenGroup subtrees emitted at
         ///     their well-known NodeIds, and the DefaultApplicationGroup
@@ -272,14 +276,16 @@ namespace Opc.Ua.Server.Tests
 
                 NodeId[] suppressedNodeIds =
                 [
-                    // ServerConfiguration Optional Variables/Methods - SDK
-                    // does not implement these.
-                    VariableIds.ServerConfiguration_ApplicationUri,
-                    VariableIds.ServerConfiguration_ProductUri,
-                    VariableIds.ServerConfiguration_ApplicationType,
+                    // ServerConfiguration Optional members that are only
+                    // exposed when explicitly configured via
+                    // ServerConfigurationOptions (OPC 10000-12 §7.10.3). The
+                    // default ReferenceServer configures none of these, so they
+                    // remain suppressed here (HasSecureElement/InApplicationSetup
+                    // and ResetToServerDefaults require options/providers;
+                    // ConfigurationFile requires a provider).
                     VariableIds.ServerConfiguration_HasSecureElement,
-                    MethodIds.ServerConfiguration_CancelChanges,
                     MethodIds.ServerConfiguration_ResetToServerDefaults,
+                    ObjectIds.ServerConfiguration_ConfigurationFile,
                     // PublishSubscribe Optional Methods - SDK does not
                     // implement these (no PubSub configuration provider).
                     MethodIds.PublishSubscribe_AddConnection,
@@ -360,6 +366,37 @@ namespace Opc.Ua.Server.Tests
                     // ServerRedundancy Optional Property - re-added by
                     // DiagnosticsNodeManager.AddServerRedundancySdkOptionalChildren.
                     VariableIds.Server_ServerRedundancy_RedundantServerArray,
+
+                    // ServerConfiguration PushManagement transaction surface
+                    // (OPC 10000-12 §§7.10.2-7.10.11) - implemented by
+                    // ConfigurationNodeManager.CreateServerConfiguration.
+                    // SupportsTransactions and DeleteCertificate have no
+                    // well-known singleton-instance NodeId in the standard
+                    // model (only their TYPE-level definitions do); their
+                    // presence is verified directly via the
+                    // ServerConfigurationState properties in
+                    // ConfigurationNodeManagerPushTests instead.
+                    MethodIds.ServerConfiguration_CancelChanges,
+
+                    // ServerConfiguration identity Properties (OPC 10000-12
+                    // §7.10.3) - always exposed from the ApplicationConfiguration
+                    // by ConfigurationNodeManager.CreateServerConfiguration and
+                    // must resolve at their well-known singleton-instance
+                    // NodeIds. ApplicationNames and InApplicationSetup have no
+                    // well-known singleton-instance NodeId (only their TYPE-level
+                    // definitions do), so they are verified via the
+                    // ServerConfigurationState properties in
+                    // ServerConfigurationSurfaceTests instead.
+                    VariableIds.ServerConfiguration_ApplicationUri,
+                    VariableIds.ServerConfiguration_ProductUri,
+                    VariableIds.ServerConfiguration_ApplicationType,
+                    ObjectIds.ServerConfiguration_TransactionDiagnostics,
+                    VariableIds.ServerConfiguration_TransactionDiagnostics_StartTime,
+                    VariableIds.ServerConfiguration_TransactionDiagnostics_EndTime,
+                    VariableIds.ServerConfiguration_TransactionDiagnostics_Result,
+                    VariableIds.ServerConfiguration_TransactionDiagnostics_AffectedTrustLists,
+                    VariableIds.ServerConfiguration_TransactionDiagnostics_AffectedCertificateGroups,
+                    VariableIds.ServerConfiguration_TransactionDiagnostics_Errors,
 
                     // CertificateGroups regression guard: Optional Object
                     // instances and their Mandatory CertificateTypes children

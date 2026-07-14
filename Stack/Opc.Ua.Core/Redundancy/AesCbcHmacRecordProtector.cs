@@ -44,7 +44,7 @@ namespace Opc.Ua.Redundancy
     /// derived from the supplied master key. Cross-target-framework safe
     /// (no AES-GCM dependency).
     /// </summary>
-    public sealed class AesCbcHmacRecordProtector : IRecordProtector, IDisposable
+    public sealed class AesCbcHmacRecordProtector : IOwnedRecordProtector, IDisposable
     {
         /// <summary>
         /// Creates a protector from a master key (≥ 32 bytes) and a key
@@ -111,7 +111,42 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
         {
-            plaintext = default;
+            if (!TryDecrypt(protectedRecord, out byte[] data))
+            {
+                plaintext = default;
+                return false;
+            }
+            plaintext = new ByteString(data);
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
+        {
+            // The decrypted buffer is a fresh allocation distinct from the
+            // protected input, so it is handed back directly as the caller-owned
+            // plaintext (no second copy). The caller is responsible for wiping it.
+            if (!TryDecrypt(protectedRecord, out byte[] data))
+            {
+                plaintext = [];
+                return false;
+            }
+            plaintext = data;
+            return true;
+        }
+
+        /// <summary>
+        /// Zeroizes the derived key material.
+        /// </summary>
+        public void Dispose()
+        {
+            CryptoUtils.ZeroMemory(m_aesKey);
+            CryptoUtils.ZeroMemory(m_macKey);
+        }
+
+        private bool TryDecrypt(ByteString protectedRecord, out byte[] data)
+        {
+            data = [];
             if (protectedRecord.IsNull)
             {
                 return false;
@@ -141,7 +176,6 @@ namespace Opc.Ua.Redundancy
             byte[] iv = new byte[IvLength];
             Buffer.BlockCopy(envelope, 5, iv, 0, IvLength);
 
-            byte[] data;
             using (var aes = Aes.Create())
             {
                 aes.Mode = CipherMode.CBC;
@@ -152,17 +186,7 @@ namespace Opc.Ua.Redundancy
                 data = decryptor.TransformFinalBlock(envelope, headerLength, cipherLength);
             }
 
-            plaintext = new ByteString(data);
             return true;
-        }
-
-        /// <summary>
-        /// Zeroizes the derived key material.
-        /// </summary>
-        public void Dispose()
-        {
-            CryptoUtils.ZeroMemory(m_aesKey);
-            CryptoUtils.ZeroMemory(m_macKey);
         }
 
         private byte[] ComputeTag(byte[] buffer, int length)
