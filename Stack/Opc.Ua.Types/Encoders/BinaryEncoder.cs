@@ -2053,6 +2053,7 @@ namespace Opc.Ua
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
                 if (!writeRawValue)
                 {
+                    ValidateMatrixDimensions(dim);
                     WriteInt32Array(null, dim);
                 }
 
@@ -2063,6 +2064,27 @@ namespace Opc.Ua
                     if (writeRawValue)
                     {
                         WriteInt32Array(null, matrix.Dimensions);
+                    }
+                }
+
+                // A multi-dimensional Variant (Part 6 5.2.2.16) must carry
+                // ArrayDimensions where every entry is greater than zero and the
+                // product equals the flattened element count. Refuse to emit
+                // inconsistent dimensions (e.g. a zero dimension produced by an
+                // empty matrix) instead of writing wire data a conforming peer
+                // must reject with BadDecodingError. This validation is not
+                // applied to the raw value encoding (Part 6 5.2.5) used for
+                // structure fields, which permits an empty multi-dimensional
+                // value represented with a single zero dimension.
+                static void ValidateMatrixDimensions(int[] dimensions)
+                {
+                    if (!MatrixOf.IsValidMatrix(dimensions))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Cannot encode a matrix Variant with inconsistent " +
+                            "ArrayDimensions [{0}].",
+                            string.Join(",", dimensions));
                     }
                 }
             }

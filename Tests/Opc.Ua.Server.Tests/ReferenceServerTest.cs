@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1886,6 +1887,72 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
                     $"Read of {name} should succeed");
             }
+        }
+
+        /// <summary>
+        /// Verifies that the Variant matrix can be encoded with neighboring results in a batched Read.
+        /// </summary>
+        [Test]
+        public async Task VariantMatrixDoesNotPoisonBatchedReadEncodingAsync()
+        {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = new NodeId("Scalar_Static_Arrays2D_Int32", 2),
+                    AttributeId = Attributes.Value
+                },
+                new ReadValueId
+                {
+                    NodeId = new NodeId("Scalar_Static_Arrays2D_Variant", 2),
+                    AttributeId = Attributes.Value
+                },
+                new ReadValueId
+                {
+                    NodeId = new NodeId("Scalar_Static_Arrays2D_UInt32", 2),
+                    AttributeId = Attributes.Value
+                }
+            ];
+
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+            Assert.That(readResponse.Results, Has.Count.EqualTo(nodesToRead.Count));
+            for (int i = 0; i < readResponse.Results.Count; i++)
+            {
+                Assert.That(readResponse.Results[i].StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(
+                stream,
+                m_server.CurrentInstance.MessageContext,
+                leaveOpen: true))
+            {
+                encoder.WriteDataValueArray(null, readResponse.Results);
+            }
+
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, m_server.CurrentInstance.MessageContext);
+            ArrayOf<DataValue> decodedResults = decoder.ReadDataValueArray(null);
+
+            Assert.That(decodedResults, Has.Count.EqualTo(nodesToRead.Count));
+            for (int i = 0; i < decodedResults.Count; i++)
+            {
+                Assert.That(decodedResults[i].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(decodedResults[i].WrappedValue, Is.EqualTo(readResponse.Results[i].WrappedValue));
+            }
+            MatrixOf<Variant> matrix = decodedResults[1].WrappedValue.GetVariantMatrix();
+            Assert.That(matrix.Dimensions, Has.Length.EqualTo(2));
+            Assert.That(matrix.Dimensions[0], Is.EqualTo(3));
+            Assert.That(matrix.Dimensions[1], Is.EqualTo(3));
+            Assert.That(matrix.Count, Is.EqualTo(9));
         }
 
         /// <summary>

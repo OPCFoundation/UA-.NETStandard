@@ -487,6 +487,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void CopyPreservesVariantMatrixShape()
+        {
+            MatrixOf<Variant> matrix = Matrix(new Variant(1), new Variant(2));
+            Variant copy = new Variant(matrix).Copy();
+            bool isMatrix = copy.TryGetValue(out MatrixOf<Variant> copied);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(isMatrix, Is.True);
+                Assert.That(copy.TypeInfo.ValueRank, Is.EqualTo(2));
+                Assert.That(copied.Dimensions, Is.EqualTo([1, 2]));
+                Assert.That(copied.Count, Is.EqualTo(2));
+                Assert.That(copied.IsNull, Is.False);
+                Assert.That(copied.IsEmpty, Is.False);
+                Assert.That(copied.Span.ToArray(), Is.EqualTo([new Variant(1), new Variant(2)]));
+            });
+        }
+
+        [Test]
         public void BitwiseAndCombinesIntegerScalars()
         {
             Variant result = new Variant(0b1100) & new Variant(0b1010);

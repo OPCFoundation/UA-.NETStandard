@@ -657,6 +657,50 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Determines whether <paramref name="dimensions"/> describe a
+        /// well-formed multi-dimensional array (matrix) that can be represented
+        /// on the wire as required by OPC UA Part 6 5.2.2.16: there are at least
+        /// two dimensions, every dimension is greater than zero, and - when
+        /// <paramref name="elementCount"/> is not negative - the product of all
+        /// dimensions equals the number of elements in the flattened array.
+        /// A matrix Variant that violates these rules is inconsistent: encoders
+        /// must not emit it and decoders must reject it with a
+        /// <c>BadDecodingError</c>.
+        /// </summary>
+        /// <param name="dimensions">
+        /// The array dimensions to validate.
+        /// </param>
+        /// <param name="elementCount">
+        /// The number of elements in the flattened array, or a negative value to
+        /// skip the product-versus-element-count check.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when the dimensions form a valid matrix; otherwise
+        /// <c>false</c>.
+        /// </returns>
+        internal static bool IsValidMatrix(int[]? dimensions, int elementCount = -1)
+        {
+            if (dimensions == null || dimensions.Length < 2)
+            {
+                return false;
+            }
+            long product = 1;
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                if (dimensions[ii] <= 0)
+                {
+                    return false;
+                }
+                product *= dimensions[ii];
+                if (product > int.MaxValue)
+                {
+                    return false;
+                }
+            }
+            return elementCount < 0 || product == elementCount;
+        }
+
+        /// <summary>
         /// Create array of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
