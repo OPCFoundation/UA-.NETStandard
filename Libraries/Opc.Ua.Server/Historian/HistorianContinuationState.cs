@@ -45,8 +45,8 @@ namespace Opc.Ua.Server.Historian
     /// (which removes it from the session's storage), calls the same
     /// provider with the saved <see cref="ResumeToken"/>, and either
     /// retires the continuation (final page → <see cref="Dispose"/>) or
-    /// re-saves it with the new resume token under the <em>same</em>
-    /// <see cref="Id"/>.
+    /// re-saves it with the new resume token under a fresh <see cref="Id"/>.
+    /// This makes every issued continuation point single-use.
     /// </para>
     /// <para>
     /// State held here must stay small — it is stored verbatim in the
@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Historian
     /// </remarks>
     internal sealed class HistorianContinuationState : IDisposable
     {
-        public required Guid Id { get; init; }
+        public required Guid Id { get; set; }
 
         public required IHistorianProvider Provider { get; init; }
 

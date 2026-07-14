@@ -164,6 +164,26 @@ namespace Opc.Ua.Server.Historian
         public DateTimeUtc StartOfOnlineArchive { get; init; } = DateTimeUtc.MinValue;
 
         /// <summary>
+        /// The default <see cref="Opc.Ua.AggregateConfiguration"/> advertised on
+        /// the node's <c>HistoricalDataConfiguration</c> companion object
+        /// (Part 11 §5.2.3) and used by the server when a client requests
+        /// aggregates with <c>UseServerCapabilitiesDefaults=true</c>. A client
+        /// reads these values to reproduce the server's aggregate results, so
+        /// they must match what the server actually computes with. Defaults to
+        /// the Part 13 v1.05.07 §4.2.1.2 defaults (PercentDataGood /
+        /// PercentDataBad = 100, TreatUncertainAsBad = true,
+        /// UseSlopedExtrapolation = false).
+        /// </summary>
+        public AggregateConfiguration DefaultAggregateConfiguration { get; init; } = new()
+        {
+            PercentDataGood = 100,
+            PercentDataBad = 100,
+            TreatUncertainAsBad = true,
+            UseSlopedExtrapolation = false,
+            UseServerCapabilitiesDefaults = false
+        };
+
+        /// <summary>
         /// Returns <c>true</c> if any update capability is enabled.
         /// </summary>
         public bool SupportsAnyUpdate

@@ -151,6 +151,25 @@ namespace Opc.Ua.Server.Historian
                     capabilities.ServerTimestampSupported,
                     _ => { });
             config.ServerTimestampSupported?.Value = capabilities.ServerTimestampSupported;
+
+            // Populate the mandatory AggregateConfiguration child so a client
+            // that reads it under UseServerCapabilitiesDefaults=true sees the
+            // same configuration the server computes aggregates with. The type
+            // materialises this child with all-zero defaults, which is both an
+            // invalid AggregateConfiguration (PercentDataGood < 100 -
+            // PercentDataBad) and inconsistent with the server's actual defaults,
+            // so a client reproducing the server's results would diverge on
+            // partial intervals (Part 11 §5.2.3 / Part 13 §4.2.1.2).
+            if (config.AggregateConfiguration != null)
+            {
+                AggregateConfiguration aggregateDefaults = capabilities.DefaultAggregateConfiguration;
+                config.AggregateConfiguration.PercentDataGood?.Value = aggregateDefaults.PercentDataGood;
+                config.AggregateConfiguration.PercentDataBad?.Value = aggregateDefaults.PercentDataBad;
+                config.AggregateConfiguration.TreatUncertainAsBad?.Value
+                    = aggregateDefaults.TreatUncertainAsBad;
+                config.AggregateConfiguration.UseSlopedExtrapolation?.Value
+                    = aggregateDefaults.UseSlopedExtrapolation;
+            }
         }
 
         private static HistoricalDataConfigurationState? FindExistingConfiguration(
