@@ -803,6 +803,23 @@ namespace Opc.Ua.Server
         /// <returns>The interpolated value.</returns>
         protected DataValue Interpolate(DateTimeUtc timestamp, TimeSlice reference)
         {
+            for (LinkedListNode<DataValue>? ii = m_values.First; ii != null; ii = ii.Next)
+            {
+                int comparison = CompareTimestamps(timestamp, ii);
+                if (comparison == 0)
+                {
+                    if (StatusCode.IsNotBad(ii.Value.StatusCode))
+                    {
+                        return ii.Value;
+                    }
+                    break;
+                }
+                if (comparison < 0)
+                {
+                    break;
+                }
+            }
+
             var slice = new TimeSlice { StartTime = timestamp, EndTime = timestamp };
             UpdateSlice(slice);
 

@@ -152,6 +152,14 @@ namespace Opc.Ua.Server.Historian
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
 
+            // Part 11 6.5.3.3: Bounding Values are not defined for modified reads.
+            if (details.IsReadModified && details.ReturnBounds)
+            {
+                result.StatusCode = StatusCodes.BadInvalidArgument;
+                result.ContinuationPoint = ByteString.Empty;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
             HistorianOperationContext opContext = new(
                 systemContext,
                 systemContext.OperationContext!,
@@ -388,6 +396,16 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(result));
             }
 
+            // Part 11 v1.05.07 §6.5.4.2: the request domain is defined by StartTime, EndTime and
+            // ProcessingInterval, all of which shall be specified. If StartTime equals EndTime there
+            // is no meaningful way to interpret the (zero-width) time domain, so the Server shall
+            // return Bad_InvalidArgument.
+            if (details.StartTime == details.EndTime)
+            {
+                result.StatusCode = StatusCodes.BadInvalidArgument;
+                return StatusCodes.BadInvalidArgument;
+            }
+
             HistorianContinuationState? cont = TryRestoreContinuation(
                 systemContext, nodeToRead, HistorianReadKind.Processed);
 
@@ -515,7 +533,7 @@ namespace Opc.Ua.Server.Historian
                 StartTime = details.StartTime <= details.EndTime ? details.StartTime : details.EndTime,
                 EndTime = details.StartTime <= details.EndTime ? details.EndTime : details.StartTime,
                 MaxValues = 0,
-                IsForward = true,
+                IsForward = details.StartTime < details.EndTime,
                 ReturnBounds = true
             };
 
@@ -596,6 +614,7 @@ namespace Opc.Ua.Server.Historian
                 return;
             }
 
+            state.Id = Guid.NewGuid();
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
@@ -1134,6 +1153,7 @@ namespace Opc.Ua.Server.Historian
                 };
             }
 
+            state.Id = Guid.NewGuid();
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
@@ -1541,6 +1561,7 @@ namespace Opc.Ua.Server.Historian
                 };
             }
 
+            state.Id = Guid.NewGuid();
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
@@ -1621,12 +1642,27 @@ namespace Opc.Ua.Server.Historian
             }
             else
             {
-                bool isForward = details.StartTime <= details.EndTime;
-                DateTimeUtc start = isForward ? details.StartTime : details.EndTime;
-                DateTimeUtc end = isForward ? details.EndTime : details.StartTime;
-                if (end == DateTimeUtc.MinValue)
+                bool startSpecified = details.StartTime != DateTimeUtc.MinValue;
+                bool endSpecified = details.EndTime != DateTimeUtc.MinValue;
+                bool isForward = startSpecified &&
+                    (!endSpecified || details.StartTime <= details.EndTime);
+
+                DateTimeUtc start;
+                DateTimeUtc end;
+                if (!startSpecified)
                 {
+                    start = DateTimeUtc.MinValue;
+                    end = details.EndTime;
+                }
+                else if (!endSpecified)
+                {
+                    start = details.StartTime;
                     end = DateTimeUtc.MaxValue;
+                }
+                else
+                {
+                    start = isForward ? details.StartTime : details.EndTime;
+                    end = isForward ? details.EndTime : details.StartTime;
                 }
 
                 request = new HistorianRawReadRequest
@@ -1694,12 +1730,27 @@ namespace Opc.Ua.Server.Historian
             }
             else
             {
-                bool isForward = details.StartTime <= details.EndTime;
-                DateTimeUtc start = isForward ? details.StartTime : details.EndTime;
-                DateTimeUtc end = isForward ? details.EndTime : details.StartTime;
-                if (end == DateTimeUtc.MinValue)
+                bool startSpecified = details.StartTime != DateTimeUtc.MinValue;
+                bool endSpecified = details.EndTime != DateTimeUtc.MinValue;
+                bool isForward = startSpecified &&
+                    (!endSpecified || details.StartTime <= details.EndTime);
+
+                DateTimeUtc start;
+                DateTimeUtc end;
+                if (!startSpecified)
                 {
+                    start = DateTimeUtc.MinValue;
+                    end = details.EndTime;
+                }
+                else if (!endSpecified)
+                {
+                    start = details.StartTime;
                     end = DateTimeUtc.MaxValue;
+                }
+                else
+                {
+                    start = isForward ? details.StartTime : details.EndTime;
+                    end = isForward ? details.EndTime : details.StartTime;
                 }
 
                 request = new HistorianModifiedReadRequest
@@ -1833,6 +1884,7 @@ namespace Opc.Ua.Server.Historian
                 };
             }
 
+            state.Id = Guid.NewGuid();
             systemContext.OperationContext?.Session?.SaveHistoryContinuationPoint(state.Id, state);
             // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
             // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
@@ -2018,7 +2070,10 @@ namespace Opc.Ua.Server.Historian
                     context, request, token, cancellationToken).ConfigureAwait(false);
                 foreach (HistoricalDataValue v in page.Values)
                 {
-                    collected.Add(v.Value);
+                    if (v.Value.StatusCode != StatusCodes.BadBoundNotFound)
+                    {
+                        collected.Add(v.Value);
+                    }
                 }
                 if (page.IsFinal)
                 {
