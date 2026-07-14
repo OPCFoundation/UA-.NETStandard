@@ -117,8 +117,12 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder chain = nb.Writable();
 
             Assert.That(chain, Is.SameAs(nb));
-            Assert.That(v.AccessLevel & AccessLevels.CurrentWrite, Is.EqualTo(AccessLevels.CurrentWrite));
-            Assert.That(v.UserAccessLevel & AccessLevels.CurrentWrite, Is.EqualTo(AccessLevels.CurrentWrite));
+            Assert.That(
+                v.AccessLevel & AccessLevels.CurrentWrite,
+                Is.EqualTo(AccessLevels.CurrentWrite));
+            Assert.That(
+                v.UserAccessLevel & AccessLevels.CurrentWrite,
+                Is.EqualTo(AccessLevels.CurrentWrite));
         }
 
         [Test]
@@ -133,7 +137,9 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.That(v.AccessLevel & AccessLevels.CurrentWrite, Is.Zero);
             Assert.That(v.UserAccessLevel & AccessLevels.CurrentWrite, Is.Zero);
-            Assert.That(v.AccessLevel & AccessLevels.CurrentRead, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(
+                v.AccessLevel & AccessLevels.CurrentRead,
+                Is.EqualTo(AccessLevels.CurrentRead));
         }
 
         [Test]
