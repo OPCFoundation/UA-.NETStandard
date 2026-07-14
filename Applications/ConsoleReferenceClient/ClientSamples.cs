@@ -40,7 +40,6 @@ using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
-using Quickstarts.ConsoleReferenceClient;
 
 namespace Quickstarts
 {
@@ -1803,23 +1802,23 @@ namespace Quickstarts
 {
     internal static partial class ClientSamplesLog
     {
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 0, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 0, Level = LogLevel.Error,
             Message = "Read Nodes Error.")]
         public static partial void ReadNodesError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 1, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 1, Level = LogLevel.Information,
             Message = "Write Nodes Error.")]
         public static partial void WriteNodesError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 2, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 2, Level = LogLevel.Error,
             Message = "Browse Error.")]
         public static partial void BrowseError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 3, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 3, Level = LogLevel.Error,
             Message = "Method call error")]
         public static partial void MethodCallError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 4, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 4, Level = LogLevel.Information,
             Message = "New Subscription created with SubscriptionId = {Id}, Sampling Interval {SamplingInterval}, " +
                 "Publishing Interval {PublishingInterval}.")]
         public static partial void NewSubscriptionCreatedWithIntervals(
@@ -1828,31 +1827,31 @@ namespace Quickstarts
             int samplingInterval,
             int publishingInterval);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 5, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 5, Level = LogLevel.Information,
             Message = "Subscription {SubscriptionId} is now durable, Revised Lifetime {Lifetime} in hours.")]
         public static partial void SubscriptionDurable(this ILogger logger, uint subscriptionId, uint lifetime);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 6, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 6, Level = LogLevel.Information,
             Message = "Subscription {SubscriptionId} failed durable call")]
         public static partial void SubscriptionDurableFailed(this ILogger logger, uint subscriptionId);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 7, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 7, Level = LogLevel.Information,
             Message = "MonitoredItems created for SubscriptionId = {SubscriptionId}.")]
         public static partial void MonitoredItemsCreated(this ILogger logger, uint subscriptionId);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 8, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 8, Level = LogLevel.Error,
             Message = "Subscribe error")]
         public static partial void SubscribeError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 9, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = 9100 + 9, Level = LogLevel.Warning,
             Message = "Root node {NodeId} not found, skipping")]
         public static partial void RootNodeNotFound(this ILogger logger, NodeId nodeId);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 10, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 10, Level = LogLevel.Information,
             Message = "Browse aborted.")]
         public static partial void BrowseAborted(this ILogger logger);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 11, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 11, Level = LogLevel.Information,
             Message = "{Depth}: Find {Count} references after {Duration}ms")]
         public static partial void FindReferencesAfterDuration(
             this ILogger logger,
@@ -1860,19 +1859,19 @@ namespace Quickstarts
             int count,
             long duration);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 12, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 12, Level = LogLevel.Information,
             Message = "Find References {Count} duplicate nodes were ignored")]
         public static partial void FindReferencesDuplicateNodesIgnored(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 13, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 13, Level = LogLevel.Information,
             Message = "Find References {Count} leaf nodes were ignored")]
         public static partial void FindReferencesLeafNodesIgnored(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 14, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 14, Level = LogLevel.Information,
             Message = "FetchAllNodesNodeCache found {Count} nodes in {Duration}ms")]
         public static partial void FetchAllNodesNodeCacheFound(this ILogger logger, int count, long duration);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 15, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 15, Level = LogLevel.Information,
             Message = "NodeId {NodeId} {NodeClass} {BrowseName}")]
         public static partial void NodeInfo(
             this ILogger logger,
@@ -1880,7 +1879,7 @@ namespace Quickstarts
             NodeClass nodeClass,
             QualifiedName browseName);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 16, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = 9100 + 16, Level = LogLevel.Warning,
             Message = "Setting the BrowseResultMask is not supported by the ManagedBrowse method. " +
                 "Using '{BrowseResultMask}' instead of the mask {BrowseDescriptionResultMask} for the result mask")]
         public static partial void UnsupportedBrowseResultMask(
@@ -1888,101 +1887,101 @@ namespace Quickstarts
             BrowseResultMask browseResultMask,
             uint browseDescriptionResultMask);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 17, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 17, Level = LogLevel.Information,
             Message = "{Depth}: Browse {Count} nodes after {Duration}ms")]
         public static partial void BrowseNodesAfterDuration(this ILogger logger, int depth, int count, long duration);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 18, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 18, Level = LogLevel.Error,
             Message = "Browse error")]
         public static partial void BrowseServiceError(this ILogger logger, ServiceResultException sre);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 19, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 19, Level = LogLevel.Information,
             Message = "Managed Browse Result {Count} duplicate nodes were ignored.")]
         public static partial void ManagedBrowseDuplicateNodesIgnored(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 20, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 20, Level = LogLevel.Information,
             Message = "ManagedBrowseFullAddressSpace found {Count} references on server in {Duration}ms.")]
         public static partial void ManagedBrowseFullAddressSpaceFound(this ILogger logger, int count, long duration);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 21, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 21, Level = LogLevel.Error,
             Message = "Browse error.")]
         public static partial void BrowseServiceErrorWithPeriod(this ILogger logger, ServiceResultException sre);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 22, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 22, Level = LogLevel.Information,
             Message = "BrowseNext {Count} continuation points.")]
         public static partial void BrowseNextContinuationPoints(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 23, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 23, Level = LogLevel.Information,
             Message = "Browse Result {Count} duplicate nodes were ignored.")]
         public static partial void BrowseResultDuplicateNodesIgnored(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 24, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 24, Level = LogLevel.Information,
             Message = "BrowseFullAddressSpace found {Count} references on server in {Duration}ms.")]
         public static partial void BrowseFullAddressSpaceFound(this ILogger logger, int count, long duration);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 25, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 25, Level = LogLevel.Information,
             Message = "Load the server type system.")]
         public static partial void LoadServerTypeSystem(this ILogger logger);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 26, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 26, Level = LogLevel.Information,
             Message = "Loaded {Count} types took {Duration}ms.")]
         public static partial void LoadedTypes(this ILogger logger, int count, long duration);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 27, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 27, Level = LogLevel.Information,
             Message = "Custom types defined for this session:")]
         public static partial void CustomTypesDefined(this ILogger logger);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 28, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 28, Level = LogLevel.Information,
             Message = "{Namespace}.{TypeName}")]
         public static partial void TypeName(this ILogger logger, string? @namespace, string typeName);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 29, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 29, Level = LogLevel.Information,
             Message = "Loaded {Count} dictionaries:")]
         public static partial void LoadedDictionaries(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 30, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 30, Level = LogLevel.Information,
             Message = " + {DictionaryName}")]
         public static partial void DictionaryName(this ILogger logger, string? dictionaryName);
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 31, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 31, Level = LogLevel.Information,
             Message = " -- {NodeId}:{BrowseName}")]
         public static partial void DictionaryType(this ILogger logger, NodeId nodeId, QualifiedName browseName);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 32, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 32, Level = LogLevel.Information,
             Message = "Read {NodeId}")]
         public static partial void ReadNode(this ILogger logger, NodeId nodeId);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 33, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 33, Level = LogLevel.Information,
             Message = "{Value}")]
         public static partial void Value(this ILogger logger, string value);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 34, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 34, Level = LogLevel.Information,
             Message = "{StatusCode}")]
         public static partial void StatusCodeError(this ILogger logger, StatusCode statusCode);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 35, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 35, Level = LogLevel.Error,
             Message = "Error")]
         public static partial void Error(this ILogger logger, ServiceResultException sre);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 36, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 36, Level = LogLevel.Information,
             Message = "Retry to read the values due to error: {Error}")]
         public static partial void RetryReadValuesDueToError(this ILogger logger, string error);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 37, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 37, Level = LogLevel.Information,
             Message = "Session not connected!")]
         public static partial void SessionNotConnected(this ILogger logger);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 38, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 38, Level = LogLevel.Information,
             Message = "New Subscription created with SubscriptionId = {SubscriptionId}.")]
         public static partial void NewSubscriptionCreated(this ILogger logger, uint subscriptionId);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 39, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 39, Level = LogLevel.Information,
             Message = "MonitoredItems {Count} created for SubscriptionId = {SubscriptionId}.")]
         public static partial void MonitoredItemsCreatedForSubscription(
             this ILogger logger,
             uint count,
             uint subscriptionId);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 40, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 40, Level = LogLevel.Information,
             Message = "Keep Alive  : Id={SubscriptionId} PublishTime={PublishTime} SequenceNumber={SequenceNumber}.")]
         public static partial void KeepAliveNotification(
             this ILogger logger,
@@ -1990,11 +1989,11 @@ namespace Quickstarts
             DateTimeUtc publishTime,
             uint sequenceNumber);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 41, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 41, Level = LogLevel.Error,
             Message = "FastKeepAliveNotification error")]
         public static partial void FastKeepAliveNotificationError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 42, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 42, Level = LogLevel.Information,
             Message = "Notification: Id={SubscriptionId} PublishTime={PublishTime} " +
                 "SequenceNumber={SequenceNumber} Items={Count}.")]
         public static partial void FastDataChangeNotification(
@@ -2004,15 +2003,15 @@ namespace Quickstarts
             uint sequenceNumber,
             int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 43, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 43, Level = LogLevel.Error,
             Message = "FastDataChangeNotification error")]
         public static partial void FastDataChangeNotificationError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 44, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = 9100 + 44, Level = LogLevel.Warning,
             Message = "Unexpected notification type: {Type}")]
         public static partial void UnexpectedNotificationType(this ILogger logger, string type);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 45, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 45, Level = LogLevel.Information,
             Message = "Notification: {SequenceNumber} \"{NodeId}\" and Value = {Value} at [{CurrentTime}].")]
         public static partial void MonitoredItemNotification(
             this ILogger logger,
@@ -2021,46 +2020,46 @@ namespace Quickstarts
             DataValue value,
             string currentTime);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 46, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 46, Level = LogLevel.Error,
             Message = "OnMonitoredItemNotification error")]
         public static partial void OnMonitoredItemNotificationError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 47, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = 9100 + 47, Level = LogLevel.Warning,
             Message = "Unexpected event notification type: {Type}")]
         public static partial void UnexpectedEventNotificationType(this ILogger logger, string type);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 48, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 48, Level = LogLevel.Information,
             Message = "Event Received - total count = {Count}, time since last event = {TimeBetweenEvents} seconds")]
         public static partial void EventReceivedWithTimeBetweenEvents(
             this ILogger logger,
             int count,
             int timeBetweenEvents);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 49, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 49, Level = LogLevel.Information,
             Message = "Event Received - total count = {Count}")]
         public static partial void EventReceived(this ILogger logger, int count);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 50, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 50, Level = LogLevel.Error,
             Message = "Unexpected error retrieving Event Time Field Value")]
         public static partial void UnexpectedEventTimeFieldValueError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 51, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 51, Level = LogLevel.Information,
             Message = "\tField [{Index}] \"{Name}\" = [{Value}]")]
         public static partial void EventField(this ILogger logger, int index, string name, Variant value);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 52, Level = LogLevel.Error,
+        [LoggerMessage(EventId = 9100 + 52, Level = LogLevel.Error,
             Message = "OnMonitoredItemEventNotification error")]
         public static partial void OnMonitoredItemEventNotificationError(this ILogger logger, Exception ex);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 53, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 53, Level = LogLevel.Information,
             Message = "Exporting {Count} nodes to {FilePath}...")]
         public static partial void ExportingNodes(this ILogger logger, int count, string filePath);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 54, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 54, Level = LogLevel.Information,
             Message = "Exported {Count} nodes to {FilePath} in {Duration}ms")]
         public static partial void ExportedNodes(this ILogger logger, int count, string filePath, long duration);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 55, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 55, Level = LogLevel.Information,
             Message = "Exporting {Count} nodes to separate NodeSet2 files per namespace in {Directory} " +
                 "(filter: {Filter})...")]
         public static partial void ExportingNodesPerNamespace(
@@ -2069,7 +2068,7 @@ namespace Quickstarts
             string directory,
             string filter);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 56, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 56, Level = LogLevel.Information,
             Message = "Exporting namespace {NamespaceIndex} ({NamespaceUri}): {Count} nodes to {FilePath}")]
         public static partial void ExportingNamespace(
             this ILogger logger,
@@ -2078,7 +2077,7 @@ namespace Quickstarts
             int count,
             string filePath);
 
-        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientSamples + 57, Level = LogLevel.Information,
+        [LoggerMessage(EventId = 9100 + 57, Level = LogLevel.Information,
             Message = "Exported {NamespaceCount} namespaces ({NodeCount} total nodes) in {Duration}ms")]
         public static partial void ExportedNamespaces(
             this ILogger logger,
