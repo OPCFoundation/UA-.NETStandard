@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages a subscription created by a client.
     /// </summary>
-    public class Subscription : ISubscription
+    public class Subscription : ISubscription, INodeManagerMonitoredItemTracker
     {
         /// <summary>
         /// Initializes the object.
@@ -456,6 +456,24 @@ namespace Opc.Ua.Server
         /// The priority assigned to the subscription.
         /// </summary>
         public byte Priority { get; private set; }
+
+        /// <inheritdoc/>
+        public bool HasMonitoredItems(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            lock (m_lock)
+            {
+                return m_monitoredItems.Values.Any(monitoredItem =>
+                    ReferenceEquals(monitoredItem.Value.NodeManager, nodeManager) ||
+                    ReferenceEquals(
+                        monitoredItem.Value.NodeManager.SyncNodeManager,
+                        nodeManager.SyncNodeManager));
+            }
+        }
 
         /// <summary>
         /// Deletes the subscription.

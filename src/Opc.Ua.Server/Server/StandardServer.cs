@@ -64,6 +64,7 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
+            NodeManagerLifecycle = new NodeManagerLifecycle(this);
         }
 
         /// <summary>
@@ -74,6 +75,15 @@ namespace Opc.Ua.Server
         /// Set to <c>false</c> to opt out.
         /// </summary>
         public bool LoadComplexTypes { get; set; } = true;
+
+        /// <summary>
+        /// Gets the provider used to add, reload, and remove NodeManagers at runtime.
+        /// </summary>
+        public INodeManagerLifecycle NodeManagerLifecycle { get; }
+
+        internal ApplicationConfiguration CurrentConfiguration
+            => Configuration
+                ?? throw new InvalidOperationException("The server has not been configured.");
 
         /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all
@@ -193,6 +203,8 @@ namespace Opc.Ua.Server
                 m_rateLimiterProvider = null;
 
                 m_certManagerSubscription?.Dispose();
+
+                (NodeManagerLifecycle as IDisposable)?.Dispose();
 
                 m_semaphoreSlim.Dispose();
             }
@@ -3767,11 +3779,27 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
+                        var lifecycle =
+                            NodeManagerLifecycle as NodeManagerLifecycle;
+                        if (lifecycle is not null)
+                        {
+                            await lifecycle.BeginShutdownAsync(
+                                m_serverInternal,
+                                cancellationToken)
+                                .ConfigureAwait(false);
+                        }
                         ServerInternal.SessionManager.SessionChannelKeepAlive
                             -= SessionChannelKeepAliveEvent;
                         await ServerInternal.SubscriptionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
                         ServerInternal.SessionManager.Shutdown();
                         await ServerInternal.NodeManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+                        if (lifecycle is not null)
+                        {
+                            await lifecycle.CompleteShutdownAsync(
+                                m_serverInternal,
+                                CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
                 finally
@@ -4393,20 +4421,10 @@ namespace Opc.Ua.Server
             IServerInternal server,
             CancellationToken cancellationToken = default)
         {
-            if (LoadComplexTypes)
-            {
-                // Build stand-in encodeables for custom DataTypes loaded from a
-                // NodeSet at runtime (types already in the factory are skipped)
-                // and expose the primed factory as the schema resolver.
-                IDataTypeDefinitionResolver resolver = await server
-                    .LoadComplexTypesAsync(
-                        server.Telemetry,
-                        ComplexTypeOptions,
-                        ComplexTypeRegistry,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                ComplexTypeResolverHolder?.SetResolver(resolver);
-            }
+            await RefreshComplexTypesAsync(
+                server,
+                additionalNodeManager: null,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -4416,6 +4434,36 @@ namespace Opc.Ua.Server
         protected virtual void OnServerStarted(IServerInternal server)
         {
             // may be overridden by the subclass.
+        }
+
+        internal async ValueTask RefreshComplexTypesAsync(
+            IServerInternal server,
+            IAsyncNodeManager? additionalNodeManager = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (LoadComplexTypes)
+            {
+                // Build stand-in encodeables for custom DataTypes loaded from a
+                // NodeSet at runtime (types already in the factory are skipped)
+                // and expose the primed factory as the schema resolver.
+                IDataTypeDefinitionResolver resolver = additionalNodeManager is null
+                    ? await server
+                        .LoadComplexTypesAsync(
+                            server.Telemetry,
+                            ComplexTypeOptions,
+                            ComplexTypeRegistry,
+                            cancellationToken)
+                        .ConfigureAwait(false)
+                    : await server
+                        .LoadComplexTypesAsync(
+                            server.Telemetry,
+                            ComplexTypeOptions,
+                            ComplexTypeRegistry,
+                            additionalNodeManager,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                ComplexTypeResolverHolder?.SetResolver(resolver);
+            }
         }
 
         /// <inheritdoc/>

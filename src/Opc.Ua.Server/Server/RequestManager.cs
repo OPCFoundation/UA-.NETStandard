@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -86,15 +87,22 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 List<OperationContext>? operations;
+                List<RequestDrain>? requestDrains;
                 lock (m_requestsLock)
                 {
                     operations = [.. m_requests.Values];
                     m_requests.Clear();
+                    requestDrains = [.. m_requestDrains];
+                    m_requestDrains.Clear();
                 }
 
                 foreach (OperationContext operation in operations)
                 {
                     operation.RequestLifetime.TryCancel(StatusCodes.BadSessionClosed);
+                }
+                foreach (RequestDrain requestDrain in requestDrains)
+                {
+                    requestDrain.Cancel();
                 }
 
                 m_requestTimer?.Dispose();
@@ -164,8 +172,46 @@ namespace Opc.Ua.Server
             {
                 // remove the request.
                 m_requests.Remove(context.RequestId);
+                for (int ii = m_requestDrains.Count - 1; ii >= 0; ii--)
+                {
+                    if (m_requestDrains[ii].Complete(context.RequestId))
+                    {
+                        m_requestDrains.RemoveAt(ii);
+                    }
+                }
             }
             context.RequestLifetime?.MarkCompleted();
+        }
+
+        internal async ValueTask WaitForCurrentRequestsAsync(
+            CancellationToken ct = default)
+        {
+            RequestDrain requestDrain;
+            lock (m_requestsLock)
+            {
+                if (m_requests.Count == 0)
+                {
+                    return;
+                }
+
+                requestDrain = new RequestDrain(m_requests.Keys);
+                m_requestDrains.Add(requestDrain);
+            }
+
+            using CancellationTokenRegistration registration = ct.Register(
+                static state => ((RequestDrain)state!).Cancel(),
+                requestDrain);
+            try
+            {
+                await requestDrain.Completion.ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (m_requestsLock)
+                {
+                    m_requestDrains.Remove(requestDrain);
+                }
+            }
         }
 
         /// <summary>
@@ -281,9 +327,41 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<uint, OperationContext> m_requests;
+        private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
         private ITimer? m_requestTimer;
         private event RequestCancelledEventHandler? m_RequestCancelled;
+
+        private sealed class RequestDrain
+        {
+            public RequestDrain(IEnumerable<uint> requestIds)
+            {
+                m_requestIds = [.. requestIds];
+            }
+
+            public Task Completion => m_completion.Task;
+
+            public bool Complete(uint requestId)
+            {
+                m_requestIds.Remove(requestId);
+                if (m_requestIds.Count == 0)
+                {
+                    m_completion.TrySetResult(true);
+                    return true;
+                }
+                return false;
+            }
+
+            public void Cancel()
+            {
+                m_completion.TrySetCanceled();
+            }
+
+            private readonly HashSet<uint> m_requestIds;
+
+            private readonly TaskCompletionSource<bool> m_completion = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        }
     }
 
     /// <summary>

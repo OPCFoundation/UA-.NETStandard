@@ -676,6 +676,11 @@ namespace Opc.Ua
                     typeInfo = new TypeInfo();
                     m_nodes.Add(subTypeId, typeInfo);
                 }
+                else if (typeInfo.SuperType != null &&
+                    !ReferenceEquals(typeInfo.SuperType, superTypeInfo))
+                {
+                    typeInfo.SuperType.RemoveSubType(subTypeId);
+                }
 
                 // update the info.
                 typeInfo.NodeId = subTypeId;
@@ -692,6 +697,7 @@ namespace Opc.Ua
                     {
                         m_encodings.Remove(encoding);
                     }
+                    typeInfo.Encodings = null;
                 }
 
                 // add reference type.

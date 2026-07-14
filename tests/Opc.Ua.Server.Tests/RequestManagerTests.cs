@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -260,6 +262,125 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncCompletesAfterAllSnapshotRequestsCompleteAsync()
+        {
+            using var requestLifetimeA = new RequestLifetime();
+            using var requestLifetimeB = new RequestLifetime();
+            OperationContext contextA = CreateOperationContext(1, requestLifetimeA);
+            OperationContext contextB = CreateOperationContext(2, requestLifetimeB);
+
+            m_requestManager.RequestReceived(contextA);
+            m_requestManager.RequestReceived(contextB);
+
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(contextA);
+
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(contextB);
+
+            await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
+            Assert.That(waiter.IsCompleted, Is.True);
+            Assert.That(waiter.IsCanceled, Is.False);
+            Assert.That(waiter.IsFaulted, Is.False);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncExcludesRequestsReceivedAfterSnapshotAsync()
+        {
+            using var requestLifetimeA = new RequestLifetime();
+            using var requestLifetimeB = new RequestLifetime();
+            OperationContext contextA = CreateOperationContext(1, requestLifetimeA);
+            OperationContext contextB = CreateOperationContext(2, requestLifetimeB);
+
+            m_requestManager.RequestReceived(contextA);
+            Task snapshotWaiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            m_requestManager.RequestReceived(contextB);
+
+            m_requestManager.RequestCompleted(contextA);
+
+            await AssertCompletesWithinTimeoutAsync(snapshotWaiter).ConfigureAwait(false);
+            Assert.That(requestLifetimeB.CancellationToken.IsCancellationRequested, Is.False);
+
+            Task remainingRequestWaiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(remainingRequestWaiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(contextB);
+
+            await AssertCompletesWithinTimeoutAsync(remainingRequestWaiter).ConfigureAwait(false);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncCancellationCancelsOnlyTheWaiterAsync()
+        {
+            using var requestLifetime = new RequestLifetime();
+            using var cancellationTokenSource = new CancellationTokenSource();
+            OperationContext context = CreateOperationContext(1, requestLifetime);
+            m_requestManager.RequestReceived(context);
+
+            Task canceledWaiter = m_requestManager
+                .WaitForCurrentRequestsAsync(cancellationTokenSource.Token)
+                .AsTask();
+
+            cancellationTokenSource.Cancel();
+
+            Assert.That(
+                async () => await canceledWaiter.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.False);
+
+            Task remainingRequestWaiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(remainingRequestWaiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(context);
+
+            await AssertCompletesWithinTimeoutAsync(remainingRequestWaiter).ConfigureAwait(false);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncWithNoRequestsCompletesImmediatelyAsync()
+        {
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+
+            Assert.That(waiter.IsCompleted, Is.True);
+            Assert.That(waiter.IsCanceled, Is.False);
+            Assert.That(waiter.IsFaulted, Is.False);
+
+            await waiter.ConfigureAwait(false);
+        }
+
+        private static OperationContext CreateOperationContext(
+            uint requestHandle,
+            RequestLifetime requestLifetime)
+        {
+            return new OperationContext(
+                new RequestHeader
+                {
+                    RequestHandle = requestHandle,
+                    TimeoutHint = 0
+                },
+                null,
+                RequestType.Read,
+                requestLifetime);
+        }
+
+        private static async Task AssertCompletesWithinTimeoutAsync(Task task)
+        {
+            Task completedTask = await Task.WhenAny(
+                task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(completedTask, Is.SameAs(task));
+            await task.ConfigureAwait(false);
         }
     }
 }

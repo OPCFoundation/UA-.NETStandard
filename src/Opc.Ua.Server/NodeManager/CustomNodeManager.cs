@@ -191,8 +191,9 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
+                m_disposed = true;
                 lock (Lock)
                 {
                     m_monitoredItemManager?.Dispose();
@@ -290,6 +291,18 @@ namespace Opc.Ua.Server
         /// </summary>
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
+
+        internal bool SuppressExistingEventSubscriptions { get; set; }
+
+        internal List<LocalReference> GetRemovedExternalReferences()
+        {
+            return m_removedExternalReferences;
+        }
+
+        internal void ClearRemovedExternalReferences()
+        {
+            m_removedExternalReferences = [];
+        }
 
         /// <summary>
         /// Sets the namespaces supported by the NodeManager.
@@ -696,7 +709,8 @@ namespace Opc.Ua.Server
 
             // remove from type table.
 
-            if (node is BaseTypeState type)
+            if (node is BaseTypeState type &&
+                !IsTypeOwnedByAnotherNodeManager(type.NodeId))
             {
                 Server.TypeTree.Remove(type.NodeId);
             }
@@ -730,6 +744,22 @@ namespace Opc.Ua.Server
         protected virtual void OnNodeRemoved(NodeState node)
         {
             // overridden by the sub-class.
+        }
+
+        private bool IsTypeOwnedByAnotherNodeManager(NodeId typeId)
+        {
+            foreach (IAsyncNodeManager nodeManager in Server.NodeManager.AsyncNodeManagers)
+            {
+                if (ReferenceEquals(nodeManager.SyncNodeManager, this))
+                {
+                    continue;
+                }
+                if (nodeManager.SyncNodeManager.GetManagerHandle(typeId) is not null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -875,6 +905,39 @@ namespace Opc.Ua.Server
             AddTypesToTypeTree(type);
         }
 
+        internal void RebuildTypeTree()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is BaseTypeState type)
+                {
+                    AddTypesToTypeTree(type);
+                }
+            }
+
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                var references = new List<IReference>();
+                lock (node)
+                {
+                    node.GetReferences(SystemContext, references);
+                }
+                foreach (IReference reference in references)
+                {
+                    if (reference.IsInverse &&
+                        reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding &&
+                        !reference.TargetId.IsAbsolute)
+                    {
+                        var dataTypeId = (NodeId)reference.TargetId;
+                        if (!Server.TypeTree.IsEncodingOf(node.NodeId, dataTypeId))
+                        {
+                            Server.TypeTree.AddEncoding(dataTypeId, node.NodeId);
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Finds the specified and checks if it is of the expected type.
         /// </summary>
@@ -984,6 +1047,8 @@ namespace Opc.Ua.Server
         {
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
+            List<LocalReference> referencesToRemove =
+                m_removedExternalReferences;
             foreach (NodeState node in nodes)
             {
                 if (node is BaseInstanceState instance &&
@@ -993,9 +1058,48 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
+
                 node.Delete(context);
+                RemoveRootNotifier(node);
             }
-            PredefinedNodes.Clear();
+
+            foreach (NodeState node in nodes)
+            {
+                if (!PredefinedNodes.ContainsKey(node.NodeId))
+                {
+                    continue;
+                }
+                PredefinedNodes.Remove(node.NodeId);
+
+                OnNodeRemoved(node);
+                if (node is BaseTypeState type &&
+                    !IsTypeOwnedByAnotherNodeManager(type.NodeId))
+                {
+                    Server.TypeTree.Remove(type.NodeId);
+                }
+
+                var references = new List<IReference>();
+                node.GetReferences(context, references);
+                foreach (IReference reference in references)
+                {
+                    if (!reference.TargetId.IsAbsolute)
+                    {
+                        referencesToRemove.Add(new LocalReference(
+                            (NodeId)reference.TargetId,
+                            reference.ReferenceTypeId,
+                            !reference.IsInverse,
+                            node.NodeId));
+                    }
+                }
+            }
+
+            if (RootNotifiers != null)
+            {
+                foreach (NodeState notifier in RootNotifiers.ToArray())
+                {
+                    RemoveRootNotifier(notifier);
+                }
+            }
         }
 
         /// <summary>
@@ -3917,7 +4021,8 @@ namespace Opc.Ua.Server
                 }
 
                 // subscribe to existing events.
-                if (Server.EventManager != null)
+                if (!SuppressExistingEventSubscriptions &&
+                    Server.EventManager != null)
                 {
                     IList<IEventMonitoredItem> monitoredItems = Server.EventManager
                         .GetMonitoredItems();
@@ -3926,7 +4031,11 @@ namespace Opc.Ua.Server
                     {
                         if (monitoredItems[ii].MonitoringAllEvents)
                         {
-                            SubscribeToEvents(SystemContext, notifier, monitoredItems[ii], true);
+                            SubscribeToEvents(
+                                SystemContext,
+                                notifier,
+                                monitoredItems[ii],
+                                false);
                         }
                     }
                 }
@@ -3985,6 +4094,11 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
+            bool wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
+                source.NodeId,
+                out MonitoredNode2? existingMonitoredNode) &&
+                existingMonitoredNode.EventMonitoredItems.ContainsKey(
+                    monitoredItem.Id);
             (MonitoredNode2? monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager!
                 .SubscribeToEvents(
                     context,
@@ -3995,7 +4109,11 @@ namespace Opc.Ua.Server
             // This call recursively updates a reference count all nodes in the notifier
             // hierarchy below the area. Sources with a reference count of 0 do not have
             // any active subscriptions so they do not need to report events.
-            source.SetAreEventsMonitored(context, !unsubscribe, true);
+            if (ServiceResult.IsGood(serviceResult) &&
+                wasSubscribed == unsubscribe)
+            {
+                source.SetAreEventsMonitored(context, !unsubscribe, true);
+            }
 
             // signal update.
             OnSubscribeToEvents(context, monitoredNode!, unsubscribe);
@@ -5652,5 +5770,7 @@ namespace Opc.Ua.Server
         /// the monitored item manager of the NodeManager
         /// </summary>
         protected IMonitoredItemManager m_monitoredItemManager;
+        private List<LocalReference> m_removedExternalReferences = [];
+        private bool m_disposed;
     }
 }

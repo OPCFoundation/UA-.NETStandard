@@ -1,6 +1,37 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -63,6 +94,113 @@ namespace Opc.Ua.Server.Tests
                 priority: 0,
                 publishingEnabled: true,
                 maxMessageCount: 10);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task HasMonitoredItemsReturnsTrueForDifferentAdaptersOverSameSynchronousManagerAsync()
+        {
+            var synchronousNodeManager = new Mock<INodeManager>();
+            var adapterA = new AsyncNodeManagerAdapter(synchronousNodeManager.Object);
+            var adapterB = new AsyncNodeManagerAdapter(synchronousNodeManager.Object);
+            var differentAdapter = new AsyncNodeManagerAdapter(new Mock<INodeManager>().Object);
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using Subscription subscription = CreateSubscription();
+            var itemToMonitor = new ReadValueId
+            {
+                NodeId = new NodeId(1),
+                AttributeId = Attributes.Value
+            };
+            var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                adapterA,
+                new object(),
+                subscription.Id,
+                id: 1,
+                itemToMonitor,
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 1,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 0,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 0);
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager
+                .Setup(n => n.CreateMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<IList<MonitoringFilterResult>>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    OperationContext,
+                    uint,
+                    double,
+                    TimestampsToReturn,
+                    ArrayOf<MonitoredItemCreateRequest>,
+                    IList<ServiceResult>,
+                    IList<MonitoringFilterResult>,
+                    IList<IMonitoredItem>,
+                    bool,
+                    CancellationToken>((
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    errors,
+                    filterResults,
+                    monitoredItems,
+                    _,
+                    _) =>
+                {
+                    errors[0] = ServiceResult.Good;
+                    filterResults[0] = null;
+                    monitoredItems[0] = monitoredItem;
+                })
+                .Returns(default(ValueTask));
+            m_serverMock.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
+
+            var request = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = itemToMonitor,
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 0,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            };
+            var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            CreateMonitoredItemsResponse response = await subscription.CreateMonitoredItemsAsync(
+                context,
+                TimestampsToReturn.Both,
+                [request],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(adapterA, Is.Not.SameAs(adapterB));
+            Assert.That(adapterA.SyncNodeManager, Is.SameAs(synchronousNodeManager.Object));
+            Assert.That(adapterB.SyncNodeManager, Is.SameAs(synchronousNodeManager.Object));
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(subscription.HasMonitoredItems(adapterA), Is.True);
+            Assert.That(subscription.HasMonitoredItems(adapterB), Is.True);
+            Assert.That(subscription.HasMonitoredItems(differentAdapter), Is.False);
         }
 
         private static void SetExpiryTime(Subscription subscription, long expiryTime)
