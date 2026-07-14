@@ -27,9 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -360,6 +363,30 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        [Test]
+        public void XmlParserDecodeDataValueMatrixZeroDimensionThrowsBadDecodingError()
+        {
+            byte[] payload = MutateDataValueXmlDimensions(
+                EncodeDataValueXml(ValidMatrixVariant()),
+                [2, 0]);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => DecodeDataValueViaXmlParser(payload));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void XmlParserDecodeDataValueMatrixProductMismatchThrowsBadDecodingError()
+        {
+            byte[] payload = MutateDataValueXmlDimensions(
+                EncodeDataValueXml(ValidMatrixVariant()),
+                [2, 2]);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => DecodeDataValueViaXmlParser(payload));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
         private static string EncodeXmlVariant(ServiceMessageContext ctx, Variant variant)
         {
             using var encoder = new XmlEncoder(ctx);
@@ -389,6 +416,43 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
             decoder.ReadVariant("v");
             decoder.PopNamespace();
+        }
+
+        private static byte[] EncodeDataValueXml(Variant variant)
+        {
+            ServiceMessageContext ctx = CreateContext();
+            using var stream = new MemoryStream();
+            using (var writer = XmlWriter.Create(
+                stream,
+                new XmlWriterSettings { Encoding = new UTF8Encoding(false) }))
+            using (var encoder = new XmlEncoder(typeof(DataValue), writer, ctx))
+            {
+                encoder.WriteDataValue("DataValue", new DataValue(variant));
+            }
+            return stream.ToArray();
+        }
+
+        private static byte[] MutateDataValueXmlDimensions(byte[] payload, int[] dimensions)
+        {
+            using var stream = new MemoryStream(payload);
+            XDocument document = XDocument.Load(stream);
+            XElement dimensionsElement = document.Root?
+                .DescendantsAndSelf()
+                .FirstOrDefault(element => element.Name.LocalName == "Dimensions")
+                ?? throw new InvalidOperationException(
+                    "The encoded XML payload has no Dimensions element.");
+            XNamespace ns = dimensionsElement.Name.Namespace;
+            dimensionsElement.ReplaceNodes(
+                dimensions.Select(value => new XElement(ns + "Int32", value)).ToArray());
+            return Encoding.UTF8.GetBytes(document.ToString(SaveOptions.DisableFormatting));
+        }
+
+        private static void DecodeDataValueViaXmlParser(byte[] payload)
+        {
+            ServiceMessageContext ctx = CreateContext();
+            using var stream = new MemoryStream(payload);
+            using var decoder = new XmlParser(typeof(DataValue), stream, ctx);
+            decoder.ReadDataValue("DataValue");
         }
     }
 }
