@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -124,7 +125,10 @@ namespace Opc.Ua.Di.Server.Builders
                 context, su, diNs, config, callbackContext, logger);
 
             // Link the SU node into the device subtree and register
-            // recursively with the manager.
+            // recursively with the manager. Per-instance NodeIds for the SU
+            // subtree are assigned by the generated CreateInstanceOf factories
+            // (via NodeInstanceExtensions.AssignInstanceChildNodeIds) and, for
+            // the explicitly added optional method children, by FinaliseChild.
             device.AddChild(su);
             manager.AddPredefinedNodeAsync(su, CancellationToken.None)
                 .AsTask().GetAwaiter().GetResult();
@@ -223,10 +227,13 @@ namespace Opc.Ua.Di.Server.Builders
                 context.CreateInstanceOfPrepareForUpdateStateMachineType(parent, browseName);
             FinaliseChild(context, sm, browseName);
 
-            // CreateInstanceOf already populated Prepare + Abort; only the
-            // Resume slot is left empty by the source-gen factory.
-            sm.Resume ??= CreateMethodChild(context, sm,
-                new QualifiedName("Resume", diNs));
+            // CreateInstanceOf already populated Prepare + Abort; the optional
+            // Resume method is materialised via the in-type child factory so
+            // it carries the correct in-type MethodDeclarationId (i=230) and
+            // per-instance NodeIds for its subtree.
+            sm.Resume ??= context.CreatePrepareForUpdateStateMachineType_Resume(
+                sm, forInstance: true);
+            FinaliseChild(context, sm.Resume, new QualifiedName("Resume", diNs));
 
             if (sm.Prepare != null)
             {
@@ -267,10 +274,12 @@ namespace Opc.Ua.Di.Server.Builders
 
             // CreateInstanceOf only adds CurrentState + Resume. Materialise
             // the optional InstallSoftwarePackage / InstallFiles / Uninstall
-            // method children explicitly.
+            // method children via the in-type child factories, which carry
+            // the correct in-type MethodDeclarationId and per-instance NodeIds.
             var installPkgBn = new QualifiedName("InstallSoftwarePackage", diNs);
             InstallSoftwarePackageMethodState installPkg =
-                context.CreateInstanceOfInstallSoftwarePackageMethodType(sm, installPkgBn);
+                context.CreateInstallationStateMachineType_InstallSoftwarePackage(
+                    sm, forInstance: true);
             FinaliseChild(context, installPkg, installPkgBn);
             sm.AddChild(installPkg);
             sm.InstallSoftwarePackage = installPkg;
@@ -281,7 +290,8 @@ namespace Opc.Ua.Di.Server.Builders
 
             var installFilesBn = new QualifiedName("InstallFiles", diNs);
             InstallFilesMethodState installFiles =
-                context.CreateInstanceOfInstallFilesMethodType(sm, installFilesBn);
+                context.CreateInstallationStateMachineType_InstallFiles(
+                    sm, forInstance: true);
             FinaliseChild(context, installFiles, installFilesBn);
             sm.AddChild(installFiles);
             sm.InstallFiles = installFiles;
@@ -290,7 +300,9 @@ namespace Opc.Ua.Di.Server.Builders
                     InvokeInstallFilesAsync(config, callbackContext, sm, diNs, logger, ct);
 
             var uninstallBn = new QualifiedName("Uninstall", diNs);
-            MethodState uninstall = CreateMethodChild(context, sm, uninstallBn);
+            MethodState uninstall =
+                context.CreateInstallationStateMachineType_Uninstall(sm, forInstance: true);
+            FinaliseChild(context, uninstall, uninstallBn);
             sm.Uninstall = uninstall;
             uninstall.OnCallMethod2Async =
                 (ctx, m, oid, ins, outs, ct) =>
@@ -362,28 +374,11 @@ namespace Opc.Ua.Di.Server.Builders
         }
 
         /// <summary>
-        /// Creates a bare <see cref="MethodState"/> child with a
-        /// per-instance NodeId and the supplied browse name. Used for
-        /// inherited methods (Resume / Uninstall) that aren't typed
-        /// in the source-generated model.
-        /// </summary>
-        private static MethodState CreateMethodChild(
-            ISystemContext context,
-            NodeState parent,
-            QualifiedName browseName)
-        {
-            var method = new MethodState(parent);
-            FinaliseChild(context, method, browseName);
-            method.Executable = true;
-            method.UserExecutable = true;
-            return method;
-        }
-
-        /// <summary>
         /// Common finalisation step for an SU child: assign a per-instance
         /// NodeId via the manager's <see cref="INodeIdFactory"/>, set the
-        /// HasComponent reference, and clear the type's modelling rule
-        /// so the instance isn't treated as a placeholder.
+        /// HasComponent reference, clear the type's modelling rule so the
+        /// instance isn't treated as a placeholder, and rebase the child's
+        /// whole subtree onto per-instance NodeIds.
         /// </summary>
         private static void FinaliseChild(
             ISystemContext context,
@@ -396,6 +391,7 @@ namespace Opc.Ua.Di.Server.Builders
             child.NodeId = context.NodeIdFactory.New(context, child);
             child.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
             child.ModellingRuleId = NodeId.Null;
+            context.AssignInstanceChildNodeIds(child);
         }
 
         private static async ValueTask<ServiceResult> InvokePrepareAsync(

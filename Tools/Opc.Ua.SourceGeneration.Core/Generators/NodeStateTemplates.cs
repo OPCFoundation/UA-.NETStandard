@@ -1701,6 +1701,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                {
+                    state.NodeId = context.NodeIdFactory.New(context, state);
+                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state);
+                }
                 return state;
             }
 
@@ -1749,6 +1754,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                {
+                    state.NodeId = context.NodeIdFactory.New(context, state);
+                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state);
+                }
                 return state;
             }
 
@@ -1806,6 +1816,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                {
+                    state.NodeId = context.NodeIdFactory.New(context, state);
+                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state);
+                }
                 return state;
             }
 
