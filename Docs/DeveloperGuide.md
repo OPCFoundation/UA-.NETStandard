@@ -222,10 +222,9 @@ To keep pull-request CI fast, only (4) and (6) are part of the qualifying build;
 
 ### Versioning
 
-The NuGet version scheme is intentionally **not** [SemVer](https://semver.org/), because of constraints inherited from the OPC UA specification:
+From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) (nbgv) from the `version.json` file at the repository root. That file holds the base version (currently `2.0-preview`) and requests [SemVer 2.0](https://semver.org/) package versions (`nugetPackageVersion.semVer: 2`); nbgv derives the version height, prerelease tag, and build metadata from the git history, and `version.props` maps the computed values onto the assembly and package version properties. Stable (public-release) versions are produced only on the `main`, `master`, `develop/*`, and `release/<x.y.z>` branches — every other branch yields a prerelease build.
 
-- The first two digits are the spec version of the embedded NodeSet (`1.3.x.x` → spec V1.03, `1.4.x.x` → V1.04, `1.5.x.x` → V1.05). The spec is backward compatible, so a library built on a newer NodeSet can still be used to certify an application against an older certification test.
-- The next digits are the **API level** (mapped to a release branch such as `release/1.4.372`, corresponding to `MAJOR`/breaking changes) and the **build number** (a mix of `MINOR`/`PATCH`). An API level stays internally consistent — it should not receive breaking changes that would require application code changes — while build updates may add internal improvements or non-breaking API extensions. Hotfixes are cherry-picked onto release branches.
+> The earlier 1.x packages used a different, spec-derived scheme in which the first two digits encoded the embedded NodeSet spec version (for example `1.5.378.x` corresponds to OPC UA spec V1.05, mapped to release branches such as `release/1.4.372`). That scheme no longer applies from 2.0 onward.
 
 ## Contributing and pull requests
 
