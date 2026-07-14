@@ -970,8 +970,10 @@ These behaviors are covered by historian provider/dispatcher and end-to-end test
 
 ## 9. Node Management AddNodes — invalid reference and requested-NodeId CTT configuration
 
-Run 17 (`NewCTT2.results 17 1.xml`) contains 17 AddNodes failures. Three exposed server validation
-gaps (now fixed), while fourteen are CTT project/script configuration defects.
+Run 18 (`NewCTT2.results 18.xml`) contains 15 AddNodes failures, all of which are CTT project/script
+configuration defects; no server defect remains. The three server validation gaps exposed by run 17
+(`NewCTT2.results 17 1.xml`, 17 failures) were fixed in `dd66b88f9` and are confirmed resolved in
+run 18: `Err-005.js`, `Err-006.js`, and `Err-007.js` now pass.
 
 ### `002.js` enables references that cannot add a Variable under the configured parent
 
@@ -979,17 +981,17 @@ gaps (now fixed), while fourteen are CTT project/script configuration defects.
 
 `/Server Test/NodeIds/NodeManagement/SupportedReferences`
 
-and always adds a **Variable**, expecting `Good`. The project enabled all candidates. The 13 reported
-`BadReferenceNotAllowed` results correspond exactly, in loop order, to the non-hierarchical references:
+and always adds a **Variable**, expecting `Good`. The project enabled all candidates. The 14 reported
+`BadReferenceNotAllowed` results correspond to the 13 non-hierarchical references plus `HasSubtype`:
 
 `HasModellingRule`, `HasEncoding`, `HasDescription`, `HasTypeDefinition`, `GeneratesEvent`,
 `AlwaysGeneratesEvent`, `FromState`, `HasCause`, `HasEffect`, `HasSubStateMachine`,
-`HasTrueSubState`, `HasFalseSubState`, and `HasCondition`.
+`HasTrueSubState`, `HasFalseSubState`, `HasCondition`, and `HasSubtype`.
 
 OPC UA Part 4 §5.8.2 requires the new Node to be the target of a **HierarchicalReference**.
-`BadReferenceNotAllowed` is therefore correct. In addition, `HasSubtype` is hierarchical but is a
-type-system reference whose source and target must be compatible Type Nodes; it is not valid for the
-Variable instance created by this script.
+`BadReferenceNotAllowed` is therefore correct. `HasSubtype` is hierarchical but is a type-system
+reference whose source and target must be compatible Type Nodes; the server now correctly rejects it
+for the Variable instance created by this script.
 
 **Recommended CTT project fix:** restrict the configured set to reference types compatible with the
 configured parent and a Variable target—typically `Organizes`, `HasProperty`, and `HasComponent`.
@@ -1007,7 +1009,7 @@ allocate a fresh NodeId; the second `Good` result represents a different node an
 setting and configure a concrete NodeId in a writable namespace owned by a NodeManager that supports
 NodeManagement before testing duplication.
 
-### Run 17 server defects now fixed
+### Server defects fixed in `dd66b88f9` (verified in run 18)
 
 The server fixes (not CTT issues) are:
 
@@ -1019,3 +1021,59 @@ The server fixes (not CTT issues) are:
   opted-in namespaces.
 
 These paths are covered by MasterNodeManager and AsyncCustomNodeManager tests on net10 and net48.
+
+## 10. Run 18 Historical Access and Attribute script/configuration defects
+
+### Historical Access `012.js` expects `BadIndexRangeNoData` at the wrong level
+
+The test reads historized array values with a syntactically valid IndexRange that is outside the
+array bounds. The server returns:
+
+- `HistoryReadResult.StatusCode = Good`;
+- each returned `DataValue.StatusCode = BadIndexRangeNoData`.
+
+`012.js` instead expects `Results[0].StatusCode = BadIndexRangeNoData`, producing two errors.
+OPC UA Part 11 §6.4 applies the IndexRange independently to each historical value; the HistoryRead
+operation succeeds while values for which no indexed data exists carry `BadIndexRangeNoData`.
+
+**Recommended CTT fix:** require the per-node result to be Good, decode `HistoryData`, and assert
+`BadIndexRangeNoData` on each affected `DataValue.StatusCode`.
+
+### Historical Access `Err-012.js` uses a non-historizing node for an access-denied test
+
+The configured node does not support history, so the server returns
+`BadHistoryOperationUnsupported` before any history authorization check can produce
+`BadUserAccessDenied`.
+
+**Recommended CTT project fix:** configure a node that is historizing and readable by an authorized
+identity but explicitly denies HistoryRead to the identity used by this case. A test cannot validate
+access denial with a node that has no supported history operation.
+
+### Attribute array helpers omit `NodeId[]` conversion
+
+Run 18 records the same JavaScript exception for:
+
+- Attribute Read `032.js`;
+- Attribute Read `034.js`;
+- Attribute Write Index `007.js`.
+
+`UaNodeId.GuessType(...)` correctly identifies BuiltInType `NodeId (17)`, but the generic CTT array
+conversion/generation helper has no NodeId branch and throws:
+
+> Built in type not specified or detectable within the parameter: NodeId (17)
+
+**Recommended CTT fix:** add NodeId-array support to both directions:
+
+- decode with the appropriate `toNodeIdArray()` accessor;
+- generate/populate a `UaNodeIds` collection and set it with the NodeId-array Variant setter.
+
+As with the existing StatusCode-array defect (`026.js`/`036.js`), a generic built-in array test must
+support every configured built-in type or explicitly exclude unsupported types before executing.
+
+### Run 18 server defect now fixed
+
+Historical Access `Err-010.js` supplied `" 1:3"` (leading whitespace). The previous NumericRange
+parser accepted whitespace through `Convert.ToInt32`, returning Good instead of
+`BadIndexRangeInvalid`. NumericRange parsing now uses strict invariant integer syntax
+(`NumberStyles.None`) and rejects leading, trailing, and embedded whitespace. NumericRange and
+HistoryRead regressions cover the fix.
