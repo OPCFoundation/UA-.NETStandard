@@ -376,6 +376,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 plaintext = new ByteString(span[s_marker.Length..].ToArray());
                 return true;
             }
+
+            public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
+            {
+                ReadOnlySpan<byte> span = protectedRecord.Span;
+                if (span.Length < s_marker.Length ||
+                    !span[..s_marker.Length].SequenceEqual(s_marker))
+                {
+                    plaintext = [];
+                    return false;
+                }
+                plaintext = span[s_marker.Length..].ToArray();
+                return true;
+            }
         }
     }
 }

@@ -64,6 +64,7 @@ namespace Opc.Ua.Server
         AliasNames.IAliasNameStoreRegistryProvider,
         Historian.IHistorianRegistryProvider,
         ITransportListenerRegistryProvider,
+        IServerEndpointRegistryProvider,
         ITimeProviderProvider
     {
         /// <summary>
@@ -199,6 +200,29 @@ namespace Opc.Ua.Server
         public void SetTransportListenerRegistry(IReadOnlyList<ITransportListener>? listeners)
         {
             m_transportListeners = listeners;
+        }
+
+        /// <summary>
+        /// A snapshot of the endpoints currently advertised by the server,
+        /// populated by <see cref="StandardServer"/> once endpoints are
+        /// created so <see cref="ConfigurationNodeManager"/> can enforce the
+        /// OPC UA Part 12 §7.10.7 endpoint-reference rule for
+        /// <c>DeleteCertificate</c>. Surfaced through the optional
+        /// <see cref="IServerEndpointRegistryProvider"/> interface so
+        /// external/mocked <see cref="IServerInternal"/> implementations
+        /// remain unaffected.
+        /// </summary>
+        public ArrayOf<EndpointDescription> ServerEndpoints => m_serverEndpoints;
+
+        /// <summary>
+        /// Called by <see cref="StandardServer"/> after the endpoints are
+        /// created (or torn down) to make them visible to downstream
+        /// consumers via <see cref="IServerEndpointRegistryProvider"/>.
+        /// </summary>
+        /// <param name="endpoints">The current endpoint set.</param>
+        public void SetServerEndpoints(ArrayOf<EndpointDescription> endpoints)
+        {
+            m_serverEndpoints = endpoints;
         }
 
         /// <summary>
@@ -1224,5 +1248,6 @@ namespace Opc.Ua.Server
         private readonly Lock m_serviceLevelLock = new();
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
+        private ArrayOf<EndpointDescription> m_serverEndpoints;
     }
 }
