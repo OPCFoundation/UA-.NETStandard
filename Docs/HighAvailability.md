@@ -444,6 +444,38 @@ CertificateManager manager = CertificateManagerFactory.Create(
 
 The provider is injectable — construct it from the DI-registered `ISharedKeyValueStore` and `IRecordProtector` and pass it through `CertificateManagerOptions.AddStoreProvider`; the direct construction above is the fallback. Point the security configuration's trusted/issuer/rejected stores at the distributed backend by setting each `CertificateStoreIdentifier` to store type `CertificateStoreType.SharedKeyValue` with a `kv:` store path (for example `kv:pki/trusted`, `kv:pki/issuer`, `kv:pki/rejected`); the built-in `Directory` and `X509Store` providers remain available. Every replica in the set uses the same shared store and the same paths, so they share one trusted list, one issuer list and one rejected store. The rejected-list trim (`AddRejectedAsync`) keeps the newest N entries best-effort (advisory, not security-critical). See [Certificate Manager](CertificateManager.md) for the certificate lifecycle model.
 
+### Distributed PushManagement transactions (beyond §6.6, opt-in)
+
+OPC UA Part 12 §§7.10.2-7.10.11 define a **single, server-wide** PushManagement configuration transaction: one Session owns it at a time, its `UpdateCertificate` / `CreateSelfSignedCertificate` / `DeleteCertificate` / TrustList changes are staged, and nothing takes effect until `ApplyChanges`. On a stand-alone server the default `PushConfigurationTransactionCoordinator` enforces this per process. In a `RedundantServerSet` that is not enough on its own: each replica has its own coordinator, so two administrators connected to two replicas could each open a transaction and stage conflicting certificate rotations at the same time.
+
+`UseDistributedPushConfiguration()` (from `Opc.Ua.Redundancy.Server`) opts a server into a transaction that is single **across the whole replica set**, reusing the same high-availability building blocks as the rest of this document (the shared `ISharedKeyValueStore`, `IRecordProtector` and, optionally, the elected `ILeaderElection`). It is opt-in: a server that does not call it behaves exactly as before.
+
+**Cluster-wide single ownership.** `DistributedPushConfigurationTransactionCoordinator` wraps the per-server coordinator and guards it with a compare-and-swap **lease** in the shared store — the same lease pattern used by `SharedStoreLeaseElection` for leader election. A replica must hold the lease to start a transaction, so at most one replica has an active transaction at any time. The lease is acquired (or renewed) at an `await` boundary immediately **before** the synchronous `Stage`, so the coordinator's synchronous `Stage`/`CancelChanges` contract is preserved with no sync-over-async; a background loop renews the lease while the transaction is active and releases it as soon as the transaction is applied, cancelled, reset, or its owning Session closes. A replica that crashes stops renewing, and once the lease expires a standby can start a new transaction. Another replica that tries to stage while the lease is held is refused with `Bad_TransactionPending`, exactly as a second Session on one server would be.
+
+**Pending regenerated keys across replicas.** `CreateSigningRequest(regeneratePrivateKey: true)` (§7.10.10) produces a private key that must survive until a matching `UpdateCertificate` consumes it — possibly on a **different** replica after a failover. `SharedKeyValuePendingCertificateKeyStore` persists that key in the shared store (scoped per CertificateGroup/CertificateType) instead of a local directory. It consumes the key atomically (only one replica wins a concurrent `TryTake`), wipes every private-key working buffer, and — like every other mirrored record — protects each entry with an `IRecordProtector` (authenticated encryption) so the shared store can be treated as untrusted. An external, network-reachable store **must** provide a protector; without one the pending-key store **fails closed** rather than persist a private key unprotected, matching the fail-closed default of the distributed session, subscription and trust-list stores.
+
+**Composition with leader election.** Distributed PushManagement composes transparently with whichever leader election is configured. By default the shared-store lease alone enforces single ownership, so any replica a client reaches may own the transaction. Setting `RequireLeadership = true` funnels every transaction through the elected leader; when the Kubernetes extension is configured the leader is decided by the **Kubernetes-native `Lease`** already registered by `UseKubernetesLeaderElection` — no second Kubernetes client is created. Raft and shared-store leader election compose the same way.
+
+```csharp
+using Opc.Ua.Redundancy.Server;
+
+builder
+    // ... existing HA setup (shared store, record protector, leader election) ...
+    .UseKubernetesLeaderElection()          // ILeaderElection = Kubernetes-native Lease
+    .UseDistributedPushConfiguration(options =>
+    {
+        options.ReplicaId = Environment.GetEnvironmentVariable("POD_NAME")!;
+        options.LeaseDuration = TimeSpan.FromSeconds(30);   // lease validity without renewal
+        options.RenewInterval = TimeSpan.FromSeconds(10);   // background renew cadence
+        options.KeyPrefix = "pushconfig/";                  // shared-store keyspace
+        options.RequireLeadership = true;                   // only the K8s-elected leader owns the transaction
+        // For an external store, configure authenticated encryption (or register an IRecordProtector):
+        options.RecordProtectorFactory = sp => new AesCbcHmacRecordProtector(GetPushConfigKey());
+    });
+```
+
+Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-71027101) for the underlying transaction model.
+
 ### GetEndpoints load direction (beyond §6.6, opt-in)
 
 `UseServerLoadDirection(...)` lets a `GetEndpoints` request on a **dedicated balancing discovery URL** be answered with the endpoints of the best member of the `RedundantServerSet`, so a Client that connects there is **directed** to the active server (active/passive) or spread across equally-healthy servers by load (active/active). This is a non-standard, server-side load-direction *hint*: it **complements**, and never replaces, the standard client-driven `RedundantServerArray` + `ServiceLevel` selection of OPC 10000-4 §6.6.2.4, which remains the authoritative Failover mechanism.

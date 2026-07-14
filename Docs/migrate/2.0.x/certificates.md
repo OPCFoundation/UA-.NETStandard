@@ -129,6 +129,91 @@ See [CertificateManager.md](../../CertificateManager.md) for the full API refere
 
 See [CertificateManager.md](../../CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
 
+### PushManagement transactions: TrustList/Certificate updates now require `ApplyChanges`
+
+`ConfigurationNodeManager` now implements the full OPC UA Part 12 §7.10.2
+PushManagement transaction model. This affects any code (Client or
+custom `ServerConfiguration`-adjacent NodeManager) that calls the
+`TrustList` `AddCertificate` / `RemoveCertificate` / `CloseAndUpdate`
+Methods directly and previously observed the change take effect
+immediately:
+
+| 1.5.378 behavior | 2.0 behavior |
+|---|---|
+| `TrustList.AddCertificate` / `RemoveCertificate` / `CloseAndUpdate` applied to the store immediately; a subsequent `ReadTrustList` reflected the change right away. | The same calls are **staged**. The store is unchanged — and `ReadTrustList` still returns the *old* contents — until the Session that made the call also calls `ServerConfiguration.ApplyChanges`. `CloseAndUpdate` now always reports `applyChangesRequired = true` (previously reported `false` when no restart was needed). |
+| No concept of a per-Session transaction; concurrent Sessions could interleave TrustList/Certificate updates freely. | Exactly one transaction is active at a time, owned by the Session that started it; every other Session's staging call fails with `Bad_TransactionPending` until that Session calls `ApplyChanges`, calls the new `CancelChanges` Method, or closes. |
+| `UpdateCertificate`/`CreateSelfSignedCertificate` already required `ApplyChanges` (§7.7.5) — unaffected by this change. | Unchanged; now share the same transaction as TrustList updates, plus the new `DeleteCertificate` Method. |
+
+No application code changes are required if you already call
+`ApplyChanges` after every push-management write (the previously
+recommended/spec-compliant pattern for Certificate updates) — this
+change only affects code that assumed `TrustList` writes took effect
+without it. See
+[CertificateManager.md § PushManagement Transactions](../../CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-7102-71011)
+for the full model, the new standard nodes (`SupportsTransactions`,
+`DeleteCertificate`, `CancelChanges`, `TransactionDiagnostics`), and the
+`IPushConfigurationTransactionCoordinator` / `IPendingCertificateKeyStore`
+DI replacement points.
+
+For the **final, per-requirement Part 12 support status** — every ServerConfiguration/PushManagement, TrustList, certificate-alarm, KeyCredentialService and AuthorizationService requirement linked to its source *and* its automated tests, plus the applicable OPC UA profiles/conformance units and an explicit list of remaining optional/unsupported items — see the [GDS Conformance Matrix](../../GDS.md#conformance-matrix). Two behaviours that were **partial** in earlier 2.0 previews are now **complete**: the `TransactionDiagnostics` §7.10.17 DataValue-status semantics, and the certificate-expiration / TrustList-staleness alarms (`CertificateExpirationAlarmType` / `TrustListOutOfDateAlarmType`), which now perform real active/inactive transitions and emit events rather than only populating property values at startup.
+
+### Optional ServerConfiguration surface now available (additive, opt-in)
+
+`ConfigurationNodeManager` now also exposes the Optional OPC UA Part 12
+§7.10.3 `ServerConfigurationType` members. **No migration action is
+required** — the change is additive and every member is opt-in:
+
+| Member | Change |
+|---|---|
+| `ApplicationUri`, `ProductUri`, `ApplicationType`, `ApplicationNames` | Now **always exposed** on `ServerConfiguration`, seeded from the `ApplicationConfiguration`. Previously suppressed. Clients that browsed and found these absent will now find them present; no client that ignores them is affected. |
+| `HasSecureElement`, `InApplicationSetup` | Exposed only when configured via `ServerConfigurationOptions`. Suppressed otherwise (unchanged default). |
+| `ResetToServerDefaults` (§7.10.13) | Exposed only when an `IServerConfigurationResetProvider` is configured. Suppressed otherwise (unchanged default). |
+| `ConfigurationFile` (§7.10.20) | Exposed only when an `IApplicationConfigurationFileProvider` is configured. Suppressed otherwise (unchanged default). |
+
+Configure the surface fluently (`ConfigureServerConfiguration`,
+`WithServerConfigurationReset`, `WithApplicationConfigurationFile`), via DI, or
+through the new `ServerConfigurationOptions` argument on
+`ConfigurationNodeManager`/`MainNodeManagerFactory`. See
+[CertificateManager.md § Optional ServerConfiguration Surface](../../CertificateManager.md#optional-serverconfiguration-surface-opc-ua-part-12-7103-71013-71020).
+
+### `MaxTrustListSize` is advertised honestly and bounded by a safety ceiling
+
+Previously, a `ServerConfiguration.MaxTrustListSize` of `0` (unlimited per OPC
+UA Part 12 §8.4.5) was advertised to Clients as `0` while the server silently
+enforced a hidden 1&nbsp;MiB cap on TrustList `Read`/`Write`. The advertised
+value and the enforced value could therefore disagree.
+
+The server now:
+
+- **Advertises the honest effective limit.** `ServerConfiguration.MaxTrustListSize`
+  now reports the value the TrustList handlers actually enforce — never `0`
+  while a finite cap is in force. A server configured with `MaxTrustListSize = 0`
+  now advertises the safety ceiling (default 1&nbsp;MiB) instead of `0`.
+- **Adds a configurable resource-protection safety ceiling.**
+  `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` (default
+  1&nbsp;MiB) bounds the actually-enforced size. The effective limit is:
+  `MaxTrustListSize == 0` → the ceiling; `MaxTrustListSize` above the ceiling →
+  the ceiling; otherwise → the configured `MaxTrustListSize`.
+
+**Migration action.** No action is required for the common cases
+(`MaxTrustListSize` of `0` or a finite value ≤ 1&nbsp;MiB); enforcement is
+unchanged and only the advertised value becomes honest. **If you configured a
+finite `MaxTrustListSize` larger than 1&nbsp;MiB**, raise
+`ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` to at least that
+value, otherwise the effective limit is clamped to the ceiling:
+
+```csharp
+builder.ConfigureServerConfiguration(o =>
+{
+    // Accept TrustLists up to 8 MiB (e.g. many large CRLs).
+    o.MaxTrustListSizeSafetyCeiling = 8 * 1024 * 1024;
+});
+```
+
+The legacy `TrustList` constructor overloads (without an explicit safety
+ceiling) are unchanged and remain fully backward compatible: a finite size is
+honored exactly (never clamped) and `0` falls back to the 1&nbsp;MiB default.
+
 ### Obsoleted certificate APIs
 
 The following APIs are marked `[Obsolete]` and will be removed in the next minor version. They remain
