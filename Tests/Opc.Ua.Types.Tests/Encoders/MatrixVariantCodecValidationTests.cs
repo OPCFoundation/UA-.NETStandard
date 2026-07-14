@@ -42,7 +42,9 @@ namespace Opc.Ua.Types.Tests.Encoders
     /// is greater than zero, and the product of the dimensions equals the
     /// flattened element count. Encoders must refuse to emit inconsistent
     /// dimensions with BadEncodingError and decoders must reject them with
-    /// BadDecodingError instead of silently accepting or crashing.
+    /// BadDecodingError instead of silently accepting or crashing. The XML side
+    /// covers both decoder implementations: the streaming
+    /// <see cref="XmlDecoder"/> and the in-memory <see cref="XmlParser"/>.
     /// </summary>
     [TestFixture]
     [Category("Encoders")]
@@ -65,6 +67,17 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             return Variant.From(new int[2, 0]);
         }
+
+        private const string ZeroDimensionMatrixXml =
+            "<v xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+            "<Value><Matrix><Dimensions><Int32>2</Int32><Int32>0</Int32>" +
+            "</Dimensions><Elements /></Matrix></Value></v>";
+
+        private const string ProductMismatchMatrixXml =
+            "<v xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+            "<Value><Matrix><Dimensions><Int32>2</Int32><Int32>3</Int32>" +
+            "</Dimensions><Elements><Int32>1</Int32><Int32>2</Int32>" +
+            "</Elements></Matrix></Value></v>";
 
         [Test]
         public void IsValidMatrixAcceptsWellFormedDimensions()
@@ -303,27 +316,47 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void XmlDecodeZeroDimensionMatrixThrowsBadDecodingError()
         {
-            const string xml =
-                "<v xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
-                "<Value><Matrix><Dimensions><Int32>2</Int32><Int32>0</Int32>" +
-                "</Dimensions><Elements /></Matrix></Value></v>";
-
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => DecodeXmlVariant(xml));
+                () => DecodeXmlVariant(ZeroDimensionMatrixXml));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
         public void XmlDecodeDimensionsProductMismatchThrowsBadDecodingError()
         {
-            const string xml =
-                "<v xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
-                "<Value><Matrix><Dimensions><Int32>2</Int32><Int32>3</Int32>" +
-                "</Dimensions><Elements><Int32>1</Int32><Int32>2</Int32>" +
-                "</Elements></Matrix></Value></v>";
-
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => DecodeXmlVariant(xml));
+                () => DecodeXmlVariant(ProductMismatchMatrixXml));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void XmlParserDecodeValidMatrixRoundTrips()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = EncodeXmlVariant(ctx, ValidMatrixVariant());
+
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            MatrixOf<int> matrix = decoder.ReadVariant("v").GetInt32Matrix();
+            decoder.PopNamespace();
+
+            Assert.That(matrix.Dimensions, Is.EqualTo([2, 3]));
+            Assert.That(matrix.Count, Is.EqualTo(6));
+        }
+
+        [Test]
+        public void XmlParserDecodeZeroDimensionMatrixThrowsBadDecodingError()
+        {
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => DecodeXmlParserVariant(ZeroDimensionMatrixXml));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void XmlParserDecodeDimensionsProductMismatchThrowsBadDecodingError()
+        {
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => DecodeXmlParserVariant(ProductMismatchMatrixXml));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -344,6 +377,15 @@ namespace Opc.Ua.Types.Tests.Encoders
                 stream,
                 CoreUtils.DefaultXmlReaderSettings());
             using var decoder = new XmlDecoder(reader, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            decoder.ReadVariant("v");
+            decoder.PopNamespace();
+        }
+
+        private static void DecodeXmlParserVariant(string xml)
+        {
+            ServiceMessageContext ctx = CreateContext();
+            using var decoder = new XmlParser(xml, ctx);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
             decoder.ReadVariant("v");
             decoder.PopNamespace();
