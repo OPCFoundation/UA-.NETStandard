@@ -254,6 +254,98 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(((ArrowNetworkMessage)decoded!).DataSetMessages.Count, Is.EqualTo(3));
         }
 
+        [Test]
+        public async Task SparseDataSetUsesSameSchemaAsFullKeyFrameAndDecodesMissingAsNull()
+        {
+            PublisherId publisherId = PublisherId.FromString("publisher-arrow");
+            Uuid dataSetClassId = new(new Guid("95669f76-285a-41c6-ac2b-27793a3eac10"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId, writerGroupId: 9, dataSetClassId, metaData, dataSetWriterId: 501);
+
+            ArrowNetworkMessage full = new()
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 9,
+                DataSetClassId = dataSetClassId,
+                SchemaId = "arrow-schema-1",
+                MetaData = metaData,
+                DataSetMessages = [CreateSample(501, 100, 21.5, "pump-a", FirstSamples, true, metaData)]
+            };
+
+            // Sparse frame: only Temperature and Enabled carry values; Label and Samples are absent.
+            var sparseMessage = new ArrowDataSetMessage
+            {
+                DataSetWriterId = 501,
+                SequenceNumber = 101,
+                Status = (StatusCode)StatusCodes.Good,
+                Timestamp = new DateTimeUtc(new DateTime(2026, 7, 4, 9, 31, 0, DateTimeKind.Utc)),
+                MessageType = PubSubDataSetMessageType.KeyFrame,
+                MetaDataVersion = metaData.ConfigurationVersion,
+                FieldContentMask = DataSetFieldContentMask.RawData,
+                Fields =
+                [
+                    new DataSetField { Name = "Temperature", Value = new Variant(23.75), Encoding = PubSubFieldEncoding.RawData },
+                    new DataSetField { Name = "Enabled", Value = new Variant(true), Encoding = PubSubFieldEncoding.RawData }
+                ]
+            };
+            ArrowNetworkMessage sparse = new()
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 9,
+                DataSetClassId = dataSetClassId,
+                SchemaId = "arrow-schema-1",
+                MetaData = metaData,
+                DataSetMessages = [sparseMessage]
+            };
+
+            ReadOnlyMemory<byte> fullFrame = await new ArrowNetworkMessageEncoder { Framing = ArrowIpcFraming.Stream }
+                .EncodeAsync(full, context);
+            var sparseEncoder = new ArrowNetworkMessageEncoder { Framing = ArrowIpcFraming.Stream };
+            ReadOnlyMemory<byte> sparseFrame = await sparseEncoder.EncodeAsync(sparse, context);
+
+            // The sparse frame carries the identical schema (same column set + types) as the full key
+            // frame — so the same SchemaId — because absent keys are null cells, not dropped columns.
+            Assert.That(ReadSchemaSignature(sparseFrame), Is.EqualTo(ReadSchemaSignature(fullFrame)));
+
+            // Decode the sparse frame: present keys round-trip; absent keys decode as null (missing).
+            ArrowNetworkMessageDecoder decoder = new();
+            PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(sparseFrame, context);
+            Assert.That(decoded, Is.TypeOf<ArrowNetworkMessage>());
+            ArrowDataSetMessage row = (ArrowDataSetMessage)((ArrowNetworkMessage)decoded!).DataSetMessages[0];
+
+            DataSetField temperature = FieldByName(row, "Temperature");
+            Assert.That(temperature.Value.TryGetValue(out double t), Is.True);
+            Assert.That(t, Is.EqualTo(23.75));
+            DataSetField enabled = FieldByName(row, "Enabled");
+            Assert.That(enabled.Value.TryGetValue(out bool e), Is.True);
+            Assert.That(e, Is.True);
+            Assert.That(FieldByName(row, "Label").Value.IsNull, Is.True);
+            Assert.That(FieldByName(row, "Samples").Value.IsNull, Is.True);
+        }
+
+        private static DataSetField FieldByName(ArrowDataSetMessage message, string name)
+        {
+            for (int i = 0; i < message.Fields.Count; i++)
+            {
+                if (string.Equals(message.Fields[i].Name, name, StringComparison.Ordinal))
+                {
+                    return message.Fields[i];
+                }
+            }
+            throw new InvalidOperationException($"field '{name}' not found");
+        }
+
+        private static string ReadSchemaSignature(ReadOnlyMemory<byte> frame)
+        {
+            using ArrowStreamReader reader = new(new MemoryStream(frame.ToArray(), writable: false));
+            RecordBatch? batch = reader.ReadNextRecordBatch();
+            Assert.That(batch, Is.Not.Null);
+            return string.Join(
+                "|",
+                batch!.Schema.FieldsList.Select(f => $"{f.Name}:{f.DataType.TypeId}:{f.IsNullable}"));
+        }
+
         /// <summary>
         /// Builds the three-sample Arrow network message shared by the framing round-trip tests.
         /// </summary>

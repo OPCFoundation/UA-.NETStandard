@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Encoding
                     nameof(networkMessage));
             }
 
-            ArrowSchemaAnnouncement announcement = SchemaExchangeMessages.CreateArrowAnnouncement(message);
+            ArrowSchemaAnnouncement announcement = SchemaExchangeMessages.CreateArrowAnnouncement(message, context);
             LastSchemaAnnouncement = SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId)
                 ? announcement
                 : null;
@@ -381,15 +381,41 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetMetaDataType? metaData,
             int index)
         {
+            // 1. Explicit DataSet field index is the sparse-safe key: a field carrying its field index
+            //    is placed in that column regardless of its position in a sparse message.
             for (int i = 0; i < message.Fields.Count; i++)
             {
-                string candidate = PubSubMessageEncoding.ResolveFieldName(message.Fields[i], metaData, i);
-                if (string.Equals(candidate, name, StringComparison.Ordinal))
+                if (message.Fields[i].FieldIndex == index)
                 {
                     return message.Fields[i];
                 }
             }
-            return index < message.Fields.Count ? message.Fields[index] : null;
+
+            // 2. Otherwise match by the field's own name (also sparse-safe for named fields).
+            for (int i = 0; i < message.Fields.Count; i++)
+            {
+                DataSetField candidate = message.Fields[i];
+                string candidateName = string.IsNullOrEmpty(candidate.Name)
+                    ? PubSubMessageEncoding.ResolveFieldName(candidate, metaData, i)
+                    : candidate.Name;
+                if (string.Equals(candidateName, name, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            // 3. Positional fallback only when the message carries the full (dense) field set. For a
+            //    sparse message a key that is not present is absent (null:null = missing), so a null
+            //    field is returned and the column cell is written null.
+            int total = metaData is not null && metaData.Fields.Count > 0
+                ? metaData.Fields.Count
+                : message.Fields.Count;
+            if (message.Fields.Count >= total && index < message.Fields.Count)
+            {
+                return message.Fields[index];
+            }
+
+            return null;
         }
 
         private static Variant FieldValue(ArrowNetworkMessage message, FieldPlan plan, int row)

@@ -57,10 +57,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// canonical Avro Parsing Canonical Form.
         /// </summary>
         /// <param name="message">The Avro network message.</param>
+        /// <param name="context">The encoding context (used to resolve DataSetMetaData).</param>
         /// <returns>The schema announcement.</returns>
-        internal static AvroSchemaAnnouncement CreateAvroAnnouncement(AvroNetworkMessage message)
+        internal static AvroSchemaAnnouncement CreateAvroAnnouncement(
+            AvroNetworkMessage message,
+            PubSubNetworkMessageContext context)
         {
-            string schemaJson = BuildSchemaDescriptor(message, SchemaCache.AvroFormat);
+            string schemaJson = BuildSchemaDescriptor(message, SchemaCache.AvroFormat, context);
             ByteString schemaBytes = ByteString.From(System.Text.Encoding.UTF8.GetBytes(schemaJson));
             ByteString schemaId = SchemaCache.ComputeSchemaId(schemaBytes, SchemaCache.AvroFormat);
             return new AvroSchemaAnnouncement(schemaId, schemaJson, null);
@@ -73,10 +76,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// serialized Arrow Schema.
         /// </summary>
         /// <param name="message">The Arrow network message.</param>
+        /// <param name="context">The encoding context (used to resolve DataSetMetaData).</param>
         /// <returns>The schema announcement.</returns>
-        internal static ArrowSchemaAnnouncement CreateArrowAnnouncement(ArrowNetworkMessage message)
+        internal static ArrowSchemaAnnouncement CreateArrowAnnouncement(
+            ArrowNetworkMessage message,
+            PubSubNetworkMessageContext context)
         {
-            string descriptor = BuildSchemaDescriptor(message, SchemaCache.ArrowFormat);
+            string descriptor = BuildSchemaDescriptor(message, SchemaCache.ArrowFormat, context);
             ByteString schema = ByteString.From(System.Text.Encoding.UTF8.GetBytes(descriptor));
             ByteString schemaId = SchemaCache.ComputeSchemaId(schema, SchemaCache.ArrowFormat);
             return new ArrowSchemaAnnouncement(schemaId, schema, null);
@@ -89,9 +95,21 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="message">The network message.</param>
         /// <param name="format">The schema format.</param>
+        /// <param name="context">The encoding context (used to resolve DataSetMetaData).</param>
         /// <returns>The deterministic schema descriptor.</returns>
-        internal static string BuildSchemaDescriptor(PubSubNetworkMessage message, string format)
+        internal static string BuildSchemaDescriptor(
+            PubSubNetworkMessage message,
+            string format,
+            PubSubNetworkMessageContext context)
         {
+            Uuid dataSetClassId = message switch
+            {
+                AvroNetworkMessage avroMessage => avroMessage.DataSetClassId,
+#if NET8_0_OR_GREATER
+                ArrowNetworkMessage arrowMessage => arrowMessage.DataSetClassId,
+#endif
+                _ => default
+            };
             using MemoryStream stream = new();
             using (Utf8JsonWriter writer = new(stream, new JsonWriterOptions { Indented = false }))
             {
@@ -112,7 +130,13 @@ namespace Opc.Ua.PubSub.Encoding
                 writer.WriteStartArray("messages");
                 for (int i = 0; i < message.DataSetMessages.Count; i++)
                 {
-                    WriteDataSetMessage(writer, message.DataSetMessages[i]);
+                    PubSubDataSetMessage dataSetMessage = message.DataSetMessages[i];
+                    DataSetMetaDataType? metaData = PubSubMessageEncoding.ResolveMetaData(
+                        message,
+                        dataSetMessage,
+                        context,
+                        dataSetClassId);
+                    WriteDataSetMessage(writer, dataSetMessage, metaData);
                 }
                 writer.WriteEndArray();
                 writer.WriteEndObject();
@@ -120,7 +144,10 @@ namespace Opc.Ua.PubSub.Encoding
             return System.Text.Encoding.UTF8.GetString(stream.ToArray());
         }
 
-        private static void WriteDataSetMessage(Utf8JsonWriter writer, PubSubDataSetMessage message)
+        private static void WriteDataSetMessage(
+            Utf8JsonWriter writer,
+            PubSubDataSetMessage message,
+            DataSetMetaDataType? metaData)
         {
             writer.WriteStartObject();
             writer.WriteNumber("writerId", message.DataSetWriterId);
@@ -129,6 +156,35 @@ namespace Opc.Ua.PubSub.Encoding
             writer.WriteNumber("minor", message.MetaDataVersion.MinorVersion);
             writer.WriteNumber("fieldContentMask", FieldContentMask(message));
             writer.WriteStartArray("fields");
+            if (metaData?.Fields is { Count: > 0 } metaFields)
+            {
+                // Metadata-driven descriptor: emit every declared key so a full
+                // key frame and any sparse subset (absent keys encoded as
+                // null:null) produce the identical descriptor and SchemaId. The
+                // field encoding mode is uniform per writer, so it is taken from
+                // the first present field (or 0 when the frame is empty).
+                int uniformEncoding = message.Fields.Count > 0
+                    ? (int)message.Fields[0].Encoding
+                    : 0;
+                for (int i = 0; i < metaFields.Count; i++)
+                {
+                    FieldMetaData fieldMetaData = metaFields[i];
+                    writer.WriteStartObject();
+                    writer.WriteString("name", fieldMetaData.Name ?? string.Empty);
+                    writer.WriteNumber("index", i);
+                    writer.WriteNumber("encoding", uniformEncoding);
+                    writer.WriteString(
+                        "type",
+                        new TypeInfo(
+                            (BuiltInType)fieldMetaData.BuiltInType,
+                            fieldMetaData.ValueRank).ToString());
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+                return;
+            }
+
             for (int i = 0; i < message.Fields.Count; i++)
             {
                 DataSetField field = message.Fields[i];

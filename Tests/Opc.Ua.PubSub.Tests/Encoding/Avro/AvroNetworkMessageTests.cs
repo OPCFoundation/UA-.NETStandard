@@ -188,6 +188,169 @@ namespace Opc.Ua.PubSub.Encoding.Tests
         }
 
         /// <summary>
+        /// A sparse DataSetMessage (a subset of the declared keys) announces the same schema and
+        /// SchemaId as a full key frame, does not trigger a re-announcement, and round-trips its
+        /// present keys while the absent keys are simply missing (nullable-keys design).
+        /// </summary>
+        [Test]
+        public async Task SparseDataSetUsesSameSchemaIdAsFullKeyFrameAndDecodesPresentFields()
+        {
+            PublisherId publisherId = PublisherId.FromString("publisher-avro-sparse");
+            Uuid dataSetClassId = new(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725002"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubDiagnostics diagnostics = new(PubSubDiagnosticsLevel.High);
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId,
+                writerGroupId: 7,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: DataSetWriterIds,
+                diagnostics);
+
+            DateTimeUtc timestamp = new(new DateTime(2026, 7, 4, 9, 0, 0, DateTimeKind.Utc));
+
+            // Full key frame: every declared key present and non-null.
+            AvroNetworkMessage fullFrame = new()
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 7,
+                DataSetClassId = dataSetClassId,
+                SchemaId = "schema-sparse",
+                MetaData = metaData,
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 101,
+                        SequenceNumber = 1,
+                        Timestamp = timestamp,
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = metaData.ConfigurationVersion,
+                        Fields =
+                        [
+                            new DataSetField
+                            {
+                                Name = "Enabled",
+                                Value = new Variant(true),
+                                Encoding = PubSubFieldEncoding.Variant
+                            },
+                            new DataSetField
+                            {
+                                Name = "Temperature",
+                                Value = new Variant(23.5),
+                                Encoding = PubSubFieldEncoding.Variant
+                            },
+                            new DataSetField
+                            {
+                                Name = "Label",
+                                Value = new Variant("pump-1"),
+                                Encoding = PubSubFieldEncoding.Variant
+                            },
+                            new DataSetField
+                            {
+                                Name = "Samples",
+                                Value = new Variant(new ArrayOf<double>(SampleValues.AsMemory())),
+                                Encoding = PubSubFieldEncoding.Variant
+                            },
+                            new DataSetField
+                            {
+                                Name = "OptionalText",
+                                Value = new Variant("note"),
+                                Encoding = PubSubFieldEncoding.Variant
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            // Sparse frame: only a subset of keys present; the remaining keys are absent (missing).
+            AvroNetworkMessage sparseFrame = new()
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 7,
+                DataSetClassId = dataSetClassId,
+                SchemaId = "schema-sparse",
+                MetaData = metaData,
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 101,
+                        SequenceNumber = 2,
+                        Timestamp = timestamp,
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = metaData.ConfigurationVersion,
+                        Fields =
+                        [
+                            new DataSetField
+                            {
+                                Name = "Temperature",
+                                Value = new Variant(24.75),
+                                Encoding = PubSubFieldEncoding.Variant
+                            },
+                            new DataSetField
+                            {
+                                Name = "Label",
+                                Value = new Variant("pump-2"),
+                                Encoding = PubSubFieldEncoding.Variant
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            AvroNetworkMessageEncoder fullEncoder = new();
+            _ = await fullEncoder.EncodeAsync(fullFrame, context);
+            Assert.That(fullEncoder.LastSchemaAnnouncement, Is.Not.Null);
+            ByteString fullSchemaId = fullEncoder.LastSchemaAnnouncement!.SchemaId;
+
+            AvroNetworkMessageEncoder sparseEncoder = new();
+            ReadOnlyMemory<byte> sparseFrameBytes = await sparseEncoder.EncodeAsync(sparseFrame, context);
+            Assert.That(sparseEncoder.LastSchemaAnnouncement, Is.Not.Null);
+
+            // Nullable keys: the sparse subset announces the SAME schema descriptor and SchemaId
+            // as the full key frame - sparsity does not generate a new schema.
+            Assert.That(sparseEncoder.LastSchemaAnnouncement!.SchemaId, Is.EqualTo(fullSchemaId));
+            Assert.That(
+                sparseEncoder.LastSchemaAnnouncement!.SchemaJson,
+                Is.EqualTo(fullEncoder.LastSchemaAnnouncement!.SchemaJson));
+
+            // Encoding the sparse frame on the encoder that already announced the full frame does
+            // not re-announce (the SchemaId is unchanged).
+            _ = await fullEncoder.EncodeAsync(sparseFrame, context);
+            Assert.That(fullEncoder.LastSchemaAnnouncement, Is.Null);
+
+            // The sparse frame round-trips: present keys decode; absent keys are simply missing.
+            AvroNetworkMessageDecoder decoder = new();
+            PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(sparseFrameBytes, context);
+            Assert.That(decoded, Is.TypeOf<AvroNetworkMessage>(), diagnostics.LastError?.Message);
+            AvroDataSetMessage decodedDataSet =
+                (AvroDataSetMessage)((AvroNetworkMessage)decoded!).DataSetMessages[0];
+            Assert.That(decodedDataSet.Fields.Count, Is.EqualTo(2));
+            Assert.That(FieldByName(decodedDataSet, "Temperature").Value.TryGetValue(out double temperature), Is.True);
+            Assert.That(temperature, Is.EqualTo(24.75));
+            Assert.That(FieldByName(decodedDataSet, "Label").Value.TryGetValue(out string label), Is.True);
+            Assert.That(label, Is.EqualTo("pump-2"));
+        }
+
+        /// <summary>
+        /// Returns the first field in the dataset message with the given name.
+        /// </summary>
+        private static DataSetField FieldByName(AvroDataSetMessage message, string name)
+        {
+            for (int i = 0; i < message.Fields.Count; i++)
+            {
+                if (message.Fields[i].Name == name)
+                {
+                    return message.Fields[i];
+                }
+            }
+            throw new AssertionException($"Field '{name}' was not present in the decoded dataset.");
+        }
+
+        /// <summary>
         /// Asserts that a decoded Avro dataset header matches the message header that was originally encoded.
         /// </summary>
         private static void AssertHeader(AvroDataSetMessage actual, AvroDataSetMessage expected)

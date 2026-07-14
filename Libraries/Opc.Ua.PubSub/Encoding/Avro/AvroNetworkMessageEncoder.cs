@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Encoding
                     nameof(networkMessage));
             }
 
-            AvroSchemaAnnouncement announcement = SchemaExchangeMessages.CreateAvroAnnouncement(message);
+            AvroSchemaAnnouncement announcement = SchemaExchangeMessages.CreateAvroAnnouncement(message, context);
             LastSchemaAnnouncement = SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId)
                 ? announcement
                 : null;
