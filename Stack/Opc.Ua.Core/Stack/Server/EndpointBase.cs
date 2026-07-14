@@ -449,10 +449,7 @@ namespace Opc.Ua
             else
             {
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
-                if (logger.IsEnabled(LogLevel.Error))
-                {
-                    logger.EndpointBaseLogMessage3(exception, exception.Message);
-                }
+                logger.EndpointBaseLogMessage3(exception, exception.Message);
             }
 
             fault.ResponseHeader.ServiceResult = result.Code;
