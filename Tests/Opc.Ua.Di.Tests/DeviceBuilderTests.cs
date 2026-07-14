@@ -162,10 +162,15 @@ namespace Opc.Ua.Di.Tests
             Assert.That(builder.Device.Manufacturer, Is.Not.Null);
             Assert.That(builder.Device.Manufacturer!.Value.Text,
                 Is.EqualTo("Only Manufacturer Set"));
-            Assert.That(builder.Device.Model, Is.Null,
-                "Model should remain unset when WithIdentification didn't assign it.");
-            Assert.That(builder.Device.SerialNumber, Is.Null,
-                "SerialNumber should remain unset when WithIdentification didn't assign it.");
+            // Model and SerialNumber are mandatory DeviceType children so
+            // they are always materialised, but WithIdentification must not
+            // write a value into fields the caller left unset.
+            Assert.That(builder.Device.Model, Is.Not.Null);
+            Assert.That(builder.Device.Model!.Value.Text, Is.Null.Or.Empty,
+                "Model value should remain unset when WithIdentification didn't assign it.");
+            Assert.That(builder.Device.SerialNumber, Is.Not.Null);
+            Assert.That(builder.Device.SerialNumber!.Value, Is.Null.Or.Empty,
+                "SerialNumber value should remain unset when WithIdentification didn't assign it.");
         }
 
         [Test]
@@ -280,11 +285,12 @@ namespace Opc.Ua.Di.Tests
                     m_fixture.Manager.DiNamespaceIndex))
                 .ConfigureAwait(false);
 
-            // The factory `p => new DeviceState(p)` doesn't instantiate
-            // the DeviceHealth child variable, so this call should throw
-            // BadInvalidState until the device is materialised with a
-            // typed factory. Verifies the extension method routes the
-            // failure mode correctly.
+            // CreateInstanceOfDeviceType materialises only the eight
+            // mandatory DeviceType nameplate children; DeviceHealth is an
+            // optional IDeviceHealthType member and is not instantiated, so
+            // WithDeviceHealth should throw BadInvalidState until the
+            // variable is materialised (see AddDeviceHealth). Verifies the
+            // extension method routes the failure mode correctly.
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => builder.WithDeviceHealth(DeviceHealthEnumeration.NORMAL))!;
             Assert.That(ex.StatusCode,
