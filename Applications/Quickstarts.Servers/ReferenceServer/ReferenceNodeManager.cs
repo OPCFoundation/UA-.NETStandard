@@ -5664,6 +5664,39 @@ namespace Quickstarts.ReferenceServer
             "Scalar_Static_Arrays_ByteString"
         ];
 
+        /// <summary>
+        /// Identifiers of the two-dimensional array (matrix) nodes that support
+        /// history archiving. These map to the CTT "HA Profile > Arrays" 2D node
+        /// ids and mirror the element types historized for the scalar nodes.
+        /// </summary>
+        private static readonly string[] HistoricalMatrixNodeNames =
+        [
+            "Scalar_Static_Arrays2D_Boolean",
+            "Scalar_Static_Arrays2D_SByte",
+            "Scalar_Static_Arrays2D_Byte",
+            "Scalar_Static_Arrays2D_Int16",
+            "Scalar_Static_Arrays2D_UInt16",
+            "Scalar_Static_Arrays2D_Int32",
+            "Scalar_Static_Arrays2D_UInt32",
+            "Scalar_Static_Arrays2D_Int64",
+            "Scalar_Static_Arrays2D_UInt64",
+            "Scalar_Static_Arrays2D_Float",
+            "Scalar_Static_Arrays2D_Double",
+            "Scalar_Static_Arrays2D_String",
+            "Scalar_Static_Arrays2D_DateTime",
+            "Scalar_Static_Arrays2D_ByteString"
+        ];
+
+        /// <summary>
+        /// Identifiers of the structure nodes that support history archiving.
+        /// These back the CTT "HA Profile > StructureNodeSupportingHistory"
+        /// slot.
+        /// </summary>
+        private static readonly string[] HistoricalStructureNodeNames =
+        [
+            "Scalar_Static_Decimal"
+        ];
+
         /// <inheritdoc/>
         protected override IHistorianProvider? GetHistorianProvider(NodeState node)
         {
@@ -5705,7 +5738,10 @@ namespace Quickstarts.ReferenceServer
                 StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
             };
 
-            foreach (string name in HistoricalNodeNames.Concat(HistoricalArrayNodeNames))
+            foreach (string name in HistoricalNodeNames
+                .Concat(HistoricalArrayNodeNames)
+                .Concat(HistoricalMatrixNodeNames)
+                .Concat(HistoricalStructureNodeNames))
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
 
@@ -5742,15 +5778,31 @@ namespace Quickstarts.ReferenceServer
         {
             var nodeId = (NodeId)variable.NodeId;
             BuiltInType dataType = TypeInfo.GetBuiltInType(variable.DataType);
-            bool isArray = variable.ValueRank >= ValueRanks.OneDimension;
+            bool isStructure = variable.DataType == DataTypeIds.DecimalDataType;
+            bool isMatrix = variable.ValueRank >= ValueRanks.TwoDimensions;
+            bool isArray = variable.ValueRank == ValueRanks.OneDimension;
             DateTime now = DateTime.UtcNow;
             var seed = new List<DataValue>(1001);
             for (int ii = 1000; ii >= 0; ii--)
             {
                 int value = 1000 - ii;
-                Variant variant = isArray
-                    ? CreateHistoricalArrayValue(dataType, value)
-                    : CreateHistoricalScalarValue(dataType, value, now);
+                Variant variant;
+                if (isStructure)
+                {
+                    variant = CreateHistoricalStructureValue(value);
+                }
+                else if (isMatrix)
+                {
+                    variant = CreateHistoricalMatrixValue(dataType, value);
+                }
+                else if (isArray)
+                {
+                    variant = CreateHistoricalArrayValue(dataType, value);
+                }
+                else
+                {
+                    variant = CreateHistoricalScalarValue(dataType, value, now);
+                }
                 seed.Add(new DataValue(
                     variant,
                     StatusCodes.Good,
@@ -5826,6 +5878,60 @@ namespace Quickstarts.ReferenceServer
             };
         }
 
+        private static Variant CreateHistoricalMatrixValue(BuiltInType dataType, int value)
+        {
+            // Build a small, deterministic two-dimensional array (matrix) per
+            // historical sample. Element values derive from the row/column
+            // indexes so History Read Raw of the 2D array nodes returns
+            // self-consistent multi-dimensional data for the CTT.
+            const int rows = 2;
+            const int cols = 2;
+            return dataType switch
+            {
+                BuiltInType.Boolean => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => ((value + r + c) & 1) == 0)),
+                BuiltInType.SByte => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (sbyte)((value + r + c) % 100))),
+                BuiltInType.Byte => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (byte)((value + r + c) % 200))),
+                BuiltInType.Int16 => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (short)(value + r + c))),
+                BuiltInType.UInt16 => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (ushort)(value + r + c))),
+                BuiltInType.Int32 => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => value + r + c)),
+                BuiltInType.UInt32 => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (uint)(value + r + c))),
+                BuiltInType.Int64 => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (long)(value + r + c))),
+                BuiltInType.UInt64 => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (ulong)(value + r + c))),
+                BuiltInType.Float => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (float)(value + r + c))),
+                BuiltInType.Double => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (double)(value + r + c))),
+                BuiltInType.String => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => (value + r + c).ToString(CultureInfo.InvariantCulture))),
+                BuiltInType.DateTime => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => new DateTimeUtc(DateTime.UtcNow.AddSeconds(value + r + c)))),
+                BuiltInType.ByteString => Variant.From(
+                    CreateMatrix(rows, cols, (r, c) => new ByteString(BitConverter.GetBytes(value + r + c)))),
+                _ => Variant.From(CreateMatrix(rows, cols, (r, c) => value + r + c))
+            };
+        }
+
+        private static Variant CreateHistoricalStructureValue(int value)
+        {
+            // Emit a structure (DecimalDataType) value per historical sample so
+            // the CTT "StructureNodeSupportingHistory" node returns encodeable
+            // structured data on History Read Raw.
+            return Variant.FromStructure(new DecimalDataType
+            {
+                Scale = 100,
+                Value = new BigInteger(value).ToByteString()
+            });
+        }
+
         private static T[] CreateArray<T>(int length, Func<int, T> factory)
         {
             var result = new T[length];
@@ -5834,6 +5940,19 @@ namespace Quickstarts.ReferenceServer
                 result[i] = factory(i);
             }
             return result;
+        }
+
+        private static MatrixOf<T> CreateMatrix<T>(int rows, int cols, Func<int, int, T> factory)
+        {
+            var result = new T[rows, cols];
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    result[r, c] = factory(r, c);
+                }
+            }
+            return result.ToMatrixOf();
         }
 
         private static readonly ArrayOf<double> s_doubleArray =
