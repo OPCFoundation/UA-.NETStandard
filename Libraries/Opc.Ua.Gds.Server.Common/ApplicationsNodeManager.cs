@@ -2333,10 +2333,39 @@ namespace Opc.Ua.Gds.Server
             {
                 serviceUri = parentService.ServiceUri?.Value ?? string.Empty;
                 serviceCertificate = parentService.ServiceCertificate?.Value ?? default;
-                userTokenPolicies = parentService.UserTokenPolicies?.Value ?? default;
+                userTokenPolicies = ResolveServiceUserTokenPolicies(parentService);
+            }
+            else
+            {
+                // Guarantee a valid, non-null output even for a detached Method
+                // node: a null array cannot round-trip through the Method call.
+                userTokenPolicies = ArrayOf<UserTokenPolicy>.Empty;
             }
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Resolves the UserTokenPolicies advertised by GetServiceDescription.
+        /// The optional <c>UserTokenPolicies</c> Property may be absent on the
+        /// AuthorizationService instance, so fall back to the Server's configured
+        /// user token policies. The result is always non-null so the Method
+        /// output round-trips (OPC 10000-12 §9).
+        /// </summary>
+        private ArrayOf<UserTokenPolicy> ResolveServiceUserTokenPolicies(AuthorizationServiceState service)
+        {
+            if (service.UserTokenPolicies is { } policyNode && !policyNode.Value.IsNull)
+            {
+                return policyNode.Value;
+            }
+
+            if (m_configuration.ServerConfiguration is { } serverConfiguration &&
+                !serverConfiguration.UserTokenPolicies.IsNull)
+            {
+                return serverConfiguration.UserTokenPolicies;
+            }
+
+            return ArrayOf<UserTokenPolicy>.Empty;
         }
 
         /// <summary>

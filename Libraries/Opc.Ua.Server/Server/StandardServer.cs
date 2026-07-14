@@ -3699,7 +3699,20 @@ namespace Opc.Ua.Server
             // cuts after ApplyChanges (OPC UA Part 12 §7.10.9).
             m_serverInternal.SetTransportListenerRegistry(TransportListeners.AsReadOnly());
 
+            // Surface the advertised endpoints through the
+            // IServerEndpointRegistryProvider so ConfigurationNodeManager can
+            // reject deleting a certificate still referenced by an
+            // EndpointDescription (OPC UA Part 12 §7.10.7).
+            m_serverInternal.SetServerEndpoints(GetEndpoints());
+
             OnServerStarted(m_serverInternal);
+
+            // OPC 10000-12 §7.8.3: start periodic certificate-expiration and
+            // TrustList-staleness alarm monitoring now that the server is
+            // running and the subscription/event infrastructure is ready, so
+            // alarm transition events can be reported safely.
+            m_serverInternal.ConfigurationNodeManager?
+                .StartAlarmMonitoring(kCertificateAlarmMonitoringInterval);
 
             // monitor the configuration file.
             if (!string.IsNullOrEmpty(configuration.SourceFilePath))
@@ -4472,6 +4485,13 @@ namespace Opc.Ua.Server
         private ServerRateLimitOptions? m_rateLimitOptions;
         private IServerRateLimiterProvider? m_rateLimiterProvider;
         private bool m_ownsRateLimiterProvider;
+
+        /// <summary>
+        /// The interval at which the <see cref="ConfigurationNodeManager"/>
+        /// re-evaluates the certificate-expiration and TrustList-staleness
+        /// alarms (OPC 10000-12 §7.8.3) once the server is running.
+        /// </summary>
+        private static readonly TimeSpan kCertificateAlarmMonitoringInterval = TimeSpan.FromSeconds(60);
 
         private sealed class CertificateManagerChangeObserver : IObserver<CertificateChangeEvent>
         {

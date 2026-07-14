@@ -204,6 +204,26 @@ namespace Opc.Ua.Gds.Client
         /// <remarks>Calls the <c>ApplyChanges</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.5).</remarks>
         ValueTask ApplyChangesAsync(CancellationToken ct = default);
 
+        /// <summary>
+        /// Discards the pending Certificate/TrustList changes staged by the
+        /// calling Session's active PushManagement transaction.
+        /// </summary>
+        /// <remarks>Calls the <c>CancelChanges</c> method on <c>ServerConfigurationType</c>
+        /// (OPC 10000-12 §7.10.11). Returns <c>Bad_NothingToDo</c> if the Session has no
+        /// active transaction. The method is optional; servers that do not implement the
+        /// transaction model return <c>Bad_NotSupported</c>.</remarks>
+        ValueTask CancelChangesAsync(CancellationToken ct = default);
+
+        /// <summary>Deletes the certificate assigned to a CertificateGroup/CertificateType slot.</summary>
+        /// <remarks>Calls the <c>DeleteCertificate</c> method on <c>ServerConfigurationType</c>
+        /// (OPC 10000-12 §7.10.7). The deletion is staged like <c>UpdateCertificate</c> and only takes
+        /// effect once <c>ApplyChanges</c> is called. The method is optional; servers that do not
+        /// implement it return <c>Bad_NotSupported</c>.</remarks>
+        ValueTask DeleteCertificateAsync(
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            CancellationToken ct = default);
+
         /// <summary>Lists the certificates configured on the server.</summary>
         /// <remarks>Calls the <c>GetCertificates</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.7).</remarks>
         ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(

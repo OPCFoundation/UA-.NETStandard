@@ -14,6 +14,7 @@ Here is a list of available documentation for different topics:
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform support, NuGet packages and versioning](DeveloperGuide.md#packages-platform-support-and-versioning).
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
+* [CertificateManager](CertificateManager.md) - Centralized certificate lifecycle management, server-side push certificate rotation, and the OPC UA Part 12 PushManagement transaction model (`ApplyChanges`/`CancelChanges`, staged TrustList/Certificate updates, `DeleteCertificate`, pending-key persistence).
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.
@@ -69,7 +70,7 @@ Starting with version 1.5.375.XX the Windows Forms reference client & reference 
 
 ## Global Discovery Server (GDS)
 
-* [GDS Developer Guide](GDS.md) — Application registration, certificate management (pull & push models), roles and authorization, provider implementation, end-to-end examples.
+* [GDS Developer Guide](GDS.md) — Application registration, certificate management (pull & push models), roles and authorization, provider implementation, end-to-end examples, and a per-requirement [OPC UA Part 12 conformance matrix](GDS.md#conformance-matrix) that links every implemented ServerConfiguration/PushManagement, TrustList, certificate-alarm, KeyCredentialService and AuthorizationService requirement to its source and automated tests (with applicable profiles/conformance units and honest complete/partial/optional/unsupported marks).
 * [KeyCredentialService](KeyCredentialService.md) — Credential issuance for non-OPC UA services (MQTT, REST), IKeyCredentialRequestStore provider guide, ISecretStore integration.
 * [AuthorizationService](AuthorizationService.md) — OAuth2-style access token issuance, IAccessTokenProvider implementation guide.
 * [Role-Based Security](RoleBasedUserManagement.md) — Part 18 roles and claim-based identity-mapping rules.

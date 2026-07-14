@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Identity;
@@ -563,6 +564,80 @@ namespace Opc.Ua.Server.Tests.Hosting
             using ServiceProvider sp = builder.Services.BuildServiceProvider();
 
             Assert.That(sp.GetRequiredService<ICertificateManager>(), Is.SameAs(certManager));
+        }
+
+        [Test]
+        public void DefaultContainerDoesNotRegisterASharedTransactionCoordinatorSingleton()
+        {
+            // The PushManagement transaction coordinator holds mutable
+            // per-server transaction state (OPC 10000-12 §§7.10.2-7.10.11).
+            // A shared singleton would let two servers created from one
+            // container corrupt each other's transactions, so no default is
+            // registered - each server's ConfigurationNodeManager owns its own.
+            IOpcUaServerBuilder builder = CreateBuilder();
+            using ServiceProvider sp = builder.Services.BuildServiceProvider();
+
+            Assert.That(sp.GetService<IPushConfigurationTransactionCoordinator>(), Is.Null);
+        }
+
+        [Test]
+        public void CustomTransactionCoordinatorRegistrationIsHonored()
+        {
+            // Custom injection is preserved: a host that registers its own
+            // coordinator gets exactly that instance back.
+            IOpcUaServerBuilder builder = CreateBuilder();
+            IPushConfigurationTransactionCoordinator custom =
+                Mock.Of<IPushConfigurationTransactionCoordinator>();
+            builder.Services.AddSingleton(custom);
+
+            using ServiceProvider sp = builder.Services.BuildServiceProvider();
+
+            Assert.That(sp.GetService<IPushConfigurationTransactionCoordinator>(), Is.SameAs(custom));
+        }
+
+        [Test]
+        public void WithServerConfigurationResetRegistersProviderInstance()
+        {
+            IOpcUaServerBuilder builder = CreateBuilder();
+            IServerConfigurationResetProvider provider = Mock.Of<IServerConfigurationResetProvider>();
+            builder.WithServerConfigurationReset(provider);
+
+            using ServiceProvider sp = builder.Services.BuildServiceProvider();
+
+            Assert.That(sp.GetService<IServerConfigurationResetProvider>(), Is.SameAs(provider));
+        }
+
+        [Test]
+        public void WithApplicationConfigurationFileRegistersProviderInstance()
+        {
+            IOpcUaServerBuilder builder = CreateBuilder();
+            IApplicationConfigurationFileProvider provider = Mock.Of<IApplicationConfigurationFileProvider>();
+            builder.WithApplicationConfigurationFile(provider);
+
+            using ServiceProvider sp = builder.Services.BuildServiceProvider();
+
+            Assert.That(sp.GetService<IApplicationConfigurationFileProvider>(), Is.SameAs(provider));
+        }
+
+        [Test]
+        public void ConfigureServerConfigurationProjectsOptions()
+        {
+            IOpcUaServerBuilder builder = CreateBuilder();
+            builder.ConfigureServerConfiguration(o =>
+            {
+                o.HasSecureElement = true;
+                o.InApplicationSetup = false;
+            });
+
+            using ServiceProvider sp = builder.Services.BuildServiceProvider();
+
+            ServerConfigurationOptions options =
+                sp.GetRequiredService<IOptions<ServerConfigurationOptions>>().Value;
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.HasSecureElement, Is.True);
+                Assert.That(options.InApplicationSetup, Is.False);
+            });
         }
 
         [Test]

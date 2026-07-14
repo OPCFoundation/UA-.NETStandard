@@ -263,9 +263,27 @@ namespace Opc.Ua.Client
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
 
-            await managed.StateMachine
-                .WaitForConnectedAsync(ct)
-                .ConfigureAwait(false);
+            try
+            {
+                await managed.StateMachine
+                    .WaitForConnectedAsync(ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                try
+                {
+                    await managed.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception disposeException) when (
+                    disposeException is not OutOfMemoryException)
+                {
+                    logger.LogError(
+                        disposeException,
+                        "ManagedSession: Disposal after initial connection failure failed.");
+                }
+                throw;
+            }
 
             return managed;
         }
