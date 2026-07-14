@@ -5667,7 +5667,8 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Identifiers of the two-dimensional array (matrix) nodes that support
         /// history archiving. These map to the CTT "HA Profile > Arrays" 2D node
-        /// ids and mirror the element types historized for the scalar nodes.
+        /// ids and mirror the element types historized for the one-dimensional
+        /// array nodes.
         /// </summary>
         private static readonly string[] HistoricalMatrixNodeNames =
         [
