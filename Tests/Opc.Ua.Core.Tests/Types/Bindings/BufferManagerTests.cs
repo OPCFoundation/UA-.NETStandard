@@ -219,6 +219,53 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             manager.ReturnBuffer(await second.ConfigureAwait(false), nameof(LimiterBlocksSecondRentUntilFirstReturned));
         }
 
+        [TestCase(0)]
+        [TestCase(-1)]
+        public void LimiterConstructorWithNonPositiveBudgetThrows(int maxOutstandingBytes)
+        {
+            Assert.That(
+                () => new BufferManagerMemoryLimiter(maxOutstandingBytes),
+                Throws.TypeOf<ArgumentOutOfRangeException>()
+                    .With.Property(nameof(ArgumentOutOfRangeException.ParamName))
+                    .EqualTo(nameof(maxOutstandingBytes)));
+        }
+
+        [Test]
+        public void LimiterReturnsOversizedBufferAndReleasesReservation()
+        {
+            const int expectedLength = 16;
+            const int actualLength = 32;
+            int attempts = 0;
+            var returnedBufferLengths = new List<int>();
+            var manager = new LimitingBufferManager(
+                new DelegateBufferManager(
+                    expectedLength,
+                    actualLength,
+                    takeBuffer: static (expectedSize, owner, currentAttempt) =>
+                        new byte[currentAttempt == 1 ? actualLength : expectedSize],
+                    getNextAttempt: () => Interlocked.Increment(ref attempts),
+                    returnBuffer: (buffer, owner) => returnedBufferLengths.Add(buffer.Length)),
+                new BufferManagerMemoryLimiter(expectedLength));
+
+            Assert.That(
+                () => manager.TakeBuffer(
+                    expectedLength,
+                    nameof(LimiterReturnsOversizedBufferAndReleasesReservation)),
+                Throws.TypeOf<InvalidOperationException>());
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            byte[] buffer = manager.TakeBuffer(
+                expectedLength,
+                nameof(LimiterReturnsOversizedBufferAndReleasesReservation),
+                cts.Token);
+            manager.ReturnBuffer(
+                buffer,
+                nameof(LimiterReturnsOversizedBufferAndReleasesReservation));
+
+            Assert.That(buffer, Has.Length.EqualTo(expectedLength));
+            Assert.That(returnedBufferLengths, Is.EqualTo(new[] { actualLength, expectedLength }));
+        }
+
         [Test]
         public async Task FactorySharesProcessBudgetAcrossManagers()
         {
@@ -504,12 +551,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 int expectedBufferSize,
                 int actualBufferSize,
                 Func<int, string, int, byte[]> takeBuffer = null,
-                Func<int> getNextAttempt = null)
+                Func<int> getNextAttempt = null,
+                Action<byte[], string> returnBuffer = null)
             {
                 MaxSuggestedBufferSize = expectedBufferSize;
                 m_actualBufferSize = actualBufferSize;
                 m_takeBuffer = takeBuffer;
                 m_getNextAttempt = getNextAttempt;
+                m_returnBuffer = returnBuffer;
             }
 
             public string Name => nameof(DelegateBufferManager);
@@ -561,11 +610,13 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
 
             public void ReturnBuffer(byte[] buffer, string owner)
             {
+                m_returnBuffer?.Invoke(buffer, owner);
             }
 
             private readonly int m_actualBufferSize;
             private readonly Func<int, string, int, byte[]> m_takeBuffer;
             private readonly Func<int> m_getNextAttempt;
+            private readonly Action<byte[], string> m_returnBuffer;
         }
 
         private sealed class ReentrantArrayPool : ArrayPool<byte>
