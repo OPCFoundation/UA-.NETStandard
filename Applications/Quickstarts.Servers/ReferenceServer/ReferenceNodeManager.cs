@@ -5794,11 +5794,11 @@ namespace Quickstarts.ReferenceServer
                 }
                 else if (isMatrix)
                 {
-                    variant = CreateHistoricalMatrixValue(dataType, value);
+                    variant = CreateHistoricalMatrixValue(dataType, value, now);
                 }
                 else if (isArray)
                 {
-                    variant = CreateHistoricalArrayValue(dataType, value);
+                    variant = CreateHistoricalArrayValue(dataType, value, now);
                 }
                 else
                 {
@@ -5856,7 +5856,10 @@ namespace Quickstarts.ReferenceServer
             };
         }
 
-        private static Variant CreateHistoricalArrayValue(BuiltInType dataType, int value)
+        private static Variant CreateHistoricalArrayValue(
+            BuiltInType dataType,
+            int value,
+            DateTime now)
         {
             // Build a small, deterministic one-dimensional array per historical
             // sample. Element values derive from the sample index so History Read
@@ -5889,14 +5892,17 @@ namespace Quickstarts.ReferenceServer
                 BuiltInType.String => Variant.From(
                     CreateArray(length, i => (value + i).ToString(CultureInfo.InvariantCulture)).ToArrayOf()),
                 BuiltInType.DateTime => Variant.From(
-                    CreateArray(length, i => new DateTimeUtc(DateTime.UtcNow.AddSeconds(value + i))).ToArrayOf()),
+                    CreateArray(length, i => new DateTimeUtc(now.AddSeconds(value + i))).ToArrayOf()),
                 BuiltInType.ByteString => Variant.From(
                     CreateArray(length, i => new ByteString(BitConverter.GetBytes(value + i))).ToArrayOf()),
                 _ => Variant.From(CreateArray(length, i => value + i).ToArrayOf())
             };
         }
 
-        private static Variant CreateHistoricalMatrixValue(BuiltInType dataType, int value)
+        private static Variant CreateHistoricalMatrixValue(
+            BuiltInType dataType,
+            int value,
+            DateTime now)
         {
             // Build a small, deterministic two-dimensional array (matrix) per
             // historical sample. Element values derive from the row/column
@@ -5931,7 +5937,7 @@ namespace Quickstarts.ReferenceServer
                 BuiltInType.String => Variant.From(
                     CreateMatrix(rows, cols, (r, c) => (value + r + c).ToString(CultureInfo.InvariantCulture))),
                 BuiltInType.DateTime => Variant.From(
-                    CreateMatrix(rows, cols, (r, c) => new DateTimeUtc(DateTime.UtcNow.AddSeconds(value + r + c)))),
+                    CreateMatrix(rows, cols, (r, c) => new DateTimeUtc(now.AddSeconds(value + r + c)))),
                 BuiltInType.ByteString => Variant.From(
                     CreateMatrix(rows, cols, (r, c) => new ByteString(BitConverter.GetBytes(value + r + c)))),
                 _ => Variant.From(CreateMatrix(rows, cols, (r, c) => value + r + c))

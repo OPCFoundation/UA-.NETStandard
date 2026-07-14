@@ -653,7 +653,9 @@ namespace Opc.Ua.Server.Tests
 
         private ushort GetTestNamespaceIndex()
         {
-            return (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestNamespaceUri);
+            int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(TestNamespaceUri);
+            Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
+            return checked((ushort)namespaceIndex);
         }
 
         private static Mock<INodeManagerWithNodeManagement> CreateNodeManagementManager(

@@ -3608,7 +3608,7 @@ namespace Opc.Ua
                 if (!TryGetInt32ArrayFromElement(
                     dimensionElement,
                     out ArrayOf<int> dims) ||
-                    !MatrixOf.IsValidMatrix(dims.ToArray()))
+                    !MatrixOf.IsValidMatrix(dims.Span))
                 {
                     value = default;
                     return false;

@@ -680,7 +680,18 @@ namespace Opc.Ua
         /// </returns>
         internal static bool IsValidMatrix(int[]? dimensions, int elementCount = -1)
         {
-            if (dimensions == null || dimensions.Length < 2)
+            return dimensions != null &&
+                IsValidMatrix(dimensions.AsSpan(), elementCount);
+        }
+
+        /// <summary>
+        /// Validates matrix dimensions without allocating an intermediate array.
+        /// </summary>
+        internal static bool IsValidMatrix(
+            ReadOnlySpan<int> dimensions,
+            int elementCount = -1)
+        {
+            if (dimensions.Length < 2)
             {
                 return false;
             }
