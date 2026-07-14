@@ -283,9 +283,12 @@ namespace RedundantServer
                     // last value shared through the distributed store instead of
                     // restarting from the local count.
                     await SeedCounterFromCacheAsync(cancellationToken).ConfigureAwait(false);
-                    m_logger.ReplicaBecameActiveWriter(
-                        m_replicaInfo.NodeId,
-                        Volatile.Read(ref m_counterValue));
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.ReplicaBecameActiveWriter(
+                            m_replicaInfo.NodeId,
+                            Volatile.Read(ref m_counterValue));
+                    }
                     wasLeader = true;
                 }
 
@@ -299,9 +302,12 @@ namespace RedundantServer
                 if (now - lastHeartbeat >= TimeSpan.FromSeconds(5))
                 {
                     lastHeartbeat = now;
-                    m_logger.ReplicaActive(
-                        m_replicaInfo.NodeId,
-                        Volatile.Read(ref m_counterValue));
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.ReplicaActive(
+                            m_replicaInfo.NodeId,
+                            Volatile.Read(ref m_counterValue));
+                    }
                 }
             }
         }

@@ -934,7 +934,10 @@ namespace Opc.Ua.Gds.Server
                 AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
-            m_logger.OnUnregisterApplication(applicationId.ToString());
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.OnUnregisterApplication(applicationId.ToString());
+            }
 
             if (m_database.GetApplication(applicationId) == null)
             {

@@ -1455,11 +1455,14 @@ namespace Opc.Ua.Bindings
                 timeToRenewal = 0;
             }
 
-            m_logger.UaSCClientLog30(
-                ChannelId,
-                token.CreatedAt.AddMilliseconds(token.Lifetime),
-                TimeProvider.GetUtcNow().AddMilliseconds(timeToRenewal).UtcDateTime,
-                timeToRenewal);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCClientLog30(
+                    ChannelId,
+                    token.CreatedAt.AddMilliseconds(token.Lifetime),
+                    TimeProvider.GetUtcNow().AddMilliseconds(timeToRenewal).UtcDateTime,
+                    timeToRenewal);
+            }
 
             m_handshakeTimer = TimeProvider.CreateTimer(
                 m_startHandshake,

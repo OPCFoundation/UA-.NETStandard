@@ -1141,7 +1141,10 @@ namespace Opc.Ua
                     serviceResult!.StatusCode == StatusCodes.BadCertificateUntrusted)
                 {
                     accept = true;
-                    m_logger.CertificateValidationLog10(Redact.Create(certificate));
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.CertificateValidationLog10(Redact.Create(certificate));
+                    }
                 }
 
                 if (accept)

@@ -279,10 +279,13 @@ namespace Quickstarts
         {
             lock (session.DiagnosticsLock)
             {
-                m_logger.SessionStatusLastContact(
-                    reason,
-                    session.SessionDiagnostics.SessionName,
-                    session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.SessionStatusLastContact(
+                        reason,
+                        session.SessionDiagnostics.SessionName,
+                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                }
             }
         }
 
@@ -293,12 +296,15 @@ namespace Quickstarts
         {
             lock (session.DiagnosticsLock)
             {
-                m_logger.SessionStatusFull(
-                    reason,
-                    session.SessionDiagnostics.SessionName,
-                    session.SessionDiagnostics.ClientLastContactTime.ToLocalTime(),
-                    session.Identity?.DisplayName ?? "Anonymous",
-                    session.Id);
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.SessionStatusFull(
+                        reason,
+                        session.SessionDiagnostics.SessionName,
+                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime(),
+                        session.Identity?.DisplayName ?? "Anonymous",
+                        session.Id);
+                }
             }
         }
 

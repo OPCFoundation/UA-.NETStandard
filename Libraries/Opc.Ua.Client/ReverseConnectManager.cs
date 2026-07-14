@@ -825,7 +825,7 @@ namespace Opc.Ua.Client
                             if (tsk.IsCanceled)
                             {
                                 matched = MatchRegistration(sender, e);
-                                if (matched)
+                                if (matched && m_logger.IsEnabled(LogLevel.Information))
                                 {
                                     m_logger.MatchedReverseConnectionServerUriEndpointUrlAfter(
                                         e.ServerUri,
@@ -842,11 +842,14 @@ namespace Opc.Ua.Client
                 break;
             }
 
-            m_logger.ActionReverseConnectionServerUriEndpointUrlAfter(
-                e.Accepted ? "Accepted" : "Rejected",
-                e.ServerUri,
-                e.EndpointUrl,
-                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.ActionReverseConnectionServerUriEndpointUrlAfter(
+                    e.Accepted ? "Accepted" : "Rejected",
+                    e.ServerUri,
+                    e.EndpointUrl,
+                    (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+            }
         }
 
         /// <summary>

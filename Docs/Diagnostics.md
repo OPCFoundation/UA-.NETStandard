@@ -179,85 +179,10 @@ arguments, caches the message formatter, and emits an efficient
 must follow this pattern; direct `ILogger.LogInformation/LogError/...`
 calls are not allowed.
 
-> To add a new log message, follow the step-by-step recipe in the
-> [Developer Guide](DeveloperGuide.md#add-a-log-message-source-generated). The
-> conventions below are the reference detail behind that recipe.
-
-The conventions are:
-
-- **One log class per file.** Add an `internal static partial class
-  <ClassName>Log` at the end of the file that owns the log call. It holds
-  `[LoggerMessage]` **extension methods on `ILogger`**, so call sites keep
-  the natural `logger.SomeEvent(...)` shape.
-- **Share one log class across closely-related files** when they emit the
-  same messages. For example the binary, JSON and XML encoders, decoders
-  and parsers in `Opc.Ua.Types` all share a single `EncodingLog` class.
-  This both removes duplication and avoids ambiguous call resolution:
-  identical `this ILogger` extension overloads declared in several classes
-  of the same namespace collide (CS0121).
-- **Central per-project event-id class.** Each project has one
-  `internal static class <Assembly>EventIds` at its root (e.g. `TypesEventIds`,
-  `CoreTypesEventIds`) holding a `public const int` offset per log class. The
-  name is prefixed with the assembly token because the stack uses
-  `InternalsVisibleTo`: two `internal` classes with the same name in the same
-  namespace collide across an IVT boundary (CS0436). Every log method sets
-  `EventId = <Assembly>EventIds.<Class> + <zero-based message index>`. Each
-  offset block reserves at least five spare slots for future messages and is
-  then rounded up to the next multiple of ten, so ids stay documented and
-  managed from one place.
-- **Named, static message templates.** Placeholders must be named
-  (`{ChannelId}`) and match a method parameter of the same name; an
-  `Exception` argument is detected by its type. Never interpolate
-  (`$"..."`) a log message.
-- **Guard expensive arguments.** If a log call passes an expensive computed
-  argument (e.g. `string.Join(...)`, a LINQ projection), wrap the call in an
-  `if (logger.IsEnabled(<level>))` check. Source generation alone does not
-  suppress the eager evaluation, and CA1873 flags it.
-- **Nullable parameters.** When the original argument is a nullable value
-  (`string?`, `item.Name`), declare the generated parameter nullable too,
-  otherwise the compiler reports CS8604.
-- **Dynamic log levels stay hand-written.** `[LoggerMessage]` requires a
-  compile-time `Level`. A call whose level is only known at runtime keeps the
-  structured `logger.Log(logLevel, "{Template}", args)` form, wrapped in an
-  `if (logger.IsEnabled(logLevel))` guard. These are the only remaining direct
-  `ILogger.Log` calls.
-- **Shared/linked source files use self-contained event ids.** A file that is
-  `<Compile Include>`-d into more than one project (for example a sample file
-  linked into a test project) cannot reference another assembly's
-  `<Assembly>EventIds` class, which is not compiled into every consumer. Give
-  its log class literal `EventId` integers in a high, dedicated range instead.
-- **Avoid the duplicate generator on netstandard.** Projects that also pull in
-  an R9 package (`Microsoft.Extensions.Http.Resilience`, `.Compliance`,
-  `.Telemetry`, …) get the `Microsoft.Gen.Logging` generator in addition to the
-  in-box one. On `netstandard` both implement every partial method (CS0757). The
-  repo's `Directory.Build.targets` removes the R9 analyzer on `netstandard`
-  only, leaving a single generator on every TFM.
-
-```csharp
-// EventIds.cs (project root) — name is prefixed with the assembly token to
-// avoid CS0436 collisions across InternalsVisibleTo boundaries.
-internal static class TypesEventIds
-{
-    public const int Encoding = 20;   // shared codec block (reserves 20)
-    public const int Matrix = 50;     // per-file block (reserves 10)
-}
-
-// end of Matrix.cs
-internal static partial class MatrixLog
-{
-    [LoggerMessage(EventId = TypesEventIds.Matrix + 0, Level = LogLevel.Debug,
-        Message = "ReadArray read dimensions[{Index}] = {Dimensions}. Matrix will have 0 elements.")]
-    public static partial void ReadArrayZeroDimension(this ILogger logger, int index, int[] dimensions);
-}
-
-// call site
-logger.ReadArrayZeroDimension(index, dimensions);
-```
-
-Once a project is fully migrated, `CA1873` ("Avoid potentially expensive
-logging") is enabled for it (path-scoped in `.editorconfig`) so any
-regression back to a direct `ILogger.Log*` call is flagged. A global
-enable follows once the whole code base is migrated.
+> **Authoring a log message** — the event-id conventions, log-class layout,
+> parameter rules, and the `IsEnabled` guard for expensive arguments
+> (`CA1873`, enabled solution-wide) live in the
+> [Developer Guide](DeveloperGuide.md#add-a-log-message-source-generated).
 
 ### Extensibility patterns
 

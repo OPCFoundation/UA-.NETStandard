@@ -352,7 +352,10 @@ namespace Opc.Ua.PubSub.Udp
                 }
                 catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
                 {
-                    m_logger.MulticastDropOnCloseRaised(ex, m_connection.Name, ex.GetType().Name);
+                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        m_logger.MulticastDropOnCloseRaised(ex, m_connection.Name, ex.GetType().Name);
+                    }
                 }
                 try
                 {

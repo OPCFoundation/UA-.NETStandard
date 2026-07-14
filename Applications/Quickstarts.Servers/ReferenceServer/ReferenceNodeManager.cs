@@ -5377,9 +5377,12 @@ namespace Quickstarts.ReferenceServer
                     LogLevel logLevel = running > 1 ?
                         running > 4 ? LogLevel.Warning : LogLevel.Information :
                         LogLevel.Debug;
-                    m_logger.Log(logLevel,
-                        "Simulation timer fired while {Count} simulations are already queued to run.",
-                        running);
+                    if (m_logger.IsEnabled(logLevel))
+                    {
+                        m_logger.Log(logLevel,
+                            "Simulation timer fired while {Count} simulations are already queued to run.",
+                            running);
+                    }
                 }
                 m_semaphore.Wait();
                 try

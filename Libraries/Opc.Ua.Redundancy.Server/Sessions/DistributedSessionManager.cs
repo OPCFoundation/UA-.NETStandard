@@ -267,7 +267,10 @@ namespace Opc.Ua.Redundancy.Server
                     session.Dispose();
                     throw;
                 }
-                m_logger.DistributedSessionRestoredFromSharedStore(TokenDigest(authenticationToken), session.Id);
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.DistributedSessionRestoredFromSharedStore(TokenDigest(authenticationToken), session.Id);
+                }
                 m_tokensBySession[session.Id] = authenticationToken;
 
                 // Security-relevant provenance: a session materialized on this

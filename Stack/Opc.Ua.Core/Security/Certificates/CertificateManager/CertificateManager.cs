@@ -141,7 +141,8 @@ namespace Opc.Ua
             }
 
             if (!m_trustLists.TryAdd(trustList, new TrustListEntry(
-                                    trustedStorePath, issuerStorePath, StoreType: null)))
+                                    trustedStorePath, issuerStorePath, StoreType: null)) &&
+                m_logger.IsEnabled(LogLevel.Debug))
             {
                 m_logger.CertificateManagerLogMessage0(trustList.ToString());
             }

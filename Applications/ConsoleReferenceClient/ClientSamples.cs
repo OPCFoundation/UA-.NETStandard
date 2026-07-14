@@ -1100,9 +1100,12 @@ namespace Quickstarts
 
             stopWatch.Stop();
 
-            m_logger.LoadedTypes(
-                complexTypeSystem.GetDefinedTypes().Count,
-                stopWatch.ElapsedMilliseconds);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LoadedTypes(
+                    complexTypeSystem.GetDefinedTypes().Count,
+                    stopWatch.ElapsedMilliseconds);
+            }
 
             if (!loaded)
             {

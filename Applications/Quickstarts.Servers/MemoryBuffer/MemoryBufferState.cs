@@ -663,7 +663,8 @@ namespace MemoryBuffer
 
             lock (m_dataLock)
             {
-                if (m_itemCount > 0 && m_updateCount < m_itemCount)
+                if (m_itemCount > 0 && m_updateCount < m_itemCount &&
+                    m_logger.IsEnabled(LogLevel.Information))
                 {
                     m_logger.MemoryBufferReported(
                         DateTimeUtc.Now.ToLocalTime(),

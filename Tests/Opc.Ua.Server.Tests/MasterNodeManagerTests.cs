@@ -91,6 +91,7 @@ namespace Opc.Ua.Server.Tests
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+#pragma warning disable CA1873 // Expression tree in Moq Verify is not an executed logging call
             loggerMock.Verify(
                 x => x.Log(
                     LogLevel.Debug,
@@ -99,6 +100,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<Exception>(),
                     (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
                 Times.Once);
+#pragma warning restore CA1873
         }
 
         [Test]
@@ -120,6 +122,7 @@ namespace Opc.Ua.Server.Tests
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+#pragma warning disable CA1873 // Expression tree in Moq Verify is not an executed logging call
             loggerMock.Verify(
                 x => x.Log(
                     LogLevel.Debug,
@@ -128,6 +131,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<Exception>(),
                     (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
                 Times.Once);
+#pragma warning restore CA1873
         }
 
         [Test]

@@ -839,9 +839,12 @@ namespace TestData
 
         private void DoSample(object? state)
         {
-            m_logger.DoSample(
-                m_timeProvider.GetUtcNow().UtcDateTime,
-                DateTime.UtcNow);
+            if (m_logger.IsEnabled(LogLevel.Trace))
+            {
+                m_logger.DoSample(
+                    m_timeProvider.GetUtcNow().UtcDateTime,
+                    DateTime.UtcNow);
+            }
 
             var samples = new Queue<Sample>();
             var generateValues = new List<BaseVariableState>();

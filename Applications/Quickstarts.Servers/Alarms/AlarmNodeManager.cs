@@ -647,7 +647,10 @@ namespace Alarms
             }
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            m_logger.StartingAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.StartingAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            }
 
             lock (m_alarms)
             {
@@ -699,7 +702,10 @@ namespace Alarms
             }
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            m_logger.StartingBranchForAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.StartingBranchForAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            }
 
             lock (m_alarms)
             {
@@ -735,7 +741,10 @@ namespace Alarms
             List<Variant> outputArguments)
         {
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            m_logger.StoppingAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.StoppingAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            }
 
             lock (m_alarms)
             {
