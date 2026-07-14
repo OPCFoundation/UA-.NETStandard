@@ -179,6 +179,10 @@ arguments, caches the message formatter, and emits an efficient
 must follow this pattern; direct `ILogger.LogInformation/LogError/...`
 calls are not allowed.
 
+> To add a new log message, follow the step-by-step recipe in the
+> [Developer Guide](DeveloperGuide.md#add-a-log-message-source-generated). The
+> conventions below are the reference detail behind that recipe.
+
 The conventions are:
 
 - **One log class per file.** Add an `internal static partial class
