@@ -824,6 +824,68 @@ namespace Opc.Ua.History.Tests
             Assert.That(response.Results.Count, Is.EqualTo(2));
         }
 
+        [Description("Raw history read returns seeded data that includes Good, Bad, and Uncertain quality status codes.")]
+        [Test]
+        public async Task HistoryReadRawDataContainsBadAndUncertainQualityAsync()
+        {
+            NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-4);
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    NumValuesPerNode = 500,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() { NodeId = nodeId }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            if (!StatusCode.IsGood(result.StatusCode))
+            {
+                Assert.Ignore($"History not supported: {result.StatusCode}");
+            }
+
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True,
+                "Result should carry a HistoryData payload.");
+            Assert.That(historyData!.DataValues.Count, Is.GreaterThan(10),
+                "Need at least 10 data values to verify quality pattern.");
+
+            bool hasBad = false;
+            bool hasUncertain = false;
+            bool hasGood = false;
+            foreach (DataValue dv in historyData.DataValues)
+            {
+                if (StatusCode.IsBad(dv.StatusCode))
+                {
+                    hasBad = true;
+                }
+                else if (StatusCode.IsUncertain(dv.StatusCode))
+                {
+                    hasUncertain = true;
+                }
+                else if (StatusCode.IsGood(dv.StatusCode))
+                {
+                    hasGood = true;
+                }
+            }
+
+            Assert.That(hasGood, Is.True, "Seeded history should contain Good quality data.");
+            Assert.That(hasBad, Is.True, "Seeded history should contain Bad quality data.");
+            Assert.That(hasUncertain, Is.True, "Seeded history should contain Uncertain quality data.");
+        }
+
         private static bool IsUnsupported(StatusCode statusCode)
         {
             return statusCode == StatusCodes.BadHistoryOperationUnsupported ||

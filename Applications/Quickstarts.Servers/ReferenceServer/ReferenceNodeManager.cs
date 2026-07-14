@@ -5804,9 +5804,10 @@ namespace Quickstarts.ReferenceServer
                 {
                     variant = CreateHistoricalScalarValue(dataType, value, now);
                 }
+                StatusCode statusCode = GetSeededStatusCode(value);
                 seed.Add(new DataValue(
                     variant,
-                    StatusCodes.Good,
+                    statusCode,
                     sourceTimestamp: now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
                     serverTimestamp: now.AddSeconds(-(ii * 10))));
             }
@@ -5814,6 +5815,22 @@ namespace Quickstarts.ReferenceServer
             var systemContext = new ServerSystemContext(Server, opContext);
             var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
             _ = await m_historian!.InsertAsync(historianContext, nodeId, seed, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Returns a deterministic status code for a seeded historical value so
+        /// that the recorded data contains Good, Bad, and Uncertain quality.
+        /// The pattern repeats every 10 samples: index 7 is Bad, index 9 is
+        /// Uncertain, and the remaining 8 are Good.
+        /// </summary>
+        private static StatusCode GetSeededStatusCode(int sampleIndex)
+        {
+            return (sampleIndex % 10) switch
+            {
+                7 => StatusCodes.BadDataUnavailable,
+                9 => StatusCodes.UncertainSubstituteValue,
+                _ => StatusCodes.Good
+            };
         }
 
         private static Variant CreateHistoricalScalarValue(BuiltInType dataType, int value, DateTime now)
