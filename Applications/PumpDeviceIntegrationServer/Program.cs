@@ -99,7 +99,7 @@ builder.Services
         // subtree after the device itself was registered, so it must be
         // registered with the manager explicitly. Without this the node
         // is browsable but its attributes never resolve, so the DI
-        // companion-spec checker cannot map it to the declared
+        // companion-spec checker cannot map it to the declared DeviceHealth node.
         await ctx.Manager
             .AddPredefinedNodeAsync(pump.Device.DeviceHealth!, ctx.CancellationToken)
             .ConfigureAwait(false);
