@@ -8,7 +8,6 @@
     <Company>OPC Foundation</Company>
     <Description>Self-contained .NET console OPC UA client demonstrating the fluent ManagedSession API and dependency injection. Native AOT compatible.</Description>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
-    <RootNamespace>MinimalClient</RootNamespace>
     <Nullable>enable</Nullable>
     <!-- CA1822: static methods not required for a console app that just demonstrates the API -->
     <NoWarn>$(NoWarn);CA1822</NoWarn>
