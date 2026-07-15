@@ -71,29 +71,6 @@ namespace MinimalClient
             Console.WriteLine($"Connecting to: {endpointUrl}");
             Console.WriteLine();
 
-            // Create a temporary service collection to get the telemetry context
-            IServiceCollection tempServices = new ServiceCollection();
-            tempServices.AddOpcUa();
-
-            using IServiceProvider tempProvider = tempServices.BuildServiceProvider(
-                new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
-
-            ITelemetryContext telemetry = tempProvider.GetRequiredService<ITelemetryContext>();
-
-            // Create application configuration with telemetry context from DI
-            ApplicationConfiguration config = new ApplicationConfiguration(telemetry)
-            {
-                ApplicationName = "MinimalClient",
-                ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
-                ApplicationType = ApplicationType.Client,
-                SecurityConfiguration = new SecurityConfiguration
-                {
-                    AutoAcceptUntrustedCertificates = true,
-                },
-            };
-
-            await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
-
             // Create a simple endpoint configuration
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create();
 
@@ -115,13 +92,21 @@ namespace MinimalClient
             // Setup dependency injection container
             IServiceCollection services = new ServiceCollection();
 
-            services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
-
             services
+                .AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning))
                 .AddOpcUa()
                 .AddClient(options =>
                 {
-                    options.Configuration = config;
+                    options.Configuration = new ApplicationConfiguration
+                    {
+                        ApplicationName = "MinimalClient",
+                        ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
+                        ApplicationType = ApplicationType.Client,
+                        SecurityConfiguration = new SecurityConfiguration
+                        {
+                            AutoAcceptUntrustedCertificates = true,
+                        },
+                    };
                     options.Session = new ManagedSessionOptions
                     {
                         SessionName = "MinimalClient",
@@ -129,91 +114,88 @@ namespace MinimalClient
                     };
                 });
 
-            await using IServiceProvider serviceProvider = services.BuildServiceProvider(
+            await using IServiceProvider provider = services.BuildServiceProvider(
                 new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 
             // Resolve the managed session factory from DI
-            IManagedSessionFactory sessionFactory = serviceProvider.GetRequiredService<IManagedSessionFactory>();
+            IManagedSessionFactory sessionFactory = provider.GetRequiredService<IManagedSessionFactory>();
 
             // Create and connect managed session
             Console.WriteLine("Creating session...");
-            ManagedSession session = await sessionFactory.ConnectAsync(
+            await using ManagedSession session = await sessionFactory.ConnectAsync(
                 configuredEndpoint,
                 cancellationToken).ConfigureAwait(false);
 
-            using (session)
+            Console.WriteLine("Connected!");
+            Console.WriteLine();
+
+            // Browse the Objects folder using Browser helper
+            Console.WriteLine("Browsing Objects folder...");
+            var browser = new Browser(session)
             {
-                Console.WriteLine("Connected!");
-                Console.WriteLine();
+                BrowseDirection = BrowseDirection.Forward,
+                NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+            };
 
-                // Browse the Objects folder using Browser helper
-                Console.WriteLine("Browsing Objects folder...");
-                var browser = new Browser(session)
+            try
+            {
+                ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(
+                    ObjectIds.ObjectsFolder,
+                    cancellationToken).ConfigureAwait(false);
+
+                Console.WriteLine($"Found {references.Count} references");
+                foreach (ReferenceDescription reference in references)
                 {
-                    BrowseDirection = BrowseDirection.Forward,
-                    NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
-                    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                    IncludeSubtypes = true,
-                };
-
-                try
-                {
-                    ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(
-                        ObjectIds.ObjectsFolder,
-                        cancellationToken).ConfigureAwait(false);
-
-                    Console.WriteLine($"Found {references.Count} references");
-                    foreach (ReferenceDescription reference in references)
-                    {
-                        Console.WriteLine($"  - {reference.DisplayName} ({reference.NodeClass})");
-                    }
+                    Console.WriteLine($"  - {reference.DisplayName} ({reference.NodeClass})");
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Browse failed: {ex.Message}");
-                }
-
-                Console.WriteLine();
-
-                // Read the server time
-                Console.WriteLine("Reading ServerStatus.CurrentTime...");
-                try
-                {
-                    ReadResponse readResponse = await session.ReadAsync(
-                        null,
-                        0,
-                        TimestampsToReturn.Both,
-                        new ReadValueId[]
-                        {
-                            new ReadValueId
-                            {
-                                NodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                                AttributeId = Attributes.Value,
-                            },
-                        },
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (readResponse.Results.Count > 0)
-                    {
-                        DataValue dataValue = readResponse.Results[0];
-                        if (!StatusCode.IsBad(dataValue.StatusCode))
-                        {
-                            Console.WriteLine($"Server time: {dataValue.WrappedValue}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to read server time: {dataValue.StatusCode}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Read failed: {ex.Message}");
-                }
-
-                Console.WriteLine();
-                Console.WriteLine("Disconnecting...");
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Browse failed: {ex.Message}");
+            }
+
+            Console.WriteLine();
+
+            // Read the server time
+            Console.WriteLine("Reading ServerStatus.CurrentTime...");
+            try
+            {
+                ReadResponse readResponse = await session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Both,
+                    new ReadValueId[]
+                    {
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                            AttributeId = Attributes.Value,
+                        },
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                if (readResponse.Results.Count > 0)
+                {
+                    DataValue dataValue = readResponse.Results[0];
+                    if (!StatusCode.IsBad(dataValue.StatusCode))
+                    {
+                        Console.WriteLine($"Server time: {dataValue.WrappedValue}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Failed to read server time: {dataValue.StatusCode}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Read failed: {ex.Message}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Disconnecting...");
 
             Console.WriteLine("Done");
         }
