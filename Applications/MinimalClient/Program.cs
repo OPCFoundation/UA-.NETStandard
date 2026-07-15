@@ -28,10 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -39,7 +38,7 @@ using Opc.Ua.Client;
 namespace MinimalClient
 {
     /// <summary>
-    /// Minimal OPC UA console client using the fluent ManagedSession API.
+    /// Minimal OPC UA console client using the fluent ManagedSession API with DI container.
     /// </summary>
     internal sealed class Program
     {
@@ -72,11 +71,8 @@ namespace MinimalClient
             Console.WriteLine($"Connecting to: {endpointUrl}");
             Console.WriteLine();
 
-            // Create telemetry context
-            using MinimalTelemetryContext telemetry = new MinimalTelemetryContext();
-
             // Create application configuration
-            ApplicationConfiguration config = new ApplicationConfiguration(telemetry)
+            ApplicationConfiguration config = new ApplicationConfiguration
             {
                 ApplicationName = "MinimalClient",
                 ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
@@ -88,6 +84,20 @@ namespace MinimalClient
             };
 
             await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
+
+            // Setup dependency injection container
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
+
+            services
+                .AddOpcUa()
+                .AddClient(options =>
+                {
+                    options.Configuration = config;
+                });
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Create a simple endpoint configuration
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create();
@@ -107,14 +117,14 @@ namespace MinimalClient
             Console.WriteLine($"Security policy: {endpoint.SecurityPolicyUri}");
             Console.WriteLine();
 
+            // Resolve the managed session factory from DI
+            IManagedSessionFactory sessionFactory = serviceProvider.GetRequiredService<IManagedSessionFactory>();
+
             // Create and connect managed session
             Console.WriteLine("Creating session...");
-            ManagedSession session = await new ManagedSessionBuilder(config, telemetry)
-                .UseEndpoint(configuredEndpoint)
-                .WithSessionName("MinimalClient")
-                .WithSessionTimeout(TimeSpan.FromSeconds(60))
-                .ConnectAsync()
-                .ConfigureAwait(false);
+            ManagedSession session = await sessionFactory.ConnectAsync(
+                configuredEndpoint,
+                CancellationToken.None).ConfigureAwait(false);
 
             using (session)
             {
@@ -191,42 +201,9 @@ namespace MinimalClient
             }
 
             Console.WriteLine("Done");
-        }
 
-        private sealed class MinimalTelemetryContext : ITelemetryContext, IDisposable
-        {
-            private readonly ILoggerFactory m_loggerFactory;
-            private readonly ActivitySource m_activitySource;
-            private readonly Meter m_meter;
-            private bool m_disposed;
-
-            public MinimalTelemetryContext()
-            {
-                m_loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
-                    builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
-                m_activitySource = new ActivitySource("MinimalClient");
-                m_meter = new Meter("MinimalClient");
-            }
-
-            public ILoggerFactory LoggerFactory => m_loggerFactory;
-
-            public ActivitySource ActivitySource => m_activitySource;
-
-            public Meter CreateMeter()
-            {
-                return m_meter;
-            }
-
-            public void Dispose()
-            {
-                if (!m_disposed)
-                {
-                    m_loggerFactory.Dispose();
-                    m_activitySource.Dispose();
-                    m_meter.Dispose();
-                    m_disposed = true;
-                }
-            }
+            // Clean up the service provider
+            await serviceProvider.DisposeAsync().ConfigureAwait(false);
         }
     }
 }
