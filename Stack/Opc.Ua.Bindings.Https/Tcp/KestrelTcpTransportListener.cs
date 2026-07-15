@@ -58,14 +58,35 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class KestrelTcpTransportListenerFactory : TcpServiceHost
     {
+        /// <summary>
+        /// Creates a factory using the default buffer-manager factory.
+        /// </summary>
+        public KestrelTcpTransportListenerFactory()
+            : this(DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory using the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="bufferManagerFactory">Factory used to create listener buffer managers.</param>
+        public KestrelTcpTransportListenerFactory(
+            IBufferManagerFactory bufferManagerFactory)
+        {
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
+        }
+
         /// <inheritdoc/>
         public override string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new KestrelTcpTransportListener(telemetry);
+            return new KestrelTcpTransportListener(telemetry, m_bufferManagerFactory);
         }
+
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
     }
 
     /// <summary>
@@ -95,9 +116,23 @@ namespace Opc.Ua.Bindings
         /// Create a new listener.
         /// </summary>
         public KestrelTcpTransportListener(ITelemetryContext telemetry)
+            : this(telemetry, DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a listener with the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use.</param>
+        /// <param name="bufferManagerFactory">Factory used to create listener buffer managers.</param>
+        public KestrelTcpTransportListener(
+            ITelemetryContext telemetry,
+            IBufferManagerFactory bufferManagerFactory)
         {
             Telemetry = telemetry;
             Logger = telemetry.CreateLogger<KestrelTcpTransportListener>();
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
 
         internal ITelemetryContext Telemetry { get; }
@@ -168,7 +203,11 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             m_serverCertificates = settings.ServerCertificates!;
-            m_bufferManager = new BufferManager("KestrelTcpServer", m_quotas.MaxBufferSize, Telemetry);
+            m_bufferManager = new BufferManager(
+                m_bufferManagerFactory.Create(
+                    "KestrelTcpServer",
+                    m_quotas.MaxBufferSize,
+                    Telemetry));
             m_channels = new ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>();
             m_callback = callback;
             m_reverseConnectListener = settings.ReverseConnectListener;
@@ -699,6 +738,7 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription>? m_descriptions;
         private ChannelQuotas? m_quotas;
         private BufferManager? m_bufferManager;
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ICertificateRegistry? m_serverCertificates;
         private ITransportListenerCallback? m_callback;
         private ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? m_channels;

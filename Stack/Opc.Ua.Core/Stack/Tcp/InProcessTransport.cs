@@ -157,25 +157,37 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
+            byte[]? buffer = null;
             try
             {
+                buffer = m_buffers.TakeBuffer(
+                    m_receiveBufferSize,
+                    nameof(ReceiveChunkAsync),
+                    ct);
                 byte[] payload = await m_inbound.ReadAsync(ct).ConfigureAwait(false);
-                byte[] buffer = m_buffers.TakeBuffer(m_receiveBufferSize, nameof(ReceiveChunkAsync));
                 if (payload.Length > buffer.Length)
                 {
-                    m_buffers.ReturnBuffer(buffer, nameof(ReceiveChunkAsync));
                     throw ServiceResultException.Create(
                         StatusCodes.BadTcpMessageTooLarge,
                         "In-process chunk exceeds receive buffer size.");
                 }
                 Buffer.BlockCopy(payload, 0, buffer, 0, payload.Length);
-                return new ArraySegment<byte>(buffer, 0, payload.Length);
+                var result = new ArraySegment<byte>(buffer, 0, payload.Length);
+                buffer = null;
+                return result;
             }
             catch (ChannelClosedException)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConnectionClosed,
                     "In-process transport peer closed.");
+            }
+            finally
+            {
+                if (buffer != null)
+                {
+                    m_buffers.ReturnBuffer(buffer, nameof(ReceiveChunkAsync));
+                }
             }
         }
 

@@ -90,6 +90,20 @@ namespace Opc.Ua.Pcap.Tests.Frame
         }
 
         [Test]
+        public void FullChannelIdDistinguishesSyntheticTcpFlows()
+        {
+            byte[] first = LoopbackFrameBuilder.Build(fromClient: true, 1, [1]);
+            byte[] second = LoopbackFrameBuilder.Build(fromClient: true, 0x4001, [2]);
+
+            Assert.That(
+                first.AsSpan(16, 4).ToArray(),
+                Is.Not.EqualTo(second.AsSpan(16, 4).ToArray()).AsCollection);
+            Assert.That(
+                first.AsSpan(24, 2).ToArray(),
+                Is.EqualTo(second.AsSpan(24, 2).ToArray()).AsCollection);
+        }
+
+        [Test]
         public async Task BuiltPacketsRoundTripThroughPcap()
         {
             byte[] chunk = [0xDE, 0xAD, 0xBE, 0xEF];
@@ -113,6 +127,51 @@ namespace Opc.Ua.Pcap.Tests.Frame
             Assert.That(records, Has.Count.EqualTo(1));
             Assert.That(records[0].Data.ToArray(), Is.EqualTo(packet).AsCollection);
             Assert.That(records[0].Data.ToArray()[44..], Is.EqualTo(chunk).AsCollection);
+        }
+
+        [Test]
+        public void MaximumUaChunkBuildsSequentialTcpPackets()
+        {
+            byte[] chunk = new byte[ushort.MaxValue];
+            for (int ii = 0; ii < chunk.Length; ii++)
+            {
+                chunk[ii] = (byte)ii;
+            }
+            const uint sequenceNumber = 1234;
+
+            byte[][] packets = LoopbackFrameBuilder.BuildPackets(
+                fromClient: true,
+                channelId: 0x1234,
+                sequenceNumber,
+                chunk);
+
+            Assert.That(packets, Has.Length.EqualTo(2));
+            Assert.That(
+                BinaryPrimitives.ReadUInt16BigEndian(packets[0].AsSpan(6)),
+                Is.EqualTo(ushort.MaxValue - 4));
+            Assert.That(
+                BinaryPrimitives.ReadUInt32BigEndian(packets[0].AsSpan(28)),
+                Is.EqualTo(sequenceNumber));
+            Assert.That(
+                BinaryPrimitives.ReadUInt32BigEndian(packets[1].AsSpan(28)),
+                Is.EqualTo(sequenceNumber + LoopbackFrameBuilder.MaxTcpPayloadSize));
+
+            byte[] reassembled = new byte[chunk.Length];
+            packets[0].AsSpan(44).CopyTo(reassembled);
+            packets[1].AsSpan(44).CopyTo(
+                reassembled.AsSpan(LoopbackFrameBuilder.MaxTcpPayloadSize));
+            Assert.That(reassembled, Is.EqualTo(chunk).AsCollection);
+        }
+
+        [Test]
+        public void SinglePacketBuildRejectsOversizedPayload()
+        {
+            Assert.That(
+                () => LoopbackFrameBuilder.Build(
+                    fromClient: true,
+                    channelId: 0x1234,
+                    new byte[LoopbackFrameBuilder.MaxTcpPayloadSize + 1]),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
     }
 }

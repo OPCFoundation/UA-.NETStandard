@@ -69,6 +69,18 @@ namespace Opc.Ua.Pcap.Capture.Sources
             : base(registry, loggerFactory)
         {
         }
+
+        /// <summary>
+        /// Constructs a new in-process client capture source with internal
+        /// queue controls for deterministic testing.
+        /// </summary>
+        internal InProcessClientCaptureSource(
+            IChannelCaptureRegistry registry,
+            ILoggerFactory? loggerFactory,
+            InProcessCaptureSourceQueueOptions queueOptions)
+            : base(registry, loggerFactory, queueOptions)
+        {
+        }
     }
 
     /// <summary>
@@ -91,6 +103,49 @@ namespace Opc.Ua.Pcap.Capture.Sources
             : base(registry, loggerFactory)
         {
         }
+
+        /// <summary>
+        /// Constructs a new in-process server capture source with internal
+        /// queue controls for deterministic testing.
+        /// </summary>
+        internal InProcessServerCaptureSource(
+            IChannelCaptureRegistry registry,
+            ILoggerFactory? loggerFactory,
+            InProcessCaptureSourceQueueOptions queueOptions)
+            : base(registry, loggerFactory, queueOptions)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Internal queue configuration used to exercise the in-process capture
+    /// worker deterministically without exposing test-only knobs on the
+    /// public API.
+    /// </summary>
+    internal sealed class InProcessCaptureSourceQueueOptions
+    {
+        /// <summary>
+        /// Gets or sets the bounded frame-queue capacity.
+        /// </summary>
+        public int FrameQueueCapacity { get; init; } = 4096;
+
+        /// <summary>
+        /// Gets or sets an optional callback invoked before the writer checks
+        /// either queue for more work.
+        /// </summary>
+        public Func<ValueTask>? BeforeQueueReadAsync { get; init; }
+
+        /// <summary>
+        /// Gets or sets an optional callback invoked after a frame work item
+        /// has been processed.
+        /// </summary>
+        public Action? AfterFrameProcessed { get; init; }
+
+        /// <summary>
+        /// Gets or sets an optional callback invoked after a key-material work
+        /// item has been processed.
+        /// </summary>
+        public Action? AfterKeyProcessed { get; init; }
     }
 
     /// <summary>
@@ -100,23 +155,29 @@ namespace Opc.Ua.Pcap.Capture.Sources
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Captured frames and key-material snapshots are forwarded through a
-    /// bounded <see cref="Channel{T}"/> to a
-    /// single background writer task so the
-    /// <see cref="IFrameCaptureSink"/> hot path (which runs inside the
-    /// channel's send / receive callback) never blocks on I/O. Overflow
-    /// uses <see cref="BoundedChannelFullMode.DropOldest"/>
-    /// so the source degrades gracefully under sustained load.
+    /// Captured chunks and key-material snapshots are forwarded to a single
+    /// background writer task so the <see cref="IFrameCaptureSink"/> hot path
+    /// (which runs inside the channel's send / receive callback) never blocks
+    /// on I/O.
+    /// </para>
+    /// <para>
+    /// Chunk work uses a bounded non-blocking queue and may drop the newest
+    /// chunk when the queue is full, but key-material snapshots use a separate
+    /// unbounded queue so they are not displaced by bulk traffic. The writer
+    /// always drains key material before frames and preserves synthetic TCP
+    /// sequence gaps for rejected chunks.
     /// </para>
     /// </remarks>
     public abstract class InProcessCaptureSourceBase : ICaptureSource, IFrameCaptureSink
     {
         private const string kPcapFileName = "capture.pcap";
         private const string kKeyLogJsonFileName = "keys.uakeys.json";
-        private const int kQueueCapacity = 4096;
 
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILoggerFactory m_loggerFactory;
+        private readonly InProcessCaptureSourceQueueOptions m_queueOptions;
+        private readonly Lock m_sequenceNumbersLock = new();
+        private readonly Dictionary<ulong, uint> m_sequenceNumbers = [];
 
         /// <summary>
         /// CA2213: m_pcapWriter / m_jsonKeyWriter / m_textKeyWriter are owned
@@ -151,7 +212,8 @@ namespace Opc.Ua.Pcap.Capture.Sources
 #pragma warning disable IDE0052 // Text key-log path is resolved for paired JSON/text key-log capture diagnostics.
         private string? m_resolvedTextKeyLogPath;
 #pragma warning restore IDE0052
-        private Channel<CaptureWorkItem>? m_queue;
+        private Channel<CaptureWorkItem>? m_frameQueue;
+        private Channel<CaptureWorkItem>? m_keyQueue;
         private Task? m_workerTask;
         private long m_frameCount;
         private long m_byteCount;
@@ -174,10 +236,32 @@ namespace Opc.Ua.Pcap.Capture.Sources
         protected InProcessCaptureSourceBase(
             IChannelCaptureRegistry registry,
             ILoggerFactory? loggerFactory = null)
+            : this(
+                registry,
+                loggerFactory,
+                new InProcessCaptureSourceQueueOptions())
+        {
+        }
+
+        /// <summary>
+        /// Constructs a new in-process capture source with internal queue
+        /// controls for deterministic testing.
+        /// </summary>
+        private protected InProcessCaptureSourceBase(
+            IChannelCaptureRegistry registry,
+            ILoggerFactory? loggerFactory,
+            InProcessCaptureSourceQueueOptions queueOptions)
         {
             ArgumentNullException.ThrowIfNull(registry);
+            if (queueOptions.FrameQueueCapacity <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(queueOptions),
+                    "queueOptions.FrameQueueCapacity must be greater than zero.");
+            }
             m_registry = registry;
             m_loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+            m_queueOptions = queueOptions;
             Logger = m_loggerFactory.CreateLogger(GetType());
         }
 
@@ -246,15 +330,23 @@ namespace Opc.Ua.Pcap.Capture.Sources
             m_jsonKeyWriter = new UaKeyLogJsonWriter(jsonPath);
             m_textKeyWriter = new UaKeyLogTextWriter(textPath);
 
-            m_queue = Channel.CreateBounded<CaptureWorkItem>(
-                new BoundedChannelOptions(kQueueCapacity)
+            m_frameQueue = Channel.CreateBounded<CaptureWorkItem>(
+                new BoundedChannelOptions(m_queueOptions.FrameQueueCapacity)
                 {
                     SingleReader = true,
                     SingleWriter = false,
-                    FullMode = BoundedChannelFullMode.DropOldest
+                    FullMode = BoundedChannelFullMode.Wait
+                });
+            m_keyQueue = Channel.CreateUnbounded<CaptureWorkItem>(
+                new UnboundedChannelOptions
+                {
+                    SingleReader = true,
+                    SingleWriter = false
                 });
             m_workerTask = Task.Run(
-                () => RunQueueWorkerAsync(m_queue.Reader),
+                () => RunQueueWorkerAsync(
+                    m_keyQueue.Reader,
+                    m_frameQueue.Reader),
                 CancellationToken.None);
 
             // Publish ourselves as the active observer. This is the only
@@ -300,7 +392,8 @@ namespace Opc.Ua.Pcap.Capture.Sources
             m_registry.TryClearObserver(this);
 
             // Drain the worker.
-            m_queue?.Writer.TryComplete();
+            CompleteWriter(m_keyQueue);
+            CompleteWriter(m_frameQueue);
             try
             {
                 await workerTask.ConfigureAwait(false);
@@ -325,6 +418,9 @@ namespace Opc.Ua.Pcap.Capture.Sources
             {
                 await textKeyWriter.DisposeAsync().ConfigureAwait(false);
             }
+
+            m_keyQueue = null;
+            m_frameQueue = null;
 
             ct.ThrowIfCancellationRequested();
         }
@@ -423,8 +519,11 @@ namespace Opc.Ua.Pcap.Capture.Sources
             ChannelToken currentToken,
             ChannelToken? previousToken)
         {
-            Channel<CaptureWorkItem>? queue = m_queue;
-            if (queue is null || currentToken is null)
+            _ = channelId;
+            _ = previousToken;
+
+            Channel<CaptureWorkItem>? keyQueue = m_keyQueue;
+            if (keyQueue is null || currentToken is null)
             {
                 return;
             }
@@ -432,7 +531,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             try
             {
                 // CA2000: ownership of the ChannelKeyMaterial transfers to
-                // CaptureWorkItem.ForKey; it is disposed by the worker after the write.
+                // CaptureWorkItem.ForKey; it is disposed by the worker after processing.
 #pragma warning disable CA2000
                 material = ChannelKeyMaterial.From(currentToken);
 #pragma warning restore CA2000
@@ -442,13 +541,18 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 Logger.LogWarning(ex, "Failed to snapshot channel token material.");
                 return;
             }
-            queue.Writer.TryWrite(CaptureWorkItem.ForKey(material));
+            if (!keyQueue.Writer.TryWrite(CaptureWorkItem.ForKey(material)))
+            {
+                material.Dispose();
+                Logger.LogWarning(
+                    "Dropped captured key material because the capture session is stopping.");
+            }
         }
 
         private void EnqueueFrame(uint channelId, ReadOnlySpan<byte> chunk, bool fromClient)
         {
-            Channel<CaptureWorkItem>? queue = m_queue;
-            if (queue is null || chunk.IsEmpty)
+            Channel<CaptureWorkItem>? frameQueue = m_frameQueue;
+            if (frameQueue is null || chunk.IsEmpty)
             {
                 return;
             }
@@ -467,24 +571,51 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 }
                 return;
             }
-            // Copy the chunk bytes; the underlying buffer is pooled and
-            // only valid for the duration of this call.
-            byte[] packet = LoopbackFrameBuilder.Build(
-                fromClient: fromClient,
-                channelId: channelId,
-                chunkBytes: chunk);
-            queue.Writer.TryWrite(CaptureWorkItem.ForFrame(DateTimeOffset.UtcNow, packet));
+
+            uint sequenceNumber = ReserveSequenceNumber(channelId, fromClient, chunk.Length);
+            frameQueue.Writer.TryWrite(
+                CaptureWorkItem.ForFrame(
+                    DateTimeOffset.UtcNow,
+                    channelId,
+                    fromClient,
+                    sequenceNumber,
+                    chunk.ToArray()));
         }
 
-        private async Task RunQueueWorkerAsync(ChannelReader<CaptureWorkItem> reader)
+        private uint ReserveSequenceNumber(uint channelId, bool fromClient, int length)
+        {
+            ulong key = ((ulong)channelId << 1) | (fromClient ? 1UL : 0UL);
+            uint increment = (uint)length;
+            lock (m_sequenceNumbersLock)
+            {
+                if (!m_sequenceNumbers.TryGetValue(key, out uint sequenceNumber))
+                {
+                    m_sequenceNumbers.Add(key, increment);
+                    return 0;
+                }
+                m_sequenceNumbers[key] = unchecked(sequenceNumber + increment);
+                return sequenceNumber;
+            }
+        }
+
+        private async Task RunQueueWorkerAsync(
+            ChannelReader<CaptureWorkItem> keyReader,
+            ChannelReader<CaptureWorkItem> frameReader)
         {
             try
             {
-                while (await reader.WaitToReadAsync().ConfigureAwait(false))
+                while (true)
                 {
-                    while (reader.TryRead(out CaptureWorkItem item))
+                    await WaitForQueueTurnAsync().ConfigureAwait(false);
+                    if (TryReadNextWorkItem(keyReader, frameReader, out CaptureWorkItem item))
                     {
                         await ProcessWorkItemAsync(item).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    if (!await WaitForWorkAsync(keyReader, frameReader).ConfigureAwait(false))
+                    {
+                        break;
                     }
                 }
             }
@@ -496,43 +627,172 @@ namespace Opc.Ua.Pcap.Capture.Sources
 
         private async Task ProcessWorkItemAsync(CaptureWorkItem item)
         {
-            if (item.Packet is not null)
+            if (item.Chunk is not null)
             {
                 PcapFileWriter? writer = m_pcapWriter;
                 if (writer is null)
                 {
+                    m_queueOptions.AfterFrameProcessed?.Invoke();
                     return;
                 }
                 try
                 {
-                    await writer.WriteAsync(item.Timestamp, item.Packet, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    byte[][] packets = LoopbackFrameBuilder.BuildPackets(
+                        item.FromClient,
+                        item.ChannelId,
+                        item.SequenceNumberStart,
+                        item.Chunk);
+                    foreach (byte[] packet in packets)
+                    {
+                        await writer.WriteAsync(item.Timestamp, packet, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {
                     Logger.LogWarning(ex, "Failed to write captured frame to pcap.");
                 }
+                m_queueOptions.AfterFrameProcessed?.Invoke();
                 return;
             }
-            if (item.KeyMaterial is not null)
+            ChannelKeyMaterial? keyMaterial = item.KeyMaterial;
+            if (keyMaterial is not null)
             {
                 UaKeyLogJsonWriter? jsonWriter = m_jsonKeyWriter;
                 UaKeyLogTextWriter? textWriter = m_textKeyWriter;
-                if (jsonWriter is null || textWriter is null)
-                {
-                    return;
-                }
                 try
                 {
-                    await jsonWriter.AppendAsync(item.KeyMaterial, CancellationToken.None)
-                        .ConfigureAwait(false);
-                    await textWriter.AppendAsync(item.KeyMaterial, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    if (jsonWriter is not null && textWriter is not null)
+                    {
+                        await jsonWriter.AppendAsync(keyMaterial, CancellationToken.None)
+                            .ConfigureAwait(false);
+                        await textWriter.AppendAsync(keyMaterial, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {
                     Logger.LogWarning(ex, "Failed to persist key material snapshot.");
                 }
+                finally
+                {
+                    keyMaterial.Dispose();
+                }
+
+                m_queueOptions.AfterKeyProcessed?.Invoke();
+            }
+        }
+
+        private async ValueTask WaitForQueueTurnAsync()
+        {
+            Func<ValueTask>? beforeQueueReadAsync = m_queueOptions.BeforeQueueReadAsync;
+            if (beforeQueueReadAsync is not null)
+            {
+                await beforeQueueReadAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static bool TryReadNextWorkItem(
+            ChannelReader<CaptureWorkItem> keyReader,
+            ChannelReader<CaptureWorkItem> frameReader,
+            out CaptureWorkItem item)
+        {
+            if (keyReader.TryRead(out item))
+            {
+                return true;
+            }
+
+            return frameReader.TryRead(out item);
+        }
+
+        private static async ValueTask<bool> WaitForWorkAsync(
+            ChannelReader<CaptureWorkItem> keyReader,
+            ChannelReader<CaptureWorkItem> frameReader)
+        {
+            using var waitCancellation = new CancellationTokenSource();
+            Task<bool> keyWaitTask = keyReader
+                .WaitToReadAsync(waitCancellation.Token)
+                .AsTask();
+            Task<bool> frameWaitTask = frameReader
+                .WaitToReadAsync(waitCancellation.Token)
+                .AsTask();
+            Task<bool> completedTask = await Task.WhenAny(keyWaitTask, frameWaitTask)
+                .ConfigureAwait(false);
+            Task<bool> otherTask = ReferenceEquals(completedTask, keyWaitTask)
+                ? frameWaitTask
+                : keyWaitTask;
+            if (!await completedTask.ConfigureAwait(false))
+            {
+                return await otherTask.ConfigureAwait(false);
+            }
+
+            waitCancellation.Cancel();
+            try
+            {
+                await otherTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (waitCancellation.IsCancellationRequested)
+            {
+                // The other queue wait was canceled after work became available.
+            }
+            return true;
+        }
+
+        private static void CompleteWriter(Channel<CaptureWorkItem>? queue)
+        {
+            queue?.Writer.TryComplete();
+        }
+
+        private readonly struct CaptureWorkItem
+        {
+            private CaptureWorkItem(
+                DateTimeOffset timestamp,
+                uint channelId,
+                bool fromClient,
+                uint sequenceNumberStart,
+                byte[]? chunk,
+                ChannelKeyMaterial? keyMaterial)
+            {
+                Timestamp = timestamp;
+                ChannelId = channelId;
+                FromClient = fromClient;
+                SequenceNumberStart = sequenceNumberStart;
+                Chunk = chunk;
+                KeyMaterial = keyMaterial;
+            }
+
+            public DateTimeOffset Timestamp { get; }
+            public uint ChannelId { get; }
+            public bool FromClient { get; }
+            public uint SequenceNumberStart { get; }
+            public byte[]? Chunk { get; }
+            public ChannelKeyMaterial? KeyMaterial { get; }
+
+            public static CaptureWorkItem ForFrame(
+                DateTimeOffset timestamp,
+                uint channelId,
+                bool fromClient,
+                uint sequenceNumberStart,
+                byte[] chunk)
+            {
+                return new CaptureWorkItem(
+                    timestamp,
+                    channelId,
+                    fromClient,
+                    sequenceNumberStart,
+                    chunk,
+                    keyMaterial: null);
+            }
+
+            public static CaptureWorkItem ForKey(ChannelKeyMaterial material)
+            {
+                return new CaptureWorkItem(
+                    DateTimeOffset.UtcNow,
+                    channelId: 0,
+                    fromClient: false,
+                    sequenceNumberStart: 0,
+                    chunk: null,
+                    material);
             }
         }
 
@@ -575,31 +835,5 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
         }
 
-        private readonly struct CaptureWorkItem
-        {
-            private CaptureWorkItem(
-                DateTimeOffset timestamp,
-                byte[]? packet,
-                ChannelKeyMaterial? keyMaterial)
-            {
-                Timestamp = timestamp;
-                Packet = packet;
-                KeyMaterial = keyMaterial;
-            }
-
-            public DateTimeOffset Timestamp { get; }
-            public byte[]? Packet { get; }
-            public ChannelKeyMaterial? KeyMaterial { get; }
-
-            public static CaptureWorkItem ForFrame(DateTimeOffset timestamp, byte[] packet)
-            {
-                return new CaptureWorkItem(timestamp, packet, keyMaterial: null);
-            }
-
-            public static CaptureWorkItem ForKey(ChannelKeyMaterial material)
-            {
-                return new CaptureWorkItem(DateTimeOffset.UtcNow, packet: null, material);
-            }
-        }
     }
 }
