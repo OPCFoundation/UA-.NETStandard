@@ -66,7 +66,7 @@ try
     ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
 
     // Create application configuration with options
-    var applicationConfig = new ApplicationConfiguration
+    ApplicationConfiguration applicationConfig = new ApplicationConfiguration
     {
         ApplicationName = "MinimalClient",
         ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
@@ -76,6 +76,10 @@ try
             AutoAcceptUntrustedCertificates = true,
         },
     };
+
+    // Validate application configuration
+    await applicationConfig.ValidateAsync(ApplicationType.Client, CancellationToken.None)
+        .ConfigureAwait(false);
 
     // Configure services with OPC UA client and A&C support using fluent API
     builder.Services
@@ -92,7 +96,7 @@ try
         .AddAlarms();
 
     // Build and run the application
-    await RunClientAsync(endpointUrl, endpoint, configuredEndpoint, builder.Build()).ConfigureAwait(false);
+    await RunClientAsync(endpoint, configuredEndpoint, builder.Build()).ConfigureAwait(false);
 }
 catch (Exception ex)
 {
@@ -100,11 +104,11 @@ catch (Exception ex)
     Environment.Exit(1);
 }
 
-static async Task RunClientAsync(string endpointUrl, EndpointDescription endpoint, ConfiguredEndpoint configuredEndpoint, IHost host)
+static async Task RunClientAsync(EndpointDescription endpoint, ConfiguredEndpoint configuredEndpoint, IHost host)
 {
     using (host)
     {
-        Console.WriteLine($"Connecting to: {endpointUrl}");
+        Console.WriteLine($"Connecting to: {endpoint.EndpointUrl}");
         Console.WriteLine();
 
         Console.WriteLine($"Using endpoint: {endpoint.EndpointUrl}");
