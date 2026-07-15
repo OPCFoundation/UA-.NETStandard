@@ -108,9 +108,6 @@ static async Task RunClientAsync(EndpointDescription endpoint, ConfiguredEndpoin
 {
     using (host)
     {
-        Console.WriteLine($"Connecting to: {endpoint.EndpointUrl}");
-        Console.WriteLine();
-
         Console.WriteLine($"Using endpoint: {endpoint.EndpointUrl}");
         Console.WriteLine($"Security mode: {endpoint.SecurityMode}");
         Console.WriteLine($"Security policy: {endpoint.SecurityPolicyUri}");
