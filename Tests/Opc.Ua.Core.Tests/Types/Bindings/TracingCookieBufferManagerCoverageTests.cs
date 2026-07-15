@@ -35,6 +35,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
@@ -82,13 +83,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                     .SetMinimumLevel(LogLevel.Debug)
                     .AddProvider(provider));
             var pool = new ExactArrayPool();
-            var utcNow = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            var timeProvider = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));
             var manager = new TracingBufferManager(
                 nameof(TracingTransferReportsAgedOwnershipAndReturnDiagnostics),
                 64,
                 telemetry,
                 pool,
-                () => utcNow);
+                timeProvider);
             byte[] aged = manager.TakeBuffer(16, "initial");
 
             manager.TransferBuffer(aged, "second");
@@ -96,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 provider.Messages,
                 Has.None.Contains("*** TRANSFERRED ***"));
 
-            utcNow = utcNow.AddSeconds(6);
+            timeProvider.Advance(TimeSpan.FromSeconds(6));
             byte[] firstTrigger = manager.TakeBuffer(8, "firstTrigger");
             manager.ReturnBuffer(firstTrigger, "firstTrigger");
             byte[] secondTrigger = manager.TakeBuffer(8, "secondTrigger");
@@ -132,16 +134,17 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                     .SetMinimumLevel(LogLevel.Debug)
                     .AddProvider(provider));
             var pool = new ExactArrayPool();
-            var utcNow = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            var timeProvider = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));
             var manager = new TracingBufferManager(
                 nameof(TracingAllocationAtNonReportingAgeDoesNotLogAge),
                 64,
                 telemetry,
                 pool,
-                () => utcNow);
+                timeProvider);
             byte[] aged = manager.TakeBuffer(16, "aged");
 
-            utcNow = utcNow.AddSeconds(5);
+            timeProvider.Advance(TimeSpan.FromSeconds(5));
             byte[] trigger = manager.TakeBuffer(8, "trigger");
             manager.ReturnBuffer(trigger, "trigger");
 
@@ -181,13 +184,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                     .SetMinimumLevel(LogLevel.Debug)
                     .AddProvider(provider));
             var pool = new ExactArrayPool();
-            var utcNow = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            var timeProvider = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));
             var manager = new TracingBufferManager(
                 nameof(TracingCorruptedAllocationIdsRecoverByBufferIdentity),
                 64,
                 telemetry,
                 pool,
-                () => utcNow);
+                timeProvider);
             byte[] transferBuffer = manager.TakeBuffer(8, "transfer");
             WriteAllocationId(transferBuffer, int.MaxValue);
 
@@ -202,7 +206,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 () => manager.ReturnBuffer(returnBuffer, "unknown"),
                 Throws.Nothing);
 
-            utcNow = utcNow.AddSeconds(6);
+            timeProvider.Advance(TimeSpan.FromSeconds(6));
             byte[] trigger = manager.TakeBuffer(8, "trigger");
             manager.ReturnBuffer(trigger, "trigger");
 
@@ -255,18 +259,18 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         }
 
         [Test]
-        public void TracingConstructorWithNullClockThrows()
+        public void TracingConstructorWithNullTimeProviderThrows()
         {
             Assert.That(
                 () => new TracingBufferManager(
-                    nameof(TracingConstructorWithNullClockThrows),
+                    nameof(TracingConstructorWithNullTimeProviderThrows),
                     64,
                     NUnitTelemetryContext.Create(),
                     new ExactArrayPool(),
                     null!),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property(nameof(ArgumentNullException.ParamName))
-                    .EqualTo("utcNow"));
+                    .EqualTo("timeProvider"));
         }
 
         [Test]

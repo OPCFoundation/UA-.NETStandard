@@ -64,30 +64,30 @@ namespace Opc.Ua.Bindings
             int maxBufferSize,
             ITelemetryContext telemetry,
             ArrayPool<byte> arrayPool)
-            : this(name, maxBufferSize, telemetry, arrayPool, GetUtcNow)
+            : this(name, maxBufferSize, telemetry, arrayPool, TimeProvider.System)
         {
         }
 
         /// <summary>
-        /// Initializes the manager with a caller-supplied pool and clock.
+        /// Initializes the manager with a caller-supplied pool and time provider.
         /// </summary>
         /// <param name="name">The diagnostic name.</param>
         /// <param name="maxBufferSize">The maximum payload size.</param>
         /// <param name="telemetry">The telemetry context used for diagnostics.</param>
         /// <param name="arrayPool">The array pool to use.</param>
-        /// <param name="utcNow">Returns the current UTC time.</param>
+        /// <param name="timeProvider">The time provider to use.</param>
         /// <exception cref="ArgumentNullException">
-        /// Thrown when <paramref name="utcNow"/> is <see langword="null"/>.
+        /// Thrown when <paramref name="timeProvider"/> is <see langword="null"/>.
         /// </exception>
         internal TracingBufferManager(
             string name,
             int maxBufferSize,
             ITelemetryContext telemetry,
             ArrayPool<byte> arrayPool,
-            Func<DateTime> utcNow)
+            TimeProvider timeProvider)
             : base(name, maxBufferSize, telemetry, arrayPool, kMetadataByteCount)
         {
-            m_utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         }
 
         /// <inheritdoc/>
@@ -119,7 +119,7 @@ namespace Opc.Ua.Bindings
                     Buffer = buffer,
                     Id = allocationId,
                     Owner = owner ?? string.Empty,
-                    Timestamp = m_utcNow()
+                    Timestamp = m_timeProvider.GetUtcNow().UtcDateTime
                 };
             }
 
@@ -199,7 +199,8 @@ namespace Opc.Ua.Bindings
                     }
 
                     double ageSeconds = Math.Truncate(
-                        (m_utcNow() - trackedAllocation.Timestamp).TotalSeconds);
+                        (m_timeProvider.GetUtcNow().UtcDateTime - trackedAllocation.Timestamp)
+                            .TotalSeconds);
 
                     if (ageSeconds > 3 &&
                         Math.Truncate(ageSeconds) % 3 == 0 &&
@@ -265,11 +266,6 @@ namespace Opc.Ua.Bindings
             return null;
         }
 
-        private static DateTime GetUtcNow()
-        {
-            return DateTime.UtcNow;
-        }
-
         private const int kMetadataByteCount = 5;
 
         private sealed class Allocation
@@ -284,7 +280,7 @@ namespace Opc.Ua.Bindings
 
         private readonly Lock m_lock = new();
         private readonly SortedDictionary<int, Allocation> m_allocations = [];
-        private readonly Func<DateTime> m_utcNow = GetUtcNow;
+        private readonly TimeProvider m_timeProvider = TimeProvider.System;
         private int m_allocatedBytes;
         private int m_nextAllocationId;
     }
