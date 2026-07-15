@@ -1071,6 +1071,287 @@ namespace Opc.Ua.Server.Tests
                     .EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        [Test]
+        public void ComputeEffectiveMaxTrustListSizeUnlimitedReturnsSafetyCeiling()
+        {
+            Assert.That(
+                TrustList.ComputeEffectiveMaxTrustListSize(0, 4096),
+                Is.EqualTo(4096));
+        }
+
+        [Test]
+        public void ComputeEffectiveMaxTrustListSizeFiniteBelowCeilingReturnsAdvertised()
+        {
+            Assert.That(
+                TrustList.ComputeEffectiveMaxTrustListSize(500, 4096),
+                Is.EqualTo(500));
+        }
+
+        [Test]
+        public void ComputeEffectiveMaxTrustListSizeFiniteAboveCeilingReturnsCeiling()
+        {
+            Assert.That(
+                TrustList.ComputeEffectiveMaxTrustListSize(8192, 4096),
+                Is.EqualTo(4096));
+        }
+
+        [Test]
+        public void ComputeEffectiveMaxTrustListSizeNonPositiveCeilingFallsBackToDefault()
+        {
+            Assert.That(
+                TrustList.ComputeEffectiveMaxTrustListSize(0, 0),
+                Is.EqualTo(TrustList.DefaultMaxTrustListSizeSafetyCeiling));
+            Assert.That(
+                TrustList.ComputeEffectiveMaxTrustListSize(0, -1),
+                Is.EqualTo(TrustList.DefaultMaxTrustListSizeSafetyCeiling));
+        }
+
+        [Test]
+        public void EffectiveMaxTrustListSizeForUnlimitedAdvertisedIsSafetyCeiling()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(
+                node,
+                maxTrustListSize: 0,
+                maxTrustListSizeSafetyCeiling: 2048);
+
+            Assert.That(trustList.EffectiveMaxTrustListSize, Is.EqualTo(2048));
+        }
+
+        [Test]
+        public void EffectiveMaxTrustListSizeClampsAdvertisedAboveCeiling()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(
+                node,
+                maxTrustListSize: 1_000_000,
+                maxTrustListSizeSafetyCeiling: 2048);
+
+            Assert.That(trustList.EffectiveMaxTrustListSize, Is.EqualTo(2048));
+        }
+
+        [Test]
+        public void LegacyConstructorHonorsFiniteSizeAboveDefaultCeiling()
+        {
+            // Backward compatibility: the legacy (single-size) overload must
+            // honor a configured finite size exactly, even when it exceeds the
+            // default safety ceiling, and must never clamp it.
+            const int large = 4 * 1024 * 1024;
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node, maxTrustListSize: large);
+
+            Assert.That(trustList.EffectiveMaxTrustListSize, Is.EqualTo(large));
+        }
+
+        [Test]
+        public void LegacyConstructorUnlimitedUsesDefaultSafetyCeiling()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node, maxTrustListSize: 0);
+
+            Assert.That(
+                trustList.EffectiveMaxTrustListSize,
+                Is.EqualTo(TrustList.DefaultMaxTrustListSizeSafetyCeiling));
+        }
+
+        [Test]
+        public void WriteAtExactEffectiveLimitSucceedsAndOneMoreByteFails()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 16);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                ref fileHandle);
+
+            ServiceResult atLimit = node.Write.OnCall(
+                context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[16]));
+            Assert.That(ServiceResult.IsGood(atLimit), Is.True);
+
+            ServiceResult overLimit = node.Write.OnCall(
+                context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[1]));
+            Assert.That(
+                overLimit.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void WriteCumulativeAcrossChunksEnforcesEffectiveLimit()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 10);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                ref fileHandle);
+
+            for (int i = 0; i < 5; i++)
+            {
+                ServiceResult chunk = node.Write.OnCall(
+                    context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[2]));
+                Assert.That(ServiceResult.IsGood(chunk), Is.True);
+            }
+
+            ServiceResult overLimit = node.Write.OnCall(
+                context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[1]));
+            Assert.That(
+                overLimit.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadCumulativeAcrossChunksEnforcesEffectiveLimit()
+        {
+            TrustListState node = CreateNode();
+            // The encoded read stream of the (empty) stores is >= 8 bytes, so
+            // the first two 4-byte reads always return full chunks; only the
+            // third read pushes the cumulative total past the 8-byte ceiling.
+            CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 8);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            uint fileHandle = 0;
+            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+
+            ByteString data = default;
+            ServiceResult first = node.Read.OnCall(
+                context, node.Read, node.NodeId, fileHandle, 4, ref data);
+            Assert.That(ServiceResult.IsGood(first), Is.True);
+
+            ServiceResult second = node.Read.OnCall(
+                context, node.Read, node.NodeId, fileHandle, 4, ref data);
+            Assert.That(ServiceResult.IsGood(second), Is.True);
+
+            ServiceResult third = node.Read.OnCall(
+                context, node.Read, node.NodeId, fileHandle, 4, ref data);
+            Assert.That(
+                third.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadWithNegativeLengthReturnsBadInvalidArgument()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            uint fileHandle = 0;
+            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+
+            ByteString data = default;
+            ServiceResult result = node.Read.OnCall(
+                context, node.Read, node.NodeId, fileHandle, -1, ref data);
+
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void WriteEncodedPayloadExceedingEffectiveLimitReturnsBadEncodingLimitsExceeded()
+        {
+            TrustListState node = CreateNode();
+            // A real certificate payload is well over the 100-byte ceiling.
+            CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 100);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate cert = CreateTestCertificate("CN=TrustList Oversized Payload");
+            var trustListData = new TrustListDataType
+            {
+                SpecifiedLists = (uint)TrustListMasks.TrustedCertificates
+            };
+            ArrayOf<ByteString> trustedCertificates = new ByteString[] { cert.RawData.ToByteString() };
+            trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(
+                trustedCertificates);
+            ByteString payload = EncodeTrustListPayload(context, trustListData);
+            Assert.That(payload.Length, Is.GreaterThan(100));
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                ref fileHandle);
+
+            ServiceResult result = node.Write.OnCall(
+                context, node.Write, node.NodeId, fileHandle, payload);
+
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public async Task CloseAndUpdateWithEncodedPayloadUnderCeilingSucceedsAsync()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 64 * 1024);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate trustedCert = CreateTestCertificate("CN=TrustList Ceiling Payload");
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                ref fileHandle);
+
+            var trustListData = new TrustListDataType
+            {
+                SpecifiedLists = (uint)TrustListMasks.TrustedCertificates
+            };
+            ArrayOf<ByteString> trustedCertificates
+                = new ByteString[] { trustedCert.RawData.ToByteString() };
+            trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(
+                trustedCertificates);
+            ByteString payload = EncodeTrustListPayload(context, trustListData);
+            node.Write.OnCall(context, node.Write, node.NodeId, fileHandle, payload);
+
+            bool restartRequired = true;
+            ServiceResult result = node.CloseAndUpdate.OnCall(
+                context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+
+            using ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry);
+            using CertificateCollection found = await trustedStore
+                .FindByThumbprintAsync(trustedCert.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.That(found, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void AddCertificateExceedingEffectiveLimitReturnsBadEncodingLimitsExceeded()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 100);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate cert = CreateTestCertificate("CN=TrustList Add Oversized");
+            ByteString rawCertificate = cert.RawData.ToByteString();
+            Assert.That(rawCertificate.Length, Is.GreaterThan(100));
+
+            ServiceResult result = node.AddCertificate.OnCall(
+                context, node.AddCertificate, node.NodeId, rawCertificate, true);
+
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
         private static Certificate CreateTestCertificate(string subject)
         {
             return CertificateBuilder
@@ -1104,10 +1385,25 @@ namespace Opc.Ua.Server.Tests
             TrustListState node,
             bool allowRead = true,
             bool allowWrite = true,
-            int maxTrustListSize = 0)
+            int maxTrustListSize = 0,
+            int? maxTrustListSizeSafetyCeiling = null)
         {
             TrustList.SecureAccess readAccess = allowRead ? AllowAccess : DenyAccess;
             TrustList.SecureAccess writeAccess = allowWrite ? AllowAccess : DenyAccess;
+
+            if (maxTrustListSizeSafetyCeiling.HasValue)
+            {
+                return new TrustList(
+                    node,
+                    m_trustedStore,
+                    m_issuerStore,
+                    readAccess,
+                    writeAccess,
+                    m_telemetry,
+                    coordinator: null,
+                    maxTrustListSize,
+                    maxTrustListSizeSafetyCeiling.Value);
+            }
 
             return new TrustList(
                 node,

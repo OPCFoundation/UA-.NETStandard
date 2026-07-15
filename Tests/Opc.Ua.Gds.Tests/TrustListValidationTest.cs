@@ -117,9 +117,13 @@ namespace Opc.Ua.Gds.Tests
             }
             normalTrustList.TrustedCertificates = trustList;
 
-            // This should succeed
-            bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(normalTrustList).ConfigureAwait(false);
-            Assert.That(requireReboot, Is.False);
+            // This should succeed. UpdateTrustList is part of the PushManagement
+            // transaction and only takes effect once ApplyChanges is called, so
+            // CloseAndUpdate always reports applyChangesRequired=true and the
+            // write is not observable via ReadTrustList until applied.
+            bool applyChangesRequired = await m_pushClient.PushClient.UpdateTrustListAsync(normalTrustList).ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.True);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
 
             // Read it back to verify
             TrustListDataType readTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
@@ -207,9 +211,14 @@ namespace Opc.Ua.Gds.Tests
             uint maxTrustListSize = (uint)encodedSize;
             TestContext.Out.WriteLine($"Client MaxTrustListSize set to: {maxTrustListSize}");
 
-            // This should succeed
-            bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(boundaryTrustList, maxTrustListSize).ConfigureAwait(false);
-            Assert.That(requireReboot, Is.False);
+            // This should succeed. UpdateTrustList is part of the PushManagement
+            // transaction and only takes effect once ApplyChanges is called, so
+            // CloseAndUpdate always reports applyChangesRequired=true and the
+            // write is not observable via ReadTrustList until applied.
+            bool applyChangesRequired = await m_pushClient.PushClient
+                .UpdateTrustListAsync(boundaryTrustList, maxTrustListSize).ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.True);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
 
             // Read it back
             TrustListDataType readTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
@@ -282,7 +291,8 @@ namespace Opc.Ua.Gds.Tests
                 TestContext.Out.WriteLine($"Valid trust list created with size {validSize}");
 
                 bool reboot = await m_pushClient.PushClient.UpdateTrustListAsync(validTrustList).ConfigureAwait(false);
-                Assert.That(reboot, Is.False);
+                Assert.That(reboot, Is.True);
+                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
                 TestContext.Out.WriteLine("Successfully wrote valid trust list to server.");
 
                 // 3. Test reading the trust list with a client limit that is too small

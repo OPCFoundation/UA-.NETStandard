@@ -115,7 +115,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             await adapter.CreateAddressSpaceAsync(values.ExternalReferences).ConfigureAwait(false);
             await adapter.DeleteAddressSpaceAsync().ConfigureAwait(false);
-            Assert.That(await adapter.GetManagerHandleAsync(values.NodeId).ConfigureAwait(false), Is.SameAs(values.Handle));
+            Assert.That(
+                await adapter.GetManagerHandleAsync(values.NodeId).ConfigureAwait(false),
+                Is.SameAs(values.Handle));
             await adapter.AddReferencesAsync(values.References).ConfigureAwait(false);
             Assert.That(
                 await adapter.DeleteReferenceAsync(
@@ -126,7 +128,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     true).ConfigureAwait(false),
                 Is.SameAs(values.DeleteReferenceResult));
             Assert.That(
-                await adapter.GetNodeMetadataAsync(values.Context, values.Handle, BrowseResultMask.All).ConfigureAwait(false),
+                await adapter.GetNodeMetadataAsync(
+                    values.Context,
+                    values.Handle,
+                    BrowseResultMask.All).ConfigureAwait(false),
                 Is.SameAs(values.Metadata));
             Assert.That(
                 await adapter.BrowseAsync(
@@ -274,7 +279,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             await adapter.CreateAddressSpaceAsync(values.ExternalReferences).ConfigureAwait(false);
             await adapter.DeleteAddressSpaceAsync().ConfigureAwait(false);
-            Assert.That(await adapter.GetManagerHandleAsync(values.NodeId).ConfigureAwait(false), Is.SameAs(values.Handle));
+            Assert.That(
+                await adapter.GetManagerHandleAsync(values.NodeId).ConfigureAwait(false),
+                Is.SameAs(values.Handle));
             await adapter.AddReferencesAsync(values.References).ConfigureAwait(false);
             Assert.That(
                 await adapter.DeleteReferenceAsync(
@@ -285,7 +292,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     true).ConfigureAwait(false),
                 Is.SameAs(values.DeleteReferenceResult));
             Assert.That(
-                await adapter.GetNodeMetadataAsync(values.Context, values.Handle, BrowseResultMask.All).ConfigureAwait(false),
+                await adapter.GetNodeMetadataAsync(
+                    values.Context,
+                    values.Handle,
+                    BrowseResultMask.All).ConfigureAwait(false),
                 Is.SameAs(values.Metadata));
             ContinuationPoint? browseContinuationPoint = await adapter.BrowseAsync(
                 values.Context,
@@ -336,7 +346,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.EventMonitoredItem,
                     true).ConfigureAwait(false),
                 Is.SameAs(values.AllEventsResult));
-            Assert.That(await adapter.ConditionRefreshAsync(values.Context, values.EventItems).ConfigureAwait(false), Is.Null);
+            Assert.That(
+                await adapter.ConditionRefreshAsync(values.Context, values.EventItems).ConfigureAwait(false),
+                Is.Null);
             await adapter.CreateMonitoredItemsAsync(
                 values.Context,
                 3,

@@ -216,19 +216,25 @@ namespace Opc.Ua.Security.Certificates
             byte[] pemDataBlob,
             ReadOnlySpan<char> password = default)
         {
+            // CA2000: ownership of the CopyWithPrivateKey result transfers
+            // directly to DetachFromSourceKey, which disposes it (via its
+            // own `using`) once the independent PFX round-trip copy has
+            // been produced; the analyzer cannot see across that boundary.
+#pragma warning disable CA2000
             if (X509PfxUtils.IsECDsaSignature(certificate))
             {
                 using ECDsa ecdsaPrivateKey =
                     PEMReader.ImportECDsaPrivateKeyFromPEM(
                         pemDataBlob, password);
                 using var cert = Certificate.FromRawData(certificate.RawData);
-                return cert.CopyWithPrivateKey(ecdsaPrivateKey);
+                return DetachFromSourceKey(cert.CopyWithPrivateKey(ecdsaPrivateKey));
             }
 
             using RSA rsaPrivateKey =
                 PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
             using var rsaCert = Certificate.FromRawData(certificate.RawData);
-            return rsaCert.CopyWithPrivateKey(rsaPrivateKey);
+            return DetachFromSourceKey(rsaCert.CopyWithPrivateKey(rsaPrivateKey));
+#pragma warning restore CA2000
         }
 
         /// <inheritdoc/>
@@ -242,36 +248,117 @@ namespace Opc.Ua.Security.Certificates
                     "Need a certificate with a private key.");
             }
 
+            // CA2000: ownership of the CopyWithPrivateKey result transfers
+            // directly to DetachFromSourceKey, which disposes it (via its
+            // own `using`) once the independent PFX round-trip copy has
+            // been produced; the analyzer cannot see across that boundary.
+#pragma warning disable CA2000
+            // Some platforms (observed on .NET Framework) restrict raw
+            // private-key parameter export on ephemeral CNG keys, which
+            // CopyWithPrivateKey needs internally. Re-importing the
+            // caller-supplied source certificate through a PFX round trip
+            // first — via AddRef so the caller's own reference is
+            // untouched — guarantees the extracted key supports export
+            // regardless of how certificateWithPrivateKey was originally
+            // loaded.
+            using Certificate normalizedSource = DetachFromSourceKey(certificateWithPrivateKey.AddRef());
+
             if (X509PfxUtils.IsECDsaSignature(certificate))
             {
                 if (!X509PfxUtils.VerifyECDsaKeyPair(
-                    certificate, certificateWithPrivateKey))
+                    certificate, normalizedSource))
                 {
                     throw new NotSupportedException(
                         "The public and the private key pair doesn't match.");
                 }
 
                 using ECDsa privateKey =
-                    certificateWithPrivateKey.GetECDsaPrivateKey()
+                    normalizedSource.GetECDsaPrivateKey()
                     ?? throw new NotSupportedException(
                         "The certificate does not contain an ECDsa private key.");
-                return certificate.CopyWithPrivateKey(privateKey);
+                return DetachFromSourceKey(certificate.CopyWithPrivateKey(privateKey));
             }
             else
             {
                 if (!X509PfxUtils.VerifyRSAKeyPair(
-                    certificate, certificateWithPrivateKey))
+                    certificate, normalizedSource))
                 {
                     throw new NotSupportedException(
                         "The public and the private key pair doesn't match.");
                 }
 
                 using RSA privateKey =
-                    certificateWithPrivateKey.GetRSAPrivateKey()
+                    normalizedSource.GetRSAPrivateKey()
                     ?? throw new NotSupportedException(
                         "The certificate does not contain an RSA private key.");
-                return certificate.CopyWithPrivateKey(privateKey);
+                return DetachFromSourceKey(certificate.CopyWithPrivateKey(privateKey));
             }
+#pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Detaches a certificate's private key from whatever RSA/ECDsa key
+        /// object was combined into it via <c>X509Certificate2.CopyWithPrivateKey</c>
+        /// (or the ECDsa overload).
+        /// </summary>
+        /// <remarks>
+        /// <c>CopyWithPrivateKey</c> does not deep-copy the supplied key:
+        /// the returned certificate can share the underlying (possibly
+        /// ephemeral) native key handle with the caller-supplied key
+        /// object. Since every caller of <see cref="CreateWithPrivateKey"/>
+        /// and <see cref="CreateWithPEMPrivateKey"/> disposes that source
+        /// key immediately (typically via a <c>using</c> statement around
+        /// the call), the combined certificate's private key can otherwise
+        /// fail with a "Keyset does not exist" <see cref="CryptographicException"/>
+        /// the moment it is used — most commonly observed on Windows with
+        /// ephemeral CNG keys. Round-tripping through an in-memory PFX
+        /// export/import while the source key is still alive produces a
+        /// certificate whose private key is fully independent, mirroring
+        /// the technique <c>X509Utils.CreateCopyWithPrivateKey</c> already
+        /// uses for the same reason.
+        /// </remarks>
+        private static Certificate DetachFromSourceKey(Certificate combined)
+        {
+            using (combined)
+            {
+                char[] passcode = CreateTransientPassword();
+                try
+                {
+                    // CA2000: ownership of the loaded X509Certificate2 transfers
+                    // to the Certificate wrapper returned here; it is disposed
+                    // together with that wrapper by the caller.
+#pragma warning disable CA2000
+                    return Certificate.From(X509CertificateLoader.LoadPkcs12(
+                        combined.Export(X509ContentType.Pfx, passcode),
+                        passcode,
+                        X509KeyStorageFlags.Exportable));
+#pragma warning restore CA2000
+                }
+                finally
+                {
+                    Array.Clear(passcode, 0, passcode.Length);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates a short-lived random passphrase used only to shepherd a
+        /// certificate through the in-memory PFX round trip performed by
+        /// <see cref="DetachFromSourceKey"/>. The passphrase never leaves
+        /// this process and is cleared immediately after use.
+        /// </summary>
+        private static char[] CreateTransientPassword()
+        {
+            const int length = 18;
+            byte[] tokenBuffer = new byte[length];
+            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(tokenBuffer);
+            }
+
+            char[] passcode = Convert.ToBase64String(tokenBuffer).ToCharArray();
+            Array.Clear(tokenBuffer, 0, tokenBuffer.Length);
+            return passcode;
         }
     }
 }
