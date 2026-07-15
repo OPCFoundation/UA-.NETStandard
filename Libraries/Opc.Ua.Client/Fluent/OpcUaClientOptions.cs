@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
         /// <see cref="ConfigureApplication(Action{IApplicationConfigurationBuilderClientSelected})"/>
         /// builds an <see cref="ApplicationConfiguration"/> internally.
         /// </summary>
-        public string ApplicationName { get; set; } = "OpcUaClient";
+        public string ApplicationName { get; set; } = DefaultApplicationName;
 
         /// <summary>
         /// Application URI used when
@@ -106,6 +106,8 @@ namespace Opc.Ua.Client
         /// when you want <c>AddClient(...)</c> to create the application
         /// configuration from <see cref="ApplicationName"/>,
         /// <see cref="ApplicationUri"/>, and <see cref="ProductUri"/>.
+        /// Missing security configuration is reported later by options
+        /// validation and before the first DI-created connection.
         /// </remarks>
         /// <param name="configure">
         /// Callback that configures the client application builder. The
@@ -122,5 +124,7 @@ namespace Opc.Ua.Client
                 ?? throw new ArgumentNullException(nameof(configure));
             return this;
         }
+
+        internal const string DefaultApplicationName = "OpcUaClient";
     }
 }

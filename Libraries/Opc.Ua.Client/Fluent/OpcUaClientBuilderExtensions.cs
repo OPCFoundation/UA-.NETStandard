@@ -912,7 +912,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             string applicationName = string.IsNullOrWhiteSpace(options.ApplicationName)
-                ? "OpcUaClient"
+                ? OpcUaClientOptions.DefaultApplicationName
                 : options.ApplicationName;
 
             var application = new ApplicationInstance((ITelemetryContext?)null)

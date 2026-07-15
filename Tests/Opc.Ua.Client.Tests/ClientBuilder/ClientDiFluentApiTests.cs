@@ -206,7 +206,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             IOptions<OpcUaClientOptions> options = sp.GetRequiredService<IOptions<OpcUaClientOptions>>();
 
             OptionsValidationException ex = Assert.Throws<OptionsValidationException>(
-                () => _ = options.Value)!;
+                () => _ = options.Value);
 
             Assert.That(
                 ex.Failures,
@@ -228,7 +228,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             IOptions<OpcUaClientOptions> options = sp.GetRequiredService<IOptions<OpcUaClientOptions>>();
 
             OptionsValidationException ex = Assert.Throws<OptionsValidationException>(
-                () => _ = options.Value)!;
+                () => _ = options.Value);
 
             Assert.That(
                 ex.Failures,
