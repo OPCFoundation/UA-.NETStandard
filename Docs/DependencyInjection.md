@@ -501,7 +501,16 @@ services
     .AddOpcUa()
     .AddClient(opt =>
     {
-        opt.Configuration = applicationConfiguration;
+        opt.ApplicationName = "MyClient";
+        opt.ApplicationUri = "urn:localhost:MyClient";
+        opt.ConfigureApplication(application =>
+        {
+            application
+                .AddSecurityConfiguration(
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        "CN=MyClient, O=OPC Foundation, DC=localhost"))
+                .SetAutoAcceptUntrustedCertificates(true);
+        });
         opt.Session = new ManagedSessionOptions
         {
             Endpoint = endpoint,
@@ -531,7 +540,45 @@ ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct)
 
 Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>`
 when the host starts and again before a DI-created session connects. Set
-`Configuration` and `Session.Endpoint` in every `AddClient` registration.
+either `Configuration` or `ConfigureApplication(...)` plus
+`ApplicationUri` in every `AddClient` registration, and set
+`Session.Endpoint` whenever you resolve the cached
+`Func<CancellationToken, Task<ManagedSession>>` delegate.
+
+### Building the application configuration inside `AddClient(...)`
+
+When you do not want to allocate an `ApplicationConfiguration` up front,
+`OpcUaClientOptions.ConfigureApplication(...)` lets `AddClient(...)`
+construct it from the standard application builder:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options =>
+    {
+        options.ApplicationName = "MyClient";
+        options.ApplicationUri = "urn:localhost:MyClient";
+        options.ProductUri = "urn:example:MyClient";
+        options.ConfigureApplication(application =>
+        {
+            application
+                .AddSecurityConfiguration(
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        "CN=MyClient, O=OPC Foundation, DC=localhost"))
+                .SetAutoAcceptUntrustedCertificates(true);
+        });
+        options.Session = new ManagedSessionOptions
+        {
+            Endpoint = endpoint
+        };
+    });
+```
+
+`AddClient(...)` builds the `ApplicationConfiguration` immediately from
+`ApplicationName`, `ApplicationUri`, and `ProductUri`. The callback
+receives the client-selected
+`IApplicationConfigurationBuilderClientSelected`, so it can add the
+security configuration and any other client-side builder settings before
+the first connection validates the resulting configuration asynchronously.
 
 ### Fluent shortcuts
 

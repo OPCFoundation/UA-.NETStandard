@@ -48,6 +48,7 @@ using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Historian;
 using Opc.Ua.Client.Roles;
 using Opc.Ua.Client.WebApi;
+using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 
@@ -162,6 +163,77 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(options.Value.Configuration, Is.Not.Null);
             Assert.That(options.Value.Session.Endpoint, Is.Not.Null);
+        }
+
+        [Test]
+        public void ConfigureApplicationBuildsClientConfiguration()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = "ConfiguredClient";
+                options.ApplicationUri = "urn:test:configured-client";
+                options.ConfigureApplication(application =>
+                {
+                    application
+                        .AddSecurityConfiguration(
+                            ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                                "CN=ConfiguredClient, O=OPC Foundation, DC=localhost"))
+                        .SetAutoAcceptUntrustedCertificates(true);
+                });
+            });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IOptions<OpcUaClientOptions> options = sp.GetRequiredService<IOptions<OpcUaClientOptions>>();
+
+            Assert.That(options.Value.Configuration, Is.Not.Null);
+            Assert.That(options.Value.Configuration!.ApplicationName, Is.EqualTo("ConfiguredClient"));
+            Assert.That(options.Value.Configuration.ApplicationUri, Is.EqualTo("urn:test:configured-client"));
+            Assert.That(options.Value.Configuration.ClientConfiguration, Is.Not.Null);
+            Assert.That(options.Value.Configuration.SecurityConfiguration, Is.Not.Null);
+            Assert.That(
+                options.Value.Configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
+                Is.True);
+        }
+
+        [Test]
+        public void ConfigureApplicationRequiresApplicationUri()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(options => options.ConfigureApplication(_ => { }));
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IOptions<OpcUaClientOptions> options = sp.GetRequiredService<IOptions<OpcUaClientOptions>>();
+
+            OptionsValidationException ex = Assert.Throws<OptionsValidationException>(
+                () => _ = options.Value)!;
+
+            Assert.That(
+                ex.Failures,
+                Does.Contain(
+                    "OpcUaClientOptions.ApplicationUri is required when ConfigureApplication(...) is used."));
+        }
+
+        [Test]
+        public void ConfigureApplicationRequiresSecurityConfiguration()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationUri = "urn:test:configured-client";
+                options.ConfigureApplication(_ => { });
+            });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IOptions<OpcUaClientOptions> options = sp.GetRequiredService<IOptions<OpcUaClientOptions>>();
+
+            OptionsValidationException ex = Assert.Throws<OptionsValidationException>(
+                () => _ = options.Value)!;
+
+            Assert.That(
+                ex.Failures,
+                Does.Contain(
+                    "ConfigureApplication(...) must add a security configuration."));
         }
 
         [Test]

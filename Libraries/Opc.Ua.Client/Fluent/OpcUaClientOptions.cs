@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using Opc.Ua.Configuration;
+
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -35,6 +38,27 @@ namespace Opc.Ua.Client
     /// </summary>
     public sealed class OpcUaClientOptions
     {
+        /// <summary>
+        /// Application name used when
+        /// <see cref="ConfigureApplication(Action{IApplicationConfigurationBuilderClientSelected})"/>
+        /// builds an <see cref="ApplicationConfiguration"/> internally.
+        /// </summary>
+        public string ApplicationName { get; set; } = "OpcUaClient";
+
+        /// <summary>
+        /// Application URI used when
+        /// <see cref="ConfigureApplication(Action{IApplicationConfigurationBuilderClientSelected})"/>
+        /// builds an <see cref="ApplicationConfiguration"/> internally.
+        /// </summary>
+        public string ApplicationUri { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Product URI used when
+        /// <see cref="ConfigureApplication(Action{IApplicationConfigurationBuilderClientSelected})"/>
+        /// builds an <see cref="ApplicationConfiguration"/> internally.
+        /// </summary>
+        public string ProductUri { get; set; } = string.Empty;
+
         /// <summary>
         /// The application configuration. Required.
         /// </summary>
@@ -65,5 +89,38 @@ namespace Opc.Ua.Client
         /// through the application-configuration surface.
         /// </summary>
         public ClientReverseConnectOptions? ReverseConnect { get; set; }
+
+        internal Action<IApplicationConfigurationBuilderClientSelected>?
+            ApplicationConfigurationBuilder { get; set; }
+
+        internal ApplicationInstance? BuiltApplicationInstance { get; set; }
+
+        internal bool ValidateBuiltConfiguration { get; set; }
+
+        /// <summary>
+        /// Configures an internally-created <see cref="ApplicationConfiguration"/>
+        /// using the fluent application-configuration builder.
+        /// </summary>
+        /// <remarks>
+        /// Use this instead of assigning <see cref="Configuration"/> directly
+        /// when you want <c>AddClient(...)</c> to create the application
+        /// configuration from <see cref="ApplicationName"/>,
+        /// <see cref="ApplicationUri"/>, and <see cref="ProductUri"/>.
+        /// </remarks>
+        /// <param name="configure">
+        /// Callback that configures the client application builder. The
+        /// callback must add a security configuration.
+        /// </param>
+        /// <returns>The same options instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="configure"/> is <c>null</c>.
+        /// </exception>
+        public OpcUaClientOptions ConfigureApplication(
+            Action<IApplicationConfigurationBuilderClientSelected> configure)
+        {
+            ApplicationConfigurationBuilder = configure
+                ?? throw new ArgumentNullException(nameof(configure));
+            return this;
+        }
     }
 }

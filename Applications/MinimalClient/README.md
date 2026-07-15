@@ -8,7 +8,7 @@ educational reference and starting point for building OPC UA client applications
 
 ## Key Features
 
-- **Fluent DI API**: Uses `HostApplicationBuilder` with fluent `.AddOpcUa()`, `.AddClient()`, and `.AddAlarms()` configuration
+- **Fluent DI API**: Uses `HostApplicationBuilder` with fluent `.AddOpcUa()`, `.AddClient()`, `ConfigureApplication(...)`, and `.AddAlarms()` configuration
 - **Managed Sessions**: Leverages the modern `IManagedSessionFactory` for simplified session management
 - **Dependency Injection**: Fully integrated Microsoft.Extensions.DependencyInjection with host-based lifetime management
 - **Service-Provided Telemetry**: Uses the DI-integrated `ITelemetryContext` for logging, metrics, and activity tracking
@@ -42,7 +42,7 @@ dotnet run "opc.tcp://localhost:62542/MinimalCalcServer"
 The minimal client demonstrates the following operations:
 
 1. **Host Setup**: Creates an application host with `Host.CreateApplicationBuilder(args)`
-2. **DI Configuration**: Configures OPC UA client services with fluent API (`.AddOpcUa().AddClient(...).AddAlarms()`)
+2. **DI Configuration**: Configures OPC UA client services with fluent API (`.AddOpcUa().AddClient(...).AddAlarms()`) and `ConfigureApplication(...)`
 3. **Session Connection**: Connects via `IManagedSessionFactory.ConnectAsync(endpoint)`
 4. **Browsing**: Browses the server's address space (ObjectsFolder)
 5. **Reading**: Reads the server's current time from the StandardServer
@@ -52,10 +52,10 @@ The minimal client demonstrates the following operations:
 
 ### Program.cs
 
-The application uses C# 10 top-level statements and demonstrates:
+The application uses top-level statements and demonstrates:
 
-- Creating an `ApplicationConfiguration` with security settings and validation
 - Setting up `HostApplicationBuilder` with OPC UA client services
+- Building the `ApplicationConfiguration` via `OpcUaClientOptions.ConfigureApplication(...)`
 - Configuring services via fluent API: `.AddOpcUa().AddClient(...).AddAlarms()`
 - Resolving `IManagedSessionFactory` from the DI container
 - Connecting to a server with `sessionFactory.ConnectAsync(endpoint)`
@@ -67,7 +67,7 @@ The application uses C# 10 top-level statements and demonstrates:
 The client follows the patterns described in [DependencyInjection.md](../../Docs/DependencyInjection.md):
 
 - **HostApplicationBuilder**: Central entry point for DI and host setup
-- **Options Pattern**: `OpcUaClientOptions` with `ApplicationConfiguration`
+- **Options Pattern**: `OpcUaClientOptions` with deferred `ApplicationConfiguration` creation
 - **Factory Pattern**: `IManagedSessionFactory` for runtime endpoint selection
 - **Fluent API**: Chainable `.AddXxx()` methods on `IOpcUaBuilder`
 

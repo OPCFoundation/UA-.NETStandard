@@ -40,6 +40,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Client.Discovery;
+using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -94,6 +95,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var options = new OpcUaClientOptions();
             configure(options);
             EnsureClientConnectGate(options);
+            BuildClientApplicationConfiguration(options);
             builder.Services.TryAddSingleton(options);
             RegisterOptionsValidation(builder.Services, options);
 
@@ -173,6 +175,7 @@ namespace Microsoft.Extensions.DependencyInjection
             section.Bind(options);
             postConfigure?.Invoke(options);
             EnsureClientConnectGate(options);
+            BuildClientApplicationConfiguration(options);
             builder.Services.TryAddSingleton(options);
             RegisterOptionsValidation(builder.Services, options);
 
@@ -845,6 +848,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
             ValidateClientOptions(options, sessionOptions);
+            await EnsureValidatedApplicationConfigurationAsync(options, ct).ConfigureAwait(false);
             ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
             var builder = new ManagedSessionBuilder(options.Configuration!, telemetry);
             ApplyManagedSessionOptions(sp, builder, sessionOptions);
@@ -876,8 +880,70 @@ namespace Microsoft.Extensions.DependencyInjection
                     configuredOptions.Session = options.Session;
                     configuredOptions.Identity = options.Identity;
                     configuredOptions.ReverseConnect = options.ReverseConnect;
+                    configuredOptions.ApplicationName = options.ApplicationName;
+                    configuredOptions.ApplicationUri = options.ApplicationUri;
+                    configuredOptions.ProductUri = options.ProductUri;
+                    configuredOptions.ApplicationConfigurationBuilder =
+                        options.ApplicationConfigurationBuilder;
+                    configuredOptions.ValidateBuiltConfiguration =
+                        options.ValidateBuiltConfiguration;
                 })
                 .ValidateOnStart();
+        }
+
+        private static void BuildClientApplicationConfiguration(OpcUaClientOptions options)
+        {
+            if (options.Configuration != null)
+            {
+                if (options.ApplicationConfigurationBuilder != null)
+                {
+                    throw new InvalidOperationException(
+                        "ConfigureApplication(...) cannot be combined with " +
+                        "OpcUaClientOptions.Configuration.");
+                }
+                return;
+            }
+
+            Action<IApplicationConfigurationBuilderClientSelected>? configureApplication =
+                options.ApplicationConfigurationBuilder;
+            if (configureApplication == null)
+            {
+                return;
+            }
+
+            string applicationName = string.IsNullOrWhiteSpace(options.ApplicationName)
+                ? "OpcUaClient"
+                : options.ApplicationName;
+
+            var application = new ApplicationInstance((ITelemetryContext?)null)
+            {
+                ApplicationName = applicationName,
+                ApplicationType = ApplicationType.Client
+            };
+
+            IApplicationConfigurationBuilderClientSelected builder = application
+                .Build(options.ApplicationUri, options.ProductUri)
+                .AsClient();
+
+            configureApplication(builder);
+
+            options.BuiltApplicationInstance = application;
+            options.Configuration = application.ApplicationConfiguration;
+            options.ValidateBuiltConfiguration = true;
+        }
+
+        private static async Task EnsureValidatedApplicationConfigurationAsync(
+            OpcUaClientOptions options,
+            CancellationToken ct)
+        {
+            if (!options.ValidateBuiltConfiguration || options.Configuration == null)
+            {
+                return;
+            }
+
+            await options.Configuration.ValidateAsync(ApplicationType.Client, ct)
+                .ConfigureAwait(false);
+            options.ValidateBuiltConfiguration = false;
         }
 
         private static void ValidateClientOptions(
@@ -1147,6 +1213,21 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (options.Configuration == null)
                 {
                     failures.Add("OpcUaClientOptions.Configuration is required.");
+                }
+                else if (options.ApplicationConfigurationBuilder != null &&
+                    (options.Configuration.SecurityConfiguration == null ||
+                        options.Configuration.SecurityConfiguration.ApplicationCertificates.Count == 0))
+                {
+                    failures.Add(
+                        "ConfigureApplication(...) must add a security configuration.");
+                }
+
+                if (options.ApplicationConfigurationBuilder != null &&
+                    string.IsNullOrWhiteSpace(options.ApplicationUri))
+                {
+                    failures.Add(
+                        "OpcUaClientOptions.ApplicationUri is required when " +
+                        "ConfigureApplication(...) is used.");
                 }
 
                 return failures.Count == 0

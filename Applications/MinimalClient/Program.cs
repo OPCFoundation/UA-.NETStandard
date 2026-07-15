@@ -35,9 +35,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Configuration;
 
 // Get endpoint URL from arguments or use default
 string endpointUrl = args.Length > 0 ? args[0] : "opc.tcp://localhost:62541/MinimalBoilerServer";
+const string applicationName = "MinimalClient";
+const string applicationUri = "urn:localhost:OPCFoundation:MinimalClient";
+const string productUri = "urn:OPCFoundation:MinimalClient";
+const string subjectName = "CN=MinimalClient, O=OPC Foundation, DC=localhost";
 
 Console.WriteLine("OPC UA Minimal Console Client");
 Console.WriteLine("OPC UA library: {0}", Utils.GetAssemblyBuildNumber());
@@ -65,31 +70,25 @@ try
 
     ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
 
-    // Create application configuration with options
-    ApplicationConfiguration applicationConfig = new ApplicationConfiguration
-    {
-        ApplicationName = "MinimalClient",
-        ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
-        ApplicationType = ApplicationType.Client,
-        SecurityConfiguration = new SecurityConfiguration
-        {
-            AutoAcceptUntrustedCertificates = true,
-        },
-    };
-
-    // Validate application configuration
-    await applicationConfig.ValidateAsync(ApplicationType.Client, CancellationToken.None)
-        .ConfigureAwait(false);
-
     // Configure services with OPC UA client and A&C support using fluent API
     builder.Services
         .AddOpcUa()
         .AddClient(options =>
         {
-            options.Configuration = applicationConfig;
+            options.ApplicationName = applicationName;
+            options.ApplicationUri = applicationUri;
+            options.ProductUri = productUri;
+            options.ConfigureApplication(application =>
+            {
+                application
+                    .AddSecurityConfiguration(
+                        ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                            subjectName))
+                    .SetAutoAcceptUntrustedCertificates(true);
+            });
             options.Session = new ManagedSessionOptions
             {
-                SessionName = "MinimalClient",
+                SessionName = applicationName,
                 SessionTimeout = TimeSpan.FromSeconds(60),
             };
         })
