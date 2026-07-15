@@ -8,6 +8,7 @@
     <Project Path="Applications/RedundantServer/RedundantServer.csproj" />
     <Project Path="Applications/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="Applications/MinimalCalcServer/MinimalCalcServer.csproj" />
+    <Project Path="Applications/MinimalClient/MinimalClient.csproj" />
     <Project Path="Applications/McpServer/Opc.Ua.Mcp.csproj" />
     <Project Path="Applications/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
     <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
