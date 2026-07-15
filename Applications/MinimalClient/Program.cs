@@ -71,10 +71,17 @@ namespace MinimalClient
             Console.WriteLine($"Connecting to: {endpointUrl}");
             Console.WriteLine();
 
-            // Create application configuration
-            // Note: The ITelemetryContext is provided by the DI container via AddOpcUa(),
-            // so ApplicationConfiguration doesn't need it passed explicitly.
-            ApplicationConfiguration config = new ApplicationConfiguration
+            // Create a temporary service collection to get the telemetry context
+            IServiceCollection tempServices = new ServiceCollection();
+            tempServices.AddOpcUa();
+
+            using IServiceProvider tempProvider = tempServices.BuildServiceProvider(
+                new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+
+            ITelemetryContext telemetry = tempProvider.GetRequiredService<ITelemetryContext>();
+
+            // Create application configuration with telemetry context from DI
+            ApplicationConfiguration config = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "MinimalClient",
                 ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
@@ -122,7 +129,8 @@ namespace MinimalClient
                     };
                 });
 
-            await using IServiceProvider serviceProvider = services.BuildServiceProvider();
+            await using IServiceProvider serviceProvider = services.BuildServiceProvider(
+                new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 
             // Resolve the managed session factory from DI
             IManagedSessionFactory sessionFactory = serviceProvider.GetRequiredService<IManagedSessionFactory>();
