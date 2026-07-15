@@ -921,7 +921,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 ? OpcUaClientOptions.DefaultApplicationName
                 : options.ApplicationName;
 
-            var application = new ApplicationInstance((ITelemetryContext?)null)
+            var application = new ApplicationInstance(telemetry: null)
             {
                 ApplicationName = applicationName,
                 ApplicationType = ApplicationType.Client
@@ -1240,7 +1240,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     if (options.Configuration.SecurityConfiguration == null)
                     {
                         failures.Add(
-                            "ConfigureApplication(...) must add a security configuration.");
+                            "ConfigureApplication(...) must add application certificates.");
                     }
                     else if (options.Configuration.SecurityConfiguration.ApplicationCertificates.Count == 0)
                     {

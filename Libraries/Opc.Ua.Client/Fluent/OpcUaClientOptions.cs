@@ -111,7 +111,7 @@ namespace Opc.Ua.Client
         /// </remarks>
         /// <param name="configure">
         /// Callback that configures the client application builder. The
-        /// callback must add a security configuration.
+        /// callback must add application certificates.
         /// </param>
         /// <returns>The same options instance for fluent chaining.</returns>
         /// <exception cref="ArgumentNullException">
