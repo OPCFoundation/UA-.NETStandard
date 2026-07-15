@@ -1223,24 +1223,30 @@ namespace Microsoft.Extensions.DependencyInjection
             public static ValidateOptionsResult Validate(OpcUaClientOptions options)
             {
                 var failures = new List<string>();
-                if (options.Configuration == null)
-                {
-                    failures.Add("OpcUaClientOptions.Configuration is required.");
-                }
-                else if (options.ApplicationConfigurationBuilder != null &&
-                    (options.Configuration.SecurityConfiguration == null ||
-                        options.Configuration.SecurityConfiguration.ApplicationCertificates.Count == 0))
-                {
-                    failures.Add(
-                        "ConfigureApplication(...) must add a security configuration.");
-                }
-
                 if (options.ApplicationConfigurationBuilder != null &&
                     string.IsNullOrWhiteSpace(options.ApplicationUri))
                 {
                     failures.Add(
                         "OpcUaClientOptions.ApplicationUri is required when " +
                         "ConfigureApplication(...) is used.");
+                }
+
+                if (options.Configuration == null)
+                {
+                    failures.Add("OpcUaClientOptions.Configuration is required.");
+                }
+                else if (options.ApplicationConfigurationBuilder != null)
+                {
+                    if (options.Configuration.SecurityConfiguration == null)
+                    {
+                        failures.Add(
+                            "ConfigureApplication(...) must add a security configuration.");
+                    }
+                    else if (options.Configuration.SecurityConfiguration.ApplicationCertificates.Count == 0)
+                    {
+                        failures.Add(
+                            "ConfigureApplication(...) must add application certificates.");
+                    }
                 }
 
                 return failures.Count == 0

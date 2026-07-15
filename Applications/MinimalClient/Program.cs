@@ -39,10 +39,6 @@ using Opc.Ua.Configuration;
 
 // Get endpoint URL from arguments or use default
 string endpointUrl = args.Length > 0 ? args[0] : "opc.tcp://localhost:62541/MinimalBoilerServer";
-const string applicationName = "MinimalClient";
-const string applicationUri = "urn:localhost:OPCFoundation:MinimalClient";
-const string productUri = "urn:OPCFoundation:MinimalClient";
-const string subjectName = "CN=MinimalClient, O=OPC Foundation, DC=localhost";
 
 Console.WriteLine("OPC UA Minimal Console Client");
 Console.WriteLine("OPC UA library: {0}", Utils.GetAssemblyBuildNumber());
@@ -52,6 +48,11 @@ try
 {
     // Create host application builder
     HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+    const string applicationName = "MinimalClient";
+    const string applicationUri = "urn:localhost:OPCFoundation:MinimalClient";
+    const string productUri = "urn:OPCFoundation:MinimalClient";
+    const string subjectName = "CN=MinimalClient, O=OPC Foundation, DC=localhost";
 
     // Configure logging
     builder.Logging.ClearProviders();

@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 ex.Failures,
                 Does.Contain(
-                    "ConfigureApplication(...) must add a security configuration."));
+                    "ConfigureApplication(...) must add application certificates."));
         }
 
         [Test]
