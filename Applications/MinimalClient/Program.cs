@@ -197,6 +197,7 @@ namespace MinimalClient
         {
             private readonly ILoggerFactory m_loggerFactory;
             private readonly ActivitySource m_activitySource;
+            private readonly Meter m_meter;
             private bool m_disposed;
 
             public MinimalTelemetryContext()
@@ -204,6 +205,7 @@ namespace MinimalClient
                 m_loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
                     builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
                 m_activitySource = new ActivitySource("MinimalClient");
+                m_meter = new Meter("MinimalClient");
             }
 
             public ILoggerFactory LoggerFactory => m_loggerFactory;
@@ -212,15 +214,16 @@ namespace MinimalClient
 
             public Meter CreateMeter()
             {
-                return new Meter("MinimalClient");
+                return m_meter;
             }
 
             public void Dispose()
             {
                 if (!m_disposed)
                 {
-                    m_loggerFactory?.Dispose();
-                    m_activitySource?.Dispose();
+                    m_loggerFactory.Dispose();
+                    m_activitySource.Dispose();
+                    m_meter.Dispose();
                     m_disposed = true;
                 }
             }

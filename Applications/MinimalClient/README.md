@@ -32,18 +32,17 @@ dotnet run
 To connect to a different server:
 
 ```bash
-dotnet run --endpoint "opc.tcp://localhost:62542/MinimalCalcServer"
+dotnet run "opc.tcp://localhost:62542/MinimalCalcServer"
 ```
 
 ## Example Usage
 
 The minimal client demonstrates the following operations:
 
-1. **Endpoint Discovery**: Discovers available endpoints on the OPC UA server
-2. **Session Connection**: Establishes a managed session with automatic reconnection
-3. **Browsing**: Browses the server's address space (RootFolder and ObjectsFolder)
-4. **Reading**: Reads the server's current time from the StandardServer
-5. **Clean Shutdown**: Properly closes the session
+1. **Session Connection**: Establishes a managed session with automatic reconnection
+2. **Browsing**: Browses the server's address space (ObjectsFolder)
+3. **Reading**: Reads the server's current time from the StandardServer
+4. **Clean Shutdown**: Properly closes the session
 
 ## Architecture
 
@@ -58,8 +57,8 @@ The application demonstrates:
 
 ### Key Classes
 
-- **ConsoleLogger**: Implements `ITelemetryContext` for logging integration
-- **Program**: Main entry point using System.CommandLine for argument parsing
+- **MinimalTelemetryContext**: Implements `ITelemetryContext` for logging, metrics, and activity tracking
+- **Program**: Main entry point and primary logic for the client application
 
 ## Educational Value
 
