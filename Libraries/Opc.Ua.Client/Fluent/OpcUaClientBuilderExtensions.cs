@@ -891,6 +891,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 .ValidateOnStart();
         }
 
+        /// <summary>
+        /// Builds an <see cref="ApplicationConfiguration"/> from the fluent
+        /// client application callback when
+        /// <c>ConfigureApplication(...)</c> is used.
+        /// </summary>
+        /// <param name="options">The configured client options.</param>
         private static void BuildClientApplicationConfiguration(OpcUaClientOptions options)
         {
             if (options.Configuration != null)
@@ -932,6 +938,13 @@ namespace Microsoft.Extensions.DependencyInjection
             options.ValidateBuiltConfiguration = true;
         }
 
+        /// <summary>
+        /// Validates an internally-built client
+        /// <see cref="ApplicationConfiguration"/> once before the first
+        /// DI-created session connects.
+        /// </summary>
+        /// <param name="options">The configured client options.</param>
+        /// <param name="ct">The cancellation token.</param>
         private static async Task EnsureValidatedApplicationConfigurationAsync(
             OpcUaClientOptions options,
             CancellationToken ct)

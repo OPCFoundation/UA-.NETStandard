@@ -165,6 +165,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(options.Value.Session.Endpoint, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies the fluent <c>ConfigureApplication(...)</c> API builds a
+        /// client <see cref="ApplicationConfiguration"/>.
+        /// </summary>
         [Test]
         public void ConfigureApplicationBuildsClientConfiguration()
         {
@@ -196,6 +200,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies validation fails when
+        /// <see cref="OpcUaClientOptions.ApplicationUri"/> is not set for
+        /// <c>ConfigureApplication(...)</c>.
+        /// </summary>
         [Test]
         public void ConfigureApplicationRequiresApplicationUri()
         {
@@ -214,6 +223,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     "OpcUaClientOptions.ApplicationUri is required when ConfigureApplication(...) is used."));
         }
 
+        /// <summary>
+        /// Verifies validation fails when
+        /// <c>ConfigureApplication(...)</c> does not add a security
+        /// configuration.
+        /// </summary>
         [Test]
         public void ConfigureApplicationRequiresSecurityConfiguration()
         {
