@@ -56,7 +56,7 @@ namespace MinimalClient
 
             try
             {
-                await RunClientAsync(endpointUrl).ConfigureAwait(false);
+                await RunClientAsync(endpointUrl, CancellationToken.None).ConfigureAwait(false);
                 return 0;
             }
             catch (Exception ex)
@@ -66,7 +66,7 @@ namespace MinimalClient
             }
         }
 
-        private static async Task RunClientAsync(string endpointUrl)
+        private static async Task RunClientAsync(string endpointUrl, CancellationToken cancellationToken)
         {
             Console.WriteLine($"Connecting to: {endpointUrl}");
             Console.WriteLine();
@@ -103,13 +103,10 @@ namespace MinimalClient
             Console.WriteLine($"Security policy: {endpoint.SecurityPolicyUri}");
             Console.WriteLine();
 
-            // Setup dependency injection container with configuration
+            // Setup dependency injection container
             IServiceCollection services = new ServiceCollection();
 
             services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
-
-            // Register configuration in DI container
-            services.AddSingleton(config);
 
             services
                 .AddOpcUa()
@@ -124,7 +121,7 @@ namespace MinimalClient
                     };
                 });
 
-            IServiceProvider serviceProvider = services.BuildServiceProvider();
+            await using IServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Resolve the managed session factory from DI
             IManagedSessionFactory sessionFactory = serviceProvider.GetRequiredService<IManagedSessionFactory>();
@@ -133,7 +130,7 @@ namespace MinimalClient
             Console.WriteLine("Creating session...");
             ManagedSession session = await sessionFactory.ConnectAsync(
                 configuredEndpoint,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken).ConfigureAwait(false);
 
             using (session)
             {
@@ -154,7 +151,7 @@ namespace MinimalClient
                 {
                     ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(
                         ObjectIds.ObjectsFolder,
-                        CancellationToken.None).ConfigureAwait(false);
+                        cancellationToken).ConfigureAwait(false);
 
                     Console.WriteLine($"Found {references.Count} references");
                     foreach (ReferenceDescription reference in references)
@@ -185,7 +182,7 @@ namespace MinimalClient
                                 AttributeId = Attributes.Value,
                             },
                         },
-                        CancellationToken.None).ConfigureAwait(false);
+                        cancellationToken).ConfigureAwait(false);
 
                     if (readResponse.Results.Count > 0)
                     {
@@ -210,9 +207,6 @@ namespace MinimalClient
             }
 
             Console.WriteLine("Done");
-
-            // Clean up the service provider
-            await serviceProvider.DisposeAsync().ConfigureAwait(false);
         }
     }
 }
