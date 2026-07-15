@@ -155,19 +155,12 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             catch (OpcUaSksException ex)
             {
-                m_logger.LogDebug(
-                    ex,
-                    "GetSecurityKeys for group {GroupId} returned {Status}.",
-                    securityGroupId,
-                    ex.Status);
+                m_logger.GetSecurityKeysReturned(ex, securityGroupId, ex.Status);
                 return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "GetSecurityKeys for group {GroupId} threw unexpectedly.",
-                    securityGroupId);
+                m_logger.GetSecurityKeysThrewUnexpectedly(ex, securityGroupId);
                 return new ServiceResult(
                     StatusCodes.BadInternalError,
                     new LocalizedText(ex.Message));
@@ -203,4 +196,26 @@ namespace Opc.Ua.PubSub.Security.Sks
             return [];
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SksMethodHandler"/>.
+    /// </summary>
+    internal static partial class SksMethodHandlerLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.SksMethodHandler + 0, Level = LogLevel.Debug,
+            Message = "GetSecurityKeys for group {GroupId} returned {Status}.")]
+        public static partial void GetSecurityKeysReturned(
+            this ILogger logger,
+            Exception exception,
+            string groupId,
+            StatusCode status);
+
+        [LoggerMessage(EventId = PubSubEventIds.SksMethodHandler + 1, Level = LogLevel.Error,
+            Message = "GetSecurityKeys for group {GroupId} threw unexpectedly.")]
+        public static partial void GetSecurityKeysThrewUnexpectedly(
+            this ILogger logger,
+            Exception exception,
+            string groupId);
+    }
+
 }

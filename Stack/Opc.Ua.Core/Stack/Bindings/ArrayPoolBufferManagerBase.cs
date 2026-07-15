@@ -234,10 +234,10 @@ namespace Opc.Ua.Bindings
 
             if (payloadBucketSize != rentBucketSize)
             {
-                logger?.LogWarning(
-                    "BufferManager: Max buffer size {MaxBufferSize} + metadata bytes {MetadataBytes} may waste memory because it allocates buffers in the next bucket!",
-                    requestedBufferSize,
-                    metadataByteCount);
+                if (logger != null)
+                {
+                    logger.MaxBufferSizeMayWasteMemory(requestedBufferSize, metadataByteCount);
+                }
                 return payloadBucketSize - metadataByteCount;
             }
 
@@ -424,5 +424,16 @@ namespace Opc.Ua.Bindings
 
         private const byte kCookieLocked = 0xA5;
         private const byte kCookieUnlocked = 0x5A;
+    }
+
+    internal static partial class ArrayPoolBufferManagerBaseLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ArrayPoolBufferManagerBase + 0, Level = LogLevel.Warning,
+            Message = "BufferManager: Max buffer size {MaxBufferSize} + metadata bytes {MetadataBytes} may " +
+                "waste memory because it allocates buffers in the next bucket!")]
+        public static partial void MaxBufferSizeMayWasteMemory(
+            this ILogger logger,
+            int maxBufferSize,
+            int metadataBytes);
     }
 }

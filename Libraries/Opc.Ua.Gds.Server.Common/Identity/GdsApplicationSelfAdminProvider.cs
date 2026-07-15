@@ -127,8 +127,7 @@ namespace Opc.Ua.Gds.Server.Identity
             if (m_isRevokedCertificateAsync != null &&
                 await m_isRevokedCertificateAsync(context.ChannelCertificate, ct).ConfigureAwait(false))
             {
-                m_logger.LogDebug(
-                    "ApplicationSelfAdmin denied for {AppUri}: channel certificate {Thumbprint} is revoked.",
+                m_logger.ApplicationSelfAdminDeniedRevoked(
                     context.ChannelApplicationUri,
                     context.ChannelCertificate.Thumbprint);
                 return AuthenticationResult.Accept(identity);
@@ -188,10 +187,7 @@ namespace Opc.Ua.Gds.Server.Identity
                 administeredAppIds,
                 m_namespaces ?? context.MessageContext.NamespaceUris);
 
-            m_logger.LogInformation(
-                "ApplicationSelfAdmin granted to {AppUri} (cert thumbprint {Thumbprint}).",
-                context.ChannelApplicationUri,
-                context.ChannelCertificate?.Thumbprint);
+            m_logger.ApplicationSelfAdminGranted(context.ChannelApplicationUri, context.ChannelCertificate?.Thumbprint);
             return augmented;
         }
 
@@ -227,5 +223,24 @@ namespace Opc.Ua.Gds.Server.Identity
 
             return false;
         }
+    }
+
+    internal static partial class GdsApplicationSelfAdminProviderLog
+    {
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GdsApplicationSelfAdminProvider + 0, Level = LogLevel.Debug,
+            Message = "ApplicationSelfAdmin denied for {AppUri}: channel certificate {Thumbprint} is revoked.")]
+        public static partial void ApplicationSelfAdminDeniedRevoked(
+            this ILogger logger,
+            string appUri,
+            string thumbprint);
+
+        [LoggerMessage(
+            EventId = GdsServerCommonEventIds.GdsApplicationSelfAdminProvider + 1,
+            Level = LogLevel.Information,
+            Message = "ApplicationSelfAdmin granted to {AppUri} (cert thumbprint {Thumbprint}).")]
+        public static partial void ApplicationSelfAdminGranted(
+            this ILogger logger,
+            string? appUri,
+            string? thumbprint);
     }
 }

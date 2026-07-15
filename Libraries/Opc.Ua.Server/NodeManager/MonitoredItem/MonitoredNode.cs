@@ -448,7 +448,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogWarning(ex, "MonitoredNode2 consumer encountered an error processing a notification.");
+                        m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
                     }
                 }
             }
@@ -458,7 +458,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "MonitoredNode2 consumer terminated unexpectedly.");
+                m_logger?.MonitoredNode2ConsumerTerminatedUnexpectedly(ex);
             }
         }
 
@@ -925,8 +925,7 @@ namespace Opc.Ua.Server
 
                         if (!completed)
                         {
-                            m_logger?.LogWarning(
-                                "MonitoredNode2 additional consumers did not drain within 5 s; cancelling forcibly.");
+                            m_logger?.MonitoredNode2AdditionalConsumersDidNotDrainWithin();
 
                             foreach (ConsumerEntry entry in entries)
                             {
@@ -944,7 +943,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogWarning(ex, "MonitoredNode2 additional consumers faulted during shutdown.");
+                        m_logger?.MonitoredNode2AdditionalConsumersFaultedDuring(ex);
                     }
                     finally
                     {
@@ -965,8 +964,7 @@ namespace Opc.Ua.Server
 
                         if (!completed)
                         {
-                            m_logger?.LogWarning(
-                                "MonitoredNode2 consumer did not drain within 5 s; cancelling forcibly.");
+                            m_logger?.MonitoredNode2ConsumerDidNotDrainWithin5();
                             m_consumerCts.Cancel();
 
                             try
@@ -980,7 +978,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogWarning(ex, "MonitoredNode2 consumer faulted during shutdown.");
+                        m_logger?.MonitoredNode2ConsumerFaultedDuringShutdown(ex);
                     }
                 }
 
@@ -990,4 +988,37 @@ namespace Opc.Ua.Server
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for MonitoredNode.
+    /// </summary>
+    internal static partial class MonitoredNodeLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 0, Level = LogLevel.Warning,
+            Message = "MonitoredNode2 consumer encountered an error processing a notification.")]
+        public static partial void MonitoredNode2ConsumerEncounteredAnErrorProcessing(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 1, Level = LogLevel.Error,
+            Message = "MonitoredNode2 consumer terminated unexpectedly.")]
+        public static partial void MonitoredNode2ConsumerTerminatedUnexpectedly(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 2, Level = LogLevel.Warning,
+            Message = "MonitoredNode2 additional consumers did not drain within 5 s; cancelling forcibly.")]
+        public static partial void MonitoredNode2AdditionalConsumersDidNotDrainWithin(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 3, Level = LogLevel.Warning,
+            Message = "MonitoredNode2 additional consumers faulted during shutdown.")]
+        public static partial void MonitoredNode2AdditionalConsumersFaultedDuring(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 4, Level = LogLevel.Warning,
+            Message = "MonitoredNode2 consumer did not drain within 5 s; cancelling forcibly.")]
+        public static partial void MonitoredNode2ConsumerDidNotDrainWithin5(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 5, Level = LogLevel.Warning,
+            Message = "MonitoredNode2 consumer faulted during shutdown.")]
+        public static partial void MonitoredNode2ConsumerFaultedDuringShutdown(this ILogger logger, Exception ex);
+    }
+
 }

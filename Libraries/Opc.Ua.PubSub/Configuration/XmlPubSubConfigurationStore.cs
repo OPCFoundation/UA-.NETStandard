@@ -404,11 +404,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(
-                    ex,
-                    "PubSub configuration file watch could not be started for '{Path}'; " +
-                    "external changes will not raise Changed.",
-                    FilePath);
+                m_logger.PubSubConfigurationFileWatchCouldNotBeStarted(ex, FilePath);
             }
         }
 
@@ -446,10 +442,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(
-                    ex,
-                    "PubSub configuration reload after a file change failed to read '{Path}'.",
-                    FilePath);
+                m_logger.PubSubConfigurationReloadFileChangeFailedToRead(ex, FilePath);
                 return;
             }
 
@@ -476,11 +469,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(
-                    ex,
-                    "PubSub configuration reload after a file change could not decode '{Path}'; " +
-                    "keeping the previous configuration.",
-                    FilePath);
+                m_logger.PubSubConfigurationReloadFileChangeCouldNotDecode(ex, FilePath);
                 return;
             }
 
@@ -494,9 +483,7 @@ namespace Opc.Ua.PubSub.Configuration
                 m_lastKnownConfig = configuration;
             }
 
-            m_logger.LogInformation(
-                "PubSub configuration file '{Path}' changed externally; raising Changed.",
-                FilePath);
+            m_logger.PubSubConfigurationFileChangedExternally(FilePath);
             Changed?.Invoke(
                 this,
                 new PubSubConfigurationChangedEventArgs(previous, configuration));
@@ -555,4 +542,38 @@ namespace Opc.Ua.PubSub.Configuration
         private PubSubConfigurationDataType? m_lastKnownConfig;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="XmlPubSubConfigurationStore"/>.
+    /// </summary>
+    internal static partial class XmlPubSubConfigurationStoreLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.XmlPubSubConfigurationStore + 0, Level = LogLevel.Information,
+            Message = "PubSub configuration file watch could not be started for '{Path}'; " +
+                "external changes will not raise Changed.")]
+        public static partial void PubSubConfigurationFileWatchCouldNotBeStarted(
+            this ILogger logger,
+            Exception exception,
+            string path);
+
+        [LoggerMessage(EventId = PubSubEventIds.XmlPubSubConfigurationStore + 1, Level = LogLevel.Information,
+            Message = "PubSub configuration reload after a file change failed to read '{Path}'.")]
+        public static partial void PubSubConfigurationReloadFileChangeFailedToRead(
+            this ILogger logger,
+            Exception exception,
+            string path);
+
+        [LoggerMessage(EventId = PubSubEventIds.XmlPubSubConfigurationStore + 2, Level = LogLevel.Information,
+            Message = "PubSub configuration reload after a file change could not decode '{Path}'; " +
+                "keeping the previous configuration.")]
+        public static partial void PubSubConfigurationReloadFileChangeCouldNotDecode(
+            this ILogger logger,
+            Exception exception,
+            string path);
+
+        [LoggerMessage(EventId = PubSubEventIds.XmlPubSubConfigurationStore + 3, Level = LogLevel.Information,
+            Message = "PubSub configuration file '{Path}' changed externally; raising Changed.")]
+        public static partial void PubSubConfigurationFileChangedExternally(this ILogger logger, string path);
+    }
+
 }

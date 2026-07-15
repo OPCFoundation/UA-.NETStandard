@@ -2617,12 +2617,7 @@ namespace Opc.Ua.Server
 #if DEBUG
                 if (nodeToRead.AttributeId == Attributes.Value)
                 {
-                    m_logger.LogTrace(
-                        Utils.TraceMasks.ServiceDetail,
-                        "READ: NodeId={NodeId} Value={Value} Range={Range}",
-                        nodeToRead.NodeId,
-                        value.WrappedValue,
-                        nodeToRead.IndexRange);
+                    m_logger.Read(nodeToRead.NodeId, value.WrappedValue, nodeToRead.IndexRange);
                 }
 #endif
             }
@@ -2895,12 +2890,7 @@ namespace Opc.Ua.Server
                     }
 
 #if DEBUG
-                    m_logger.LogTrace(
-                        Utils.TraceMasks.ServiceDetail,
-                        "WRITE: NodeId={NodeId} Value={Value} Range={Range}",
-                        nodeToWrite.NodeId,
-                        nodeToWrite.Value.WrappedValue,
-                        nodeToWrite.IndexRange);
+                    m_logger.Write(nodeToWrite.NodeId, nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
 #endif
                     var propertyState = handle.Node as PropertyState;
                     Variant previousPropertyValue = propertyState?.Value ?? default;
@@ -6736,6 +6726,7 @@ namespace Opc.Ua.Server
         /// the monitored item manager of the NodeManager
         /// </summary>
         protected IMonitoredItemManager m_monitoredItemManager;
+
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>

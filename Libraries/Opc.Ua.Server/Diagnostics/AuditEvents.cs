@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditEvent event.");
+                logger.ErrorWhileReportingAuditEventEvent(ex);
             }
         }
 
@@ -239,7 +239,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditWriteUpdateEvent event.");
+                logger.ErrorWhileReportingAuditWriteUpdateEventEvent(ex);
             }
         }
 
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditHistoryValueUpdateEvent event.");
+                logger.ErrorWhileReportingAuditHistoryValueUpdateEvent(ex);
             }
         }
 
@@ -352,7 +352,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditHistoryValueUpdateEvent event.");
+                logger.ErrorWhileReportingAuditHistoryValueUpdateEvent(ex);
             }
         }
 
@@ -416,7 +416,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditHistoryEventUpdateEvent event.");
+                logger.ErrorWhileReportingAuditHistoryEventUpdateEvent(ex);
             }
         }
 
@@ -481,7 +481,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditHistoryRawModifyDeleteEvent event.");
+                logger.ErrorWhileReportingAuditHistoryRawModifyDeleteEvent(ex);
             }
         }
 
@@ -536,7 +536,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditHistoryAtTimeDeleteEvent event.");
+                logger.ErrorWhileReportingAuditHistoryAtTimeDeleteEvent(ex);
             }
         }
 
@@ -591,7 +591,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditHistoryEventDeleteEvent event.");
+                logger.ErrorWhileReportingAuditHistoryEventDeleteEvent(ex);
             }
         }
 
@@ -637,9 +637,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting ReportAuditCertificateDataMismatch event.");
+                logger.ErrorWhileReportingReportAuditCertificateDataMismatch(ex);
             }
         }
 
@@ -733,9 +731,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting ReportAuditCertificateDataMismatch event.");
+                logger.ErrorWhileReportingReportAuditCertificateDataMismatch(ex);
             }
         }
 
@@ -808,9 +804,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting ReportAuditCertificateDataMismatchEvent event.");
+                logger.ErrorWhileReportingReportAuditCertificateDataMismatchEvent(ex);
             }
         }
 
@@ -870,7 +864,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting ReportAuditCancelEvent event.");
+                logger.ErrorWhileReportingReportAuditCancelEventEvent(ex);
             }
         }
 
@@ -929,9 +923,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting ReportRoleMappingRuleChangedAuditEvent event.");
+                logger.ErrorWhileReportingReportRoleMappingRuleChangedAuditEvent(ex);
             }
         }
 
@@ -1021,10 +1013,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting AuditCreateSessionEvent event for SessionId {SessionId}.",
-                    session?.Id);
+                logger.ErrorWhileReportingAuditCreateSessionEventEvent(ex, session?.Id);
             }
         }
 
@@ -1094,10 +1083,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                logger.LogError(
-                    e,
-                    "Error while reporting AuditActivateSessionEvent event for SessionId {SessionId}.",
-                    session?.Id);
+                logger.ErrorWhileReportingAuditActivateSessionEventEvent(e, session?.Id);
             }
         }
 
@@ -1178,10 +1164,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                logger.LogError(
-                    e,
-                    "Error while reporting AuditUrlMismatchEvent event for SessionId {SessionId}.",
-                    session?.Id);
+                logger.ErrorWhileReportingAuditUrlMismatchEventEventFor(e, session?.Id);
             }
         }
 
@@ -1228,10 +1211,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting AuditSessionEventState close event for SessionId {SessionId}.",
-                    session?.Id);
+                logger.ErrorWhileReportingAuditSessionEventStateClose(ex, session?.Id);
             }
         }
 
@@ -1282,10 +1262,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting AuditSessionEventState restored event for SessionId {SessionId}.",
-                    session?.Id);
+                logger.ErrorWhileReportingAuditSessionEventStateRestored(ex, session?.Id);
             }
         }
 
@@ -1341,10 +1318,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting AuditSessionEventState close event for SessionId {SessionId}.",
-                    session?.Id);
+                logger.ErrorWhileReportingAuditSessionEventStateClose(ex, session?.Id);
             }
         }
 
@@ -1430,9 +1404,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting ReportCertificateUpdatedAuditEvent event.");
+                logger.ErrorWhileReportingReportCertificateUpdatedAuditEvent(ex);
             }
         }
 
@@ -1500,9 +1472,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting CertificateUpdateRequestedAuditEvent event.");
+                logger.ErrorWhileReportingCertificateUpdateRequestedAuditEvent(ex);
             }
         }
 
@@ -1565,7 +1535,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditAddNodesEvent event.");
+                logger.ErrorWhileReportingAuditAddNodesEventEvent(ex);
             }
         }
 
@@ -1628,7 +1598,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
+                logger.ErrorWhileReportingAuditDeleteNodesEventEvent(ex);
             }
         }
 
@@ -1690,7 +1660,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditAddReferencesEvent event.");
+                logger.ErrorWhileReportingAuditAddReferencesEventEvent(ex);
             }
         }
 
@@ -1752,7 +1722,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditDeleteReferencesEvent event.");
+                logger.ErrorWhileReportingAuditDeleteReferencesEventEvent(ex);
             }
         }
 
@@ -1907,7 +1877,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
+                logger.ErrorWhileReportingAuditOpenSecureChannelEvent(ex);
             }
         }
 
@@ -1999,7 +1969,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditOpenSecureChannelEvent event.");
+                logger.ErrorWhileReportingAuditOpenSecureChannelEvent(ex);
             }
         }
 
@@ -2073,7 +2043,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting AuditDeleteNodesEvent event.");
+                logger.ErrorWhileReportingAuditDeleteNodesEventEvent(ex);
             }
         }
 
@@ -2131,7 +2101,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting ReportTrustListUpdatedAuditEvent event.");
+                logger.ErrorWhileReportingReportTrustListUpdatedAuditEvent(ex);
             }
         }
 
@@ -2180,9 +2150,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting TrustListUpdateRequestedAuditEvent event.");
+                logger.ErrorWhileReportingTrustListUpdateRequestedAuditEvent(ex);
             }
         }
 
@@ -2284,4 +2252,144 @@ namespace Opc.Ua.Server
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for AuditEvents.
+    /// </summary>
+    internal static partial class AuditEventsLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 0, Level = LogLevel.Error,
+            Message = "Error while reporting AuditEvent event.")]
+        public static partial void ErrorWhileReportingAuditEventEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 1, Level = LogLevel.Error,
+            Message = "Error while reporting AuditWriteUpdateEvent event.")]
+        public static partial void ErrorWhileReportingAuditWriteUpdateEventEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 2, Level = LogLevel.Error,
+            Message = "Error while reporting AuditHistoryValueUpdateEvent event.")]
+        public static partial void ErrorWhileReportingAuditHistoryValueUpdateEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 3, Level = LogLevel.Error,
+            Message = "Error while reporting AuditHistoryEventUpdateEvent event.")]
+        public static partial void ErrorWhileReportingAuditHistoryEventUpdateEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 4, Level = LogLevel.Error,
+            Message = "Error while reporting AuditHistoryRawModifyDeleteEvent event.")]
+        public static partial void ErrorWhileReportingAuditHistoryRawModifyDeleteEvent(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 5, Level = LogLevel.Error,
+            Message = "Error while reporting AuditHistoryAtTimeDeleteEvent event.")]
+        public static partial void ErrorWhileReportingAuditHistoryAtTimeDeleteEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 6, Level = LogLevel.Error,
+            Message = "Error while reporting AuditHistoryEventDeleteEvent event.")]
+        public static partial void ErrorWhileReportingAuditHistoryEventDeleteEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 7, Level = LogLevel.Error,
+            Message = "Error while reporting ReportAuditCertificateDataMismatch event.")]
+        public static partial void ErrorWhileReportingReportAuditCertificateDataMismatch(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 8, Level = LogLevel.Error,
+            Message = "Error while reporting ReportAuditCertificateDataMismatchEvent event.")]
+        public static partial void ErrorWhileReportingReportAuditCertificateDataMismatchEvent(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 9, Level = LogLevel.Error,
+            Message = "Error while reporting ReportAuditCancelEvent event.")]
+        public static partial void ErrorWhileReportingReportAuditCancelEventEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 10, Level = LogLevel.Error,
+            Message = "Error while reporting ReportRoleMappingRuleChangedAuditEvent event.")]
+        public static partial void ErrorWhileReportingReportRoleMappingRuleChangedAuditEvent(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 11, Level = LogLevel.Error,
+            Message = "Error while reporting AuditCreateSessionEvent event for SessionId {SessionId}.")]
+        public static partial void ErrorWhileReportingAuditCreateSessionEventEvent(
+            this ILogger logger,
+            Exception ex,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 12, Level = LogLevel.Error,
+            Message = "Error while reporting AuditActivateSessionEvent event for SessionId {SessionId}.")]
+        public static partial void ErrorWhileReportingAuditActivateSessionEventEvent(
+            this ILogger logger,
+            Exception ex,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 13, Level = LogLevel.Error,
+            Message = "Error while reporting AuditUrlMismatchEvent event for SessionId {SessionId}.")]
+        public static partial void ErrorWhileReportingAuditUrlMismatchEventEventFor(
+            this ILogger logger,
+            Exception ex,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 14, Level = LogLevel.Error,
+            Message = "Error while reporting AuditSessionEventState close event for SessionId {SessionId}.")]
+        public static partial void ErrorWhileReportingAuditSessionEventStateClose(
+            this ILogger logger,
+            Exception ex,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 15, Level = LogLevel.Error,
+            Message = "Error while reporting AuditSessionEventState restored event for SessionId {SessionId}.")]
+        public static partial void ErrorWhileReportingAuditSessionEventStateRestored(
+            this ILogger logger,
+            Exception ex,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 16, Level = LogLevel.Error,
+            Message = "Error while reporting ReportCertificateUpdatedAuditEvent event.")]
+        public static partial void ErrorWhileReportingReportCertificateUpdatedAuditEvent(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 17, Level = LogLevel.Error,
+            Message = "Error while reporting CertificateUpdateRequestedAuditEvent event.")]
+        public static partial void ErrorWhileReportingCertificateUpdateRequestedAuditEvent(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 18, Level = LogLevel.Error,
+            Message = "Error while reporting AuditAddNodesEvent event.")]
+        public static partial void ErrorWhileReportingAuditAddNodesEventEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 19, Level = LogLevel.Error,
+            Message = "Error while reporting AuditDeleteNodesEvent event.")]
+        public static partial void ErrorWhileReportingAuditDeleteNodesEventEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 20, Level = LogLevel.Error,
+            Message = "Error while reporting AuditAddReferencesEvent event.")]
+        public static partial void ErrorWhileReportingAuditAddReferencesEventEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 21, Level = LogLevel.Error,
+            Message = "Error while reporting AuditDeleteReferencesEvent event.")]
+        public static partial void ErrorWhileReportingAuditDeleteReferencesEventEvent(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 22, Level = LogLevel.Error,
+            Message = "Error while reporting AuditOpenSecureChannelEvent event.")]
+        public static partial void ErrorWhileReportingAuditOpenSecureChannelEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 23, Level = LogLevel.Error,
+            Message = "Error while reporting ReportTrustListUpdatedAuditEvent event.")]
+        public static partial void ErrorWhileReportingReportTrustListUpdatedAuditEvent(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.AuditEvents + 24, Level = LogLevel.Error,
+            Message = "Error while reporting TrustListUpdateRequestedAuditEvent event.")]
+        public static partial void ErrorWhileReportingTrustListUpdateRequestedAuditEvent(
+            this ILogger logger,
+            Exception ex);
+    }
+
 }

@@ -434,10 +434,7 @@ namespace Opc.Ua.Server
                     if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
                     {
                         long remainingSeconds = remainingLockoutTicks / m_timeProvider.TimestampFrequency;
-                        m_logger.LogWarning(
-                            "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.",
-                            clientKey,
-                            remainingSeconds);
+                        m_logger.ClientClientKeyIsLockedOutRemainingLockout(clientKey, remainingSeconds);
                         throw new ServiceResultException(
                             StatusCodes.BadUserAccessDenied,
                             $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
@@ -786,7 +783,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex, "Failed to populate channel context for authentication.");
+                    m_logger.FailedToPopulateChannelContextForAuthentication(ex);
                 }
 
                 var authCtx = new AuthenticationContext(
@@ -1019,9 +1016,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex,
-                    "Failed to re-evaluate session {SessionId} identity after Role configuration change.",
-                    session.Id);
+                m_logger.FailedToReEvaluateSessionSessionIdIdentity(ex, session.Id);
             }
         }
 
@@ -1047,8 +1042,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex,
-                    "Failed to mark sessions stale after Role configuration change.");
+                m_logger.FailedToMarkSessionsStaleAfterRole(ex);
             }
         }
 
@@ -1213,7 +1207,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogTrace(e, "Session event handler raised an exception.");
+                        m_logger.SessionEventHandlerRaisedAnException(e);
                     }
                 }
             }
@@ -1226,7 +1220,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.LogInformation("Server - Session Monitor Thread Started.");
+                m_logger.ServerSessionMonitorThreadStarted();
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
 
@@ -1260,14 +1254,14 @@ namespace Opc.Ua.Server
 
                     if (m_shutdownEvent.WaitOne(sleepCycle))
                     {
-                        m_logger.LogTrace("Server - Session Monitor Thread Exited Normally.");
+                        m_logger.ServerSessionMonitorThreadExitedNormally();
                         break;
                     }
                 }
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Server - Session Monitor Thread Exited Unexpectedly");
+                m_logger.ServerSessionMonitorThreadExitedUnexpectedly(e);
             }
         }
 
@@ -1533,11 +1527,7 @@ namespace Opc.Ua.Server
             if (lockoutInfo.IsLockedOut(currentTicks))
             {
                 long remainingSeconds = (lockoutInfo.LockoutEndTicks - currentTicks) / m_timeProvider.TimestampFrequency;
-                m_logger.LogWarning(
-                    "Client {ClientKey} has been locked out after {FailedAttempts} failed authentication attempts. Lockout expires in {RemainingSeconds} seconds.",
-                    clientKey,
-                    lockoutInfo.FailedAttempts,
-                    remainingSeconds);
+                m_logger.ClientClientKeyHasBeenLockedOutAfter(clientKey, lockoutInfo.FailedAttempts, remainingSeconds);
             }
         }
 
@@ -1614,4 +1604,58 @@ namespace Opc.Ua.Server
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for SessionManager.
+    /// </summary>
+    internal static partial class SessionManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 0, Level = LogLevel.Warning,
+            Message = "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.")]
+        public static partial void ClientClientKeyIsLockedOutRemainingLockout(
+            this ILogger logger,
+            string? clientKey,
+            long remainingSeconds);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 1, Level = LogLevel.Debug,
+            Message = "Failed to populate channel context for authentication.")]
+        public static partial void FailedToPopulateChannelContextForAuthentication(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 2, Level = LogLevel.Warning,
+            Message = "Failed to re-evaluate session {SessionId} identity after Role configuration change.")]
+        public static partial void FailedToReEvaluateSessionSessionIdIdentity(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 3, Level = LogLevel.Warning,
+            Message = "Failed to mark sessions stale after Role configuration change.")]
+        public static partial void FailedToMarkSessionsStaleAfterRole(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 4, Level = LogLevel.Trace,
+            Message = "Session event handler raised an exception.")]
+        public static partial void SessionEventHandlerRaisedAnException(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 5, Level = LogLevel.Information,
+            Message = "Server - Session Monitor Thread Started.")]
+        public static partial void ServerSessionMonitorThreadStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 6, Level = LogLevel.Trace,
+            Message = "Server - Session Monitor Thread Exited Normally.")]
+        public static partial void ServerSessionMonitorThreadExitedNormally(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 7, Level = LogLevel.Error,
+            Message = "Server - Session Monitor Thread Exited Unexpectedly")]
+        public static partial void ServerSessionMonitorThreadExitedUnexpectedly(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 8, Level = LogLevel.Warning,
+            Message = "Client {ClientKey} has been locked out after {FailedAttempts} failed authentication " +
+                "attempts. Lockout expires in {RemainingSeconds} seconds.")]
+        public static partial void ClientClientKeyHasBeenLockedOutAfter(
+            this ILogger logger,
+            string? clientKey,
+            int failedAttempts,
+            long remainingSeconds);
+    }
+
 }

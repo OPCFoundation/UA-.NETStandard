@@ -50,7 +50,10 @@ namespace Opc.Ua.Client.TestFramework
         public async Task OneTimeSetUp()
         {
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-            m_logger.LogInformation("Test PkiRoot: {PkiRoot}", m_pkiRoot);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("Test PkiRoot: {PkiRoot}", m_pkiRoot);
+            }
 
             // Start in-process ReferenceServer with the optional conformance
             // node managers enabled (Part 17 AliasName + FileSystem). These
@@ -135,7 +138,10 @@ namespace Opc.Ua.Client.TestFramework
                 "://localhost:" +
                 ServerFixture.Port.ToString(CultureInfo.InvariantCulture));
 
-            m_logger.LogInformation("Server started at {Url}", ServerUrl);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("Server started at {Url}", ServerUrl);
+            }
 
             // Create client fixture and connect session
             ClientFixture = new ClientFixture(telemetry: Telemetry);

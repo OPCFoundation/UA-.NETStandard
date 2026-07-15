@@ -233,13 +233,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     // (unlike data-change subscriptions, which are required and throw):
                     // the whole method already swallows failures and continues, so a
                     // classic-engine session simply skips it rather than faulting.
-                    m_logger.LogInformation(
-                        "ServerSession: model-change event monitoring is not available for " +
-                        "endpoint {EndpointUrl} because the session does not expose a V2 " +
-                        "subscription manager (requires the V2 subscription engine / " +
-                        "DefaultSubscriptionEngineFactory). Monitoring is optional; continuing " +
-                        "without it.",
-                        m_options.EndpointUrl);
+                    m_logger.ModelChangeMonitoringSubscriptionManagerNotAvailable(m_options.EndpointUrl);
                     return;
                 }
 
@@ -268,8 +262,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     item == null)
                 {
                     await DisposeModelChangeSubscriptionAsync(subscription).ConfigureAwait(false);
-                    m_logger.LogInformation(
-                        "ServerSession: model-change event monitoring is not available.");
+                    m_logger.ModelChangeMonitoringNotAvailable();
                     return;
                 }
 
@@ -277,9 +270,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 if (!item.Created && StatusCode.IsBad(item.Error.StatusCode))
                 {
                     await DisposeModelChangeSubscriptionAsync(subscription).ConfigureAwait(false);
-                    m_logger.LogInformation(
-                        "ServerSession: model-change event monitoring is not available ({StatusCode}).",
-                        item.Error.StatusCode);
+                    m_logger.ModelChangeMonitoringNotAvailable(item.Error.StatusCode);
                     return;
                 }
                 bool disposeSubscription;
@@ -300,8 +291,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                     await DisposeModelChangeSubscriptionAsync(subscription).ConfigureAwait(false);
                     return;
                 }
-                m_logger.LogDebug(
-                    "ServerSession: model-change event monitoring started on the Server object.");
+                m_logger.ModelChangeMonitoringStarted();
             }
             catch (OperationCanceledException)
             {
@@ -310,9 +300,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(
-                    ex,
-                    "ServerSession: model-change event monitoring is not available.");
+                m_logger.ModelChangeMonitoringNotAvailable(ex);
             }
         }
 
@@ -362,8 +350,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 result.Targets[0].TargetId,
                 session.MessageContext.NamespaceUris);
             m_resolvedPaths[path] = resolved;
-            m_logger.LogDebug(
-                "Resolved browse path '{Path}' to node {NodeId}.", path, resolved);
+            m_logger.ResolvedBrowsePath(path, resolved);
             return resolved;
         }
 
@@ -398,8 +385,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "ServerSession: managed session dispose failed.");
+                    m_logger.ManagedSessionDisposeFailed(ex);
                 }
             }
 
@@ -444,8 +430,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 ct.ThrowIfCancellationRequested();
                 if (watch.Elapsed >= budget)
                 {
-                    m_logger.LogDebug(
-                        "ServerSession: model-change monitored item creation is still pending.");
+                    m_logger.ModelChangeMonitoredItemCreationPending();
                     return;
                 }
 
@@ -521,10 +506,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 builder = builder.WithUserIdentity(identity);
             }
 
-            m_logger.LogInformation(
-                "Connecting external server session to {EndpointUrl} ({SecurityMode}).",
-                selectedEndpoint.EndpointUrl,
-                selectedEndpoint.SecurityMode);
+            m_logger.ConnectingExternalServerSession(selectedEndpoint.EndpointUrl, selectedEndpoint.SecurityMode);
 
             return await builder.ConnectAsync(ct).ConfigureAwait(false);
         }
@@ -738,4 +720,54 @@ namespace Opc.Ua.PubSub.Adapter.Session
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ServerSession.
+    /// </summary>
+    internal static partial class ServerSessionLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 0, Level = LogLevel.Information,
+            Message = "ServerSession: model-change event monitoring is not available for endpoint {EndpointUrl} " +
+                "because the session does not expose a V2 subscription manager (requires the V2 subscription " +
+                "engine / DefaultSubscriptionEngineFactory). Monitoring is optional; continuing without it.")]
+        public static partial void ModelChangeMonitoringSubscriptionManagerNotAvailable(
+            this ILogger logger,
+            string? endpointUrl);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 1, Level = LogLevel.Information,
+            Message = "ServerSession: model-change event monitoring is not available.")]
+        public static partial void ModelChangeMonitoringNotAvailable(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 2, Level = LogLevel.Information,
+            Message = "ServerSession: model-change event monitoring is not available ({StatusCode}).")]
+        public static partial void ModelChangeMonitoringNotAvailable(this ILogger logger, StatusCode statusCode);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 3, Level = LogLevel.Debug,
+            Message = "ServerSession: model-change event monitoring started on the Server object.")]
+        public static partial void ModelChangeMonitoringStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 4, Level = LogLevel.Information,
+            Message = "ServerSession: model-change event monitoring is not available.")]
+        public static partial void ModelChangeMonitoringNotAvailable(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 5, Level = LogLevel.Debug,
+            Message = "Resolved browse path '{Path}' to node {NodeId}.")]
+        public static partial void ResolvedBrowsePath(this ILogger logger, string path, NodeId nodeId);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 6, Level = LogLevel.Debug,
+            Message = "ServerSession: managed session dispose failed.")]
+        public static partial void ManagedSessionDisposeFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 7, Level = LogLevel.Debug,
+            Message = "ServerSession: model-change monitored item creation is still pending.")]
+        public static partial void ModelChangeMonitoredItemCreationPending(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 8, Level = LogLevel.Information,
+            Message = "Connecting external server session to {EndpointUrl} ({SecurityMode}).")]
+        public static partial void ConnectingExternalServerSession(
+            this ILogger logger,
+            string? endpointUrl,
+            MessageSecurityMode securityMode);
+    }
+
 }

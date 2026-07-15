@@ -131,10 +131,7 @@ namespace Opc.Ua.PubSub.Transcoding
                     StatusCodes.BadSecurityModeRejected,
                     "Refusing to transcode a secured message to an output without " +
                     "message-layer security (set AllowInsecureCrossEncoding to override).");
-                m_logger.LogWarning(
-                    "Dropping transcode: secured source would be downgraded to an " +
-                    "unsecured {Encoding} target.",
-                    m_targetEncoding);
+                m_logger.DroppingTranscodeSecuredSourceDowngraded(m_targetEncoding);
                 return TranscodeResult.Empty;
             }
 
@@ -149,9 +146,7 @@ namespace Opc.Ua.PubSub.Transcoding
             INetworkMessageEncoder? encoder = ResolveEncoder(m_targetEncoding);
             if (encoder is null)
             {
-                m_logger.LogWarning(
-                    "No encoder registered for {Encoding}; transcode dropped.",
-                    m_targetEncoding);
+                m_logger.NoEncoderRegisteredForTranscode(m_targetEncoding);
                 return TranscodeResult.Empty;
             }
 
@@ -251,4 +246,21 @@ namespace Opc.Ua.PubSub.Transcoding
             return null;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubTranscoder"/>.
+    /// </summary>
+    internal static partial class PubSubTranscoderLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscoder + 0, Level = LogLevel.Warning,
+            Message = "Dropping transcode: secured source would be downgraded to an unsecured {Encoding} target.")]
+        public static partial void DroppingTranscodeSecuredSourceDowngraded(
+            this ILogger logger,
+            TranscodeEncoding encoding);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscoder + 1, Level = LogLevel.Warning,
+            Message = "No encoder registered for {Encoding}; transcode dropped.")]
+        public static partial void NoEncoderRegisteredForTranscode(this ILogger logger, TranscodeEncoding encoding);
+    }
+
 }

@@ -2047,7 +2047,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.UnexpectedErrorDuringDiagnosticsScan(e);
             }
         }
 
@@ -2307,7 +2307,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.UnexpectedErrorDuringDiagnosticsScan(e);
             }
         }
 
@@ -2418,4 +2418,15 @@ namespace Opc.Ua.Server
             ObjectIds.WellKnownRole_Supervisor
         ];
     }
+
+    /// <summary>
+    /// Source-generated log messages for DiagnosticsNodeManager.
+    /// </summary>
+    internal static partial class DiagnosticsNodeManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.DiagnosticsNodeManager + 0, Level = LogLevel.Error,
+            Message = "Unexpected error during diagnostics scan.")]
+        public static partial void UnexpectedErrorDuringDiagnosticsScan(this ILogger logger, Exception ex);
+    }
+
 }

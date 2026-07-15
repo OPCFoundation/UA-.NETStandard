@@ -343,9 +343,7 @@ namespace Opc.Ua.PubSub.StateMachine
             {
                 if (m_state == PubSubState.Disabled)
                 {
-                    m_logger.LogDebug(
-                        "PubSubStateMachine '{Component}' ({Kind}) Disable rejected: already Disabled.",
-                        ComponentName, ComponentKind);
+                    m_logger.DisableRejectedAlreadyDisabled(ComponentName, ComponentKind);
                     return false;
                 }
                 childSnapshot = [.. m_children];
@@ -477,9 +475,7 @@ namespace Opc.Ua.PubSub.StateMachine
                 PubSubState from = m_state;
                 if (!allowed(from))
                 {
-                    m_logger.LogDebug(
-                        "PubSubStateMachine '{Component}' ({Kind}) rejected transition {From} -> {To} (reason {Reason}).",
-                        ComponentName, ComponentKind, from, target, reason);
+                    m_logger.RejectedTransition(ComponentName, ComponentKind, from, target, reason);
                     return false;
                 }
                 if (from == target)
@@ -501,8 +497,7 @@ namespace Opc.Ua.PubSub.StateMachine
                     statusCode);
             }
 
-            m_logger.LogInformation(
-                "PubSubStateMachine '{Component}' ({Kind}) transitioned {From} -> {To} (reason {Reason}, status {Status}).",
+            m_logger.Transitioned(
                 evt.ComponentName,
                 evt.ComponentKind,
                 evt.PreviousState,
@@ -518,11 +513,7 @@ namespace Opc.Ua.PubSub.StateMachine
             {
                 // Listener exceptions must never destabilise the state
                 // machine. Log and swallow.
-                m_logger.LogError(
-                    ex,
-                    "PubSubStateMachine '{Component}' ({Kind}) StateChanged handler threw.",
-                    ComponentName,
-                    ComponentKind);
+                m_logger.StateChangedHandlerThrew(ex, ComponentName, ComponentKind);
             }
 
             return true;
@@ -547,4 +538,49 @@ namespace Opc.Ua.PubSub.StateMachine
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubStateMachine"/>.
+    /// </summary>
+    internal static partial class PubSubStateMachineLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubStateMachine + 0, Level = LogLevel.Debug,
+            Message = "PubSubStateMachine '{Component}' ({Kind}) Disable rejected: already Disabled.")]
+        public static partial void DisableRejectedAlreadyDisabled(
+            this ILogger logger,
+            string component,
+            PubSubComponentKind kind);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubStateMachine + 1, Level = LogLevel.Debug,
+            Message = "PubSubStateMachine '{Component}' ({Kind}) rejected transition {From} -> {To} " +
+                "(reason {Reason}).")]
+        public static partial void RejectedTransition(
+            this ILogger logger,
+            string component,
+            PubSubComponentKind kind,
+            PubSubState from,
+            PubSubState to,
+            PubSubStateTransitionReason reason);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubStateMachine + 2, Level = LogLevel.Information,
+            Message = "PubSubStateMachine '{Component}' ({Kind}) transitioned {From} -> {To} " +
+                "(reason {Reason}, status {Status}).")]
+        public static partial void Transitioned(
+            this ILogger logger,
+            string component,
+            PubSubComponentKind kind,
+            PubSubState from,
+            PubSubState to,
+            PubSubStateTransitionReason reason,
+            StatusCode status);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubStateMachine + 3, Level = LogLevel.Error,
+            Message = "PubSubStateMachine '{Component}' ({Kind}) StateChanged handler threw.")]
+        public static partial void StateChangedHandlerThrew(
+            this ILogger logger,
+            Exception exception,
+            string component,
+            PubSubComponentKind kind);
+    }
+
 }

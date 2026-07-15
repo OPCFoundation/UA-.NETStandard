@@ -507,7 +507,7 @@ namespace Opc.Ua.Lds.Server
                 }
                 catch (Exception ex)
                 {
-                    m_log?.LogDebug(ex, "Failed to inspect client cert ApplicationUri.");
+                    m_log?.FailedToInspectClientCertApplicationUri(ex);
                 }
             }
 
@@ -649,5 +649,12 @@ namespace Opc.Ua.Lds.Server
             }
             base.Dispose(disposing);
         }
+    }
+
+    internal static partial class LdsServerLog
+    {
+        [LoggerMessage(EventId = LdsServerEventIds.LdsServer + 0, Level = LogLevel.Debug,
+            Message = "Failed to inspect client cert ApplicationUri.")]
+        public static partial void FailedToInspectClientCertApplicationUri(this ILogger logger, Exception ex);
     }
 }

@@ -315,18 +315,37 @@ namespace Opc.Ua.Server.UserManagement
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogWarning(ex,
-                                "Failed to close session {SessionId} for deactivated user {UserName}.",
-                                session.Id, e.UserName);
+                            m_logger.FailedToCloseSessionSessionIdForDeactivated(ex, session.Id, e.UserName);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex,
-                    "Error closing sessions for deactivated user {UserName}.", e.UserName);
+                m_logger.ErrorClosingSessionsForDeactivatedUserUserName(ex, e.UserName);
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for UserManagementBinding.
+    /// </summary>
+    internal static partial class UserManagementBindingLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.UserManagementBinding + 0, Level = LogLevel.Warning,
+            Message = "Failed to close session {SessionId} for deactivated user {UserName}.")]
+        public static partial void FailedToCloseSessionSessionIdForDeactivated(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId,
+            string userName);
+
+        [LoggerMessage(EventId = ServerEventIds.UserManagementBinding + 1, Level = LogLevel.Error,
+            Message = "Error closing sessions for deactivated user {UserName}.")]
+        public static partial void ErrorClosingSessionsForDeactivatedUserUserName(
+            this ILogger logger,
+            Exception ex,
+            string userName);
+    }
+
 }

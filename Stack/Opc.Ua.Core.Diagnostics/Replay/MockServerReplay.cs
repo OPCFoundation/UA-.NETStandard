@@ -112,7 +112,7 @@ namespace Opc.Ua.Pcap.Replay
             var endpoint = (IPEndPoint)m_listener.LocalEndpoint;
             ListenUri = new UriBuilder(listenScheme, IPAddress.Loopback.ToString(), endpoint.Port).Uri;
             m_acceptTask = AcceptLoopAsync(m_stopCts.Token);
-            m_logger.LogInformation("Mock-server replay listening on {ListenUri}.", ListenUri);
+            m_logger.MockServerReplayListening(ListenUri);
         }
 
         /// <summary>
@@ -146,6 +146,7 @@ namespace Opc.Ua.Pcap.Replay
                 catch (ObjectDisposedException)
                 {
                 }
+
             }
 
             m_stopCts?.Dispose();
@@ -288,4 +289,15 @@ namespace Opc.Ua.Pcap.Replay
         private int m_started;
         private int m_stopping;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="MockServerReplay"/>.
+    /// </summary>
+    internal static partial class MockServerReplayLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.MockServerReplay + 0, Level = LogLevel.Information,
+            Message = "Mock-server replay listening on {ListenUri}.")]
+        public static partial void MockServerReplayListening(this ILogger logger, Uri listenUri);
+    }
+
 }

@@ -793,7 +793,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error unshelving alarm.");
+                m_logger.UnshelveError(e);
             }
         }
 
@@ -817,7 +817,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error updating UnshelveTime.");
+                m_logger.UpdateUnshelveTimeError(e);
             }
         }
 
@@ -861,4 +861,18 @@ namespace Opc.Ua
     public delegate ServiceResult AlarmConditionUnshelveTimeValueEventHandler(
         ISystemContext context,
         AlarmConditionState alarm);
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="AlarmConditionState"/>.
+    /// </summary>
+    internal static partial class AlarmConditionStateLog
+    {
+        [LoggerMessage(EventId = CoreTypesEventIds.AlarmConditionState + 0, Level = LogLevel.Error,
+            Message = "Unexpected error unshelving alarm.")]
+        public static partial void UnshelveError(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreTypesEventIds.AlarmConditionState + 1, Level = LogLevel.Error,
+            Message = "Unexpected error updating UnshelveTime.")]
+        public static partial void UpdateUnshelveTimeError(this ILogger logger, Exception exception);
+    }
 }

@@ -263,7 +263,7 @@ namespace Opc.Ua.Mcp
                     m_configuration!.CertificateManager.AcceptError = AutoAcceptError;
                 }
 
-                m_logger.LogInformation("Connecting to {EndpointUrl} as '{Name}'...", endpointUrl, name);
+                m_logger.Connecting(endpointUrl, name);
 
                 EndpointDescription selectedEndpoint = await SelectEndpointAsync(
                     endpointUrl, securityMode, securityPolicy, authType, ct).ConfigureAwait(false);
@@ -297,11 +297,7 @@ namespace Opc.Ua.Mcp
                     ConnectedAt = DateTime.UtcNow
                 };
 
-                m_logger.LogInformation(
-                    "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}",
-                    name,
-                    session.SessionName,
-                    session.SessionId);
+                m_logger.Connected(name, session.SessionName, session.SessionId);
 
                 return string.Format(
                     CultureInfo.InvariantCulture,
@@ -449,7 +445,7 @@ namespace Opc.Ua.Mcp
                 .ConfigureAwait(false);
             if (!hasAppCert)
             {
-                m_logger.LogWarning("Application certificate not found. Security may be limited.");
+                m_logger.ApplicationCertificateNotFound();
             }
 
             if (autoAcceptCerts)
@@ -602,9 +598,7 @@ namespace Opc.Ua.Mcp
         {
             if (e.Error != null && ServiceResult.IsNotGood(e.Error))
             {
-                m_logger.LogWarning(
-                    "Session '{Name}' state changed from {PreviousState} to {NewState}. " +
-                    "ReconnectAttempt={ReconnectAttempt}, Status={Status}",
+                m_logger.SessionStateChangedWithStatus(
                     name,
                     e.PreviousState,
                     e.NewState,
@@ -613,9 +607,7 @@ namespace Opc.Ua.Mcp
                 return;
             }
 
-            m_logger.LogInformation(
-                "Session '{Name}' state changed from {PreviousState} to {NewState}. " +
-                "ReconnectAttempt={ReconnectAttempt}",
+            m_logger.SessionStateChanged(
                 name,
                 e.PreviousState,
                 e.NewState,
@@ -626,9 +618,7 @@ namespace Opc.Ua.Mcp
         {
             if (e.Error != null && ServiceResult.IsNotGood(e.Error))
             {
-                m_logger.LogWarning(
-                    "Session '{Name}' channel state changed from {PreviousState} to {NewState}. " +
-                    "ReconnectAttempt={ReconnectAttempt}, Status={Status}",
+                m_logger.SessionChannelStateChangedWithStatus(
                     name,
                     e.PreviousState,
                     e.NewState,
@@ -637,9 +627,7 @@ namespace Opc.Ua.Mcp
                 return;
             }
 
-            m_logger.LogInformation(
-                "Session '{Name}' channel state changed from {PreviousState} to {NewState}. " +
-                "ReconnectAttempt={ReconnectAttempt}",
+            m_logger.SessionChannelStateChanged(
                 name,
                 e.PreviousState,
                 e.NewState,
@@ -673,5 +661,62 @@ namespace Opc.Ua.Mcp
         {
             return true;
         }
+    }
+
+    internal static partial class OpcUaSessionManagerLog
+    {
+        [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 0, Level = LogLevel.Information,
+            Message = "Connecting to {EndpointUrl} as '{Name}'...")]
+        public static partial void Connecting(this ILogger logger, string endpointUrl, string name);
+
+        [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 1, Level = LogLevel.Information,
+            Message = "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}")]
+        public static partial void Connected(this ILogger logger, string name, string sessionName, NodeId sessionId);
+
+        [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 2, Level = LogLevel.Warning,
+            Message = "Application certificate not found. Security may be limited.")]
+        public static partial void ApplicationCertificateNotFound(this ILogger logger);
+
+        [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 3, Level = LogLevel.Warning,
+            Message = "Session '{Name}' state changed from {PreviousState} to {NewState}. " +
+                "ReconnectAttempt={ReconnectAttempt}, Status={Status}")]
+        public static partial void SessionStateChangedWithStatus(
+            this ILogger logger,
+            string name,
+            ConnectionState previousState,
+            ConnectionState newState,
+            int reconnectAttempt,
+            ServiceResult status);
+
+        [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 4, Level = LogLevel.Information,
+            Message = "Session '{Name}' state changed from {PreviousState} to {NewState}. " +
+                "ReconnectAttempt={ReconnectAttempt}")]
+        public static partial void SessionStateChanged(
+            this ILogger logger,
+            string name,
+            ConnectionState previousState,
+            ConnectionState newState,
+            int reconnectAttempt);
+
+        [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 5, Level = LogLevel.Warning,
+            Message = "Session '{Name}' channel state changed from {PreviousState} to {NewState}. " +
+                "ReconnectAttempt={ReconnectAttempt}, Status={Status}")]
+        public static partial void SessionChannelStateChangedWithStatus(
+            this ILogger logger,
+            string name,
+            ChannelState previousState,
+            ChannelState newState,
+            int reconnectAttempt,
+            ServiceResult status);
+
+        [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 6, Level = LogLevel.Information,
+            Message = "Session '{Name}' channel state changed from {PreviousState} to {NewState}. " +
+                "ReconnectAttempt={ReconnectAttempt}")]
+        public static partial void SessionChannelStateChanged(
+            this ILogger logger,
+            string name,
+            ChannelState previousState,
+            ChannelState newState,
+            int reconnectAttempt);
     }
 }

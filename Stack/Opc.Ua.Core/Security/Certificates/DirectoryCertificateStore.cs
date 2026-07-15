@@ -283,18 +283,17 @@ namespace Opc.Ua
                 }
 
                 m_lastDirectoryCheck = DateTime.MinValue;
-                m_logger.LogDebug(
-                    Utils.TraceMasks.Security,
-                    "Certificate {Thumbprint} added to store.",
-                    certificate.Thumbprint);
+                m_logger.DirectoryStoreLog0(certificate.Thumbprint);
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.",
-                    certificate.Thumbprint,
-                    Redact.Create(StorePath));
+                if (m_logger.IsEnabled(LogLevel.Error))
+                {
+                    m_logger.DirectoryStoreLog1(
+                        ex,
+                        certificate.Thumbprint,
+                        Redact.Create(StorePath));
+                }
                 throw;
             }
             finally
@@ -385,11 +384,12 @@ namespace Opc.Ua
                     catch (IOException ex)
                     {
                         // file to delete may still be in use, force reload
-                        m_logger.LogDebug(
-                            Utils.TraceMasks.Security,
-                            ex,
-                            "Failed to delete {FileName} - force reload.",
-                            entry.CertificateFile.FullName);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.DirectoryStoreLog2(
+                                ex,
+                                entry.CertificateFile.FullName);
+                        }
                         reload = true;
                     }
                     finally
@@ -492,14 +492,14 @@ namespace Opc.Ua
                     catch (IOException)
                     {
                         // file to delete may still be in use, retry
-                        m_logger.LogWarning("Failed to delete cert [{Thumbprint}], retry.", thumbprint);
+                        m_logger.DirectoryStoreLog3(thumbprint);
                         retry--;
                     }
 
                     if (found)
                     {
                         m_lastDirectoryCheck = DateTime.MinValue;
-                        m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} removed from store.", thumbprint);
+                        m_logger.DirectoryStoreLog4(thumbprint);
                     }
                 }
                 finally
@@ -757,23 +757,22 @@ namespace Opc.Ua
                                             if (X509PfxUtils.VerifyKeyPair(
                                                 certificate, certificate, true))
                                             {
-                                                m_logger.LogInformation(
-                                                    Utils.TraceMasks.Security,
-                                                    "Imported the PFX private key for {Certificate}.",
-                                                    certificate);
+                                                m_logger
+                                                    .DirectoryStoreLog5(
+                                                        certificate);
                                                 return certificate;
                                             }
-                                            m_logger.LogDebug(
-                                                "PFX Private key could not be verified for {Certificate}.",
-                                                certificate);
+                                            m_logger
+                                                .DirectoryStoreLog6(
+                                                    certificate);
                                             certificate.Dispose();
                                         }
                                         catch (Exception ex)
                                         {
-                                            m_logger.LogDebug(
-                                                ex,
-                                                "Failed to import the PFX private for {Certificate}.",
-                                                certificate);
+                                            m_logger
+                                                .DirectoryStoreLog7(
+                                                    ex,
+                                                    certificate);
                                             importException = ex;
                                             certificate?.Dispose();
                                         }
@@ -795,23 +794,22 @@ namespace Opc.Ua
                                         if (X509PfxUtils.VerifyKeyPair(
                                             certificate, certificate, true))
                                         {
-                                            m_logger.LogInformation(
-                                                Utils.TraceMasks.Security,
-                                                "Imported the PEM private key for {Certificate}.",
-                                                certificate);
+                                            m_logger
+                                                .DirectoryStoreLog8(
+                                                    certificate);
                                             return certificate;
                                         }
-                                        m_logger.LogDebug(
-                                            "PEM Private key could not be verified for {Certificate}.",
-                                            certificate);
+                                        m_logger
+                                            .DirectoryStoreLog9(
+                                                certificate);
                                         certificate.Dispose();
                                     }
                                     catch (Exception exception)
                                     {
-                                        m_logger.LogDebug(
-                                            exception,
-                                            "Failed to import the PEM private for {Certificate}.",
-                                            certificate);
+                                        m_logger
+                                            .DirectoryStoreLog10(
+                                                exception,
+                                                certificate);
                                         certificate?.Dispose();
                                         importException = exception;
                                     }
@@ -832,43 +830,41 @@ namespace Opc.Ua
                                         if (X509PfxUtils.VerifyKeyPair(
                                             certificate, certificate, true))
                                         {
-                                            m_logger.LogInformation(
-                                                Utils.TraceMasks.Security,
-                                                "Imported the PEM private key for {Certificate}.",
-                                                certificate);
+                                            m_logger
+                                                .DirectoryStoreLog11(
+                                                    certificate);
                                             return certificate;
                                         }
-                                        m_logger.LogDebug(
-                                            "PEM Private key could not be verified for {Certificate}.",
-                                            certificate);
+                                        m_logger
+                                            .DirectoryStoreLog12(
+                                                certificate);
                                         certificate.Dispose();
                                     }
                                     catch (Exception exception)
                                     {
-                                        m_logger.LogDebug(
-                                            exception,
-                                            "Failed to import the PEM private for {Certificate}.",
-                                            certificate);
+                                        m_logger
+                                            .DirectoryStoreLog13(
+                                                exception,
+                                                certificate);
                                         certificate?.Dispose();
                                         importException = exception;
                                     }
                                 }
                                 else
                                 {
-                                    m_logger.LogError(
-                                        Utils.TraceMasks.Security,
-                                        "A private key for the certificate {Certificate} does not exist.",
-                                         certificate);
+                                    m_logger
+                                        .DirectoryStoreLog14(
+                                            certificate);
                                 }
                             }
                         }
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Could not load private key for certificate with thumbprint [{Thumbprint}]",
-                            thumbprint ?? "Unknown");
+                        if (m_logger.IsEnabled(LogLevel.Error))
+                        {
+                            m_logger.DirectoryStoreLog15(e, thumbprint ?? "Unknown");
+                        }
                     }
                 }
 
@@ -877,26 +873,24 @@ namespace Opc.Ua
                 {
                     if (importException != null)
                     {
-                        m_logger.LogError(
-                            Utils.TraceMasks.Security,
-                            importException,
-                            "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.",
-                            thumbprint ?? "Unknown");
+                        if (m_logger.IsEnabled(LogLevel.Error))
+                        {
+                            m_logger.DirectoryStoreLog16(
+                                importException,
+                                thumbprint ?? "Unknown");
+                        }
                     }
-                    else
+                    else if (m_logger.IsEnabled(LogLevel.Error))
                     {
-                        m_logger.LogError(
-                            Utils.TraceMasks.Security,
-                            "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.",
-                            thumbprint ?? "Unknown");
+                        m_logger.DirectoryStoreLog17(thumbprint ?? "Unknown");
                     }
                 }
                 else
                 {
-                    m_logger.LogDebug(
-                        Utils.TraceMasks.Security,
-                        "A Private key for the certificate with thumbprint [{Thumbprint}] was not found.",
-                        thumbprint ?? "Unknown");
+                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        m_logger.DirectoryStoreLog18(thumbprint ?? "Unknown");
+                    }
                     // if no private key was found, no need to retry
                     break;
                 }
@@ -908,11 +902,10 @@ namespace Opc.Ua
                 }
                 // retry within a few ms
                 const int retryDelay = 100;
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "Retry to import private key for certificate with thumbprint [{Thumbprint}] after {Duration} ms.",
-                    thumbprint ?? "Unknown",
-                    retryDelay);
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.DirectoryStoreLog19(thumbprint ?? "Unknown", retryDelay);
+                }
                 await m_timeProvider.Delay(TimeSpan.FromMilliseconds(retryDelay), ct).ConfigureAwait(false);
             }
 
@@ -1049,11 +1042,10 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Failed to parse CRL {Crl} in store {StorePath}.",
-                            file.FullName,
-                            StorePath);
+                        if (m_logger.IsEnabled(LogLevel.Error))
+                        {
+                            m_logger.DirectoryStoreLog20(e, file.FullName, StorePath);
+                        }
                     }
                 }
 
@@ -1085,11 +1077,10 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Failed to parse CRL {Crl} in store {StorePath}.",
-                            file.FullName,
-                            StorePath);
+                        if (m_logger.IsEnabled(LogLevel.Error))
+                        {
+                            m_logger.DirectoryStoreLog21(e, file.FullName, StorePath);
+                        }
                     }
                 }
             }
@@ -1376,10 +1367,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(
-                        e,
-                        "Could not load certificate from file: {FilePath}",
-                        file.FullName);
+                    if (m_logger.IsEnabled(LogLevel.Error))
+                    {
+                        m_logger.DirectoryStoreLog22(e, file.FullName);
+                    }
                 }
                 finally
                 {
@@ -1397,11 +1388,12 @@ namespace Opc.Ua
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Certificate store reloaded from {Path}, {Count} entries.",
-                Redact.Create(StorePath),
-                m_certificates.Count);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.DirectoryStoreLog23(
+                    Redact.Create(StorePath),
+                    m_certificates.Count);
+            }
 
             return m_certificates;
         }
@@ -1654,4 +1646,161 @@ namespace Opc.Ua
         private readonly Lock m_crlCacheLock = new();
         private volatile CrlCacheEntry? m_crlCache;
     }
+
+    /// <summary>
+    /// Source-generated log messages for DirectoryCertificateStore.
+    /// </summary>
+    internal static partial class DirectoryCertificateStoreLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 0, Level = LogLevel.Debug,
+            Message = "Certificate {Thumbprint} added to store.")]
+        public static partial void DirectoryStoreLog0(this ILogger logger, string? thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 1, Level = LogLevel.Error,
+            Message = "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.")]
+        public static partial void DirectoryStoreLog1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? thumbprint,
+            global::Opc.Ua.Redaction.RedactionWrapper<string> storePath);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 2, Level = LogLevel.Debug,
+            Message = "Failed to delete {FileName} - force reload.")]
+        public static partial void DirectoryStoreLog2(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? fileName);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 3, Level = LogLevel.Warning,
+            Message = "Failed to delete cert [{Thumbprint}], retry.")]
+        public static partial void DirectoryStoreLog3(this ILogger logger, string thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 4, Level = LogLevel.Debug,
+            Message = "Certificate {Thumbprint} removed from store.")]
+        public static partial void DirectoryStoreLog4(this ILogger logger, string thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 5, Level = LogLevel.Information,
+            Message = "Imported the PFX private key for {Certificate}.")]
+        public static partial void DirectoryStoreLog5(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 6, Level = LogLevel.Debug,
+            Message = "PFX Private key could not be verified for {Certificate}.")]
+        public static partial void DirectoryStoreLog6(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 7, Level = LogLevel.Debug,
+            Message = "Failed to import the PFX private for {Certificate}.")]
+        public static partial void DirectoryStoreLog7(
+            this ILogger logger,
+            global::System.Exception? exception,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 8, Level = LogLevel.Information,
+            Message = "Imported the PEM private key for {Certificate}.")]
+        public static partial void DirectoryStoreLog8(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 9, Level = LogLevel.Debug,
+            Message = "PEM Private key could not be verified for {Certificate}.")]
+        public static partial void DirectoryStoreLog9(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 10, Level = LogLevel.Debug,
+            Message = "Failed to import the PEM private for {Certificate}.")]
+        public static partial void DirectoryStoreLog10(
+            this ILogger logger,
+            global::System.Exception? exception,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 11, Level = LogLevel.Information,
+            Message = "Imported the PEM private key for {Certificate}.")]
+        public static partial void DirectoryStoreLog11(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 12, Level = LogLevel.Debug,
+            Message = "PEM Private key could not be verified for {Certificate}.")]
+        public static partial void DirectoryStoreLog12(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 13, Level = LogLevel.Debug,
+            Message = "Failed to import the PEM private for {Certificate}.")]
+        public static partial void DirectoryStoreLog13(
+            this ILogger logger,
+            global::System.Exception? exception,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 14, Level = LogLevel.Error,
+            Message = "A private key for the certificate {Certificate} does not exist.")]
+        public static partial void DirectoryStoreLog14(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 15, Level = LogLevel.Error,
+            Message = "Could not load private key for certificate with thumbprint [{Thumbprint}]")]
+        public static partial void DirectoryStoreLog15(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 16, Level = LogLevel.Error,
+            Message = "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.")]
+        public static partial void DirectoryStoreLog16(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 17, Level = LogLevel.Error,
+            Message = "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.")]
+        public static partial void DirectoryStoreLog17(this ILogger logger, string? thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 18, Level = LogLevel.Debug,
+            Message = "A Private key for the certificate with thumbprint [{Thumbprint}] was not found.")]
+        public static partial void DirectoryStoreLog18(this ILogger logger, string? thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 19, Level = LogLevel.Information,
+            Message = "Retry to import private key for certificate with thumbprint [{Thumbprint}] after " +
+                "{Duration} ms.")]
+        public static partial void DirectoryStoreLog19(
+            this ILogger logger,
+            string? thumbprint,
+            int duration);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 20, Level = LogLevel.Error,
+            Message = "Failed to parse CRL {Crl} in store {StorePath}.")]
+        public static partial void DirectoryStoreLog20(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? crl,
+            string storePath);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 21, Level = LogLevel.Error,
+            Message = "Failed to parse CRL {Crl} in store {StorePath}.")]
+        public static partial void DirectoryStoreLog21(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? crl,
+            string storePath);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 22, Level = LogLevel.Error,
+            Message = "Could not load certificate from file: {FilePath}")]
+        public static partial void DirectoryStoreLog22(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? filePath);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 23, Level = LogLevel.Information,
+            Message = "Certificate store reloaded from {Path}, {Count} entries.")]
+        public static partial void DirectoryStoreLog23(
+            this ILogger logger,
+            global::Opc.Ua.Redaction.RedactionWrapper<string> path,
+            int count);
+    }
+
 }

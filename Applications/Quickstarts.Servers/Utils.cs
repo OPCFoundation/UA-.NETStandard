@@ -77,7 +77,7 @@ namespace Quickstarts.Servers
                         {
                             ILogger<StandardServer> logger =
                                 server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
-                            logger.LogError("Error calling method with status code {StatusCode}.", result.StatusCode);
+                            logger.ErrorCallingMethod(result.StatusCode);
                         }
                     }
                     output.WriteLine("The Alarms for CTT mode are active.");
@@ -86,7 +86,7 @@ namespace Quickstarts.Servers
                 catch (Exception ex)
                 {
                     ILogger<StandardServer> logger = server.CurrentInstance.Telemetry.CreateLogger<StandardServer>();
-                    logger.LogError(ex, "Failed to start alarms for CTT.");
+                    logger.FailedToStartAlarmsForCtt(ex);
                 }
             }
             output.WriteLine(
@@ -180,4 +180,18 @@ namespace Quickstarts.Servers
         private static IList<INodeManagerFactory>? s_nodeManagerFactories;
         private static IList<IAsyncNodeManagerFactory>? s_asyncNodeManagerFactories;
     }
+
+    internal static partial class UtilsLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.Utils + 0, Level = LogLevel.Error,
+            Message = "Error calling method with status code {StatusCode}.")]
+        public static partial void ErrorCallingMethod(this ILogger logger, StatusCode statusCode);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.Utils + 1, Level = LogLevel.Error,
+            Message = "Failed to start alarms for CTT.")]
+        public static partial void FailedToStartAlarmsForCtt(this ILogger logger, Exception exception);
+    }
+
 }

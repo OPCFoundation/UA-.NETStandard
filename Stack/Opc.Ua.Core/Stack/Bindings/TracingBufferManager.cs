@@ -123,12 +123,7 @@ namespace Opc.Ua.Bindings
                 };
             }
 
-            Logger.LogDebug(
-                "{Name}: Rented buffer {BufferHash:X} ({BufferLength} bytes) for {Owner}.",
-                Name,
-                buffer.GetHashCode(),
-                buffer.Length,
-                owner);
+            Logger.TracingBufferRented(Name, buffer.GetHashCode(), buffer.Length, owner);
         }
 
         /// <inheritdoc/>
@@ -145,8 +140,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.ReportedAgeSeconds > 0)
                     {
-                        Logger.LogDebug(
-                            "{Name}: Id={AllocationId}; Owner={Owner}; Size={SizeKb} KB; *** TRANSFERRED ***",
+                        Logger.TracingBufferTransferred(
                             Name,
                             allocation.Id,
                             allocation.Owner,
@@ -171,8 +165,7 @@ namespace Opc.Ua.Bindings
 
                 if (allocation.ReportedAgeSeconds > 0)
                 {
-                    Logger.LogDebug(
-                        "{Name}: Id={AllocationId}; Owner={Owner}; ReleasedBy={ReleasedBy}; Size={SizeKb} KB; *** RETURNED ***",
+                    Logger.TracingBufferReturned(
                         Name,
                         allocation.Id,
                         allocation.Owner,
@@ -182,12 +175,7 @@ namespace Opc.Ua.Bindings
 
                 m_allocations.Remove(allocationId);
 
-                Logger.LogDebug(
-                    "{Name}: Deallocated ID {AllocationId}: {BufferLength}/{AllocatedBytes}",
-                    Name,
-                    allocationId,
-                    buffer.Length,
-                    m_allocatedBytes);
+                Logger.TracingBufferDeallocated(Name, allocationId, buffer.Length, m_allocatedBytes);
 
                 foreach (KeyValuePair<int, Allocation> current in m_allocations)
                 {
@@ -206,8 +194,7 @@ namespace Opc.Ua.Bindings
                         Math.Truncate(ageSeconds) % 3 == 0 &&
                         trackedAllocation.ReportedAgeSeconds < ageSeconds)
                     {
-                        Logger.LogDebug(
-                            "{Name}: Id={AllocationId}; Owner={Owner}; Size={SizeKb} KB; Age={AgeSeconds}",
+                        Logger.TracingBufferAge(
                             Name,
                             trackedAllocation.Id,
                             trackedAllocation.Owner,
@@ -283,5 +270,56 @@ namespace Opc.Ua.Bindings
         private readonly TimeProvider m_timeProvider = TimeProvider.System;
         private int m_allocatedBytes;
         private int m_nextAllocationId;
+    }
+
+    internal static partial class TracingBufferManagerLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.TracingBufferManager + 0, Level = LogLevel.Debug,
+            Message = "{Name}: Rented buffer {BufferHash:X} ({BufferLength} bytes) for {Owner}.")]
+        public static partial void TracingBufferRented(
+            this ILogger logger,
+            string name,
+            int bufferHash,
+            int bufferLength,
+            string? owner);
+
+        [LoggerMessage(EventId = CoreEventIds.TracingBufferManager + 1, Level = LogLevel.Debug,
+            Message = "{Name}: Id={AllocationId}; Owner={Owner}; Size={SizeKb} KB; *** TRANSFERRED ***")]
+        public static partial void TracingBufferTransferred(
+            this ILogger logger,
+            string name,
+            int allocationId,
+            string owner,
+            int sizeKb);
+
+        [LoggerMessage(EventId = CoreEventIds.TracingBufferManager + 2, Level = LogLevel.Debug,
+            Message = "{Name}: Id={AllocationId}; Owner={Owner}; ReleasedBy={ReleasedBy}; " +
+                "Size={SizeKb} KB; *** RETURNED ***")]
+        public static partial void TracingBufferReturned(
+            this ILogger logger,
+            string name,
+            int allocationId,
+            string owner,
+            string? releasedBy,
+            int sizeKb);
+
+        [LoggerMessage(EventId = CoreEventIds.TracingBufferManager + 3, Level = LogLevel.Debug,
+            Message = "{Name}: Deallocated ID {AllocationId}: {BufferLength}/{AllocatedBytes}")]
+        public static partial void TracingBufferDeallocated(
+            this ILogger logger,
+            string name,
+            int allocationId,
+            int bufferLength,
+            int allocatedBytes);
+
+        [LoggerMessage(EventId = CoreEventIds.TracingBufferManager + 4, Level = LogLevel.Debug,
+            Message = "{Name}: Id={AllocationId}; Owner={Owner}; Size={SizeKb} KB; Age={AgeSeconds}")]
+        public static partial void TracingBufferAge(
+            this ILogger logger,
+            string name,
+            int allocationId,
+            string owner,
+            int sizeKb,
+            double ageSeconds);
     }
 }

@@ -33,6 +33,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Quickstarts.Servers;
 
 namespace Boiler
 {
@@ -294,7 +295,7 @@ namespace Boiler
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error during boiler simulation.");
+                m_logger.UnexpectedErrorDuringSimulation(e);
             }
         }
 
@@ -302,4 +303,13 @@ namespace Boiler
         private ISystemContext m_simulationContext = null!;
         private ITimer? m_simulationTimer;
     }
+
+    internal static partial class BoilerStateLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.BoilerState + 0, Level = LogLevel.Error,
+            Message = "Unexpected error during boiler simulation.")]
+        public static partial void UnexpectedErrorDuringSimulation(this ILogger logger, Exception exception);
+    }
+
 }

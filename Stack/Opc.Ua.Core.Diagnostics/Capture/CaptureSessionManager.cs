@@ -591,9 +591,7 @@ namespace Opc.Ua.Pcap.Capture
                     }
                     m_sessions.TryRemove(oldest.Id, out _);
                     _ = oldest.DisposeAsync().AsTask();
-                    m_logger.LogInformation(
-                        "Evicted completed capture session {SessionId} (LRU).",
-                        oldest.Id);
+                    m_logger.EvictedCompletedCaptureSession(oldest.Id);
                 }
             }
         }
@@ -606,6 +604,7 @@ namespace Opc.Ua.Pcap.Capture
             }
         }
     }
+
 
     /// <summary>
     /// Creates <see cref="ICaptureSource"/> instances for
@@ -623,4 +622,15 @@ namespace Opc.Ua.Pcap.Capture
             string sessionFolder,
             ILoggerFactory loggerFactory);
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="CaptureSessionManager"/>.
+    /// </summary>
+    internal static partial class CaptureSessionManagerLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CaptureSessionManager + 0, Level = LogLevel.Information,
+            Message = "Evicted completed capture session {SessionId} (LRU).")]
+        public static partial void EvictedCompletedCaptureSession(this ILogger logger, string sessionId);
+    }
+
 }

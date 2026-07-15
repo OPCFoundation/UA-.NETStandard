@@ -262,8 +262,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogError(ex, "Kubernetes Lease election renew failed for {NodeId}.",
-                            m_options.Kubernetes.NodeId);
+                        m_logger?.KubernetesLeaseElectionRenewFailed(ex, m_options.Kubernetes.NodeId);
                     }
 
                     await Task.Delay(m_options.RenewInterval, ct).ConfigureAwait(false);
@@ -299,8 +298,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "Kubernetes Lease election release failed for {NodeId}.",
-                    m_options.Kubernetes.NodeId);
+                m_logger?.KubernetesLeaseElectionReleaseFailed(ex, m_options.Kubernetes.NodeId);
             }
         }
 
@@ -353,4 +351,25 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private bool m_started;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="KubernetesLeaseLeaderElection"/>.
+    /// </summary>
+    internal static partial class KubernetesLeaseLeaderElectionLog
+    {
+        [LoggerMessage(EventId = RedundancyKubernetesEventIds.KubernetesLeaseLeaderElection + 0, Level = LogLevel.Error,
+            Message = "Kubernetes Lease election renew failed for {NodeId}.")]
+        public static partial void KubernetesLeaseElectionRenewFailed(
+            this ILogger logger,
+            Exception exception,
+            string nodeId);
+
+        [LoggerMessage(EventId = RedundancyKubernetesEventIds.KubernetesLeaseLeaderElection + 1, Level = LogLevel.Error,
+            Message = "Kubernetes Lease election release failed for {NodeId}.")]
+        public static partial void KubernetesLeaseElectionReleaseFailed(
+            this ILogger logger,
+            Exception exception,
+            string nodeId);
+    }
+
 }

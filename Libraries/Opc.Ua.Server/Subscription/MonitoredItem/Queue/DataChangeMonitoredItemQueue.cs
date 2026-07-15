@@ -45,8 +45,7 @@ namespace Opc.Ua.Server
             m_logger = telemetry.CreateLogger<DataChangeMonitoredItemQueue>();
             if (createDurable)
             {
-                m_logger.LogError(
-                    "DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+                m_logger.DataChangeMonitoredItemQueueDoesNotSupportDurable();
                 throw new ArgumentException(
                     "DataChangeMonitoredItemQueue does not support durable Queues",
                     nameof(createDurable));
@@ -302,4 +301,17 @@ namespace Opc.Ua.Server
         /// </summary>
         protected ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for DataChangeMonitoredItemQueue.
+    /// </summary>
+    internal static partial class DataChangeMonitoredItemQueueLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.DataChangeMonitoredItemQueue + 0, Level = LogLevel.Error,
+            Message = "DataChangeMonitoredItemQueue does not support durable queues, please provide full " +
+                "implementation of IDurableMonitoredItemQueue using " +
+                "Server.CreateDurableMonitoredItemQueueFactory to supply own factory")]
+        public static partial void DataChangeMonitoredItemQueueDoesNotSupportDurable(this ILogger logger);
+    }
+
 }

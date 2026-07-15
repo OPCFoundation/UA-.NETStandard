@@ -78,19 +78,30 @@ namespace Opc.Ua.PubSub.Application
         /// <inheritdoc/>
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            m_logger.LogInformation(
-                "Starting PubSub application {Id}.",
-                m_application.ApplicationId);
+            m_logger.StartingPubSubApplication(m_application.ApplicationId);
             await m_application.StartAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            m_logger.LogInformation(
-                "Stopping PubSub application {Id}.",
-                m_application.ApplicationId);
+            m_logger.StoppingPubSubApplication(m_application.ApplicationId);
             await m_application.StopAsync(cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubApplicationHostedService"/>.
+    /// </summary>
+    internal static partial class PubSubApplicationHostedServiceLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplicationHostedService + 0, Level = LogLevel.Information,
+            Message = "Starting PubSub application {Id}.")]
+        public static partial void StartingPubSubApplication(this ILogger logger, string id);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplicationHostedService + 1, Level = LogLevel.Information,
+            Message = "Stopping PubSub application {Id}.")]
+        public static partial void StoppingPubSubApplication(this ILogger logger, string id);
+    }
+
 }

@@ -87,12 +87,7 @@ namespace RedundantPubSub
             using IHost host = builder.Build();
             LogComponentRoles(host.Services, options.OwnerId, "Publisher");
             ILogger logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("RedundantPubSub.Publisher");
-            logger.LogInformation(
-                "Publisher {OwnerId} starting: mode={Mode}, election={Election}, endpoint={Endpoint}.",
-                options.OwnerId,
-                options.HaMode,
-                options.Election,
-                options.Endpoint);
+            logger.PublisherStarting(options.OwnerId, options.HaMode, options.Election, options.Endpoint);
             await host.RunAsync(cancellationToken).ConfigureAwait(false);
             return 0;
         }
@@ -124,11 +119,7 @@ namespace RedundantPubSub
             }
 
             ILogger logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("RedundantPubSub.Subscriber");
-            logger.LogInformation(
-                "Subscriber {OwnerId} starting: highAvailability={HighlyAvailable}, endpoint={Endpoint}.",
-                options.OwnerId,
-                highlyAvailable,
-                options.Endpoint);
+            logger.SubscriberStarting(options.OwnerId, highlyAvailable, options.Endpoint);
             await host.RunAsync(cancellationToken).ConfigureAwait(false);
             return 0;
         }
@@ -444,8 +435,7 @@ namespace RedundantPubSub
         {
             IPubSubActivationCoordinator coordinator = services.GetRequiredService<IPubSubActivationCoordinator>();
             ILogger logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("RedundantPubSub.HA");
-            coordinator.RoleChanged += (_, e) => logger.LogInformation(
-                "{RoleLabel} {OwnerId}: {ComponentId} -> {Role}.",
+            coordinator.RoleChanged += (_, e) => logger.ComponentRoleChanged(
                 roleLabel,
                 ownerId,
                 e.ComponentId,
@@ -475,5 +465,34 @@ namespace RedundantPubSub
             };
             return shutdown;
         }
+    }
+
+    internal static partial class ProgramLog
+    {
+        [LoggerMessage(EventId = RedundantPubSubEventIds.Program + 0, Level = LogLevel.Information,
+            Message = "Publisher {OwnerId} starting: mode={Mode}, election={Election}, endpoint={Endpoint}.")]
+        public static partial void PublisherStarting(
+            this ILogger logger,
+            string ownerId,
+            PubSubRedundancyMode mode,
+            PubSubRedundancyElection election,
+            string endpoint);
+
+        [LoggerMessage(EventId = RedundantPubSubEventIds.Program + 1, Level = LogLevel.Information,
+            Message = "Subscriber {OwnerId} starting: highAvailability={HighlyAvailable}, endpoint={Endpoint}.")]
+        public static partial void SubscriberStarting(
+            this ILogger logger,
+            string ownerId,
+            bool highlyAvailable,
+            string endpoint);
+
+        [LoggerMessage(EventId = RedundantPubSubEventIds.Program + 2, Level = LogLevel.Information,
+            Message = "{RoleLabel} {OwnerId}: {ComponentId} -> {Role}.")]
+        public static partial void ComponentRoleChanged(
+            this ILogger logger,
+            string roleLabel,
+            string ownerId,
+            string componentId,
+            PubSubComponentRole role);
     }
 }

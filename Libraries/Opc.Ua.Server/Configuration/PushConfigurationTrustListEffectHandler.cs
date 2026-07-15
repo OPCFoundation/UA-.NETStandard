@@ -176,17 +176,11 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Listener {Listener} failed to renegotiate channels after a peer-trust change.",
-                        listener.ListenerId);
+                    m_logger.ListenerFailedToRenegotiateChannels(ex, listener.ListenerId);
                 }
             }
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "TrustList change forced {Count} SecureChannel(s) with untrusted peer certificates to renegotiate.",
-                totalCut);
+            m_logger.TrustListChangeForcedChannelsToRenegotiate(totalCut);
         }
 
         /// <summary>
@@ -229,7 +223,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to enumerate Sessions for user-identity re-validation.");
+                m_logger.FailedToEnumerateSessionsForRevalidation(ex);
                 return;
             }
 
@@ -266,10 +260,7 @@ namespace Opc.Ua.Server
                 {
                     // Best-effort: never close a Session whose identity cannot
                     // be re-validated.
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to re-validate the user certificate for Session {SessionId}; leaving it open.",
-                        session.Id);
+                    m_logger.FailedToRevalidateUserCertificateForSession(ex, session.Id);
                     continue;
                 }
 
@@ -288,17 +279,11 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to close Session {SessionId} whose user certificate is no longer trusted.",
-                        session.Id);
+                    m_logger.FailedToCloseSessionWithUntrustedUserCertificate(ex, session.Id);
                 }
             }
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "TrustList change closed {Count} Session(s) with untrusted certificate user identities.",
-                closedCount);
+            m_logger.TrustListChangeClosedSessions(closedCount);
         }
 
         /// <summary>
@@ -330,5 +315,48 @@ namespace Opc.Ua.Server
         }
 
         private readonly ILogger m_logger;
+    }
+
+    internal static partial class PushConfigurationTrustListEffectHandlerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTrustListEffectHandler + 0,
+            Level = LogLevel.Warning,
+            Message = "Listener {Listener} failed to renegotiate channels after a peer-trust change.")]
+        public static partial void ListenerFailedToRenegotiateChannels(
+            this ILogger logger,
+            Exception ex,
+            string listener);
+
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTrustListEffectHandler + 1,
+            Level = LogLevel.Information,
+            Message = "TrustList change forced {Count} SecureChannel(s) with untrusted peer certificates " +
+                "to renegotiate.")]
+        public static partial void TrustListChangeForcedChannelsToRenegotiate(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTrustListEffectHandler + 2,
+            Level = LogLevel.Warning,
+            Message = "Failed to enumerate Sessions for user-identity re-validation.")]
+        public static partial void FailedToEnumerateSessionsForRevalidation(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTrustListEffectHandler + 3,
+            Level = LogLevel.Warning,
+            Message = "Failed to re-validate the user certificate for Session {SessionId}; leaving it open.")]
+        public static partial void FailedToRevalidateUserCertificateForSession(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTrustListEffectHandler + 4,
+            Level = LogLevel.Warning,
+            Message = "Failed to close Session {SessionId} whose user certificate is no longer trusted.")]
+        public static partial void FailedToCloseSessionWithUntrustedUserCertificate(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTrustListEffectHandler + 5,
+            Level = LogLevel.Information,
+            Message = "TrustList change closed {Count} Session(s) with untrusted certificate user identities.")]
+        public static partial void TrustListChangeClosedSessions(this ILogger logger, int count);
     }
 }
