@@ -172,7 +172,7 @@ namespace Opc.Ua.Gds.Server
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
-            m_logger.LogInformation("Creating the Node Managers.");
+            m_logger.CreatingTheNodeManagers();
 
             // create the custom node managers.
             var nodeManagers = new IAsyncNodeManager[]
@@ -464,10 +464,7 @@ namespace Opc.Ua.Gds.Server
                         new UserIdentity(x509Token),
                         [Role.AuthenticatedUser],
                         m_server.ServerInternal.MessageContext.NamespaceUris);
-                    m_server.m_logger.LogInformation(
-                        "X509 Token Accepted: {Identity} as {Role}",
-                        identity.DisplayName,
-                        Role.AuthenticatedUser);
+                    m_server.m_logger.X509TokenAccepted(identity.DisplayName, Role.AuthenticatedUser);
                     return AuthenticationResult.Accept(identity);
                 }
                 catch (ServiceResultException ex)
@@ -483,5 +480,16 @@ namespace Opc.Ua.Gds.Server
         private readonly IUserDatabase m_userDatabase;
         private readonly bool m_autoApprove;
         private readonly bool m_enableApplicationSelfAdminProvider;
+    }
+
+    internal static partial class GlobalDiscoverySampleServerLog
+    {
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GlobalDiscoverySampleServer + 0, Level = LogLevel.Information,
+            Message = "Creating the Node Managers.")]
+        public static partial void CreatingTheNodeManagers(this ILogger logger);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GlobalDiscoverySampleServer + 1, Level = LogLevel.Information,
+            Message = "X509 Token Accepted: {Identity} as {Role}")]
+        public static partial void X509TokenAccepted(this ILogger logger, string identity, Role role);
     }
 }

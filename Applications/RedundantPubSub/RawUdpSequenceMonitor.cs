@@ -78,7 +78,7 @@ namespace RedundantPubSub
             IReadOnlyList<IPubSubConnection> connections = application.Connections;
             if (connections.Count == 0)
             {
-                m_logger.LogWarning("Sequence monitor found no PubSub connections to observe.");
+                m_logger.NoPubSubConnectionsToObserve();
                 return Task.CompletedTask;
             }
 
@@ -88,10 +88,7 @@ namespace RedundantPubSub
                 m_registrations[ii] = connections[ii].RegisterReceivedNetworkMessageSink(this);
             }
 
-            m_logger.LogInformation(
-                "Sequence monitor observing {ConnectionCount} PubSub connection(s) on {Endpoint}.",
-                connections.Count,
-                m_options.Endpoint);
+            m_logger.SequenceMonitorObserving(connections.Count, m_options.Endpoint);
             return Task.CompletedTask;
         }
 
@@ -155,5 +152,19 @@ namespace RedundantPubSub
         private readonly SequenceContinuityMonitor m_monitor;
         private readonly ILogger<RawUdpSequenceMonitor> m_logger;
         private IDisposable[]? m_registrations;
+    }
+
+    internal static partial class RawUdpSequenceMonitorLog
+    {
+        [LoggerMessage(EventId = RedundantPubSubEventIds.RawUdpSequenceMonitor + 0, Level = LogLevel.Warning,
+            Message = "Sequence monitor found no PubSub connections to observe.")]
+        public static partial void NoPubSubConnectionsToObserve(this ILogger logger);
+
+        [LoggerMessage(EventId = RedundantPubSubEventIds.RawUdpSequenceMonitor + 1, Level = LogLevel.Information,
+            Message = "Sequence monitor observing {ConnectionCount} PubSub connection(s) on {Endpoint}.")]
+        public static partial void SequenceMonitorObserving(
+            this ILogger logger,
+            int connectionCount,
+            string endpoint);
     }
 }

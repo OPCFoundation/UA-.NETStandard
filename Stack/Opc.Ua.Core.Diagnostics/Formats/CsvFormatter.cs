@@ -72,7 +72,7 @@ namespace Opc.Ua.Pcap.Formats
         {
             ArgumentNullException.ThrowIfNull(source);
 
-            m_logger.LogDebug("Formatting capture as CSV.");
+            m_logger.FormattingCaptureAsCsv();
             StringBuilder builder = new();
             builder.AppendLine("timestamp,direction,client,server,length,messageType,channelId,tokenId");
             long count = 0;
@@ -127,6 +127,7 @@ namespace Opc.Ua.Pcap.Formats
                 {
                     builder.Append(ch);
                 }
+
             }
             builder.Append('"');
         }
@@ -171,4 +172,15 @@ namespace Opc.Ua.Pcap.Formats
             };
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="CsvFormatter"/>.
+    /// </summary>
+    internal static partial class CsvFormatterLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CsvFormatter + 0, Level = LogLevel.Debug,
+            Message = "Formatting capture as CSV.")]
+        public static partial void FormattingCaptureAsCsv(this ILogger logger);
+    }
+
 }

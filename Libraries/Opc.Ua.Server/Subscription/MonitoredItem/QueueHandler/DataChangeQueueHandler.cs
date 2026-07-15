@@ -254,20 +254,14 @@ namespace Opc.Ua.Server
                 // check if too soon for another sample.
                 if (now < m_nextSampleTime)
                 {
-                    if (m_logger.IsEnabled(LogLevel.Trace))
-                    {
-                        m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue);
+                    m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue);
 
-                        m_logger.LogTrace(
-                            "OVERWRITTEN VALUE (TOO SOON FOR ANOTHER SAMPLE): Value={Value} CODE={Code}<{Code:X8}> SamplingInterval={SamplingInterval}" +
-                            "QueueValueCall {Now} NextSampleTime {NextSampleTime}",
-                            overwrittenValue.WrappedValue,
-                            overwrittenValue.StatusCode.Code,
-                            value.StatusCode.Code,
-                            m_samplingInterval,
-                            now,
-                            m_nextSampleTime);
-                    }
+                    m_logger.OVERWRITTENVALUETOOSOONFORANOTHERSAMPLE(
+                        overwrittenValue.WrappedValue,
+                        overwrittenValue.StatusCode.Code,
+                        m_samplingInterval,
+                        now,
+                        m_nextSampleTime);
 
                     m_dataValueQueue.OverwriteLastValue(value, error);
 
@@ -313,12 +307,10 @@ namespace Opc.Ua.Server
                     m_overflowPending = false;
                 }
 
-                if (!noEventLog && m_logger.IsEnabled(LogLevel.Trace))
+                if (!noEventLog)
                 {
-                    m_logger.LogTrace(
-                        "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                    m_logger.DequeueValue(
                         value.WrappedValue,
-                        value.StatusCode.Code,
                         value.StatusCode.Code,
                         value.StatusCode.Overflow);
                 }
@@ -338,10 +330,7 @@ namespace Opc.Ua.Server
             // check for empty queue.
             if (m_dataValueQueue.ItemsInQueue == 0)
             {
-                if (m_logger.IsEnabled(LogLevel.Trace))
-                {
-                    m_logger.LogTrace("ENQUEUE VALUE: Value={Value}", value.WrappedValue);
-                }
+                m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
 
                 m_dataValueQueue.Enqueue(value, error);
 
@@ -404,9 +393,9 @@ namespace Opc.Ua.Server
 
                 return true;
             }
-            else if (m_logger.IsEnabled(LogLevel.Trace))
+            else
             {
-                m_logger.LogTrace("ENQUEUE VALUE: Value={Value}", value.WrappedValue);
+                m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
             }
 
             m_dataValueQueue.Enqueue(value, error);
@@ -464,4 +453,27 @@ namespace Opc.Ua.Server
         private DataValue m_overflow;
         private bool m_overflowPending;
     }
+
+    /// <summary>
+    /// Source-generated log messages for DataChangeQueueHandler.
+    /// </summary>
+    internal static partial class DataChangeQueueHandlerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.DataChangeQueueHandler + 0, Level = LogLevel.Trace,
+            Message = "OVERWRITTEN VALUE (TOO SOON FOR ANOTHER SAMPLE): Value={Value} CODE={Code}<{Code:X8}> " +
+                "SamplingInterval={SamplingInterval}QueueValueCall {Now} NextSampleTime {NextSampleTime}")]
+        public static partial void OVERWRITTENVALUETOOSOONFORANOTHERSAMPLE(
+            this ILogger logger,
+            Variant value,
+            uint code,
+            long samplingInterval,
+            long now,
+            long nextSampleTime);
+
+
+        [LoggerMessage(EventId = ServerEventIds.DataChangeQueueHandler + 1, Level = LogLevel.Trace,
+            Message = "ENQUEUE VALUE: Value={Value}")]
+        public static partial void ENQUEUEVALUEValueValue(this ILogger logger, Variant value);
+    }
+
 }

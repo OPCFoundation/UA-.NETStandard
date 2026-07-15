@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (ServiceResultException ex)
             {
-                m_logger.LogWarning(ex, "PubSub Action server Method call failed.");
+                m_logger.PubSubActionServerMethodCallFailed(ex);
                 return new PubSubActionHandlerResult
                 {
                     StatusCode = ex.StatusCode
@@ -146,7 +146,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.LogWarning(ex, "PubSub Action server Method call failed unexpectedly.");
+                m_logger.PubSubActionServerMethodCallFailedUnexpectedly(ex);
                 return new PubSubActionHandlerResult
                 {
                     StatusCode = StatusCodes.BadUnexpectedError
@@ -228,4 +228,21 @@ namespace Opc.Ua.PubSub.Server
             return new ArrayOf<DataSetField>(fields);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ServerMethodActionHandler.
+    /// </summary>
+    internal static partial class ServerMethodActionHandlerLog
+    {
+        [LoggerMessage(EventId = PubSubServerEventIds.ServerMethodActionHandler + 0, Level = LogLevel.Warning,
+            Message = "PubSub Action server Method call failed.")]
+        public static partial void PubSubActionServerMethodCallFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.ServerMethodActionHandler + 1, Level = LogLevel.Warning,
+            Message = "PubSub Action server Method call failed unexpectedly.")]
+        public static partial void PubSubActionServerMethodCallFailedUnexpectedly(
+            this ILogger logger,
+            Exception exception);
+    }
+
 }

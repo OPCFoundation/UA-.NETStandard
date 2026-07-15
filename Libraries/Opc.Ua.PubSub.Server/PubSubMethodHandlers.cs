@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "PublishSubscribe Enable failed.");
+                m_logger.PublishSubscribeEnableFailed(ex);
                 return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
             }
         }
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "PublishSubscribe Disable failed.");
+                m_logger.PublishSubscribeDisableFailed(ex);
                 return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
             }
         }
@@ -245,7 +245,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "AddConnection failed.");
+                m_logger.AddConnectionFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -303,7 +303,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "RemoveConnection failed.");
+                m_logger.RemoveConnectionFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -360,7 +360,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "SetConfiguration failed.");
+                m_logger.SetConfigurationFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -391,7 +391,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "GetConfiguration failed.");
+                m_logger.GetConfigurationFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -590,7 +590,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "RemovePublishedDataSet failed.");
+                m_logger.RemovePublishedDataSetFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -724,7 +724,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "AddWriterGroup failed.");
+                m_logger.AddWriterGroupFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -795,7 +795,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "AddReaderGroup failed.");
+                m_logger.AddReaderGroupFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -852,7 +852,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "RemoveGroup failed.");
+                m_logger.RemoveGroupFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -923,7 +923,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "AddDataSetWriter failed.");
+                m_logger.AddDataSetWriterFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -980,7 +980,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "RemoveDataSetWriter failed.");
+                m_logger.RemoveDataSetWriterFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -1051,7 +1051,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "AddDataSetReader failed.");
+                m_logger.AddDataSetReaderFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "RemoveDataSetReader failed.");
+                m_logger.RemoveDataSetReaderFailed(ex);
                 return new ServiceResult(
                     StatusCodes.BadInvalidState,
                     new LocalizedText(ex.Message));
@@ -1247,7 +1247,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "AddPublishedDataSet failed.");
+                m_logger.AddPublishedDataSetFailed(ex);
                 return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
             }
         }
@@ -1292,7 +1292,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "PublishedDataItems mutation failed.");
+                m_logger.PublishedDataItemsMutationFailed(ex);
                 return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
             }
         }
@@ -1625,12 +1625,12 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (OpcUaSksException ex)
             {
-                m_logger.LogDebug(ex, "AddSecurityGroup {Name} rejected with {Status}.", name, ex.Status);
+                m_logger.AddSecurityGroupRejected(ex, name, ex.Status);
                 return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "AddSecurityGroup {Name} threw unexpectedly.", name);
+                m_logger.AddSecurityGroupThrewUnexpectedly(ex, name);
                 return new ServiceResult(StatusCodes.BadInternalError, new LocalizedText(ex.Message));
             }
 
@@ -1687,12 +1687,12 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (OpcUaSksException ex)
             {
-                m_logger.LogDebug(ex, "RemoveSecurityGroup {Id} rejected with {Status}.", id, ex.Status);
+                m_logger.RemoveSecurityGroupRejected(ex, id, ex.Status);
                 return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "RemoveSecurityGroup {Id} threw unexpectedly.", id);
+                m_logger.RemoveSecurityGroupThrewUnexpectedly(ex, id);
                 return new ServiceResult(StatusCodes.BadInternalError, new LocalizedText(ex.Message));
             }
             lock (m_gate)
@@ -2027,4 +2027,106 @@ namespace Opc.Ua.PubSub.Server
         /// </summary>
         public string DefaultPolicyUri => m_options.DefaultSecurityPolicyUri ?? DefaultSecurityPolicyUri;
     }
+
+    /// <summary>
+    /// Source-generated log messages for PubSubMethodHandlers.
+    /// </summary>
+    internal static partial class PubSubMethodHandlersLog
+    {
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 0, Level = LogLevel.Warning,
+            Message = "PublishSubscribe Enable failed.")]
+        public static partial void PublishSubscribeEnableFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 1, Level = LogLevel.Warning,
+            Message = "PublishSubscribe Disable failed.")]
+        public static partial void PublishSubscribeDisableFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 2, Level = LogLevel.Warning,
+            Message = "AddConnection failed.")]
+        public static partial void AddConnectionFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 3, Level = LogLevel.Warning,
+            Message = "RemoveConnection failed.")]
+        public static partial void RemoveConnectionFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 4, Level = LogLevel.Warning,
+            Message = "SetConfiguration failed.")]
+        public static partial void SetConfigurationFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 5, Level = LogLevel.Warning,
+            Message = "GetConfiguration failed.")]
+        public static partial void GetConfigurationFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 6, Level = LogLevel.Warning,
+            Message = "RemovePublishedDataSet failed.")]
+        public static partial void RemovePublishedDataSetFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 7, Level = LogLevel.Warning,
+            Message = "AddWriterGroup failed.")]
+        public static partial void AddWriterGroupFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 8, Level = LogLevel.Warning,
+            Message = "AddReaderGroup failed.")]
+        public static partial void AddReaderGroupFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 9, Level = LogLevel.Warning,
+            Message = "RemoveGroup failed.")]
+        public static partial void RemoveGroupFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 10, Level = LogLevel.Warning,
+            Message = "AddDataSetWriter failed.")]
+        public static partial void AddDataSetWriterFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 11, Level = LogLevel.Warning,
+            Message = "RemoveDataSetWriter failed.")]
+        public static partial void RemoveDataSetWriterFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 12, Level = LogLevel.Warning,
+            Message = "AddDataSetReader failed.")]
+        public static partial void AddDataSetReaderFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 13, Level = LogLevel.Warning,
+            Message = "RemoveDataSetReader failed.")]
+        public static partial void RemoveDataSetReaderFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 14, Level = LogLevel.Warning,
+            Message = "AddPublishedDataSet failed.")]
+        public static partial void AddPublishedDataSetFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 15, Level = LogLevel.Warning,
+            Message = "PublishedDataItems mutation failed.")]
+        public static partial void PublishedDataItemsMutationFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 16, Level = LogLevel.Debug,
+            Message = "AddSecurityGroup {Name} rejected with {Status}.")]
+        public static partial void AddSecurityGroupRejected(
+            this ILogger logger,
+            Exception exception,
+            string name,
+            StatusCode status);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 17, Level = LogLevel.Error,
+            Message = "AddSecurityGroup {Name} threw unexpectedly.")]
+        public static partial void AddSecurityGroupThrewUnexpectedly(
+            this ILogger logger,
+            Exception exception,
+            string name);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 18, Level = LogLevel.Debug,
+            Message = "RemoveSecurityGroup {Id} rejected with {Status}.")]
+        public static partial void RemoveSecurityGroupRejected(
+            this ILogger logger,
+            Exception exception,
+            string id,
+            StatusCode status);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubMethodHandlers + 19, Level = LogLevel.Error,
+            Message = "RemoveSecurityGroup {Id} threw unexpectedly.")]
+        public static partial void RemoveSecurityGroupThrewUnexpectedly(
+            this ILogger logger,
+            Exception exception,
+            string id);
+
+    }
+
 }

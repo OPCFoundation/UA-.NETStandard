@@ -1242,7 +1242,7 @@ namespace Opc.Ua.Schema.Model
             {
                 m_logger.LogInformation("NodeId is not specified.");
             }
-            else
+            else if (m_logger.IsEnabled(LogLevel.Information))
             {
                 m_logger.LogInformation("NodeId {NodeId} is not supported.", nodeId);
             }

@@ -131,9 +131,8 @@ namespace Opc.Ua.Client
                 sre.StatusCode == StatusCodes.BadSessionClosed ||
                 sre.StatusCode == StatusCodes.BadSessionNotActivated)
             {
-                m_logger.LogInformation(
+                m_logger.SessionSessionIdServerSideSessionLost(
                     sre,
-                    "Session {SessionId}: server-side session lost during reactivation; scheduling recreate.",
                     SessionId);
                 return ParticipantReconnectResult.RequiresSessionRecreate;
             }
@@ -146,9 +145,8 @@ namespace Opc.Ua.Client
                 sre.StatusCode == StatusCodes.BadCertificateUriInvalid ||
                 sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
             {
-                m_logger.LogWarning(
+                m_logger.SessionSessionIdFatalParticipantErrorDuring(
                     sre,
-                    "Session {SessionId}: fatal participant error during reactivation.",
                     SessionId);
                 return ParticipantReconnectResult.FatalForParticipant;
             }
@@ -158,9 +156,8 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
+                m_logger.SessionSessionIdTransientReactivationFailure(
                     ex,
-                    "Session {SessionId}: transient reactivation failure.",
                     SessionId);
                 return ParticipantReconnectResult.TransientFailure;
             }
@@ -344,4 +341,32 @@ namespace Opc.Ua.Client
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="Session"/>.
+    /// </summary>
+    internal static partial class SessionLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.Session + 0, Level = LogLevel.Information,
+            Message = "Session {SessionId}: server-side session lost during reactivation; scheduling recreate.")]
+        public static partial void SessionSessionIdServerSideSessionLost(
+            this ILogger logger,
+            Exception? exception,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 1, Level = LogLevel.Warning,
+            Message = "Session {SessionId}: fatal participant error during reactivation.")]
+        public static partial void SessionSessionIdFatalParticipantErrorDuring(
+            this ILogger logger,
+            Exception? exception,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 2, Level = LogLevel.Warning,
+            Message = "Session {SessionId}: transient reactivation failure.")]
+        public static partial void SessionSessionIdTransientReactivationFailure(
+            this ILogger logger,
+            Exception? exception,
+            NodeId? sessionId);
+    }
+
 }

@@ -172,7 +172,7 @@ namespace Opc.Ua
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
                     // TODO: make a metric
-                    m_server.m_logger.LogDebug("Too many operations. Active threads: {Count}", m_activeThreadCount);
+                    m_server.m_logger.ServerBaseLogMessage9(m_activeThreadCount);
                     return;
                 }
 
@@ -298,16 +298,14 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
+                    m_server.m_logger.ServerBaseLogMessage10(ex);
                     try
                     {
                         request.OperationCompleted(null, StatusCodes.BadInternalError);
                     }
                     catch (Exception completeError)
                     {
-                        m_server.m_logger.LogError(
-                            completeError,
-                            "Failed to fault an incoming request after an error.");
+                        m_server.m_logger.ServerBaseLogMessage11(completeError);
                     }
                 }
             }

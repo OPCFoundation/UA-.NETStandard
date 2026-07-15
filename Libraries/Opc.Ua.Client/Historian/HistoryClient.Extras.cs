@@ -294,10 +294,13 @@ namespace Opc.Ua.Client.Historian
             NodeId variableId,
             CancellationToken cancellationToken = default)
         {
-            // The companion object lives under <variable>/HA Configuration
-            // (BrowseName i=11215 HAConfiguration is the standard name).
+            // The companion object lives under <variable>/HA Configuration,
+            // linked via HasHistoricalConfiguration (i=56) per Part 11 §5.2.3.
             NodeId configNode = await TranslateBrowseChildAsync(
-                variableId, BrowseNames.HAConfiguration, ReferenceTypeIds.HasAddIn, cancellationToken)
+                variableId,
+                BrowseNames.HAConfiguration,
+                ReferenceTypeIds.HasHistoricalConfiguration,
+                cancellationToken)
                 .ConfigureAwait(false);
             if (configNode.IsNull)
             {
@@ -326,6 +329,13 @@ namespace Opc.Ua.Client.Historian
             DataValue[] values = await BatchReadValueAsync(childNodes, cancellationToken)
                 .ConfigureAwait(false);
 
+            // The AggregateConfiguration is a nested object (HasComponent) whose
+            // PercentDataGood / PercentDataBad / TreatUncertainAsBad /
+            // UseSlopedExtrapolation properties a client reads to reproduce the
+            // server's aggregate results under UseServerCapabilitiesDefaults.
+            AggregateConfiguration? aggregateConfiguration = await ReadAggregateConfigurationAsync(
+                configNode, cancellationToken).ConfigureAwait(false);
+
             return new HistoricalDataConfigurationInfo
             {
                 HasConfiguration = true,
@@ -339,7 +349,57 @@ namespace Opc.Ua.Client.Historian
                     : null,
                 StartOfOnlineArchive = !childNodes[6].IsNull
                     ? ReadDateTimeUtc(values[6]).ToDateTime()
-                    : null
+                    : null,
+                AggregateConfiguration = aggregateConfiguration
+            };
+        }
+
+        /// <summary>
+        /// Reads the <c>AggregateConfiguration</c> object (PercentDataGood,
+        /// PercentDataBad, TreatUncertainAsBad, UseSlopedExtrapolation) beneath a
+        /// <c>HistoricalDataConfiguration</c> companion object, or <c>null</c>
+        /// when the object is not exposed.
+        /// </summary>
+        private async ValueTask<AggregateConfiguration?> ReadAggregateConfigurationAsync(
+            NodeId configNode,
+            CancellationToken cancellationToken)
+        {
+            NodeId aggregateNode = await TranslateBrowseChildAsync(
+                configNode,
+                BrowseNames.AggregateConfiguration,
+                ReferenceTypeIds.HasComponent,
+                cancellationToken)
+                .ConfigureAwait(false);
+            if (aggregateNode.IsNull)
+            {
+                return null;
+            }
+
+            string[] propertyNames =
+            [
+                BrowseNames.PercentDataGood,
+                BrowseNames.PercentDataBad,
+                BrowseNames.TreatUncertainAsBad,
+                BrowseNames.UseSlopedExtrapolation
+            ];
+            var propertyNodes = new NodeId[propertyNames.Length];
+            for (int i = 0; i < propertyNames.Length; i++)
+            {
+                propertyNodes[i] = await TranslateBrowseChildAsync(
+                    aggregateNode, propertyNames[i], ReferenceTypeIds.HasProperty, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            DataValue[] values = await BatchReadValueAsync(propertyNodes, cancellationToken)
+                .ConfigureAwait(false);
+
+            return new AggregateConfiguration
+            {
+                UseServerCapabilitiesDefaults = false,
+                PercentDataGood = ReadByte(values[0]),
+                PercentDataBad = ReadByte(values[1]),
+                TreatUncertainAsBad = ReadBool(values[2]),
+                UseSlopedExtrapolation = ReadBool(values[3])
             };
         }
 
@@ -567,6 +627,15 @@ namespace Opc.Ua.Client.Historian
                 return 0u;
             }
             return value.WrappedValue.TryGetValue(out uint v) ? v : 0u;
+        }
+
+        private static byte ReadByte(DataValue value)
+        {
+            if (value.IsNull || StatusCode.IsBad(value.StatusCode))
+            {
+                return 0;
+            }
+            return value.WrappedValue.TryGetValue(out byte v) ? v : (byte)0;
         }
 
         private static double ReadDouble(DataValue value)

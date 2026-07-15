@@ -134,9 +134,7 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex,
-                    "Transcode failed for a message from '{Connection}'.",
-                    received.SourceConnectionName);
+                m_logger.TranscodeFailed(ex, received.SourceConnectionName);
                 return;
             }
 
@@ -157,9 +155,7 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex,
-                    "Egress failed forwarding a transcoded message from '{Connection}'.",
-                    received.SourceConnectionName);
+                m_logger.EgressFailedForwardingTranscodedMessage(ex, received.SourceConnectionName);
             }
         }
 
@@ -176,4 +172,22 @@ namespace Opc.Ua.PubSub.Transcoding
             return default;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubTranscodingBridge"/>.
+    /// </summary>
+    internal static partial class PubSubTranscodingBridgeLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscodingBridge + 0, Level = LogLevel.Error,
+            Message = "Transcode failed for a message from '{Connection}'.")]
+        public static partial void TranscodeFailed(this ILogger logger, Exception exception, string connection);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscodingBridge + 1, Level = LogLevel.Error,
+            Message = "Egress failed forwarding a transcoded message from '{Connection}'.")]
+        public static partial void EgressFailedForwardingTranscodedMessage(
+            this ILogger logger,
+            Exception exception,
+            string connection);
+    }
+
 }

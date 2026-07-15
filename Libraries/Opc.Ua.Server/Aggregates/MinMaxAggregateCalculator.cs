@@ -238,8 +238,13 @@ namespace Opc.Ua.Server
                 processedType = TypeInfo.Scalars.Double;
             }
 
-            // set calculated if not returning actual time and value is not at the start time.
-            if (!returnActualTime && processedTimestamp != slice.StartTime)
+            // set calculated if not returning actual time and the selected sample is not at
+            // the request-direction interval start. Part 13 §5.4.3.10/§5.4.3.11 return the
+            // value with the timestamp at the start of the interval and mark it Good, Raw when
+            // the min/max sample coincides with that timestamp. For reverse reads (Part 11)
+            // the interval start is the later timestamp, so compare against the interval
+            // timestamp (GetTimestamp) rather than the chronological lower bound.
+            if (!returnActualTime && processedTimestamp != GetTimestamp(slice))
             {
                 statusCode = statusCode.WithAggregateBits(AggregateBits.Calculated);
             }
@@ -412,9 +417,12 @@ namespace Opc.Ua.Server
             // set the status code.
             StatusCode statusCode = processedStatusCode;
 
-            // set calculated if not returning actual time and value is not at the start time.
+            // set calculated if not returning actual time and the selected sample is not at
+            // the request-direction interval start. For reverse reads (Part 11) the interval
+            // start is the later timestamp, so compare against the interval timestamp
+            // (GetTimestamp) rather than the chronological lower bound.
             if (!returnActualTime &&
-                processedTimestamp != slice.StartTime &&
+                processedTimestamp != GetTimestamp(slice) &&
                 (statusCode.AggregateBits & AggregateBits.Interpolated) == 0)
             {
                 statusCode = statusCode.WithAggregateBits(

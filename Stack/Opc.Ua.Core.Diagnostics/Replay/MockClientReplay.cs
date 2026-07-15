@@ -140,9 +140,7 @@ namespace Opc.Ua.Pcap.Replay
                     ct.ThrowIfCancellationRequested();
                     if (captured.Request is not ReadRequest and not BrowseRequest and not CallRequest)
                     {
-                        m_logger.LogWarning(
-                            "Replay of {RequestType} not implemented; skipping.",
-                            captured.Request.GetType().Name);
+                        m_logger.ReplayOfRequestTypeNotImplemented(captured.Request.GetType().Name);
                         continue;
                     }
 
@@ -158,10 +156,7 @@ namespace Opc.Ua.Pcap.Replay
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         failed++;
-                        m_logger.LogWarning(
-                            ex,
-                            "Replay of {RequestType} failed.",
-                            captured.Request.GetType().Name);
+                        m_logger.ReplayOfRequestTypeFailed(ex, captured.Request.GetType().Name);
                     }
                 }
             }
@@ -300,9 +295,10 @@ namespace Opc.Ua.Pcap.Replay
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Unable to decode captured request for mock-client replay.");
+                m_logger.DecodeCapturedRequestFailed(ex);
                 return null;
             }
+
         }
 
         private async ValueTask<ISession> CreateSessionAsync(CancellationToken ct)
@@ -672,4 +668,26 @@ namespace Opc.Ua.Pcap.Replay
         /// </summary>
         public TimeSpan? AverageLatency { get; init; }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="MockClientReplay"/>.
+    /// </summary>
+    internal static partial class MockClientReplayLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.MockClientReplay + 0, Level = LogLevel.Warning,
+            Message = "Replay of {RequestType} not implemented; skipping.")]
+        public static partial void ReplayOfRequestTypeNotImplemented(this ILogger logger, string requestType);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.MockClientReplay + 1, Level = LogLevel.Warning,
+            Message = "Replay of {RequestType} failed.")]
+        public static partial void ReplayOfRequestTypeFailed(
+            this ILogger logger,
+            Exception exception,
+            string requestType);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.MockClientReplay + 2, Level = LogLevel.Warning,
+            Message = "Unable to decode captured request for mock-client replay.")]
+        public static partial void DecodeCapturedRequestFailed(this ILogger logger, Exception exception);
+    }
+
 }

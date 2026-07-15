@@ -36,6 +36,7 @@ using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
+using Quickstarts.Servers;
 
 namespace TestData
 {
@@ -838,10 +839,12 @@ namespace TestData
 
         private void DoSample(object? state)
         {
-            m_logger.LogTrace(
-                "DoSample HiRes={HiRes:ss.ffff} Now={CurrentTime:ss.ffff}",
-                m_timeProvider.GetUtcNow().UtcDateTime,
-                DateTime.UtcNow);
+            if (m_logger.IsEnabled(LogLevel.Trace))
+            {
+                m_logger.DoSample(
+                    m_timeProvider.GetUtcNow().UtcDateTime,
+                    DateTime.UtcNow);
+            }
 
             var samples = new Queue<Sample>();
             var generateValues = new List<BaseVariableState>();
@@ -941,4 +944,13 @@ namespace TestData
         private readonly TimeProvider m_timeProvider;
         private StatusCode m_systemStatus;
     }
+
+    internal static partial class TestDataSystemLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.TestDataSystem + 0, Level = LogLevel.Trace,
+            Message = "DoSample HiRes={HiRes:ss.ffff} Now={CurrentTime:ss.ffff}")]
+        public static partial void DoSample(this ILogger logger, DateTime hiRes, DateTime currentTime);
+    }
+
 }

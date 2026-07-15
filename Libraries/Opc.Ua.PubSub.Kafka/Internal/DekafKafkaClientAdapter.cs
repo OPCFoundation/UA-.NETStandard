@@ -128,8 +128,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 raiseConnected = !m_connected;
                 m_connected = true;
             }
-            m_logger.LogDebug(
-                "Kafka adapter connected to {BootstrapServers} (protocol={Protocol}).",
+            m_logger.KafkaAdapterConnected(
                 string.IsNullOrEmpty(options.BootstrapServers) ? options.Endpoint : options.BootstrapServers,
                 options.SecurityProtocol);
             if (raiseConnected)
@@ -193,7 +192,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 m_clientGate.Release();
             }
-            m_logger.LogDebug("Kafka subscribed to {Count} topic(s).", topics.Count);
+            m_logger.KafkaSubscribed(topics.Count);
         }
 
         /// <inheritdoc/>
@@ -323,7 +322,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogDebug(ex, "Kafka consume loop cancellation raised an exception.");
+                        m_logger.KafkaConsumeLoopCancellationRaisedException(ex);
                     }
                 }
                 if (consumeTask is not null)
@@ -334,7 +333,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogDebug(ex, "Kafka consume loop terminated with an exception.");
+                        m_logger.KafkaConsumeLoopTerminatedWithException(ex);
                     }
                 }
                 if (consumer is not null)
@@ -345,7 +344,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogDebug(ex, "Kafka consumer close raised an exception.");
+                        m_logger.KafkaConsumerCloseRaisedException(ex);
                     }
                     await consumer.DisposeAsync().ConfigureAwait(false);
                 }
@@ -358,7 +357,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogDebug(ex, "Kafka producer flush raised an exception.");
+                        m_logger.KafkaProducerFlushRaisedException(ex);
                     }
                     await producer.DisposeAsync().ConfigureAwait(false);
                 }
@@ -426,7 +425,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogWarning(ex, "Failed to dispatch inbound Kafka record.");
+                        m_logger.FailedToDispatchInboundKafkaRecord(ex);
                     }
                 }
             }
@@ -435,7 +434,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Kafka consume loop terminated unexpectedly.");
+                m_logger.KafkaConsumeLoopTerminatedUnexpectedly(ex);
             }
         }
 

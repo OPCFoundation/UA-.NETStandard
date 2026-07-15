@@ -30,6 +30,7 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
 
@@ -118,6 +119,105 @@ namespace Opc.Ua.Server.Hosting
         {
             return m_services.GetService<IRoleManager>() ??
                 base.CreateRoleManager(server, configuration);
+        }
+
+        /// <inheritdoc/>
+        protected override IMainNodeManagerFactory CreateMainNodeManagerFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            // A custom coordinator (if any) is honored as-is. When none is
+            // registered (the default), this resolves to null so each server's
+            // ConfigurationNodeManager creates and owns its own per-server
+            // coordinator - the coordinator holds mutable per-transaction state
+            // and must never be shared across servers built from one container.
+            IPushConfigurationTransactionCoordinator? coordinator =
+                m_services.GetService<IPushConfigurationTransactionCoordinator>();
+            IPendingCertificateKeyStore? pendingKeyStore =
+                m_services.GetService<IPendingCertificateKeyStore>();
+            IPushCertificateKeyGenerator? keyGenerator =
+                m_services.GetService<IPushCertificateKeyGenerator>();
+            IPushConfigurationTrustListEffectHandler? trustListEffectHandler =
+                m_services.GetService<IPushConfigurationTrustListEffectHandler>();
+
+            // Resolve the Optional §7.10.3 ServerConfiguration surface. The
+            // value options (HasSecureElement/InApplicationSetup/timers) come
+            // from a directly-registered instance or the options pattern; the
+            // providers may be registered either as standalone DI services or
+            // set on the options. A DI-registered provider takes precedence.
+            ServerConfigurationOptions? serverConfigurationOptions =
+                ResolveServerConfigurationOptions(m_services);
+
+            bool hasSurface = serverConfigurationOptions != null;
+
+            return coordinator != null || pendingKeyStore != null || keyGenerator != null ||
+                    trustListEffectHandler != null || hasSurface
+                ? new MainNodeManagerFactory(
+                    configuration,
+                    server,
+                    coordinator,
+                    pendingKeyStore,
+                    keyGenerator,
+                    trustListEffectHandler,
+                    serverConfigurationOptions)
+                : base.CreateMainNodeManagerFactory(server, configuration);
+        }
+
+        /// <summary>
+        /// Builds the <see cref="ServerConfigurationOptions"/> for the
+        /// configuration node manager by selecting the value options and merging
+        /// any standalone provider services into them. Returns
+        /// <see langword="null"/> when nothing configures the Optional surface,
+        /// so the default (identity Properties only) behaviour is preserved.
+        /// </summary>
+        /// <param name="services">
+        /// The service provider that supplies the options and providers.
+        /// </param>
+        /// <remarks>
+        /// The value options are selected using the following precedence:
+        /// <list type="number">
+        /// <item>
+        /// a directly-registered <see cref="ServerConfigurationOptions"/>
+        /// instance (for example via <c>AddSingleton</c>);
+        /// </item>
+        /// <item>
+        /// the options-pattern value resolved from
+        /// <see cref="IOptions{TOptions}"/> (for example via the fluent
+        /// <c>ConfigureServerConfiguration</c>);
+        /// </item>
+        /// <item>
+        /// a new default options object, created only when a standalone
+        /// <see cref="IServerConfigurationResetProvider"/> or
+        /// <see cref="IApplicationConfigurationFileProvider"/> is registered and
+        /// needs a container to be merged into.
+        /// </item>
+        /// </list>
+        /// A directly-registered instance is resolved before
+        /// <see cref="IOptions{TOptions}.Value"/> so a host that registers its
+        /// own configured instance is not shadowed by a default
+        /// <see cref="IOptions{TOptions}"/> materialised by the options
+        /// infrastructure that is typically present in a host.
+        /// </remarks>
+        internal static ServerConfigurationOptions? ResolveServerConfigurationOptions(IServiceProvider services)
+        {
+            ServerConfigurationOptions? options =
+                services.GetService<ServerConfigurationOptions>()
+                ?? services.GetService<IOptions<ServerConfigurationOptions>>()?.Value;
+
+            IServerConfigurationResetProvider? resetProvider =
+                services.GetService<IServerConfigurationResetProvider>();
+            IApplicationConfigurationFileProvider? configurationFileProvider =
+                services.GetService<IApplicationConfigurationFileProvider>();
+
+            if (options == null && resetProvider == null && configurationFileProvider == null)
+            {
+                return null;
+            }
+
+            options ??= new ServerConfigurationOptions();
+            options.ResetProvider ??= resetProvider;
+            options.ConfigurationFileProvider ??= configurationFileProvider;
+            return options;
         }
 
         /// <inheritdoc/>

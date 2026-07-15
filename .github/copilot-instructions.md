@@ -20,6 +20,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - **Build**: Use Visual Studio 2026 or `dotnet build`
 - **Key solutions**:
   - `UA.slnx` - Contains all projects
+- **Contributor guide**: see [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md) for prerequisites, building (including per-TFM), testing, coding standards, and how-to recipes.
 
 ### Project Structure
 - `Libraries/` - Core OPC UA libraries (Client, Server, Configuration, etc.)
@@ -76,7 +77,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
   - All source generated code, in particular ObjectType proxies should be used over manually calling service calls inside new clients.
   - Consider using the source generators to implement emitting "boilerplate", especially if it is related to the OPC UA standard (e.g. information model).
   - Base services: File System, Certificate manager, Secret store, State machine, Alarms and conditions Streaming subscription, Sessions, etc. in new code. (Documented in docs/*).
-  - Observability is plumbed through via `ITelemetryContext`. Use it to create a `ILogger` for logging.
+  - Observability is plumbed through via `ITelemetryContext`. Use it to create an `ILogger` for logging; follow the source-generated logging conventions in [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md#add-a-log-message-source-generated).
 - If reuse is not possible, ASK whether to extend an existing feature so it becomes reuseable.
 
 ### Code Style
@@ -102,6 +103,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Assembly prefix: `Opc.Ua` (Except applications, or if otherwise requested)
 - Package prefix: `OPCFoundation.NetStandard`
 - Always use a line break after `<summary>` and before `</summary>` for all members (except for documentation of fields). This applies to **every** XML-doc summary, including in sample/application code — never write a single-line `/// <summary> ... </summary>`; always put the text on its own line between the opening and closing tags.
+- Use source-generated `[LoggerMessage]` logging; never call `ILogger.LogInformation/LogError/...` directly. Follow the per-file `<Class>Log` and per-assembly `<AssemblyToken>EventIds` conventions in [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md#add-a-log-message-source-generated).
 
 ### Security Requirements
 - **Never hardcode credentials, certificates, or secrets** in source code
@@ -139,6 +141,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Update `/README.md` for significant changes
 - Keep `NugetREADME.md` updated for package-related changes
 - Document breaking changes prominently
+- Keep [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md) (the contributor onboarding guide) current when build, test, or coding-convention changes affect contributors.
 
 #### Documentation Style
 - Use clear, technical language

@@ -99,7 +99,7 @@ namespace Opc.Ua.Redundancy
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "Raft consensus replica failed to start for leader election.");
+                m_logger?.RaftConsensusReplicaFailedToStart(ex);
             }
         }
 
@@ -113,4 +113,15 @@ namespace Opc.Ua.Redundancy
         private int m_started;
         private int m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="RaftLeaderElection"/>.
+    /// </summary>
+    internal static partial class RaftLeaderElectionLog
+    {
+        [LoggerMessage(EventId = RedundancyEventIds.RaftLeaderElection + 0, Level = LogLevel.Error,
+            Message = "Raft consensus replica failed to start for leader election.")]
+        public static partial void RaftConsensusReplicaFailedToStart(this ILogger logger, Exception exception);
+    }
+
 }

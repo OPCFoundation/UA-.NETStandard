@@ -120,7 +120,10 @@ namespace Opc.Ua.Bindings
                 // WebSocket does not support a vectored send out of the box; concat the
                 // gathered segments into a single contiguous chunk for the frame.
                 int totalSize = buffers.TotalSize;
-                byte[] frame = m_bufferManager.TakeBuffer(totalSize, nameof(SendChunkAsync));
+                byte[] frame = m_bufferManager.TakeBuffer(
+                    totalSize,
+                    nameof(SendChunkAsync),
+                    ct);
                 try
                 {
                     int offset = 0;
@@ -167,7 +170,10 @@ namespace Opc.Ua.Bindings
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
             WebSocket socket = RequireOpenSocket();
-            byte[] buffer = m_bufferManager.TakeBuffer(m_receiveBufferSize, nameof(ReceiveChunkAsync));
+            byte[] buffer = m_bufferManager.TakeBuffer(
+                m_receiveBufferSize,
+                nameof(ReceiveChunkAsync),
+                ct);
             int totalRead = 0;
             try
             {
@@ -447,7 +453,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "WebSocket connect to {Url} failed.", wsUrl);
+                m_logger.WebSocketConnectFailed(ex, wsUrl);
                 throw;
             }
             finally
@@ -494,9 +500,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "WebSocketClientByteTransport: failed to validate server TLS certificate.");
+                m_logger.WebSocketClientFailedToValidateServerTlsCertificate(ex);
                 return false;
             }
         }
@@ -556,5 +560,21 @@ namespace Opc.Ua.Bindings
             throw new NotSupportedException(
                 "WebSocketServerByteTransport is constructed from an accepted WebSocket and cannot connect outbound.");
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="WebSocketByteTransportBase"/>.
+    /// </summary>
+    internal static partial class WebSocketByteTransportBaseLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WebSocketByteTransportBase + 0, Level = LogLevel.Debug,
+            Message = "WebSocket connect to {Url} failed.")]
+        public static partial void WebSocketConnectFailed(this ILogger logger, Exception exception, Uri url);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WebSocketByteTransportBase + 1, Level = LogLevel.Error,
+            Message = "WebSocketClientByteTransport: failed to validate server TLS certificate.")]
+        public static partial void WebSocketClientFailedToValidateServerTlsCertificate(
+            this ILogger logger,
+            Exception exception);
     }
 }

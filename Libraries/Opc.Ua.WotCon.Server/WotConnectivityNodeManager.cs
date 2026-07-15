@@ -211,8 +211,7 @@ namespace Opc.Ua.WotCon.Server
                     .CreateAssetAsync(name, cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsBad(create))
                 {
-                    m_logger.LogWarning("Restoring asset {AssetName} failed: {Status}",
-                        name, create);
+                    m_logger.RestoringAssetFailed(name, create);
                     continue;
                 }
                 AssetEntry? entry = m_registry.FindByNodeId(assetId);
@@ -338,9 +337,7 @@ namespace Opc.Ua.WotCon.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex,
-                    "Subscribe failed for asset {AssetName} property {Property}",
-                    entry.Name, tag.Name);
+                m_logger.SubscribeFailed(ex, entry.Name, tag.Name);
             }
         }
 
@@ -365,9 +362,7 @@ namespace Opc.Ua.WotCon.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex,
-                    "Unsubscribe failed for asset {AssetName} property {Property}",
-                    entry.Name, tag.Name);
+                m_logger.UnsubscribeFailed(ex, entry.Name, tag.Name);
             }
         }
 
@@ -570,9 +565,7 @@ namespace Opc.Ua.WotCon.Server
                 MessageSecurityMode.None;
             if (securityMode != policy.MinimumSecurityMode)
             {
-                m_logger.LogWarning(
-                    "WoT management call {Operation} denied: channel security mode {Actual} below required {Required}.",
-                    operation, securityMode, policy.MinimumSecurityMode);
+                m_logger.ManagementCallDeniedSecurityMode(operation, securityMode, policy.MinimumSecurityMode);
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,
                     "WoT management methods require a secure channel.");
@@ -582,9 +575,9 @@ namespace Opc.Ua.WotCon.Server
             if (identity is null ||
                 (!policy.AllowAnonymous && identity.TokenType == UserTokenType.Anonymous))
             {
-                m_logger.LogWarning(
-                    "WoT management call {Operation} denied: anonymous identity not permitted (token type {TokenType}).",
-                    operation, identity?.TokenType ?? UserTokenType.Anonymous);
+                m_logger.ManagementCallDeniedAnonymousIdentity(
+                    operation,
+                    identity?.TokenType ?? UserTokenType.Anonymous);
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,
                     "WoT management methods require an authenticated user.");
@@ -592,9 +585,11 @@ namespace Opc.Ua.WotCon.Server
 
             if (!identity.GrantedRoleIds.Contains(policy.RequiredRoleId))
             {
-                m_logger.LogWarning(
-                    "WoT management call {Operation} denied: identity {TokenType} lacks required role {RequiredRole} (granted: {GrantedRoles}).",
-                    operation, identity.TokenType, policy.RequiredRoleId, identity.GrantedRoleIds);
+                m_logger.ManagementCallDeniedMissingRole(
+                    operation,
+                    identity.TokenType,
+                    policy.RequiredRoleId,
+                    identity.GrantedRoleIds);
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,
                     "Caller lacks the role required to invoke WoT management methods.");
@@ -620,5 +615,55 @@ namespace Opc.Ua.WotCon.Server
         private readonly Lock m_changeLock = new();
         private WoTAssetConnectionManagementState? m_managementObject;
         private long m_nextDynamicId = 1_000_000;
+    }
+
+    internal static partial class WotConnectivityNodeManagerLog
+    {
+        [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 0, Level = LogLevel.Warning,
+            Message = "Restoring asset {AssetName} failed: {Status}")]
+        public static partial void RestoringAssetFailed(this ILogger logger, string assetName, ServiceResult status);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 1, Level = LogLevel.Warning,
+            Message = "Subscribe failed for asset {AssetName} property {Property}")]
+        public static partial void SubscribeFailed(
+            this ILogger logger,
+            Exception ex,
+            string assetName,
+            string property);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 2, Level = LogLevel.Warning,
+            Message = "Unsubscribe failed for asset {AssetName} property {Property}")]
+        public static partial void UnsubscribeFailed(
+            this ILogger logger,
+            Exception ex,
+            string assetName,
+            string property);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 3, Level = LogLevel.Warning,
+            Message = "WoT management call {Operation} denied: channel security mode {Actual} below " +
+                "required {Required}.")]
+        public static partial void ManagementCallDeniedSecurityMode(
+            this ILogger logger,
+            string operation,
+            MessageSecurityMode actual,
+            MessageSecurityMode required);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 4, Level = LogLevel.Warning,
+            Message = "WoT management call {Operation} denied: anonymous identity not permitted " +
+                "(token type {TokenType}).")]
+        public static partial void ManagementCallDeniedAnonymousIdentity(
+            this ILogger logger,
+            string operation,
+            UserTokenType tokenType);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 5, Level = LogLevel.Warning,
+            Message = "WoT management call {Operation} denied: identity {TokenType} lacks required " +
+                "role {RequiredRole} (granted: {GrantedRoles}).")]
+        public static partial void ManagementCallDeniedMissingRole(
+            this ILogger logger,
+            string operation,
+            UserTokenType tokenType,
+            NodeId requiredRole,
+            ArrayOf<NodeId> grantedRoles);
     }
 }

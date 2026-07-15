@@ -434,8 +434,11 @@ namespace Opc.Ua.Server.Tests
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            }
 
             // Verify the timestamp is recent (not startup time)
             Assert.That((long)firstValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeFirstRead.SubtractMilliseconds(1000)),
@@ -461,8 +464,11 @@ namespace Opc.Ua.Server.Tests
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            }
 
             // Verify the second timestamp is more recent than the first
             Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThan((long)firstValue.SourceTimestamp),
@@ -511,8 +517,11 @@ namespace Opc.Ua.Server.Tests
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("Array First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Array First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            }
 
             // Verify the timestamp is recent (not startup time)
             Assert.That((long)firstValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeFirstRead.SubtractMilliseconds(1000)),
@@ -538,8 +547,11 @@ namespace Opc.Ua.Server.Tests
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("Array Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Array Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            }
 
             // Verify the second timestamp is more recent than the first
             Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThan((long)firstValue.SourceTimestamp),
@@ -1521,9 +1533,12 @@ namespace Opc.Ua.Server.Tests
                 !readResponse.Results[1].WrappedValue.IsNull &&
                 (bool)readResponse.Results[1].WrappedValue;
 
-            logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
-            logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
-            logger.LogInformation("AccessHistoryDataCapability: {AccessHistoryDataCapability}", accessHistoryDataCapability);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
+                logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
+                logger.LogInformation("AccessHistoryDataCapability: {AccessHistoryDataCapability}", accessHistoryDataCapability);
+            }
 
             // If either history capability is enabled, the HistoryRead bit should be set
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
@@ -1571,11 +1586,14 @@ namespace Opc.Ua.Server.Tests
             for (int i = 0; i < readResponse.Results.Count; i++)
             {
                 DataValue result = readResponse.Results[i];
-                logger.LogInformation(
-                    "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                    nodesToRead[i].NodeId,
-                    result.SourceTimestamp,
-                    result.ServerTimestamp);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(
+                        "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                        nodesToRead[i].NodeId,
+                        result.SourceTimestamp,
+                        result.ServerTimestamp);
+                }
 
                 Assert.That(result.ServerTimestamp, Is.EqualTo(result.SourceTimestamp),
                     $"SourceTimestamp and ServerTimestamp should be equal for {nodesToRead[i].NodeId}");
@@ -1598,7 +1616,10 @@ namespace Opc.Ua.Server.Tests
                 TestData.Variables.Data_Dynamic_Scalar_Int32Value,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
 
-            logger.LogInformation("Testing history read for Int32Value node: {NodeId}", int32ValueNodeId);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Testing history read for Int32Value node: {NodeId}", int32ValueNodeId);
+            }
 
             // Verify the node has Historizing attribute set to true
             ArrayOf<ReadValueId> readIdCollection =
@@ -1630,7 +1651,10 @@ namespace Opc.Ua.Server.Tests
             bool historizing = (bool)readResponse.Results[0].WrappedValue;
             byte accessLevel = (byte)readResponse.Results[1].WrappedValue;
 
-            logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
+            }
 
             Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
             Assert.That(accessLevel & AccessLevels.HistoryRead,
@@ -1670,7 +1694,10 @@ namespace Opc.Ua.Server.Tests
 
             HistoryReadResult result = historyReadResponse.Results[0];
 
-            logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
+            }
 
             // The result should be Good or GoodMoreData (if there are more values)
             Assert.That(StatusCode.IsGood(result.StatusCode),
@@ -1681,7 +1708,10 @@ namespace Opc.Ua.Server.Tests
             // Verify we got HistoryData back
             if (result.HistoryData.TryGetValue(out HistoryData historyData))
             {
-                logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
+                }
                 Assert.That(historyData.DataValues.IsNull, Is.False, "DataValues should not be null");
                 Assert.That(historyData.DataValues.Count, Is.GreaterThan(0), "Should have at least one historical value");
 
@@ -1885,6 +1915,141 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
                 Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
                     $"Read of {name} should succeed");
+            }
+        }
+
+        /// <summary>
+        /// Verifies whole-matrix writes and valid multi-dimensional NumericRange reads and writes.
+        /// </summary>
+        [Test]
+        public async Task MatrixReadWriteAndNumericRangeAsync()
+        {
+            var nodeId = new NodeId("Scalar_Static_Arrays2D_Int32", 2);
+            ArrayOf<ReadValueId> wholeMatrixRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                }
+            ];
+
+            ReadResponse originalRead = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                wholeMatrixRead,
+                RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(originalRead.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Variant originalValue = originalRead.Results[0].WrappedValue;
+
+            try
+            {
+                MatrixOf<int> matrix = new int[3, 3]
+                {
+                    { 1, 2, 3 },
+                    { 4, 5, 6 },
+                    { 7, 8, 9 }
+                };
+                ArrayOf<WriteValue> wholeMatrixWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(matrix))
+                    }
+                ];
+
+                WriteResponse wholeWriteResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    wholeMatrixWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(wholeWriteResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+
+                ArrayOf<ReadValueId> rowRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = "1,0:2"
+                    }
+                ];
+                ReadResponse rowReadResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Both,
+                    rowRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+                DataValue rowValue = rowReadResponse.Results[0];
+                Assert.That(rowValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(rowValue.SourceTimestamp.IsNull, Is.False);
+                MatrixOf<int> row = rowValue.WrappedValue.GetInt32Matrix();
+                Assert.That(row.Dimensions, Has.Length.EqualTo(2));
+                Assert.That(row.Dimensions[0], Is.EqualTo(1));
+                Assert.That(row.Dimensions[1], Is.EqualTo(3));
+                Assert.That(row.Count, Is.EqualTo(3));
+                Assert.That(row.Span[0], Is.EqualTo(4));
+                Assert.That(row.Span[1], Is.EqualTo(5));
+                Assert.That(row.Span[2], Is.EqualTo(6));
+
+                MatrixOf<int> replacement = new int[1, 2] { { 40, 50 } };
+                ArrayOf<WriteValue> rangeWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = "1,1:2",
+                        Value = new DataValue(Variant.From(replacement))
+                    }
+                ];
+                WriteResponse rangeWriteResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    rangeWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(rangeWriteResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+
+                ReadResponse updatedRowReadResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Both,
+                    rowRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+                DataValue updatedRowValue = updatedRowReadResponse.Results[0];
+                Assert.That(updatedRowValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                MatrixOf<int> updatedRow = updatedRowValue.WrappedValue.GetInt32Matrix();
+                Assert.That(updatedRow.Dimensions, Has.Length.EqualTo(2));
+                Assert.That(updatedRow.Dimensions[0], Is.EqualTo(1));
+                Assert.That(updatedRow.Dimensions[1], Is.EqualTo(3));
+                Assert.That(updatedRow.Count, Is.EqualTo(3));
+                Assert.That(updatedRow.Span[0], Is.EqualTo(4));
+                Assert.That(updatedRow.Span[1], Is.EqualTo(40));
+                Assert.That(updatedRow.Span[2], Is.EqualTo(50));
+            }
+            finally
+            {
+                ArrayOf<WriteValue> restoreWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(originalValue)
+                    }
+                ];
+                WriteResponse restoreResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    restoreWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(restoreResponse.Results[0], Is.EqualTo(StatusCodes.Good));
             }
         }
 

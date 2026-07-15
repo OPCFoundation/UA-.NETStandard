@@ -197,7 +197,7 @@ namespace Opc.Ua.Server
                 CurrentSlice.OutOfDataRange = true;
             }
 
-            m_logger.LogTrace("Computing Aggregate {StartTime:HH:mm:ss.fff}", CurrentSlice.StartTime);
+            m_logger.ComputingAggregateStartTimeHHMmSsFff(CurrentSlice.StartTime);
 
             // compute the value.
             DataValue computed = ComputeValue(CurrentSlice);
@@ -803,6 +803,23 @@ namespace Opc.Ua.Server
         /// <returns>The interpolated value.</returns>
         protected DataValue Interpolate(DateTimeUtc timestamp, TimeSlice reference)
         {
+            for (LinkedListNode<DataValue>? ii = m_values.First; ii != null; ii = ii.Next)
+            {
+                int comparison = CompareTimestamps(timestamp, ii);
+                if (comparison == 0)
+                {
+                    if (StatusCode.IsNotBad(ii.Value.StatusCode))
+                    {
+                        return ii.Value;
+                    }
+                    break;
+                }
+                if (comparison < 0)
+                {
+                    break;
+                }
+            }
+
             var slice = new TimeSlice { StartTime = timestamp, EndTime = timestamp };
             UpdateSlice(slice);
 
@@ -1515,4 +1532,15 @@ namespace Opc.Ua.Server
         private DateTimeUtc m_startOfData;
         private DateTimeUtc m_endOfData;
     }
+
+    /// <summary>
+    /// Source-generated log messages for AggregateCalculator.
+    /// </summary>
+    internal static partial class AggregateCalculatorLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.AggregateCalculator + 0, Level = LogLevel.Trace,
+            Message = "Computing Aggregate {StartTime:HH:mm:ss.fff}")]
+        public static partial void ComputingAggregateStartTimeHHMmSsFff(this ILogger logger, DateTimeUtc startTime);
+    }
+
 }

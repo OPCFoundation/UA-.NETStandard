@@ -262,7 +262,10 @@ namespace Opc.Ua.Client.TestFramework
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
-            m_logger.LogInformation("Using the Pki Root {FilePath}", PkiRoot);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("Using the Pki Root {FilePath}", PkiRoot);
+            }
 
             // The parameters are read from the .runsettings file
             string customUrl = null;
@@ -271,7 +274,10 @@ namespace Opc.Ua.Client.TestFramework
                 customUrl = TestContext.Parameters["ServerUrl"];
                 if (customUrl?.StartsWith(UriScheme, StringComparison.Ordinal) == true)
                 {
-                    m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
+                    }
 
                     // load custom test sets
                     TestSetStatic = ReadCustomTestSet("TestSetStatic");

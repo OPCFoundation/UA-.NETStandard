@@ -493,7 +493,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Delete items for subscription failed.");
+                m_logger.DeleteItemsForSubscriptionFailed(e);
             }
         }
 
@@ -678,7 +678,7 @@ namespace Opc.Ua.Server
 
             if (badTransfers > 0)
             {
-                m_logger.LogTrace("Failed to transfer {Count} Monitored Items", badTransfers);
+                m_logger.FailedToTransferCountMonitoredItems(badTransfers);
             }
 
             lock (DiagnosticsWriteLock)
@@ -1060,7 +1060,7 @@ namespace Opc.Ua.Server
                 // check for missing notifications.
                 if (!keepAliveIfNoData && messages.Count == 0)
                 {
-                    m_logger.LogError("Oops! MonitoredItems queued but no notifications available.");
+                    m_logger.OopsMonitoredItemsQueuedButNoNotificationsAvailable();
 
                     m_waitingForPublish = false;
 
@@ -2478,9 +2478,7 @@ namespace Opc.Ua.Server
             {
                 if (!m_supportsDurable)
                 {
-                    m_logger.LogError(
-                        "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no IMonitoredItemQueueFactory that supports durable queues was registered",
-                        Id);
+                    m_logger.SetSubscriptionDurableRequestedForSubscription(Id);
                     TraceState(
                         LogLevel.Information,
                         TraceStateId.Config,
@@ -2762,4 +2760,30 @@ namespace Opc.Ua.Server
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for Subscription.
+    /// </summary>
+    internal static partial class SubscriptionLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.Subscription + 0, Level = LogLevel.Error,
+            Message = "Delete items for subscription failed.")]
+        public static partial void DeleteItemsForSubscriptionFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.Subscription + 1, Level = LogLevel.Trace,
+            Message = "Failed to transfer {Count} Monitored Items")]
+        public static partial void FailedToTransferCountMonitoredItems(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.Subscription + 2, Level = LogLevel.Error,
+            Message = "Oops! MonitoredItems queued but no notifications available.")]
+        public static partial void OopsMonitoredItemsQueuedButNoNotificationsAvailable(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.Subscription + 3, Level = LogLevel.Error,
+            Message = "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no " +
+                "IMonitoredItemQueueFactory that supports durable queues was registered")]
+        public static partial void SetSubscriptionDurableRequestedForSubscription(
+            this ILogger logger,
+            uint subscriptionId);
+    }
+
 }

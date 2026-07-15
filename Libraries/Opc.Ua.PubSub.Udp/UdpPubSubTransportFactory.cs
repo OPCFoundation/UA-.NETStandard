@@ -265,12 +265,7 @@ namespace Opc.Ua.PubSub.Udp
                 if (IsProfileEnabled(disabled, candidate.Name))
                 {
                     ILogger logger = telemetry.CreateLogger<UdpPubSubTransportFactory>();
-                    logger.LogWarning(
-                        "OPC UA PubSub DTLS: no confidentiality-providing (AEAD) profile is available; " +
-                        "automatically selecting integrity-only profile '{Profile}'. DTLS payloads will be " +
-                        "authenticated but NOT encrypted. Enable an AES-GCM or ChaCha20-Poly1305 profile to " +
-                        "restore confidentiality.",
-                        candidate.Name);
+                    logger.IntegrityOnlyDtlsProfileSelected(candidate.Name);
                     return candidate;
                 }
             }
@@ -346,4 +341,17 @@ namespace Opc.Ua.PubSub.Udp
             return fallback;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for UdpPubSubTransportFactory.
+    /// </summary>
+    internal static partial class UdpPubSubTransportFactoryLog
+    {
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpPubSubTransportFactory + 0, Level = LogLevel.Warning,
+            Message = "OPC UA PubSub DTLS: no confidentiality-providing (AEAD) profile is available; " +
+                "automatically selecting integrity-only profile '{Profile}'. DTLS payloads will be authenticated " +
+                "but NOT encrypted. Enable an AES-GCM or ChaCha20-Poly1305 profile to restore confidentiality.")]
+        public static partial void IntegrityOnlyDtlsProfileSelected(this ILogger logger, string profile);
+    }
+
 }

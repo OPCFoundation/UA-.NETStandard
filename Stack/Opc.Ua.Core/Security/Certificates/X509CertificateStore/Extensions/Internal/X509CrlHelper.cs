@@ -86,9 +86,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         }
                         else if (error != 0)
                         {
-                            logger.LogError(
-                                "Error while enumerating Crls from X509Store, Win32Error-Code: {ErrorCode}",
-                                error);
+                            logger.X509CrlHelperLogMessage0(error);
                         }
                         break;
                     }
@@ -96,7 +94,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Exception while enumerating Crls from X509Store");
+                logger.X509CrlHelperLogMessage1(ex);
             }
             return [.. crls];
         }
@@ -160,32 +158,24 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 int error = Marshal.GetLastWin32Error();
                 if (error == -2147024809)
                 {
-                    logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ",
-                        error);
+                    logger.X509CrlHelperLogMessage2(error);
                 }
                 if (error == -2146881269)
                 {
-                    logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ",
-                        error);
+                    logger.X509CrlHelperLogMessage3(error);
                 }
                 if (error == -2147024891)
                 {
-                    logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ERROR_ACCESS_DENIED, Access is denied. ",
-                        error);
+                    logger.X509CrlHelperLogMessage4(error);
                 }
                 if (error != 0)
                 {
-                    logger.LogError(
-                        "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ",
-                        error);
+                    logger.X509CrlHelperLogMessage5(error);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Exception while adding Crl to X509Store");
+                logger.X509CrlHelperLogMessage6(ex);
             }
             finally
             {
@@ -231,9 +221,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                                 int error = Marshal.GetLastWin32Error();
                                 if (error != 0)
                                 {
-                                    logger.LogError(
-                                        "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}",
-                                        error);
+                                    logger.X509CrlHelperLogMessage7(error);
                                 }
                             }
                             else
@@ -254,9 +242,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         }
                         else if (error != 0)
                         {
-                            logger.LogError(
-                                "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}",
-                                error);
+                            logger.X509CrlHelperLogMessage8(error);
                         }
                         break;
                     }
@@ -264,9 +250,59 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Exception while deleting Crl from X509Store");
+                logger.X509CrlHelperLogMessage9(ex);
             }
             return false;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for X509CrlHelper.
+    /// </summary>
+    internal static partial class X509CrlHelperLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 0, Level = LogLevel.Error,
+            Message = "Error while enumerating Crls from X509Store, Win32Error-Code: {ErrorCode}")]
+        public static partial void X509CrlHelperLogMessage0(this ILogger logger, int errorCode);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 1, Level = LogLevel.Error,
+            Message = "Exception while enumerating Crls from X509Store")]
+        public static partial void X509CrlHelperLogMessage1(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 2, Level = LogLevel.Error,
+            Message = "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: " +
+                "ERROR_INVALID_PARAMETER, The parameter is incorrect. ")]
+        public static partial void X509CrlHelperLogMessage2(this ILogger logger, int errorCode);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 3, Level = LogLevel.Error,
+            Message = "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: " +
+                "CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ")]
+        public static partial void X509CrlHelperLogMessage3(this ILogger logger, int errorCode);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 4, Level = LogLevel.Error,
+            Message = "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: " +
+                "ERROR_ACCESS_DENIED, Access is denied. ")]
+        public static partial void X509CrlHelperLogMessage4(this ILogger logger, int errorCode);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 5, Level = LogLevel.Error,
+            Message = "Error while adding Crl to X509Store, Win32Error-Code: {ErrorCode}: ")]
+        public static partial void X509CrlHelperLogMessage5(this ILogger logger, int errorCode);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 6, Level = LogLevel.Error,
+            Message = "Exception while adding Crl to X509Store")]
+        public static partial void X509CrlHelperLogMessage6(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 7, Level = LogLevel.Error,
+            Message = "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}")]
+        public static partial void X509CrlHelperLogMessage7(this ILogger logger, int errorCode);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 8, Level = LogLevel.Error,
+            Message = "Error while deleting Crl from X509Store, Win32Error-Code: {ErrorCode}")]
+        public static partial void X509CrlHelperLogMessage8(this ILogger logger, int errorCode);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CrlHelper + 9, Level = LogLevel.Error,
+            Message = "Exception while deleting Crl from X509Store")]
+        public static partial void X509CrlHelperLogMessage9(this ILogger logger, global::System.Exception? exception);
+    }
+
 }

@@ -63,19 +63,27 @@ namespace Opc.Ua.Pcap.Bindings
     /// </para>
     /// <para>
     /// The transport does not have a direct handle on the owning UASC
-    /// channel so the channel id is reported as <c>0</c> on every frame.
-    /// Offline decoders correlate frames to channels via the
+    /// channel so tapped frames report a synthetic nonzero flow id that
+    /// is unique within the current process for the lifetime of the
+    /// wrapper. Offline decoders can still correlate cryptographic state
+    /// to the authoritative secure-channel id via the
     /// <see cref="IFrameCaptureSink.OnTokenActivated"/> notifications
     /// raised by <c>PcapTransportChannelBinding</c> on the channel's
     /// token-activated event (which DO carry the authoritative channel
     /// id via <see cref="ChannelToken.ChannelId"/>).
     /// </para>
     /// </remarks>
-    public sealed class CapturingByteTransport : IUaSCByteTransport, IDisposable
+    public sealed class CapturingByteTransport :
+        IUaSCByteTransport,
+        IUaSCByteTransportLimits,
+        IDisposable
     {
         private readonly IUaSCByteTransport m_inner;
         private readonly IChannelCaptureRegistry m_registry;
         private readonly ILogger m_logger;
+        private readonly uint m_syntheticFlowId;
+
+        private static long s_nextSyntheticFlowId;
 
         /// <summary>
         /// Constructs a new capturing transport wrapper.
@@ -89,12 +97,38 @@ namespace Opc.Ua.Pcap.Bindings
             IUaSCByteTransport inner,
             IChannelCaptureRegistry registry,
             ILoggerFactory? loggerFactory = null)
+            : this(inner, registry, AllocateSyntheticFlowId(), loggerFactory)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a new capturing transport wrapper with an explicit
+        /// synthetic flow identifier.
+        /// </summary>
+        /// <param name="inner">The wrapped transport; ownership transfers.</param>
+        /// <param name="registry">The capture registry whose observer is
+        /// consulted on the send / receive hot path.</param>
+        /// <param name="syntheticFlowId">Nonzero synthetic flow identifier
+        /// reported to capture observers for every tapped inbound and
+        /// outbound frame.</param>
+        /// <param name="loggerFactory">Optional logger factory.</param>
+        /// <exception cref="ArgumentNullException">Any required argument is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="syntheticFlowId"/> is <c>0</c>.
+        /// </exception>
+        internal CapturingByteTransport(
+            IUaSCByteTransport inner,
+            IChannelCaptureRegistry registry,
+            uint syntheticFlowId,
+            ILoggerFactory? loggerFactory = null)
         {
             ArgumentNullException.ThrowIfNull(inner);
             ArgumentNullException.ThrowIfNull(registry);
+            ArgumentOutOfRangeException.ThrowIfZero(syntheticFlowId);
 
             m_inner = inner;
             m_registry = registry;
+            m_syntheticFlowId = syntheticFlowId;
             m_logger = (loggerFactory ?? NullLoggerFactory.Instance)
                 .CreateLogger<CapturingByteTransport>();
         }
@@ -168,10 +202,30 @@ namespace Opc.Ua.Pcap.Bindings
             m_inner.Close();
         }
 
+        void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+        {
+            if (m_inner is IUaSCByteTransportLimits transportLimits)
+            {
+                transportLimits.SetReceiveBufferSize(receiveBufferSize);
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
             (m_inner as IDisposable)?.Dispose();
+        }
+
+        private static uint AllocateSyntheticFlowId()
+        {
+            long syntheticFlowId = Interlocked.Increment(ref s_nextSyntheticFlowId);
+            if (syntheticFlowId > uint.MaxValue)
+            {
+                throw new InvalidOperationException(
+                    "The process has exhausted all synthetic capture flow identifiers.");
+            }
+
+            return (uint)syntheticFlowId;
         }
 
         private void TapInbound(IFrameCaptureSink observer, ArraySegment<byte> chunk)
@@ -179,14 +233,12 @@ namespace Opc.Ua.Pcap.Bindings
             try
             {
                 observer.OnFrameReceived(
-                    channelId: 0,
+                    channelId: m_syntheticFlowId,
                     new ReadOnlySpan<byte>(chunk.Array, chunk.Offset, chunk.Count));
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "CapturingByteTransport: observer.OnFrameReceived threw.");
+                m_logger.ObserverOnFrameReceivedFailed(ex);
             }
         }
 
@@ -194,14 +246,28 @@ namespace Opc.Ua.Pcap.Bindings
         {
             try
             {
-                observer.OnFrameSent(channelId: 0, chunk);
+                observer.OnFrameSent(channelId: m_syntheticFlowId, chunk);
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "CapturingByteTransport: observer.OnFrameSent threw.");
+                m_logger.ObserverOnFrameSentFailed(ex);
             }
+
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="CapturingByteTransport"/>.
+    /// </summary>
+    internal static partial class CapturingByteTransportLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CapturingByteTransport + 0, Level = LogLevel.Warning,
+            Message = "CapturingByteTransport: observer.OnFrameReceived threw.")]
+        public static partial void ObserverOnFrameReceivedFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.CapturingByteTransport + 1, Level = LogLevel.Warning,
+            Message = "CapturingByteTransport: observer.OnFrameSent threw.")]
+        public static partial void ObserverOnFrameSentFailed(this ILogger logger, Exception exception);
+    }
+
 }

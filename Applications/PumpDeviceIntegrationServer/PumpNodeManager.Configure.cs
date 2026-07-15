@@ -90,7 +90,7 @@ namespace Pumps
         partial void Configure(INodeManagerBuilder builder)
         {
             Server.Telemetry.CreateLogger<PumpNodeManager>()
-                .LogInformation("Configuring PumpNodeManager fluent wiring...");
+                .ConfiguringPumpNodeManagerFluentWiring();
 
             WithIdentification(builder);
             WithMeasurements(builder);
@@ -338,5 +338,13 @@ namespace Pumps
                 health.ClearChangeMasks(SystemContext, includeChildren: false);
             }
         }
+    }
+
+    internal static partial class PumpNodeManagerLog
+    {
+        [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.PumpNodeManager + 0,
+            Level = LogLevel.Information,
+            Message = "Configuring PumpNodeManager fluent wiring...")]
+        public static partial void ConfiguringPumpNodeManagerFluentWiring(this ILogger logger);
     }
 }

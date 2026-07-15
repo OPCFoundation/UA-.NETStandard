@@ -129,12 +129,14 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
             }
             catch (ServiceResultException sre)
             {
-                logger.LogInformation(
-                    sre,
-                    "Failed to decode {RequestType} body for route {Path}: {Status}",
-                    typeof(TRequest).Name,
-                    SanitizePathForLog(request.Path),
-                    sre.StatusCode);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.FailedToDecodeBody(
+                        sre,
+                        typeof(TRequest).Name,
+                        SanitizePathForLog(request.Path),
+                        sre.StatusCode);
+                }
                 response.StatusCode = (int)HttpStatusCode.BadRequest;
                 response.ContentLength = 0;
                 return;
@@ -175,20 +177,21 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                     return;
                 }
 
-                logger.LogError(
-                    "Unexpected response type {ActualType} for route {Path} (expected {ExpectedType}).",
-                    dispatched?.GetType().FullName,
-                    SanitizePathForLog(request.Path),
-                    typeof(TResponse).FullName);
+                if (logger.IsEnabled(LogLevel.Error))
+                {
+                    logger.UnexpectedResponseType(
+                        dispatched?.GetType().FullName,
+                        SanitizePathForLog(request.Path),
+                        typeof(TResponse).FullName);
+                }
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Failed to encode {ResponseType} body for route {Path}.",
-                    typeof(TResponse).Name,
-                    SanitizePathForLog(request.Path));
+                if (logger.IsEnabled(LogLevel.Error))
+                {
+                    logger.FailedToEncodeBody(ex, typeof(TResponse).Name, SanitizePathForLog(request.Path));
+                }
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
             }
         }
@@ -216,6 +219,37 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
             string? value = path.HasValue ? path.Value : null;
             return string.IsNullOrEmpty(value) ? string.Empty : Uri.EscapeDataString(value);
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="WebApiEndpointDispatcher"/>.
+    /// </summary>
+    internal static partial class WebApiEndpointDispatcherLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WebApiEndpointDispatcher + 0, Level = LogLevel.Information,
+            Message = "Failed to decode {RequestType} body for route {Path}: {Status}")]
+        public static partial void FailedToDecodeBody(
+            this ILogger logger,
+            Exception exception,
+            string requestType,
+            string path,
+            StatusCode status);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WebApiEndpointDispatcher + 1, Level = LogLevel.Error,
+            Message = "Unexpected response type {ActualType} for route {Path} (expected {ExpectedType}).")]
+        public static partial void UnexpectedResponseType(
+            this ILogger logger,
+            string? actualType,
+            string path,
+            string? expectedType);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WebApiEndpointDispatcher + 2, Level = LogLevel.Error,
+            Message = "Failed to encode {ResponseType} body for route {Path}.")]
+        public static partial void FailedToEncodeBody(
+            this ILogger logger,
+            Exception exception,
+            string responseType,
+            string path);
     }
 }
 #endif

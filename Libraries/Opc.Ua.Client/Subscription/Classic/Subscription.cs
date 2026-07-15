@@ -234,7 +234,9 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "SubscriptionId {SubscriptionId} - Reset Publish Worker exception.", Id);
+                m_logger.SubscriptionIdSubscriptionIdResetPublishWorkerException(
+                    e,
+                    Id);
             }
             finally
             {
@@ -278,10 +280,7 @@ namespace Opc.Ua.Client
             if (RecoveryPolicy.HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) &&
                 unsolicited)
             {
-                m_logger.LogWarning(
-                    "SubscriptionId {SubscriptionId}: unsolicited Good_SubscriptionTransferred received — " +
-                    "auto-recreating on the same session (RecoveryPolicy=RecreateOnUnsolicitedTransfer).",
-                    Id);
+                m_logger.SubscriptionIdSubscriptionIdUnsolicitedGoodSubscriptionTransferredReceived(Id);
 
                 TriggerUnsolicitedTransferRecovery();
                 return;
@@ -335,9 +334,7 @@ namespace Opc.Ua.Client
                         int dropped = engine.RemoveAcknowledgementsForSubscription(deadId);
                         if (dropped > 0)
                         {
-                            m_logger.LogInformation(
-                                "SubscriptionId {SubscriptionId}: dropped {Count} stale " +
-                                "acknowledgement(s) before recovery recreate.",
+                            m_logger.SubscriptionIdSubscriptionIdDroppedCountStaleAcknowledgement(
                                 deadId,
                                 dropped);
                         }
@@ -363,21 +360,14 @@ namespace Opc.Ua.Client
                     await CreateAsync(CancellationToken.None)
                         .ConfigureAwait(false);
 
-                    m_logger.LogInformation(
-                        "Subscription recreated on the same session after unsolicited " +
-                        "Good_SubscriptionTransferred (old SubscriptionId={OldId}, new " +
-                        "SubscriptionId={NewId}).",
+                    m_logger.SubscriptionRecreatedSameSessionAfterUnsolicited(
                         deadId,
                         Id);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
+                    m_logger.SubscriptionIdDeadIdRecoveryAfterUnsolicitedGood(
                         ex,
-                        "SubscriptionId {DeadId}: recovery after unsolicited " +
-                        "Good_SubscriptionTransferred failed; the subscription is " +
-                        "no longer dispatching notifications until reconnect or " +
-                        "manual recreate.",
                         deadId);
                 }
                 finally
@@ -921,9 +911,8 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
+                m_logger.SubscriptionStateChangeCallbackExceptionChange(
                     ex,
-                    "Subscription state change callback exception with change mask 0x{ChangeMask:X2}",
                     m_changeMask);
             }
             m_changeMask = SubscriptionChangeMask.None;
@@ -1396,17 +1385,15 @@ namespace Opc.Ua.Client
                         [],
                         ct).ConfigureAwait(false);
 
-                    m_logger.LogInformation(
-                        "Restored {Count} triggering links for MonitoredItem {TriggeringItemId} in Subscription {SubscriptionId}",
+                    m_logger.RestoredCountTriggeringLinksMonitoredItemTriggeringItemId(
                         linksToAdd.Count,
                         triggeringItemId,
                         Id);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
+                    m_logger.FailedRestoreTriggeringLinksMonitoredItemTriggeringItemId(
                         ex,
-                        "Failed to restore triggering links for MonitoredItem {TriggeringItemId} in Subscription {SubscriptionId}",
                         triggeringItemId,
                         Id);
                 }
@@ -1661,8 +1648,7 @@ namespace Opc.Ua.Client
                 // remove the subscription from disconnected session
                 if (Session?.RemoveTransferredSubscription(this) != true)
                 {
-                    m_logger.LogError(
-                        "SubscriptionId {SubscriptionId}: Failed to remove transferred subscription from owner SessionId={SessionId}.",
+                    m_logger.SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
                         Id,
                         Session?.SessionId);
                     return false;
@@ -1678,8 +1664,7 @@ namespace Opc.Ua.Client
                 // add transferred subscription to session
                 if (!session.AddSubscription(this))
                 {
-                    m_logger.LogError(
-                        "SubscriptionId {SubscriptionId}: Failed to add transferred subscription to SessionId={SessionId}.",
+                    m_logger.SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
                         Id,
                         session.SessionId);
                     return false;
@@ -1692,9 +1677,7 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
                 if (!success)
                 {
-                    m_logger.LogError(
-                        "SubscriptionId {SubscriptionId}: The server failed to respond to GetMonitoredItems after transfer.",
-                        Id);
+                    m_logger.SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(Id);
                     return false;
                 }
 
@@ -1703,8 +1686,7 @@ namespace Opc.Ua.Client
                     clientHandles.Count != monitoredItemsCount)
                 {
                     // invalid state
-                    m_logger.LogError(
-                        "SubscriptionId {SubscriptionId}: Number of Monitored Items on client and server do not match after transfer {Previous}!={New}",
+                    m_logger.SubscriptionIdSubscriptionIdNumberMonitoredItemsClient(
                         Id,
                         serverHandles.Count,
                         monitoredItemsCount);
@@ -1794,9 +1776,7 @@ namespace Opc.Ua.Client
                         };
                         currentNode = m_incomingMessages.AddBefore(currentNode, placeholder);
 
-                        m_logger.LogInformation(
-                            "Session {SessionId}, subscription {SubscriptionName} ({SubscriptionId}): " +
-                            "added placeholder for missing incoming message with sequence number {MissingSequenceNumber}",
+                        m_logger.SessionSessionIdSubscriptionSubscriptionNameSubscriptionIdAdded(
                             Session?.SessionId,
                             DisplayName,
                             Id,
@@ -1852,8 +1832,7 @@ namespace Opc.Ua.Client
                         {
                             if (!entry.Processed)
                             {
-                                m_logger.LogWarning(
-                                    "SubscriptionId {SubscriptionId} skipping PublishResponse Sequence Number {SequenceNumber}",
+                                m_logger.SubscriptionIdSubscriptionIdSkippingPublishResponseSequenceNumber(
                                     Id,
                                     entry.SequenceNumber);
                             }
@@ -2035,7 +2014,9 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                m_logger.LogError(sre, "SubscriptionId {SubscriptionId}: Failed to call ResendData on server", Id);
+                m_logger.SubscriptionIdSubscriptionIdFailedCallResendDataServer(
+                    sre,
+                    Id);
             }
             return false;
         }
@@ -2067,9 +2048,8 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                m_logger.LogError(
+                m_logger.SubscriptionIdSubscriptionIdFailedCallGetMonitoredItemsServer(
                     sre,
-                    "SubscriptionId {SubscriptionId}: Failed to call GetMonitoredItems on server",
                     Id);
             }
             return (false, default, default);
@@ -2105,9 +2085,8 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                m_logger.LogError(
+                m_logger.SubscriptionIdSubscriptionIdFailedCallSetSubscriptionDurableServer(
                     sre,
-                    "SubscriptionId {SubscriptionId}: Failed to call SetSubscriptionDurable on server",
                     Id);
             }
 
@@ -2183,8 +2162,7 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    m_logger.LogInformation(
-                        "SubscriptionId {SubscriptionId}: Republishing {Count} messages, next sequencenumber {SequenceNumber} after transfer.",
+                    m_logger.SubscriptionIdSubscriptionIdRepublishingCountMessagesNext(
                         Id,
                         republishMessages,
                         m_lastSequenceNumberProcessed);
@@ -2307,8 +2285,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task PublishResponseMessageWorkerAsync(CancellationToken ct)
         {
-            m_logger.LogTrace(
-                "SubscriptionId {SubscriptionId} - Publish Task {TaskId:X8} Started.",
+            m_logger.SubscriptionIdSubscriptionIdPublishTaskTaskIdX8(
                 Id,
                 Task.CurrentId);
 
@@ -2330,16 +2307,14 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(
+                m_logger.SubscriptionIdSubscriptionIdPublishWorkerTaskTaskId(
                     e,
-                    "SubscriptionId {SubscriptionId} - Publish Worker Task {TaskId:X8} Exited Unexpectedly.",
                     Id,
                     Task.CurrentId);
                 return;
             }
 
-            m_logger.LogTrace(
-                "SubscriptionId {SubscriptionId} - Publish Task {TaskId:X8} Exited Normally.",
+            m_logger.SubscriptionIdSubscriptionIdPublishTaskTaskIdX82(
                 Id,
                 Task.CurrentId);
         }
@@ -2359,8 +2334,7 @@ namespace Opc.Ua.Client
                 CurrentPublishingEnabled,
                 MonitoredItemCount);
 
-            m_logger.LogInformation(
-                "Subscription {Context}, Id={SubscriptionId}, LastNotificationTime={LastNotificationTime:HH:mm:ss}, GoodPublishRequestCount={GoodPublishRequestCount}, PublishingInterval={PublishingInterval}, KeepAliveCount={KeepAliveCount}, PublishingEnabled={PublishingEnabled}, MonitoredItemCount={MonitoredItemCount}",
+            m_logger.SubscriptionContextIdSubscriptionIdLastNotificationTimeLastNotificationTime(
                 context,
                 Id,
                 new DateTime(m_lastNotificationTime),
@@ -2445,8 +2419,7 @@ namespace Opc.Ua.Client
 
             if (KeepAliveCount != revisedKeepAliveCount)
             {
-                m_logger.LogInformation(
-                    "For subscription {SubscriptionId}, Keep alive count was revised from {Previous} to {New}",
+                m_logger.SubscriptionSubscriptionIdKeepAliveCountRevised(
                     Id,
                     KeepAliveCount,
                     revisedKeepAliveCount);
@@ -2454,8 +2427,7 @@ namespace Opc.Ua.Client
 
             if (LifetimeCount != revisedLifetimeCounter)
             {
-                m_logger.LogInformation(
-                    "For subscription {SubscriptionId}, Lifetime count was revised from {Previous} to {New}",
+                m_logger.SubscriptionSubscriptionIdLifetimeCountRevisedPrevious(
                     Id,
                     LifetimeCount,
                     revisedLifetimeCounter);
@@ -2463,8 +2435,7 @@ namespace Opc.Ua.Client
 
             if (PublishingInterval != revisedPublishingInterval)
             {
-                m_logger.LogInformation(
-                    "For subscription {SubscriptionId}, Publishing interval was revised from {Previous} to {New}",
+                m_logger.SubscriptionSubscriptionIdPublishingIntervalRevisedPrevious(
                     Id,
                     PublishingInterval,
                     revisedPublishingInterval);
@@ -2472,8 +2443,7 @@ namespace Opc.Ua.Client
 
             if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
             {
-                m_logger.LogInformation(
-                    "For subscription {SubscriptionId}, Revised lifetime counter (value={LifetimeCounter}) is less than three times the keep alive count (value={KeepAliveCount})",
+                m_logger.SubscriptionSubscriptionIdRevisedLifetimeCounterValue(
                     Id,
                     revisedLifetimeCounter,
                     revisedKeepAliveCount);
@@ -2481,7 +2451,7 @@ namespace Opc.Ua.Client
 
             if (CurrentPriority == 0)
             {
-                m_logger.LogInformation("For subscription {SubscriptionId}, the priority was set to 0.", Id);
+                m_logger.SubscriptionSubscriptionIdPrioritySet(Id);
             }
         }
 
@@ -2539,8 +2509,7 @@ namespace Opc.Ua.Client
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                m_logger.LogInformation(
-                    "Adjusted KeepAliveCount from value={Previous} to value={New}, for subscription {SubscriptionId}.",
+                m_logger.AdjustedKeepAliveCountValuePreviousValueNew(
                     keepAliveCount,
                     kDefaultKeepAlive,
                     Id);
@@ -2552,8 +2521,7 @@ namespace Opc.Ua.Client
             {
                 if (MinLifetimeInterval > 0 && MinLifetimeInterval < sessionTimeout)
                 {
-                    m_logger.LogWarning(
-                        "A smaller minLifetimeInterval {LifetimeInterval}ms than session timeout {SessionTimeout}ms configured for subscription {SubscriptionId}.",
+                    m_logger.SmallerMinLifetimeIntervalLifetimeIntervalMsThanSession(
                         MinLifetimeInterval,
                         sessionTimeout,
                         Id);
@@ -2570,16 +2538,14 @@ namespace Opc.Ua.Client
                         lifetimeCount++;
                     }
 
-                    m_logger.LogInformation(
-                        "Adjusted LifetimeCount to value={New}, for subscription {SubscriptionId}. ",
+                    m_logger.AdjustedLifetimeCountValueNewSubscriptionSubscriptionId(
                         lifetimeCount,
                         Id);
                 }
 
                 if (lifetimeCount * PublishingInterval < sessionTimeout)
                 {
-                    m_logger.LogWarning(
-                        "Lifetime {LifetimeCount}ms configured for subscription {SubscriptionId} is less than session timeout {SessionTimeout}ms.",
+                    m_logger.LifetimeLifetimeCountMsConfiguredSubscriptionSubscriptionId(
                         lifetimeCount * PublishingInterval,
                         Id,
                         sessionTimeout);
@@ -2589,8 +2555,7 @@ namespace Opc.Ua.Client
             {
                 // don't know what the sampling interval will be - use something large enough
                 // to ensure the user does not experience unexpected drop outs.
-                m_logger.LogInformation(
-                    "Adjusted LifetimeCount from value={Previous}, to value={New}, for subscription {SubscriptionId}. ",
+                m_logger.AdjustedLifetimeCountValuePreviousValueNew(
                     lifetimeCount,
                     kDefaultLifeTime,
                     Id);
@@ -2601,8 +2566,7 @@ namespace Opc.Ua.Client
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                m_logger.LogInformation(
-                    "Adjusted LifetimeCount from value={Previous}, to value={New}, for subscription {SubscriptionId}. ",
+                m_logger.AdjustedLifetimeCountValuePreviousValueNew(
                     lifetimeCount,
                     minLifeTimeCount,
                     Id);
@@ -2669,8 +2633,7 @@ namespace Opc.Ua.Client
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
                                 if (m_resyncLastSequenceNumberProcessed)
                                 {
-                                    m_logger.LogInformation(
-                                        "SubscriptionId {SubscriptionId}: Resynced last sequence number processed to {SequenceNumber}.",
+                                    m_logger.SubscriptionIdSubscriptionIdResyncedLastSequenceNumber(
                                         Id,
                                         m_lastSequenceNumberProcessed);
                                     m_resyncLastSequenceNumberProcessed = false;
@@ -2704,8 +2667,7 @@ namespace Opc.Ua.Client
                                 }
                                 else
                                 {
-                                    m_logger.LogInformation(
-                                        "Skipped to receive RepublishAsync for subscription {SubscriptionId}-{SequenceNumber}-BadMessageNotAvailable",
+                                    m_logger.SkippedReceiveRepublishAsyncSubscriptionSubscriptionIdSequenceNumber(
                                         subscriptionId,
                                         ii.Value.SequenceNumber);
                                     ii.Value.RepublishStatus = StatusCodes.BadMessageNotAvailable;
@@ -2716,9 +2678,7 @@ namespace Opc.Ua.Client
                         // a message that is deferred because of a missing sequence number
                         else if (ii.Value.Message != null && !ii.Value.Processed)
                         {
-                            m_logger.LogDebug(
-                                "Subscription {SubscriptionId}: Delayed message with sequence number {SequenceNumber}, " +
-                                "expected sequence number is {ExpectedSequenceNumber}.",
+                            m_logger.SubscriptionSubscriptionIdDelayedMessageSequenceNumber(
                                 Id,
                                 ii.Value.SequenceNumber,
                                 m_lastSequenceNumberProcessed + 1);
@@ -2800,10 +2760,12 @@ namespace Opc.Ua.Client
                                     statusChanged.SequenceNumber = message.SequenceNumber;
                                     statusChanged.MoreNotifications = message.MoreNotifications;
 
-                                    m_logger.LogWarning(
-                                        "StatusChangeNotification received with Status = {Status} for SubscriptionId={SubscriptionId}:.",
-                                        statusChanged.Status.ToString(),
-                                        Id);
+                                    if (m_logger.IsEnabled(LogLevel.Warning))
+                                    {
+                                        m_logger.StatusChangeNotificationReceived(
+                                            statusChanged.Status.ToString(),
+                                            Id);
+                                    }
 
                                     if (statusChanged.Status == StatusCodes
                                         .GoodSubscriptionTransferred)
@@ -2822,17 +2784,15 @@ namespace Opc.Ua.Client
                         }
                         catch (Exception e)
                         {
-                            m_logger.LogError(
+                            m_logger.ErrorWhileProcessingIncomingMessageSequenceNumber(
                                 e,
-                                "Error while processing incoming message #{SequenceNumber}.",
                                 message.SequenceNumber);
                         }
 
                         if (MaxNotificationsPerPublish != 0 &&
                             noNotificationsReceived > MaxNotificationsPerPublish)
                         {
-                            m_logger.LogWarning(
-                                "For subscription {SubscriptionId}, more notifications were received={Count} than the max notifications per publish value={MaxNotificationsPerPublish}",
+                            m_logger.SubscriptionSubscriptionIdMoreNotificationsWereReceived(
                                 Id,
                                 noNotificationsReceived,
                                 MaxNotificationsPerPublish);
@@ -2880,7 +2840,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                m_logger.LogError(e, "Error while processing incoming messages.");
+                m_logger.ErrorWhileProcessingIncomingMessages(e);
             }
             finally
             {
@@ -3170,9 +3130,7 @@ namespace Opc.Ua.Client
             // check for empty monitored items list.
             if (notifications.MonitoredItems.IsEmpty)
             {
-                m_logger.LogInformation(
-                    "Publish response contains empty MonitoredItems list for SubscriptionId={SubscriptionId}:.",
-                    Id);
+                m_logger.PublishResponseContainsEmptyMonitoredItemsList(Id);
                 return;
             }
 
@@ -3182,9 +3140,7 @@ namespace Opc.Ua.Client
 
                 if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out MonitoredItem? monitoredItem))
                 {
-                    m_logger.LogWarning(
-                        "Publish response contains invalid MonitoredItem. " +
-                        "SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
+                    m_logger.PublishResponseContainsInvalidMonitoredItemSubscriptionId(
                         Id,
                         notification.ClientHandle);
                     continue;
@@ -3220,9 +3176,7 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(eventFields.ClientHandle, out monitoredItem))
                     {
-                        m_logger.LogWarning(
-                            "Publish response contains invalid MonitoredItem." +
-                            "SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
+                        m_logger.PublishResponseContainsInvalidMonitoredItemSubscriptionId2(
                             Id,
                             eventFields.ClientHandle);
                         continue;
@@ -3308,10 +3262,12 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(
-                    e,
-                    "Error while raising PublishStateChanged event for state {State}.",
-                    newState.ToString());
+                if (m_logger.IsEnabled(LogLevel.Error))
+                {
+                    m_logger.ErrorWhileRaisingPublishStateChangedEventState(
+                        e,
+                        newState.ToString());
+                }
             }
         }
 
@@ -3590,4 +3546,354 @@ namespace Opc.Ua.Client
             return clone;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="Subscription"/>.
+    /// </summary>
+    internal static partial class SubscriptionLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 0, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId} - Reset Publish Worker exception.")]
+        public static partial void SubscriptionIdSubscriptionIdResetPublishWorkerException(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 1, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId}: unsolicited Good_SubscriptionTransferred received —" +
+                " auto-recreating on the same session (RecoveryPolicy=RecreateOnUnsolicitedTransfer).")]
+        public static partial void SubscriptionIdSubscriptionIdUnsolicitedGoodSubscriptionTransferredReceived(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 2, Level = LogLevel.Information,
+            Message = "SubscriptionId {SubscriptionId}: dropped {Count} stale acknowledgement(s) before recovery" +
+                " recreate.")]
+        public static partial void SubscriptionIdSubscriptionIdDroppedCountStaleAcknowledgement(
+            this ILogger logger,
+            uint subscriptionId,
+            int count);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 3, Level = LogLevel.Information,
+            Message = "Subscription recreated on the same session after unsolicited Good_SubscriptionTransferred" +
+                " (old SubscriptionId={OldId}, new SubscriptionId={NewId}).")]
+        public static partial void SubscriptionRecreatedSameSessionAfterUnsolicited(
+            this ILogger logger,
+            uint oldId,
+            uint newId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 4, Level = LogLevel.Warning,
+            Message = "SubscriptionId {DeadId}: recovery after unsolicited Good_SubscriptionTransferred failed;" +
+                " the subscription is no longer dispatching notifications until reconnect or manual recreate.")]
+        public static partial void SubscriptionIdDeadIdRecoveryAfterUnsolicitedGood(
+            this ILogger logger,
+            Exception? exception,
+            uint deadId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 5, Level = LogLevel.Error,
+            Message = "Subscription state change callback exception with change mask 0x{ChangeMask:X2}")]
+        public static partial void SubscriptionStateChangeCallbackExceptionChange(
+            this ILogger logger,
+            Exception? exception,
+            SubscriptionChangeMask changeMask);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 6, Level = LogLevel.Information,
+            Message = "Restored {Count} triggering links for MonitoredItem {TriggeringItemId} in Subscription" +
+                " {SubscriptionId}")]
+        public static partial void RestoredCountTriggeringLinksMonitoredItemTriggeringItemId(
+            this ILogger logger,
+            int count,
+            uint triggeringItemId,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 7, Level = LogLevel.Error,
+            Message = "Failed to restore triggering links for MonitoredItem {TriggeringItemId} in Subscription" +
+                " {SubscriptionId}")]
+        public static partial void FailedRestoreTriggeringLinksMonitoredItemTriggeringItemId(
+            this ILogger logger,
+            Exception? exception,
+            uint triggeringItemId,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 8, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Failed to remove transferred subscription from owner" +
+                " SessionId={SessionId}.")]
+        public static partial void SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
+            this ILogger logger,
+            uint subscriptionId,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 9, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Failed to add transferred subscription to" +
+                " SessionId={SessionId}.")]
+        public static partial void SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
+            this ILogger logger,
+            uint subscriptionId,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 10, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: The server failed to respond to GetMonitoredItems after" +
+                " transfer.")]
+        public static partial void SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 11, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Number of Monitored Items on client and server do not" +
+                " match after transfer {Previous}!={New}")]
+        public static partial void SubscriptionIdSubscriptionIdNumberMonitoredItemsClient(
+            this ILogger logger,
+            uint subscriptionId,
+            int previous,
+            int @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 12, Level = LogLevel.Information,
+            Message = "Session {SessionId}, subscription {SubscriptionName} ({SubscriptionId}): added placeholder" +
+                " for missing incoming message with sequence number {MissingSequenceNumber}")]
+        public static partial void SessionSessionIdSubscriptionSubscriptionNameSubscriptionIdAdded(
+            this ILogger logger,
+            NodeId? sessionId,
+            string subscriptionName,
+            uint subscriptionId,
+            uint missingSequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 13, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId} skipping PublishResponse Sequence Number {SequenceNumber}")]
+        public static partial void SubscriptionIdSubscriptionIdSkippingPublishResponseSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint sequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 14, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Failed to call ResendData on server")]
+        public static partial void SubscriptionIdSubscriptionIdFailedCallResendDataServer(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 15, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Failed to call GetMonitoredItems on server")]
+        public static partial void SubscriptionIdSubscriptionIdFailedCallGetMonitoredItemsServer(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 16, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Failed to call SetSubscriptionDurable on server")]
+        public static partial void SubscriptionIdSubscriptionIdFailedCallSetSubscriptionDurableServer(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 17, Level = LogLevel.Information,
+            Message = "SubscriptionId {SubscriptionId}: Republishing {Count} messages, next sequencenumber" +
+                " {SequenceNumber} after transfer.")]
+        public static partial void SubscriptionIdSubscriptionIdRepublishingCountMessagesNext(
+            this ILogger logger,
+            uint subscriptionId,
+            int count,
+            uint sequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 18, Level = LogLevel.Trace,
+            Message = "SubscriptionId {SubscriptionId} - Publish Task {TaskId:X8} Started.")]
+        public static partial void SubscriptionIdSubscriptionIdPublishTaskTaskIdX8(
+            this ILogger logger,
+            uint subscriptionId,
+            int? taskId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 19, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId} - Publish Worker Task {TaskId:X8} Exited Unexpectedly.")]
+        public static partial void SubscriptionIdSubscriptionIdPublishWorkerTaskTaskId(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId,
+            int? taskId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 20, Level = LogLevel.Trace,
+            Message = "SubscriptionId {SubscriptionId} - Publish Task {TaskId:X8} Exited Normally.")]
+        public static partial void SubscriptionIdSubscriptionIdPublishTaskTaskIdX82(
+            this ILogger logger,
+            uint subscriptionId,
+            int? taskId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 21, Level = LogLevel.Information,
+            Message = "Subscription {Context}, Id={SubscriptionId}," +
+                " LastNotificationTime={LastNotificationTime:HH:mm:ss}," +
+                " GoodPublishRequestCount={GoodPublishRequestCount}," +
+                " PublishingInterval={PublishingInterval}, KeepAliveCount={KeepAliveCount}," +
+                " PublishingEnabled={PublishingEnabled}, MonitoredItemCount={MonitoredItemCount}")]
+        public static partial void SubscriptionContextIdSubscriptionIdLastNotificationTimeLastNotificationTime(
+            this ILogger logger,
+            string context,
+            uint subscriptionId,
+            DateTime lastNotificationTime,
+            int goodPublishRequestCount,
+            double publishingInterval,
+            uint keepAliveCount,
+            bool publishingEnabled,
+            uint monitoredItemCount);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 22, Level = LogLevel.Information,
+            Message = "For subscription {SubscriptionId}, Keep alive count was revised from {Previous} to {New}")]
+        public static partial void SubscriptionSubscriptionIdKeepAliveCountRevised(
+            this ILogger logger,
+            uint subscriptionId,
+            uint previous,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 23, Level = LogLevel.Information,
+            Message = "For subscription {SubscriptionId}, Lifetime count was revised from {Previous} to {New}")]
+        public static partial void SubscriptionSubscriptionIdLifetimeCountRevisedPrevious(
+            this ILogger logger,
+            uint subscriptionId,
+            uint previous,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 24, Level = LogLevel.Information,
+            Message = "For subscription {SubscriptionId}, Publishing interval was revised from {Previous} to {New}")]
+        public static partial void SubscriptionSubscriptionIdPublishingIntervalRevisedPrevious(
+            this ILogger logger,
+            uint subscriptionId,
+            double previous,
+            double @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 25, Level = LogLevel.Information,
+            Message = "For subscription {SubscriptionId}, Revised lifetime counter (value={LifetimeCounter}) is" +
+                " less than three times the keep alive count (value={KeepAliveCount})")]
+        public static partial void SubscriptionSubscriptionIdRevisedLifetimeCounterValue(
+            this ILogger logger,
+            uint subscriptionId,
+            uint lifetimeCounter,
+            uint keepAliveCount);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 26, Level = LogLevel.Information,
+            Message = "For subscription {SubscriptionId}, the priority was set to 0.")]
+        public static partial void SubscriptionSubscriptionIdPrioritySet(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 27, Level = LogLevel.Information,
+            Message = "Adjusted KeepAliveCount from value={Previous} to value={New}, for subscription" +
+                " {SubscriptionId}.")]
+        public static partial void AdjustedKeepAliveCountValuePreviousValueNew(
+            this ILogger logger,
+            uint previous,
+            uint @new,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 28, Level = LogLevel.Warning,
+            Message = "A smaller minLifetimeInterval {LifetimeInterval}ms than session timeout {SessionTimeout}ms" +
+                " configured for subscription {SubscriptionId}.")]
+        public static partial void SmallerMinLifetimeIntervalLifetimeIntervalMsThanSession(
+            this ILogger logger,
+            double lifetimeInterval,
+            double sessionTimeout,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 29, Level = LogLevel.Information,
+            Message = "Adjusted LifetimeCount to value={New}, for subscription {SubscriptionId}. ")]
+        public static partial void AdjustedLifetimeCountValueNewSubscriptionSubscriptionId(
+            this ILogger logger,
+            uint @new,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 30, Level = LogLevel.Warning,
+            Message = "Lifetime {LifetimeCount}ms configured for subscription {SubscriptionId} is less than" +
+                " session timeout {SessionTimeout}ms.")]
+        public static partial void LifetimeLifetimeCountMsConfiguredSubscriptionSubscriptionId(
+            this ILogger logger,
+            double lifetimeCount,
+            uint subscriptionId,
+            double sessionTimeout);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 31, Level = LogLevel.Information,
+            Message = "Adjusted LifetimeCount from value={Previous}, to value={New}, for subscription" +
+                " {SubscriptionId}. ")]
+        public static partial void AdjustedLifetimeCountValuePreviousValueNew(
+            this ILogger logger,
+            uint previous,
+            uint @new,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 32, Level = LogLevel.Information,
+            Message = "SubscriptionId {SubscriptionId}: Resynced last sequence number processed to" +
+                " {SequenceNumber}.")]
+        public static partial void SubscriptionIdSubscriptionIdResyncedLastSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint sequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 33, Level = LogLevel.Information,
+            Message = "Skipped to receive RepublishAsync for subscription" +
+                " {SubscriptionId}-{SequenceNumber}-BadMessageNotAvailable")]
+        public static partial void SkippedReceiveRepublishAsyncSubscriptionSubscriptionIdSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint sequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 34, Level = LogLevel.Debug,
+            Message = "Subscription {SubscriptionId}: Delayed message with sequence number {SequenceNumber}," +
+                " expected sequence number is {ExpectedSequenceNumber}.")]
+        public static partial void SubscriptionSubscriptionIdDelayedMessageSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint sequenceNumber,
+            uint expectedSequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 35, Level = LogLevel.Warning,
+            Message = "StatusChangeNotification received with Status = {Status} for" +
+                " SubscriptionId={SubscriptionId}:.")]
+        public static partial void StatusChangeNotificationReceived(
+            this ILogger logger,
+            string status,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 36, Level = LogLevel.Error,
+            Message = "Error while processing incoming message #{SequenceNumber}.")]
+        public static partial void ErrorWhileProcessingIncomingMessageSequenceNumber(
+            this ILogger logger,
+            Exception? exception,
+            uint sequenceNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 37, Level = LogLevel.Warning,
+            Message = "For subscription {SubscriptionId}, more notifications were received={Count} than the max" +
+                " notifications per publish value={MaxNotificationsPerPublish}")]
+        public static partial void SubscriptionSubscriptionIdMoreNotificationsWereReceived(
+            this ILogger logger,
+            uint subscriptionId,
+            int count,
+            uint maxNotificationsPerPublish);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 38, Level = LogLevel.Error,
+            Message = "Error while processing incoming messages.")]
+        public static partial void ErrorWhileProcessingIncomingMessages(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 39, Level = LogLevel.Information,
+            Message = "Publish response contains empty MonitoredItems list for SubscriptionId={SubscriptionId}:.")]
+        public static partial void PublishResponseContainsEmptyMonitoredItemsList(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 40, Level = LogLevel.Warning,
+            Message = "Publish response contains invalid MonitoredItem. SubscriptionId={SubscriptionId}," +
+                " ClientHandle = {ClientHandle}")]
+        public static partial void PublishResponseContainsInvalidMonitoredItemSubscriptionId(
+            this ILogger logger,
+            uint subscriptionId,
+            uint clientHandle);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 41, Level = LogLevel.Warning,
+            Message = "Publish response contains invalid MonitoredItem.SubscriptionId={SubscriptionId}," +
+                " ClientHandle = {ClientHandle}")]
+        public static partial void PublishResponseContainsInvalidMonitoredItemSubscriptionId2(
+            this ILogger logger,
+            uint subscriptionId,
+            uint clientHandle);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 42, Level = LogLevel.Error,
+            Message = "Error while raising PublishStateChanged event for state {State}.")]
+        public static partial void ErrorWhileRaisingPublishStateChangedEventState(
+            this ILogger logger,
+            Exception? exception,
+            string state);
+    }
+
 }

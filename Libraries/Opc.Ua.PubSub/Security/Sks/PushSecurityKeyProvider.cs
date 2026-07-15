@@ -156,10 +156,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 m_currentTokenId = currentTokenId;
             }
 
-            m_logger.LogInformation(
-                "Received {Count} pushed SKS key(s) for SecurityGroupId {GroupId}.",
-                keys.Count,
-                SecurityGroupId);
+            m_logger.ReceivedPushedSksKeys(keys.Count, SecurityGroupId);
             KeyRotated?.Invoke(
                 this,
                 new PubSubKeyRotatedEventArgs(
@@ -252,4 +249,15 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PushSecurityKeyProvider"/>.
+    /// </summary>
+    internal static partial class PushSecurityKeyProviderLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PushSecurityKeyProvider + 0, Level = LogLevel.Information,
+            Message = "Received {Count} pushed SKS key(s) for SecurityGroupId {GroupId}.")]
+        public static partial void ReceivedPushedSksKeys(this ILogger logger, int count, string groupId);
+    }
+
 }

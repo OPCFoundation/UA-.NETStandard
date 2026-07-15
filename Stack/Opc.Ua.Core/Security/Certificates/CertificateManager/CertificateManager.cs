@@ -141,11 +141,10 @@ namespace Opc.Ua
             }
 
             if (!m_trustLists.TryAdd(trustList, new TrustListEntry(
-                    trustedStorePath, issuerStorePath, StoreType: null)))
+                                    trustedStorePath, issuerStorePath, StoreType: null)) &&
+                m_logger.IsEnabled(LogLevel.Debug))
             {
-                m_logger.LogDebug(
-                    "Trust list '{TrustList}' is already registered, skipping.",
-                    trustList);
+                m_logger.CertificateManagerLogMessage0(trustList.ToString());
             }
         }
 
@@ -250,6 +249,13 @@ namespace Opc.Ua
             ApplyValidationFlags(m_peerCore);
             ApplyValidationFlags(m_userCore);
             ApplyValidationFlags(m_httpsCore);
+            lock (m_certificatesLock)
+            {
+                foreach (CertificateValidationCore core in m_customCores.Values)
+                {
+                    ApplyValidationFlags(core);
+                }
+            }
 
             RegisterOrReplaceTrustList(
                 TrustListIdentifier.Peers,
@@ -599,11 +605,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Failed to resolve issuer chain for application certificate " +
-                    "{Certificate}; sending leaf certificate only.",
-                    certificate);
+                m_logger.CertificateManagerLogMessage1(ex, certificate);
             }
             finally
             {
@@ -1244,6 +1246,15 @@ namespace Opc.Ua
                 m_httpsCore?.Dispose();
                 m_httpsCore = null;
 
+                lock (m_certificatesLock)
+                {
+                    foreach (CertificateValidationCore core in m_customCores.Values)
+                    {
+                        core.Dispose();
+                    }
+                    m_customCores.Clear();
+                }
+
                 m_certificateProvider.Dispose();
 
                 foreach (CertificateEntry entry in m_applicationCertificates)
@@ -1307,10 +1318,20 @@ namespace Opc.Ua
                 {
                     winner = m_httpsCore ??= candidate;
                 }
+                else if (m_customCores.TryGetValue(trustList, out CertificateValidationCore? existingCustom))
+                {
+                    winner = existingCustom;
+                }
                 else
                 {
-                    // Non-cached trust list — return the candidate directly.
-                    return candidate;
+                    // A custom (non-well-known) trust list registered via
+                    // CertificateManagerOptions.AddTrustList: cache it the
+                    // same way as Peers/Users/Https so this method never
+                    // creates an unreachable, un-disposable core on every
+                    // call, and so Dispose() below can release its
+                    // certificate-store handles.
+                    m_customCores.Add(trustList, candidate);
+                    winner = candidate;
                 }
             }
 
@@ -1345,8 +1366,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the cached core for a well-known trust list,
-        /// or <see langword="null"/> if none is cached yet.
+        /// Returns the cached core for a well-known trust list, a
+        /// previously cached custom trust list, or <see langword="null"/>
+        /// if none is cached yet.
         /// </summary>
         private CertificateValidationCore? GetCachedCore(TrustListIdentifier trustList)
         {
@@ -1365,7 +1387,12 @@ namespace Opc.Ua
                 return m_httpsCore;
             }
 
-            return null;
+            lock (m_certificatesLock)
+            {
+                return m_customCores.TryGetValue(trustList, out CertificateValidationCore? core)
+                    ? core
+                    : null;
+            }
         }
 
         /// <summary>
@@ -1406,6 +1433,7 @@ namespace Opc.Ua
             string? StoreType);
 
         private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = [];
+        private readonly Dictionary<TrustListIdentifier, CertificateValidationCore> m_customCores = [];
         private readonly List<CertificateEntry> m_applicationCertificates = [];
         private readonly List<ICertificateStoreProvider> m_storeProviders;
         private readonly CertificateChangeSubject m_changeSubject = new();
@@ -1436,4 +1464,23 @@ namespace Opc.Ua
         private readonly CertificateProvider m_certificateProvider;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for CertificateManager.
+    /// </summary>
+    internal static partial class CertificateManagerLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.CertificateManager + 0, Level = LogLevel.Debug,
+            Message = "Trust list '{TrustList}' is already registered, skipping.")]
+        public static partial void CertificateManagerLogMessage0(this ILogger logger, string? trustList);
+
+        [LoggerMessage(EventId = CoreEventIds.CertificateManager + 1, Level = LogLevel.Warning,
+            Message = "Failed to resolve issuer chain for application certificate {Certificate}; " +
+                "sending leaf certificate only.")]
+        public static partial void CertificateManagerLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+    }
+
 }

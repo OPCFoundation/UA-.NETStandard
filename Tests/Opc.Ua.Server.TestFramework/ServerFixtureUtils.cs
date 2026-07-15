@@ -265,7 +265,10 @@ namespace Opc.Ua.Server.TestFramework
                                 ii,
                                 response,
                                 stringTable);
-                            logger.LogInformation("DiagnosticInfo: {ServiceResult}", serviceResult);
+                            if (logger.IsEnabled(LogLevel.Information))
+                            {
+                                logger.LogInformation("DiagnosticInfo: {ServiceResult}", serviceResult);
+                            }
                         }
                     }
                 }

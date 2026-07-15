@@ -140,7 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (references.Count == 0)
             {
                 // Allow empty data type systems on newer servers that do not support dictionaries.
-                m_logger.LogWarning("Type system on server does not contain any data types.");
+                m_logger.TypeSystemServerDoesNotContain();
                 return DataTypeSystem;
             }
 
@@ -196,8 +196,7 @@ namespace Opc.Ua.Client.ComplexTypes
                             ii);
                     }
                 }
-                m_logger.LogWarning(
-                    "Failed to load namespace {NamespaceNodeId}: {StatusCode}",
+                m_logger.FailedLoadNamespaceNamespaceNodeIdStatusCode(
                     namespaceNodes[ii].NodeId,
                     nameSpaceValues[ii].StatusCode);
             }
@@ -248,8 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(
-                            "Dictionary load error for Dictionary {DitionaryId} : {ErrorMessage}",
+                        m_logger.DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
                             r.NodeId,
                             ex.Message);
                     }
@@ -423,8 +421,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 nodesToBrowse = nextNodesToBrowse;
             }
 #if DEBUG
-            m_logger.LogInformation(
-                "LoadDataTypes returns {Count} nodes in {Duration}ms",
+            m_logger.LoadDataTypesReturnsCountNodesDurationMs(
                 result.Count,
                 (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
 #endif
@@ -814,4 +811,36 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="NodeCacheResolver"/>.
+    /// </summary>
+    internal static partial class NodeCacheResolverLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.NodeCacheResolver + 0, Level = LogLevel.Warning,
+            Message = "Type system on server does not contain any data types.")]
+        public static partial void TypeSystemServerDoesNotContain(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.NodeCacheResolver + 1, Level = LogLevel.Warning,
+            Message = "Failed to load namespace {NamespaceNodeId}: {StatusCode}")]
+        public static partial void FailedLoadNamespaceNamespaceNodeIdStatusCode(
+            this ILogger logger,
+            ExpandedNodeId namespaceNodeId,
+            StatusCode statusCode);
+
+        [LoggerMessage(EventId = ClientEventIds.NodeCacheResolver + 2, Level = LogLevel.Error,
+            Message = "Dictionary load error for Dictionary {DitionaryId} : {ErrorMessage}")]
+        public static partial void DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
+            this ILogger logger,
+            ExpandedNodeId ditionaryId,
+            string errorMessage);
+
+        [LoggerMessage(EventId = ClientEventIds.NodeCacheResolver + 3, Level = LogLevel.Information,
+            Message = "LoadDataTypes returns {Count} nodes in {Duration}ms")]
+        public static partial void LoadDataTypesReturnsCountNodesDurationMs(
+            this ILogger logger,
+            int count,
+            long duration);
+    }
+
 }

@@ -85,15 +85,23 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             builder.Services.AddTransportBindingRegistry();
-            builder.Services.AddSingleton<ITransportBindingConfigurator>(
-                new TransportBindingConfigurator(registry =>
+            builder.Services.TryAddSingleton<BufferManagerFactoryOptions>();
+            builder.Services.TryAddSingleton<IBufferManagerFactory, DefaultBufferManagerFactory>();
+            builder.Services.AddSingleton<ITransportBindingConfigurator>(provider =>
+            {
+                IBufferManagerFactory bufferManagerFactory =
+                    provider.GetRequiredService<IBufferManagerFactory>();
+                return new TransportBindingConfigurator(registry =>
                 {
                     if (!registry.HasListenerFactory(Utils.UriSchemeOpcTcp))
                     {
-                        registry.RegisterListenerFactory(new TcpTransportListenerFactory());
+                        registry.RegisterListenerFactory(
+                            new TcpTransportListenerFactory(bufferManagerFactory));
                     }
-                    registry.RegisterChannelFactory(new TcpTransportChannelFactory());
-                }));
+                    registry.RegisterChannelFactory(
+                        new TcpTransportChannelFactory(bufferManagerFactory));
+                });
+            });
             return builder;
         }
 

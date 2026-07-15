@@ -181,7 +181,7 @@ namespace Opc.Ua.Lds.Server.Hosting
 
             foreach (string url in urls)
             {
-                m_logger.LogInformation("OPC UA LDS listening at {Endpoint}.", url);
+                m_logger.OpcUaLdsListening(url);
             }
 
             try
@@ -200,14 +200,14 @@ namespace Opc.Ua.Lds.Server.Hosting
 
             if (m_application != null)
             {
-                m_logger.LogInformation("Stopping OPC UA LDS...");
+                m_logger.StoppingOpcUaLds();
                 try
                 {
                     await m_application.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Error while stopping OPC UA LDS.");
+                    m_logger.ErrorWhileStoppingOpcUaLds(ex);
                 }
                 finally
                 {
@@ -248,5 +248,20 @@ namespace Opc.Ua.Lds.Server.Hosting
                 loopbackOnly: m_loopbackOnly,
                 logger: multicastLogger);
         }
+    }
+
+    internal static partial class LdsServerHostedServiceLog
+    {
+        [LoggerMessage(EventId = LdsServerEventIds.LdsServerHostedService + 0, Level = LogLevel.Information,
+            Message = "OPC UA LDS listening at {Endpoint}.")]
+        public static partial void OpcUaLdsListening(this ILogger logger, string endpoint);
+
+        [LoggerMessage(EventId = LdsServerEventIds.LdsServerHostedService + 1, Level = LogLevel.Information,
+            Message = "Stopping OPC UA LDS...")]
+        public static partial void StoppingOpcUaLds(this ILogger logger);
+
+        [LoggerMessage(EventId = LdsServerEventIds.LdsServerHostedService + 2, Level = LogLevel.Warning,
+            Message = "Error while stopping OPC UA LDS.")]
+        public static partial void ErrorWhileStoppingOpcUaLds(this ILogger logger, Exception ex);
     }
 }

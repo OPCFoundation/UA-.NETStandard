@@ -244,7 +244,7 @@ namespace Opc.Ua.Server
             lock (m_connectionsLock)
             {
                 m_connections[url] = reverseConnection;
-                m_logger.LogInformation("Reverse Connection added for EndpointUrl: {Url}.", url);
+                m_logger.ReverseConnectionAddedForEndpointUrlUrl(url);
 
                 StartTimer(false);
             }
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server
 
                 if (connectionRemoved)
                 {
-                    m_logger.LogInformation("Reverse Connection removed for EndpointUrl: {Url}.", url);
+                    m_logger.ReverseConnectionRemovedForEndpointUrlUrl(url);
                 }
 
                 if (m_connections.Count == 0)
@@ -331,8 +331,7 @@ namespace Opc.Ua.Server
                                     reverseConnection.Timeout > 0
                                         ? reverseConnection.Timeout
                                         : m_connectTimeout);
-                                m_logger.LogInformation(
-                                    "Create Connection! [{LastState}][{ClientUrl}]",
+                                m_logger.CreateConnectionLastStateClientUrl(
                                     reverseConnection.LastState,
                                     reverseConnection.ClientUrl);
                             }
@@ -340,8 +339,7 @@ namespace Opc.Ua.Server
                             {
                                 reverseConnection.LastState = ReverseConnectState.Errored;
                                 reverseConnection.ServiceResult = new ServiceResult(e);
-                                m_logger.LogError(
-                                    "Create Connection failed! [{LastState}][{ClientUrl}]",
+                                m_logger.CreateConnectionFailedLastStateClientUrl(
                                     reverseConnection.LastState,
                                     reverseConnection.ClientUrl);
                             }
@@ -351,7 +349,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "OnReverseConnect unexpected error");
+                m_logger.OnReverseConnectUnexpectedError(ex);
             }
             finally
             {
@@ -379,34 +377,24 @@ namespace Opc.Ua.Server
                         {
                             reverseConnection.LastState = ReverseConnectState.Rejected;
                             reverseConnection.RejectTime = TimeProvider.GetUtcNow().UtcDateTime;
-                            m_logger.LogWarning(
-                                "Client Rejected Connection! [{LastState}][{EndpointUrl}]",
+                            m_logger.ClientRejectedConnectionLastStateEndpointUrl(
                                 reverseConnection.LastState,
                                 e.EndpointUrl);
                             return;
                         }
                         reverseConnection.LastState = ReverseConnectState.Closed;
-                        m_logger.LogError(
-                            "Connection Error! [{LastState}][{EndpointUrl}]",
-                            reverseConnection.LastState,
-                            e.EndpointUrl);
+                        m_logger.ConnectionErrorLastStateEndpointUrl(reverseConnection.LastState, e.EndpointUrl);
 
                         return;
                     }
                     reverseConnection.LastState = e.Closed
                         ? ReverseConnectState.Closed
                         : ReverseConnectState.Connected;
-                    m_logger.LogInformation(
-                        "New Connection State! [{LastState}][{EndpointUrl}]",
-                        reverseConnection.LastState,
-                        e.EndpointUrl);
+                    m_logger.NewConnectionStateLastStateEndpointUrl(reverseConnection.LastState, e.EndpointUrl);
                 }
                 else
                 {
-                    m_logger.LogWarning(
-                        "Warning: Status changed for unknown reverse connection: [{ChannelStatus}][{EndpointUrl}]",
-                        e.ChannelStatus,
-                        e.EndpointUrl);
+                    m_logger.WarningStatusChangedForUnknownReverseConnection(e.ChannelStatus, e.EndpointUrl);
                 }
             }
 
@@ -503,9 +491,7 @@ namespace Opc.Ua.Server
                             {
                                 if (m_connections.ContainsKey(uri))
                                 {
-                                    m_logger.LogWarning(
-                                        "Warning: ServerConfiguration.ReverseConnect contains duplicate EndpointUrl: {Uri}.",
-                                        uri);
+                                    m_logger.WarningServerConfigurationReverseConnectContains(uri);
                                 }
                                 else
                                 {
@@ -515,9 +501,7 @@ namespace Opc.Ua.Server
                                         client.MaxSessionCount,
                                         true,
                                         client.Enabled);
-                                    m_logger.LogInformation(
-                                        "Reverse Connection added for EndpointUrl: {Uri}.",
-                                        uri);
+                                    m_logger.ReverseConnectionAddedForEndpointUrlUri(uri);
                                 }
                             }
                         }
@@ -533,4 +517,73 @@ namespace Opc.Ua.Server
         private readonly Dictionary<Uri, ReverseConnectProperty> m_connections;
         private readonly Lock m_connectionsLock = new();
     }
+
+    /// <summary>
+    /// Source-generated log messages for ReverseConnectServer.
+    /// </summary>
+    internal static partial class ReverseConnectServerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 0, Level = LogLevel.Information,
+            Message = "Reverse Connection added for EndpointUrl: {Url}.")]
+        public static partial void ReverseConnectionAddedForEndpointUrlUrl(this ILogger logger, Uri url);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 1, Level = LogLevel.Information,
+            Message = "Reverse Connection removed for EndpointUrl: {Url}.")]
+        public static partial void ReverseConnectionRemovedForEndpointUrlUrl(this ILogger logger, Uri url);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 2, Level = LogLevel.Information,
+            Message = "Create Connection! [{LastState}][{ClientUrl}]")]
+        public static partial void CreateConnectionLastStateClientUrl(
+            this ILogger logger,
+            ReverseConnectState lastState,
+            Uri clientUrl);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 3, Level = LogLevel.Error,
+            Message = "Create Connection failed! [{LastState}][{ClientUrl}]")]
+        public static partial void CreateConnectionFailedLastStateClientUrl(
+            this ILogger logger,
+            ReverseConnectState lastState,
+            Uri clientUrl);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 4, Level = LogLevel.Error,
+            Message = "OnReverseConnect unexpected error")]
+        public static partial void OnReverseConnectUnexpectedError(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 5, Level = LogLevel.Warning,
+            Message = "Client Rejected Connection! [{LastState}][{EndpointUrl}]")]
+        public static partial void ClientRejectedConnectionLastStateEndpointUrl(
+            this ILogger logger,
+            ReverseConnectState lastState,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 6, Level = LogLevel.Error,
+            Message = "Connection Error! [{LastState}][{EndpointUrl}]")]
+        public static partial void ConnectionErrorLastStateEndpointUrl(
+            this ILogger logger,
+            ReverseConnectState lastState,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 7, Level = LogLevel.Information,
+            Message = "New Connection State! [{LastState}][{EndpointUrl}]")]
+        public static partial void NewConnectionStateLastStateEndpointUrl(
+            this ILogger logger,
+            ReverseConnectState lastState,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 8, Level = LogLevel.Warning,
+            Message = "Status changed for unknown reverse connection: [{ChannelStatus}][{EndpointUrl}]")]
+        public static partial void WarningStatusChangedForUnknownReverseConnection(
+            this ILogger logger,
+            ServiceResult channelStatus,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 9, Level = LogLevel.Warning,
+            Message = "ServerConfiguration.ReverseConnect contains duplicate EndpointUrl: {Uri}.")]
+        public static partial void WarningServerConfigurationReverseConnectContains(this ILogger logger, Uri uri);
+
+        [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 10, Level = LogLevel.Information,
+            Message = "Reverse Connection added for EndpointUrl: {Uri}.")]
+        public static partial void ReverseConnectionAddedForEndpointUrlUri(this ILogger logger, Uri uri);
+    }
+
 }

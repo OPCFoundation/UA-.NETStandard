@@ -437,8 +437,7 @@ namespace Opc.Ua.PubSub.Application
                 connectionConfig.TransportProfileUri ?? string.Empty,
                 out IPubSubTransportFactory? factory))
             {
-                m_logger.LogWarning(
-                    "Skipping connection '{Name}' — no transport factory for {Profile}.",
+                m_logger.SkippingConnectionNoTransportFactory(
                     connectionConfig.Name,
                     connectionConfig.TransportProfileUri);
                 return null;
@@ -461,9 +460,7 @@ namespace Opc.Ua.PubSub.Application
                                 publishedDataSetName,
                                 out IPublishedDataSet? publishedDataSet))
                             {
-                                m_logger.LogWarning(
-                                    "DataSetWriter '{Writer}' references unknown " +
-                                    "PublishedDataSet '{Pds}'; skipping.",
+                                m_logger.DataSetWriterReferencesUnknownPublishedDataSet(
                                     writerConfig.Name,
                                     publishedDataSetName);
                                 continue;
@@ -654,8 +651,7 @@ namespace Opc.Ua.PubSub.Application
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex,
-                        "Failed to enable connection '{Name}'.", connection.Name);
+                    m_logger.FailedToEnableConnection(ex, connection.Name);
                 }
             }
             // Start the metadata publisher AFTER the
@@ -678,7 +674,7 @@ namespace Opc.Ua.PubSub.Application
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to start metadata publisher.");
+                m_logger.FailedToStartMetadataPublisher(ex);
                 await metaDataPublisher.DisposeAsync().ConfigureAwait(false);
             }
             if (State.TryMarkOperational())
@@ -716,7 +712,7 @@ namespace Opc.Ua.PubSub.Application
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Failed to dispose metadata publisher.");
+                    m_logger.FailedToDisposeMetadataPublisher(ex);
                 }
             }
             for (int i = connections.Length - 1; i >= 0; i--)
@@ -728,8 +724,7 @@ namespace Opc.Ua.PubSub.Application
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex,
-                        "Failed to disable connection '{Name}'.", connections[i].Name);
+                    m_logger.FailedToDisableConnection(ex, connections[i].Name);
                 }
             }
             _ = State.TryDisable();
@@ -739,7 +734,7 @@ namespace Opc.Ua.PubSub.Application
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to stop PubSub activation coordinator.");
+                m_logger.FailedToStopPubSubActivationCoordinator(ex);
             }
         }
 
@@ -1714,7 +1709,7 @@ namespace Opc.Ua.PubSub.Application
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to restore PubSub state for {ComponentId}.", componentId);
+                m_logger.FailedToRestorePubSubState(ex, componentId);
             }
         }
 
@@ -1733,7 +1728,7 @@ namespace Opc.Ua.PubSub.Application
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to restore PubSub state for {ComponentId}.", componentId);
+                m_logger.FailedToRestorePubSubState(ex, componentId);
             }
         }
 
@@ -1746,7 +1741,7 @@ namespace Opc.Ua.PubSub.Application
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to persist PubSub state for {ComponentId}.", componentId);
+                m_logger.FailedToPersistPubSubState(ex, componentId);
             }
         }
 
@@ -1908,10 +1903,7 @@ namespace Opc.Ua.PubSub.Application
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogDebug(
-                            ex,
-                            "Failed to dispose old connection '{Name}' during configuration replacement.",
-                            oldConnection.Name);
+                        m_logger.FailedToDisposeOldConnectionDuringConfigurationReplacement(ex, oldConnection.Name);
                     }
                 }
 
@@ -1935,9 +1927,7 @@ namespace Opc.Ua.PubSub.Application
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
-                        ex,
-                        "PubSubApplication ConfigurationChanged handler threw.");
+                    m_logger.PubSubApplicationConfigurationChangedHandlerThrew(ex);
                 }
 
                 return result;
@@ -1966,7 +1956,7 @@ namespace Opc.Ua.PubSub.Application
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to restore PubSub configuration version.");
+                m_logger.FailedToRestorePubSubConfigurationVersion(ex);
             }
 
             return fallback;
@@ -1983,7 +1973,7 @@ namespace Opc.Ua.PubSub.Application
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to persist initial PubSub configuration version.");
+                m_logger.FailedToPersistInitialPubSubConfigurationVersion(ex);
             }
         }
 
@@ -2061,9 +2051,8 @@ namespace Opc.Ua.PubSub.Application
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogWarning(
+                        m_logger.FailedToAnnounceWriterGroupConfigurationChange(
                             ex,
-                            "Failed to announce WriterGroup configuration change for {Connection}/{WriterGroup}.",
                             connectionName,
                             currentWriterGroup.Name);
                     }
@@ -2643,4 +2632,98 @@ namespace Opc.Ua.PubSub.Diagnostics
                 ?? [];
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for PubSubApplication.
+    /// </summary>
+    internal static partial class PubSubApplicationLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 0, Level = LogLevel.Warning,
+            Message = "Skipping connection '{Name}' — no transport factory for {Profile}.")]
+        public static partial void SkippingConnectionNoTransportFactory(
+            this ILogger logger,
+            string? name,
+            string? profile);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 1, Level = LogLevel.Warning,
+            Message = "DataSetWriter '{Writer}' references unknown PublishedDataSet '{Pds}'; skipping.")]
+        public static partial void DataSetWriterReferencesUnknownPublishedDataSet(
+            this ILogger logger,
+            string? writer,
+            string pds);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 2, Level = LogLevel.Error,
+            Message = "Failed to enable connection '{Name}'.")]
+        public static partial void FailedToEnableConnection(
+            this ILogger logger,
+            Exception exception,
+            string name);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 3, Level = LogLevel.Error,
+            Message = "Failed to start metadata publisher.")]
+        public static partial void FailedToStartMetadataPublisher(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 4, Level = LogLevel.Warning,
+            Message = "Failed to dispose metadata publisher.")]
+        public static partial void FailedToDisposeMetadataPublisher(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 5, Level = LogLevel.Error,
+            Message = "Failed to disable connection '{Name}'.")]
+        public static partial void FailedToDisableConnection(
+            this ILogger logger,
+            Exception exception,
+            string name);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 6, Level = LogLevel.Error,
+            Message = "Failed to stop PubSub activation coordinator.")]
+        public static partial void FailedToStopPubSubActivationCoordinator(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 7, Level = LogLevel.Debug,
+            Message = "Failed to restore PubSub state for {ComponentId}.")]
+        public static partial void FailedToRestorePubSubState(
+            this ILogger logger,
+            Exception exception,
+            string componentId);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 8, Level = LogLevel.Debug,
+            Message = "Failed to persist PubSub state for {ComponentId}.")]
+        public static partial void FailedToPersistPubSubState(
+            this ILogger logger,
+            Exception exception,
+            string componentId);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 9, Level = LogLevel.Debug,
+            Message = "Failed to dispose old connection '{Name}' during configuration replacement.")]
+        public static partial void FailedToDisposeOldConnectionDuringConfigurationReplacement(
+            this ILogger logger,
+            Exception exception,
+            string name);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 10, Level = LogLevel.Error,
+            Message = "PubSubApplication ConfigurationChanged handler threw.")]
+        public static partial void PubSubApplicationConfigurationChangedHandlerThrew(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 11, Level = LogLevel.Debug,
+            Message = "Failed to restore PubSub configuration version.")]
+        public static partial void FailedToRestorePubSubConfigurationVersion(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 12, Level = LogLevel.Debug,
+            Message = "Failed to persist initial PubSub configuration version.")]
+        public static partial void FailedToPersistInitialPubSubConfigurationVersion(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 13, Level = LogLevel.Warning,
+            Message = "Failed to announce WriterGroup configuration change for {Connection}/{WriterGroup}.")]
+        public static partial void FailedToAnnounceWriterGroupConfigurationChange(
+            this ILogger logger,
+            Exception exception,
+            string connection,
+            string? writerGroup);
+    }
+
 }

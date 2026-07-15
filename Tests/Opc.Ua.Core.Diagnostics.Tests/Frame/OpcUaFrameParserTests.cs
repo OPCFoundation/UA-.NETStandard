@@ -117,6 +117,7 @@ namespace Opc.Ua.Pcap.Tests.Frame
         public void InvalidMessageTypeLogsWarningAndResynchronizes()
         {
             var logger = new Mock<ILogger<OpcUaFrameParser>>();
+            logger.Setup(static x => x.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
             var parser = new OpcUaFrameParser(logger.Object);
             byte[] valid = PcapTestHelpers.BuildOpcUaChunk(TcpMessageType.MessageFinal, 4);
             byte[] invalid = new byte[12 + valid.Length];
@@ -131,8 +132,8 @@ namespace Opc.Ua.Pcap.Tests.Frame
             logger.Verify(
                 static x => x.Log(
                     LogLevel.Warning,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((value, _) => value.ToString()!.Contains("Skipped", StringComparison.Ordinal)),
+                    It.Is<EventId>(static e => e.Name == "SkippedBytesWhileResynchronizing"),
+                    It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception?>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.AtLeastOnce);

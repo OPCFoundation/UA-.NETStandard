@@ -372,7 +372,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                m_logger.LogError(exception, "Unexpected error connecting to LDS");
+                m_logger.UnexpectedErrorConnectingToLds(exception);
             }
             finally
             {
@@ -413,7 +413,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                m_logger.LogError(exception, "Unexpected error connecting to LDS");
+                m_logger.UnexpectedErrorConnectingToLds(exception);
             }
             finally
             {
@@ -476,7 +476,7 @@ namespace Opc.Ua.Gds.Client
                     e.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     lastException = e;
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    m_logger.FailedToConnect(e, attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
                         await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
@@ -511,7 +511,7 @@ namespace Opc.Ua.Gds.Client
                     e.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     lastException = e;
-                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
+                    m_logger.FailedToConnect(e, attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
                         await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
@@ -571,7 +571,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                m_logger.LogError(exception, "Subscriber threw in KeepAlive handler.");
+                m_logger.SubscriberThrewInKeepAliveHandler(exception);
             }
 
             if (!ServiceResult.IsBad(e.Status))
@@ -603,14 +603,14 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex, "Error during KeepAlive handling.");
+                    m_logger.ErrorDuringKeepAliveHandling(ex);
                 }
             });
         }
 
         private void Session_SessionClosing(object? sender, EventArgs e)
         {
-            m_logger.LogInformation("The GDS Client session is closing.");
+            m_logger.GdsClientSessionClosing();
         }
 
         /// <inheritdoc/>
@@ -948,7 +948,7 @@ namespace Opc.Ua.Gds.Client
                     MessageContext.Telemetry);
 
                 m_endpoint = Session.ConfiguredEndpoint;
-                m_logger.LogInformation("Connected to {EndpointUrl}.", EndpointUrl);
+                m_logger.ConnectedToEndpoint(EndpointUrl);
             }
             finally
             {
@@ -993,5 +993,35 @@ namespace Opc.Ua.Gds.Client
         private CertificateDirectoryTypeClient? m_certificateDirectory;
         private ConfiguredEndpoint? m_endpoint;
         private bool m_disposed;
+    }
+
+    internal static partial class GlobalDiscoveryServerClientLog
+    {
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GlobalDiscoveryServerClient + 0, Level = LogLevel.Error,
+            Message = "Unexpected error connecting to LDS")]
+        public static partial void UnexpectedErrorConnectingToLds(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GlobalDiscoveryServerClient + 1, Level = LogLevel.Error,
+            Message = "Error during KeepAlive handling.")]
+        public static partial void ErrorDuringKeepAliveHandling(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GlobalDiscoveryServerClient + 2, Level = LogLevel.Information,
+            Message = "The GDS Client session is closing.")]
+        public static partial void GdsClientSessionClosing(this ILogger logger);
+    }
+
+    internal static partial class GdsClientConnectionLog
+    {
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 0, Level = LogLevel.Error,
+            Message = "Failed to connect {Attempt}. Retrying...")]
+        public static partial void FailedToConnect(this ILogger logger, ServiceResultException e, int attempt);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 1, Level = LogLevel.Error,
+            Message = "Subscriber threw in KeepAlive handler.")]
+        public static partial void SubscriberThrewInKeepAliveHandler(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 2, Level = LogLevel.Information,
+            Message = "Connected to {EndpointUrl}.")]
+        public static partial void ConnectedToEndpoint(this ILogger logger, string? endpointUrl);
     }
 }

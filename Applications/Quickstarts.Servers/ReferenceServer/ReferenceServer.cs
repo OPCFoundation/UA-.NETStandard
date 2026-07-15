@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
+using Quickstarts.Servers;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -64,6 +66,7 @@ namespace Quickstarts.ReferenceServer
         public ReferenceServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
+            m_telemetry = telemetry;
             m_userDatabase = new LinqUserDatabase();
             m_userDatabase.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
             m_userDatabase.CreateUser("user1", "password"u8, [Role.AuthenticatedUser]);
@@ -144,18 +147,14 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation(
-                Utils.TraceMasks.StartStop,
-                "Creating the Reference Server Node Manager.");
+            m_logger.CreatingReferenceServerNodeManager();
 
             var nodeManagers = new List<INodeManager>();
             var asyncNodeManagers = new List<IAsyncNodeManager>();
 
             if (ProvisioningMode)
             {
-                m_logger.LogInformation(
-                    Utils.TraceMasks.StartStop,
-                    "Server is in provisioning mode - limited namespace enabled.");
+                m_logger.ProvisioningModeEnabled();
                 nodeManagers = [];
             }
             else
@@ -381,9 +380,9 @@ namespace Quickstarts.ReferenceServer
                 ManufacturerName = "OPC Foundation",
                 ProductName = "Quickstart Reference Server",
                 ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
-                SoftwareVersion = Utils.GetAssemblySoftwareVersion(),
-                BuildNumber = Utils.GetAssemblyBuildNumber(),
-                BuildDate = Utils.GetAssemblyTimestamp()
+                SoftwareVersion = Opc.Ua.Utils.GetAssemblySoftwareVersion(),
+                BuildNumber = Opc.Ua.Utils.GetAssemblyBuildNumber(),
+                BuildDate = Opc.Ua.Utils.GetAssemblyTimestamp()
             };
         }
 
@@ -418,7 +417,7 @@ namespace Quickstarts.ReferenceServer
         {
             base.OnServerStarting(configuration);
 
-            m_logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
+            m_logger.ServerStarting();
 
             // it is up to the application to decide how to validate user identity tokens.
             // this function creates validator for X509 identity tokens.
@@ -508,8 +507,50 @@ namespace Quickstarts.ReferenceServer
                         // Use the CertificateManager directly and validate against
                         // the Users trust list per call.
                         m_userCertificateValidator = CertificateManager;
+
+                        // Configure a dedicated review store for rejected X509 user
+                        // certificates so an operator can inspect a rejected user
+                        // certificate and, if legitimate, move it into the
+                        // TrustedUserCertificates store (the shared rejected store
+                        // mixes application and user certificates, which is awkward
+                        // when provisioning user identities for conformance testing).
+                        ConfigureRejectedUserCertificateStore(configuration.SecurityConfiguration);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Resolves the directory used to persist rejected X509 <b>user</b>
+        /// certificates for later review. It is created as a sibling of the
+        /// configured <c>TrustedUserCertificates</c> store (e.g.
+        /// <c>pki/rejectedUser</c> next to <c>pki/trustedUser</c>). Failures are
+        /// swallowed: an unavailable review store must never affect user
+        /// authentication.
+        /// </summary>
+        private void ConfigureRejectedUserCertificateStore(SecurityConfiguration security)
+        {
+            try
+            {
+                string? trustedUserPath = Opc.Ua.Utils.ReplaceSpecialFolderNames(
+                    security.TrustedUserCertificates?.StorePath);
+                if (string.IsNullOrEmpty(trustedUserPath))
+                {
+                    return;
+                }
+
+                string? parent = Path.GetDirectoryName(
+                    trustedUserPath!.TrimEnd(
+                        Path.DirectorySeparatorChar,
+                        Path.AltDirectorySeparatorChar));
+                if (!string.IsNullOrEmpty(parent))
+                {
+                    m_rejectedUserStorePath = Path.Combine(parent!, "rejectedUser");
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.FailedToConfigureRejectedUserStore(e);
             }
         }
 
@@ -529,7 +570,7 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty username is not accepted.");
             }
 
-            if (Utils.Utf8IsNullOrEmpty(password))
+            if (Opc.Ua.Utils.Utf8IsNullOrEmpty(password))
             {
                 // an empty password is not accepted.
                 throw ServiceResultException.Create(
@@ -572,7 +613,9 @@ namespace Quickstarts.ReferenceServer
         /// Verifies that a certificate user token is trusted.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
+        private async ValueTask VerifyX509IdentityTokenAsync(
+            X509IdentityTokenHandler x509TokenHandler,
+            CancellationToken ct)
         {
             var wireToken = (X509IdentityToken)x509TokenHandler.Token;
             using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
@@ -580,45 +623,27 @@ namespace Quickstarts.ReferenceServer
                 : Certificate.FromRawData(wireToken.CertificateData);
             try
             {
-                if (m_userCertificateValidator != null)
-                {
-                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
-                    // using scope extends past the await.
-#pragma warning disable CA2025
-                    Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
+                Opc.Ua.CertificateValidationResult userCertResult =
+                    await (m_userCertificateValidator ?? CertificateManager!)
                         .ValidateAsync(
                             userCertificate!,
                             TrustListIdentifier.Users,
-                            default)
-                        .GetAwaiter()
-                        .GetResult();
-#pragma warning restore CA2025
-                    if (!userCertResult.IsValid)
-                    {
-                        throw new ServiceResultException(userCertResult.StatusCode);
-                    }
-                }
-                else
+                            ct)
+                        .ConfigureAwait(false);
+                if (!userCertResult.IsValid)
                 {
-                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
-                    // using scope extends past the await.
-#pragma warning disable CA2025
-                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager!
-                        .ValidateAsync(
-                            userCertificate!,
-                            TrustListIdentifier.Users,
-                            default)
-                        .GetAwaiter()
-                        .GetResult();
-#pragma warning restore CA2025
-                    if (!fallbackCertResult.IsValid)
-                    {
-                        throw new ServiceResultException(fallbackCertResult.StatusCode);
-                    }
+                    throw new ServiceResultException(userCertResult.StatusCode);
                 }
             }
             catch (Exception e)
             {
+                // Persist the rejected user certificate to a dedicated review
+                // store so an operator can inspect it and, if legitimate, move it
+                // into the TrustedUserCertificates store. Best-effort: a review
+                // store write must never change the activation result.
+                await PersistRejectedUserCertificateAsync(userCertificate, ct)
+                    .ConfigureAwait(false);
+
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
                 if (e is ServiceResultException se &&
@@ -651,18 +676,48 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
+        /// <summary>
+        /// Best-effort persistence of a rejected X509 user certificate to the
+        /// dedicated review store configured by
+        /// <see cref="ConfigureRejectedUserCertificateStore"/>. Never throws:
+        /// any failure is logged and swallowed so it cannot influence the
+        /// authentication outcome.
+        /// </summary>
+        private async ValueTask PersistRejectedUserCertificateAsync(
+            Certificate? userCertificate,
+            CancellationToken ct)
+        {
+            if (userCertificate == null || string.IsNullOrEmpty(m_rejectedUserStorePath))
+            {
+                return;
+            }
+            try
+            {
+                await userCertificate.AddToStoreAsync(
+                    CertificateStoreType.Directory,
+                    m_rejectedUserStorePath!,
+                    password: null,
+                    m_telemetry,
+                    ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.FailedToPersistRejectedUserCertificate(e, m_rejectedUserStorePath);
+            }
+        }
+
         private IUserIdentity? VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
         {
             if (TokenValidator == null)
             {
-                m_logger.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
+                m_logger.NoTokenValidatorSpecified();
                 return null;
             }
             try
             {
                 if (issuedTokenHandler.IssuedTokenType == IssuedTokenType.JWT)
                 {
-                    m_logger.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
+                    m_logger.VerifyIssuedTokenValidateToken();
                     return TokenValidator.ValidateToken(issuedTokenHandler);
                 }
 
@@ -690,9 +745,7 @@ namespace Quickstarts.ReferenceServer
                         "token is rejected.");
                 }
 
-                m_logger.LogWarning(
-                    Utils.TraceMasks.Security,
-                    "VerifyIssuedToken: Throw ServiceResultException 0x{Result:x}", result);
+                m_logger.VerifyIssuedTokenThrowServiceResultException(result);
 
                 throw new ServiceResultException(
                     new ServiceResult(
@@ -716,28 +769,22 @@ namespace Quickstarts.ReferenceServer
         {
             ct.ThrowIfCancellationRequested();
             RoleBasedIdentity identity = VerifyPassword(userNameToken);
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Username Token Accepted: {Identity}",
-                identity.DisplayName);
+            m_logger.UsernameTokenAccepted(identity.DisplayName);
             return new ValueTask<IUserIdentity>(identity);
         }
 
-        private ValueTask<IUserIdentity> VerifyX509IdentityAsync(
+        private async ValueTask<IUserIdentity> VerifyX509IdentityAsync(
             X509IdentityTokenHandler x509Token,
             CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            VerifyX509IdentityToken(x509Token);
+            await VerifyX509IdentityTokenAsync(x509Token, ct).ConfigureAwait(false);
             var identity = new RoleBasedIdentity(
                 new UserIdentity(x509Token),
                 [Role.AuthenticatedUser],
                 ServerInternal.MessageContext.NamespaceUris);
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "X509 Token Accepted: {Identity}",
-                identity.DisplayName);
-            return new ValueTask<IUserIdentity>(identity);
+            m_logger.X509TokenAccepted(identity.DisplayName);
+            return identity;
         }
 
         private ValueTask<IUserIdentity?> VerifyJwtIdentityAsync(
@@ -765,7 +812,68 @@ namespace Quickstarts.ReferenceServer
         }
 
         private CertificateManager? m_userCertificateValidator;
+        private string? m_rejectedUserStorePath;
+        private readonly ITelemetryContext m_telemetry;
         private readonly LinqUserDatabase m_userDatabase;
         private readonly UserManagement m_userManagement;
     }
+
+    internal static partial class ReferenceServerLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 0, Level = LogLevel.Information,
+            Message = "Creating the Reference Server Node Manager.")]
+        public static partial void CreatingReferenceServerNodeManager(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 1, Level = LogLevel.Information,
+            Message = "Server is in provisioning mode - limited namespace enabled.")]
+        public static partial void ProvisioningModeEnabled(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 2, Level = LogLevel.Information,
+            Message = "The server is starting.")]
+        public static partial void ServerStarting(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 3, Level = LogLevel.Warning,
+            Message = "No TokenValidator is specified.")]
+        public static partial void NoTokenValidatorSpecified(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 4, Level = LogLevel.Debug,
+            Message = "VerifyIssuedToken: ValidateToken")]
+        public static partial void VerifyIssuedTokenValidateToken(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 5, Level = LogLevel.Warning,
+            Message = "VerifyIssuedToken: Throw ServiceResultException 0x{Result:x}")]
+        public static partial void VerifyIssuedTokenThrowServiceResultException(
+            this ILogger logger,
+            StatusCode result);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 6, Level = LogLevel.Information,
+            Message = "Username Token Accepted: {Identity}")]
+        public static partial void UsernameTokenAccepted(this ILogger logger, string identity);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 7, Level = LogLevel.Information,
+            Message = "X509 Token Accepted: {Identity}")]
+        public static partial void X509TokenAccepted(this ILogger logger, string identity);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 8, Level = LogLevel.Warning,
+            Message = "Failed to configure the rejected user certificate review store.")]
+        public static partial void FailedToConfigureRejectedUserStore(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 9, Level = LogLevel.Warning,
+            Message = "Failed to persist rejected user certificate to the review store '{Path}'.")]
+        public static partial void FailedToPersistRejectedUserCertificate(
+            this ILogger logger,
+            Exception exception,
+            string? path);
+    }
+
 }

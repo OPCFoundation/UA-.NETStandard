@@ -30,6 +30,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -172,11 +173,7 @@ namespace Opc.Ua.PubSub.Eth
                 }
                 m_isConnected = true;
             }
-            m_logger.LogInformation(
-                "Ethernet transport opened: connection='{Connection}' destination={Mac} direction={Direction}",
-                m_connection.Name,
-                m_endpoint.Address,
-                Direction);
+            m_logger.EthernetTransportOpened(m_connection.Name, m_endpoint.Address, Direction);
             WarnIfUnsecured();
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
@@ -212,9 +209,7 @@ namespace Opc.Ua.PubSub.Eth
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "Ethernet receive loop terminated with exception for connection '{Connection}'.",
-                        m_connection.Name);
+                    m_logger.EthernetReceiveLoopTerminatedWithException(ex, m_connection.Name);
                 }
             }
             channel?.Writer.TryComplete();
@@ -351,9 +346,7 @@ namespace Opc.Ua.PubSub.Eth
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex,
-                    "Ethernet receive loop failed for connection '{Connection}'.",
-                    m_connection.Name);
+                m_logger.EthernetReceiveLoopFailed(ex, m_connection.Name);
             }
         }
 
@@ -380,13 +373,7 @@ namespace Opc.Ua.PubSub.Eth
             {
                 return;
             }
-            m_logger.LogWarning(
-                "OPC UA PubSub Ethernet connection '{Connection}' has one or more groups configured with " +
-                "SecurityMode=None. The Ethernet (Layer 2) mapping provides NO transport-level authentication, " +
-                "integrity, or confidentiality: NetworkMessages are sent in clear and any node on the broadcast " +
-                "domain can read, inject, replay, or spoof them. Configure message-level security (SignAndEncrypt " +
-                "with a SecurityGroup / SKS) to protect the data.",
-                m_connection.Name);
+            m_logger.EthernetConnectionHasUnsecuredGroups(m_connection.Name);
         }
 
         private bool HasUnsecuredGroup()
@@ -450,4 +437,41 @@ namespace Opc.Ua.PubSub.Eth
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for EthernetDatagramTransport.
+    /// </summary>
+    internal static partial class EthernetDatagramTransportLog
+    {
+        [LoggerMessage(EventId = PubSubEthEventIds.EthernetDatagramTransport + 0, Level = LogLevel.Information,
+            Message = "Ethernet transport opened: connection='{Connection}' destination={Mac} direction={Direction}")]
+        public static partial void EthernetTransportOpened(
+            this ILogger logger,
+            string? connection,
+            PhysicalAddress mac,
+            PubSubTransportDirection direction);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.EthernetDatagramTransport + 1, Level = LogLevel.Debug,
+            Message = "Ethernet receive loop terminated with exception for connection '{Connection}'.")]
+        public static partial void EthernetReceiveLoopTerminatedWithException(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.EthernetDatagramTransport + 2, Level = LogLevel.Debug,
+            Message = "Ethernet receive loop failed for connection '{Connection}'.")]
+        public static partial void EthernetReceiveLoopFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.EthernetDatagramTransport + 3, Level = LogLevel.Warning,
+            Message = "OPC UA PubSub Ethernet connection '{Connection}' has one or more groups configured with " +
+                "SecurityMode=None. The Ethernet (Layer 2) mapping provides NO transport-level authentication, " +
+                "integrity, or confidentiality: NetworkMessages are sent in clear and any node on the broadcast " +
+                "domain can read, inject, replay, or spoof them. Configure message-level security (SignAndEncrypt " +
+                "with a SecurityGroup / SKS) to protect the data.")]
+        public static partial void EthernetConnectionHasUnsecuredGroups(this ILogger logger, string? connection);
+    }
+
 }

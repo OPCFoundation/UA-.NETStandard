@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ReferenceServerHelpersEnableRequestedBehaviors()
         {
-            var server = new ReferenceServer(NUnitTelemetryContext.Create());
+            using var server = new ReferenceServer(NUnitTelemetryContext.Create());
 
             Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server);
             Quickstarts.Servers.Utils.EnableProvisioningMode(server);

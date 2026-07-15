@@ -266,6 +266,286 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task ReadRawWithEqualTimesReturnsExactValueAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("equal.var", NamespaceIndex);
+            provider.Register(nodeId);
+
+            HistorianOperationContext context = CreateContext();
+            DateTime requestedTime = BaseTime.AddSeconds(20);
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    MakeValue(BaseTime.AddSeconds(10), 1.0),
+                    MakeValue(requestedTime, 2.0),
+                    MakeValue(BaseTime.AddSeconds(30), 3.0)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = requestedTime,
+                    EndTime = requestedTime,
+                    MaxValues = 0,
+                    IsForward = true,
+                    ReturnBounds = false
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(1));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(requestedTime));
+            Assert.That(page.IsFinal, Is.True);
+        }
+
+        [TestCase(0, 2)]
+        [TestCase(1, 1)]
+        [TestCase(2, 2)]
+        public async Task ReadRawEqualExactWithBoundsReturnsNextValueUnlessMaximumIsOneAsync(
+            int maxValues,
+            int expectedCount)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId($"equal-bounds-{maxValues}", NamespaceIndex);
+            provider.Register(nodeId);
+
+            HistorianOperationContext context = CreateContext();
+            DateTime requestedTime = BaseTime.AddSeconds(20);
+            DateTime nextTime = BaseTime.AddSeconds(30);
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    MakeValue(BaseTime.AddSeconds(10), 1.0),
+                    MakeValue(requestedTime, 2.0),
+                    MakeValue(nextTime, 3.0)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = requestedTime,
+                    EndTime = requestedTime,
+                    MaxValues = (uint)maxValues,
+                    IsForward = true,
+                    ReturnBounds = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(expectedCount));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(requestedTime));
+            if (expectedCount == 2)
+            {
+                Assert.That(page.Values[1].Value.SourceTimestamp, Is.EqualTo(nextTime));
+                Assert.That(page.Values[1].IsBound, Is.True);
+            }
+            Assert.That(page.IsFinal, Is.True);
+        }
+
+        [Test]
+        public async Task ReadRawBoundsCountTowardsMaximumAndContinueOnNextPageAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("bounded-page.var", NamespaceIndex);
+            provider.Register(nodeId);
+
+            HistorianOperationContext context = CreateContext();
+            var values = new List<DataValue>();
+            for (int i = 0; i < 6; i++)
+            {
+                values.Add(MakeValue(BaseTime.AddSeconds(i), i));
+            }
+            await provider.InsertAsync(context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
+
+            var request = new HistorianRawReadRequest
+            {
+                NodeId = nodeId,
+                StartTime = BaseTime,
+                EndTime = BaseTime.AddSeconds(4).AddMilliseconds(3),
+                MaxValues = 5,
+                IsForward = true,
+                ReturnBounds = true
+            };
+
+            HistorianPage<HistoricalDataValue> first = await provider.ReadRawAsync(
+                context, request, default, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(first.Values, Has.Count.EqualTo(5));
+            Assert.That(first.Values[0].Value.SourceTimestamp, Is.EqualTo(BaseTime));
+            Assert.That(first.Values[^1].Value.SourceTimestamp, Is.EqualTo(BaseTime.AddSeconds(4)));
+            Assert.That(first.IsFinal, Is.False);
+
+            HistorianPage<HistoricalDataValue> second = await provider.ReadRawAsync(
+                context, request, first.NextToken, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(second.Values, Has.Count.EqualTo(1));
+            Assert.That(second.Values[0].Value.SourceTimestamp, Is.EqualTo(BaseTime.AddSeconds(5)));
+            Assert.That(second.Values[0].IsBound, Is.True);
+            Assert.That(second.IsFinal, Is.True);
+        }
+
+        [Test]
+        public async Task ReadRawMissingBoundsReturnsBadBoundNotFoundAtRequestedTimesAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("missing-bounds.var", NamespaceIndex);
+            provider.Register(nodeId);
+
+            HistorianOperationContext context = CreateContext();
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    MakeValue(BaseTime.AddSeconds(10), 1.0),
+                    MakeValue(BaseTime.AddSeconds(20), 2.0)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            DateTime startTime = BaseTime;
+            DateTime endTime = BaseTime.AddSeconds(30);
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    MaxValues = 0,
+                    IsForward = true,
+                    ReturnBounds = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(4));
+            Assert.That(page.Values[0].Value.StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(startTime));
+            Assert.That(page.Values[^1].Value.StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+            Assert.That(page.Values[^1].Value.SourceTimestamp, Is.EqualTo(endTime));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ReadRawOneSidedRequestReturnsRequestedCountWithoutContinuationAsync(bool isForward)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId($"one-sided-{isForward}", NamespaceIndex);
+            provider.Register(nodeId);
+
+            HistorianOperationContext context = CreateContext();
+            var values = new List<DataValue>();
+            for (int i = 0; i < 10; i++)
+            {
+                values.Add(MakeValue(BaseTime.AddSeconds(i), i));
+            }
+            await provider.InsertAsync(context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = isForward ? BaseTime.AddSeconds(2) : DateTimeUtc.MinValue,
+                    EndTime = isForward ? DateTimeUtc.MaxValue : BaseTime.AddSeconds(7),
+                    MaxValues = 5,
+                    IsForward = isForward,
+                    ReturnBounds = false
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(5));
+            Assert.That(page.Values[0].Value.SourceTimestamp,
+                Is.EqualTo(isForward ? BaseTime.AddSeconds(2) : BaseTime.AddSeconds(7)));
+            Assert.That(page.Values[^1].Value.SourceTimestamp,
+                Is.EqualTo(isForward ? BaseTime.AddSeconds(6) : BaseTime.AddSeconds(3)));
+            Assert.That(page.IsFinal, Is.True);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ReadRawOneSidedBoundsAddMissingBoundaryWhenArchiveIsExhaustedAsync(bool isForward)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId($"one-sided-missing-{isForward}", NamespaceIndex);
+            provider.Register(nodeId);
+
+            HistorianOperationContext context = CreateContext();
+            var values = new List<DataValue>();
+            for (int i = 0; i < 3; i++)
+            {
+                values.Add(MakeValue(BaseTime.AddSeconds(i), i));
+            }
+            await provider.InsertAsync(context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = isForward ? BaseTime : DateTimeUtc.MinValue,
+                    EndTime = isForward ? DateTimeUtc.MaxValue : BaseTime.AddSeconds(2),
+                    MaxValues = 5,
+                    IsForward = isForward,
+                    ReturnBounds = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(4));
+            Assert.That(page.Values[0].Value.SourceTimestamp,
+                Is.EqualTo(isForward ? BaseTime : BaseTime.AddSeconds(2)));
+            Assert.That(page.Values[^1].Value.StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+            Assert.That(page.Values[^1].Value.SourceTimestamp,
+                Is.EqualTo(isForward ? BaseTime.AddSeconds(3) : BaseTime.AddSeconds(-1)));
+            Assert.That(page.IsFinal, Is.True);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ReadRawOneSidedBoundsStopAtRequestedMaximumWithoutContinuationAsync(bool isForward)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId($"one-sided-bounds-max-{isForward}", NamespaceIndex);
+            provider.Register(nodeId);
+
+            HistorianOperationContext context = CreateContext();
+            var values = new List<DataValue>();
+            for (int i = 0; i < 10; i++)
+            {
+                values.Add(MakeValue(BaseTime.AddSeconds(i), i));
+            }
+            await provider.InsertAsync(context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = isForward ? BaseTime.AddSeconds(2) : DateTimeUtc.MinValue,
+                    EndTime = isForward ? DateTimeUtc.MaxValue : BaseTime.AddSeconds(7),
+                    MaxValues = 5,
+                    IsForward = isForward,
+                    ReturnBounds = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(5));
+            Assert.That(page.Values[^1].Value.StatusCode, Is.Not.EqualTo(StatusCodes.BadBoundNotFound));
+            Assert.That(page.IsFinal, Is.True);
+        }
+
+        [Test]
         public async Task AnnotationLifecycleAsync()
         {
             using var provider = new InMemoryHistorianProvider();

@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Transcoding
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "PubSub transcoding hot reload failed.");
+                m_logger.PubSubTranscodingHotReloadFailed(ex);
             }
             finally
             {
@@ -196,8 +196,7 @@ namespace Opc.Ua.PubSub.Transcoding
                     {
                         if (string.IsNullOrEmpty(route.Name))
                         {
-                            m_logger.LogWarning(
-                                "Ignoring a transcoding route with no Name.");
+                            m_logger.IgnoringTranscodingRouteWithNoName();
                             continue;
                         }
                         desired[route.Name!] = route;
@@ -236,13 +235,11 @@ namespace Opc.Ua.PubSub.Transcoding
                         PubSubTranscodingBridge bridge = activator.Create(descriptor);
                         bridge.Start();
                         m_active[name] = new ActiveRoute(signature, bridge);
-                        m_logger.LogInformation(
-                            "Transcoding route '{Route}' configured.", name);
+                        m_logger.TranscodingRouteConfigured(name);
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex,
-                            "Failed to configure transcoding route '{Route}'.", name);
+                        m_logger.FailedToConfigureTranscodingRoute(ex, name);
                     }
                 }
             }
@@ -258,7 +255,7 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 m_active.Remove(name);
                 await route.Bridge.DisposeAsync().ConfigureAwait(false);
-                m_logger.LogInformation("Transcoding route '{Route}' removed.", name);
+                m_logger.TranscodingRouteRemoved(name);
             }
         }
 
@@ -303,4 +300,34 @@ namespace Opc.Ua.PubSub.Transcoding
             string Signature,
             PubSubTranscodingBridge Bridge);
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubTranscodingReloadCoordinator"/>.
+    /// </summary>
+    internal static partial class PubSubTranscodingReloadCoordinatorLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscodingReloadCoordinator + 0, Level = LogLevel.Error,
+            Message = "PubSub transcoding hot reload failed.")]
+        public static partial void PubSubTranscodingHotReloadFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscodingReloadCoordinator + 1, Level = LogLevel.Warning,
+            Message = "Ignoring a transcoding route with no Name.")]
+        public static partial void IgnoringTranscodingRouteWithNoName(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscodingReloadCoordinator + 2, Level = LogLevel.Information,
+            Message = "Transcoding route '{Route}' configured.")]
+        public static partial void TranscodingRouteConfigured(this ILogger logger, string route);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscodingReloadCoordinator + 3, Level = LogLevel.Error,
+            Message = "Failed to configure transcoding route '{Route}'.")]
+        public static partial void FailedToConfigureTranscodingRoute(
+            this ILogger logger,
+            Exception exception,
+            string route);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubTranscodingReloadCoordinator + 4, Level = LogLevel.Information,
+            Message = "Transcoding route '{Route}' removed.")]
+        public static partial void TranscodingRouteRemoved(this ILogger logger, string route);
+    }
+
 }
