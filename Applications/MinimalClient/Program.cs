@@ -72,6 +72,8 @@ namespace MinimalClient
             Console.WriteLine();
 
             // Create application configuration
+            // Note: The ITelemetryContext is provided by the DI container via AddOpcUa(),
+            // so ApplicationConfiguration doesn't need it passed explicitly.
             ApplicationConfiguration config = new ApplicationConfiguration
             {
                 ApplicationName = "MinimalClient",
@@ -115,7 +117,6 @@ namespace MinimalClient
                     options.Configuration = config;
                     options.Session = new ManagedSessionOptions
                     {
-                        Endpoint = configuredEndpoint,
                         SessionName = "MinimalClient",
                         SessionTimeout = TimeSpan.FromSeconds(60),
                     };
