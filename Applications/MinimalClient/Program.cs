@@ -71,7 +71,7 @@ namespace MinimalClient
             Console.WriteLine($"Connecting to: {endpointUrl}");
             Console.WriteLine();
 
-            // Create application configuration
+            // Create application configuration (without telemetry - DI container manages it)
             ApplicationConfiguration config = new ApplicationConfiguration
             {
                 ApplicationName = "MinimalClient",
