@@ -160,8 +160,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 m_loopTask = Task.Run(() => ReceiveLoop(loopToken), CancellationToken.None);
                 m_isOpen = true;
             }
-            m_logger.LogInformation(
-                "BPF Ethernet channel opened on interface '{Interface}'.", m_interfaceName);
+            m_logger.BpfEthernetChannelOpened(m_interfaceName);
             return default;
         }
 
@@ -350,7 +349,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                     Buffer.BlockCopy(buffer, dataStart, frame, 0, caplen);
                     if (!channel.Writer.TryWrite(frame))
                     {
-                        m_logger.LogTrace("BPF receive queue full; frame dropped.");
+                        m_logger.BpfReceiveQueueFull();
                     }
                 }
                 offset = WordAlign(hdrlen + caplen) + offset;
@@ -411,4 +410,19 @@ namespace Opc.Ua.PubSub.Eth.Channels
         }
 #pragma warning restore SYSLIB1054
     }
+
+    /// <summary>
+    /// Source-generated log messages for BpfEthernetFrameChannel.
+    /// </summary>
+    internal static partial class BpfEthernetFrameChannelLog
+    {
+        [LoggerMessage(EventId = PubSubEthEventIds.BpfEthernetFrameChannel + 0, Level = LogLevel.Information,
+            Message = "BPF Ethernet channel opened on interface '{Interface}'.")]
+        public static partial void BpfEthernetChannelOpened(this ILogger logger, string @interface);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.BpfEthernetFrameChannel + 1,
+            Level = LogLevel.Trace, Message = "BPF receive queue full; frame dropped.")]
+        public static partial void BpfReceiveQueueFull(this ILogger logger);
+    }
+
 }

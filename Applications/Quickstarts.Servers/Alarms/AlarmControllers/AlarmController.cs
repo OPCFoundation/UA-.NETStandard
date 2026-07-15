@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Quickstarts.Servers;
 
 namespace Alarms
 {
@@ -74,7 +75,7 @@ namespace Alarms
         {
             Stop();
 
-            m_logger.LogInformation("Start the Alarms for {Duration} seconds!", seconds);
+            m_logger.StartAlarms(seconds);
 
             m_validLastMaxValue = false;
 
@@ -86,7 +87,7 @@ namespace Alarms
 
         public virtual void Stop()
         {
-            m_logger.LogInformation("Stop the Alarms!");
+            m_logger.StopAlarms();
 
             m_value = m_midpoint;
             m_increment = true;
@@ -104,7 +105,7 @@ namespace Alarms
                 bool boolValue = false;
                 GetValue(ref value, ref boolValue);
 
-                m_logger.LogInformation("AlarmController Update Value = {Value}", value);
+                m_logger.UpdateValue(value);
 
                 if (m_isBoolean)
                 {
@@ -141,9 +142,7 @@ namespace Alarms
                 }
                 else
                 {
-                    m_logger.LogError(
-                        "AlarmController Received out of range manual write of {Value}",
-                        value);
+                    m_logger.OutOfRangeManualWrite(potentialWrite);
                 }
             }
             else if ((bool)value)
@@ -212,10 +211,7 @@ namespace Alarms
                 {
                     if (m_validLastMaxValue)
                     {
-                        m_logger.LogInformation(
-                            "Cycle Time {CycleTime} Interval {Interval}",
-                            DateTime.Now - m_lastMaxValue,
-                            m_interval);
+                        m_logger.CycleTime(DateTime.Now - m_lastMaxValue, m_interval);
                     }
                     m_lastMaxValue = DateTime.Now;
                     m_validLastMaxValue = true;
@@ -296,10 +292,7 @@ namespace Alarms
             double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) +
                 verticalShift;
 
-            m_logger.LogTrace(
-                " Phase {Phase:0.00} Value {Value} Sine {Sine:0.00}" +
-                " Offset Value {OffsetValue:0.00} Span {NormalSpan:0.00}" +
-                " Percentage of Range {PercentageOfRange:0.00}",
+            m_logger.CalculatedSine(
                 phase,
                 value,
                 calculated,
@@ -332,4 +325,47 @@ namespace Alarms
         {
         }
     }
+
+    internal static partial class AlarmControllerLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmController + 0, Level = LogLevel.Information,
+            Message = "Start the Alarms for {Duration} seconds!")]
+        public static partial void StartAlarms(this ILogger logger, uint duration);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmController + 1, Level = LogLevel.Information,
+            Message = "Stop the Alarms!")]
+        public static partial void StopAlarms(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmController + 2, Level = LogLevel.Information,
+            Message = "AlarmController Update Value = {Value}")]
+        public static partial void UpdateValue(this ILogger logger, int value);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmController + 3, Level = LogLevel.Error,
+            Message = "AlarmController Received out of range manual write of {Value}")]
+        public static partial void OutOfRangeManualWrite(this ILogger logger, int value);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmController + 4, Level = LogLevel.Information,
+            Message = "Cycle Time {CycleTime} Interval {Interval}")]
+        public static partial void CycleTime(this ILogger logger, TimeSpan cycleTime, int interval);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmController + 5, Level = LogLevel.Trace,
+            Message = " Phase {Phase:0.00} Value {Value} Sine {Sine:0.00}" +
+                " Offset Value {OffsetValue:0.00} Span {NormalSpan:0.00}" +
+                " Percentage of Range {PercentageOfRange:0.00}")]
+        public static partial void CalculatedSine(
+            this ILogger logger,
+            double phase,
+            int value,
+            double sine,
+            double offsetValue,
+            double normalSpan,
+            double percentageOfRange);
+    }
+
 }

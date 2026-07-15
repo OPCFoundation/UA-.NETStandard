@@ -103,7 +103,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to store subscriptions");
+                m_logger.FailedToStoreSubscriptions(ex);
             }
             return false;
         }
@@ -146,7 +146,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to restore subscriptions");
+                m_logger.FailedToRestoreSubscriptions(ex);
             }
 
             return new RestoreSubscriptionResult(false, null);
@@ -198,7 +198,7 @@ namespace Quickstarts.Servers
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Failed to cleanup files for stored subscsription");
+                    m_logger.FailedToCleanupStoredSubscriptionFiles(ex);
                 }
             }
             // remove old batches & queues
@@ -386,4 +386,23 @@ namespace Quickstarts.Servers
             return item;
         }
     }
+
+    internal static partial class SubscriptionStoreLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.SubscriptionStore + 0, Level = LogLevel.Warning,
+            Message = "Failed to store subscriptions")]
+        public static partial void FailedToStoreSubscriptions(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.SubscriptionStore + 1, Level = LogLevel.Warning,
+            Message = "Failed to restore subscriptions")]
+        public static partial void FailedToRestoreSubscriptions(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.SubscriptionStore + 2, Level = LogLevel.Warning,
+            Message = "Failed to cleanup files for stored subscsription")]
+        public static partial void FailedToCleanupStoredSubscriptionFiles(this ILogger logger, Exception exception);
+    }
+
 }

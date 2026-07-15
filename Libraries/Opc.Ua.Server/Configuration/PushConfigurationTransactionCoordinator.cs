@@ -191,9 +191,8 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception disposeException)
                     {
-                        m_logger.LogWarning(
+                        m_logger.FailedToReleaseSupersededStagedOperation(
                             disposeException,
-                            "Failed to release a superseded staged PushManagement operation for {CertificateGroup}.",
                             existing.AffectedCertificateGroup);
                     }
                 }
@@ -385,10 +384,8 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception rollbackException)
                         {
-                            m_logger.LogCritical(
+                            m_logger.FailedToRollBackStagedOperation(
                                 rollbackException,
-                                "Failed to roll back a staged PushManagement operation for {CertificateGroup}/{TrustList}. " +
-                                "Server configuration may be inconsistent.",
                                 operation.AffectedCertificateGroup,
                                 operation.AffectedTrustList);
                             errors.Add(new TransactionErrorType
@@ -413,9 +410,8 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception disposeException)
                     {
-                        m_logger.LogWarning(
+                        m_logger.FailedToReleaseStagedResources(
                             disposeException,
-                            "Failed to release staged PushManagement resources for {CertificateGroup}/{TrustList}.",
                             operation.AffectedCertificateGroup,
                             operation.AffectedTrustList);
                     }
@@ -675,9 +671,8 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception disposeException)
                 {
-                    m_logger.LogWarning(
+                    m_logger.FailedToReleaseStagedResources(
                         disposeException,
-                        "Failed to release staged PushManagement resources for {CertificateGroup}/{TrustList}.",
                         operation.AffectedCertificateGroup,
                         operation.AffectedTrustList);
                 }
@@ -725,5 +720,35 @@ namespace Opc.Ua.Server
         private ArrayOf<NodeId> m_lastAffectedCertificateGroups;
         private ArrayOf<NodeId> m_lastAffectedTrustLists;
         private ArrayOf<TransactionErrorType> m_lastErrors;
+    }
+
+    internal static partial class PushConfigurationTransactionCoordinatorLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTransactionCoordinator + 0,
+            Level = LogLevel.Warning,
+            Message = "Failed to release a superseded staged PushManagement operation for {CertificateGroup}.")]
+        public static partial void FailedToReleaseSupersededStagedOperation(
+            this ILogger logger,
+            Exception ex,
+            NodeId certificateGroup);
+
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTransactionCoordinator + 1,
+            Level = LogLevel.Critical,
+            Message = "Failed to roll back a staged PushManagement operation for {CertificateGroup}/{TrustList}. " +
+                "Server configuration may be inconsistent.")]
+        public static partial void FailedToRollBackStagedOperation(
+            this ILogger logger,
+            Exception ex,
+            NodeId certificateGroup,
+            NodeId trustList);
+
+        [LoggerMessage(EventId = ServerEventIds.PushConfigurationTransactionCoordinator + 2,
+            Level = LogLevel.Warning,
+            Message = "Failed to release staged PushManagement resources for {CertificateGroup}/{TrustList}.")]
+        public static partial void FailedToReleaseStagedResources(
+            this ILogger logger,
+            Exception ex,
+            NodeId certificateGroup,
+            NodeId trustList);
     }
 }

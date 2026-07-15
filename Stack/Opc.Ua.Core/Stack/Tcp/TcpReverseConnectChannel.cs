@@ -141,7 +141,7 @@ namespace Opc.Ua.Bindings
                     // check for reverse hello.
                     if (messageType == TcpMessageType.ReverseHello)
                     {
-                        m_logger.LogInformation("ChannelId {Id}: ProcessReverseHelloMessage", ChannelId);
+                        m_logger.TcpReverseConnectChannelLogMessage0(ChannelId);
                         return ProcessReverseHelloMessage(messageType, messageChunk);
                     }
 
@@ -225,4 +225,15 @@ namespace Opc.Ua.Bindings
 
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for TcpReverseConnectChannel.
+    /// </summary>
+    internal static partial class TcpReverseConnectChannelLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.TcpReverseConnectChannel + 0, Level = LogLevel.Information,
+            Message = "ChannelId {Id}: ProcessReverseHelloMessage")]
+        public static partial void TcpReverseConnectChannelLogMessage0(this ILogger logger, uint id);
+    }
+
 }

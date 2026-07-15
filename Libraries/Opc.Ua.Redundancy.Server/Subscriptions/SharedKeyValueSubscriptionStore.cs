@@ -466,8 +466,7 @@ namespace Opc.Ua.Redundancy.Server
 
             if (Interlocked.Exchange(ref m_overflowWarningWritten, 1) == 0)
             {
-                m_logger?.LogWarning(
-                    "The shared-state mirror channel is full; updates are coalesced until the drain catches up.");
+                m_logger?.SharedStateMirrorChannelFull();
             }
         }
 
@@ -506,7 +505,7 @@ namespace Opc.Ua.Redundancy.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogWarning(ex, "Failed to mirror subscription retransmission state.");
+                        m_logger?.FailedToMirrorSubscriptionRetransmissionState(ex);
                         command.Completion?.SetException(ex);
                     }
                 }
@@ -1263,4 +1262,23 @@ namespace Opc.Ua.Redundancy.Server
             public TaskCompletionSource<bool>? Completion { get; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SharedKeyValueSubscriptionStore"/>.
+    /// </summary>
+    internal static partial class SharedKeyValueSubscriptionStoreLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 0,
+            Level = LogLevel.Warning,
+            Message = "The shared-state mirror channel is full; updates are coalesced until the drain catches up.")]
+        public static partial void SharedStateMirrorChannelFull(this ILogger logger);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 1,
+            Level = LogLevel.Warning,
+            Message = "Failed to mirror subscription retransmission state.")]
+        public static partial void FailedToMirrorSubscriptionRetransmissionState(
+            this ILogger logger,
+            Exception exception);
+    }
+
 }

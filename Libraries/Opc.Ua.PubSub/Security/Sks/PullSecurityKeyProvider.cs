@@ -211,10 +211,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             catch (OpcUaSksException ex)
             {
-                m_logger.LogDebug(
-                    ex,
-                    "Opportunistic SKS refresh for TokenId {TokenId} failed.",
-                    tokenId);
+                m_logger.OpportunisticSksRefreshFailed(ex, tokenId);
                 return null;
             }
             return Ring.TryGetByTokenId(tokenId);
@@ -250,9 +247,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(
-                        ex,
-                        "Background SKS refresh loop terminated with exception.");
+                    m_logger.BackgroundSksRefreshLoopTerminated(ex);
                 }
             }
             Ring.Rotated -= OnRingRotated;
@@ -276,9 +271,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to compute next SKS refresh delay; falling back to ReconnectDelay.");
+                    m_logger.FailedToComputeNextSksRefreshDelay(ex);
                     delay = m_options.ReconnectDelay;
                 }
                 if (delay <= TimeSpan.Zero)
@@ -305,9 +298,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 if (failures >= m_options.MaxConsecutiveFailures && m_options.MaxConsecutiveFailures > 0)
                 {
-                    m_logger.LogWarning(
-                        "Background SKS refresh paused after {Failures} consecutive failures.",
-                        failures);
+                    m_logger.BackgroundSksRefreshPaused(failures);
                     return;
                 }
 
@@ -321,10 +312,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Background SKS refresh failed for SecurityGroupId {GroupId}.",
-                        SecurityGroupId);
+                    m_logger.BackgroundSksRefreshFailed(ex, SecurityGroupId);
                 }
             }
         }
@@ -416,9 +404,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             ArrayOf<PubSubSecurityKey> keys = response.Unpack(m_timeProvider);
             if (keys.Count == 0)
             {
-                m_logger.LogDebug(
-                    "SKS response for SecurityGroupId {GroupId} contained no usable keys.",
-                    SecurityGroupId);
+                m_logger.SksResponseContainedNoUsableKeys(SecurityGroupId);
                 return;
             }
 
@@ -475,4 +461,41 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PullSecurityKeyProvider"/>.
+    /// </summary>
+    internal static partial class PullSecurityKeyProviderLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 0, Level = LogLevel.Debug,
+            Message = "Opportunistic SKS refresh for TokenId {TokenId} failed.")]
+        public static partial void OpportunisticSksRefreshFailed(
+            this ILogger logger,
+            Exception exception,
+            uint tokenId);
+
+        [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 1, Level = LogLevel.Debug,
+            Message = "Background SKS refresh loop terminated with exception.")]
+        public static partial void BackgroundSksRefreshLoopTerminated(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 2, Level = LogLevel.Warning,
+            Message = "Failed to compute next SKS refresh delay; falling back to ReconnectDelay.")]
+        public static partial void FailedToComputeNextSksRefreshDelay(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 3, Level = LogLevel.Warning,
+            Message = "Background SKS refresh paused after {Failures} consecutive failures.")]
+        public static partial void BackgroundSksRefreshPaused(this ILogger logger, int failures);
+
+        [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 4, Level = LogLevel.Warning,
+            Message = "Background SKS refresh failed for SecurityGroupId {GroupId}.")]
+        public static partial void BackgroundSksRefreshFailed(
+            this ILogger logger,
+            Exception exception,
+            string groupId);
+
+        [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 5, Level = LogLevel.Debug,
+            Message = "SKS response for SecurityGroupId {GroupId} contained no usable keys.")]
+        public static partial void SksResponseContainedNoUsableKeys(this ILogger logger, string groupId);
+    }
+
 }

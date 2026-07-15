@@ -186,7 +186,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to load the custom type {NodeId}.", nodeId);
+                m_logger.FailedToLoadCustomType(ex, nodeId);
                 if (throwOnError)
                 {
                     throw;
@@ -256,7 +256,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to load the custom type namespace {Namespace}.", ns);
+                m_logger.FailedToLoadCustomTypeNamespace(ex, ns);
                 if (throwOnError)
                 {
                     throw;
@@ -335,7 +335,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to load the custom types.");
+                m_logger.FailedToLoadCustomTypes(ex);
                 if (throwOnError)
                 {
                     throw;
@@ -559,10 +559,7 @@ namespace Opc.Ua
                                     .Key;
                                 if (nodeId.IsNull)
                                 {
-                                    m_logger.LogError(
-                                        Utils.TraceMasks.Error,
-                                        "Skip the type definition of {DataType} because the data type node was not found.",
-                                        item.Name);
+                                    m_logger.SkipTypeDataTypeNodeNotFound(item.Name);
                                     continue;
                                 }
 
@@ -574,10 +571,7 @@ namespace Opc.Ua
 
                                 if (dataTypeNode == null)
                                 {
-                                    m_logger.LogError(
-                                        Utils.TraceMasks.Error,
-                                        "Skip the type definition of {DataType} because the data type node was not found.",
-                                        item.Name);
+                                    m_logger.SkipTypeDataTypeNodeNotFound(item.Name);
                                     continue;
                                 }
 
@@ -591,9 +585,7 @@ namespace Opc.Ua
                                     typeDictionary[qName] = ExpandedNodeId.ToNodeId(
                                         typeId,
                                         m_complexTypeResolver.NamespaceUris);
-                                    m_logger.LogInformation(
-                                        "Skip the type definition of {DataType} because the type already exists.",
-                                        item.Name);
+                                    m_logger.SkipTypeAlreadyExists(item.Name);
                                     continue;
                                 }
 
@@ -617,17 +609,12 @@ namespace Opc.Ua
                                     }
                                     catch (DataTypeNotSupportedException)
                                     {
-                                        m_logger.LogError(
-                                            "Skipped the type definition of {DataType} because it is not supported.",
-                                            item.Name);
+                                        m_logger.SkipTypeNotSupported(item.Name);
                                         continue;
                                     }
                                     catch (ServiceResultException sre)
                                     {
-                                        m_logger.LogError(
-                                            sre,
-                                            "Skip the type definition of {DataType}.",
-                                            item.Name);
+                                        m_logger.SkipTypeError(sre, item.Name);
                                         continue;
                                     }
                                 }
@@ -658,10 +645,7 @@ namespace Opc.Ua
                                     }
                                     catch (DataTypeNotSupportedException typeNotSupportedException)
                                     {
-                                        m_logger.LogInformation(
-                                            typeNotSupportedException,
-                                            "Skipped the type definition of {DataType} because it is not supported.",
-                                            item.Name);
+                                        m_logger.SkipTypeNotSupportedException(typeNotSupportedException, item.Name);
                                         continue;
                                     }
 
@@ -688,8 +672,7 @@ namespace Opc.Ua
                                 if (complexType == null)
                                 {
                                     retryStructureList.Add(item);
-                                    m_logger.LogTrace(
-                                        "Skipped the type definition of {DataType}, missing {MissingTypeIds}. Retry in next round.",
+                                    m_logger.SkipTypeMissingDependencies(
                                         item.Name,
                                         missingTypeIds == null ?
                                             string.Empty :
@@ -703,10 +686,7 @@ namespace Opc.Ua
                 }
                 catch (ServiceResultException sre)
                 {
-                    m_logger.LogError(
-                        sre,
-                        "Unexpected error processing ditionary {DictionaryName}.",
-                        dictionaryId.Value.Name);
+                    m_logger.ProcessDictionaryError(sre, dictionaryId.Value.Name);
                 }
             }
             return allTypesLoaded;
@@ -743,7 +723,7 @@ namespace Opc.Ua
                 }
                 catch (DataTypeNotFoundException dtnfex)
                 {
-                    m_logger.LogWarning("Data type not found: {Message}", dtnfex.Message);
+                    m_logger.DataTypeNotFound(dtnfex.Message);
                     foreach (ExpandedNodeId nodeId in dtnfex.NodeIds.ToList())
                     {
                         // add missing types to list
@@ -761,7 +741,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            m_logger.LogWarning("Datatype {NodeId} was not found.", nodeId);
+                            m_logger.DataTypeNotFoundById(nodeId);
                         }
                     }
                 }
@@ -776,26 +756,18 @@ namespace Opc.Ua
             // Provide some diagnostics so users understand why types could not be serialized.
             if (enumTypesToDoList.Count > 0)
             {
-                m_logger.LogWarning(
-                    "{TodoCount} enum types could not be loaded from the server.",
-                    enumTypesToDoList.Count);
-                if (enumTypesToDoList.Count < 10)
+                m_logger.EnumTypesNotLoaded(enumTypesToDoList.Count);
+                if (enumTypesToDoList.Count < 10 && m_logger.IsEnabled(LogLevel.Information))
                 {
-                    m_logger.LogInformation(
-                        "Missing enum types: {MissingEnumTypes}",
-                        string.Join(", ", enumTypesToDoList.Select(e => e.BrowseName)));
+                    m_logger.MissingEnumTypes(string.Join(", ", enumTypesToDoList.Select(e => e.BrowseName)));
                 }
             }
             if (structTypesToDoList.Count > 0)
             {
-                m_logger.LogWarning(
-                    "{TodoCount} structure types could not be loaded from the server.",
-                    structTypesToDoList.Count);
-                if (structTypesToDoList.Count < 10)
+                m_logger.StructureTypesNotLoaded(structTypesToDoList.Count);
+                if (structTypesToDoList.Count < 10 && m_logger.IsEnabled(LogLevel.Information))
                 {
-                    m_logger.LogInformation(
-                        "Missing structure types: {MissingStructureTypes}",
-                        string.Join(", ", structTypesToDoList.Select(e => e.BrowseName)));
+                    m_logger.MissingStructureTypes(string.Join(", ", structTypesToDoList.Select(e => e.BrowseName)));
                 }
             }
             return false;
@@ -979,9 +951,7 @@ namespace Opc.Ua
                                 }
                                 catch (DataTypeNotSupportedException)
                                 {
-                                    m_logger.LogError(
-                                        "Skipped the type definition of {DataType} because it is not supported.",
-                                        dataTypeNode.BrowseName.Name);
+                                    m_logger.SkipTypeNotSupported(dataTypeNode.BrowseName.Name);
                                 }
                                 catch
                                 {
@@ -1045,9 +1015,7 @@ namespace Opc.Ua
                                     }
                                     else
                                     {
-                                        m_logger.LogInformation(
-                                            "Skipped OptionSet sub-type {DataType} because no EnumDefinition or OptionSetValues property was found.",
-                                            dataTypeNode.BrowseName.Name);
+                                        m_logger.SkipOptionSetSubType(dataTypeNode.BrowseName.Name);
                                     }
                                 }
                                 else
@@ -1056,9 +1024,7 @@ namespace Opc.Ua
                                     // DataTypeDefinition cannot be materialized by this path.
                                     // Skip silently so the overall load is not marked as failed
                                     // when the server exposes such unresolvable types.
-                                    m_logger.LogInformation(
-                                        "Skipped the type definition of {DataType} because no DataTypeDefinition is available.",
-                                        dataTypeNode.BrowseName.Name);
+                                    m_logger.SkipTypeNoDataTypeDefinition(dataTypeNode.BrowseName.Name);
                                 }
                             }
                         }
@@ -1298,7 +1264,7 @@ namespace Opc.Ua
             }
 
             ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(nodeId);
-            m_logger.LogDebug("Adding Type {DataType} as: {NodeId}", type.XmlName, internalNodeId);
+            m_logger.AddingType(type.XmlName, internalNodeId);
 
             switch (type)
             {
@@ -1763,5 +1729,106 @@ namespace Opc.Ua
             BrowseNames.DefaultBinary,
             BrowseNames.DefaultXml
         ];
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ComplexTypeSystem"/>.
+    /// </summary>
+    internal static partial class ComplexTypeSystemLog
+    {
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 0, Level = LogLevel.Error,
+            Message = "Failed to load the custom type {NodeId}.")]
+        public static partial void FailedToLoadCustomType(
+            this ILogger logger,
+            Exception exception,
+            ExpandedNodeId nodeId);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 1, Level = LogLevel.Error,
+            Message = "Failed to load the custom type namespace {Namespace}.")]
+        public static partial void FailedToLoadCustomTypeNamespace(
+            this ILogger logger,
+            Exception exception,
+            string @namespace);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 2, Level = LogLevel.Error,
+            Message = "Failed to load the custom types.")]
+        public static partial void FailedToLoadCustomTypes(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 3, Level = LogLevel.Error,
+            Message = "Skip the type definition of {DataType} because the data type node was not found.")]
+        public static partial void SkipTypeDataTypeNodeNotFound(this ILogger logger, string? dataType);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 4, Level = LogLevel.Information,
+            Message = "Skip the type definition of {DataType} because the type already exists.")]
+        public static partial void SkipTypeAlreadyExists(this ILogger logger, string? dataType);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 5, Level = LogLevel.Error,
+            Message = "Skipped the type definition of {DataType} because it is not supported.")]
+        public static partial void SkipTypeNotSupported(this ILogger logger, string? dataType);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 6, Level = LogLevel.Error,
+            Message = "Skip the type definition of {DataType}.")]
+        public static partial void SkipTypeError(this ILogger logger, Exception exception, string? dataType);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 7, Level = LogLevel.Information,
+            Message = "Skipped the type definition of {DataType} because it is not supported.")]
+        public static partial void SkipTypeNotSupportedException(
+            this ILogger logger,
+            Exception exception,
+            string? dataType);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 8, Level = LogLevel.Trace,
+            Message = "Skipped the type definition of {DataType}, missing {MissingTypeIds}. Retry in next round.")]
+        public static partial void SkipTypeMissingDependencies(
+            this ILogger logger,
+            string? dataType,
+            string missingTypeIds);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 9, Level = LogLevel.Error,
+            Message = "Unexpected error processing ditionary {DictionaryName}.")]
+        public static partial void ProcessDictionaryError(
+            this ILogger logger,
+            Exception exception,
+            string? dictionaryName);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 10, Level = LogLevel.Warning,
+            Message = "Data type not found: {Message}")]
+        public static partial void DataTypeNotFound(this ILogger logger, string message);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 11, Level = LogLevel.Warning,
+            Message = "Datatype {NodeId} was not found.")]
+        public static partial void DataTypeNotFoundById(this ILogger logger, ExpandedNodeId nodeId);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 12, Level = LogLevel.Warning,
+            Message = "{TodoCount} enum types could not be loaded from the server.")]
+        public static partial void EnumTypesNotLoaded(this ILogger logger, int todoCount);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 13, Level = LogLevel.Information,
+            Message = "Missing enum types: {MissingEnumTypes}")]
+        public static partial void MissingEnumTypes(this ILogger logger, string missingEnumTypes);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 14, Level = LogLevel.Warning,
+            Message = "{TodoCount} structure types could not be loaded from the server.")]
+        public static partial void StructureTypesNotLoaded(this ILogger logger, int todoCount);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 15, Level = LogLevel.Information,
+            Message = "Missing structure types: {MissingStructureTypes}")]
+        public static partial void MissingStructureTypes(this ILogger logger, string missingStructureTypes);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 16, Level = LogLevel.Information,
+            Message = "Skipped OptionSet sub-type {DataType} because no EnumDefinition or " +
+                "OptionSetValues property was found.")]
+        public static partial void SkipOptionSetSubType(this ILogger logger, string? dataType);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 17, Level = LogLevel.Information,
+            Message = "Skipped the type definition of {DataType} because no DataTypeDefinition is available.")]
+        public static partial void SkipTypeNoDataTypeDefinition(this ILogger logger, string? dataType);
+
+        [LoggerMessage(EventId = CoreSchemaEventIds.ComplexTypeSystem + 18, Level = LogLevel.Debug,
+            Message = "Adding Type {DataType} as: {NodeId}")]
+        public static partial void AddingType(
+            this ILogger logger,
+            XmlQualifiedName dataType,
+            ExpandedNodeId nodeId);
     }
 }

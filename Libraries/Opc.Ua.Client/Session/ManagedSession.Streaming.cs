@@ -191,8 +191,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "ManagedSession: ModelChangeTracker dispose failed.");
+                    m_logger.ManagedSessionModelChangeTrackerDisposeFailed(ex);
                 }
             }
 
@@ -204,10 +203,28 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex,
-                        "ManagedSession: DefaultStreaming dispose failed.");
+                    m_logger.ManagedSessionDefaultStreamingDisposeFailed(ex);
                 }
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ManagedSession"/>.
+    /// </summary>
+    internal static partial class ManagedSessionLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 7, Level = LogLevel.Debug,
+            Message = "ManagedSession: ModelChangeTracker dispose failed.")]
+        public static partial void ManagedSessionModelChangeTrackerDisposeFailed(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 8, Level = LogLevel.Debug,
+            Message = "ManagedSession: DefaultStreaming dispose failed.")]
+        public static partial void ManagedSessionDefaultStreamingDisposeFailed(
+            this ILogger logger,
+            Exception? exception);
+    }
+
 }

@@ -59,7 +59,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task OneTimeSetUp()
         {
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-            m_logger.LogInformation("GDS Test PkiRoot: {PkiRoot}", m_pkiRoot);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("GDS Test PkiRoot: {PkiRoot}", m_pkiRoot);
+            }
 
             string databaseStorePath = Path.Combine(m_pkiRoot, "gds", "gdsdb.json");
             var gdsConfig = new GlobalDiscoveryServerConfiguration
@@ -109,7 +112,10 @@ namespace Opc.Ua.Gds.Tests
                 "://localhost:" +
                 ServerFixture.Port.ToString(CultureInfo.InvariantCulture));
 
-            m_logger.LogInformation("GDS Server started at {Url}", ServerUrl);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("GDS Server started at {Url}", ServerUrl);
+            }
 
             ClientFixture = new ClientFixture(telemetry: Telemetry);
             await ClientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);

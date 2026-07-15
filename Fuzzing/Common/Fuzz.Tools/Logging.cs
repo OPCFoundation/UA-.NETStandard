@@ -164,19 +164,25 @@ namespace Opc.Ua.Fuzzing
             object sender,
             UnhandledExceptionEventArgs args)
         {
-            m_logger.LogCritical(
-                "Unhandled Exception: {ExceptionObject} IsTerminating: {IsTerminating}",
-                args.ExceptionObject,
-                args.IsTerminating);
+            if (m_logger.IsEnabled(LogLevel.Critical))
+            {
+                m_logger.LogCritical(
+                    "Unhandled Exception: {ExceptionObject} IsTerminating: {IsTerminating}",
+                    args.ExceptionObject,
+                    args.IsTerminating);
+            }
         }
 
         private void Unobserved_TaskException(
             object sender,
             UnobservedTaskExceptionEventArgs args)
         {
-            m_logger.LogCritical(args.Exception,
-                "Unobserved Exception: Observed: {Observed}",
-                args.Observed);
+            if (m_logger.IsEnabled(LogLevel.Critical))
+            {
+                m_logger.LogCritical(args.Exception,
+                    "Unobserved Exception: Observed: {Observed}",
+                    args.Observed);
+            }
         }
 
         private Microsoft.Extensions.Logging.ILogger m_logger;

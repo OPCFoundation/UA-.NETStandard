@@ -164,7 +164,7 @@ namespace Opc.Ua.PubSub.Pcap
             }
             catch (Exception ex)
             {
-                m_logger?.LogDebug(ex, "PubSub capture observer threw; ignoring.");
+                m_logger?.PubSubCaptureObserverThrew(ex);
             }
         }
 
@@ -173,4 +173,15 @@ namespace Opc.Ua.PubSub.Pcap
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<CapturingPubSubTransport>? m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for CapturingPubSubTransport.
+    /// </summary>
+    internal static partial class CapturingPubSubTransportLog
+    {
+        [LoggerMessage(EventId = PubSubDiagnosticsEventIds.CapturingPubSubTransport + 0, Level = LogLevel.Debug,
+            Message = "PubSub capture observer threw; ignoring.")]
+        public static partial void PubSubCaptureObserverThrew(this ILogger logger, Exception exception);
+    }
+
 }

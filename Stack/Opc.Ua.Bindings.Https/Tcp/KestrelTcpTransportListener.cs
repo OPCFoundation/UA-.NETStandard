@@ -58,14 +58,35 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class KestrelTcpTransportListenerFactory : TcpServiceHost
     {
+        /// <summary>
+        /// Creates a factory using the default buffer-manager factory.
+        /// </summary>
+        public KestrelTcpTransportListenerFactory()
+            : this(DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory using the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="bufferManagerFactory">Factory used to create listener buffer managers.</param>
+        public KestrelTcpTransportListenerFactory(
+            IBufferManagerFactory bufferManagerFactory)
+        {
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
+        }
+
         /// <inheritdoc/>
         public override string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new KestrelTcpTransportListener(telemetry);
+            return new KestrelTcpTransportListener(telemetry, m_bufferManagerFactory);
         }
+
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
     }
 
     /// <summary>
@@ -95,9 +116,23 @@ namespace Opc.Ua.Bindings
         /// Create a new listener.
         /// </summary>
         public KestrelTcpTransportListener(ITelemetryContext telemetry)
+            : this(telemetry, DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a listener with the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use.</param>
+        /// <param name="bufferManagerFactory">Factory used to create listener buffer managers.</param>
+        public KestrelTcpTransportListener(
+            ITelemetryContext telemetry,
+            IBufferManagerFactory bufferManagerFactory)
         {
             Telemetry = telemetry;
             Logger = telemetry.CreateLogger<KestrelTcpTransportListener>();
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
 
         internal ITelemetryContext Telemetry { get; }
@@ -168,7 +203,11 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             m_serverCertificates = settings.ServerCertificates!;
-            m_bufferManager = new BufferManager("KestrelTcpServer", m_quotas.MaxBufferSize, Telemetry);
+            m_bufferManager = new BufferManager(
+                m_bufferManagerFactory.Create(
+                    "KestrelTcpServer",
+                    m_quotas.MaxBufferSize,
+                    Telemetry));
             m_channels = new ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>();
             m_callback = callback;
             m_reverseConnectListener = settings.ReverseConnectListener;
@@ -289,18 +328,11 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarning(
-                        ex,
-                        "KestrelTcp failed to close channel for certificate rotation (thumbprint {Thumbprint}).",
-                        oldThumbprint);
+                    Logger.FailedToCloseChannelForCertificateRotation(ex, oldThumbprint);
                 }
             }
 
-            Logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "KestrelTcp closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).",
-                closed.Count,
-                oldThumbprint);
+            Logger.ClosedSecureChannelsForCertificateRotation(closed.Count, oldThumbprint);
 
             return new ValueTask<IReadOnlyList<string>>(closed);
         }
@@ -371,10 +403,7 @@ namespace Opc.Ua.Bindings
                         // Best-effort: if trust cannot be determined, leave
                         // the channel open rather than cutting a possibly
                         // still-trusted peer.
-                        Logger.LogWarning(
-                            ex,
-                            "KestrelTcp failed to re-validate certificate for channel {ChannelId}; leaving it open.",
-                            channel.GlobalChannelId);
+                        Logger.KestrelFailedToRevalidateCertificateForChannel(ex, channel.GlobalChannelId);
                         continue;
                     }
 
@@ -394,10 +423,7 @@ namespace Opc.Ua.Bindings
                     // Best-effort: log and continue closing remaining
                     // channels. Failure to close one channel must not block
                     // others from being renegotiated.
-                    Logger.LogWarning(
-                        ex,
-                        "KestrelTcp failed to close channel {ChannelId} for peer-certificate trust change.",
-                        channel.GlobalChannelId);
+                    Logger.KestrelFailedToCloseChannelForPeerTrustChange(ex, channel.GlobalChannelId);
                 }
                 finally
                 {
@@ -405,10 +431,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "KestrelTcp closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.",
-                closed.Count);
+            Logger.KestrelClosedUntrustedPeerSecureChannels(closed.Count);
 
             return closed;
         }
@@ -640,7 +663,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "KestrelTcp request processing failed.");
+                Logger.RequestProcessingFailed(ex);
                 try
                 {
                     ServiceFault fault = EndpointBase.CreateFault(Logger, request, ex);
@@ -648,7 +671,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception faultEx)
                 {
-                    Logger.LogError(faultEx, "KestrelTcp failed to send fault response.");
+                    Logger.FailedToSendFaultResponse(faultEx);
                 }
             }
         }
@@ -699,6 +722,7 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription>? m_descriptions;
         private ChannelQuotas? m_quotas;
         private BufferManager? m_bufferManager;
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ICertificateRegistry? m_serverCertificates;
         private ITransportListenerCallback? m_callback;
         private ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? m_channels;
@@ -720,6 +744,52 @@ namespace Opc.Ua.Bindings
             token.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetResult(true), tcs);
             return tcs.Task;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="KestrelTcpTransportListener"/>.
+    /// </summary>
+    internal static partial class KestrelTcpTransportListenerLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 0, Level = LogLevel.Warning,
+            Message = "KestrelTcp failed to close channel for certificate rotation (thumbprint {Thumbprint}).")]
+        public static partial void FailedToCloseChannelForCertificateRotation(
+            this ILogger logger,
+            Exception exception,
+            string thumbprint);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 1, Level = LogLevel.Information,
+            Message = "KestrelTcp closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).")]
+        public static partial void ClosedSecureChannelsForCertificateRotation(
+            this ILogger logger,
+            int count,
+            string thumbprint);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 2, Level = LogLevel.Error,
+            Message = "KestrelTcp request processing failed.")]
+        public static partial void RequestProcessingFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 3, Level = LogLevel.Error,
+            Message = "KestrelTcp failed to send fault response.")]
+        public static partial void FailedToSendFaultResponse(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 4, Level = LogLevel.Warning,
+            Message = "KestrelTcp failed to re-validate certificate for channel {ChannelId}; leaving it open.")]
+        public static partial void KestrelFailedToRevalidateCertificateForChannel(
+            this ILogger logger,
+            Exception exception,
+            string channelId);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 5, Level = LogLevel.Warning,
+            Message = "KestrelTcp failed to close channel {ChannelId} for peer-certificate trust change.")]
+        public static partial void KestrelFailedToCloseChannelForPeerTrustChange(
+            this ILogger logger,
+            Exception exception,
+            string channelId);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 6, Level = LogLevel.Information,
+            Message = "KestrelTcp closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.")]
+        public static partial void KestrelClosedUntrustedPeerSecureChannels(this ILogger logger, int count);
     }
 }
 #endif // NET8_0_OR_GREATER

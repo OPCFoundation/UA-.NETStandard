@@ -210,7 +210,7 @@ namespace Opc.Ua.Redundancy.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogError(ex, "CRDT address-space inbound apply failed.");
+                        m_logger?.CrdtAddressSpaceInboundApplyFailed(ex);
                     }
 
                     InboundApplied?.Invoke();
@@ -554,7 +554,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "CRDT address-space broadcast failed.");
+                m_logger?.CrdtAddressSpaceBroadcastFailed(ex);
             }
         }
 
@@ -708,4 +708,21 @@ namespace Opc.Ua.Redundancy.Server
         private bool m_started;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ReplicatedAddressSpaceSynchronizer"/>.
+    /// </summary>
+    internal static partial class ReplicatedAddressSpaceSynchronizerLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.ReplicatedAddressSpaceSynchronizer + 0,
+            Level = LogLevel.Error,
+            Message = "CRDT address-space inbound apply failed.")]
+        public static partial void CrdtAddressSpaceInboundApplyFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.ReplicatedAddressSpaceSynchronizer + 1,
+            Level = LogLevel.Error,
+            Message = "CRDT address-space broadcast failed.")]
+        public static partial void CrdtAddressSpaceBroadcastFailed(this ILogger logger, Exception exception);
+    }
+
 }

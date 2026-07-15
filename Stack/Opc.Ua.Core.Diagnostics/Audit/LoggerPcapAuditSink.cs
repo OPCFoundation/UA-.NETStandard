@@ -68,8 +68,7 @@ namespace Opc.Ua.Pcap.Audit
                 return ValueTask.CompletedTask;
             }
 
-            m_logger.LogWarning(
-                "Pcap audit event {Kind} session={SessionId} resource={ResourcePath} endpoint={RemoteEndpoint}",
+            m_logger.PcapAuditEvent(
                 auditEvent.Kind,
                 auditEvent.SessionId,
                 auditEvent.ResourcePath,
@@ -96,6 +95,23 @@ namespace Opc.Ua.Pcap.Audit
                 s_lastFrameCapturedAudit[key] = auditEvent.Timestamp;
                 return true;
             }
+
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="LoggerPcapAuditSink"/>.
+    /// </summary>
+    internal static partial class LoggerPcapAuditSinkLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.LoggerPcapAuditSink + 0, Level = LogLevel.Warning,
+            Message = "Pcap audit event {Kind} session={SessionId} resource={ResourcePath} endpoint={RemoteEndpoint}")]
+        public static partial void PcapAuditEvent(
+            this ILogger logger,
+            PcapAuditEventKind kind,
+            string? sessionId,
+            string? resourcePath,
+            string? remoteEndpoint);
+    }
+
 }

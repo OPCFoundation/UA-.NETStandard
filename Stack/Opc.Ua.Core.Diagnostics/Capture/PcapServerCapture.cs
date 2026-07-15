@@ -128,11 +128,7 @@ namespace Opc.Ua.Pcap.Capture
             if (environment.IsKeyLogOnly)
             {
                 string keyLogPath = environment.KeyLogFilePath!;
-                logger.LogWarning(
-                    "Stand-alone OPC UA server key logging is ENABLED via {EnvVar}. " +
-                    "Channel symmetric keys will be written to '{KeyLogFilePath}'. " +
-                    "Treat this file as a secret; anyone with read access can " +
-                    "decrypt recorded OPC UA traffic.",
+                logger.StandAloneOpcUaServerKeyLoggingEnabled(
                     PcapEnvironmentVariableNames.OpcuaKeyLogFile,
                     keyLogPath);
 
@@ -152,20 +148,13 @@ namespace Opc.Ua.Pcap.Capture
 
             if (envKeyLogPath is null)
             {
-                logger.LogWarning(
-                    "OPC UA server pcap auto-capture is ENABLED via {PcapEnvVar}. " +
-                    "Frames will be written to '{PcapFilePath}'. " +
-                    "Treat the resulting files as secrets; they include the " +
-                    "channel keys necessary to decrypt recorded traffic.",
+                logger.OpcUaServerPcapAutoCaptureEnabled(
                     PcapEnvironmentVariableNames.OpcuaPcapFile,
                     pcapPath);
             }
             else
             {
-                logger.LogWarning(
-                    "OPC UA server pcap auto-capture is ENABLED via {PcapEnvVar} (frames at " +
-                    "'{PcapFilePath}') and {KeyLogEnvVar} (keys at '{KeyLogFilePath}'). " +
-                    "Treat both files as secrets.",
+                logger.OpcUaServerPcapAutoCaptureAndKeyLogEnabled(
                     PcapEnvironmentVariableNames.OpcuaPcapFile,
                     pcapPath,
                     PcapEnvironmentVariableNames.OpcuaKeyLogFile,
@@ -202,6 +191,7 @@ namespace Opc.Ua.Pcap.Capture
                 await manager.DisposeAsync().ConfigureAwait(false);
                 throw;
             }
+
         }
 
         private static string ResolveSessionFolder(string pcapFilePath)
@@ -271,4 +261,39 @@ namespace Opc.Ua.Pcap.Capture
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PcapServerCapture"/>.
+    /// </summary>
+    internal static partial class PcapServerCaptureLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapServerCapture + 0, Level = LogLevel.Warning,
+            Message = "Stand-alone OPC UA server key logging is ENABLED via {EnvVar}. Channel symmetric keys will " +
+                "be written to '{KeyLogFilePath}'. Treat this file as a secret; anyone with read access can " +
+                "decrypt recorded OPC UA traffic.")]
+        public static partial void StandAloneOpcUaServerKeyLoggingEnabled(
+            this ILogger logger,
+            string envVar,
+            string keyLogFilePath);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapServerCapture + 1, Level = LogLevel.Warning,
+            Message = "OPC UA server pcap auto-capture is ENABLED via {PcapEnvVar}. Frames will be written to " +
+                "'{PcapFilePath}'. Treat the resulting files as secrets; they include the channel keys necessary " +
+                "to decrypt recorded traffic.")]
+        public static partial void OpcUaServerPcapAutoCaptureEnabled(
+            this ILogger logger,
+            string pcapEnvVar,
+            string pcapFilePath);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapServerCapture + 2, Level = LogLevel.Warning,
+            Message = "OPC UA server pcap auto-capture is ENABLED via {PcapEnvVar} (frames at '{PcapFilePath}') " +
+                "and {KeyLogEnvVar} (keys at '{KeyLogFilePath}'). Treat both files as secrets.")]
+        public static partial void OpcUaServerPcapAutoCaptureAndKeyLogEnabled(
+            this ILogger logger,
+            string pcapEnvVar,
+            string pcapFilePath,
+            string keyLogEnvVar,
+            string keyLogFilePath);
+    }
+
 }

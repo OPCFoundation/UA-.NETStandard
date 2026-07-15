@@ -35,6 +35,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.Subscriptions.Streaming;
+using Quickstarts.ConsoleReferenceClient;
 
 namespace Quickstarts
 {
@@ -141,7 +142,7 @@ namespace Quickstarts
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex, "Acknowledge failed");
+                        m_logger.AcknowledgeFailed(ex);
                     }
                 }
             }
@@ -195,4 +196,12 @@ namespace Quickstarts
             }
         }
     }
+
+    internal static partial class AlarmClientSampleLog
+    {
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.AlarmClientSample + 0, Level = LogLevel.Error,
+            Message = "Acknowledge failed")]
+        public static partial void AcknowledgeFailed(this ILogger logger, Exception ex);
+    }
+
 }

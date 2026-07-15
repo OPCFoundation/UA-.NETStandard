@@ -481,8 +481,11 @@ dotnet_diagnostic.CA1724.severity                                             = 
 
 # CA1848: Use the LoggerMessage delegates
 dotnet_diagnostic.CA1848.severity = none
-# CA1873: Avoid potentially expensive logging
-dotnet_diagnostic.CA1873.severity = none
+# CA1873: Avoid potentially expensive logging. Enabled solution-wide (issue
+# #3908) now that the entire code base uses source-generated [LoggerMessage]
+# logging; any regression back to direct ILogger.Log* calls with expensive
+# arguments is flagged.
+dotnet_diagnostic.CA1873.severity = warning
 # CA1000: Do not declare static members on generic types
 dotnet_diagnostic.CA1000.severity = none
 # CA1031: Do not catch general exception types

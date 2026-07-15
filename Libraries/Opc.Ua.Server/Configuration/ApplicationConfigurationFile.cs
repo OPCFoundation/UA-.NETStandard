@@ -207,9 +207,7 @@ namespace Opc.Ua.Server
                 m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
             }
 
-            m_logger.LogInformation(
-                "ConfigurationFile auto-closed after inactivity timeout of {Timeout} ms.",
-                m_activityTimeout);
+            m_logger.ConfigurationFileAutoClosedAfterInactivity(m_activityTimeout);
         }
 
         /// <inheritdoc/>
@@ -612,7 +610,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
-                m_logger.LogWarning(ex, "ConfigurationFile update rejected during validation.");
+                m_logger.ConfigurationFileUpdateRejectedDuringValidation(ex);
                 CloseWriteHandle();
                 return FailedUpdate(ex.StatusCode, targets);
             }
@@ -626,7 +624,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
-                m_logger.LogError(ex, "ConfigurationFile update failed while applying; no changes applied.");
+                m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
                 CloseWriteHandle();
                 return FailedUpdate(ex.StatusCode, targets);
             }
@@ -643,8 +641,7 @@ namespace Opc.Ua.Server
 
             CloseWriteHandle();
 
-            m_logger.LogInformation(
-                "ConfigurationFile updated to version {Version}; confirmation {Confirm} required.",
+            m_logger.ConfigurationFileUpdatedToVersion(
                 newVersion,
                 m_provider.RequiresConfirmation ? "is" : "not");
 
@@ -684,7 +681,7 @@ namespace Opc.Ua.Server
 
             await m_provider.ConfirmUpdateAsync(cancellationToken).ConfigureAwait(false);
 
-            m_logger.LogInformation("ConfigurationFile update {UpdateId} confirmed.", updateId.Guid);
+            m_logger.ConfigurationFileUpdateConfirmed(updateId.Guid);
 
             return new ConfigurationFileConfirmUpdateMethodStateResult
             {
@@ -840,13 +837,11 @@ namespace Opc.Ua.Server
                 try
                 {
                     await m_provider.RevertUpdateAsync(CancellationToken.None).ConfigureAwait(false);
-                    m_logger.LogWarning(
-                        "ConfigurationFile update {UpdateId} was not confirmed in time and was reverted.",
-                        updateId.Guid);
+                    m_logger.ConfigurationFileUpdateNotConfirmedReverted(updateId.Guid);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex, "ConfigurationFile revert of unconfirmed update failed.");
+                    m_logger.ConfigurationFileRevertFailed(ex);
                 }
             });
         }
@@ -961,5 +956,41 @@ namespace Opc.Ua.Server
         private long m_activityGeneration;
         private Uuid m_pendingUpdateId;
         private CancellationTokenSource? m_pendingRevertCts;
+    }
+
+    internal static partial class ApplicationConfigurationFileLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 0, Level = LogLevel.Information,
+            Message = "ConfigurationFile auto-closed after inactivity timeout of {Timeout} ms.")]
+        public static partial void ConfigurationFileAutoClosedAfterInactivity(this ILogger logger, double timeout);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 1, Level = LogLevel.Warning,
+            Message = "ConfigurationFile update rejected during validation.")]
+        public static partial void ConfigurationFileUpdateRejectedDuringValidation(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 2, Level = LogLevel.Error,
+            Message = "ConfigurationFile update failed while applying; no changes applied.")]
+        public static partial void ConfigurationFileUpdateFailedWhileApplying(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 3, Level = LogLevel.Information,
+            Message = "ConfigurationFile updated to version {Version}; confirmation {Confirm} required.")]
+        public static partial void ConfigurationFileUpdatedToVersion(
+            this ILogger logger,
+            uint version,
+            string confirm);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 4, Level = LogLevel.Information,
+            Message = "ConfigurationFile update {UpdateId} confirmed.")]
+        public static partial void ConfigurationFileUpdateConfirmed(this ILogger logger, Guid updateId);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 5, Level = LogLevel.Warning,
+            Message = "ConfigurationFile update {UpdateId} was not confirmed in time and was reverted.")]
+        public static partial void ConfigurationFileUpdateNotConfirmedReverted(this ILogger logger, Guid updateId);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 6, Level = LogLevel.Error,
+            Message = "ConfigurationFile revert of unconfirmed update failed.")]
+        public static partial void ConfigurationFileRevertFailed(this ILogger logger, Exception ex);
     }
 }

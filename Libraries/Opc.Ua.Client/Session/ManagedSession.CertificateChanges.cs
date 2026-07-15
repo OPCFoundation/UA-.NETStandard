@@ -214,16 +214,14 @@ namespace Opc.Ua.Client
 
                 StateMachine.TriggerReconnect();
 
-                m_logger.LogInformation(
-                    "ManagedSession: requested reconnect after {Kind} on {TrustList}.",
+                m_logger.ManagedSessionRequestedReconnectAfterKindTrustList(
                     evt.Kind,
                     evt.TrustList);
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
+                m_logger.ManagedSessionFailedReactCertificateChangeKind(
                     ex,
-                    "ManagedSession: failed to react to certificate change {Kind}.",
                     evt.Kind);
             }
         }
@@ -410,9 +408,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception ex)
                     {
-                        logger.LogWarning(
-                            ex,
-                            "ManagedSession: server-certificate revalidation failed; will retry on next change.");
+                        logger.ManagedSessionServerCertificateRevalidationFailedWill(ex);
                     }
                 }
             }
@@ -475,9 +471,8 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
+                m_logger.ManagedSessionValidateAsyncThrewCachedServerCertificate(
                     ex,
-                    "ManagedSession: ValidateAsync threw on cached server certificate {Thumbprint}; treating as invalid.",
                     serverCert.Thumbprint);
                 StateMachine.TriggerReconnect();
                 return;
@@ -485,14 +480,11 @@ namespace Opc.Ua.Client
 
             if (result.IsValid)
             {
-                m_logger.LogDebug(
-                    "ManagedSession: cached server certificate {Thumbprint} still trusted after trust/CRL update — no reconnect needed.",
-                    serverCert.Thumbprint);
+                m_logger.ManagedSessionCachedServerCertificateThumbprintStill(serverCert.Thumbprint);
                 return;
             }
 
-            m_logger.LogInformation(
-                "ManagedSession: cached server certificate {Thumbprint} no longer trusted after trust/CRL update ({Status}); triggering reconnect.",
+            m_logger.ManagedSessionCachedServerCertificateThumbprintNo(
                 serverCert.Thumbprint,
                 result.StatusCode);
             StateMachine.TriggerReconnect();
@@ -512,6 +504,7 @@ namespace Opc.Ua.Client
         // analyzer. Disposed in both Dispose paths.
 #pragma warning disable CA2213
         private IDisposable? m_certificateChangeSubscription;
+
         /// <summary>
         /// CTS owned by StartRevalidationLoop / disposed by
         /// StopRevalidationLoopAsync. CancelRevalidationLoop (sync) only
@@ -559,9 +552,7 @@ namespace Opc.Ua.Client
 
             public void OnError(Exception error)
             {
-                m_owner.m_logger.LogWarning(
-                    error,
-                    "ManagedSession: certificate change stream errored.");
+                m_owner.m_logger.ManagedSessionCertificateChangeStreamErrored(error);
             }
 
             public void OnCompleted()
@@ -569,4 +560,60 @@ namespace Opc.Ua.Client
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ManagedSession"/>.
+    /// </summary>
+    internal static partial class ManagedSessionLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 0, Level = LogLevel.Information,
+            Message = "ManagedSession: requested reconnect after {Kind} on {TrustList}.")]
+        public static partial void ManagedSessionRequestedReconnectAfterKindTrustList(
+            this ILogger logger,
+            CertificateChangeKind kind,
+            TrustListIdentifier trustList);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 1, Level = LogLevel.Warning,
+            Message = "ManagedSession: failed to react to certificate change {Kind}.")]
+        public static partial void ManagedSessionFailedReactCertificateChangeKind(
+            this ILogger logger,
+            Exception? exception,
+            CertificateChangeKind kind);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 2, Level = LogLevel.Warning,
+            Message = "ManagedSession: server-certificate revalidation failed; will retry on next change.")]
+        public static partial void ManagedSessionServerCertificateRevalidationFailedWill(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 3, Level = LogLevel.Warning,
+            Message = "ManagedSession: ValidateAsync threw on cached server certificate {Thumbprint}; treating as" +
+                " invalid.")]
+        public static partial void ManagedSessionValidateAsyncThrewCachedServerCertificate(
+            this ILogger logger,
+            Exception? exception,
+            string thumbprint);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 4, Level = LogLevel.Debug,
+            Message = "ManagedSession: cached server certificate {Thumbprint} still trusted after " +
+                "trust/CRL update — no reconnect needed.")]
+        public static partial void ManagedSessionCachedServerCertificateThumbprintStill(
+            this ILogger logger,
+            string thumbprint);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 5, Level = LogLevel.Information,
+            Message = "ManagedSession: cached server certificate {Thumbprint} no longer trusted after trust/CRL" +
+                " update ({Status}); triggering reconnect.")]
+        public static partial void ManagedSessionCachedServerCertificateThumbprintNo(
+            this ILogger logger,
+            string thumbprint,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 6, Level = LogLevel.Warning,
+            Message = "ManagedSession: certificate change stream errored.")]
+        public static partial void ManagedSessionCertificateChangeStreamErrored(
+            this ILogger logger,
+            Exception? exception);
+    }
+
 }

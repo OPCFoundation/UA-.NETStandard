@@ -85,7 +85,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    m_owner.Logger.LogDebug(ex, "Kestrel TCP connection {Id} ended with exception.", channelId);
+                    m_owner.Logger.KestrelTcpConnectionEndedWithException(ex, channelId);
                 }
                 finally
                 {
@@ -108,6 +108,19 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly KestrelTcpTransportListener m_owner;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="KestrelTcpConnectionHandler"/>.
+    /// </summary>
+    internal static partial class KestrelTcpConnectionHandlerLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpConnectionHandler + 0, Level = LogLevel.Debug,
+            Message = "Kestrel TCP connection {Id} ended with exception.")]
+        public static partial void KestrelTcpConnectionEndedWithException(
+            this ILogger logger,
+            Exception exception,
+            uint id);
     }
 }
 #endif // NET8_0_OR_GREATER

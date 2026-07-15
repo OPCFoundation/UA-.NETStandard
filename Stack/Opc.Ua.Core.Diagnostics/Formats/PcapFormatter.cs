@@ -70,7 +70,7 @@ namespace Opc.Ua.Pcap.Formats
             ArgumentNullException.ThrowIfNull(source);
             _ = maxFrames;
 
-            m_logger.LogDebug("Formatting capture as libpcap.");
+            m_logger.FormattingCaptureAsLibpcap();
             string? path = source.GetRawPcapFilePath();
             if (path is null || !File.Exists(path))
             {
@@ -87,5 +87,17 @@ namespace Opc.Ua.Pcap.Formats
                 FramesFormatted = source.FrameCount
             };
         }
+
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PcapFormatter"/>.
+    /// </summary>
+    internal static partial class PcapFormatterLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapFormatter + 0, Level = LogLevel.Debug,
+            Message = "Formatting capture as libpcap.")]
+        public static partial void FormattingCaptureAsLibpcap(this ILogger logger);
+    }
+
 }

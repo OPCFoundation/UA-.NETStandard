@@ -538,7 +538,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 catch (Exception ex)
                 {
                     m_deletedItems.AddRange(itemsToDelete);
-                    m_logger.LogInformation(ex, "Failed to delete monitored items.");
+                    m_logger.FailedDeleteMonitoredItems(ex);
                 }
             }
 
@@ -794,8 +794,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     if (missingOnServer.Created)
                     {
-                        m_logger.LogDebug("{Subscription}: Recreate client item {Item}.", this,
-                            missingOnServer);
+                        m_logger.SubscriptionRecreateClientItemItem(
+                            m_context.Id,
+                            missingOnServer.ClientHandle);
                         missingOnServer.Reset();
                     }
                     m_monitoredItems.Add(missingOnServer.ClientHandle, missingOnServer);
@@ -816,7 +817,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "{Subscription}: Failed to delete missing items.", this);
+                m_logger.SubscriptionFailedDeleteMissingItems(
+                    ex,
+                    m_context.Id);
                 return false;
             }
         }
@@ -872,8 +875,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             catch (ServiceResultException sre)
             {
-                m_logger.LogError(sre,
-                    "{Subscription}: Failed to call GetMonitoredItems on server", this);
+                m_logger.SubscriptionFailedCallGetMonitoredItemsServer(
+                    sre,
+                    m_context.Id);
                 return new MonitoredItemsHandles(false, []);
             }
         }
@@ -1154,16 +1158,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             if (isNew &&
                 m_pendingTriggeringCount >= MaxPendingTriggeringEntries)
             {
-                m_logger.LogWarning(
-                    "Pending triggering-name dictionary is full " +
-                    "({Cap} entries); dropping unresolved {Op} of " +
-                    "triggered '{Triggered}' under triggering " +
-                    "'{Triggering}'. Add the triggering item, remove " +
-                    "stale triggered items, or call " +
-                    "SetTriggeringAsync(IMonitoredItem,...) explicitly.",
+                m_logger.PendingTriggeringNameDictionaryFullCap(
                     MaxPendingTriggeringEntries,
                     isAdd ? "add" : "remove",
-                    triggeredItem.Name, triggeringName);
+                    triggeredItem.Name,
+                    triggeringName);
                 return;
             }
             if (!hadOuter)
@@ -1588,10 +1587,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex,
-                            "{Subscription}: SetTriggering for " +
-                            "triggering item {Name} failed.",
-                            this, trig.Name);
+                        m_logger.SubscriptionSetTriggeringTriggeringItemNameFailed(
+                            ex,
+                            m_context.Id,
+                            trig.Name);
                         StatusCode failStatus = ex is ServiceResultException sre
                             ? sre.StatusCode
                             : StatusCodes.BadCommunicationError;
@@ -1739,4 +1738,55 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private readonly Dictionary<string, MonitoredItem> m_monitoredItemsByName = [];
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="MonitoredItemManager"/>.
+    /// </summary>
+    internal static partial class MonitoredItemManagerLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 0, Level = LogLevel.Information,
+            Message = "Failed to delete monitored items.")]
+        public static partial void FailedDeleteMonitoredItems(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 1, Level = LogLevel.Debug,
+            Message = "{SubscriptionId}: Recreate client item {Item}.")]
+        public static partial void SubscriptionRecreateClientItemItem(
+            this ILogger logger,
+            uint subscriptionId,
+            uint item);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 2, Level = LogLevel.Error,
+            Message = "{SubscriptionId}: Failed to delete missing items.")]
+        public static partial void SubscriptionFailedDeleteMissingItems(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 3, Level = LogLevel.Error,
+            Message = "{SubscriptionId}: Failed to call GetMonitoredItems on server")]
+        public static partial void SubscriptionFailedCallGetMonitoredItemsServer(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 4, Level = LogLevel.Warning,
+            Message = "Pending triggering-name dictionary is full ({Cap} entries); dropping unresolved {Op} of" +
+                " triggered '{Triggered}' under triggering '{Triggering}'. Add the triggering item, remove" +
+                " stale triggered items, or call SetTriggeringAsync(IMonitoredItem,...) explicitly.")]
+        public static partial void PendingTriggeringNameDictionaryFullCap(
+            this ILogger logger,
+            int cap,
+            string op,
+            string triggered,
+            string triggering);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 5, Level = LogLevel.Error,
+            Message = "{SubscriptionId}: SetTriggering for triggering item {Name} failed.")]
+        public static partial void SubscriptionSetTriggeringTriggeringItemNameFailed(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId,
+            string name);
+    }
+
 }

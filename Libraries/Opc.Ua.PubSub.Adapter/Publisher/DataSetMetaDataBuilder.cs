@@ -226,9 +226,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(
-                    ex,
-                    "Metadata model-change monitoring could not be started.");
+                m_logger.MetadataModelChangeMonitoringCouldNotBeStarted(ex);
             }
         }
 
@@ -255,9 +253,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogInformation(
-                            ex,
-                            "Metadata refresh after a model-change event failed.");
+                        m_logger.MetadataRefreshAfterModelChangeFailed(ex);
                     }
                 }
                 while (Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) != 0);
@@ -316,11 +312,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             catch (Exception ex)
             {
                 m_metrics?.RecordMetadataResolution(false);
-                m_logger.LogInformation(
-                    ex,
-                    "Metadata fallback read of {Count} field(s) failed; using default " +
-                    "BaseDataType/Variant/Scalar field types and retrying later.",
-                    unresolved.Count);
+                m_logger.MetadataFallbackReadFailed(ex, unresolved.Count);
                 return false;
             }
 
@@ -528,4 +520,27 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
         private readonly record struct UnresolvedField(int FieldIndex, NodeId SourceNode);
     }
+
+    /// <summary>
+    /// Source-generated log messages for DataSetMetaDataBuilder.
+    /// </summary>
+    internal static partial class DataSetMetaDataBuilderLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.DataSetMetaDataBuilder + 0,
+            Level = LogLevel.Information, Message = "Metadata model-change monitoring could not be started.")]
+        public static partial void MetadataModelChangeMonitoringCouldNotBeStarted(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.DataSetMetaDataBuilder + 1,
+            Level = LogLevel.Information, Message = "Metadata refresh after a model-change event failed.")]
+        public static partial void MetadataRefreshAfterModelChangeFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.DataSetMetaDataBuilder + 2,
+            Level = LogLevel.Information,
+            Message = "Metadata fallback read of {Count} field(s) failed; using default " +
+                "BaseDataType/Variant/Scalar field types and retrying later.")]
+        public static partial void MetadataFallbackReadFailed(this ILogger logger, Exception exception, int count);
+    }
+
 }

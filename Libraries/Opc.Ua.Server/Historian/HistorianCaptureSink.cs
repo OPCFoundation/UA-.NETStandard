@@ -196,13 +196,12 @@ namespace Opc.Ua.Server.Historian
             }
             catch (TimeoutException)
             {
-                m_logger?.LogWarning(
-                    "HistorianCaptureSink consumer did not drain within 5s; cancelling forcibly.");
+                m_logger?.HistorianCaptureSinkConsumerDidNotDrainWithin5s();
                 m_shutdownCts.Cancel();
             }
             catch (Exception ex)
             {
-                m_logger?.LogWarning(ex, "HistorianCaptureSink consumer faulted during shutdown.");
+                m_logger?.HistorianCaptureSinkConsumerFaultedDuringShutdown(ex);
             }
             m_shutdownCts.Dispose();
         }
@@ -231,7 +230,7 @@ namespace Opc.Ua.Server.Historian
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "HistorianCaptureSink consumer terminated unexpectedly.");
+                m_logger?.HistorianCaptureSinkConsumerTerminatedUnexpectedly(ex);
             }
         }
 
@@ -325,10 +324,7 @@ namespace Opc.Ua.Server.Historian
             }
             catch (Exception ex)
             {
-                m_logger?.LogWarning(
-                    ex,
-                    "HistorianCaptureSink flush failed for {Nodes} node(s); samples dropped.",
-                    batch.Count);
+                m_logger?.HistorianCaptureSinkFlushFailedForNodesNodeS(ex, batch.Count);
             }
         }
 
@@ -336,9 +332,7 @@ namespace Opc.Ua.Server.Historian
         {
             Interlocked.Increment(ref m_droppedSamples);
             // Log at trace level — high-frequency drops would otherwise spam.
-            m_logger?.LogTrace(
-                "HistorianCaptureSink dropped sample for {NodeId} ({Mode}).",
-                ev.NodeId, m_options.FullMode);
+            m_logger?.HistorianCaptureSinkDroppedSampleForNodeIdMode(ev.NodeId, m_options.FullMode);
         }
 
         private static BoundedChannelFullMode MapFullMode(CaptureFullMode mode)
@@ -365,4 +359,39 @@ namespace Opc.Ua.Server.Historian
         private long m_droppedSamples;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for HistorianCaptureSink.
+    /// </summary>
+    internal static partial class HistorianCaptureSinkLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 0, Level = LogLevel.Warning,
+            Message = "HistorianCaptureSink consumer did not drain within 5s; cancelling forcibly.")]
+        public static partial void HistorianCaptureSinkConsumerDidNotDrainWithin5s(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 1, Level = LogLevel.Warning,
+            Message = "HistorianCaptureSink consumer faulted during shutdown.")]
+        public static partial void HistorianCaptureSinkConsumerFaultedDuringShutdown(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 2, Level = LogLevel.Error,
+            Message = "HistorianCaptureSink consumer terminated unexpectedly.")]
+        public static partial void HistorianCaptureSinkConsumerTerminatedUnexpectedly(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 3, Level = LogLevel.Warning,
+            Message = "HistorianCaptureSink flush failed for {Nodes} node(s); samples dropped.")]
+        public static partial void HistorianCaptureSinkFlushFailedForNodesNodeS(
+            this ILogger logger,
+            Exception ex,
+            int nodes);
+
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 4, Level = LogLevel.Trace,
+            Message = "HistorianCaptureSink dropped sample for {NodeId} ({Mode}).")]
+        public static partial void HistorianCaptureSinkDroppedSampleForNodeIdMode(
+            this ILogger logger,
+            NodeId nodeId,
+            CaptureFullMode mode);
+    }
+
 }

@@ -419,14 +419,12 @@ namespace Opc.Ua.Client
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
-                    m_logger.LogInformation(
-                        "Reconnect {SessionId} aborted, KeepAlive recovered.",
-                        session.SessionId);
+                    m_logger.ReconnectSessionIdAbortedKeepAliveRecovered(session.SessionId);
                     Session = session = null;
                 }
                 else
                 {
-                    m_logger.LogInformation("Reconnect {SessionId}.", session.SessionId);
+                    m_logger.ReconnectSessionId(session.SessionId);
                 }
 
                 // do the reconnect or recover state.
@@ -445,7 +443,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                m_logger.LogError("Unexpected error during reconnect: {Message}", Redact.Create(exception));
+                m_logger.UnexpectedErrorDuringReconnectMessage(Redact.Create(exception));
             }
 
             // schedule the next reconnect.
@@ -461,17 +459,14 @@ namespace Opc.Ua.Client
                     {
                         int elapsed = (int)m_timeProvider
                             .GetElapsedTime(reconnectStartTimestamp).TotalMilliseconds;
-                        m_logger.LogInformation(
-                            "Reconnect period is {ReconnectPeriod} ms, {Elapsed} ms elapsed in reconnect.",
+                        m_logger.ReconnectPeriodReconnectPeriodMsElapsedMs(
                             m_reconnectPeriod,
                             elapsed);
                         int adjustedReconnectPeriod = CheckedReconnectPeriod(
                             m_reconnectPeriod - elapsed);
                         adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
                         m_reconnectTimer?.Change(TimeSpan.FromMilliseconds(adjustedReconnectPeriod), Timeout.InfiniteTimeSpan);
-                        m_logger.LogInformation(
-                            "Next adjusted reconnect scheduled in {ReconnectPeriod} ms.",
-                            adjustedReconnectPeriod);
+                        m_logger.NextAdjustedReconnectScheduledReconnectPeriodMs(adjustedReconnectPeriod);
                         m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
                         m_state = ReconnectState.Triggered;
                     }
@@ -521,7 +516,7 @@ namespace Opc.Ua.Client
                     // recreate the session if it has been closed.
                     if (exception is ServiceResultException sre)
                     {
-                        m_logger.LogWarning("Reconnect failed. Reason={Reason}.", sre.Result);
+                        m_logger.ReconnectFailedReasonReason(sre.Result);
 
                         // check if the server endpoint could not be reached.
                         if (sre.StatusCode == StatusCodes.BadTcpInternalError ||
@@ -539,9 +534,7 @@ namespace Opc.Ua.Client
                                     current.LastKeepAliveTimestamp).TotalMilliseconds;
                             if (timeout > 0)
                             {
-                                m_logger.LogInformation(
-                                    "Retry to reactivate, est. session timeout in {Timeout} ms.",
-                                    timeout);
+                                m_logger.RetryReactivateEstSessionTimeoutTimeout(timeout);
                                 return false;
                             }
                         }
@@ -551,9 +544,7 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
-                            m_logger.LogInformation(
-                                "Reconnect failed due to security check. Request endpoint update from server. {Message}",
-                                sre.Message);
+                            m_logger.ReconnectFailedSecurityCheckRequestEndpoint(sre.Message);
                         }
                         // recreate session immediately, use existing channel
                         else if (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
@@ -573,7 +564,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        m_logger.LogError(exception, "Reconnect failed.");
+                        m_logger.ReconnectFailed(exception);
                     }
 
                     m_reconnectFailed = true;
@@ -646,22 +637,18 @@ namespace Opc.Ua.Client
                     {
                         m_reconnectPeriod = m_baseReconnectPeriod;
                     }
-                    m_logger.LogError(
-                        "Could not reconnect due to failed security check. Request endpoint update from server. {Message}",
-                        Redact.Create(sre));
+                    m_logger.CouldNotReconnectFailedSecurityCheck(Redact.Create(sre));
                 }
                 else
                 {
-                    m_logger.LogError(
-                        "Could not reconnect the Session. Request endpoint update from server. {Message}",
-                        Redact.Create(sre));
+                    m_logger.CouldNotReconnectSessionRequestEndpoint(Redact.Create(sre));
                 }
                 m_updateFromServer = true;
                 return false;
             }
             catch (Exception exception)
             {
-                m_logger.LogError("Could not reconnect the Session. {ErrorMessage}", Redact.Create(exception));
+                m_logger.CouldNotReconnectSessionErrorMessage(Redact.Create(exception));
                 return false;
             }
         }
@@ -712,9 +699,7 @@ namespace Opc.Ua.Client
             {
                 // The original endpoint security configuration is no longer available on the server.
                 // Fall back to the best available endpoint without security constraints.
-                m_logger.LogWarning(
-                    "Original endpoint security configuration not available on server, falling back to best available endpoint. {Message}",
-                    sre.Message);
+                m_logger.OriginalEndpointSecurityConfigurationNotAvailable(sre.Message);
                 if (connection != null)
                 {
                     await endpoint
@@ -766,4 +751,76 @@ namespace Opc.Ua.Client
         private EventHandler? m_callback;
         private ReverseConnectManager? m_reverseConnectManager;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SessionReconnectHandler"/>.
+    /// </summary>
+    internal static partial class SessionReconnectHandlerLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 0, Level = LogLevel.Information,
+            Message = "Reconnect {SessionId} aborted, KeepAlive recovered.")]
+        public static partial void ReconnectSessionIdAbortedKeepAliveRecovered(this ILogger logger, NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 1, Level = LogLevel.Information,
+            Message = "Reconnect {SessionId}.")]
+        public static partial void ReconnectSessionId(this ILogger logger, NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 2, Level = LogLevel.Error,
+            Message = "Unexpected error during reconnect: {Message}")]
+        public static partial void UnexpectedErrorDuringReconnectMessage(this ILogger logger, RedactionWrapper<Exception> message);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 3, Level = LogLevel.Information,
+            Message = "Reconnect period is {ReconnectPeriod} ms, {Elapsed} ms elapsed in reconnect.")]
+        public static partial void ReconnectPeriodReconnectPeriodMsElapsedMs(
+            this ILogger logger,
+            int reconnectPeriod,
+            int elapsed);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 4, Level = LogLevel.Information,
+            Message = "Next adjusted reconnect scheduled in {ReconnectPeriod} ms.")]
+        public static partial void NextAdjustedReconnectScheduledReconnectPeriodMs(
+            this ILogger logger,
+            int reconnectPeriod);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 5, Level = LogLevel.Warning,
+            Message = "Reconnect failed. Reason={Reason}.")]
+        public static partial void ReconnectFailedReasonReason(this ILogger logger, ServiceResult reason);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 6, Level = LogLevel.Information,
+            Message = "Retry to reactivate, est. session timeout in {Timeout} ms.")]
+        public static partial void RetryReactivateEstSessionTimeoutTimeout(this ILogger logger, int timeout);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 7, Level = LogLevel.Information,
+            Message = "Reconnect failed due to security check. Request endpoint update from server. {Message}")]
+        public static partial void ReconnectFailedSecurityCheckRequestEndpoint(this ILogger logger, string message);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 8, Level = LogLevel.Error,
+            Message = "Reconnect failed.")]
+        public static partial void ReconnectFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 9, Level = LogLevel.Error,
+            Message = "Could not reconnect due to failed security check. Request endpoint update from server." +
+                " {Message}")]
+        public static partial void CouldNotReconnectFailedSecurityCheck(
+            this ILogger logger,
+            RedactionWrapper<ServiceResultException> message);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 10, Level = LogLevel.Error,
+            Message = "Could not reconnect the Session. Request endpoint update from server. {Message}")]
+        public static partial void CouldNotReconnectSessionRequestEndpoint(
+            this ILogger logger,
+            RedactionWrapper<ServiceResultException> message);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 11, Level = LogLevel.Error,
+            Message = "Could not reconnect the Session. {ErrorMessage}")]
+        public static partial void CouldNotReconnectSessionErrorMessage(this ILogger logger, RedactionWrapper<Exception> errorMessage);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 12, Level = LogLevel.Warning,
+            Message = "Original endpoint security configuration not available on server, falling back to best" +
+                " available endpoint. {Message}")]
+        public static partial void OriginalEndpointSecurityConfigurationNotAvailable(
+            this ILogger logger,
+            string message);
+    }
+
 }

@@ -138,9 +138,7 @@ namespace Pumps
                 .Configure(Configure)
                 .Seal();
 
-            m_logger.LogInformation(
-                "PumpNodeManager: address space ready ({NodeCount} predefined nodes).",
-                PredefinedNodes.Count);
+            m_logger.PumpAddressSpaceReady(PredefinedNodes.Count);
 
             // PostSetupRunner is invoked automatically by the base
             // DiNodeManager.CreateAddressSpaceAsync after this method
@@ -204,18 +202,14 @@ namespace Pumps
                 Server.NamespaceUris));
             if (deviceSet == null)
             {
-                m_logger.LogWarning(
-                    "DI DeviceSet not found — '{Name}' will not be created.",
-                    pumpBrowseName.Name);
+                m_logger.DiDeviceSetNotFound(pumpBrowseName.Name);
                 return;
             }
 
             // Fail-fast on duplicate.
             if (deviceSet.FindChild(SystemContext, pumpBrowseName) != null)
             {
-                m_logger.LogDebug(
-                    "DeviceSet already contains '{Name}' — skipping recreation.",
-                    pumpBrowseName.Name);
+                m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
                 return;
             }
 
@@ -243,9 +237,7 @@ namespace Pumps
 
             m_pump1 = pump;
 
-            m_logger.LogInformation(
-                "Materialised '{Name}' (PumpType) under DeviceSet, NodeId={NodeId}.",
-                pumpBrowseName.Name, pump.NodeId);
+            m_logger.MaterialisedPump(pumpBrowseName.Name, pump.NodeId);
         }
 
         /// <summary>
@@ -388,5 +380,26 @@ namespace Pumps
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(nm);
         }
+    }
+
+    internal static partial class PumpNodeManagerLog
+    {
+        [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.PumpNodeManager + 1,
+            Level = LogLevel.Information,
+            Message = "PumpNodeManager: address space ready ({NodeCount} predefined nodes).")]
+        public static partial void PumpAddressSpaceReady(this ILogger logger, int nodeCount);
+
+        [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.PumpNodeManager + 2, Level = LogLevel.Warning,
+            Message = "DI DeviceSet not found — '{Name}' will not be created.")]
+        public static partial void DiDeviceSetNotFound(this ILogger logger, string? name);
+
+        [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.PumpNodeManager + 3, Level = LogLevel.Debug,
+            Message = "DeviceSet already contains '{Name}' — skipping recreation.")]
+        public static partial void DeviceSetAlreadyContains(this ILogger logger, string? name);
+
+        [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.PumpNodeManager + 4,
+            Level = LogLevel.Information,
+            Message = "Materialised '{Name}' (PumpType) under DeviceSet, NodeId={NodeId}.")]
+        public static partial void MaterialisedPump(this ILogger logger, string? name, NodeId nodeId);
     }
 }

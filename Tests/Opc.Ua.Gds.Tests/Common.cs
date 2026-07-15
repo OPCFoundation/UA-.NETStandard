@@ -326,9 +326,12 @@ namespace Opc.Ua.Gds.Tests
             if (m_ask)
             {
                 m_message += " (y/n, default y): ";
-                m_logger.LogInformation("ASK: {Message}", m_message);
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.LogInformation("ASK: {Message}", m_message);
+                }
             }
-            else
+            else if (m_logger.IsEnabled(LogLevel.Information))
             {
                 m_logger.LogInformation("MSG: {Message}", m_message);
             }

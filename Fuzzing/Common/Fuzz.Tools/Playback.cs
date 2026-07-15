@@ -58,13 +58,19 @@ namespace Opc.Ua.Fuzzing
             }
             catch (Exception e)
             {
-                logger.LogInformation(e, "Directory not found: {FilePath}", path);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(e, "Directory not found: {FilePath}", path);
+                }
                 return;
             }
 
             foreach (string crashFile in crashFiles)
             {
-                logger.LogInformation("### Crash data {FilePath:20} ###", Path.GetFileName(crashFile));
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("### Crash data {FilePath:20} ###", Path.GetFileName(crashFile));
+                }
                 byte[] crashData = File.ReadAllBytes(crashFile);
 
                 foreach (Delegate method in libFuzzMethods)
@@ -77,27 +83,39 @@ namespace Opc.Ua.Fuzzing
                             stopWatch.Start();
                             libFuzzMethod(crashData);
                             stopWatch.Stop();
-                            logger.LogInformation(
-                                "Target: {Name:30} Elapsed: {Elapsed}ms",
-                                libFuzzMethod.Method.Name,
-                                stopWatch.ElapsedMilliseconds
-                            );
+                            if (logger.IsEnabled(LogLevel.Information))
+                            {
+                                logger.LogInformation(
+                                    "Target: {Name:30} Elapsed: {Elapsed}ms",
+                                    libFuzzMethod.Method.Name,
+                                    stopWatch.ElapsedMilliseconds
+                                );
+                            }
                         }
                         catch (Exception ex)
                         {
                             stopWatch.Stop();
-                            logger.LogInformation(
-                                "Target: {Name:30} Elapsed: {Elapsed}ms",
-                                libFuzzMethod.Method.Name,
-                                stopWatch.ElapsedMilliseconds
-                            );
-                            if (stackTrace)
+                            if (logger.IsEnabled(LogLevel.Information))
                             {
-                                logger.LogInformation(ex, "{Name}", ex.GetType().Name);
+                                logger.LogInformation(
+                                    "Target: {Name:30} Elapsed: {Elapsed}ms",
+                                    libFuzzMethod.Method.Name,
+                                    stopWatch.ElapsedMilliseconds
+                                );
                             }
-                            else
+                            if (logger.IsEnabled(LogLevel.Information))
                             {
-                                logger.LogInformation("{Name}:{ErrorMessage}", ex.GetType().Name, ex.Message);
+                                if (stackTrace)
+                                {
+                                    logger.LogInformation(ex, "{Name}", ex.GetType().Name);
+                                }
+                                else
+                                {
+                                    logger.LogInformation(
+                                        "{Name}:{ErrorMessage}",
+                                        ex.GetType().Name,
+                                        ex.Message);
+                                }
                             }
                         }
                     }

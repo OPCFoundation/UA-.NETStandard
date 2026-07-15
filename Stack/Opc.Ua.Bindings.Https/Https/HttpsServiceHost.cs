@@ -60,6 +60,12 @@ namespace Opc.Ua.Bindings
             = [];
 
         /// <summary>
+        /// Gets or sets the factory used to create listener buffer managers.
+        /// </summary>
+        internal IBufferManagerFactory BufferManagerFactory { get; set; } =
+            DefaultBufferManagerFactory.Instance;
+
+        /// <summary>
         /// The OPC UA <c>TransportProfileUri</c> reported on the
         /// <see cref="EndpointDescription.TransportProfileUri"/> emitted for
         /// this factory's base addresses. Defaults to the HTTPS binary
@@ -304,7 +310,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    logger.LogError("Failed to create endpoint {Uri} because the transport profile is unsupported.", uri);
+                    logger.FailedToCreateEndpoint(uri);
                 }
             }
 
@@ -312,5 +318,15 @@ namespace Opc.Ua.Bindings
             hosts[hostName] = serverBase!.CreateServiceHost(serverBase!, [.. uris])!;
             return endpoints;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="HttpsServiceHost"/>.
+    /// </summary>
+    internal static partial class HttpsServiceHostLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsServiceHost + 0, Level = LogLevel.Error,
+            Message = "Failed to create endpoint {Uri} because the transport profile is unsupported.")]
+        public static partial void FailedToCreateEndpoint(this ILogger logger, UriBuilder uri);
     }
 }

@@ -214,7 +214,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            m_logger.LogError(e, "Unexpected error reporting RequestCancelled event.");
+                            m_logger.UnexpectedErrorReportingRequestCancelledEvent(e);
                         }
                     }
                 }
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            m_logger.LogError(e, "Unexpected error reporting RequestCancelled event.");
+                            m_logger.UnexpectedErrorReportingRequestCancelledEvent(e);
                         }
                     }
                 }
@@ -292,4 +292,15 @@ namespace Opc.Ua.Server
         RequestManager source,
         uint requestId,
         StatusCode statusCode);
+
+    /// <summary>
+    /// Source-generated log messages for RequestManager.
+    /// </summary>
+    internal static partial class RequestManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.RequestManager + 0, Level = LogLevel.Error,
+            Message = "Unexpected error reporting RequestCancelled event.")]
+        public static partial void UnexpectedErrorReportingRequestCancelledEvent(this ILogger logger, Exception ex);
+    }
+
 }

@@ -162,10 +162,7 @@ namespace Opc.Ua.Server.AliasNames
                 }
                 catch (InvalidOperationException ex)
                 {
-                    m_aliasLogger.LogWarning(ex,
-                        "AliasNameStore could not be registered with " +
-                        "the server-wide registry; standard well-known " +
-                        "Aliases methods will not dispatch through it.");
+                    m_aliasLogger.AliasNameStoreCouldNotBeRegisteredWithThe(ex);
                 }
             }
 
@@ -439,4 +436,16 @@ namespace Opc.Ua.Server.AliasNames
         private uint m_nextNodeId;
         private readonly Lock m_lock = new();
     }
+
+    /// <summary>
+    /// Source-generated log messages for AliasNameNodeManager.
+    /// </summary>
+    internal static partial class AliasNameNodeManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.AliasNameNodeManager + 0, Level = LogLevel.Warning,
+            Message = "AliasNameStore could not be registered with the server-wide registry; standard " +
+                "well-known Aliases methods will not dispatch through it.")]
+        public static partial void AliasNameStoreCouldNotBeRegisteredWithThe(this ILogger logger, Exception ex);
+    }
+
 }

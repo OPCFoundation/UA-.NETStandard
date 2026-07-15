@@ -63,24 +63,40 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            long sequence = Interlocked.Increment(ref m_received);
-            var builder = new StringBuilder();
-            for (int i = 0; i < fields.Count; i++)
+            if (m_logger.IsEnabled(LogLevel.Information))
             {
-                DataSetField field = fields[i];
-                if (i > 0)
+                long sequence = Interlocked.Increment(ref m_received);
+                var builder = new StringBuilder();
+                for (int i = 0; i < fields.Count; i++)
                 {
-                    builder.Append(", ");
+                    DataSetField field = fields[i];
+                    if (i > 0)
+                    {
+                        builder.Append(", ");
+                    }
+                    builder
+                        .Append(string.IsNullOrEmpty(field.Name) ? $"f{i}" : field.Name)
+                        .Append('=')
+                        .Append(field.Value.IsNull ? "(null)" : field.Value.ToString());
                 }
-                builder
-                    .Append(string.IsNullOrEmpty(field.Name) ? $"f{i}" : field.Name)
-                    .Append('=')
-                    .Append(field.Value.IsNull ? "(null)" : field.Value.ToString());
+
+                string fieldsText = builder.ToString();
+                m_logger.DataSetReceived(sequence, fields.Count, fieldsText);
             }
-            m_logger.LogInformation(
-                "DataSet #{Sequence} received ({FieldCount} fields): {Fields}",
-                sequence, fields.Count, builder.ToString());
+
             return ValueTask.CompletedTask;
         }
+    }
+
+    internal static partial class ConsoleLoggingSinkLog
+    {
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.ConsoleLoggingSink + 0,
+            Level = LogLevel.Information,
+            Message = "DataSet #{Sequence} received ({FieldCount} fields): {Fields}")]
+        public static partial void DataSetReceived(
+            this ILogger logger,
+            long sequence,
+            int fieldCount,
+            string fields);
     }
 }
