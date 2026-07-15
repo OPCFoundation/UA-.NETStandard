@@ -31,6 +31,7 @@ using System;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Quickstarts.Servers;
 
 namespace Alarms
 {
@@ -76,7 +77,7 @@ namespace Alarms
             alarm.ConditionClassName!.Value
                 = new LocalizedText(string.Empty, m_alarmConditionType.ConditionName);
             alarm.ConditionName!.Value = m_alarmRootName;
-            m_logger.LogTrace("Alarm ConditionName = {ConditionName}", alarm.ConditionName.Value);
+            m_logger.AlarmConditionName(alarm.ConditionName.Value);
 
             alarm.BranchId!.Value = new NodeId();
             alarm.Retain!.Value = false;
@@ -361,4 +362,13 @@ namespace Alarms
             return true;
         }
     }
+
+    internal static partial class ConditionTypeHolderLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ConditionTypeHolder + 0, Level = LogLevel.Trace,
+            Message = "Alarm ConditionName = {ConditionName}")]
+        public static partial void AlarmConditionName(this ILogger logger, string conditionName);
+    }
+
 }

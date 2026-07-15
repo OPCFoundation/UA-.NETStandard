@@ -160,8 +160,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 m_device = device;
                 m_isOpen = true;
             }
-            m_logger.LogInformation(
-                "SharpPcap Ethernet channel opened on interface '{Interface}'.", m_interfaceName);
+            m_logger.SharpPcapEthernetChannelOpened(m_interfaceName);
             return default;
         }
 
@@ -187,8 +186,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             channel?.Writer.TryComplete();
             if (wasOpen)
             {
-                m_logger.LogInformation(
-                    "SharpPcap Ethernet channel closed on interface '{Interface}'.", m_interfaceName);
+                m_logger.SharpPcapEthernetChannelClosed(m_interfaceName);
             }
             cancellationToken.ThrowIfCancellationRequested();
             return default;
@@ -283,7 +281,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
             if (!channel.Writer.TryWrite(data))
             {
-                m_logger.LogTrace("SharpPcap receive queue full; frame dropped.");
+                m_logger.SharpPcapReceiveQueueFull();
             }
         }
 
@@ -308,7 +306,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
             catch (PcapException ex)
             {
-                m_logger.LogDebug(ex, "SharpPcap StopCapture raised an exception.");
+                m_logger.SharpPcapStopCaptureRaisedException(ex);
             }
             device.OnPacketArrival -= OnPacketArrival;
             device.Dispose();
@@ -356,6 +354,29 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 address.Equals(device.MacAddress);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for PcapEthernetFrameChannel.
+    /// </summary>
+    internal static partial class PcapEthernetFrameChannelLog
+    {
+        [LoggerMessage(EventId = PubSubEthEventIds.PcapEthernetFrameChannel + 0,
+            Level = LogLevel.Information, Message = "SharpPcap Ethernet channel opened on interface '{Interface}'.")]
+        public static partial void SharpPcapEthernetChannelOpened(this ILogger logger, string @interface);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.PcapEthernetFrameChannel + 1,
+            Level = LogLevel.Information, Message = "SharpPcap Ethernet channel closed on interface '{Interface}'.")]
+        public static partial void SharpPcapEthernetChannelClosed(this ILogger logger, string @interface);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.PcapEthernetFrameChannel + 2,
+            Level = LogLevel.Trace, Message = "SharpPcap receive queue full; frame dropped.")]
+        public static partial void SharpPcapReceiveQueueFull(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.PcapEthernetFrameChannel + 3,
+            Level = LogLevel.Debug, Message = "SharpPcap StopCapture raised an exception.")]
+        public static partial void SharpPcapStopCaptureRaisedException(this ILogger logger, Exception exception);
+    }
+
 }
 
 #endif

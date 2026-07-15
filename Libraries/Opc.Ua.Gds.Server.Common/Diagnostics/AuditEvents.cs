@@ -109,9 +109,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting CertificateDeliveredAuditEventState event.");
+                logger.ErrorReportingCertificateDeliveredAuditEventState(ex);
             }
         }
 
@@ -202,9 +200,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting CertificateRequestedAuditEventState event.");
+                logger.ErrorReportingCertificateRequestedAuditEventState(ex);
             }
         }
 
@@ -278,9 +274,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting CertificateRevokedAuditEventState event.");
+                logger.ErrorReportingCertificateRevokedAuditEventState(ex);
             }
         }
 
@@ -336,9 +330,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while reporting ApplicationRegistrationChangedAuditEventState event.");
+                logger.ErrorReportingApplicationRegistrationChangedAuditEventState(ex);
             }
         }
 
@@ -456,8 +448,33 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while reporting {EventName} event.", eventName);
+                logger.ErrorReportingEvent(ex, eventName);
             }
         }
+    }
+
+    internal static partial class AuditEventsLog
+    {
+        [LoggerMessage(EventId = GdsServerCommonEventIds.AuditEvents + 0, Level = LogLevel.Error,
+            Message = "Error while reporting CertificateDeliveredAuditEventState event.")]
+        public static partial void ErrorReportingCertificateDeliveredAuditEventState(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.AuditEvents + 1, Level = LogLevel.Error,
+            Message = "Error while reporting CertificateRequestedAuditEventState event.")]
+        public static partial void ErrorReportingCertificateRequestedAuditEventState(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.AuditEvents + 2, Level = LogLevel.Error,
+            Message = "Error while reporting CertificateRevokedAuditEventState event.")]
+        public static partial void ErrorReportingCertificateRevokedAuditEventState(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.AuditEvents + 3, Level = LogLevel.Error,
+            Message = "Error while reporting ApplicationRegistrationChangedAuditEventState event.")]
+        public static partial void ErrorReportingApplicationRegistrationChangedAuditEventState(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.AuditEvents + 4, Level = LogLevel.Error,
+            Message = "Error while reporting {EventName} event.")]
+        public static partial void ErrorReportingEvent(this ILogger logger, Exception ex, string eventName);
     }
 }

@@ -212,10 +212,7 @@ namespace Opc.Ua
                         store.Add(x509ForCheck);
                     }
 
-                    m_logger.LogInformation(
-                        "Added certificate with thumbprint {Thumbprint} to X509Store {Name}.",
-                        certificate.Thumbprint,
-                        store.Name);
+                    m_logger.X509CertificateStoreLogMessage0(certificate.Thumbprint, store.Name);
                 }
             }
 
@@ -367,7 +364,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(e, "Failed to parse CRL in store {StoreName}.", store.Name);
+                        m_logger.X509CertificateStoreLogMessage1(e, store.Name);
                     }
                 }
             }
@@ -483,4 +480,25 @@ namespace Opc.Ua
         private string m_storeName;
         private StoreLocation m_storeLocation;
     }
+
+    /// <summary>
+    /// Source-generated log messages for X509CertificateStore.
+    /// </summary>
+    internal static partial class X509CertificateStoreLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.X509CertificateStore + 0, Level = LogLevel.Information,
+            Message = "Added certificate with thumbprint {Thumbprint} to X509Store {Name}.")]
+        public static partial void X509CertificateStoreLogMessage0(
+            this ILogger logger,
+            string? thumbprint,
+            string? name);
+
+        [LoggerMessage(EventId = CoreEventIds.X509CertificateStore + 1, Level = LogLevel.Error,
+            Message = "Failed to parse CRL in store {StoreName}.")]
+        public static partial void X509CertificateStoreLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? storeName);
+    }
+
 }

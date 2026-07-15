@@ -86,8 +86,8 @@ namespace Opc.Ua.Pcap.Formats
                 throw new PcapDiagnosticsException(
                     "Service timeline requires both captured frames and key material from the source.");
             }
-            m_logger.LogDebug("Formatting capture as service timeline.");
-            m_logger.LogDebug("Formatting capture as service timeline.");
+            m_logger.FormattingCaptureAsServiceTimeline();
+            m_logger.FormattingCaptureAsServiceTimeline();
             var reassembler = new ServiceCallReassembler();
             foreach (ChannelKeyMaterial material in keyMaterials)
             {
@@ -129,6 +129,7 @@ namespace Opc.Ua.Pcap.Formats
                 {
                     rows.Add(TimelineRow.CreateResponse(call));
                 }
+
             }
 
             rows.Sort(static (left, right) => left.Timestamp.CompareTo(right.Timestamp));
@@ -204,4 +205,15 @@ namespace Opc.Ua.Pcap.Formats
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ServiceTimelineFormatter"/>.
+    /// </summary>
+    internal static partial class ServiceTimelineFormatterLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ServiceTimelineFormatter + 0, Level = LogLevel.Debug,
+            Message = "Formatting capture as service timeline.")]
+        public static partial void FormattingCaptureAsServiceTimeline(this ILogger logger);
+    }
+
 }

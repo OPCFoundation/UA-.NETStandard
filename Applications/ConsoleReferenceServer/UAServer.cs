@@ -251,19 +251,15 @@ namespace Quickstarts
         {
             if (error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept)
             {
-                m_logger.LogInformation(
-                    "Accepted Certificate: [{Subject}] [{Thumbprint}]",
+                m_logger.AcceptedCertificate(
                     certificate.Subject,
-                    certificate.Thumbprint
-                );
+                    certificate.Thumbprint);
                 return true;
             }
-            m_logger.LogInformation(
-                "Rejected Certificate: {Error} [{Subject}] [{Thumbprint}]",
+            m_logger.RejectedCertificate(
                 error,
                 certificate.Subject,
-                certificate.Thumbprint
-            );
+                certificate.Thumbprint);
             return false;
         }
 
@@ -283,12 +279,13 @@ namespace Quickstarts
         {
             lock (session.DiagnosticsLock)
             {
-                m_logger.LogInformation(
-                    "{Reason,9}:{Session,20}:Last Event:{LastContactTime:HH:mm:ss}",
-                    reason,
-                    session.SessionDiagnostics.SessionName,
-                    session.SessionDiagnostics.ClientLastContactTime.ToLocalTime()
-                );
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.SessionStatusLastContact(
+                        reason,
+                        session.SessionDiagnostics.SessionName,
+                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                }
             }
         }
 
@@ -299,14 +296,15 @@ namespace Quickstarts
         {
             lock (session.DiagnosticsLock)
             {
-                m_logger.LogInformation(
-                    "{Reason,9}:{Session,20}:Last Event:{LastContactTime:HH:mm:ss}:{UserIdentity,20}:{SessionId}",
-                    reason,
-                    session.SessionDiagnostics.SessionName,
-                    session.SessionDiagnostics.ClientLastContactTime.ToLocalTime(),
-                    session.Identity?.DisplayName ?? "Anonymous",
-                    session.Id
-                );
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.SessionStatusFull(
+                        reason,
+                        session.SessionDiagnostics.SessionName,
+                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime(),
+                        session.Identity?.DisplayName ?? "Anonymous",
+                        session.Id);
+                }
             }
         }
 
@@ -389,4 +387,38 @@ namespace Quickstarts
         private IAsyncDisposable? m_pcapCapture;
 #endif
     }
+
+    internal static partial class UAServerLog
+    {
+        [LoggerMessage(EventId = ConsoleReferenceServerEventIds.UAServer + 0, Level = LogLevel.Information,
+            Message = "Accepted Certificate: [{Subject}] [{Thumbprint}]")]
+        public static partial void AcceptedCertificate(this ILogger logger, string subject, string thumbprint);
+
+        [LoggerMessage(EventId = ConsoleReferenceServerEventIds.UAServer + 1, Level = LogLevel.Information,
+            Message = "Rejected Certificate: {Error} [{Subject}] [{Thumbprint}]")]
+        public static partial void RejectedCertificate(
+            this ILogger logger,
+            ServiceResult error,
+            string subject,
+            string thumbprint);
+
+        [LoggerMessage(EventId = ConsoleReferenceServerEventIds.UAServer + 2, Level = LogLevel.Information,
+            Message = "{Reason,9}:{Session,20}:Last Event:{LastContactTime:HH:mm:ss}")]
+        public static partial void SessionStatusLastContact(
+            this ILogger logger,
+            string reason,
+            string? session,
+            DateTime lastContactTime);
+
+        [LoggerMessage(EventId = ConsoleReferenceServerEventIds.UAServer + 3, Level = LogLevel.Information,
+            Message = "{Reason,9}:{Session,20}:Last Event:{LastContactTime:HH:mm:ss}:{UserIdentity,20}:{SessionId}")]
+        public static partial void SessionStatusFull(
+            this ILogger logger,
+            string reason,
+            string? session,
+            DateTime lastContactTime,
+            string userIdentity,
+            NodeId sessionId);
+    }
+
 }

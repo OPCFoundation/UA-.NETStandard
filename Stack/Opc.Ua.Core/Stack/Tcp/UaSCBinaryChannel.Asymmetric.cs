@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Bindings
             // verify the signature.
             if (!Verify(dataToVerify, signature, senderCertificate!))
             {
-                m_logger.LogWarning("Could not verify signature on message.");
+                m_logger.UaSCChannelLog0();
 
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
@@ -1297,8 +1297,8 @@ namespace Opc.Ua.Bindings
                 headerSize += decoder.Position;
             }
 
-            m_logger.LogInformation("Security Policy: {SecurityPolicyUri}", SecurityPolicyUri);
-            m_logger.LogInformation("Sender Certificate {Certificate}", senderCertificate);
+            m_logger.UaSCChannelLog1(SecurityPolicyUri);
+            m_logger.UaSCChannelLog2(senderCertificate);
 
             // return the body.
             return new ArraySegment<byte>(

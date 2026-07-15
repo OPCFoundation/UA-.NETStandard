@@ -83,8 +83,8 @@ namespace Opc.Ua.Di.Server.Hosting
                 }
                 catch (Exception ex)
                 {
-                    m_logger?.LogError(ex,
-                        "DI post-setup configurator #{Index} (target {TargetType}) failed for manager {ManagerType}.",
+                    m_logger?.DiPostSetupConfiguratorFailed(
+                        ex,
                         index,
                         configurator.TargetManagerType.FullName,
                         managerType.FullName);
@@ -99,5 +99,17 @@ namespace Opc.Ua.Di.Server.Hosting
                 index++;
             }
         }
+    }
+
+    internal static partial class DiPostSetupRunnerLog
+    {
+        [LoggerMessage(EventId = DiServerEventIds.DiPostSetupRunner + 0, Level = LogLevel.Error,
+            Message = "DI post-setup configurator #{Index} (target {TargetType}) failed for manager {ManagerType}.")]
+        public static partial void DiPostSetupConfiguratorFailed(
+            this ILogger logger,
+            Exception ex,
+            int index,
+            string? targetType,
+            string? managerType);
     }
 }

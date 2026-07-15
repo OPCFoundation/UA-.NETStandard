@@ -183,11 +183,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(
-                    ex,
-                    "Metadata resolution for PublishedDataSet '{Name}' failed; " +
-                    "continuing with configured field types and retrying next cycle.",
-                    m_configuration.Name);
+                m_logger.MetadataResolutionFailed(ex, m_configuration.Name);
             }
         }
 
@@ -220,4 +216,17 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             return [];
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ServerPublishedDataSetSource.
+    /// </summary>
+    internal static partial class ServerPublishedDataSetSourceLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerPublishedDataSetSource + 0,
+            Level = LogLevel.Information,
+            Message = "Metadata resolution for PublishedDataSet '{Name}' failed; " +
+                "continuing with configured field types and retrying next cycle.")]
+        public static partial void MetadataResolutionFailed(this ILogger logger, Exception exception, string? name);
+    }
+
 }

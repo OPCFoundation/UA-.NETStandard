@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.UserDatabase
             catch
             {
                 ILogger logger = telemetry.CreateLogger<JsonUserDatabase>();
-                logger.LogWarning("User database {FileName} was not found.", fileName);
+                logger.UserDatabaseFileNameWasNotFound(fileName);
             }
             return new JsonUserDatabase(fileName);
         }
@@ -297,4 +297,15 @@ namespace Opc.Ua.Server.UserDatabase
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for JsonUserDatabase.
+    /// </summary>
+    internal static partial class JsonUserDatabaseLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.JsonUserDatabase + 0, Level = LogLevel.Warning,
+            Message = "User database {FileName} was not found.")]
+        public static partial void UserDatabaseFileNameWasNotFound(this ILogger logger, string? fileName);
+    }
+
 }

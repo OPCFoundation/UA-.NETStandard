@@ -941,10 +941,13 @@ namespace Opc.Ua.Schema.Model
                 {
                     design.PartNo = 4;
                 }
-                m_logger.LogDebug(
-                    "Imported {Type}: {Name}",
-                    design.GetType().Name,
-                    design.SymbolicId.Name);
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.LogDebug(
+                        "Imported {Type}: {Name}",
+                        design.GetType().Name,
+                        design.SymbolicId.Name);
+                }
 
                 if (dataType is TypeDeclaration simpleType)
                 {
@@ -1438,7 +1441,10 @@ namespace Opc.Ua.Schema.Model
             bool loadAsTypeDictionary = designFilePath == BuiltInDesignFiles.UACoreServicesXml;
             if (!loadAsTypeDictionary)
             {
-                m_logger.LogInformation("Loading DesignFile: {File}", designFilePath);
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.LogInformation("Loading DesignFile: {File}", designFilePath);
+                }
                 try
                 {
                     using Stream stream = OpenRead(designFilePath);
@@ -1447,9 +1453,12 @@ namespace Opc.Ua.Schema.Model
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogDebug(e,
-                        "Error loading model {File}, trying as type dictionary",
-                        designFilePath);
+                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        m_logger.LogDebug(e,
+                            "Error loading model {File}, trying as type dictionary",
+                            designFilePath);
+                    }
                     loadAsTypeDictionary = true;
                 }
             }
@@ -1554,7 +1563,7 @@ namespace Opc.Ua.Schema.Model
 
                         index[nodeId] = node;
                     }
-                    else
+                    else if (m_logger.IsEnabled(LogLevel.Debug))
                     {
                         m_logger.LogDebug(
                             "Node {Node} missing from parent {Parent} hierarchy.",
@@ -1562,7 +1571,7 @@ namespace Opc.Ua.Schema.Model
                             parent.SymbolicId);
                     }
                 }
-                else
+                else if (m_logger.IsEnabled(LogLevel.Debug))
                 {
                     m_logger.LogDebug(
                         "Node {Node} does not have a valid NodeId.",
@@ -1577,7 +1586,10 @@ namespace Opc.Ua.Schema.Model
             string identifierFilePath,
             bool validateDictionary = true)
         {
-            m_logger.LogInformation("Loading DesignFile: {File}", designFilePath);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("Loading DesignFile: {File}", designFilePath);
+            }
 
             ModelDesign model;
 
@@ -1629,9 +1641,12 @@ namespace Opc.Ua.Schema.Model
                             instance.ModellingRule == ModellingRule.Mandatory)
                         {
                             // Not an error, show informational
-                            m_logger.LogInformation(
-                                "{Value} missing NodeId for Mandatory child in NodeSet.",
-                                ii.Key);
+                            if (m_logger.IsEnabled(LogLevel.Information))
+                            {
+                                m_logger.LogInformation(
+                                    "{Value} missing NodeId for Mandatory child in NodeSet.",
+                                    ii.Key);
+                            }
                         }
                     }
                 }
@@ -2187,10 +2202,13 @@ namespace Opc.Ua.Schema.Model
             };
 
             m_nodes[dictionary.SymbolicId] = dictionary;
-            m_logger.LogDebug(
-                "Added {Type}: {Name}",
-                dictionary.GetType().Name,
-                dictionary.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Added {Type}: {Name}",
+                    dictionary.GetType().Name,
+                    dictionary.SymbolicId.Name);
+            }
             nodesToAdd.Add(dictionary);
         }
 
@@ -2266,10 +2284,13 @@ namespace Opc.Ua.Schema.Model
             children.Add(property);
 
             m_nodes[property.SymbolicId] = property;
-            m_logger.LogDebug(
-                "Added {Type}: {Name}",
-                property.GetType().Name,
-                property.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Added {Type}: {Name}",
+                    property.GetType().Name,
+                    property.SymbolicId.Name);
+            }
         }
 
         private void AddDataTypeDescription(
@@ -2358,10 +2379,13 @@ namespace Opc.Ua.Schema.Model
                     descriptions.Add(description);
                 }
                 m_nodes[description.SymbolicId] = description;
-                m_logger.LogDebug(
-                    "Added {Type}: {Name}",
-                    description.GetType().Name,
-                    description.SymbolicId.Name);
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.LogDebug(
+                        "Added {Type}: {Name}",
+                        description.GetType().Name,
+                        description.SymbolicId.Name);
+                }
             }
 
             if (dataType.BasicDataType == BasicDataType.UserDefined && !dataType.NoEncodings)
@@ -2457,10 +2481,13 @@ namespace Opc.Ua.Schema.Model
 
             m_nodes[encoding.SymbolicId] = encoding;
             nodesToAdd.Add(encoding);
-            m_logger.LogDebug(
-                "Added {Type}: {Name}",
-                encoding.GetType().Name,
-                encoding.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Added {Type}: {Name}",
+                    encoding.GetType().Name,
+                    encoding.SymbolicId.Name);
+            }
         }
 
         /// <summary>
@@ -2524,7 +2551,10 @@ namespace Opc.Ua.Schema.Model
                     {
                         string name = line[..index].Trim();
                         string id = line[(index + 1)..].Trim();
-                        m_logger.LogDebug("Loaded ID: {Name}={Id}", name, id);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.LogDebug("Loaded ID: {Name}={Id}", name, id);
+                        }
 
                         if (id.StartsWith('"'))
                         {
@@ -2622,7 +2652,10 @@ namespace Opc.Ua.Schema.Model
                 node.StringId = id as string;
             }
 
-            m_logger.LogDebug("Assigned ID: {Name}={Id}", node.SymbolicId.Name, id);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug("Assigned ID: {Name}={Id}", node.SymbolicId.Name, id);
+            }
             return id;
         }
 
@@ -2732,10 +2765,13 @@ namespace Opc.Ua.Schema.Model
                             current.Instance.StringId = id as string;
                         }
 
-                        m_logger.LogDebug(
-                            "Assigned ID: {Name}={Id}",
-                            current.Instance.SymbolicId.Name,
-                            id);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.LogDebug(
+                                "Assigned ID: {Name}={Id}",
+                                current.Instance.SymbolicId.Name,
+                                id);
+                        }
                         continue;
                     }
 
@@ -2866,10 +2902,13 @@ namespace Opc.Ua.Schema.Model
             }
 
             m_nodes.Add(node.SymbolicId, node);
-            m_logger.LogDebug(
-                "Imported {Type}: {Name}",
-                node.GetType().Name,
-                node.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Imported {Type}: {Name}",
+                    node.GetType().Name,
+                    node.SymbolicId.Name);
+            }
 
             // import children.
             if (node.Children != null && node.Children.Items != null)
@@ -3359,10 +3398,13 @@ namespace Opc.Ua.Schema.Model
 
                 // add to table.
                 m_nodes.Add(encoding.SymbolicId, encoding);
-                m_logger.LogDebug(
-                    "Imported {Type}: {Name}",
-                    encoding.GetType().Name,
-                    encoding.SymbolicId.Name);
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.LogDebug(
+                        "Imported {Type}: {Name}",
+                        encoding.GetType().Name,
+                        encoding.SymbolicId.Name);
+                }
 
                 if (encoding.NumericIdSpecified)
                 {
@@ -3540,10 +3582,13 @@ namespace Opc.Ua.Schema.Model
                 "VariableType");
 
             m_nodes.Add(property.SymbolicId, property);
-            m_logger.LogDebug(
-                "Imported {Type}: {Name}",
-                property.GetType().Name,
-                property.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Imported {Type}: {Name}",
+                    property.GetType().Name,
+                    property.SymbolicId.Name);
+            }
 
             return property;
         }
@@ -3666,11 +3711,14 @@ namespace Opc.Ua.Schema.Model
                     source.SymbolicId.Name);
             }
 
-            m_logger.LogDebug(
-                "Import Reference: {Source} => {Reference} => {Target}",
-                reference.SourceNode.SymbolicName.Name,
-                reference.ReferenceType.Name,
-                reference.TargetId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Import Reference: {Source} => {Reference} => {Target}",
+                    reference.SourceNode.SymbolicName.Name,
+                    reference.ReferenceType.Name,
+                    reference.TargetId.Name);
+            }
         }
 
         /// <summary>
@@ -4359,10 +4407,13 @@ namespace Opc.Ua.Schema.Model
             }
 
             m_nodes.Add(encoding.SymbolicId, encoding);
-            m_logger.LogDebug(
-                "Created {Type}: {Name}",
-                encoding.GetType().Name,
-                encoding.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Created {Type}: {Name}",
+                    encoding.GetType().Name,
+                    encoding.SymbolicId.Name);
+            }
 
             return encoding;
         }
@@ -4496,7 +4547,10 @@ namespace Opc.Ua.Schema.Model
 
         private TypeDesign MergeTypeHierarchy(TypeDesign type)
         {
-            m_logger.LogDebug("Merging Type: {Name}", type.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug("Merging Type: {Name}", type.SymbolicId.Name);
+            }
 
             TypeDesign mergedType;
             if (type.BaseTypeNode == null)
@@ -4621,7 +4675,10 @@ namespace Opc.Ua.Schema.Model
             string relativePath,
             NodeDesign source)
         {
-            m_logger.LogDebug("Merging Instance: {Root} {Path} {Source}", rootId.Name, relativePath, source.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug("Merging Instance: {Root} {Path} {Source}", rootId.Name, relativePath, source.SymbolicId.Name);
+            }
 
             var type = source as TypeDesign;
 
@@ -4686,7 +4743,10 @@ namespace Opc.Ua.Schema.Model
             mergedInstance.ReleaseStatus = source.ReleaseStatus;
             mergedInstance.DesignToolOnly = source is InstanceDesign dto && dto.DesignToolOnly;
 
-            m_logger.LogDebug("Created Merged Instance: {Name}", mergedInstance.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug("Created Merged Instance: {Name}", mergedInstance.SymbolicId.Name);
+            }
             return mergedInstance;
         }
 
@@ -4761,10 +4821,13 @@ namespace Opc.Ua.Schema.Model
             InstanceDesign mergedInstance,
             NodeDesign source)
         {
-            m_logger.LogDebug(
-                "Updated Merged Instance: {Instance} {Source}",
-                mergedInstance.SymbolicId.Name,
-                source.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Updated Merged Instance: {Instance} {Source}",
+                    mergedInstance.SymbolicId.Name,
+                    source.SymbolicId.Name);
+            }
 
             if (source.DisplayName != null && !source.DisplayName.IsAutogenerated)
 
@@ -5113,10 +5176,13 @@ namespace Opc.Ua.Schema.Model
 
                         if (!inPath)
                         {
-                            m_logger.LogDebug(
-                                "OverridingInstance: {Instance} : {Overridden}",
-                                instance.SymbolicId.Name,
-                                overriddenInstance.SymbolicId.Name);
+                            if (m_logger.IsEnabled(LogLevel.Debug))
+                            {
+                                m_logger.LogDebug(
+                                    "OverridingInstance: {Instance} : {Overridden}",
+                                    instance.SymbolicId.Name,
+                                    overriddenInstance.SymbolicId.Name);
+                            }
                             instance.OveriddenNode = overriddenInstance;
                         }
                     }
@@ -5135,10 +5201,13 @@ namespace Opc.Ua.Schema.Model
                             propertyName.Name);
                     }
 
-                    m_logger.LogDebug(
-                        "IndexingInstance: {Path} : {Instance}",
-                        browsePath,
-                        instance.SymbolicId.Name);
+                    if (m_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        m_logger.LogDebug(
+                            "IndexingInstance: {Path} : {Instance}",
+                            browsePath,
+                            instance.SymbolicId.Name);
+                    }
                     nodes[browsePath] = instance;
                 }
             }
@@ -5304,15 +5373,18 @@ namespace Opc.Ua.Schema.Model
 
                 references.Add(reference);
 
-                m_logger.LogDebug(
-                    "Translated Reference: {Source} => {Reference} => {Target}",
-                    string.IsNullOrEmpty(reference.SourcePath) ?
-                        source.SymbolicId.Name :
-                        reference.SourcePath,
-                    reference.ReferenceType.Name,
-                    reference.TargetId != null ?
-                        reference.TargetId.Name :
-                        reference.TargetPath);
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.LogDebug(
+                        "Translated Reference: {Source} => {Reference} => {Target}",
+                        string.IsNullOrEmpty(reference.SourcePath) ?
+                            source.SymbolicId.Name :
+                            reference.SourcePath,
+                        reference.ReferenceType.Name,
+                        reference.TargetId != null ?
+                            reference.TargetId.Name :
+                            reference.TargetPath);
+                }
             }
         }
 
@@ -5457,10 +5529,13 @@ namespace Opc.Ua.Schema.Model
             bool inherited,
             int depth)
         {
-            m_logger.LogDebug(
-                "BuildHierarchy for Type: {Type} : {Path}",
-                type.SymbolicId.Name,
-                basePath);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "BuildHierarchy for Type: {Type} : {Path}",
+                    type.SymbolicId.Name,
+                    basePath);
+            }
 
             if (depth > MaxRecursionDepth)
             {
@@ -5559,10 +5634,13 @@ namespace Opc.Ua.Schema.Model
             bool inherited,
             int depth)
         {
-            m_logger.LogDebug(
-                "BuildHierarchy for Instance: {Name} : {Path}",
-                parent.SymbolicId.Name,
-                basePath);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "BuildHierarchy for Instance: {Name} : {Path}",
+                    parent.SymbolicId.Name,
+                    basePath);
+            }
 
             if (depth > MaxRecursionDepth)
             {
@@ -5726,9 +5804,12 @@ namespace Opc.Ua.Schema.Model
 
         private Hierarchy BuildInstanceHierarchy(NodeDesign root, int depth)
         {
-            m_logger.LogDebug(
-                "Building InstanceHierarchy for {Name}",
-                root.SymbolicId.Name);
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Building InstanceHierarchy for {Name}",
+                    root.SymbolicId.Name);
+            }
             if (depth > MaxRecursionDepth)
             {
                 throw new InvalidOperationException(

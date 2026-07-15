@@ -143,7 +143,7 @@ namespace Opc.Ua
             catch (Exception ex)
             {
                 ILogger<SecurityConfiguration> logger = telemetry.CreateLogger<SecurityConfiguration>();
-                logger.LogError(ex, "Failed to open {StoreName} store", storeName);
+                logger.SecurityConfigurationLogMessage0(ex, storeName);
                 throw ServiceResultException.ConfigurationError("{0} store is invalid.", storeName);
             }
         }
@@ -355,4 +355,18 @@ namespace Opc.Ua
             return result;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for SecurityConfiguration.
+    /// </summary>
+    internal static partial class SecurityConfigurationLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.SecurityConfiguration + 0, Level = LogLevel.Error,
+            Message = "Failed to open {StoreName} store")]
+        public static partial void SecurityConfigurationLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string storeName);
+    }
+
 }

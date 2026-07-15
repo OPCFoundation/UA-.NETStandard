@@ -1445,9 +1445,7 @@ namespace Opc.Ua.Server
                                         .ConfigureAwait(false))
                                     {
                                         // intentionally ignore errors, try best effort
-                                        m_logger.LogError(
-                                            "RemoveCertificate: Failed to delete CRL {Crl}.",
-                                            crl.ToString());
+                                        m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
                                     }
                                 }
                             }
@@ -1524,9 +1522,7 @@ namespace Opc.Ua.Server
                                         if (!await commitStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false))
                                         {
                                             // intentionally ignore errors, try best effort
-                                            m_logger.LogError(
-                                                "RemoveCertificate: Failed to delete CRL {Crl}.",
-                                                crl.ToString());
+                                            m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
                                         }
                                     }
 
@@ -1762,5 +1758,14 @@ namespace Opc.Ua.Server
         private MemoryStream? m_strm;
         private readonly int m_effectiveMaxTrustListSize;
         private long m_totalBytesProcessed;
+    }
+
+    internal static partial class TrustListLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 0, Level = LogLevel.Error,
+            Message = "RemoveCertificate: Failed to delete CRL {Crl}.")]
+        public static partial void RemoveCertificateFailedToDeleteCRLCrl(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.X509CRL crl);
     }
 }

@@ -160,7 +160,7 @@ namespace Quickstarts.Servers
                 // persist the batch
                 else
                 {
-                    m_logger.LogDebug("Storing batch for monitored item {MonitoredItemId}", MonitoredItemId);
+                    m_logger.StoringBatch(MonitoredItemId);
 
                     var batchToStore = new DataChangeBatch(
                         m_enqueueBatch.Values,
@@ -257,16 +257,12 @@ namespace Quickstarts.Servers
 
             if (m_dequeueBatch.IsPersisted)
             {
-                m_logger.LogDebug(
-                    "Dequeue was requeusted but queue was not restored for monitoreditem {MonitoredItemId} try to restore for 10 ms.",
-                    MonitoredItemId);
+                m_logger.DequeueRequestedBeforeRestore(MonitoredItemId);
                 m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
 
                 if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
                 {
-                    m_logger.LogDebug(
-                        "Dequeue failed for monitoreditem {MonitoredItemId} as queue could not be restored in time.",
-                        MonitoredItemId);
+                    m_logger.DequeueFailedBeforeRestore(MonitoredItemId);
                     // Dequeue failed as queue could not be restored in time
                     return false;
                 }

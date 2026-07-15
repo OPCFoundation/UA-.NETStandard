@@ -162,9 +162,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 ct.ThrowIfCancellationRequested();
                 if (watch.Elapsed >= budget)
                 {
-                    m_logger.LogDebug(
-                        "DataChangeSubscription: ApplyChangesAsync timed out " +
-                        "waiting for monitored item creation; engine continues applying.");
+                    m_logger.ApplyChangesTimedOut();
                     return;
                 }
                 await Task.Delay(s_applyPollInterval, ct).ConfigureAwait(false);
@@ -190,8 +188,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex,
-                    "DataChangeSubscription: subscription dispose failed.");
+                m_logger.SubscriptionDisposeFailed(ex);
             }
         }
 
@@ -311,4 +308,20 @@ namespace Opc.Ua.PubSub.Adapter.Session
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for DataChangeSubscription.
+    /// </summary>
+    internal static partial class DataChangeSubscriptionLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.DataChangeSubscription + 0, Level = LogLevel.Debug,
+            Message = "DataChangeSubscription: ApplyChangesAsync timed out waiting for monitored item creation; " +
+                "engine continues applying.")]
+        public static partial void ApplyChangesTimedOut(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.DataChangeSubscription + 1, Level = LogLevel.Debug,
+            Message = "DataChangeSubscription: subscription dispose failed.")]
+        public static partial void SubscriptionDisposeFailed(this ILogger logger, Exception exception);
+    }
+
 }

@@ -126,7 +126,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger?.LogDebug(ex, "Load direction policy failed; serving local endpoints.");
+                m_logger?.LoadDirectionPolicyFailed(ex);
                 return (false, default);
             }
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger?.LogDebug(ex, "Failed to resolve peer endpoints; serving local endpoints.");
+                m_logger?.FailedToResolvePeerEndpoints(ex);
                 return (false, default);
             }
 
@@ -174,7 +174,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger?.LogDebug(ex, "Failed to publish local endpoints for load direction.");
+                m_logger?.FailedToPublishLocalEndpointsForLoadDirection(ex);
             }
         }
 
@@ -219,4 +219,25 @@ namespace Opc.Ua.Redundancy.Server
         private string? m_localServerUri;
         private string? m_lastPublishedSignature;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ServerLoadDirector"/>.
+    /// </summary>
+    internal static partial class ServerLoadDirectorLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.ServerLoadDirector + 0, Level = LogLevel.Debug,
+            Message = "Load direction policy failed; serving local endpoints.")]
+        public static partial void LoadDirectionPolicyFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.ServerLoadDirector + 1, Level = LogLevel.Debug,
+            Message = "Failed to resolve peer endpoints; serving local endpoints.")]
+        public static partial void FailedToResolvePeerEndpoints(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.ServerLoadDirector + 2, Level = LogLevel.Debug,
+            Message = "Failed to publish local endpoints for load direction.")]
+        public static partial void FailedToPublishLocalEndpointsForLoadDirection(
+            this ILogger logger,
+            Exception exception);
+    }
+
 }

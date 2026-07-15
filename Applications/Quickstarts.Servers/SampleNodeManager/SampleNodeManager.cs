@@ -33,6 +33,7 @@ using System.Reflection;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
+using Quickstarts.Servers;
 
 namespace Opc.Ua.Sample
 {
@@ -2846,7 +2847,7 @@ namespace Opc.Ua.Sample
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error during diagnostics scan.");
+                m_logger.UnexpectedErrorDuringDiagnosticsScan(e);
             }
         }
 
@@ -3266,4 +3267,13 @@ namespace Opc.Ua.Sample
         private readonly List<DataChangeMonitoredItem> m_sampledItems = [];
         private readonly double m_minimumSamplingInterval;
     }
+
+    internal static partial class SampleNodeManagerLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.SampleNodeManager + 0, Level = LogLevel.Error,
+            Message = "Unexpected error during diagnostics scan.")]
+        public static partial void UnexpectedErrorDuringDiagnosticsScan(this ILogger logger, Exception exception);
+    }
+
 }

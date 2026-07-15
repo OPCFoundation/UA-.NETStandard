@@ -165,9 +165,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(
-                        e,
-                        "Unexpected exception invoking UaChannelAsyncResult callback function.");
+                    m_logger.ChannelBaseObsoleteLogMessage0(e);
                 }
             }
 
@@ -196,4 +194,17 @@ namespace Opc.Ua
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ChannelBaseObsolete.
+    /// </summary>
+    internal static partial class ChannelBaseObsoleteLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ChannelBaseObsolete + 0, Level = LogLevel.Error,
+            Message = "Unexpected exception invoking UaChannelAsyncResult callback function.")]
+        public static partial void ChannelBaseObsoleteLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception);
+    }
+
 }

@@ -85,9 +85,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 m_configuration?.SecurityConfiguration?.TrustedIssuerCertificates;
             if (storeIdentifier is null)
             {
-                logger.LogWarning(
-                    "MQTT TrustedIssuerCertificateSubjects are configured but no trusted issuer " +
-                    "certificate store is available; the broker chain falls back to the platform trust store.");
+                logger.TrustedIssuerCertificateStoreNotAvailable();
                 return result;
             }
 
@@ -111,18 +109,14 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 {
                     if (!string.IsNullOrWhiteSpace(subject) && !Contains(result, subject))
                     {
-                        logger.LogWarning(
-                            "MQTT trusted issuer certificate '{Subject}' was not found in the trusted issuer store.",
-                            subject);
+                        logger.TrustedIssuerCertificateNotFound(subject);
                     }
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 result.Dispose();
-                logger.LogError(
-                    ex,
-                    "Failed to resolve MQTT trusted issuer certificates from the trusted issuer store.");
+                logger.FailedToResolveTrustedIssuerCertificates(ex);
                 throw;
             }
             catch
@@ -166,4 +160,26 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             return false;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for TrustedIssuerStoreResolver.
+    /// </summary>
+    internal static partial class TrustedIssuerStoreResolverLog
+    {
+        [LoggerMessage(EventId = PubSubMqttEventIds.TrustedIssuerStoreResolver + 0, Level = LogLevel.Warning,
+            Message = "MQTT TrustedIssuerCertificateSubjects are configured but no trusted issuer " +
+                "certificate store is available; the broker chain falls back to the platform trust store.")]
+        public static partial void TrustedIssuerCertificateStoreNotAvailable(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.TrustedIssuerStoreResolver + 1, Level = LogLevel.Warning,
+            Message = "MQTT trusted issuer certificate '{Subject}' was not found in the trusted issuer store.")]
+        public static partial void TrustedIssuerCertificateNotFound(this ILogger logger, string subject);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.TrustedIssuerStoreResolver + 2, Level = LogLevel.Error,
+            Message = "Failed to resolve MQTT trusted issuer certificates from the trusted issuer store.")]
+        public static partial void FailedToResolveTrustedIssuerCertificates(
+            this ILogger logger,
+            Exception exception);
+    }
+
 }

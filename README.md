@@ -56,7 +56,7 @@ dotnet build UA.slnx
 ```
 
 For the supported target frameworks and platform notes see
-[Platform Support](Docs/PlatformBuild.md). The official NuGet packages
+the [Developer Guide](Docs/DeveloperGuide.md#packages-platform-support-and-versioning). The official NuGet packages
 are published to nuget.org under the `OPCFoundation.NetStandard`
 prefix — the meta package
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)

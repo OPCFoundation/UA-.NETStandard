@@ -143,9 +143,7 @@ namespace Opc.Ua
             }
             catch (Exception exception)
             {
-                m_logger.LogError(
-                    exception,
-                    "Unexpected error raising configuration file changed event.");
+                m_logger.ConfigurationWatcherLogMessage0(exception);
             }
         }
 
@@ -183,4 +181,17 @@ namespace Opc.Ua
         /// </summary>
         public string FilePath { get; }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ConfigurationWatcher.
+    /// </summary>
+    internal static partial class ConfigurationWatcherLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ConfigurationWatcher + 0, Level = LogLevel.Error,
+            Message = "Unexpected error raising configuration file changed event.")]
+        public static partial void ConfigurationWatcherLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception);
+    }
+
 }

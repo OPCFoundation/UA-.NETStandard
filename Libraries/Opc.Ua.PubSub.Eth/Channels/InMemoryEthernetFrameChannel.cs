@@ -116,8 +116,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 m_isOpen = true;
             }
             m_factory.Attach(m_key, this);
-            m_logger.LogDebug(
-                "In-memory Ethernet channel opened on bus '{Bus}'.", m_key);
+            m_logger.InMemoryEthernetChannelOpened(m_key);
             return default;
         }
 
@@ -137,8 +136,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             {
                 m_factory.Detach(m_key, this);
                 channel?.Writer.TryComplete();
-                m_logger.LogDebug(
-                    "In-memory Ethernet channel closed on bus '{Bus}'.", m_key);
+                m_logger.InMemoryEthernetChannelClosed(m_key);
             }
             cancellationToken.ThrowIfCancellationRequested();
             return default;
@@ -244,4 +242,19 @@ namespace Opc.Ua.PubSub.Eth.Channels
             return new PhysicalAddress(bytes);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for InMemoryEthernetFrameChannel.
+    /// </summary>
+    internal static partial class InMemoryEthernetFrameChannelLog
+    {
+        [LoggerMessage(EventId = PubSubEthEventIds.InMemoryEthernetFrameChannel + 0, Level = LogLevel.Debug,
+            Message = "In-memory Ethernet channel opened on bus '{Bus}'.")]
+        public static partial void InMemoryEthernetChannelOpened(this ILogger logger, string bus);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.InMemoryEthernetFrameChannel + 1, Level = LogLevel.Debug,
+            Message = "In-memory Ethernet channel closed on bus '{Bus}'.")]
+        public static partial void InMemoryEthernetChannelClosed(this ILogger logger, string bus);
+    }
+
 }

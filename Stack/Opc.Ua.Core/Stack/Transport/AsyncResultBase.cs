@@ -298,9 +298,7 @@ namespace Opc.Ua
                 catch (ObjectDisposedException ode)
                 {
                     // ignore
-                    m_logger.LogDebug(
-                        ode,
-                        "Unexpected error handling OperationCompleted for AsyncResult operation.");
+                    m_logger.AsyncResultBaseLogMessage0(ode);
                 }
             }
 
@@ -322,9 +320,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    m_logger.LogDebug(
-                        e,
-                        "Unexpected error handling dispose of timer for AsyncResult operation.");
+                    m_logger.AsyncResultBaseLogMessage1(e);
                 }
                 finally
                 {
@@ -352,7 +348,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    m_logger.LogDebug(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
+                    m_logger.AsyncResultBaseLogMessage2(e);
                 }
             }
         }
@@ -370,9 +366,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogDebug(
-                    e,
-                    "Unexpected error handling timeout for ChannelAsyncResult operation.");
+                m_logger.AsyncResultBaseLogMessage3(e);
             }
         }
 
@@ -426,4 +420,27 @@ namespace Opc.Ua
         private ITimer? m_timer;
         private CancellationTokenSource? m_cts;
     }
+
+    /// <summary>
+    /// Source-generated log messages for AsyncResultBase.
+    /// </summary>
+    internal static partial class AsyncResultBaseLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.AsyncResultBase + 0, Level = LogLevel.Debug,
+            Message = "Unexpected error handling OperationCompleted for AsyncResult operation.")]
+        public static partial void AsyncResultBaseLogMessage0(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.AsyncResultBase + 1, Level = LogLevel.Debug,
+            Message = "Unexpected error handling dispose of timer for AsyncResult operation.")]
+        public static partial void AsyncResultBaseLogMessage1(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.AsyncResultBase + 2, Level = LogLevel.Debug,
+            Message = "Unexpected error handling dispose of wait handle for AsyncResult operation.")]
+        public static partial void AsyncResultBaseLogMessage2(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.AsyncResultBase + 3, Level = LogLevel.Debug,
+            Message = "Unexpected error handling timeout for ChannelAsyncResult operation.")]
+        public static partial void AsyncResultBaseLogMessage3(this ILogger logger, global::System.Exception? exception);
+    }
+
 }

@@ -163,10 +163,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 m_loopTask = Task.Run(() => ReceiveLoop(loopToken), CancellationToken.None);
                 m_isOpen = true;
             }
-            m_logger.LogInformation(
-                "AF_PACKET Ethernet channel opened on interface '{Interface}' (ifindex={Index}).",
-                m_parameters.NetworkInterface!.Name,
-                m_interfaceIndex);
+            m_logger.AfPacketEthernetChannelOpened(m_parameters.NetworkInterface!.Name, m_interfaceIndex);
             return default;
         }
 
@@ -299,7 +296,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
                 Buffer.BlockCopy(buffer, 0, frame, 0, length);
                 if (!channel.Writer.TryWrite(frame))
                 {
-                    m_logger.LogTrace("AF_PACKET receive queue full; frame dropped.");
+                    m_logger.AfPacketReceiveQueueFull();
                 }
             }
         }
@@ -339,10 +336,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
             }
             if (NativeMethods.setsockopt(fd, SolPacket, PacketAddMembership, mreq, mreq.Length) < 0)
             {
-                m_logger.LogWarning(
-                    "AF_PACKET membership (type={Type}) failed (errno={Errno}).",
-                    type,
-                    Marshal.GetLastWin32Error());
+                m_logger.AfPacketMembershipFailed(type, Marshal.GetLastWin32Error());
             }
         }
 
@@ -419,4 +413,27 @@ namespace Opc.Ua.PubSub.Eth.Channels
         }
 #pragma warning restore SYSLIB1054
     }
+
+    /// <summary>
+    /// Source-generated log messages for AfPacketEthernetFrameChannel.
+    /// </summary>
+    internal static partial class AfPacketEthernetFrameChannelLog
+    {
+        [LoggerMessage(EventId = PubSubEthEventIds.AfPacketEthernetFrameChannel + 0,
+            Level = LogLevel.Information,
+            Message = "AF_PACKET Ethernet channel opened on interface '{Interface}' (ifindex={Index}).")]
+        public static partial void AfPacketEthernetChannelOpened(
+            this ILogger logger,
+            string @interface,
+            uint index);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.AfPacketEthernetFrameChannel + 1,
+            Level = LogLevel.Trace, Message = "AF_PACKET receive queue full; frame dropped.")]
+        public static partial void AfPacketReceiveQueueFull(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubEthEventIds.AfPacketEthernetFrameChannel + 2, Level = LogLevel.Warning,
+            Message = "AF_PACKET membership (type={Type}) failed (errno={Errno}).")]
+        public static partial void AfPacketMembershipFailed(this ILogger logger, ushort type, int errno);
+    }
+
 }

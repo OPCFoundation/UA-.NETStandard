@@ -455,9 +455,7 @@ namespace Opc.Ua.Identity
             ILogger logger = telemetry.CreateLogger(typeof(ClientIdentityProviderExtensions));
             if (userNameCount > 1)
             {
-                logger.LogWarning(
-                    "EndpointDescription advertises {Count} USERNAME UserTokenPolicies; per Part 4 §7.41 there must be at most one.",
-                    userNameCount);
+                logger.EndpointDescriptionAdvertisesCountUSERNAMEUserTokenPoliciesPer(userNameCount);
             }
 
             if (issuedTokenByUrl != null)
@@ -466,8 +464,7 @@ namespace Opc.Ua.Identity
                 {
                     if (entry.Value > 1)
                     {
-                        logger.LogWarning(
-                            "EndpointDescription advertises {Count} ISSUEDTOKEN UserTokenPolicies for IssuerEndpointUrl='{Url}'; per Part 4 §7.41 there must be at most one per unique IssuerEndpointUrl.",
+                        logger.EndpointDescriptionAdvertisesCountISSUEDTOKENUserTokenPoliciesIssuerEndpointUrl(
                             entry.Value,
                             string.IsNullOrEmpty(entry.Key) ? "<empty>" : entry.Key);
                     }
@@ -657,4 +654,27 @@ namespace Opc.Ua.Identity
                 CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ClientIdentityProviderExtensions"/>.
+    /// </summary>
+    internal static partial class ClientIdentityProviderExtensionsLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ClientIdentityProviderExtensions + 0, Level = LogLevel.Warning,
+            Message = "EndpointDescription advertises {Count} USERNAME UserTokenPolicies; per Part 4 §7.41 there" +
+                " must be at most one.")]
+        public static partial void EndpointDescriptionAdvertisesCountUSERNAMEUserTokenPoliciesPer(
+            this ILogger logger,
+            int count);
+
+        [LoggerMessage(EventId = ClientEventIds.ClientIdentityProviderExtensions + 1, Level = LogLevel.Warning,
+            Message = "EndpointDescription advertises {Count} ISSUEDTOKEN UserTokenPolicies for" +
+                " IssuerEndpointUrl='{Url}'; per Part 4 §7.41 there must be at most one per unique" +
+                " IssuerEndpointUrl.")]
+        public static partial void EndpointDescriptionAdvertisesCountISSUEDTOKENUserTokenPoliciesIssuerEndpointUrl(
+            this ILogger logger,
+            int count,
+            string url);
+    }
+
 }

@@ -626,7 +626,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Error while reporting AuditProgramTransitionEvent event.");
+                m_logger.ReportAuditProgramTransitionError(ex);
             }
         }
 
@@ -793,4 +793,14 @@ namespace Opc.Ua
         uint causeId,
         ArrayOf<Variant> inputArguments,
         List<Variant>? outputArguments);
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="FiniteStateMachineState"/>.
+    /// </summary>
+    internal static partial class FiniteStateMachineStateLog
+    {
+        [LoggerMessage(EventId = CoreTypesEventIds.FiniteStateMachineState + 0, Level = LogLevel.Error,
+            Message = "Error while reporting AuditProgramTransitionEvent event.")]
+        public static partial void ReportAuditProgramTransitionError(this ILogger logger, Exception exception);
+    }
 }

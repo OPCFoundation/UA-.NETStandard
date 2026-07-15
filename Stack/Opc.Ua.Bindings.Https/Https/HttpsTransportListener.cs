@@ -745,7 +745,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "HTTPSLISTENER reverse connect handshake failed.");
+                m_logger.ReverseConnectHandshakeFailed(e);
                 ConnectionStatusChanged?.Invoke(
                     this,
                     new ConnectionStatusEventArgs(
@@ -855,10 +855,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (InvalidOperationException ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "HTTPSLISTENER cannot share Kestrel host on {Key}; falling back to private host.",
-                        key);
+                    m_logger.CannotShareKestrelHost(ex, key);
                     // fall through to legacy own-host path below
                 }
             }
@@ -1036,7 +1033,7 @@ namespace Opc.Ua.Bindings
             }
             catch (CryptographicException ce)
             {
-                m_logger.LogTrace("Copy of the private key for https was denied: {Message}", ce.Message);
+                m_logger.PrivateKeyCopyDenied(ce.Message);
             }
 #endif
             // pin the cert for the lifetime of the listener so that the
@@ -1205,7 +1202,7 @@ namespace Opc.Ua.Bindings
                     {
                         message =
                             "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
-                        m_logger.LogError("{Message}", message);
+                        m_logger.ClientTlsCertificateMismatch(message);
                         await WriteResponseAsync(
                             context.Response,
                             message,
@@ -1312,7 +1309,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 message = "HTTPSLISTENER - Unexpected error processing request.";
-                m_logger.LogError(e, "{Message}", message);
+                m_logger.UnexpectedErrorProcessingRequest(e, message);
             }
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
@@ -1440,7 +1437,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 message = "HTTPSLISTENER - Unexpected error processing JSON request.";
-                m_logger.LogError(e, "{Message}", message);
+                m_logger.UnexpectedErrorProcessingRequest(e, message);
             }
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
@@ -1522,9 +1519,7 @@ namespace Opc.Ua.Bindings
                 // even on the TLS path.
                 if (!context.Request.IsHttps)
                 {
-                    m_logger.LogWarning(
-                        "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
-                        "bearer credentials in the sub-protocol name must not flow over plain HTTP.");
+                    m_logger.OpenApiTokenRejectedPlainHttp();
                     await WriteResponseAsync(
                         context.Response,
                         "HTTPSLISTENER - opcua+openapi+<accesstoken> requires HTTPS — bearer " +
@@ -1539,9 +1534,7 @@ namespace Opc.Ua.Bindings
                     // Fail-closed: no bearer validator registered (no
                     // AddWebApiBearerAuth() or similar). Refuse the
                     // upgrade rather than echo the token back.
-                    m_logger.LogWarning(
-                        "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
-                        "no WSS bearer token validator registered.");
+                    m_logger.OpenApiTokenValidatorMissing();
                     await WriteResponseAsync(
                         context.Response,
                         "HTTPSLISTENER - opcua+openapi+<accesstoken> requires a bearer auth scheme " +
@@ -1556,9 +1549,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex,
-                        "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
-                        "bearer token validator threw.");
+                    m_logger.OpenApiTokenValidatorThrew(ex);
                     validated = false;
                 }
                 if (!validated)
@@ -1649,7 +1640,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "WSSLISTENER - unexpected error on WebSocket session.");
+                m_logger.UnexpectedWebSocketSessionError(ex);
             }
             finally
             {
@@ -1709,7 +1700,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "WSSLISTENER - error processing request {RequestId}.", requestId);
+                m_logger.ErrorProcessingRequest(ex, requestId);
             }
         }
 
@@ -1908,7 +1899,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex, "WSSLISTENER - error processing JSON request.");
+                        m_logger.ErrorProcessingJsonRequest(ex);
                         responseToSend = EndpointBase.CreateFault(m_logger, null, ex);
                     }
 
@@ -1936,7 +1927,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "WSSLISTENER - unexpected JSON WebSocket error.");
+                m_logger.UnexpectedJsonWebSocketError(ex);
             }
             finally
             {
@@ -2107,7 +2098,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex, "WSSLISTENER - error processing OpenAPI request.");
+                        m_logger.ErrorProcessingOpenApiRequest(ex);
                         responseToSend = EndpointBase.CreateFault(m_logger, null, ex);
                     }
 
@@ -2135,7 +2126,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "WSSLISTENER - unexpected OpenAPI WebSocket error.");
+                m_logger.UnexpectedOpenApiWebSocketError(ex);
             }
             finally
             {
@@ -2472,5 +2463,76 @@ namespace Opc.Ua.Bindings
         private int m_nextChannelId;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="HttpsTransportListener"/>.
+    /// </summary>
+    internal static partial class HttpsTransportListenerLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 0, Level = LogLevel.Error,
+            Message = "HTTPSLISTENER reverse connect handshake failed.")]
+        public static partial void ReverseConnectHandshakeFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 1, Level = LogLevel.Warning,
+            Message = "HTTPSLISTENER cannot share Kestrel host on {Key}; falling back to private host.")]
+        public static partial void CannotShareKestrelHost(this ILogger logger, Exception exception, SharedHostKey key);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 2, Level = LogLevel.Trace,
+            Message = "Copy of the private key for https was denied: {Message}")]
+        public static partial void PrivateKeyCopyDenied(this ILogger logger, string message);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 3, Level = LogLevel.Error,
+            Message = "{Message}")]
+        public static partial void ClientTlsCertificateMismatch(this ILogger logger, string message);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 4, Level = LogLevel.Error,
+            Message = "{Message}")]
+        public static partial void UnexpectedErrorProcessingRequest(
+            this ILogger logger,
+            Exception exception,
+            string message);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 5, Level = LogLevel.Warning,
+            Message = "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
+                "bearer credentials in the sub-protocol name must not flow over plain HTTP.")]
+        public static partial void OpenApiTokenRejectedPlainHttp(this ILogger logger);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 6, Level = LogLevel.Warning,
+            Message = "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
+                "no WSS bearer token validator registered.")]
+        public static partial void OpenApiTokenValidatorMissing(this ILogger logger);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 7, Level = LogLevel.Error,
+            Message = "WSSLISTENER - opcua+openapi+<accesstoken> upgrade rejected: " +
+                "bearer token validator threw.")]
+        public static partial void OpenApiTokenValidatorThrew(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 8, Level = LogLevel.Error,
+            Message = "WSSLISTENER - unexpected error on WebSocket session.")]
+        public static partial void UnexpectedWebSocketSessionError(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 9, Level = LogLevel.Error,
+            Message = "WSSLISTENER - error processing request {RequestId}.")]
+        public static partial void ErrorProcessingRequest(
+            this ILogger logger,
+            Exception exception,
+            uint requestId);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 10, Level = LogLevel.Error,
+            Message = "WSSLISTENER - error processing JSON request.")]
+        public static partial void ErrorProcessingJsonRequest(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 11, Level = LogLevel.Error,
+            Message = "WSSLISTENER - unexpected JSON WebSocket error.")]
+        public static partial void UnexpectedJsonWebSocketError(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 12, Level = LogLevel.Error,
+            Message = "WSSLISTENER - error processing OpenAPI request.")]
+        public static partial void ErrorProcessingOpenApiRequest(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 13, Level = LogLevel.Error,
+            Message = "WSSLISTENER - unexpected OpenAPI WebSocket error.")]
+        public static partial void UnexpectedOpenApiWebSocketError(this ILogger logger, Exception exception);
     }
 }

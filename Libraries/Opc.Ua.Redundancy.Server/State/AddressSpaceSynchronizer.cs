@@ -377,7 +377,7 @@ namespace Opc.Ua.Redundancy.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogError(ex, "Distributed address-space outbound write failed for {NodeId}.", op.NodeId);
+                        m_logger?.DistributedAddressSpaceOutboundWriteFailed(ex, op.NodeId);
                     }
                 }
             }
@@ -420,7 +420,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "Distributed address-space snapshot publish failed.");
+                m_logger?.DistributedAddressSpaceSnapshotPublishFailed(ex);
             }
             finally
             {
@@ -445,7 +445,7 @@ namespace Opc.Ua.Redundancy.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogError(ex, "Distributed address-space inbound apply failed for {NodeId}.", change.NodeId);
+                        m_logger?.DistributedAddressSpaceInboundApplyFailed(ex, change.NodeId);
                     }
 
                     InboundApplied?.Invoke(change);
@@ -758,4 +758,31 @@ namespace Opc.Ua.Redundancy.Server
 
         private const int SnapshotWriteThreshold = 1024;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="AddressSpaceSynchronizer"/>.
+    /// </summary>
+    internal static partial class AddressSpaceSynchronizerLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 0, Level = LogLevel.Error,
+            Message = "Distributed address-space outbound write failed for {NodeId}.")]
+        public static partial void DistributedAddressSpaceOutboundWriteFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 1, Level = LogLevel.Error,
+            Message = "Distributed address-space snapshot publish failed.")]
+        public static partial void DistributedAddressSpaceSnapshotPublishFailed(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 2, Level = LogLevel.Error,
+            Message = "Distributed address-space inbound apply failed for {NodeId}.")]
+        public static partial void DistributedAddressSpaceInboundApplyFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId nodeId);
+    }
+
 }

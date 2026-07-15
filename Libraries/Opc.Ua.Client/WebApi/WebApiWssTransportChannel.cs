@@ -197,10 +197,7 @@ namespace Opc.Ua.Client.WebApi
                         "Bearer access token must not be sent over plain HTTP/WS. " +
                         "Use a wss:// (TLS) endpoint or omit BearerToken.");
                 }
-                m_logger.LogWarning(
-                    "WSS opcua+openapi+<accesstoken>: bearer token rides in the WebSocket " +
-                    "sub-protocol name (browser-compatible). Prefer short-lived tokens (<= 60s) " +
-                    "and redact the Sec-WebSocket-Protocol header from proxy / WAF logs.");
+                m_logger.WSSOpcuaOpenapiAccesstokenBearerToken();
             }
 
             var ws = new ClientWebSocket();
@@ -575,9 +572,7 @@ namespace Opc.Ua.Client.WebApi
                         // information") tracks the StatusCode field as
                         // certificate-derived data and would flag the log
                         // entry. Mirrors WebApiTransportChannel.
-                        m_logger.LogError(
-                            "{ChannelType} OPC UA certificate validator rejected server certificate.",
-                            nameof(WebApiWssTransportChannel));
+                        m_logger.ChannelTypeOPCUACertificateValidatorRejected(nameof(WebApiWssTransportChannel));
                         return false;
                     }
                     return true;
@@ -588,8 +583,7 @@ namespace Opc.Ua.Client.WebApi
                     // No OPC UA certificate validator configured: do not
                     // blindly accept the server certificate. Fall back to
                     // the default TLS chain/hostname result (MITM guard).
-                    m_logger.LogError(
-                        "{ChannelType} No certificate validator configured and TLS reported {Errors}; rejecting server certificate.",
+                    m_logger.ChannelTypeNoCertificateValidatorConfiguredTLS(
                         nameof(WebApiWssTransportChannel),
                         sslPolicyErrors);
                     return false;
@@ -598,9 +592,8 @@ namespace Opc.Ua.Client.WebApi
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
+                m_logger.ChannelTypeFailedValidateServerCertificate(
                     ex,
-                    "{ChannelType} Failed to validate server certificate.",
                     nameof(WebApiWssTransportChannel));
                 return false;
             }
@@ -658,4 +651,17 @@ namespace Opc.Ua.Client.WebApi
                 "The WSS Web API channel is not open.");
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="WebApiWssTransportChannel"/>.
+    /// </summary>
+    internal static partial class WebApiWssTransportChannelLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.WebApiWssTransportChannel + 0, Level = LogLevel.Warning,
+            Message = "WSS opcua+openapi+<accesstoken>: bearer token rides in the WebSocket sub-protocol name" +
+                " (browser-compatible). Prefer short-lived tokens (<= 60s) and redact the" +
+                " Sec-WebSocket-Protocol header from proxy / WAF logs.")]
+        public static partial void WSSOpcuaOpenapiAccesstokenBearerToken(this ILogger logger);
+    }
+
 }
