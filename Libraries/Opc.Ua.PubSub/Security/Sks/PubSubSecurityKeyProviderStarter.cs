@@ -81,11 +81,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Initial SKS key pull failed for SecurityGroupId {GroupId}; " +
-                        "the provider keeps serving cached keys and retries in the background.",
-                        pullProvider.SecurityGroupId);
+                    m_logger.InitialSksKeyPullFailed(ex, pullProvider.SecurityGroupId);
                 }
             }
         }
@@ -96,4 +92,19 @@ namespace Opc.Ua.PubSub.Security.Sks
             return Task.CompletedTask;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubSecurityKeyProviderStarter"/>.
+    /// </summary>
+    internal static partial class PubSubSecurityKeyProviderStarterLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubSecurityKeyProviderStarter + 0, Level = LogLevel.Warning,
+            Message = "Initial SKS key pull failed for SecurityGroupId {GroupId}; " +
+                "the provider keeps serving cached keys and retries in the background.")]
+        public static partial void InitialSksKeyPullFailed(
+            this ILogger logger,
+            Exception exception,
+            string groupId);
+    }
+
 }

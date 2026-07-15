@@ -489,16 +489,20 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task CreateAsyncLogsDisposeFailureAndPreservesCancellationAsync()
         {
             var logger = new Mock<ILogger>();
+            logger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
             var disposeFailure = new InvalidOperationException("Test cleanup failure.");
+
+            // The stack emits source-generated log messages whose state has an empty
+            // ToString(); match on the EventId name (the log method name) instead.
+#pragma warning disable CA1873 // Moq Setup on ILogger.Log is an expression tree, not an executed logging call.
             logger.Setup(l => l.Log(
                     It.IsAny<LogLevel>(),
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>(
-                        (value, _) => value.ToString() ==
-                            "ConnectionStateMachine: Worker exiting."),
+                    It.Is<EventId>(eventId => eventId.Name == "ConnectionStateMachineWorkerExiting"),
+                    It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception?>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
                 .Throws(disposeFailure);
+#pragma warning restore CA1873
 
             var loggerFactory = new Mock<ILoggerFactory>();
             loggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>()))
@@ -543,16 +547,17 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
             Assert.That(completedTask, Is.SameAs(createTask));
             Assert.CatchAsync<OperationCanceledException>(() => createTask);
+#pragma warning disable CA1873 // Moq Verify on ILogger.Log is an expression tree, not an executed logging call.
             logger.Verify(
                 l => l.Log(
                     LogLevel.Error,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>(
-                        (value, _) => value.ToString() ==
-                            "ManagedSession: Disposal after initial connection failure failed."),
+                    It.Is<EventId>(eventId =>
+                        eventId.Name == "ManagedSessionDisposalAfterConnectionFailureFailed"),
+                    It.IsAny<It.IsAnyType>(),
                     It.Is<Exception?>(exception => ReferenceEquals(exception, disposeFailure)),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
+#pragma warning restore CA1873
         }
 
 #pragma warning disable IDE0051, RCS1213 // Test scaffold kept for reconnect-path tests that need the private handler.

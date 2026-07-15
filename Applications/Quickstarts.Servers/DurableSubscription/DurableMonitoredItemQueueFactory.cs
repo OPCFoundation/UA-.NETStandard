@@ -167,16 +167,11 @@ namespace Quickstarts.Servers
                         EncodeEventQueue(encoder, eventQueue.ToStorableQueue());
                         continue;
                     }
-                    m_logger.LogWarning(
-                        "Failed to persist queue for monitored item with id {MonitoredItemId} as the queue was not known to the server",
-                        id);
+                    m_logger.FailedToPersistUnknownQueue(id);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to persist queue for monitored item with id {MonitoredItemId}",
-                        id);
+                    m_logger.FailedToPersistQueue(ex, id);
                 }
             }
             // Delete batches of all queues that are not in the list
@@ -219,7 +214,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to restore event change queue");
+                m_logger.FailedToRestoreEventChangeQueue(ex);
             }
             return null;
         }
@@ -260,7 +255,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to restore data change queue");
+                m_logger.FailedToRestoreDataChangeQueue(ex);
             }
             return null;
         }
@@ -280,7 +275,7 @@ namespace Quickstarts.Servers
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to clean stored queues");
+                m_logger.FailedToCleanStoredQueues(ex);
             }
 
             m_batchPersistor.DeleteBatches(batchesToKeep);
@@ -513,4 +508,37 @@ namespace Quickstarts.Servers
             return batch;
         }
     }
+
+    internal static partial class DurableMonitoredItemQueueFactoryLog
+    {
+        [LoggerMessage(EventId = QuickstartsServersEventIds.DurableMonitoredItemQueueFactory + 0,
+            Level = LogLevel.Warning,
+            Message = "Failed to persist queue for monitored item with id {MonitoredItemId} as " +
+                "the queue was not known to the server")]
+        public static partial void FailedToPersistUnknownQueue(this ILogger logger, uint monitoredItemId);
+
+        [LoggerMessage(EventId = QuickstartsServersEventIds.DurableMonitoredItemQueueFactory + 1,
+            Level = LogLevel.Warning,
+            Message = "Failed to persist queue for monitored item with id {MonitoredItemId}")]
+        public static partial void FailedToPersistQueue(
+            this ILogger logger,
+            Exception exception,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = QuickstartsServersEventIds.DurableMonitoredItemQueueFactory + 2,
+            Level = LogLevel.Warning,
+            Message = "Failed to restore event change queue")]
+        public static partial void FailedToRestoreEventChangeQueue(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = QuickstartsServersEventIds.DurableMonitoredItemQueueFactory + 3,
+            Level = LogLevel.Warning,
+            Message = "Failed to restore data change queue")]
+        public static partial void FailedToRestoreDataChangeQueue(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = QuickstartsServersEventIds.DurableMonitoredItemQueueFactory + 4,
+            Level = LogLevel.Warning,
+            Message = "Failed to clean stored queues")]
+        public static partial void FailedToCleanStoredQueues(this ILogger logger, Exception exception);
+    }
+
 }

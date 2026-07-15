@@ -225,10 +225,7 @@ static void LogDiagnosticsToolsWarning(IServiceProvider services, bool diagnosti
 
     ILoggerFactory loggerFactory = services.GetRequiredService<ILoggerFactory>();
     ILogger logger = loggerFactory.CreateLogger("Opc.Ua.Mcp.Program");
-    logger.LogWarning(
-        "OPC UA Pcap diagnostics MCP tools (dump_keys, decode_pcap_with_keys, replay_pcap) are ENABLED. " +
-        "These tools disclose symmetric channel keys and can be used to replay captured traffic. " +
-        "Ensure the MCP transport is authenticated and audited.");
+    logger.PcapDiagnosticsToolsEnabled();
 }
 
 static void ConfigureLogging(ILoggingBuilder logging, bool useStdioTransport = false)
@@ -242,4 +239,13 @@ static void ConfigureLogging(ILoggingBuilder logging, bool useStdioTransport = f
     });
     logging.Services.Configure<ConsoleLoggerOptions>(o =>
         o.LogToStandardErrorThreshold = useStdioTransport ? LogLevel.Trace : LogLevel.Error);
+}
+
+internal static partial class ProgramLog
+{
+    [LoggerMessage(EventId = McpServerEventIds.Program + 0, Level = LogLevel.Warning,
+        Message = "OPC UA Pcap diagnostics MCP tools (dump_keys, decode_pcap_with_keys, replay_pcap) are ENABLED. " +
+            "These tools disclose symmetric channel keys and can be used to replay captured traffic. " +
+            "Ensure the MCP transport is authenticated and audited.")]
+    public static partial void PcapDiagnosticsToolsEnabled(this ILogger logger);
 }

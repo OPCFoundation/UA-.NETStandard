@@ -163,11 +163,7 @@ namespace Opc.Ua.PubSub.Security
                 securityGroupId,
                 out IPubSubSecurityKeyProvider? keyProvider))
             {
-                m_logger.LogWarning(
-                    "No key provider registered for SecurityGroupId '{SecurityGroupId}' " +
-                    "required by secured connection '{Connection}'.",
-                    securityGroupId,
-                    connection.Name);
+                m_logger.NoKeyProviderRegistered(securityGroupId, connection.Name);
                 return null;
             }
 
@@ -178,11 +174,7 @@ namespace Opc.Ua.PubSub.Security
                     PubSubSecurityPolicyUri.None,
                     StringComparison.Ordinal))
             {
-                m_logger.LogWarning(
-                    "No usable security policy for SecurityGroupId '{SecurityGroupId}' " +
-                    "required by secured connection '{Connection}'.",
-                    securityGroupId,
-                    connection.Name);
+                m_logger.NoUsableSecurityPolicy(securityGroupId, connection.Name);
                 return null;
             }
 
@@ -321,4 +313,27 @@ namespace Opc.Ua.PubSub.Security
             keyProvider.KeyRotated += (_, e) => window.RegisterToken(e.NewTokenId);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubSecurityWrapperResolver"/>.
+    /// </summary>
+    internal static partial class PubSubSecurityWrapperResolverLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 0, Level = LogLevel.Warning,
+            Message = "No key provider registered for SecurityGroupId '{SecurityGroupId}' " +
+                "required by secured connection '{Connection}'.")]
+        public static partial void NoKeyProviderRegistered(
+            this ILogger logger,
+            string securityGroupId,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 1, Level = LogLevel.Warning,
+            Message = "No usable security policy for SecurityGroupId '{SecurityGroupId}' " +
+                "required by secured connection '{Connection}'.")]
+        public static partial void NoUsableSecurityPolicy(
+            this ILogger logger,
+            string securityGroupId,
+            string? connection);
+    }
+
 }

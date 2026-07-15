@@ -321,10 +321,7 @@ namespace Opc.Ua.Server
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                m_logger.LogInformation(
-                    Utils.TraceMasks.StartStop,
-                    "MasterNodeManager.Startup - NodeManagers={Count}",
-                    m_nodeManagers.Count);
+                m_logger.MasterNodeManagerStartupNodeManagersCount(m_nodeManagers.Count);
 
                 // create the address spaces.
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
@@ -338,10 +335,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Unexpected error creating address space for NodeManager ={NodeManager}.",
-                            nodeManager);
+                        m_logger.UnexpectedErrorCreatingAddressSpaceForNodeManager(e, nodeManager.GetType().Name);
                         throw;
                     }
                 }
@@ -356,10 +350,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Unexpected error adding references for NodeManager ={NodeManager}.",
-                            nodeManager);
+                        m_logger.UnexpectedErrorAddingReferencesForNodeManagerNodeManager(e, nodeManager.GetType().Name);
                         throw;
                     }
                 }
@@ -389,10 +380,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Unexpected error closing session for NodeManager ={NodeManager}.",
-                            nodeManager);
+                        m_logger.UnexpectedErrorClosingSessionForNodeManagerNodeManager(e, nodeManager.GetType().Name);
                     }
                 }
             }
@@ -417,10 +405,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(
-                        e,
-                        "Unexpected error notifying node manager of session activation for NodeManager={NodeManager}.",
-                        nodeManager);
+                    m_logger.UnexpectedErrorNotifyingNodeManagerOfSession(e, nodeManager.GetType().Name);
                 }
             }
         }
@@ -432,10 +417,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                m_logger.LogInformation(
-                    Utils.TraceMasks.StartStop,
-                    "MasterNodeManager.Shutdown - NodeManagers={Count}",
-                    m_nodeManagers.Count);
+                m_logger.MasterNodeManagerShutdownNodeManagersCount(m_nodeManagers.Count);
 
                 foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {
@@ -1182,8 +1164,7 @@ namespace Opc.Ua.Server
                             context, inverseItem, cancellationToken).ConfigureAwait(false);
                         if (ServiceResult.IsBad(inverseResult))
                         {
-                            m_logger.LogWarning(
-                                "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on owning NodeManager: {Status}",
+                            m_logger.AddReferencesFailedToMirrorInverseEdgeRefType(
                                 item.ReferenceTypeId,
                                 item.SourceNodeId,
                                 item.TargetNodeId,
@@ -1192,9 +1173,8 @@ namespace Opc.Ua.Server
                     }
                     catch (ServiceResultException ex)
                     {
-                        m_logger.LogWarning(
+                        m_logger.AddReferencesFailedToMirrorInverseEdgeRefType2(
                             ex,
-                            "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on owning NodeManager.",
                             item.ReferenceTypeId,
                             item.SourceNodeId,
                             item.TargetNodeId);
@@ -1289,8 +1269,7 @@ namespace Opc.Ua.Server
                         context, inverseItem, cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(inverseResult))
                     {
-                        m_logger.LogWarning(
-                            "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} on owning NodeManager: {Status}",
+                        m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType(
                             item.ReferenceTypeId,
                             item.SourceNodeId,
                             item.TargetNodeId,
@@ -1299,9 +1278,8 @@ namespace Opc.Ua.Server
                 }
                 catch (ServiceResultException ex)
                 {
-                    m_logger.LogWarning(
+                    m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType2(
                         ex,
-                        "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} on owning NodeManager.",
                         item.ReferenceTypeId,
                         item.SourceNodeId,
                         item.TargetNodeId);
@@ -1412,10 +1390,7 @@ namespace Opc.Ua.Server
             // return the node id provided.
             registeredNodeIds = nodesToRegister;
 
-            m_logger.LogTrace(
-                Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.RegisterNodes - Count={Count}",
-                nodesToRegister.Count);
+            m_logger.MasterNodeManagerRegisterNodesCountCount(nodesToRegister.Count);
 
             // it is up to the node managers to assign the handles.
             /*
@@ -1437,10 +1412,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             ArrayOf<NodeId> nodesToUnregister)
         {
-            m_logger.LogTrace(
-                Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.UnregisterNodes - Count={Count}",
-                nodesToUnregister.Count);
+            m_logger.MasterNodeManagerUnregisterNodesCountCount(nodesToUnregister.Count);
 
             // it is up to the node managers to assign the handles.
             /*
@@ -1718,7 +1690,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error translating browse path.");
+                m_logger.UnexpectedErrorTranslatingBrowsePath(e);
                 return;
             }
 
@@ -2499,10 +2471,7 @@ namespace Opc.Ua.Server
             // add placeholder for each result.
             bool validItems = false;
 
-            m_logger.LogTrace(
-                Utils.TraceMasks.ServiceDetail,
-                "MasterNodeManager.Read - Count={Count}",
-                nodesToRead.Count);
+            m_logger.MasterNodeManagerReadCountCount(nodesToRead.Count);
 
             PrepareValidationCache(
                 nodesToRead,
@@ -3117,7 +3086,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Error calling ConditionRefreshAsync on AsyncNodeManager.");
+                    m_logger.ErrorCallingConditionRefreshAsyncOnAsyncNodeManager(e);
                 }
             }
         }
@@ -3384,10 +3353,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                m_logger.LogError(
-                                    e,
-                                    "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}",
-                                    manager);
+                                m_logger.NodeManagerThrewAnExceptionSubscribingToAll(e, manager.GetType().Name);
                             }
                         }
                     }
@@ -3505,10 +3471,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
-                        ex,
-                        "Failed to pre-hydrate queue for monitored item with id {MonitoredItemId}",
-                        item.Id);
+                    m_logger.FailedToPreHydrateQueueForMonitored(ex, item.Id);
                 }
             }
         }
@@ -3566,10 +3529,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                m_logger.LogError(
-                                    e,
-                                    "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}",
-                                    manager);
+                                m_logger.NodeManagerThrewAnExceptionSubscribingToAll(e, manager.GetType().Name);
                             }
                         }
                     }
@@ -4754,7 +4714,7 @@ namespace Opc.Ua.Server
             ArrayOf<NodeId> currentRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
             if (currentRoleIds.IsEmpty)
             {
-                logger?.LogDebug("Current user has no granted role.");
+                logger?.CurrentUserHasNoGrantedRole();
                 return ServiceResult.Create(
                     StatusCodes.BadUserAccessDenied,
                     "Current user has no granted role.");
@@ -4775,8 +4735,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            logger?.LogDebug(
-                "Role permissions validation failed for node {NodeId}. Requested: {RequestedPermission}, User has: {UserPermissions}",
+            logger?.RolePermissionsValidationFailedForNodeNodeId(
                 nodeMetadata.NodeId,
                 requestedPermission,
                 userActualPermissions);
@@ -4866,4 +4825,136 @@ namespace Opc.Ua.Server
 
         private uint m_lastMonitoredItemId;
     }
+
+    /// <summary>
+    /// Source-generated log messages for MasterNodeManager.
+    /// </summary>
+    internal static partial class MasterNodeManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 0, Level = LogLevel.Information,
+            Message = "MasterNodeManager.Startup - NodeManagers={Count}")]
+        public static partial void MasterNodeManagerStartupNodeManagersCount(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 1, Level = LogLevel.Error,
+            Message = "Unexpected error creating address space for NodeManager ={NodeManager}.")]
+        public static partial void UnexpectedErrorCreatingAddressSpaceForNodeManager(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 2, Level = LogLevel.Error,
+            Message = "Unexpected error adding references for NodeManager ={NodeManager}.")]
+        public static partial void UnexpectedErrorAddingReferencesForNodeManagerNodeManager(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 3, Level = LogLevel.Error,
+            Message = "Unexpected error closing session for NodeManager ={NodeManager}.")]
+        public static partial void UnexpectedErrorClosingSessionForNodeManagerNodeManager(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 4, Level = LogLevel.Error,
+            Message = "Unexpected error notifying node manager of session activation for NodeManager={NodeManager}.")]
+        public static partial void UnexpectedErrorNotifyingNodeManagerOfSession(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 5, Level = LogLevel.Information,
+            Message = "MasterNodeManager.Shutdown - NodeManagers={Count}")]
+        public static partial void MasterNodeManagerShutdownNodeManagersCount(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 6, Level = LogLevel.Warning,
+            Message = "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on " +
+                "owning NodeManager: {Status}")]
+        public static partial void AddReferencesFailedToMirrorInverseEdgeRefType(
+            this ILogger logger,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 7, Level = LogLevel.Warning,
+            Message = "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on " +
+                "owning NodeManager.")]
+        public static partial void AddReferencesFailedToMirrorInverseEdgeRefType2(
+            this ILogger logger,
+            Exception ex,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 8, Level = LogLevel.Warning,
+            Message = "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} " +
+                "on owning NodeManager: {Status}")]
+        public static partial void DeleteReferencesFailedToMirrorInverseDeleteRefType(
+            this ILogger logger,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 9, Level = LogLevel.Warning,
+            Message = "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} " +
+                "on owning NodeManager.")]
+        public static partial void DeleteReferencesFailedToMirrorInverseDeleteRefType2(
+            this ILogger logger,
+            Exception ex,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 10, Level = LogLevel.Trace,
+            Message = "MasterNodeManager.RegisterNodes - Count={Count}")]
+        public static partial void MasterNodeManagerRegisterNodesCountCount(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 11, Level = LogLevel.Trace,
+            Message = "MasterNodeManager.UnregisterNodes - Count={Count}")]
+        public static partial void MasterNodeManagerUnregisterNodesCountCount(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 12, Level = LogLevel.Error,
+            Message = "Unexpected error translating browse path.")]
+        public static partial void UnexpectedErrorTranslatingBrowsePath(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 13, Level = LogLevel.Trace,
+            Message = "MasterNodeManager.Read - Count={Count}")]
+        public static partial void MasterNodeManagerReadCountCount(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 14, Level = LogLevel.Error,
+            Message = "Error calling ConditionRefreshAsync on AsyncNodeManager.")]
+        public static partial void ErrorCallingConditionRefreshAsyncOnAsyncNodeManager(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 15, Level = LogLevel.Error,
+            Message = "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}")]
+        public static partial void NodeManagerThrewAnExceptionSubscribingToAll(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 16, Level = LogLevel.Error,
+            Message = "Failed to pre-hydrate queue for monitored item with id {MonitoredItemId}")]
+        public static partial void FailedToPreHydrateQueueForMonitored(
+            this ILogger logger,
+            Exception ex,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 17, Level = LogLevel.Debug,
+            Message = "Current user has no granted role.")]
+        public static partial void CurrentUserHasNoGrantedRole(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 18, Level = LogLevel.Debug,
+            Message = "Role permissions validation failed for node {NodeId}. Requested: {RequestedPermission}, " +
+                "User has: {UserPermissions}")]
+        public static partial void RolePermissionsValidationFailedForNodeNodeId(
+            this ILogger logger,
+            NodeId nodeId,
+            PermissionType requestedPermission,
+            PermissionType userPermissions);
+    }
+
 }

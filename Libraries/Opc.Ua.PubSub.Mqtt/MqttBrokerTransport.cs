@@ -290,12 +290,7 @@ namespace Opc.Ua.PubSub.Mqtt
             {
                 m_isConnected = true;
             }
-            m_logger.LogInformation(
-                "MQTT transport opened: connection='{Connection}' endpoint={Endpoint} direction={Direction} profile={Profile}",
-                m_connection.Name,
-                Endpoint,
-                Direction,
-                TransportProfileUri);
+            m_logger.MqttTransportOpened(m_connection.Name, Endpoint, Direction, TransportProfileUri);
             RaiseStateChanged(true, StatusCodes.Good, null);
         }
 
@@ -325,10 +320,7 @@ namespace Opc.Ua.PubSub.Mqtt
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(
-                        ex,
-                        "MQTT disconnect for connection '{Connection}' raised an exception.",
-                        m_connection.Name);
+                    m_logger.MqttDisconnectRaisedException(ex, m_connection.Name);
                 }
                 await adapter.DisposeAsync().ConfigureAwait(false);
             }
@@ -493,9 +485,7 @@ namespace Opc.Ua.PubSub.Mqtt
                 e.ReceivedAt);
             if (!channel.Writer.TryWrite(frame))
             {
-                m_logger.LogWarning(
-                    "Dropped inbound MQTT frame for connection '{Connection}': receive queue full.",
-                    m_connection.Name);
+                m_logger.DroppedInboundMqttFrame(m_connection.Name);
                 return;
             }
             m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages, 1);
@@ -895,4 +885,32 @@ namespace Opc.Ua.PubSub.Mqtt
             };
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for MqttBrokerTransport.
+    /// </summary>
+    internal static partial class MqttBrokerTransportLog
+    {
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttBrokerTransport + 0, Level = LogLevel.Information,
+            Message = "MQTT transport opened: connection='{Connection}' endpoint={Endpoint} direction={Direction} " +
+                "profile={Profile}")]
+        public static partial void MqttTransportOpened(
+            this ILogger logger,
+            string? connection,
+            MqttEndpoint endpoint,
+            PubSubTransportDirection direction,
+            string profile);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttBrokerTransport + 1, Level = LogLevel.Debug,
+            Message = "MQTT disconnect for connection '{Connection}' raised an exception.")]
+        public static partial void MqttDisconnectRaisedException(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttBrokerTransport + 2, Level = LogLevel.Warning,
+            Message = "Dropped inbound MQTT frame for connection '{Connection}': receive queue full.")]
+        public static partial void DroppedInboundMqttFrame(this ILogger logger, string? connection);
+    }
+
 }

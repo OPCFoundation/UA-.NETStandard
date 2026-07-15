@@ -137,10 +137,7 @@ namespace Opc.Ua.Server.Fluent
                 if ((notifier.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     notifier.EventNotifier |= EventNotifiers.SubscribeToEvents;
-                    m_logger?.LogDebug(
-                        "Publish: promoted EventNotifier of '{Browse}' (id '{NodeId}') to include SubscribeToEvents.",
-                        notifier.BrowseName,
-                        notifier.NodeId);
+                    m_logger?.PublishPromotedEventNotifierOfBrowseIdNodeId(notifier.BrowseName, notifier.NodeId);
                 }
 
                 m_sources[notifier.NodeId] = new SourceEntry(notifier, factory, options);
@@ -157,10 +154,7 @@ namespace Opc.Ua.Server.Fluent
                     m_owner.AddRootNotifierFromFluentAsync(notifier, CancellationToken.None)
                         .GetAwaiter()
                         .GetResult();
-                    m_logger?.LogDebug(
-                        "Publish: registered '{Browse}' (id '{NodeId}') as a root notifier (RegisterAsRootNotifier=true).",
-                        notifier.BrowseName,
-                        notifier.NodeId);
+                    m_logger?.PublishRegisteredBrowseIdNodeIdAsA(notifier.BrowseName, notifier.NodeId);
                 }
                 catch (Exception ex)
                 {
@@ -362,9 +356,8 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception ex)
                 {
-                    m_logger?.LogError(
+                    m_logger?.PublishReconcilePassFailedForBrowseId(
                         ex,
-                        "Publish: reconcile pass failed for '{Browse}' (id '{NodeId}').",
                         entry.Notifier.BrowseName,
                         entry.Notifier.NodeId);
                 }
@@ -377,10 +370,7 @@ namespace Opc.Ua.Server.Fluent
             entry.WorkerCts = cts;
             Volatile.Write(ref entry.LeakedFaulted, 0);
             entry.WorkerTask = Task.Run(() => RunSourceAsync(entry, cts.Token));
-            m_logger?.LogDebug(
-                "Publish: activated source for '{Browse}' (id '{NodeId}').",
-                entry.Notifier.BrowseName,
-                entry.Notifier.NodeId);
+            m_logger?.PublishActivatedSourceForBrowseIdNodeId(entry.Notifier.BrowseName, entry.Notifier.NodeId);
         }
 
         private void DeactivateSource(SourceEntry entry, bool force)
@@ -409,8 +399,7 @@ namespace Opc.Ua.Server.Fluent
                 if (!completed)
                 {
                     Volatile.Write(ref entry.LeakedFaulted, 1);
-                    m_logger?.LogWarning(
-                        "Publish: source for '{Browse}' (id '{NodeId}') did not honor cancellation within {Timeout}; further yielded events will be discarded.",
+                    m_logger?.PublishSourceForBrowseIdNodeIdDid(
                         entry.Notifier.BrowseName,
                         entry.Notifier.NodeId,
                         entry.Options.CancellationTimeout);
@@ -427,17 +416,11 @@ namespace Opc.Ua.Server.Fluent
 
             if (force)
             {
-                m_logger?.LogDebug(
-                    "Publish: tore down source for '{Browse}' (id '{NodeId}') on dispose.",
-                    entry.Notifier.BrowseName,
-                    entry.Notifier.NodeId);
+                m_logger?.PublishToreDownSourceForBrowseId(entry.Notifier.BrowseName, entry.Notifier.NodeId);
             }
             else
             {
-                m_logger?.LogDebug(
-                    "Publish: deactivated source for '{Browse}' (id '{NodeId}').",
-                    entry.Notifier.BrowseName,
-                    entry.Notifier.NodeId);
+                m_logger?.PublishDeactivatedSourceForBrowseIdNodeId(entry.Notifier.BrowseName, entry.Notifier.NodeId);
             }
         }
 
@@ -451,10 +434,7 @@ namespace Opc.Ua.Server.Fluent
                 stream = entry.Factory(entry.Notifier, systemContext, ct);
                 if (stream == null)
                 {
-                    m_logger?.LogError(
-                        "Publish: factory for '{Browse}' (id '{NodeId}') returned a null stream.",
-                        entry.Notifier.BrowseName,
-                        entry.Notifier.NodeId);
+                    m_logger?.PublishFactoryForBrowseIdNodeIdReturned(entry.Notifier.BrowseName, entry.Notifier.NodeId);
                     return;
                 }
             }
@@ -464,9 +444,8 @@ namespace Opc.Ua.Server.Fluent
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(
+                m_logger?.PublishFactoryInvocationForBrowseIdNodeId(
                     ex,
-                    "Publish: factory invocation for '{Browse}' (id '{NodeId}') threw.",
                     entry.Notifier.BrowseName,
                     entry.Notifier.NodeId);
                 try
@@ -498,11 +477,7 @@ namespace Opc.Ua.Server.Fluent
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(
-                    ex,
-                    "Publish: iterator for '{Browse}' (id '{NodeId}') threw — stopping that source only.",
-                    entry.Notifier.BrowseName,
-                    entry.Notifier.NodeId);
+                m_logger?.PublishIteratorForBrowseIdNodeIdThrew(ex, entry.Notifier.BrowseName, entry.Notifier.NodeId);
                 try
                 {
                     entry.Options.OnError?.Invoke(ex);
@@ -529,9 +504,8 @@ namespace Opc.Ua.Server.Fluent
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(
+                m_logger?.PublishReportEventForBrowseIdNodeIdThrew(
                     ex,
-                    "Publish: ReportEvent for '{Browse}' (id '{NodeId}') threw — dropping this event and continuing iterator.",
                     entry.Notifier.BrowseName,
                     entry.Notifier.NodeId);
                 try
@@ -653,4 +627,96 @@ namespace Opc.Ua.Server.Fluent
         private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
         private int m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for EventSourceRegistry.
+    /// </summary>
+    internal static partial class EventSourceRegistryLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 0, Level = LogLevel.Debug,
+            Message = "Publish: promoted EventNotifier of '{Browse}' (id '{NodeId}') to include SubscribeToEvents.")]
+        public static partial void PublishPromotedEventNotifierOfBrowseIdNodeId(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 1, Level = LogLevel.Debug,
+            Message = "Publish: registered '{Browse}' (id '{NodeId}') as a root notifier " +
+                "(RegisterAsRootNotifier=true).")]
+        public static partial void PublishRegisteredBrowseIdNodeIdAsA(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 2, Level = LogLevel.Error,
+            Message = "Publish: reconcile pass failed for '{Browse}' (id '{NodeId}').")]
+        public static partial void PublishReconcilePassFailedForBrowseId(
+            this ILogger logger,
+            Exception ex,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 3, Level = LogLevel.Debug,
+            Message = "Publish: activated source for '{Browse}' (id '{NodeId}').")]
+        public static partial void PublishActivatedSourceForBrowseIdNodeId(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 4, Level = LogLevel.Warning,
+            Message = "Publish: source for '{Browse}' (id '{NodeId}') did not honor cancellation within " +
+                "{Timeout}; further yielded events will be discarded.")]
+        public static partial void PublishSourceForBrowseIdNodeIdDid(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId,
+            TimeSpan timeout);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 5, Level = LogLevel.Debug,
+            Message = "Publish: tore down source for '{Browse}' (id '{NodeId}') on dispose.")]
+        public static partial void PublishToreDownSourceForBrowseId(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 6, Level = LogLevel.Debug,
+            Message = "Publish: deactivated source for '{Browse}' (id '{NodeId}').")]
+        public static partial void PublishDeactivatedSourceForBrowseIdNodeId(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 7, Level = LogLevel.Error,
+            Message = "Publish: factory for '{Browse}' (id '{NodeId}') returned a null stream.")]
+        public static partial void PublishFactoryForBrowseIdNodeIdReturned(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 8, Level = LogLevel.Error,
+            Message = "Publish: factory invocation for '{Browse}' (id '{NodeId}') threw.")]
+        public static partial void PublishFactoryInvocationForBrowseIdNodeId(
+            this ILogger logger,
+            Exception ex,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 9, Level = LogLevel.Error,
+            Message = "Publish: iterator for '{Browse}' (id '{NodeId}') threw â stopping that source only.")]
+        public static partial void PublishIteratorForBrowseIdNodeIdThrew(
+            this ILogger logger,
+            Exception ex,
+            QualifiedName browse,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 10, Level = LogLevel.Error,
+            Message = "Publish: ReportEvent for '{Browse}' (id '{NodeId}') threw â dropping this event and " +
+                "continuing iterator.")]
+        public static partial void PublishReportEventForBrowseIdNodeIdThrew(
+            this ILogger logger,
+            Exception ex,
+            QualifiedName browse,
+            NodeId nodeId);
+    }
+
 }

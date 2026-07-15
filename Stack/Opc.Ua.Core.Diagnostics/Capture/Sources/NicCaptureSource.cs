@@ -323,10 +323,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
             catch (Exception ex) when (promiscuous)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Unable to open interface {InterfaceName} in promiscuous mode; retrying without promiscuous mode.",
-                    selected.Name);
+                m_logger.OpenInterfacePromiscuousModeFailed(ex, selected.Name);
                 try
                 {
                     selected.Open(DeviceModes.None, read_timeout: 1000);
@@ -337,6 +334,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
                         $"Unable to open interface '{selected.Name}' — is libpcap / Npcap installed and permitted?",
                         retryEx);
                 }
+
             }
             catch (Exception ex)
             {
@@ -398,4 +396,19 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="NicCaptureSource"/>.
+    /// </summary>
+    internal static partial class NicCaptureSourceLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.NicCaptureSource + 0, Level = LogLevel.Warning,
+            Message = "Unable to open interface {InterfaceName} in promiscuous mode; retrying without " +
+                "promiscuous mode.")]
+        public static partial void OpenInterfacePromiscuousModeFailed(
+            this ILogger logger,
+            Exception exception,
+            string? interfaceName);
+    }
+
 }

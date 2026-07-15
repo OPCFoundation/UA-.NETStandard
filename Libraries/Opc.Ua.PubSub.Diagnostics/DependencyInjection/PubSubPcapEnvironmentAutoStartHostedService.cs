@@ -67,11 +67,7 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
             }
             m_resolvedPcapPath = ResolveAndValidatePcapPath(m_options.PcapFilePath!);
             m_source = await m_manager.StartAsync(cancellationToken).ConfigureAwait(false);
-            m_logger?.LogWarning(
-                "PubSub pcap auto-capture is ENABLED via {PcapEnvVar}. Frames will be " +
-                "written to '{PcapFile}' on shutdown. Treat the resulting file as a " +
-                "secret; it may expose recorded PubSub traffic and is intended for " +
-                "diagnostics only.",
+            m_logger?.PubSubPcapAutoCaptureEnabled(
                 PubSubPcapEnvironmentVariableNames.OpcuaPubSubPcapFile,
                 m_resolvedPcapPath);
         }
@@ -100,16 +96,11 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
                         source.ReadCapturedFramesAsync(null, cancellationToken),
                         pcapFilePath,
                         cancellationToken).ConfigureAwait(false);
-                m_logger?.LogInformation(
-                    "Wrote {Count} PubSub frames to {PcapFile}.",
-                    written,
-                    pcapFilePath);
+                m_logger?.WrotePubSubFrames(written, pcapFilePath);
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex,
-                    "Failed to write PubSub capture to {PcapFile}.",
-                    pcapFilePath);
+                m_logger?.FailedToWritePubSubCapture(ex, pcapFilePath);
             }
         }
 
@@ -165,4 +156,32 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
         private IPubSubCaptureSource? m_source;
         private string? m_resolvedPcapPath;
     }
+
+    /// <summary>
+    /// Source-generated log messages for PubSubPcapEnvironmentAutoStartHostedService.
+    /// </summary>
+    internal static partial class PubSubPcapEnvironmentAutoStartHostedServiceLog
+    {
+        [LoggerMessage(EventId = PubSubDiagnosticsEventIds.PubSubPcapEnvironmentAutoStartHostedService + 0,
+            Level = LogLevel.Warning,
+            Message = "PubSub pcap auto-capture is ENABLED via {PcapEnvVar}. Frames will be written to " +
+                "'{PcapFile}' on shutdown. Treat the resulting file as a secret; it may expose recorded " +
+                "PubSub traffic and is intended for diagnostics only.")]
+        public static partial void PubSubPcapAutoCaptureEnabled(
+            this ILogger logger,
+            string pcapEnvVar,
+            string? pcapFile);
+
+        [LoggerMessage(EventId = PubSubDiagnosticsEventIds.PubSubPcapEnvironmentAutoStartHostedService + 1,
+            Level = LogLevel.Information, Message = "Wrote {Count} PubSub frames to {PcapFile}.")]
+        public static partial void WrotePubSubFrames(this ILogger logger, long count, string pcapFile);
+
+        [LoggerMessage(EventId = PubSubDiagnosticsEventIds.PubSubPcapEnvironmentAutoStartHostedService + 2,
+            Level = LogLevel.Error, Message = "Failed to write PubSub capture to {PcapFile}.")]
+        public static partial void FailedToWritePubSubCapture(
+            this ILogger logger,
+            Exception exception,
+            string pcapFile);
+    }
+
 }

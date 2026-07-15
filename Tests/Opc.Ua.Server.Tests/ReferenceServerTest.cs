@@ -435,8 +435,11 @@ namespace Opc.Ua.Server.Tests
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            }
 
             // Verify the timestamp is recent (not startup time)
             Assert.That((long)firstValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeFirstRead.SubtractMilliseconds(1000)),
@@ -462,8 +465,11 @@ namespace Opc.Ua.Server.Tests
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            }
 
             // Verify the second timestamp is more recent than the first
             Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThan((long)firstValue.SourceTimestamp),
@@ -512,8 +518,11 @@ namespace Opc.Ua.Server.Tests
             DataValue firstValue = firstReadResponse.Results[0];
             Assert.That(firstValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(firstValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("Array First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Array First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+            }
 
             // Verify the timestamp is recent (not startup time)
             Assert.That((long)firstValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeFirstRead.SubtractMilliseconds(1000)),
@@ -539,8 +548,11 @@ namespace Opc.Ua.Server.Tests
             DataValue secondValue = secondReadResponse.Results[0];
             Assert.That(secondValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(secondValue.SourceTimestamp.IsNull, Is.False);
-            logger.LogInformation("Array Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Array Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+            }
 
             // Verify the second timestamp is more recent than the first
             Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThan((long)firstValue.SourceTimestamp),
@@ -1522,9 +1534,12 @@ namespace Opc.Ua.Server.Tests
                 !readResponse.Results[1].WrappedValue.IsNull &&
                 (bool)readResponse.Results[1].WrappedValue;
 
-            logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
-            logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
-            logger.LogInformation("AccessHistoryDataCapability: {AccessHistoryDataCapability}", accessHistoryDataCapability);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Server EventNotifier: {EventNotifier}", eventNotifier);
+                logger.LogInformation("AccessHistoryEventsCapability: {AccessHistoryEventsCapability}", accessHistoryEventsCapability);
+                logger.LogInformation("AccessHistoryDataCapability: {AccessHistoryDataCapability}", accessHistoryDataCapability);
+            }
 
             // If either history capability is enabled, the HistoryRead bit should be set
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
@@ -1572,11 +1587,14 @@ namespace Opc.Ua.Server.Tests
             for (int i = 0; i < readResponse.Results.Count; i++)
             {
                 DataValue result = readResponse.Results[i];
-                logger.LogInformation(
-                    "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
-                    nodesToRead[i].NodeId,
-                    result.SourceTimestamp,
-                    result.ServerTimestamp);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(
+                        "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                        nodesToRead[i].NodeId,
+                        result.SourceTimestamp,
+                        result.ServerTimestamp);
+                }
 
                 Assert.That(result.ServerTimestamp, Is.EqualTo(result.SourceTimestamp),
                     $"SourceTimestamp and ServerTimestamp should be equal for {nodesToRead[i].NodeId}");
@@ -1599,7 +1617,10 @@ namespace Opc.Ua.Server.Tests
                 TestData.Variables.Data_Dynamic_Scalar_Int32Value,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
 
-            logger.LogInformation("Testing history read for Int32Value node: {NodeId}", int32ValueNodeId);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Testing history read for Int32Value node: {NodeId}", int32ValueNodeId);
+            }
 
             // Verify the node has Historizing attribute set to true
             ArrayOf<ReadValueId> readIdCollection =
@@ -1631,7 +1652,10 @@ namespace Opc.Ua.Server.Tests
             bool historizing = (bool)readResponse.Results[0].WrappedValue;
             byte accessLevel = (byte)readResponse.Results[1].WrappedValue;
 
-            logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
+            }
 
             Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
             Assert.That(accessLevel & AccessLevels.HistoryRead,
@@ -1671,7 +1695,10 @@ namespace Opc.Ua.Server.Tests
 
             HistoryReadResult result = historyReadResponse.Results[0];
 
-            logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
+            }
 
             // The result should be Good or GoodMoreData (if there are more values)
             Assert.That(StatusCode.IsGood(result.StatusCode),
@@ -1682,7 +1709,10 @@ namespace Opc.Ua.Server.Tests
             // Verify we got HistoryData back
             if (result.HistoryData.TryGetValue(out HistoryData historyData))
             {
-                logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
+                }
                 Assert.That(historyData.DataValues.IsNull, Is.False, "DataValues should not be null");
                 Assert.That(historyData.DataValues.Count, Is.GreaterThan(0), "Should have at least one historical value");
 

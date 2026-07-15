@@ -1887,10 +1887,7 @@ namespace Opc.Ua
                             : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
                         if (!typeId.IsNull && absoluteId.IsNull)
                         {
-                            m_logger.LogWarning(
-                                "Cannot de-serialized extension objects if the " +
-                                "NamespaceUri is not in the NamespaceTable: Type = {Type}",
-                                typeId);
+                            m_logger.CannotDeserializeExtensionObject(typeId);
                         }
                         else
                         {
@@ -1942,9 +1939,7 @@ namespace Opc.Ua
                                         }
                                         catch (Exception ex)
                                         {
-                                            m_logger.LogInformation(
-                                                ex,
-                                                "Cannot de-serialized extension object from body.");
+                                            m_logger.CannotDeserializeExtensionObjectBody(ex);
                                         }
                                         finally
                                         {
@@ -2711,10 +2706,7 @@ namespace Opc.Ua
                             : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
                         if (!typeId.IsNull && absoluteId.IsNull)
                         {
-                            m_logger.LogWarning(
-                                "Cannot de-serialized extension objects if the " +
-                                "NamespaceUri is not in the NamespaceTable: Type = {Type}",
-                                typeId);
+                            m_logger.CannotDeserializeExtensionObject(typeId);
                             goto default;
                         }
                         typeId = absoluteId;

@@ -71,7 +71,7 @@ namespace Opc.Ua.Pcap.Formats
         {
             ArgumentNullException.ThrowIfNull(source);
 
-            m_logger.LogDebug("Formatting capture as text.");
+            m_logger.FormattingCaptureAsText();
             StringBuilder builder = new();
             long count = 0;
             await foreach (CaptureFrame frame in source.ReadCapturedFramesAsync(maxFrames, ct)
@@ -105,5 +105,17 @@ namespace Opc.Ua.Pcap.Formats
                 FramesFormatted = count
             };
         }
+
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="TextFormatter"/>.
+    /// </summary>
+    internal static partial class TextFormatterLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.TextFormatter + 0, Level = LogLevel.Debug,
+            Message = "Formatting capture as text.")]
+        public static partial void FormattingCaptureAsText(this ILogger logger);
+    }
+
 }

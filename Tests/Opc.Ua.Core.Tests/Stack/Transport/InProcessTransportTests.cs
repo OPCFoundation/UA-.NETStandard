@@ -117,6 +117,66 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task CancelledLimitedRentDoesNotConsumeQueuedChunkAsync()
+        {
+            const int bufferSize = 8192;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var limited = new LimitingBufferManager(
+                new FastBufferManager("inproc-limited", bufferSize, telemetry),
+                new BufferManagerMemoryLimiter(bufferSize));
+            var buffers = new BufferManager(limited);
+            (InProcessTransport client, InProcessTransport server) =
+                InProcessTransport.CreatePair(buffers, bufferSize, telemetry);
+            byte[] held = limited.TakeBuffer(
+                bufferSize,
+                nameof(CancelledLimitedRentDoesNotConsumeQueuedChunkAsync));
+            bool heldReturned = false;
+
+            try
+            {
+                byte[] payload = [1, 2, 3, 4];
+                await client.SendChunkAsync(payload, CancellationToken.None).ConfigureAwait(false);
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+                Assert.That(
+                    async () => await server.ReceiveChunkAsync(cts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+
+                limited.ReturnBuffer(
+                    held,
+                    nameof(CancelledLimitedRentDoesNotConsumeQueuedChunkAsync));
+                heldReturned = true;
+                ArraySegment<byte> received = await server
+                    .ReceiveChunkAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                try
+                {
+                    Assert.That(received, Has.Count.EqualTo(payload.Length));
+                    Assert.That(
+                        received.GetArray().AsSpan(0, received.Count).ToArray(),
+                        Is.EqualTo(payload));
+                }
+                finally
+                {
+                    buffers.ReturnBuffer(
+                        received.Array,
+                        nameof(CancelledLimitedRentDoesNotConsumeQueuedChunkAsync));
+                }
+            }
+            finally
+            {
+                if (!heldReturned)
+                {
+                    limited.ReturnBuffer(
+                        held,
+                        nameof(CancelledLimitedRentDoesNotConsumeQueuedChunkAsync));
+                }
+                client.Close();
+                server.Close();
+            }
+        }
+
+        [Test]
         public void CreatePairThrowsOnNullBuffers()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -342,7 +402,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public async Task ReceiveChunkCancellationThrowsOperationCanceledAsync()
+        public Task ReceiveChunkCancellationThrowsOperationCanceledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var buffers = new BufferManager("inproc-test", 8192, telemetry);
@@ -369,6 +429,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 client.Close();
                 server.Close();
             }
+
+            return Task.CompletedTask;
         }
 
         [Test]

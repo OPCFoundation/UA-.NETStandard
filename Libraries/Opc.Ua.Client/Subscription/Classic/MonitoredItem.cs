@@ -562,8 +562,7 @@ namespace Opc.Ua.Client
                             // validate the ServerTimestamp of the notification.
                             if (datachange.Value.ServerTimestamp > now)
                             {
-                                m_logger.LogWarning(
-                                    "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
+                                m_logger.ReceivedServerTimestampServerTimestampFutureMonitoredItemIdMonitoredItemId(
                                     datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle);
                             }
@@ -571,8 +570,7 @@ namespace Opc.Ua.Client
                             // validate SourceTimestamp of the notification.
                             if (datachange.Value.SourceTimestamp > now)
                             {
-                                m_logger.LogWarning(
-                                    "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId {MonitoredItemId}",
+                                m_logger.ReceivedSourceTimestampSourceTimestampFutureMonitoredItemIdMonitoredItemId(
                                     datachange.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
                                     ClientHandle);
                             }
@@ -580,9 +578,7 @@ namespace Opc.Ua.Client
 
                         if (datachange.Value.StatusCode.Overflow)
                         {
-                            m_logger.LogWarning(
-                                "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} " +
-                                "and value {Value} for MonitoredItemId {MonitoredItemId}",
+                            m_logger.OverflowBitSetDataChangeServerTimestamp(
                                 datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                 datachange.Value.WrappedValue,
                                 ClientHandle);
@@ -1187,14 +1183,10 @@ namespace Opc.Ua.Client
                     LastValue.WrappedValue.ToString());
             }
 
-            if (m_logger.IsEnabled(LogLevel.Debug))
-            {
-                m_logger.LogDebug(
-                    "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                    notification.ClientHandle,
-                    notification.Value.WrappedValue,
-                    notification.Value.SourceTimestamp);
-            }
+            m_logger.NotificationClientHandleClientHandleValueValueSourceTime(
+                notification.ClientHandle,
+                notification.Value.WrappedValue,
+                notification.Value.SourceTimestamp);
 
             if (m_values != null)
             {
@@ -1205,14 +1197,10 @@ namespace Opc.Ua.Client
                     {
                         break;
                     }
-                    if (m_logger.IsEnabled(LogLevel.Information))
-                    {
-                        m_logger.LogInformation(
-                            "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                            notification.ClientHandle,
-                            dropped.WrappedValue,
-                            dropped.SourceTimestamp);
-                    }
+                    m_logger.DroppedValueClientHandleClientHandleValueValue(
+                        notification.ClientHandle,
+                        dropped.WrappedValue,
+                        dropped.SourceTimestamp);
                 }
             }
         }
@@ -1249,8 +1237,7 @@ namespace Opc.Ua.Client
                 {
                     break;
                 }
-                m_logger.LogDebug(
-                    "Setting queue size dropped value: Value={Value}, SourceTime={SourceTime}",
+                m_logger.SettingQueueSizeDroppedValueValue(
                     dropped.WrappedValue,
                     dropped.SourceTimestamp);
             }
@@ -1338,4 +1325,59 @@ namespace Opc.Ua.Client
 
         private readonly Queue<EventFieldList> m_events;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="MonitoredItem"/>.
+    /// </summary>
+    internal static partial class MonitoredItemLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 0, Level = LogLevel.Warning,
+            Message = "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId" +
+                " {MonitoredItemId}")]
+        public static partial void ReceivedServerTimestampServerTimestampFutureMonitoredItemIdMonitoredItemId(
+            this ILogger logger,
+            DateTime serverTimestamp,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 1, Level = LogLevel.Warning,
+            Message = "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId" +
+                " {MonitoredItemId}")]
+        public static partial void ReceivedSourceTimestampSourceTimestampFutureMonitoredItemIdMonitoredItemId(
+            this ILogger logger,
+            DateTime sourceTimestamp,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 2, Level = LogLevel.Warning,
+            Message = "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} and value {Value}" +
+                " for MonitoredItemId {MonitoredItemId}")]
+        public static partial void OverflowBitSetDataChangeServerTimestamp(
+            this ILogger logger,
+            DateTime serverTimestamp,
+            Variant value,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 3, Level = LogLevel.Debug,
+            Message = "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}")]
+        public static partial void NotificationClientHandleClientHandleValueValueSourceTime(
+            this ILogger logger,
+            uint clientHandle,
+            Variant value,
+            DateTimeUtc sourceTime);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 4, Level = LogLevel.Information,
+            Message = "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}")]
+        public static partial void DroppedValueClientHandleClientHandleValueValue(
+            this ILogger logger,
+            uint clientHandle,
+            Variant value,
+            DateTimeUtc sourceTime);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 5, Level = LogLevel.Debug,
+            Message = "Setting queue size dropped value: Value={Value}, SourceTime={SourceTime}")]
+        public static partial void SettingQueueSizeDroppedValueValue(
+            this ILogger logger,
+            Variant value,
+            DateTimeUtc sourceTime);
+    }
+
 }

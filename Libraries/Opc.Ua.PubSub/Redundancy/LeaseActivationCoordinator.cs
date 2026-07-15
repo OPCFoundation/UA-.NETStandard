@@ -291,10 +291,7 @@ namespace Opc.Ua.PubSub.Redundancy
                 }
                 catch (Exception ex)
                 {
-                    m_owner.m_logger.LogError(
-                        ex,
-                        "PubSub lease coordination loop for '{ComponentId}' faulted.",
-                        m_componentId);
+                    m_owner.m_logger.PubSubLeaseCoordinationLoopFaulted(ex, m_componentId);
                 }
                 finally
                 {
@@ -307,10 +304,7 @@ namespace Opc.Ua.PubSub.Redundancy
                         }
                         catch (Exception ex)
                         {
-                            m_owner.m_logger.LogDebug(
-                                ex,
-                                "Releasing lease for '{ComponentId}' on shutdown failed.",
-                                m_componentId);
+                            m_owner.m_logger.ReleasingLeaseOnShutdownFailed(ex, m_componentId);
                         }
                     }
                 }
@@ -331,4 +325,25 @@ namespace Opc.Ua.PubSub.Redundancy
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="LeaseActivationCoordinator"/>.
+    /// </summary>
+    internal static partial class LeaseActivationCoordinatorLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.LeaseActivationCoordinator + 0, Level = LogLevel.Error,
+            Message = "PubSub lease coordination loop for '{ComponentId}' faulted.")]
+        public static partial void PubSubLeaseCoordinationLoopFaulted(
+            this ILogger logger,
+            Exception exception,
+            string componentId);
+
+        [LoggerMessage(EventId = PubSubEventIds.LeaseActivationCoordinator + 1, Level = LogLevel.Debug,
+            Message = "Releasing lease for '{ComponentId}' on shutdown failed.")]
+        public static partial void ReleasingLeaseOnShutdownFailed(
+            this ILogger logger,
+            Exception exception,
+            string componentId);
+    }
+
 }

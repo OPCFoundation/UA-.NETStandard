@@ -51,10 +51,14 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         [Test]
         public async Task SendForwardsToInnerAndTapsBytesWhenObserverIsRegisteredAsync()
         {
+            const uint syntheticFlowId = 0x1234u;
             var registry = new ChannelCaptureRegistry();
             using var inner = new RecordingByteTransport();
             var sink = new RecordingFrameCaptureSink();
-            using var transport = new CapturingByteTransport(inner, registry);
+            using var transport = new CapturingByteTransport(
+                inner,
+                registry,
+                syntheticFlowId);
 
             // No observer installed: forwarded but not tapped.
             await transport.SendChunkAsync(new byte[] { 1, 2, 3, 4 }, CancellationToken.None)
@@ -68,17 +72,21 @@ namespace Opc.Ua.Pcap.Tests.Bindings
                 .ConfigureAwait(false);
             Assert.That(inner.SentChunks, Has.Count.EqualTo(2));
             Assert.That(sink.SentChunks, Has.Count.EqualTo(1));
-            Assert.That(sink.SentChunks[0].ChannelId, Is.Zero);
+            Assert.That(sink.SentChunks[0].ChannelId, Is.EqualTo(syntheticFlowId));
             Assert.That(sink.SentChunks[0].Bytes, Is.EqualTo(new byte[] { 5, 6, 7 }));
         }
 
         [Test]
         public async Task ReceiveForwardsFromInnerAndTapsBytesWhenObserverIsRegisteredAsync()
         {
+            const uint syntheticFlowId = 0x1234u;
             var registry = new ChannelCaptureRegistry();
             using var inner = new RecordingByteTransport();
             var sink = new RecordingFrameCaptureSink();
-            using var transport = new CapturingByteTransport(inner, registry);
+            using var transport = new CapturingByteTransport(
+                inner,
+                registry,
+                syntheticFlowId);
 
             inner.EnqueueReceive([10, 20, 30]);
             ArraySegment<byte> received = await transport.ReceiveChunkAsync(CancellationToken.None)
@@ -92,8 +100,60 @@ namespace Opc.Ua.Pcap.Tests.Bindings
                 .ConfigureAwait(false);
             Assert.That(received, Has.Count.EqualTo(2));
             Assert.That(sink.ReceivedChunks, Has.Count.EqualTo(1));
-            Assert.That(sink.ReceivedChunks[0].ChannelId, Is.Zero);
+            Assert.That(sink.ReceivedChunks[0].ChannelId, Is.EqualTo(syntheticFlowId));
             Assert.That(sink.ReceivedChunks[0].Bytes, Is.EqualTo("(2"u8.ToArray()));
+        }
+
+        [Test]
+        public async Task SyntheticFlowIdsAreDistinctAcrossTransportInstancesAsync()
+        {
+            var registry = new ChannelCaptureRegistry();
+            var sink = new RecordingFrameCaptureSink();
+            registry.SetObserver(sink);
+            using var firstInner = new RecordingByteTransport();
+            using var secondInner = new RecordingByteTransport();
+            using var first = new CapturingByteTransport(firstInner, registry);
+            using var second = new CapturingByteTransport(secondInner, registry);
+
+            await first.SendChunkAsync(new byte[] { 1 }, CancellationToken.None)
+                .ConfigureAwait(false);
+            await second.SendChunkAsync(new byte[] { 2 }, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(sink.SentChunks, Has.Count.EqualTo(2));
+            Assert.That(sink.SentChunks[0].ChannelId, Is.Not.Zero);
+            Assert.That(sink.SentChunks[1].ChannelId, Is.Not.Zero);
+            Assert.That(
+                sink.SentChunks[0].ChannelId,
+                Is.Not.EqualTo(sink.SentChunks[1].ChannelId));
+        }
+
+        [Test]
+        public async Task SyntheticFlowIdIsStableAcrossDirectionsAndFramesAsync()
+        {
+            const uint syntheticFlowId = 0xBEEFu;
+            var registry = new ChannelCaptureRegistry();
+            using var inner = new RecordingByteTransport();
+            var sink = new RecordingFrameCaptureSink();
+            using var transport = new CapturingByteTransport(
+                inner,
+                registry,
+                syntheticFlowId);
+            registry.SetObserver(sink);
+
+            await transport.SendChunkAsync(new byte[] { 1, 2 }, CancellationToken.None)
+                .ConfigureAwait(false);
+            await transport.SendChunkAsync(new byte[] { 3 }, CancellationToken.None)
+                .ConfigureAwait(false);
+            inner.EnqueueReceive([4, 5, 6]);
+            _ = await transport.ReceiveChunkAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(sink.SentChunks, Has.Count.EqualTo(2));
+            Assert.That(sink.ReceivedChunks, Has.Count.EqualTo(1));
+            Assert.That(sink.SentChunks[0].ChannelId, Is.EqualTo(syntheticFlowId));
+            Assert.That(sink.SentChunks[1].ChannelId, Is.EqualTo(syntheticFlowId));
+            Assert.That(sink.ReceivedChunks[0].ChannelId, Is.EqualTo(syntheticFlowId));
         }
 
         [Test]
@@ -105,6 +165,12 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             Assert.That(
                 () => new CapturingByteTransport(new RecordingByteTransport(), null!),
                 Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                () => new CapturingByteTransport(
+                    new RecordingByteTransport(),
+                    new ChannelCaptureRegistry(),
+                    0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
@@ -115,7 +181,23 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             Assert.That(transport.Implementation, Is.EqualTo("UA-TEST+pcap"));
         }
 
-        private sealed class RecordingByteTransport : IUaSCByteTransport, IDisposable
+        [Test]
+        public void ReceiveBufferSizeUpdateForwardsToInnerTransport()
+        {
+            using var inner = new RecordingByteTransport();
+            using var transport = new CapturingByteTransport(
+                inner,
+                new ChannelCaptureRegistry());
+
+            ((IUaSCByteTransportLimits)transport).SetReceiveBufferSize(12345);
+
+            Assert.That(inner.ReceiveBufferSize, Is.EqualTo(12345));
+        }
+
+        private sealed class RecordingByteTransport :
+            IUaSCByteTransport,
+            IUaSCByteTransportLimits,
+            IDisposable
         {
             public List<byte[]> SentChunks { get; } = [];
             private readonly Queue<byte[]> m_inbound = new();
@@ -124,6 +206,7 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public EndPoint? LocalEndpoint => null;
             public EndPoint? RemoteEndpoint => null;
+            public int ReceiveBufferSize { get; private set; }
 
             public void EnqueueReceive(byte[] chunk)
             {
@@ -171,6 +254,11 @@ namespace Opc.Ua.Pcap.Tests.Bindings
 
             public void Close()
             {
+            }
+
+            void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+            {
+                ReceiveBufferSize = receiveBufferSize;
             }
 
             public void Dispose()

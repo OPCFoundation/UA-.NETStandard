@@ -519,10 +519,7 @@ namespace Opc.Ua.Client.WebApi
 
             if (settings.ClientCertificate != null || settings.CertificateValidator != null)
             {
-                m_logger.LogWarning(
-                    "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
-                    "CertificateValidator or client certificate is configured; using a direct HttpClient so " +
-                    "OPC UA TLS validation and mTLS are applied.",
+                m_logger.ChannelTypeBypassingIOpcUaHttpClientFactoryOPCUACertificateValidator(
                     nameof(WebApiTransportChannel));
                 return false;
             }
@@ -621,9 +618,7 @@ namespace Opc.Ua.Client.WebApi
                         // information") tracks the StatusCode field as
                         // certificate-derived data and would flag the log
                         // entry. Mirrors WebApiWssTransportChannel.
-                        m_logger.LogError(
-                            "{ChannelType} OPC UA certificate validator rejected server certificate.",
-                            nameof(WebApiTransportChannel));
+                        m_logger.ChannelTypeOPCUACertificateValidatorRejected(nameof(WebApiTransportChannel));
                         return false;
                     }
                     return true;
@@ -631,8 +626,7 @@ namespace Opc.Ua.Client.WebApi
 
                 if (sslPolicyErrors != SslPolicyErrors.None)
                 {
-                    m_logger.LogError(
-                        "{ChannelType} No certificate validator configured and TLS reported {Errors}; rejecting server certificate.",
+                    m_logger.ChannelTypeNoCertificateValidatorConfiguredTLS(
                         nameof(WebApiTransportChannel),
                         sslPolicyErrors);
                     return false;
@@ -641,9 +635,8 @@ namespace Opc.Ua.Client.WebApi
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
+                m_logger.ChannelTypeFailedValidateServerCertificate(
                     ex,
-                    "{ChannelType} Failed to validate server certificate.",
                     nameof(WebApiTransportChannel));
                 return false;
             }
@@ -682,4 +675,19 @@ namespace Opc.Ua.Client.WebApi
                 "The Web API channel is not open.");
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="WebApiTransportChannel"/>.
+    /// </summary>
+    internal static partial class WebApiTransportChannelLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.WebApiTransportChannel + 0, Level = LogLevel.Warning,
+            Message = "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA CertificateValidator or" +
+                " client certificate is configured; using a direct HttpClient so OPC UA TLS validation and" +
+                " mTLS are applied.")]
+        public static partial void ChannelTypeBypassingIOpcUaHttpClientFactoryOPCUACertificateValidator(
+            this ILogger logger,
+            string channelType);
+    }
+
 }

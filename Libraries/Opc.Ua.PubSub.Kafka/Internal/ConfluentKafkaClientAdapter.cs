@@ -125,8 +125,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 raiseConnected = !m_connected;
                 m_connected = true;
             }
-            m_logger.LogDebug(
-                "Kafka adapter connected to {BootstrapServers} (protocol={Protocol}).",
+            m_logger.KafkaAdapterConnected(
                 string.IsNullOrEmpty(options.BootstrapServers) ? options.Endpoint : options.BootstrapServers,
                 options.SecurityProtocol);
             if (raiseConnected)
@@ -179,7 +178,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
             }
-            m_logger.LogDebug("Kafka subscribed to {Count} topic(s).", topics.Count);
+            m_logger.KafkaSubscribed(topics.Count);
             return default;
         }
 
@@ -306,7 +305,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex, "Kafka consume loop cancellation raised an exception.");
+                    m_logger.KafkaConsumeLoopCancellationRaisedException(ex);
                 }
             }
             if (consumeTask is not null)
@@ -317,7 +316,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex, "Kafka consume loop terminated with an exception.");
+                    m_logger.KafkaConsumeLoopTerminatedWithException(ex);
                 }
             }
             if (consumer is not null)
@@ -328,7 +327,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex, "Kafka consumer close raised an exception.");
+                    m_logger.KafkaConsumerCloseRaisedException(ex);
                 }
                 consumer.Dispose();
             }
@@ -340,7 +339,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(ex, "Kafka producer flush raised an exception.");
+                    m_logger.KafkaProducerFlushRaisedException(ex);
                 }
                 producer.Dispose();
             }
@@ -404,11 +403,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     catch (ConsumeException ex)
                     {
-                        m_logger.LogWarning(
-                            ex,
-                            "Kafka consume error {Code}: {Reason}",
-                            ex.Error.Code,
-                            ex.Error.Reason);
+                        m_logger.KafkaConsumeError(ex, ex.Error.Code, ex.Error.Reason);
                         continue;
                     }
                     if (result?.Message is null || result.IsPartitionEOF)
@@ -425,13 +420,13 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogWarning(ex, "Failed to dispatch inbound Kafka record.");
+                        m_logger.FailedToDispatchInboundKafkaRecord(ex);
                     }
                 }
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Kafka consume loop terminated unexpectedly.");
+                m_logger.KafkaConsumeLoopTerminatedUnexpectedly(ex);
             }
         }
 
@@ -465,21 +460,18 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private void OnLog(LogMessage message)
         {
-            m_logger.LogTrace(
-                "librdkafka [{Facility}] {Message}",
-                message.Facility,
-                message.Message);
+            m_logger.LibrdkafkaTrace(message.Facility, message.Message);
         }
 
         private void OnError(Error error)
         {
             if (error.IsFatal)
             {
-                m_logger.LogError("Kafka fatal error {Code}: {Reason}", error.Code, error.Reason);
+                m_logger.KafkaFatalError(error.Code, error.Reason);
             }
             else
             {
-                m_logger.LogWarning("Kafka error {Code}: {Reason}", error.Code, error.Reason);
+                m_logger.KafkaError(error.Code, error.Reason);
             }
         }
 
@@ -634,5 +626,32 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             };
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ConfluentKafkaClientAdapter.
+    /// </summary>
+    internal static partial class ConfluentKafkaClientAdapterLog
+    {
+        [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 0, Level = LogLevel.Warning,
+            Message = "Kafka consume error {Code}: {Reason}")]
+        public static partial void KafkaConsumeError(
+            this ILogger logger,
+            Exception exception,
+            ErrorCode code,
+            string? reason);
+
+        [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 1, Level = LogLevel.Trace,
+            Message = "librdkafka [{Facility}] {Message}")]
+        public static partial void LibrdkafkaTrace(this ILogger logger, string facility, string message);
+
+        [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 2, Level = LogLevel.Error,
+            Message = "Kafka fatal error {Code}: {Reason}")]
+        public static partial void KafkaFatalError(this ILogger logger, ErrorCode code, string? reason);
+
+        [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 3, Level = LogLevel.Warning,
+            Message = "Kafka error {Code}: {Reason}")]
+        public static partial void KafkaError(this ILogger logger, ErrorCode code, string? reason);
+    }
+
 }
 #endif

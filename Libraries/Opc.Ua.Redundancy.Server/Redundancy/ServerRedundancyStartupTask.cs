@@ -83,14 +83,26 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             ILogger logger = server.Telemetry.CreateLogger<ServerRedundancyStartupTask>();
-            logger.LogWarning(
-                "Non-transparent server redundancy mode {RedundancyMode} is configured without a registered " +
-                "IServiceLevelProvider. Register AddServerServiceLevel(...) or an IServiceLevelProvider so " +
-                "Server.ServiceLevel reflects failover health.",
-                m_controller.Mode);
+            logger.NonTransparentServerRedundancyModeWithoutServiceLevelProvider(m_controller.Mode);
         }
 
         private readonly ServerRedundancyController m_controller;
         private readonly bool m_warnIfServiceLevelProviderMissing;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ServerRedundancyStartupTask"/>.
+    /// </summary>
+    internal static partial class ServerRedundancyStartupTaskLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.ServerRedundancyStartupTask + 0,
+            Level = LogLevel.Warning,
+            Message = "Non-transparent server redundancy mode {RedundancyMode} is configured without a registered " +
+                "IServiceLevelProvider. Register AddServerServiceLevel(...) or an IServiceLevelProvider so " +
+                "Server.ServiceLevel reflects failover health.")]
+        public static partial void NonTransparentServerRedundancyModeWithoutServiceLevelProvider(
+            this ILogger logger,
+            RedundancySupport redundancyMode);
+    }
+
 }

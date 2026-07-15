@@ -331,7 +331,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "External-server PubSub adapter hot reload failed.");
+                m_logger.HotReloadFailed(ex);
             }
             finally
             {
@@ -419,7 +419,7 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             }
             catch (Exception ex) when (replaceApplication && ex is not OperationCanceledException)
             {
-                m_logger.LogError(ex, "Failed to apply external-server PubSub adapter hot reload.");
+                m_logger.ApplyHotReloadFailed(ex);
             }
             finally
             {
@@ -1071,4 +1071,19 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ServerAdapterReloadCoordinator.
+    /// </summary>
+    internal static partial class ServerAdapterReloadCoordinatorLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerAdapterReloadCoordinator + 0,
+            Level = LogLevel.Error, Message = "External-server PubSub adapter hot reload failed.")]
+        public static partial void HotReloadFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerAdapterReloadCoordinator + 1,
+            Level = LogLevel.Error, Message = "Failed to apply external-server PubSub adapter hot reload.")]
+        public static partial void ApplyHotReloadFailed(this ILogger logger, Exception exception);
+    }
+
 }

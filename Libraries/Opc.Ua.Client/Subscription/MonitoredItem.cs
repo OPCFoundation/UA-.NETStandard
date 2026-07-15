@@ -407,7 +407,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // first ApplyChangesAsync pass.
             SetDesiredTriggeredByNames(options.CurrentValue.TriggeredByNames);
             m_options = Options = options;
-            m_logger.LogDebug("{Item} CREATED.", this);
+            m_logger.ItemCREATED(this);
         }
 
         /// <inheritdoc/>
@@ -472,7 +472,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 Context.NotifyItemChange(this, true);
-                m_logger.LogDebug("{Item} REMOVED.", this);
+                m_logger.ItemREMOVED(this);
 
                 ServerId = 0;
                 m_changeTracking?.Dispose();
@@ -572,8 +572,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // ensure the global counter is not duplicating future handle ids
             if (clientHandle != ClientHandle)
             {
-                m_logger.LogInformation("{Item}: UPDATE CLIENT ID from {Old} to {New}.",
-                    this, ClientHandle, clientHandle);
+                m_logger.ItemUPDATECLIENTIDOldNew(
+                    this,
+                    ClientHandle,
+                    clientHandle);
 
                 ClientHandle = clientHandle;
 
@@ -581,8 +583,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             if (serverHandle != ServerId)
             {
-                m_logger.LogInformation("{Item}: UPDATE SERVER ID from {Old} to {New}.",
-                    this, ServerId, serverHandle);
+                m_logger.ItemUPDATESERVERIDOldNew(
+                    this,
+                    ServerId,
+                    serverHandle);
 
                 ServerId = serverHandle;
             }
@@ -605,7 +609,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
-            m_logger.LogDebug("{Item}: RESET.", this);
+            m_logger.ItemRESET(this);
             ServerId = 0;
 
             MonitoredItemOptions? options = m_currentOptions;
@@ -1154,35 +1158,35 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 options.QueueSize != CurrentQueueSize &&
                 CurrentQueueSize != 0)
             {
-                m_logger.LogInformation(
-                    "{Item}: {Action} SamplingInterval was " +
-                    "revised from {SamplingInterval} to {CurrentSamplingInterval} " +
-                    "and QueueSize from {QueueSize} to {CurrentQueueSize}.",
-                    this, created ? "CREATED" : "UPDATED",
-                    options.SamplingInterval, CurrentSamplingInterval,
-                    options.QueueSize, CurrentQueueSize);
+                m_logger.ItemActionSamplingIntervalRevisedSamplingIntervalCurrentSamplingInterval(
+                    this,
+                    created ? "CREATED" : "UPDATED",
+                    options.SamplingInterval,
+                    CurrentSamplingInterval,
+                    options.QueueSize,
+                    CurrentQueueSize);
             }
             else if (options.SamplingInterval != CurrentSamplingInterval)
             {
-                m_logger.LogInformation(
-                    "{Item}: {Action} SamplingInterval was " +
-                    "revised from {SamplingInterval} to {CurrentSamplingInterval}.",
-                    this, created ? "CREATED" : "UPDATED",
-                    options.SamplingInterval, CurrentSamplingInterval);
+                m_logger.ItemActionSamplingIntervalRevisedSamplingIntervalCurrentSamplingInterval2(
+                    this,
+                    created ? "CREATED" : "UPDATED",
+                    options.SamplingInterval,
+                    CurrentSamplingInterval);
             }
             else if (options.QueueSize != CurrentQueueSize && CurrentQueueSize != 0)
             {
-                m_logger.LogInformation(
-                    "{Item}: {Action} QueueSize was " +
-                    "revised from {QueueSize} to {CurrentQueueSize}.",
-                    this, created ? "CREATED" : "UPDATED",
-                    options.QueueSize, CurrentQueueSize);
+                m_logger.ItemActionQueueSizeRevisedQueueSizeCurrentQueueSize(
+                    this,
+                    created ? "CREATED" : "UPDATED",
+                    options.QueueSize,
+                    CurrentQueueSize);
             }
             else
             {
-                m_logger.LogDebug(
-                    "{Item}: {Action} with desired configuration.",
-                    this, created ? "CREATED" : "UPDATED");
+                m_logger.ItemActionDesiredConfiguration(
+                    this,
+                    created ? "CREATED" : "UPDATED");
             }
         }
 
@@ -1198,4 +1202,74 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private IReadOnlyList<string> m_desiredTriggeredByNames
             = [];
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="MonitoredItem"/>.
+    /// </summary>
+    internal static partial class MonitoredItemLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 6, Level = LogLevel.Debug,
+            Message = "{Item} CREATED.")]
+        public static partial void ItemCREATED(this ILogger logger, MonitoredItem item);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 7, Level = LogLevel.Debug,
+            Message = "{Item} REMOVED.")]
+        public static partial void ItemREMOVED(this ILogger logger, MonitoredItem item);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 8, Level = LogLevel.Information,
+            Message = "{Item}: UPDATE CLIENT ID from {Old} to {New}.")]
+        public static partial void ItemUPDATECLIENTIDOldNew(
+            this ILogger logger,
+            MonitoredItem item,
+            uint old,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 9, Level = LogLevel.Information,
+            Message = "{Item}: UPDATE SERVER ID from {Old} to {New}.")]
+        public static partial void ItemUPDATESERVERIDOldNew(
+            this ILogger logger,
+            MonitoredItem item,
+            uint old,
+            uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 10, Level = LogLevel.Debug,
+            Message = "{Item}: RESET.")]
+        public static partial void ItemRESET(this ILogger logger, MonitoredItem item);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 11, Level = LogLevel.Information,
+            Message = "{Item}: {Action} SamplingInterval was revised from {SamplingInterval} to" +
+                " {CurrentSamplingInterval} and QueueSize from {QueueSize} to {CurrentQueueSize}.")]
+        public static partial void ItemActionSamplingIntervalRevisedSamplingIntervalCurrentSamplingInterval(
+            this ILogger logger,
+            MonitoredItem item,
+            string action,
+            TimeSpan samplingInterval,
+            TimeSpan currentSamplingInterval,
+            uint queueSize,
+            uint currentQueueSize);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 12, Level = LogLevel.Information,
+            Message = "{Item}: {Action} SamplingInterval was revised from {SamplingInterval} to" +
+                " {CurrentSamplingInterval}.")]
+        public static partial void ItemActionSamplingIntervalRevisedSamplingIntervalCurrentSamplingInterval2(
+            this ILogger logger,
+            MonitoredItem item,
+            string action,
+            TimeSpan samplingInterval,
+            TimeSpan currentSamplingInterval);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 13, Level = LogLevel.Information,
+            Message = "{Item}: {Action} QueueSize was revised from {QueueSize} to {CurrentQueueSize}.")]
+        public static partial void ItemActionQueueSizeRevisedQueueSizeCurrentQueueSize(
+            this ILogger logger,
+            MonitoredItem item,
+            string action,
+            uint queueSize,
+            uint currentQueueSize);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 14, Level = LogLevel.Debug,
+            Message = "{Item}: {Action} with desired configuration.")]
+        public static partial void ItemActionDesiredConfiguration(this ILogger logger, MonitoredItem item, string action);
+    }
+
 }

@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
                 CurrentSlice.OutOfDataRange = true;
             }
 
-            m_logger.LogTrace("Computing Aggregate {StartTime:HH:mm:ss.fff}", CurrentSlice.StartTime);
+            m_logger.ComputingAggregateStartTimeHHMmSsFff(CurrentSlice.StartTime);
 
             // compute the value.
             DataValue computed = ComputeValue(CurrentSlice);
@@ -1533,4 +1533,15 @@ namespace Opc.Ua.Server
         private DateTimeUtc m_startOfData;
         private DateTimeUtc m_endOfData;
     }
+
+    /// <summary>
+    /// Source-generated log messages for AggregateCalculator.
+    /// </summary>
+    internal static partial class AggregateCalculatorLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.AggregateCalculator + 0, Level = LogLevel.Trace,
+            Message = "Computing Aggregate {StartTime:HH:mm:ss.fff}")]
+        public static partial void ComputingAggregateStartTimeHHMmSsFff(this ILogger logger, DateTimeUtc startTime);
+    }
+
 }

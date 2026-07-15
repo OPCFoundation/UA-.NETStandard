@@ -147,14 +147,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.That(references.IsNull, Is.False);
 
             ILogger logger = Telemetry.CreateLogger<NodeCacheResolverTests>();
-            logger.LogInformation("  Found {Count} references", references.Count);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("  Found {Count} references", references.Count);
+            }
 
             // read all type dictionaries in the type system
             var nodeResolver = new NodeCacheResolver(Session, Telemetry);
             foreach (ReferenceDescription r in references.ToList())
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
-                logger.LogInformation("  ReadDictionary {Name} {Id}", r.BrowseName.Name, dictionaryId);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("  ReadDictionary {Name} {Id}", r.BrowseName.Name, dictionaryId);
+                }
                 DataDictionary dictionaryToLoad = await nodeResolver
                     .LoadDictionaryAsync(dictionaryId, r.BrowseName.Name)
                     .ConfigureAwait(false);

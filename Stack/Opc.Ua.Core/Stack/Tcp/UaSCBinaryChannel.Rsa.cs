@@ -63,10 +63,7 @@ namespace Opc.Ua.Bindings
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
             {
-                m_logger.LogWarning(
-                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
-                    dataToEncrypt.Count,
-                    inputBlockSize);
+                m_logger.UaSCChannelLog7(dataToEncrypt.Count, inputBlockSize);
             }
 
             byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Encrypt");
@@ -126,10 +123,7 @@ namespace Opc.Ua.Bindings
             // verify the input data is the correct block size.
             if (dataToDecrypt.Count % inputBlockSize != 0)
             {
-                m_logger.LogWarning(
-                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
-                    dataToDecrypt.Count,
-                    inputBlockSize);
+                m_logger.UaSCChannelLog8(dataToDecrypt.Count, inputBlockSize);
             }
 
             byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt");

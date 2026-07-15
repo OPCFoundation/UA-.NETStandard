@@ -63,8 +63,14 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             builder.Services.AddTransportBindingRegistry();
-            builder.Services.AddSingleton<ITransportBindingConfigurator>(
-                new TransportBindingConfigurator(registry => registry.RegisterListenerFactory(new KestrelTcpTransportListenerFactory())));
+            builder.Services.AddSingleton<ITransportBindingConfigurator>(provider =>
+            {
+                IBufferManagerFactory bufferManagerFactory =
+                    provider.GetRequiredService<IBufferManagerFactory>();
+                return new TransportBindingConfigurator(
+                    registry => registry.RegisterListenerFactory(
+                        new KestrelTcpTransportListenerFactory(bufferManagerFactory)));
+            });
             return builder;
         }
     }

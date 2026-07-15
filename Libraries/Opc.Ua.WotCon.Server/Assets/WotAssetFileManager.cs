@@ -343,7 +343,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 catch (JsonException ex)
                 {
-                    m_logger.LogWarning(ex, "Thing description JSON could not be parsed");
+                    m_logger.ThingDescriptionJsonCouldNotBeParsed(ex);
                     return ServiceResult.Create(ex, StatusCodes.BadDecodingError,
                         "Failed to parse Thing Description JSON.");
                 }
@@ -431,5 +431,12 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly Dictionary<uint, Handle> m_handles = [];
         private uint m_nextHandle;
         private uint m_writingHandle;
+    }
+
+    internal static partial class WotAssetFileManagerLog
+    {
+        [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 0, Level = LogLevel.Warning,
+            Message = "Thing description JSON could not be parsed")]
+        public static partial void ThingDescriptionJsonCouldNotBeParsed(this ILogger logger, JsonException ex);
     }
 }

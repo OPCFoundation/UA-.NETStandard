@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Alarms;
+using Quickstarts.Servers;
 
 namespace Alarms
 {
@@ -88,7 +89,7 @@ namespace Alarms
                   server.Telemetry.CreateLogger<AlarmNodeManager>(),
                   namespaceUris)
         {
-            m_logger.LogInformation("Alarms: Created AlarmNodeManager");
+            m_logger.CreatedAlarmNodeManager();
         }
 
         /// <summary>
@@ -102,7 +103,7 @@ namespace Alarms
                 m_suppressionEngine?.Dispose();
                 m_suppressionEngine = null;
 
-                m_logger.LogInformation("Alarms: Disposed AlarmNodeManager");
+                m_logger.DisposedAlarmNodeManager();
             }
             base.Dispose(disposing);
         }
@@ -487,7 +488,7 @@ namespace Alarms
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Error creating the AlarmNodeManager address space.");
+                m_logger.ErrorCreatingAddressSpace(e);
             }
         }
 
@@ -611,7 +612,7 @@ namespace Alarms
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogInformation(ex, "Alarm Loop Exception");
+                        m_logger.AlarmLoopException(ex);
                     }
                 }
                 m_allowEntry = true;
@@ -619,7 +620,7 @@ namespace Alarms
             else if (m_success > 0)
             {
                 m_missed++;
-                m_logger.LogInformation("Alarms: Missed Loop {Missed} Success {Success}", m_missed, m_success);
+                m_logger.MissedLoop(m_missed, m_success);
             }
         }
 
@@ -646,7 +647,10 @@ namespace Alarms
             }
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            m_logger.LogInformation("Starting up alarm group {NodeId}", GetUnitFromNodeId(node.NodeId));
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.StartingAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            }
 
             lock (m_alarms)
             {
@@ -698,9 +702,10 @@ namespace Alarms
             }
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            m_logger.LogInformation(
-                "Starting up Branch for alarm group {Name}",
-                GetUnitFromNodeId(node.NodeId));
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.StartingBranchForAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            }
 
             lock (m_alarms)
             {
@@ -736,7 +741,10 @@ namespace Alarms
             List<Variant> outputArguments)
         {
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            m_logger.LogInformation("Stopping alarm group {Name}", GetUnitFromNodeId(node.NodeId));
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.StoppingAlarmGroup(GetUnitFromNodeId(node.NodeId));
+            }
 
             lock (m_alarms)
             {
@@ -783,7 +791,7 @@ namespace Alarms
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            m_logger.LogInformation("Manual Write {Value} to {NodeId}", value, node.NodeId);
+            m_logger.ManualWrite(value, node.NodeId);
 
             lock (m_alarms)
             {
@@ -1212,7 +1220,7 @@ namespace Alarms
         /// </summary>
         private void StartTimer()
         {
-            m_logger.LogInformation("Alarms: Starting simulation");
+            m_logger.StartingSimulation();
 
             TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -1232,7 +1240,7 @@ namespace Alarms
             m_simulationTimer?.Dispose();
             m_simulationTimer = null;
 
-            m_logger.LogInformation("Alarms: Stopped simulation");
+            m_logger.StoppedSimulation();
         }
 
         private readonly Dictionary<string, AlarmHolder> m_alarms = [];
@@ -1265,4 +1273,63 @@ namespace Alarms
         private BaseDataVariableState? m_maintenanceMode;
         private AlarmSuppressionEngine? m_suppressionEngine;
     }
+
+    internal static partial class AlarmNodeManagerLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 0, Level = LogLevel.Information,
+            Message = "Alarms: Created AlarmNodeManager")]
+        public static partial void CreatedAlarmNodeManager(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 1, Level = LogLevel.Information,
+            Message = "Alarms: Disposed AlarmNodeManager")]
+        public static partial void DisposedAlarmNodeManager(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 2, Level = LogLevel.Error,
+            Message = "Error creating the AlarmNodeManager address space.")]
+        public static partial void ErrorCreatingAddressSpace(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 3, Level = LogLevel.Information,
+            Message = "Alarm Loop Exception")]
+        public static partial void AlarmLoopException(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 4, Level = LogLevel.Information,
+            Message = "Alarms: Missed Loop {Missed} Success {Success}")]
+        public static partial void MissedLoop(this ILogger logger, uint missed, uint success);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 5, Level = LogLevel.Information,
+            Message = "Starting up alarm group {NodeId}")]
+        public static partial void StartingAlarmGroup(this ILogger logger, string nodeId);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 6, Level = LogLevel.Information,
+            Message = "Starting up Branch for alarm group {Name}")]
+        public static partial void StartingBranchForAlarmGroup(this ILogger logger, string name);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 7, Level = LogLevel.Information,
+            Message = "Stopping alarm group {Name}")]
+        public static partial void StoppingAlarmGroup(this ILogger logger, string name);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 8, Level = LogLevel.Information,
+            Message = "Manual Write {Value} to {NodeId}")]
+        public static partial void ManualWrite(this ILogger logger, Variant value, NodeId nodeId);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 9, Level = LogLevel.Information,
+            Message = "Alarms: Starting simulation")]
+        public static partial void StartingSimulation(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmNodeManager + 10, Level = LogLevel.Information,
+            Message = "Alarms: Stopped simulation")]
+        public static partial void StoppedSimulation(this ILogger logger);
+    }
+
 }

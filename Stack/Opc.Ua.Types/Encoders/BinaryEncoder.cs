@@ -2150,9 +2150,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Logger.LogWarning(
-                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {MaxInnerDepth}.",
-                            DiagnosticInfo.MaxInnerDepth);
+                        Logger.InnerDiagnosticInfoDropped(DiagnosticInfo.MaxInnerDepth);
                     }
                 }
 

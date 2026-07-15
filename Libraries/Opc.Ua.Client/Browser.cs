@@ -345,8 +345,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        m_logger.LogWarning(
-                            "Browser: Continuation point exists, but the browse results are null/empty.");
+                        m_logger.BrowserContinuationPointExistsButBrowse();
                         break;
                     }
                 }
@@ -521,33 +520,32 @@ namespace Opc.Ua.Client
 
                 if (badCPInvalidErrorsPerPass > 0)
                 {
-                    m_logger.LogDebug(
-                        "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
+                    m_logger.ManagedBrowsePassPassCountErrorS(
                         passCount,
                         badCPInvalidErrorsPerPass,
                         nameof(StatusCodes.BadContinuationPointInvalid));
                 }
                 if (badNoCPErrorsPerPass > 0)
                 {
-                    m_logger.LogDebug(
-                        "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
+                    m_logger.ManagedBrowsePassPassCountErrorS(
                         passCount,
                         badNoCPErrorsPerPass,
                         nameof(StatusCodes.BadNoContinuationPoints));
                 }
-                if (otherErrorsPerPass > 0)
+                if (otherErrorsPerPass > 0 &&
+                    m_logger.IsEnabled(LogLevel.Debug))
                 {
-                    m_logger.LogDebug(
-                        "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.",
+                    m_logger.ManagedBrowsePassPassCountErrorS(
                         passCount,
                         otherErrorsPerPass,
-                        $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
+                        $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or " +
+                            $"{nameof(StatusCodes.BadContinuationPointInvalid)}");
                 }
                 if (otherErrorsPerPass == 0 &&
                     badCPInvalidErrorsPerPass == 0 &&
                     badNoCPErrorsPerPass == 0)
                 {
-                    m_logger.LogTrace("ManagedBrowse completed with no errors.");
+                    m_logger.ManagedBrowseCompletedNoErrors();
                 }
 
                 passCount++;
@@ -600,9 +598,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        m_logger.LogWarning(
-                            "Browser: Server returned empty references but a " +
-                            "continuation point. Stopping to prevent denial of service.");
+                        m_logger.BrowserServerReturnedEmptyReferencesBut();
                         yield return new BrowseResult
                         {
                             StatusCode = StatusCodes.BadNoData
@@ -639,10 +635,7 @@ namespace Opc.Ua.Client
                             }
                             else
                             {
-                                m_logger.LogWarning(
-                                    "Browser: Server returned empty references " +
-                                    "but a continuation point. Stopping to prevent " +
-                                    "denial of service.");
+                                m_logger.BrowserServerReturnedEmptyReferencesBut();
                                 yield return new BrowseResult
                                 {
                                     StatusCode = StatusCodes.BadNoData
@@ -667,8 +660,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex,
-                            "Browser: Failed to release continuation points.");
+                        m_logger.BrowserFailedReleaseContinuationPoints(ex);
                     }
                 }
             }
@@ -913,4 +905,36 @@ namespace Opc.Ua.Client
     /// A delegate used to received browser events.
     /// </summary>
     public delegate void BrowserEventHandler(Browser sender, BrowserEventArgs e);
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="Browser"/>.
+    /// </summary>
+    internal static partial class BrowserLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.Browser + 0, Level = LogLevel.Warning,
+            Message = "Browser: Continuation point exists, but the browse results are null/empty.")]
+        public static partial void BrowserContinuationPointExistsButBrowse(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.Browser + 1, Level = LogLevel.Debug,
+            Message = "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.")]
+        public static partial void ManagedBrowsePassPassCountErrorS(
+            this ILogger logger,
+            int @pass,
+            int count,
+            string statusCode);
+
+        [LoggerMessage(EventId = ClientEventIds.Browser + 2, Level = LogLevel.Trace,
+            Message = "ManagedBrowse completed with no errors.")]
+        public static partial void ManagedBrowseCompletedNoErrors(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.Browser + 3, Level = LogLevel.Warning,
+            Message = "Browser: Server returned empty references but a continuation point. Stopping to prevent" +
+                " denial of service.")]
+        public static partial void BrowserServerReturnedEmptyReferencesBut(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.Browser + 4, Level = LogLevel.Error,
+            Message = "Browser: Failed to release continuation points.")]
+        public static partial void BrowserFailedReleaseContinuationPoints(this ILogger logger, Exception? exception);
+    }
+
 }

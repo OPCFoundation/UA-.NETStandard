@@ -218,10 +218,10 @@ namespace Opc.Ua.Bindings
                 throw new ObjectDisposedException(nameof(HttpsTransportChannel));
             }
 
-            m_logger.LogInformation(
-                "{ChannelType} Closing http channel with {Url}.",
-                nameof(HttpsTransportChannel),
-                m_url);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.HttpsChannelLog0(nameof(HttpsTransportChannel), m_url);
+            }
 
             if (m_disposeClient)
             {
@@ -330,20 +330,17 @@ namespace Opc.Ua.Bindings
                             statusCode = StatusCodes.BadUnknownResponse;
                             break;
                     }
-                    m_logger.LogError(webex, "Exception sending HTTPS request.");
+                    m_logger.HttpsChannelLog1(webex);
                     throw ServiceResultException.Create((uint)statusCode, webex.Message);
                 }
-                m_logger.LogError(hre, "Exception sending HTTPS request.");
+                m_logger.HttpsChannelLog2(hre);
                 throw;
             }
             catch (OperationCanceledException e)
             {
                 if (cts.IsCancellationRequested)
                 {
-                    m_logger.LogError(
-                        e,
-                        "Send request timed out after {OperationTimeout}ms.",
-                        OperationTimeout);
+                    m_logger.HttpsChannelLog3(e, OperationTimeout);
                     throw ServiceResultException.Create(
                         StatusCodes.BadRequestTimeout,
                         "Https request timed out after {0}.",
@@ -353,7 +350,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex) when (ex is not ServiceResultException)
             {
-                m_logger.LogError(ex, "Exception sending HTTPS request.");
+                m_logger.HttpsChannelLog4(ex);
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnknownResponse,
                     ex,
@@ -506,7 +503,10 @@ namespace Opc.Ua.Bindings
             Debug.Assert(m_settings != null);
             try
             {
-                m_logger.LogInformation("{ChannelType} Open {Url}.", nameof(HttpsTransportChannel), m_url);
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.HttpsChannelLog5(nameof(HttpsTransportChannel), m_url);
+                }
 
                 if (CanUseHttpClientFactory())
                 {
@@ -525,13 +525,10 @@ namespace Opc.Ua.Bindings
                     // Tell operators that the DI-registered HttpClient pipeline
                     // (e.g. AddStandardResilienceHandler) is intentionally NOT
                     // applied to this channel — see CanUseHttpClientFactory.
-                    m_logger.LogWarning(
-                        "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
-                        "CertificateValidator is configured for this channel; using a direct " +
-                        "HttpClient with OPC UA TLS server-cert validation and the OPC UA " +
-                        "client instance certificate for mTLS. The named HttpClient pipeline " +
-                        "is NOT applied to this OPC UA HTTPS channel.",
-                        nameof(HttpsTransportChannel));
+                    if (m_logger.IsEnabled(LogLevel.Warning))
+                    {
+                        m_logger.HttpsChannelLog6(nameof(HttpsTransportChannel));
+                    }
                 }
 
                 m_client = CreateDirectHttpClient();
@@ -539,7 +536,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Exception creating HTTPS Client.");
+                m_logger.HttpsChannelLog7(ex);
                 throw;
             }
         }
@@ -619,7 +616,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (CryptographicException ce)
                     {
-                        m_logger.LogError(ce, "Copy of the private key for https was denied");
+                        m_logger.HttpsChannelLog8(ce);
                     }
 #endif
                     // pin the cert for the lifetime of the channel so the
@@ -653,28 +650,27 @@ namespace Opc.Ua.Bindings
                             if (chain != null && chain.ChainElements != null)
                             {
                                 int i = 0;
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "{ChannelType} Validate server chain:",
-                                    nameof(HttpsTransportChannel));
+                                if (m_logger.IsEnabled(LogLevel.Information))
+                                {
+                                    m_logger.HttpsChannelLog9(
+                                        nameof(HttpsTransportChannel));
+                                }
                                 foreach (X509ChainElement element in chain.ChainElements)
                                 {
-                                    m_logger.LogInformation(
-                                        Utils.TraceMasks.Security,
-                                        "{Index}: {Certificate}",
-                                        i,
-                                        element.Certificate.Subject);
+                                    m_logger
+                                        .HttpsChannelLog10(
+                                            i,
+                                            element.Certificate.Subject);
                                     validationChain.Add(element.Certificate);
                                     i++;
                                 }
                             }
                             else
                             {
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "{ChannelType} Validate Server Certificate: {Certificate}",
-                                    cert.Subject,
-                                    nameof(HttpsTransportChannel));
+                                m_logger
+                                    .HttpsChannelLog11(
+                                        nameof(HttpsTransportChannel),
+                                        cert.Subject);
                                 validationChain.Add(cert);
                             }
 
@@ -704,19 +700,22 @@ namespace Opc.Ua.Bindings
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogError(
-                                ex,
-                                "{ChannelType} Failed to validate certificate.",
-                                nameof(HttpsTransportChannel));
+                            if (m_logger.IsEnabled(LogLevel.Error))
+                            {
+                                m_logger.HttpsChannelLog12(
+                                    ex,
+                                    nameof(HttpsTransportChannel));
+                            }
                         }
                         return false;
                     };
 
                     handler.ServerCertificateCustomValidationCallback = serverCertificateCustomValidationCallback!;
 
-                    m_logger.LogInformation(
-                        "{ChannelType} ServerCertificate callback enabled.",
-                        nameof(HttpsTransportChannel));
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.HttpsChannelLog13(nameof(HttpsTransportChannel));
+                    }
                 }
                 catch (PlatformNotSupportedException)
                 {
@@ -827,4 +826,99 @@ namespace Opc.Ua.Bindings
         private static readonly MediaTypeHeaderValue s_jsonMediaTypeHeaderValue = new(
             Profiles.OpcUaJsonContentType);
     }
+
+    /// <summary>
+    /// Source-generated log messages for HttpsTransportChannel.
+    /// </summary>
+    internal static partial class HttpsTransportChannelLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 0, Level = LogLevel.Information,
+            Message = "{ChannelType} Closing http channel with {Url}.")]
+        public static partial void HttpsChannelLog0(
+            this ILogger logger,
+            string? channelType,
+            global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 1, Level = LogLevel.Error,
+            Message = "Exception sending HTTPS request.")]
+        public static partial void HttpsChannelLog1(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 2, Level = LogLevel.Error,
+            Message = "Exception sending HTTPS request.")]
+        public static partial void HttpsChannelLog2(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 3, Level = LogLevel.Error,
+            Message = "Send request timed out after {OperationTimeout}ms.")]
+        public static partial void HttpsChannelLog3(
+            this ILogger logger,
+            global::System.Exception? exception,
+            int operationTimeout);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 4, Level = LogLevel.Error,
+            Message = "Exception sending HTTPS request.")]
+        public static partial void HttpsChannelLog4(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 5, Level = LogLevel.Information,
+            Message = "{ChannelType} Open {Url}.")]
+        public static partial void HttpsChannelLog5(
+            this ILogger logger,
+            string? channelType,
+            global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 6, Level = LogLevel.Warning,
+            Message = "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
+                "CertificateValidator is configured for this channel; using a direct HttpClient " +
+                "with OPC UA TLS server-cert validation and the OPC UA client instance " +
+                "certificate for mTLS. The named HttpClient pipeline is NOT applied to this OPC " +
+                "UA HTTPS channel.")]
+        public static partial void HttpsChannelLog6(this ILogger logger, string? channelType);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 7, Level = LogLevel.Error,
+            Message = "Exception creating HTTPS Client.")]
+        public static partial void HttpsChannelLog7(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 8, Level = LogLevel.Error,
+            Message = "Copy of the private key for https was denied")]
+        public static partial void HttpsChannelLog8(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 9, Level = LogLevel.Information,
+            Message = "{ChannelType} Validate server chain:")]
+        public static partial void HttpsChannelLog9(this ILogger logger, string? channelType);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 10, Level = LogLevel.Information,
+            Message = "{Index}: {Certificate}")]
+        public static partial void HttpsChannelLog10(
+            this ILogger logger,
+            int index,
+            string certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 11, Level = LogLevel.Information,
+            Message = "{ChannelType} Validate Server Certificate: {Certificate}")]
+        public static partial void HttpsChannelLog11(
+            this ILogger logger,
+            string? channelType,
+            string certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 12, Level = LogLevel.Error,
+            Message = "{ChannelType} Failed to validate certificate.")]
+        public static partial void HttpsChannelLog12(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? channelType);
+
+        [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 13, Level = LogLevel.Information,
+            Message = "{ChannelType} ServerCertificate callback enabled.")]
+        public static partial void HttpsChannelLog13(this ILogger logger, string? channelType);
+    }
+
 }

@@ -112,22 +112,13 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             catch (ServiceResultException sre)
             {
                 m_metrics?.RecordRead(nodesToRead.Count, false);
-                m_logger.LogInformation(
-                    sre,
-                    "Cyclic read of {Count} node(s) failed with {StatusCode}; " +
-                    "returning Bad values for this publish cycle.",
-                    nodesToRead.Count,
-                    sre.StatusCode);
+                m_logger.CyclicReadFailedWithStatusCode(sre, nodesToRead.Count, sre.StatusCode);
                 return CreateFaultedResults(nodesToRead.Count, sre.StatusCode);
             }
             catch (Exception ex)
             {
                 m_metrics?.RecordRead(nodesToRead.Count, false);
-                m_logger.LogInformation(
-                    ex,
-                    "Cyclic read of {Count} node(s) failed; returning Bad values " +
-                    "for this publish cycle.",
-                    nodesToRead.Count);
+                m_logger.CyclicReadFailed(ex, nodesToRead.Count);
                 return CreateFaultedResults(
                     nodesToRead.Count,
                     StatusCodes.BadCommunicationError);
@@ -183,4 +174,24 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             return results;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for CyclicReadStrategy.
+    /// </summary>
+    internal static partial class CyclicReadStrategyLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.CyclicReadStrategy + 0, Level = LogLevel.Information,
+            Message = "Cyclic read of {Count} node(s) failed with {StatusCode}; " +
+                "returning Bad values for this publish cycle.")]
+        public static partial void CyclicReadFailedWithStatusCode(
+            this ILogger logger,
+            Exception exception,
+            int count,
+            StatusCode statusCode);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.CyclicReadStrategy + 1, Level = LogLevel.Information,
+            Message = "Cyclic read of {Count} node(s) failed; returning Bad values for this publish cycle.")]
+        public static partial void CyclicReadFailed(this ILogger logger, Exception exception, int count);
+    }
+
 }

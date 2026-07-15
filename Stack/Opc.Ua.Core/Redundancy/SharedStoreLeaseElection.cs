@@ -189,7 +189,7 @@ namespace Opc.Ua.Redundancy
                     }
                     catch (Exception ex)
                     {
-                        m_logger?.LogError(ex, "Lease election renew failed for {NodeId}.", m_nodeId);
+                        m_logger?.SharedStoreLeaseElectionLogMessage0(ex, m_nodeId);
                     }
 
                     await Task.Delay(m_renewInterval, ct).ConfigureAwait(false);
@@ -217,7 +217,7 @@ namespace Opc.Ua.Redundancy
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "Lease election release failed for {NodeId}.", m_nodeId);
+                m_logger?.SharedStoreLeaseElectionLogMessage1(ex, m_nodeId);
             }
         }
 
@@ -278,4 +278,26 @@ namespace Opc.Ua.Redundancy
         private bool m_started;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SharedStoreLeaseElection.
+    /// </summary>
+    internal static partial class SharedStoreLeaseElectionLog
+    {
+
+        [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 0, Level = LogLevel.Error,
+            Message = "Lease election renew failed for {NodeId}.")]
+        public static partial void SharedStoreLeaseElectionLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string nodeId);
+
+        [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 1, Level = LogLevel.Error,
+            Message = "Lease election release failed for {NodeId}.")]
+        public static partial void SharedStoreLeaseElectionLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string nodeId);
+    }
+
 }
