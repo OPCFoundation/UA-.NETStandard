@@ -44,7 +44,11 @@ namespace Opc.Ua
         public const int ApplicationConfiguration = 0;
         public const int AsyncResultBase = 10;
         public const int Audit = 20;
-        public const int BufferManager = 30;
+        // Buffer-manager logging: #3994 split the former monolithic BufferManager
+        // into pluggable managers, so the former BufferManager offset block is
+        // reused here for the logging of the tracing and array-pool implementations.
+        public const int ArrayPoolBufferManagerBase = 30;
+        public const int TracingBufferManager = 40;
         public const int CertificateLifecycleMonitor = 50;
         public const int CertificateManager = 60;
         public const int CertificateTrustList = 70;

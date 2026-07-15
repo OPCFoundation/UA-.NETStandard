@@ -79,7 +79,10 @@ namespace Opc.Ua.Bindings
     /// <see cref="ReceiveChunkAsync"/>; the channel is responsible for
     /// returning them.
     /// </remarks>
-    public sealed class TcpByteTransport : IUaSCByteTransport, IDisposable
+    public sealed class TcpByteTransport :
+        IUaSCByteTransport,
+        IUaSCByteTransportLimits,
+        IDisposable
     {
         /// <summary>
         /// Creates an unconnected client transport.
@@ -306,10 +309,14 @@ namespace Opc.Ua.Bindings
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
             Socket socket = RequireConnectedSocket();
-            byte[] buffer = m_bufferManager.TakeBuffer(m_receiveBufferSize, nameof(ReceiveChunkAsync));
+            int receiveBufferSize = Volatile.Read(ref m_receiveBufferSize);
+            byte[] buffer = m_bufferManager.TakeBuffer(
+                receiveBufferSize,
+                nameof(ReceiveChunkAsync),
+                ct);
             try
             {
-                BufferManager.LockBuffer(buffer);
+                m_bufferManager.Lock(buffer);
                 try
                 {
                     // Read the 8-byte UASC chunk header (message type + chunk size).
@@ -327,13 +334,13 @@ namespace Opc.Ua.Bindings
 
                     int messageSize = BitConverter.ToInt32(buffer, 4);
                     if (messageSize <= TcpMessageLimits.MessageTypeAndSize ||
-                        messageSize > m_receiveBufferSize)
+                        messageSize > receiveBufferSize)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadTcpMessageTooLarge,
                             "Message size {0} bytes is invalid (buffer size {1}).",
                             messageSize,
-                            m_receiveBufferSize);
+                            receiveBufferSize);
                     }
 
                     // Read the remaining bytes (chunk body) directly into the same buffer.
@@ -346,7 +353,7 @@ namespace Opc.Ua.Bindings
                         .ConfigureAwait(false);
 
                     var segment = new ArraySegment<byte>(buffer, 0, messageSize);
-                    BufferManager.UnlockBuffer(buffer);
+                    m_bufferManager.Unlock(buffer);
                     buffer = null!; // ownership transferred to caller
                     return segment;
                 }
@@ -354,7 +361,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (buffer != null)
                     {
-                        BufferManager.UnlockBuffer(buffer);
+                        m_bufferManager.Unlock(buffer);
                     }
                     throw;
                 }
@@ -367,6 +374,15 @@ namespace Opc.Ua.Bindings
                 }
                 throw;
             }
+        }
+
+        void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+        {
+            if (receiveBufferSize <= TcpMessageLimits.MessageTypeAndSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(receiveBufferSize));
+            }
+            Volatile.Write(ref m_receiveBufferSize, receiveBufferSize);
         }
 
         /// <inheritdoc/>
@@ -467,7 +483,7 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly BufferManager m_bufferManager;
-        private readonly int m_receiveBufferSize;
+        private int m_receiveBufferSize;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_sendLock;
         private readonly Lock m_socketLock = new();

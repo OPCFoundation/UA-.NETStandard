@@ -74,6 +74,41 @@ namespace Opc.Ua.Pcap.Tests.Bindings
         }
 
         [Test]
+        public async Task CreateAssignsDistinctSyntheticFlowIdsToWrappedTransportsAsync()
+        {
+            var registry = new ChannelCaptureRegistry();
+            var sink = new RecordingFrameCaptureSink();
+            registry.SetObserver(sink);
+            var factory = new CapturingByteTransportFactory(
+                new RecordingFactory(),
+                registry);
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
+            var buffers = new BufferManager("test", 8192, telemetry);
+
+            IUaSCByteTransport first = factory.Create(buffers, 8192, telemetry);
+            IUaSCByteTransport second = factory.Create(buffers, 8192, telemetry);
+            try
+            {
+                await first.SendChunkAsync(new byte[] { 1 }, CancellationToken.None)
+                    .ConfigureAwait(false);
+                await second.SendChunkAsync(new byte[] { 2 }, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(sink.SentChunks, Has.Count.EqualTo(2));
+                Assert.That(sink.SentChunks[0].ChannelId, Is.Not.Zero);
+                Assert.That(sink.SentChunks[1].ChannelId, Is.Not.Zero);
+                Assert.That(
+                    sink.SentChunks[0].ChannelId,
+                    Is.Not.EqualTo(sink.SentChunks[1].ChannelId));
+            }
+            finally
+            {
+                (first as IDisposable)?.Dispose();
+                (second as IDisposable)?.Dispose();
+            }
+        }
+
+        [Test]
         public void ImplementationStringIncludesPcapSuffix()
         {
             var factory = new CapturingByteTransportFactory(
@@ -130,6 +165,27 @@ namespace Opc.Ua.Pcap.Tests.Bindings
             }
 
             public void Dispose()
+            {
+            }
+        }
+
+        private sealed class RecordingFrameCaptureSink : IFrameCaptureSink
+        {
+            public System.Collections.Generic.List<(uint ChannelId, byte[] Bytes)> SentChunks { get; } = [];
+
+            public void OnFrameSent(uint channelId, ReadOnlySpan<byte> chunk)
+            {
+                SentChunks.Add((channelId, chunk.ToArray()));
+            }
+
+            public void OnFrameReceived(uint channelId, ReadOnlySpan<byte> chunk)
+            {
+            }
+
+            public void OnTokenActivated(
+                uint channelId,
+                ChannelToken currentToken,
+                ChannelToken? previousToken)
             {
             }
         }

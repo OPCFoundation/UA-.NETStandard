@@ -324,6 +324,10 @@ namespace Opc.Ua.Bindings
                         ChannelId);
 
                     // replace the transport and (re)start the receive loop on it.
+                    if (transport is IUaSCByteTransportLimits transportLimits)
+                    {
+                        transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
+                    }
                     Transport = transport;
                     StartReceiveLoop();
 
@@ -515,12 +519,18 @@ namespace Opc.Ua.Bindings
                 ReceiveBufferSize = Math.Min(
                     Math.Max(ReceiveBufferSize, TcpMessageLimits.MinBufferSize),
                     TcpMessageLimits.MaxBufferSize);
+                ReceiveBufferSize = Math.Max(
+                    TcpMessageLimits.MinBufferSize,
+                    BufferManager.GetSuggestedBufferSize(ReceiveBufferSize));
 
                 // update send buffer size.
                 SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
                 SendBufferSize = Math.Min(
                     Math.Max(SendBufferSize, TcpMessageLimits.MinBufferSize),
                     TcpMessageLimits.MaxBufferSize);
+                SendBufferSize = Math.Max(
+                    TcpMessageLimits.MinBufferSize,
+                    BufferManager.GetSuggestedBufferSize(SendBufferSize));
 
                 // update the max message size.
                 if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)

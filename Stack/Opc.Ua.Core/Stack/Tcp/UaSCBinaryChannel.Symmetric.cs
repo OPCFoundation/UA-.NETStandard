@@ -417,8 +417,11 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                // SendBufferSize is normalized when the channel is created or negotiated.
+                int sendBufferSize = SendBufferSize;
+
                 // calculate chunk sizes.
-                int maxCipherTextSize = SendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
+                int maxCipherTextSize = sendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
                 int maxCipherBlocks = maxCipherTextSize / EncryptionBlockSize;
                 int maxPlainTextSize = maxCipherBlocks * EncryptionBlockSize;
 
@@ -441,7 +444,7 @@ namespace Opc.Ua.Bindings
                 // write the body to stream.
                 using var ostrm = new ArraySegmentStream(
                     BufferManager,
-                    SendBufferSize,
+                    sendBufferSize,
                     headerSize,
                     maxPayloadSize);
 
@@ -476,7 +479,7 @@ namespace Opc.Ua.Bindings
                 if (chunksToProcess.Count == 0)
                 {
                     byte[] buffer = BufferManager.TakeBuffer(
-                        SendBufferSize,
+                        sendBufferSize,
                         "WriteSymmetricMessage");
 
                     chunksToProcess.Add(new ArraySegment<byte>(buffer, 0, 0));
@@ -500,7 +503,7 @@ namespace Opc.Ua.Bindings
                     }
 
 #pragma warning disable CA2000 // Stream is disposed by the BinaryEncoder (leaveOpen: false)
-                    var strm = new MemoryStream(chunkArray, 0, SendBufferSize);
+                    var strm = new MemoryStream(chunkArray, 0, sendBufferSize);
                     using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
 #pragma warning restore CA2000
 
