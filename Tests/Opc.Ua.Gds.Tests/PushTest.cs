@@ -390,6 +390,14 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(trustedTrustList.TrustedCrls.Count, Is.EqualTo(allTrustList.TrustedCrls.Count));
         }
 
+        /// <summary>
+        /// OPC 10000-12 §7.10.2: TrustList updates are staged as part of a
+        /// PushManagement transaction and only take effect once
+        /// <c>ApplyChanges</c> is called; <c>CloseAndUpdate</c> therefore
+        /// always reports <c>applyChangesRequired=true</c> and the write is
+        /// not observable via <c>ReadTrustList</c> until the transaction is
+        /// applied.
+        /// </summary>
         [Test]
         [Order(300)]
         public async Task UpdateTrustListAsync()
@@ -399,12 +407,16 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType emptyTrustList = await m_pushClient.PushClient
                 .ReadTrustListAsync(TrustListMasks.None).ConfigureAwait(false);
             emptyTrustList.SpecifiedLists = (uint)TrustListMasks.All;
-            bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(emptyTrustList).ConfigureAwait(false);
-            Assert.That(requireReboot, Is.False);
+            bool applyChangesRequired = await m_pushClient.PushClient
+                .UpdateTrustListAsync(emptyTrustList).ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.True);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType expectEmptyTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(expectEmptyTrustList, emptyTrustList), Is.True);
-            requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(fullTrustList).ConfigureAwait(false);
-            Assert.That(requireReboot, Is.False);
+            applyChangesRequired = await m_pushClient.PushClient
+                .UpdateTrustListAsync(fullTrustList).ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.True);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
         }
@@ -420,13 +432,17 @@ namespace Opc.Ua.Gds.Tests
                 .ReadTrustListAsync(groupId, TrustListMasks.None).ConfigureAwait(false);
             emptyTrustList.SpecifiedLists = (uint)TrustListMasks.All;
 
-            bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(groupId, emptyTrustList, 0).ConfigureAwait(false);
-            Assert.That(requireReboot, Is.False);
+            bool applyChangesRequired = await m_pushClient.PushClient
+                .UpdateTrustListAsync(groupId, emptyTrustList, 0).ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.True);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType expectEmptyTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(Utils.IsEqual(expectEmptyTrustList, emptyTrustList), Is.True);
 
-            requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(groupId, fullTrustList, 0).ConfigureAwait(false);
-            Assert.That(requireReboot, Is.False);
+            applyChangesRequired = await m_pushClient.PushClient
+                .UpdateTrustListAsync(groupId, fullTrustList, 0).ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.True);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
         }
@@ -447,6 +463,7 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(groupId, trustedCert, true).ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(groupId, issuerCert, false).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
 
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(
@@ -459,6 +476,7 @@ namespace Opc.Ua.Gds.Tests
 
             await m_pushClient.PushClient.RemoveCertificateAsync(groupId, trustedCert.Thumbprint, true).ConfigureAwait(false);
             await m_pushClient.PushClient.RemoveCertificateAsync(groupId, issuerCert.Thumbprint, false).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
 
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
@@ -488,6 +506,7 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(trustedCert, true).ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(issuerCert, false).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(
                 afterAddTrustList.TrustedCertificates.Count,
@@ -498,6 +517,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
             await m_pushClient.PushClient.RemoveCertificateAsync(trustedCert.Thumbprint, true).ConfigureAwait(false);
             await m_pushClient.PushClient.RemoveCertificateAsync(issuerCert.Thumbprint, false).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
         }
@@ -509,6 +529,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(m_caCert, true).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(
                 afterAddTrustList.TrustedCertificates.Count,
@@ -525,6 +546,7 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.False);
             await m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, true).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
         }
@@ -536,6 +558,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(m_caCert, false).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(
                 afterAddTrustList.IssuerCertificates.Count,
@@ -548,6 +571,7 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.False);
             await m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, false).ConfigureAwait(false);
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
         }
@@ -628,12 +652,33 @@ namespace Opc.Ua.Gds.Tests
         public async Task CreateSigningRequestNullParmsWithNewPrivateKeyAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
+            byte[] regenerateNonce = new byte[32];
+            m_randomSource.NextBytes(regenerateNonce, 0, regenerateNonce.Length);
+#if !NET5_0_OR_GREATER
+            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null)
+            {
+                // §7.10.10: genuine additional-entropy incorporation into an ECC
+                // private key is unavailable on .NET Framework, so a
+                // regenerate-key request for an ECC CertificateType must be
+                // rejected with Bad_NotSupported rather than silently ignoring
+                // the mandated Nonce.
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    () => m_pushClient.PushClient.CreateSigningRequestAsync(
+                        default,
+                        m_certificateType,
+                        null,
+                        true,
+                        ByteString.From(regenerateNonce)).AsTask());
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                return;
+            }
+#endif
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 default,
                 m_certificateType,
                 null,
                 true,
-                ByteString.From(Encoding.ASCII.GetBytes("OPCTest"))).ConfigureAwait(false);
+                ByteString.From(regenerateNonce)).ConfigureAwait(false);
             Assert.That(csr.IsEmpty, Is.False);
         }
 
@@ -644,6 +689,23 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] nonce = new byte[32];
             m_randomSource.NextBytes(nonce, 0, nonce.Length);
+#if !NET5_0_OR_GREATER
+            if (CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType) != null)
+            {
+                // §7.10.10: ECC regenerate-key requests are rejected with
+                // Bad_NotSupported on .NET Framework (see
+                // CreateSigningRequestNullParmsWithNewPrivateKeyAsync).
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    () => m_pushClient.PushClient.CreateSigningRequestAsync(
+                        m_pushClient.PushClient.DefaultApplicationGroup,
+                        m_certificateType,
+                        string.Empty,
+                        true,
+                        ByteString.From(nonce)).AsTask());
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                return;
+            }
+#endif
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 m_pushClient.PushClient.DefaultApplicationGroup,
                 m_certificateType,
@@ -835,12 +897,20 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             await ConnectGDSClientAsync(true).ConfigureAwait(false);
             TestContext.Out.WriteLine("Create Signing Request");
+            ByteString regenerateNonce = default;
+            if (regeneratePrivateKey)
+            {
+                // §7.10.10: a regenerated key requires >= 32 bytes of nonce entropy.
+                byte[] nonce = new byte[32];
+                m_randomSource.NextBytes(nonce, 0, nonce.Length);
+                regenerateNonce = ByteString.From(nonce);
+            }
             ByteString csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 default,
                 m_certificateType,
                 m_selfSignedServerCert.Subject + "2",
                 regeneratePrivateKey,
-                default).ConfigureAwait(false);
+                regenerateNonce).ConfigureAwait(false);
             Assert.That(csr.IsEmpty, Is.False);
             TestContext.Out.WriteLine("Start Signing Request");
             NodeId requestId = await m_gdsClient.GDSClient.StartSigningRequestAsync(
@@ -1091,12 +1161,21 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(x509, Is.Not.Null);
         }
 
+        /// <summary>
+        /// OPC 10000-12 §7.10.2: calling ApplyChanges with no active,
+        /// staged transaction returns Bad_NothingToDo rather than
+        /// silently succeeding. Every preceding push-management test in
+        /// this fixture already commits (or cancels) its own transaction,
+        /// so by the time this test runs there is nothing pending.
+        /// </summary>
         [Test]
         [Order(700)]
         public async Task ApplyChangesAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                () => m_pushClient.PushClient.ApplyChangesAsync().AsTask());
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         /// <summary>

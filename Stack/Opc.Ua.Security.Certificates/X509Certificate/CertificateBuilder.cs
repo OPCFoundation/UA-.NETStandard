@@ -269,10 +269,10 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override Certificate CreateForECDsa(X509SignatureGenerator generator)
         {
-            if (IssuerCAKeyCert == null)
+            if (m_ecdsaPublicKey == null && IssuerCAKeyCert == null)
             {
                 throw new NotSupportedException(
-                    "X509 Signature generator requires an issuer certificate.");
+                    "Need an issuer certificate or a public key for a signature generator.");
             }
 
             if (m_ecdsaPublicKey == null && m_curve == null)
@@ -282,6 +282,15 @@ namespace Opc.Ua.Security.Certificates
             }
 
             CreateDefaults();
+
+            // When a public key is supplied without an issuer the certificate
+            // is self-signed by the caller-supplied generator, mirroring
+            // CreateForRSA(X509SignatureGenerator).
+            X500DistinguishedName issuerSubjectName = SubjectName;
+            if (IssuerCAKeyCert != null)
+            {
+                issuerSubjectName = IssuerCAKeyCert.SubjectName;
+            }
 
             ECDsa? key = null;
             try
@@ -298,7 +307,7 @@ namespace Opc.Ua.Security.Certificates
                 CreateX509Extensions(request, true);
 
                 X509Certificate2 signedCert = request.Create(
-                    IssuerCAKeyCert.SubjectName,
+                    issuerSubjectName,
                     generator,
                     NotBefore,
                     NotAfter,

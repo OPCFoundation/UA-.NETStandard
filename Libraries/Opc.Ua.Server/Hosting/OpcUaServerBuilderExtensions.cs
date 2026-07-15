@@ -440,6 +440,123 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Configures the Optional OPC 10000-12 §7.10.3
+        /// <c>ServerConfigurationType</c> surface: the <c>HasSecureElement</c>
+        /// and <c>InApplicationSetup</c> Properties, plus the timing of
+        /// <c>ResetToServerDefaults</c> and the <c>ConfigurationFile</c>. Each
+        /// member is only exposed when configured.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder ConfigureServerConfiguration(
+            this IOpcUaServerBuilder builder,
+            Action<ServerConfigurationOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.AddOptions<ServerConfigurationOptions>().Configure(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Exposes the Optional OPC 10000-12 §7.10.13
+        /// <c>ResetToServerDefaults</c> Method on the <c>ServerConfiguration</c>
+        /// Object and delegates the reset to <typeparamref name="TProvider"/>.
+        /// </summary>
+        /// <typeparam name="TProvider">
+        /// The reset provider implementation to resolve from DI.
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder WithServerConfigurationReset<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
+            this IOpcUaServerBuilder builder)
+            where TProvider : class, IServerConfigurationResetProvider
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<IServerConfigurationResetProvider, TProvider>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Exposes the Optional OPC 10000-12 §7.10.13
+        /// <c>ResetToServerDefaults</c> Method on the <c>ServerConfiguration</c>
+        /// Object and delegates the reset to <paramref name="provider"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder WithServerConfigurationReset(
+            this IOpcUaServerBuilder builder,
+            IServerConfigurationResetProvider provider)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            builder.Services.TryAddSingleton(provider);
+            return builder;
+        }
+
+        /// <summary>
+        /// Exposes the Optional OPC 10000-12 §7.10.20 <c>ConfigurationFile</c>
+        /// Object on the <c>ServerConfiguration</c> Object and backs its
+        /// read/update flow with <typeparamref name="TProvider"/>.
+        /// </summary>
+        /// <typeparam name="TProvider">
+        /// The configuration-file provider implementation to resolve from DI.
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder WithApplicationConfigurationFile<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
+            this IOpcUaServerBuilder builder)
+            where TProvider : class, IApplicationConfigurationFileProvider
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<IApplicationConfigurationFileProvider, TProvider>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Exposes the Optional OPC 10000-12 §7.10.20 <c>ConfigurationFile</c>
+        /// Object on the <c>ServerConfiguration</c> Object and backs its
+        /// read/update flow with <paramref name="provider"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder WithApplicationConfigurationFile(
+            this IOpcUaServerBuilder builder,
+            IApplicationConfigurationFileProvider provider)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            builder.Services.TryAddSingleton(provider);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the built-in identity authenticators that can be resolved from DI and server state.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -1124,6 +1241,22 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+
+            // The PushManagement transaction coordinator holds mutable
+            // per-server transaction state (OPC 10000-12 §§7.10.2-7.10.11) and
+            // must therefore NOT be a shared singleton: two servers created
+            // from the same container (e.g. via IOpcUaServerFactory) would
+            // otherwise corrupt each other's transactions. It is deliberately
+            // left unregistered so each server's ConfigurationNodeManager owns
+            // its own instance (see ConfigurationNodeManager's coordinator
+            // fallback). A host that wants to observe or replace it can still
+            // register a custom IPushConfigurationTransactionCoordinator, which
+            // DependencyInjectionStandardServer honors as-is.
+            services.TryAddSingleton<IPendingCertificateKeyStore, DirectoryPendingCertificateKeyStore>();
+            services
+                .TryAddSingleton<IPushCertificateKeyGenerator, AdditionalEntropyCertificateKeyGenerator>();
+            services
+                .TryAddSingleton<IPushConfigurationTrustListEffectHandler, PushConfigurationTrustListEffectHandler>();
             services.AddOptions<RoleConfigurationOptions>();
             if (enableConfiguredIdentityAuthenticators)
             {
