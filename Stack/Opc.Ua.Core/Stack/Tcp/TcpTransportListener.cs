@@ -46,14 +46,37 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportListenerFactory : TcpServiceHost
     {
+        /// <summary>
+        /// Creates a listener factory using the default buffer-manager factory.
+        /// </summary>
+        public TcpTransportListenerFactory()
+            : this(DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a listener factory using the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="bufferManagerFactory">Factory used to create listener buffer managers.</param>
+        public TcpTransportListenerFactory(IBufferManagerFactory bufferManagerFactory)
+        {
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
+        }
+
         /// <inheritdoc/>
         public override string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new TcpTransportListener(telemetry);
+            return new TcpTransportListener(
+                telemetry,
+                timeProvider: null,
+                bufferManagerFactory: m_bufferManagerFactory);
         }
+
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
     }
 
     /// <summary>
@@ -272,7 +295,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="telemetry">Telemetry context to use</param>
         public TcpTransportListener(ITelemetryContext telemetry)
-            : this(telemetry, null)
+            : this(telemetry, null, DefaultBufferManagerFactory.Instance)
         {
         }
 
@@ -282,10 +305,26 @@ namespace Opc.Ua.Bindings
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="timeProvider">Time provider to use for timers and durations.</param>
         public TcpTransportListener(ITelemetryContext telemetry, TimeProvider? timeProvider = null)
+            : this(telemetry, timeProvider, DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a listener with explicit time and buffer-manager providers.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use.</param>
+        /// <param name="timeProvider">Time provider to use for timers and durations.</param>
+        /// <param name="bufferManagerFactory">Factory used to create listener buffer managers.</param>
+        public TcpTransportListener(
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider,
+            IBufferManagerFactory bufferManagerFactory)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<TcpTransportListener>();
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
 
         /// <summary>
@@ -396,7 +435,11 @@ namespace Opc.Ua.Bindings
             // save the server certificate.
             m_serverCertificates = settings.ServerCertificates!;
 
-            m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize, m_telemetry);
+            m_bufferManager = new BufferManager(
+                m_bufferManagerFactory.Create(
+                    "Server",
+                    m_quotas.MaxBufferSize,
+                    m_telemetry));
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
             MaxChannelCount = settings.MaxChannelCount;
@@ -1522,6 +1565,7 @@ namespace Opc.Ua.Bindings
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
 
         /// <summary>
         /// These fields are populated by Open(); they remain non-null

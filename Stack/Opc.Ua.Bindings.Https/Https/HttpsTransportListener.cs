@@ -76,7 +76,11 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport listener.</returns>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeHttps, telemetry, [.. StartupContributors]);
+            return new HttpsTransportListener(
+                Utils.UriSchemeHttps,
+                telemetry,
+                [.. StartupContributors],
+                BufferManagerFactory);
         }
     }
 
@@ -103,7 +107,11 @@ namespace Opc.Ua.Bindings
         /// <returns>The transport listener.</returns>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry, [.. StartupContributors]);
+            return new HttpsTransportListener(
+                Utils.UriSchemeOpcHttps,
+                telemetry,
+                [.. StartupContributors],
+                BufferManagerFactory);
         }
     }
 
@@ -129,7 +137,11 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeWss, telemetry, [.. StartupContributors]);
+            return new HttpsTransportListener(
+                Utils.UriSchemeWss,
+                telemetry,
+                [.. StartupContributors],
+                BufferManagerFactory);
         }
     }
 
@@ -155,7 +167,11 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeOpcWss, telemetry, [.. StartupContributors]);
+            return new HttpsTransportListener(
+                Utils.UriSchemeOpcWss,
+                telemetry,
+                [.. StartupContributors],
+                BufferManagerFactory);
         }
     }
 
@@ -321,10 +337,12 @@ namespace Opc.Ua.Bindings
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
         public HttpsTransportListener(string uriScheme, ITelemetryContext telemetry)
+            : this(
+                uriScheme,
+                telemetry,
+                startupContributors: [],
+                DefaultBufferManagerFactory.Instance)
         {
-            UriScheme = uriScheme;
-            m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<HttpsTransportListener>();
         }
 
         /// <summary>
@@ -338,9 +356,29 @@ namespace Opc.Ua.Bindings
             string uriScheme,
             ITelemetryContext telemetry,
             IReadOnlyList<IHttpsListenerStartupContributor> startupContributors)
-            : this(uriScheme, telemetry)
+            : this(
+                uriScheme,
+                telemetry,
+                startupContributors,
+                DefaultBufferManagerFactory.Instance)
         {
+        }
+
+        /// <summary>
+        /// Initializes a listener with startup contributors and a buffer-manager factory.
+        /// </summary>
+        internal HttpsTransportListener(
+            string uriScheme,
+            ITelemetryContext telemetry,
+            IReadOnlyList<IHttpsListenerStartupContributor> startupContributors,
+            IBufferManagerFactory bufferManagerFactory)
+        {
+            UriScheme = uriScheme;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<HttpsTransportListener>();
             StartupContributors = startupContributors;
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
 
         /// <summary>
@@ -550,9 +588,10 @@ namespace Opc.Ua.Bindings
 
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(
-                "HttpsListener",
-                m_quotas.MaxBufferSize,
-                m_telemetry);
+                m_bufferManagerFactory.Create(
+                    "HttpsListener",
+                    m_quotas.MaxBufferSize,
+                    m_telemetry));
 
             // start the listener
             await StartAsync(ct).ConfigureAwait(false);
@@ -1786,7 +1825,8 @@ namespace Opc.Ua.Bindings
                 {
                     receiveBuffer ??= m_bufferManager.TakeBuffer(
                         m_quotas.MaxBufferSize,
-                        nameof(AcceptWebSocketJsonAsync));
+                        nameof(AcceptWebSocketJsonAsync),
+                        ct);
 
                     int totalRead = 0;
                     bool completed;
@@ -1998,7 +2038,8 @@ namespace Opc.Ua.Bindings
                 {
                     receiveBuffer ??= m_bufferManager.TakeBuffer(
                         m_quotas.MaxBufferSize,
-                        nameof(AcceptWebSocketOpenApiAsync));
+                        nameof(AcceptWebSocketOpenApiAsync),
+                        ct);
 
                     int totalRead = 0;
                     bool completed;
@@ -2405,6 +2446,7 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription> m_descriptions = null!;
         private ChannelQuotas m_quotas = null!;
         private BufferManager m_bufferManager = null!;
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;
 #if NET8_0_OR_GREATER
         private IHost? m_host;

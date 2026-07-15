@@ -142,6 +142,7 @@ namespace Opc.Ua.Bindings
             m_startHandshake = new TimerCallback(OnScheduledHandshakeAsync);
             m_handshakeComplete = new AsyncCallback(OnHandshakeComplete);
             m_transportFactory = transportFactory;
+            m_transportReceiveBufferSize = ReceiveBufferSize;
             m_implementationString = Utils.Format(
                 "UA.NETStandard ClientChannel {0} {1}",
                 m_transportFactory.Implementation,
@@ -151,6 +152,11 @@ namespace Opc.Ua.Bindings
             EndpointDescription = endpoint;
             m_url = new Uri(endpoint.EndpointUrl);
         }
+
+        /// <summary>
+        /// Gets the bucket-safe receive limit advertised for future transports.
+        /// </summary>
+        internal int TransportReceiveBufferSize => m_transportReceiveBufferSize;
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -240,7 +246,7 @@ namespace Opc.Ua.Bindings
                 {
                     Transport = m_transportFactory.Create(
                         BufferManager,
-                        Quotas.MaxBufferSize,
+                        m_transportReceiveBufferSize,
                         m_telemetry);
                 }
                 transport = Transport;
@@ -415,7 +421,7 @@ namespace Opc.Ua.Bindings
                 encoder.WriteUInt32(null, TcpMessageType.Hello);
                 encoder.WriteUInt32(null, 0);
                 encoder.WriteUInt32(null, 0); // ProtocolVersion
-                encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
+                encoder.WriteUInt32(null, (uint)m_transportReceiveBufferSize);
                 encoder.WriteUInt32(null, (uint)SendBufferSize);
                 encoder.WriteUInt32(null, (uint)MaxResponseMessageSize);
                 encoder.WriteUInt32(null, (uint)MaxResponseChunkCount);
@@ -495,13 +501,13 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                if (receiveBufferSize > ReceiveBufferSize)
+                if (receiveBufferSize > m_transportReceiveBufferSize)
                 {
                     m_handshakeOperation.Fault(
                         StatusCodes.BadTcpNotEnoughResources,
                         "Returned client receive buffer size is larger than requested size ({0}>{1} bytes).",
                         receiveBufferSize,
-                        ReceiveBufferSize);
+                        m_transportReceiveBufferSize);
                     return false;
                 }
 
@@ -527,8 +533,13 @@ namespace Opc.Ua.Bindings
                 }
 
                 // assign new values once ensured that sizes are within bounds
-                SendBufferSize = (int)sendBufferSize;
+                SendBufferSize = Math.Max(
+                    TcpMessageLimits.MinBufferSize,
+                    BufferManager.GetSuggestedBufferSize((int)sendBufferSize));
                 ReceiveBufferSize = (int)receiveBufferSize;
+                m_transportReceiveBufferSize = Math.Max(
+                    TcpMessageLimits.MinBufferSize,
+                    BufferManager.GetSuggestedBufferSize((int)receiveBufferSize));
 
                 // update the max message size.
                 if (maxMessageSize > 0 && maxMessageSize < MaxRequestMessageSize)
@@ -1106,7 +1117,7 @@ namespace Opc.Ua.Bindings
                         State = TcpChannelState.Connecting;
                         transport = m_transportFactory.Create(
                             BufferManager,
-                            Quotas.MaxBufferSize,
+                            m_transportReceiveBufferSize,
                             m_telemetry);
 
                         operation = m_handshakeOperation;
@@ -1820,6 +1831,7 @@ namespace Opc.Ua.Bindings
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
         private readonly IUaSCByteTransportFactory m_transportFactory;
+        private int m_transportReceiveBufferSize;
         private readonly string m_implementationString;
         private readonly TimerCallback m_startHandshake;
         private readonly AsyncCallback m_handshakeComplete;

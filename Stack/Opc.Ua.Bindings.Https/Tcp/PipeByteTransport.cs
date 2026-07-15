@@ -212,7 +212,10 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
-                    rented = m_bufferManager.TakeBuffer(m_receiveBufferSize, nameof(ReceiveChunkAsync));
+                    rented = m_bufferManager.TakeBuffer(
+                        m_receiveBufferSize,
+                        nameof(ReceiveChunkAsync),
+                        ct);
                     ReadOnlySequence<byte> chunkSeq = buffer.Slice(0, size);
                     chunkSeq.CopyTo(rented.AsSpan(0, size));
                     reader.AdvanceTo(buffer.GetPosition(size));

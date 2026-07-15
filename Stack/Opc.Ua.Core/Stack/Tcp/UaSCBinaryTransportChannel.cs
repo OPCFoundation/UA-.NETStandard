@@ -53,7 +53,11 @@ namespace Opc.Ua.Bindings
         public UaSCUaBinaryTransportChannel(
             IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry)
-            : this(transportFactory, telemetry, null)
+            : this(
+                transportFactory,
+                telemetry,
+                timeProvider: null,
+                DefaultBufferManagerFactory.Instance)
         {
         }
 
@@ -67,11 +71,33 @@ namespace Opc.Ua.Bindings
             IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
+            : this(
+                transportFactory,
+                telemetry,
+                timeProvider,
+                DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a transport channel with explicit time and buffer-manager providers.
+        /// </summary>
+        /// <param name="transportFactory">The byte transport factory.</param>
+        /// <param name="telemetry">Telemetry context to use.</param>
+        /// <param name="timeProvider">Time provider to use for timers and durations.</param>
+        /// <param name="bufferManagerFactory">Factory used to create channel buffer managers.</param>
+        public UaSCUaBinaryTransportChannel(
+            IUaSCByteTransportFactory transportFactory,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider,
+            IBufferManagerFactory bufferManagerFactory)
         {
             m_transportFactory = transportFactory;
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryTransportChannel>();
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
 
         /// <summary>
@@ -472,9 +498,10 @@ namespace Opc.Ua.Bindings
 
             // create the buffer manager.
             m_bufferManager = new BufferManager(
-                "Client",
-                configuration.MaxBufferSize,
-                m_telemetry);
+                m_bufferManagerFactory.Create(
+                    "Client",
+                    configuration.MaxBufferSize,
+                    m_telemetry));
 
             // notify derived classes - e.g. WSS - that settings have been
             // bound so they can push channel-level options (TLS cert validator,
@@ -640,6 +667,7 @@ namespace Opc.Ua.Bindings
         private bool m_disposed;
         private event ChannelTokenActivatedEventHandler? m_OnTokenActivated;
         private readonly IUaSCByteTransportFactory m_transportFactory;
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private long m_serverRetryAfterHintTicks;
