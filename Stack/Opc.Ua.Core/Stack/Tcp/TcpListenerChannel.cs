@@ -475,11 +475,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 globalChannelId = GlobalChannelId;
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "{Channel} ChannelId={ChannelId}: closing because the peer certificate is no longer trusted.",
-                    ChannelName,
-                    ChannelId);
+                m_logger.TcpListenChannelLog9(ChannelName, ChannelId);
 
                 var reason = ServiceResult.Create(
                     StatusCodes.BadCertificateUntrusted,
@@ -985,6 +981,13 @@ namespace Opc.Ua.Bindings
             uint id,
             uint requestId,
             global::Opc.Ua.StatusCode serviceFault);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 9, Level = LogLevel.Information,
+            Message = "{Channel} ChannelId={ChannelId}: closing because the peer certificate is no longer trusted.")]
+        public static partial void TcpListenChannelLog9(
+            this ILogger logger,
+            string channel,
+            uint channelId);
     }
 
 }

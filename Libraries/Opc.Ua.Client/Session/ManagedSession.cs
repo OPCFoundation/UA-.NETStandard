@@ -278,9 +278,7 @@ namespace Opc.Ua.Client
                 catch (Exception disposeException) when (
                     disposeException is not OutOfMemoryException)
                 {
-                    logger.LogError(
-                        disposeException,
-                        "ManagedSession: Disposal after initial connection failure failed.");
+                    logger.ManagedSessionDisposalAfterConnectionFailureFailed(disposeException);
                 }
                 throw;
             }
@@ -2037,6 +2035,12 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 25, Level = LogLevel.Debug,
             Message = "ManagedSession: Dispose close failed.")]
         public static partial void ManagedSessionDisposeCloseFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 26, Level = LogLevel.Error,
+            Message = "ManagedSession: Disposal after initial connection failure failed.")]
+        public static partial void ManagedSessionDisposalAfterConnectionFailureFailed(
+            this ILogger logger,
+            Exception? exception);
     }
 
 }

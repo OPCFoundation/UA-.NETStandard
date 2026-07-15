@@ -44,14 +44,15 @@ namespace Opc.Ua
     internal static class RedundancyServerEventIds
     {
         public const int AddressSpaceSynchronizer = 0;
-        public const int DistributedSessionManager = 10;
-        public const int LoadDirectionStartupTask = 30;
-        public const int PeerDirectionPublishStartupTask = 40;
-        public const int PeerDiscoveryStartupTask = 50;
-        public const int ReplicatedAddressSpaceSynchronizer = 60;
-        public const int ServerLoadDirector = 70;
-        public const int ServerRedundancyStartupTask = 80;
-        public const int SharedKeyValueMonitoredItemQueueFactory = 90;
-        public const int SharedKeyValueSubscriptionStore = 100;
+        public const int DistributedPushConfigurationTransactionCoordinator = 10;
+        public const int DistributedSessionManager = 20;
+        public const int LoadDirectionStartupTask = 40;
+        public const int PeerDirectionPublishStartupTask = 50;
+        public const int PeerDiscoveryStartupTask = 60;
+        public const int ReplicatedAddressSpaceSynchronizer = 70;
+        public const int ServerLoadDirector = 80;
+        public const int ServerRedundancyStartupTask = 90;
+        public const int SharedKeyValueMonitoredItemQueueFactory = 100;
+        public const int SharedKeyValueSubscriptionStore = 110;
     }
 }

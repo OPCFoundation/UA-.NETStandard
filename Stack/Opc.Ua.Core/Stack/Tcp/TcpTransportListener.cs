@@ -1002,10 +1002,7 @@ namespace Opc.Ua.Bindings
                         // Best-effort: if trust cannot be determined, leave
                         // the channel open rather than cutting a possibly
                         // still-trusted peer.
-                        m_logger.LogWarning(
-                            ex,
-                            "Failed to re-validate peer certificate for channel {ChannelId}; leaving it open.",
-                            channel.GlobalChannelId);
+                        m_logger.TcpTransportLog28(ex, channel.GlobalChannelId);
                         continue;
                     }
 
@@ -1025,10 +1022,7 @@ namespace Opc.Ua.Bindings
                     // Best-effort: log and continue closing remaining
                     // channels. Failure to close one channel must not block
                     // others from being renegotiated.
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to close channel {ChannelId} for peer-certificate trust change.",
-                        channel.GlobalChannelId);
+                    m_logger.TcpTransportLog29(ex, channel.GlobalChannelId);
                 }
                 finally
                 {
@@ -1036,10 +1030,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.",
-                closed.Count);
+            m_logger.TcpTransportLog30(closed.Count);
 
             return closed;
         }
@@ -1716,6 +1707,26 @@ namespace Opc.Ua.Bindings
         public static partial void TcpTransportLog27(
             this ILogger logger,
             global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 28, Level = LogLevel.Warning,
+            Message = "Failed to re-validate peer certificate for channel {ChannelId}; leaving it open.")]
+        public static partial void TcpTransportLog28(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 29, Level = LogLevel.Warning,
+            Message = "Failed to close channel {ChannelId} for peer-certificate trust change.")]
+        public static partial void TcpTransportLog29(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 30, Level = LogLevel.Information,
+            Message = "Closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.")]
+        public static partial void TcpTransportLog30(
+            this ILogger logger,
+            int count);
     }
 
 }
