@@ -40,6 +40,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Client.Discovery;
+using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -72,9 +73,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">Configuration delegate for
-        /// <see cref="OpcUaClientOptions"/>. Must set
-        /// <see cref="OpcUaClientOptions.Configuration"/> and
-        /// <see cref="ManagedSessionOptions.Endpoint"/>.</param>
+        /// <see cref="OpcUaClientOptions"/>. Set
+        /// <see cref="OpcUaClientOptions.Configuration"/> unless the root
+        /// builder uses <c>ConfigureApplication(...)</c>. Set
+        /// <see cref="ManagedSessionOptions.Endpoint"/> when using the cached
+        /// fixed-endpoint session delegate.</param>
         /// <returns>An <see cref="IOpcUaClientBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/>
         /// or <paramref name="configure"/> is <c>null</c>.</exception>
@@ -94,8 +97,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var options = new OpcUaClientOptions();
             configure(options);
             EnsureClientConnectGate(options);
-            builder.Services.TryAddSingleton(options);
-            RegisterOptionsValidation(builder.Services, options);
+            RegisterClientOptions(builder.Services, options);
 
             RegisterCoreServices(builder.Services);
 
@@ -173,8 +175,7 @@ namespace Microsoft.Extensions.DependencyInjection
             section.Bind(options);
             postConfigure?.Invoke(options);
             EnsureClientConnectGate(options);
-            builder.Services.TryAddSingleton(options);
-            RegisterOptionsValidation(builder.Services, options);
+            RegisterClientOptions(builder.Services, options);
 
             RegisterCoreServices(builder.Services);
 
@@ -844,6 +845,10 @@ namespace Microsoft.Extensions.DependencyInjection
             CancellationToken ct)
         {
             OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+            if (options.ConfigurationProvider != null)
+            {
+                await options.ConfigurationProvider.GetAsync(ct).ConfigureAwait(false);
+            }
             ValidateClientOptions(options, sessionOptions);
             ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
             var builder = new ManagedSessionBuilder(options.Configuration!, telemetry);
@@ -861,6 +866,39 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             return session;
+        }
+
+        private static void RegisterClientOptions(
+            IServiceCollection services,
+            OpcUaClientOptions options)
+        {
+            if (options.Configuration == null)
+            {
+                services.TryAddEnumerable(
+                    ServiceDescriptor.Singleton<
+                        IOpcUaApplicationConfigurationFeature,
+                        OpcUaClientApplicationConfigurationFeature>());
+            }
+
+            services.TryAddSingleton<OpcUaClientOptions>(sp =>
+            {
+                var resolvedOptions = new OpcUaClientOptions
+                {
+                    Configuration = options.Configuration,
+                    Session = options.Session,
+                    Identity = options.Identity,
+                    ReverseConnect = options.ReverseConnect
+                };
+                if (resolvedOptions.Configuration == null)
+                {
+                    resolvedOptions.ConfigurationProvider =
+                        sp.GetService<IOpcUaApplicationConfigurationProvider>();
+                    resolvedOptions.Configuration =
+                        resolvedOptions.ConfigurationProvider?.Configuration;
+                }
+                return resolvedOptions;
+            });
+            RegisterOptionsValidation(services, options);
         }
 
         private static void RegisterOptionsValidation(
@@ -1136,23 +1174,38 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private sealed class OpcUaClientOptionsValidator : IValidateOptions<OpcUaClientOptions>
         {
-            public ValidateOptionsResult Validate(string? name, OpcUaClientOptions options)
+            public OpcUaClientOptionsValidator(
+                IEnumerable<OpcUaApplicationOptions> applicationOptions)
             {
-                return Validate(options);
+                foreach (OpcUaApplicationOptions _ in applicationOptions)
+                {
+                    m_hasApplicationOptions = true;
+                    break;
+                }
             }
 
-            public static ValidateOptionsResult Validate(OpcUaClientOptions options)
+            public ValidateOptionsResult Validate(string? name, OpcUaClientOptions options)
+            {
+                return Validate(options, m_hasApplicationOptions);
+            }
+
+            public static ValidateOptionsResult Validate(
+                OpcUaClientOptions options,
+                bool hasConfigurationProvider = false)
             {
                 var failures = new List<string>();
-                if (options.Configuration == null)
+                if (options.Configuration == null && !hasConfigurationProvider)
                 {
-                    failures.Add("OpcUaClientOptions.Configuration is required.");
+                    failures.Add(
+                        "OpcUaClientOptions.Configuration is required unless ConfigureApplication is used.");
                 }
 
                 return failures.Count == 0
                     ? ValidateOptionsResult.Success
                     : ValidateOptionsResult.Fail(failures);
             }
+
+            private readonly bool m_hasApplicationOptions;
         }
     }
 }

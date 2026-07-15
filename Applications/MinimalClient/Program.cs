@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,100 +36,168 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
-
-// Get endpoint URL from arguments or use default
-string endpointUrl = args.Length > 0 ? args[0] : "opc.tcp://localhost:62541/MinimalBoilerServer";
-
-Console.WriteLine("OPC UA Minimal Console Client");
-Console.WriteLine("OPC UA library: {0}", Utils.GetAssemblyBuildNumber());
-Console.WriteLine();
+using Opc.Ua.Client.Alarms;
+using Opc.Ua.Client.Subscriptions;
 
 try
 {
-    // Create host application builder
-    HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+    (string discoveryUrl, bool insecure, bool autoAccept) = ParseArguments(args);
 
-    // Configure logging
+    Console.WriteLine("OPC UA Minimal Console Client");
+    Console.WriteLine("OPC UA library: {0}", Utils.GetAssemblyBuildNumber());
+    Console.WriteLine($"Discovery URL: {discoveryUrl}");
+    if (insecure)
+    {
+        Console.Error.WriteLine(
+            "WARNING: --insecure selects an endpoint without message security.");
+    }
+    if (autoAccept)
+    {
+        Console.Error.WriteLine(
+            "WARNING: --auto-accept trusts untrusted server certificates.");
+    }
+    Console.WriteLine();
+
+    HostApplicationBuilder builder = Host.CreateApplicationBuilder();
     builder.Logging.ClearProviders();
     builder.Logging.AddConsole();
     builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
-    // Create endpoint configuration and endpoint
-    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create();
-
-    EndpointDescription endpoint = new EndpointDescription
-    {
-        EndpointUrl = endpointUrl,
-        SecurityMode = MessageSecurityMode.None,
-        SecurityPolicyUri = SecurityPolicies.None,
-    };
-
-    ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
-
-    // Create application configuration with options
-    ApplicationConfiguration applicationConfig = new ApplicationConfiguration
-    {
-        ApplicationName = "MinimalClient",
-        ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
-        ApplicationType = ApplicationType.Client,
-        SecurityConfiguration = new SecurityConfiguration
-        {
-            AutoAcceptUntrustedCertificates = true,
-        },
-    };
-
-    // Validate application configuration
-    await applicationConfig.ValidateAsync(ApplicationType.Client, CancellationToken.None)
-        .ConfigureAwait(false);
-
-    // Configure services with OPC UA client and A&C support using fluent API
     builder.Services
         .AddOpcUa()
+        .ConfigureApplication(options =>
+        {
+            options.ApplicationName = "MinimalClient";
+            options.ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient";
+            options.ProductUri = "uri:opcfoundation.org:MinimalClient";
+            options.AutoAcceptUntrustedCertificates = autoAccept;
+        })
         .AddClient(options =>
         {
-            options.Configuration = applicationConfig;
             options.Session = new ManagedSessionOptions
             {
                 SessionName = "MinimalClient",
                 SessionTimeout = TimeSpan.FromSeconds(60),
             };
         })
+        .AddDiscoveryAndConnect(options =>
+        {
+            options.DiscoveryUrl = discoveryUrl;
+            options.SecurityMode = insecure
+                ? MessageSecurityMode.None
+                : MessageSecurityMode.SignAndEncrypt;
+            options.SecurityPolicyUri = insecure
+                ? SecurityPolicies.None
+                : SecurityPolicies.Basic256Sha256;
+        })
+        .AddSubscriptions()
         .AddAlarms();
 
-    // Build and run the application
-    await RunClientAsync(endpoint, configuredEndpoint, builder.Build()).ConfigureAwait(false);
+    using IHost host = builder.Build();
+    await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+    try
+    {
+        await RunClientAsync(host.Services).ConfigureAwait(false);
+    }
+    finally
+    {
+        await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+    }
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"ERROR: {ex.Message}");
-    Environment.Exit(1);
+    Console.Error.WriteLine(ex);
+    Environment.ExitCode = 1;
 }
 
-static async Task RunClientAsync(EndpointDescription endpoint, ConfiguredEndpoint configuredEndpoint, IHost host)
+static (string DiscoveryUrl, bool Insecure, bool AutoAccept) ParseArguments(
+    string[] arguments)
 {
-    using (host)
+    const string defaultDiscoveryUrl =
+        "opc.tcp://localhost:62541/MinimalBoilerServer";
+    string? discoveryUrl = null;
+    bool insecure = false;
+    bool autoAccept = false;
+
+    foreach (string argument in arguments)
     {
+        switch (argument)
+        {
+            case "--insecure":
+                insecure = true;
+                break;
+            case "--auto-accept":
+                autoAccept = true;
+                break;
+            default:
+                if (argument.StartsWith("--", StringComparison.Ordinal))
+                {
+                    throw new ArgumentException(
+                        $"Unknown option '{argument}'.",
+                        nameof(arguments));
+                }
+                if (discoveryUrl != null)
+                {
+                    throw new ArgumentException(
+                        "Only one discovery URL can be specified.",
+                        nameof(arguments));
+                }
+                discoveryUrl = argument;
+                break;
+        }
+    }
+
+    return (discoveryUrl ?? defaultDiscoveryUrl, insecure, autoAccept);
+}
+
+static async Task RunClientAsync(IServiceProvider services)
+{
+    Func<CancellationToken, Task<ManagedSession>> connect =
+        services.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+    CancellationToken cancellationToken = CancellationToken.None;
+
+    Console.WriteLine("Discovering a matching endpoint and creating a session...");
+    ManagedSession session = await connect(cancellationToken).ConfigureAwait(false);
+
+    await using (session)
+    {
+        ConfiguredEndpoint endpoint = session.ConfiguredEndpoint ??
+            throw new InvalidOperationException("The connected session has no configured endpoint.");
         Console.WriteLine($"Using endpoint: {endpoint.EndpointUrl}");
-        Console.WriteLine($"Security mode: {endpoint.SecurityMode}");
-        Console.WriteLine($"Security policy: {endpoint.SecurityPolicyUri}");
+        Console.WriteLine($"Security mode: {endpoint.Description.SecurityMode}");
+        Console.WriteLine($"Security policy: {endpoint.Description.SecurityPolicyUri}");
+        Console.WriteLine("Connected!");
         Console.WriteLine();
 
-        // Resolve the managed session factory from DI
-        IManagedSessionFactory sessionFactory = host.Services.GetRequiredService<IManagedSessionFactory>();
-        CancellationToken cancellationToken = CancellationToken.None;
+        AlarmClient alarmClient = services.GetRequiredService<AlarmClientFactory>().Create(session);
+        Console.WriteLine($"A&C client ready: {alarmClient.GetType().Name}");
 
-        // Create and connect managed session
-        Console.WriteLine("Creating session...");
-        ManagedSession session = await sessionFactory
-            .ConnectAsync(configuredEndpoint, cancellationToken)
-            .ConfigureAwait(false);
-
-        await using (session)
+        var handler = new ConsoleSubscriptionHandler();
+        ISubscription subscription = session.AddSubscription(
+            handler,
+            options => options with
+            {
+                PublishingInterval = TimeSpan.FromSeconds(1),
+                KeepAliveCount = 10,
+                LifetimeCount = 100,
+                PublishingEnabled = true,
+            });
+        await using (subscription.ConfigureAwait(false))
         {
-            Console.WriteLine("Connected!");
-            Console.WriteLine();
+            if (!subscription.TryAddMonitoredItem(
+                    "ServerStatus.CurrentTime",
+                    VariableIds.Server_ServerStatus_CurrentTime,
+                    options => options with
+                    {
+                        SamplingInterval = TimeSpan.FromSeconds(1),
+                        QueueSize = 1,
+                    },
+                    out _))
+            {
+                throw new InvalidOperationException("Could not add the server-time monitored item.");
+            }
 
-            // Browse the Objects folder using Browser helper
+            Console.WriteLine();
             Console.WriteLine("Browsing Objects folder...");
             var browser = new Browser(session)
             {
@@ -138,59 +207,45 @@ static async Task RunClientAsync(EndpointDescription endpoint, ConfiguredEndpoin
                 IncludeSubtypes = true,
             };
 
-            try
-            {
-                ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(
-                    ObjectIds.ObjectsFolder,
-                    cancellationToken).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(
+                ObjectIds.ObjectsFolder,
+                cancellationToken).ConfigureAwait(false);
 
-                Console.WriteLine($"Found {references.Count} references");
-                foreach (ReferenceDescription reference in references)
-                {
-                    Console.WriteLine($"  - {reference.DisplayName} ({reference.NodeClass})");
-                }
-            }
-            catch (Exception ex)
+            Console.WriteLine($"Found {references.Count} references");
+            foreach (ReferenceDescription reference in references)
             {
-                Console.WriteLine($"Browse failed: {ex.Message}");
+                Console.WriteLine($"  - {reference.DisplayName} ({reference.NodeClass})");
             }
 
             Console.WriteLine();
 
-            // Read the server time
             Console.WriteLine("Reading ServerStatus.CurrentTime...");
-            try
-            {
-                ReadResponse readResponse = await session.ReadAsync(
-                    null,
-                    0,
-                    TimestampsToReturn.Both,
-                    new ReadValueId[]
-                    {
-                        new ReadValueId
-                        {
-                            NodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                            AttributeId = Attributes.Value,
-                        },
-                    },
-                    cancellationToken).ConfigureAwait(false);
-
-                if (readResponse.Results.Count > 0)
+            ReadResponse readResponse = await session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                new ReadValueId[]
                 {
-                    DataValue dataValue = readResponse.Results[0];
-                    if (!StatusCode.IsBad(dataValue.StatusCode))
+                    new ReadValueId
                     {
-                        Console.WriteLine($"Server time: {dataValue.WrappedValue}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Failed to read server time: {dataValue.StatusCode}");
-                    }
-                }
-            }
-            catch (Exception ex)
+                        NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                        AttributeId = Attributes.Value,
+                    },
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            if (readResponse.Results.Count > 0)
             {
-                Console.WriteLine($"Read failed: {ex.Message}");
+                DataValue dataValue = readResponse.Results[0];
+                if (!StatusCode.IsBad(dataValue.StatusCode))
+                {
+                    Console.WriteLine($"Server time: {dataValue.WrappedValue}");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"Failed to read server time: {dataValue.StatusCode}");
+                }
             }
 
             Console.WriteLine();
@@ -199,4 +254,53 @@ static async Task RunClientAsync(EndpointDescription endpoint, ConfiguredEndpoin
     }
 
     Console.WriteLine("Done");
+}
+
+internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHandler
+{
+    public ValueTask OnDataChangeNotificationAsync(
+        ISubscription subscription,
+        uint sequenceNumber,
+        DateTime publishTime,
+        ReadOnlyMemory<DataValueChange> notification,
+        PublishState publishStateMask,
+        IReadOnlyList<string> stringTable)
+    {
+        foreach (DataValueChange change in notification.Span)
+        {
+            Console.WriteLine($"Subscription value: {change.Value.WrappedValue}");
+        }
+        return default;
+    }
+
+    public ValueTask OnEventDataNotificationAsync(
+        ISubscription subscription,
+        uint sequenceNumber,
+        DateTime publishTime,
+        ReadOnlyMemory<EventNotification> notification,
+        PublishState publishStateMask,
+        IReadOnlyList<string> stringTable)
+    {
+        Console.WriteLine($"Received {notification.Length} A&C event notification(s).");
+        return default;
+    }
+
+    public ValueTask OnKeepAliveNotificationAsync(
+        ISubscription subscription,
+        uint sequenceNumber,
+        DateTime publishTime,
+        PublishState publishStateMask)
+    {
+        return default;
+    }
+
+    public ValueTask OnSubscriptionStateChangedAsync(
+        ISubscription subscription,
+        Opc.Ua.Client.Subscriptions.SubscriptionState state,
+        PublishState publishStateMask,
+        CancellationToken ct = default)
+    {
+        Console.WriteLine($"Subscription state: {state}");
+        return default;
+    }
 }

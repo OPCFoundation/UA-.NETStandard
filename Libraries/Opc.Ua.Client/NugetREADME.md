@@ -27,9 +27,14 @@ using Opc.Ua.Client;
 
 services
     .AddOpcUa()
+    .ConfigureApplication(options =>
+    {
+        options.ApplicationName = "MyClient";
+        options.ApplicationUri = "urn:localhost:MyClient";
+        options.ProductUri = "uri:example.com:MyClient";
+    })
     .AddClient(opt =>
     {
-        opt.Configuration = applicationConfiguration;
         opt.Session = new ManagedSessionOptions
         {
             Endpoint = endpoint,

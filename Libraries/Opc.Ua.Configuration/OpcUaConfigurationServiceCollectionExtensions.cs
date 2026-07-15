@@ -41,6 +41,44 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class OpcUaConfigurationServiceCollectionExtensions
     {
         /// <summary>
+        /// Configures the common OPC UA application identity and security
+        /// settings used by subsequently registered client and server features.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">The application-options callback.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder ConfigureApplication(
+            this IOpcUaBuilder builder,
+            Action<OpcUaApplicationOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new OpcUaApplicationOptions();
+            configure(options);
+            builder.Services.AddSingleton(options);
+            builder.AddApplicationInstance();
+            builder.Services.TryAddSingleton(sp =>
+                new OpcUaApplicationConfigurationProvider(
+                    sp.GetRequiredService<OpcUaApplicationOptions>(),
+                    sp.GetRequiredService<IApplicationInstanceFactory>(),
+                    sp.GetRequiredService<ITelemetryContext>(),
+                    [.. sp.GetServices<IOpcUaApplicationConfigurationFeature>()],
+                    sp.GetService<ICertificateManager>()));
+            builder.Services.TryAddSingleton<IOpcUaApplicationConfigurationProvider>(
+                sp => sp.GetRequiredService<OpcUaApplicationConfigurationProvider>());
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the default
         /// <see cref="IApplicationInstanceFactory"/> implementation so
         /// hosted OPC UA servers (regular, GDS, LDS, WotCon) can each

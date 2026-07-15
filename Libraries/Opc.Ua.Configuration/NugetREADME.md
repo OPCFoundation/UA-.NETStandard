@@ -16,6 +16,8 @@ package provides:
   certificate, start the server.
 - `IApplicationConfigurationBuilder` — fluent configuration builder
   (replaces XML-only configuration).
+- `ConfigureApplication(...)` — shared DI application options used by
+  `AddClient(...)`, `AddServer(...)`, or a combined client/server host.
 - `CertificatePasswordProvider` integration for encrypted application
   certificates.
 - `ConfigurationWatcher` — hot-reload of `Application.xml`.
@@ -39,6 +41,19 @@ await application.Build("urn:localhost:MyServer", "uri:example.com:MyServer")
 
 await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
 await application.StartAsync(new MyServer(telemetry)).ConfigureAwait(false);
+```
+
+For dependency-injected applications:
+
+```csharp
+services.AddOpcUa()
+    .ConfigureApplication(options =>
+    {
+        options.ApplicationName = "MyApplication";
+        options.ApplicationUri = "urn:localhost:MyApplication";
+        options.ProductUri = "uri:example.com:MyApplication";
+    })
+    .AddClient(options => options.Session = new ManagedSessionOptions());
 ```
 
 ## Target frameworks

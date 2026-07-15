@@ -12,7 +12,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 
@@ -75,6 +77,46 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(builder, Is.Not.Null);
             Assert.That(builder.Services, Is.SameAs(services));
+        }
+
+        [Test]
+        public async Task ConfigureApplicationSuppliesConfigurationBeforeConnectAsync()
+        {
+            ApplicationConfiguration configuration = CreateConfig();
+            var configurationProvider = new TrackingConfigurationProvider(configuration);
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<IClientChannelManager>());
+            services.AddSingleton<IOpcUaApplicationConfigurationProvider>(
+                configurationProvider);
+            services.AddOpcUa()
+                .ConfigureApplication(options =>
+                {
+                    options.ApplicationName = "ConfiguredClient";
+                })
+                .AddClient(_ => { });
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            try
+            {
+                OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+                Assert.That(options.Configuration, Is.SameAs(configuration));
+
+                IManagedSessionFactory factory =
+                    sp.GetRequiredService<IManagedSessionFactory>();
+                OperationCanceledException? exception =
+                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                        await factory.ConnectAsync(
+                            CreateEndpoint(),
+                            _ => throw new OperationCanceledException(),
+                            CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(exception, Is.Not.Null);
+                Assert.That(configurationProvider.GetCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await sp.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -356,6 +398,36 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             private readonly Client.ManagedSession m_session;
+        }
+
+        private sealed class TrackingConfigurationProvider :
+            IOpcUaApplicationConfigurationProvider
+        {
+            public TrackingConfigurationProvider(ApplicationConfiguration configuration)
+            {
+                Configuration = configuration;
+                Application = new ApplicationInstance(
+                    configuration,
+                    NUnitTelemetryContext.Create());
+            }
+
+            public IApplicationInstance Application { get; }
+
+            public ApplicationConfiguration Configuration { get; }
+
+            public int GetCount { get; private set; }
+
+            public Task<ApplicationConfiguration> GetAsync(
+                CancellationToken ct = default)
+            {
+                GetCount++;
+                return Task.FromResult(Configuration);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return Application.DisposeAsync();
+            }
         }
     }
 }

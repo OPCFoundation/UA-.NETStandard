@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Configuration;
+
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -36,7 +38,9 @@ namespace Opc.Ua.Client
     public sealed class OpcUaClientOptions
     {
         /// <summary>
-        /// The application configuration. Required.
+        /// The application configuration. When omitted,
+        /// <c>ConfigureApplication(...)</c> must be registered on the root
+        /// OPC UA builder.
         /// </summary>
         public ApplicationConfiguration? Configuration { get; set; }
 
@@ -65,5 +69,7 @@ namespace Opc.Ua.Client
         /// through the application-configuration surface.
         /// </summary>
         public ClientReverseConnectOptions? ReverseConnect { get; set; }
+
+        internal IOpcUaApplicationConfigurationProvider? ConfigurationProvider { get; set; }
     }
 }
