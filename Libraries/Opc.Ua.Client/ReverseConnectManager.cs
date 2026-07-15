@@ -282,7 +282,9 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Could not load updated configuration file from: {FilePath}", args.FilePath);
+                m_logger.CouldNotLoadUpdatedConfigurationFile(
+                    e,
+                    args.FilePath);
             }
         }
 
@@ -376,7 +378,9 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Failed to Open {Uri}.", value.ReverseConnectHost.Url);
+                    m_logger.FailedOpenUri(
+                        e,
+                        value.ReverseConnectHost.Url);
                     value.State = ReverseConnectHostState.Errored;
                 }
             }
@@ -405,7 +409,9 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Failed to Close {Uri}.", value.ReverseConnectHost.Url);
+                    m_logger.FailedCloseUri(
+                        e,
+                        value.ReverseConnectHost.Url);
                     value.State = ReverseConnectHostState.Errored;
                 }
             }
@@ -513,7 +519,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
+                    m_logger.UnexpectedErrorStartingReverseConnectManager(e);
                     m_state = ReverseConnectManagerState.Errored;
                     var error = ServiceResult.Create(
                         e,
@@ -557,7 +563,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
+                    m_logger.UnexpectedErrorStartingReverseConnectManager(e);
                     m_state = ReverseConnectManagerState.Errored;
                     var error = ServiceResult.Create(
                         e,
@@ -783,7 +789,9 @@ namespace Opc.Ua.Client
             }
             catch (ArgumentException ae)
             {
-                m_logger.LogError(ae, "No listener was found for endpoint {EndpointUrl}.", endpointUrl);
+                m_logger.NoListenerFoundEndpointEndpointUrl(
+                    ae,
+                    endpointUrl);
                 info.State = ReverseConnectHostState.Errored;
             }
         }
@@ -800,7 +808,9 @@ namespace Opc.Ua.Client
             bool matched = MatchRegistration(sender, e);
             while (!matched)
             {
-                m_logger.LogInformation("Holding reverse connection: {ServerUri} {EndpointUrl}", e.ServerUri, e.EndpointUrl);
+                m_logger.HoldingReverseConnectionServerUriEndpointUrl(
+                    e.ServerUri,
+                    e.EndpointUrl);
                 CancellationToken ct;
                 lock (m_registrationsLock)
                 {
@@ -815,10 +825,9 @@ namespace Opc.Ua.Client
                             if (tsk.IsCanceled)
                             {
                                 matched = MatchRegistration(sender, e);
-                                if (matched)
+                                if (matched && m_logger.IsEnabled(LogLevel.Information))
                                 {
-                                    m_logger.LogInformation(
-                                        "Matched reverse connection {ServerUri} {EndpointUrl} after {Duration}ms",
+                                    m_logger.MatchedReverseConnectionServerUriEndpointUrlAfter(
                                         e.ServerUri,
                                         e.EndpointUrl,
                                         (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
@@ -833,12 +842,14 @@ namespace Opc.Ua.Client
                 break;
             }
 
-            m_logger.LogInformation(
-                "{Action} reverse connection: {ServerUri} {EndpointUrl} after {Duration}ms",
-                e.Accepted ? "Accepted" : "Rejected",
-                e.ServerUri,
-                e.EndpointUrl,
-                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.ActionReverseConnectionServerUriEndpointUrlAfter(
+                    e.Accepted ? "Accepted" : "Rejected",
+                    e.ServerUri,
+                    e.EndpointUrl,
+                    (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+            }
         }
 
         /// <summary>
@@ -866,8 +877,7 @@ namespace Opc.Ua.Client
                         callbackRegistration = registration;
                         e.Accepted = true;
                         found = true;
-                        m_logger.LogInformation(
-                            "Accepted reverse connection: {ServerUri} {EndpointUrl}",
+                        m_logger.AcceptedReverseConnectionServerUriEndpointUrl(
                             e.ServerUri,
                             e.EndpointUrl);
                         break;
@@ -886,8 +896,7 @@ namespace Opc.Ua.Client
                             callbackRegistration = registration;
                             e.Accepted = true;
                             found = true;
-                            m_logger.LogInformation(
-                                "Accept any reverse connection for approval: {ServerUri} {EndpointUrl}",
+                            m_logger.AcceptAnyReverseConnectionApprovalServerUri(
                                 e.ServerUri,
                                 e.EndpointUrl);
                             break;
@@ -913,8 +922,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnConnectionStatusChanged(object? sender, ConnectionStatusEventArgs e)
         {
-            m_logger.LogInformation(
-                "Channel status: {EndpointUrl} {ChannelStatus} {Closed}",
+            m_logger.ChannelStatusEndpointUrlChannelStatusClosed(
                 e.EndpointUrl,
                 e.ChannelStatus,
                 e.Closed);
@@ -948,4 +956,85 @@ namespace Opc.Ua.Client
         private readonly Lock m_registrationsLock = new();
         private CancellationTokenSource m_cts;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ReverseConnectManager"/>.
+    /// </summary>
+    internal static partial class ReverseConnectManagerLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 0, Level = LogLevel.Error,
+            Message = "Could not load updated configuration file from: {FilePath}")]
+        public static partial void CouldNotLoadUpdatedConfigurationFile(
+            this ILogger logger,
+            Exception? exception,
+            string filePath);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 1, Level = LogLevel.Error,
+            Message = "Failed to Open {Uri}.")]
+        public static partial void FailedOpenUri(this ILogger logger, Exception? exception, Uri? uri);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 2, Level = LogLevel.Error,
+            Message = "Failed to Close {Uri}.")]
+        public static partial void FailedCloseUri(this ILogger logger, Exception? exception, Uri? uri);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 3, Level = LogLevel.Error,
+            Message = "Unexpected error starting reverse connect manager.")]
+        public static partial void UnexpectedErrorStartingReverseConnectManager(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 4, Level = LogLevel.Error,
+            Message = "No listener was found for endpoint {EndpointUrl}.")]
+        public static partial void NoListenerFoundEndpointEndpointUrl(
+            this ILogger logger,
+            Exception? exception,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 5, Level = LogLevel.Information,
+            Message = "Holding reverse connection: {ServerUri} {EndpointUrl}")]
+        public static partial void HoldingReverseConnectionServerUriEndpointUrl(
+            this ILogger logger,
+            string serverUri,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 6, Level = LogLevel.Information,
+            Message = "Matched reverse connection {ServerUri} {EndpointUrl} after {Duration}ms")]
+        public static partial void MatchedReverseConnectionServerUriEndpointUrlAfter(
+            this ILogger logger,
+            string serverUri,
+            Uri endpointUrl,
+            long duration);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 7, Level = LogLevel.Information,
+            Message = "{Action} reverse connection: {ServerUri} {EndpointUrl} after {Duration}ms")]
+        public static partial void ActionReverseConnectionServerUriEndpointUrlAfter(
+            this ILogger logger,
+            string action,
+            string serverUri,
+            Uri endpointUrl,
+            long duration);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 8, Level = LogLevel.Information,
+            Message = "Accepted reverse connection: {ServerUri} {EndpointUrl}")]
+        public static partial void AcceptedReverseConnectionServerUriEndpointUrl(
+            this ILogger logger,
+            string serverUri,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 9, Level = LogLevel.Information,
+            Message = "Accept any reverse connection for approval: {ServerUri} {EndpointUrl}")]
+        public static partial void AcceptAnyReverseConnectionApprovalServerUri(
+            this ILogger logger,
+            string serverUri,
+            Uri endpointUrl);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 10, Level = LogLevel.Information,
+            Message = "Channel status: {EndpointUrl} {ChannelStatus} {Closed}")]
+        public static partial void ChannelStatusEndpointUrlChannelStatusClosed(
+            this ILogger logger,
+            Uri endpointUrl,
+            ServiceResult channelStatus,
+            bool closed);
+    }
+
 }

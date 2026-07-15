@@ -278,9 +278,7 @@ namespace Opc.Ua.Client
                 catch (Exception disposeException) when (
                     disposeException is not OutOfMemoryException)
                 {
-                    logger.LogError(
-                        disposeException,
-                        "ManagedSession: Disposal after initial connection failure failed.");
+                    logger.ManagedSessionDisposalAfterConnectionFailureFailed(disposeException);
                 }
                 throw;
             }
@@ -915,9 +913,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
-            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
-            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
-            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
+                "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+                "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+                "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void AttachChannel(ITransportChannel channel)
         {
             InnerSession.AttachChannel(channel);
@@ -925,9 +923,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
-            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
-            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
-            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
+                "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+                "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+                "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void DetachChannel()
         {
             InnerSession.DetachChannel();
@@ -990,9 +988,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                m_logger.LogInformation(
-                    "ManagedSession: Connecting to {Endpoint}.",
-                    ConfiguredEndpoint.EndpointUrl);
+                m_logger.ManagedSessionConnectingEndpoint(ConfiguredEndpoint.EndpointUrl);
 
                 // ConfiguredEndpoint.UpdateFromServer (called when
                 // updateBeforeConnect is true) now honours the user's
@@ -1144,17 +1140,13 @@ namespace Opc.Ua.Client
                         .ConfigureAwait(false);
                 }
 
-                m_logger.LogInformation(
-                    "ManagedSession: Connected, SessionId={SessionId}.",
-                    session.SessionId);
+                m_logger.ManagedSessionConnectedSessionIdSessionId(session.SessionId);
 
                 return ServiceResult.Good;
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "ManagedSession: Connect failed.");
+                m_logger.ManagedSessionConnectFailed(ex);
                 return ToAttemptFailure(ex);
             }
         }
@@ -1165,8 +1157,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                m_logger.LogInformation(
-                    "ManagedSession: Reconnecting.");
+                m_logger.ManagedSessionReconnecting();
 
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
@@ -1189,15 +1180,11 @@ namespace Opc.Ua.Client
                                 SelectNextNetworkEndpoint(ConfiguredEndpoint);
                             if (alternateEndpoint == null)
                             {
-                                m_logger.LogInformation(
-                                    sre,
-                                    "ManagedSession: managed channel is faulted; recreating session in place.");
+                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
                             }
                             else
                             {
-                                m_logger.LogInformation(
-                                    sre,
-                                    "ManagedSession: managed channel is faulted; recreating session on alternate endpoint.");
+                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
                             }
                             await session.RecreateInPlaceAsync(
                                     endpoint: alternateEndpoint,
@@ -1217,10 +1204,8 @@ namespace Opc.Ua.Client
                             // fresh CreateSession/ActivateSession, which establishes
                             // a new nonce and recovers the session instead of
                             // looping on the unrecoverable reactivate.
-                            m_logger.LogInformation(
+                            m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
                                 sre,
-                                "ManagedSession: reconnect rejected with {Status}; " +
-                                "recreating session in place.",
                                 sre.StatusCode);
                             await session.RecreateInPlaceAsync(
                                     endpoint: null,
@@ -1233,16 +1218,13 @@ namespace Opc.Ua.Client
 
                 m_reconnectPolicy.Reset();
 
-                m_logger.LogInformation(
-                    "ManagedSession: Reconnected.");
+                m_logger.ManagedSessionReconnected();
 
                 return ServiceResult.Good;
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "ManagedSession: Reconnect attempt failed.");
+                m_logger.ManagedSessionReconnectAttemptFailed(ex);
                 return ToAttemptFailure(ex);
             }
         }
@@ -1349,9 +1331,7 @@ namespace Opc.Ua.Client
                         StatusCodes.BadNothingToDo);
                 }
 
-                m_logger.LogInformation(
-                    "ManagedSession: Failing over to {Endpoint}.",
-                    failoverEndpoint.EndpointUrl);
+                m_logger.ManagedSessionFailingOverEndpoint(failoverEndpoint.EndpointUrl);
 
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
@@ -1382,16 +1362,13 @@ namespace Opc.Ua.Client
 
                 m_reconnectPolicy.Reset();
 
-                m_logger.LogInformation(
-                    "ManagedSession: Failover complete.");
+                m_logger.ManagedSessionFailoverComplete();
 
                 return ServiceResult.Good;
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "ManagedSession: Failover failed.");
+                m_logger.ManagedSessionFailoverFailed(ex);
                 return ToAttemptFailure(ex);
             }
         }
@@ -1414,9 +1391,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(
-                        ex,
-                        "ManagedSession: Session close failed.");
+                    m_logger.ManagedSessionSessionCloseFailed(ex);
                 }
 
                 session.Dispose();
@@ -1475,9 +1450,7 @@ namespace Opc.Ua.Client
                 // channel.
                 if (Volatile.Read(ref m_channelReconnectInProgress) > 0)
                 {
-                    m_logger.LogDebug(
-                        "ManagedSession: keep-alive failure suppressed " +
-                        "while channel manager reconnect is in progress.");
+                    m_logger.ManagedSessionKeepAliveFailureSuppressedWhile();
                 }
                 else
                 {
@@ -1534,9 +1507,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "ManagedSession: ChannelStateChanged handler threw an exception.");
+                m_logger.ManagedSessionChannelStateChangedHandlerThrewException(ex);
             }
         }
 
@@ -1634,9 +1605,7 @@ namespace Opc.Ua.Client
                 catch (Exception ex)
                 {
                     retryAttempt++;
-                    m_logger.LogWarning(
-                        ex,
-                        "ManagedSession: proactive identity refresh failed; retrying.");
+                    m_logger.ManagedSessionProactiveIdentityRefreshFailedRetrying(ex);
                     TimeSpan backoff = GetIdentityRefreshBackoff(retryAttempt);
                     Task backoffTask = DelayAsync(backoff, ct);
                     attemptCompletion = BeginIdentityRefreshAttempt(out attemptVersion);
@@ -1897,9 +1866,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(
-                        ex,
-                        "ManagedSession: Dispose close failed.");
+                    m_logger.ManagedSessionDisposeCloseFailed(ex);
                 }
 
                 session.Dispose();
@@ -1983,4 +1950,97 @@ namespace Opc.Ua.Client
         private long m_identityRefreshObservedVersion;
         private int m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ManagedSession"/>.
+    /// </summary>
+    internal static partial class ManagedSessionLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 9, Level = LogLevel.Information,
+            Message = "ManagedSession: Connecting to {Endpoint}.")]
+        public static partial void ManagedSessionConnectingEndpoint(this ILogger logger, Uri? endpoint);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 10, Level = LogLevel.Information,
+            Message = "ManagedSession: Connected, SessionId={SessionId}.")]
+        public static partial void ManagedSessionConnectedSessionIdSessionId(this ILogger logger, NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 11, Level = LogLevel.Error,
+            Message = "ManagedSession: Connect failed.")]
+        public static partial void ManagedSessionConnectFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 12, Level = LogLevel.Information,
+            Message = "ManagedSession: Reconnecting.")]
+        public static partial void ManagedSessionReconnecting(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 13, Level = LogLevel.Information,
+            Message = "ManagedSession: managed channel is faulted; recreating session in place.")]
+        public static partial void ManagedSessionManagedChannelFaultedRecreatingSession(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 14, Level = LogLevel.Information,
+            Message = "ManagedSession: managed channel is faulted; recreating session on alternate endpoint.")]
+        public static partial void ManagedSessionManagedChannelFaultedRecreatingSession2(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 15, Level = LogLevel.Information,
+            Message = "ManagedSession: reconnect rejected with {Status}; recreating session in place.")]
+        public static partial void ManagedSessionReconnectRejectedStatusRecreatingSession(
+            this ILogger logger,
+            Exception? exception,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 16, Level = LogLevel.Information,
+            Message = "ManagedSession: Reconnected.")]
+        public static partial void ManagedSessionReconnected(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 17, Level = LogLevel.Warning,
+            Message = "ManagedSession: Reconnect attempt failed.")]
+        public static partial void ManagedSessionReconnectAttemptFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 18, Level = LogLevel.Information,
+            Message = "ManagedSession: Failing over to {Endpoint}.")]
+        public static partial void ManagedSessionFailingOverEndpoint(this ILogger logger, Uri? endpoint);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 19, Level = LogLevel.Information,
+            Message = "ManagedSession: Failover complete.")]
+        public static partial void ManagedSessionFailoverComplete(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 20, Level = LogLevel.Error,
+            Message = "ManagedSession: Failover failed.")]
+        public static partial void ManagedSessionFailoverFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 21, Level = LogLevel.Debug,
+            Message = "ManagedSession: Session close failed.")]
+        public static partial void ManagedSessionSessionCloseFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 22, Level = LogLevel.Debug,
+            Message = "ManagedSession: keep-alive failure suppressed while channel manager reconnect is in" +
+                " progress.")]
+        public static partial void ManagedSessionKeepAliveFailureSuppressedWhile(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 23, Level = LogLevel.Error,
+            Message = "ManagedSession: ChannelStateChanged handler threw an exception.")]
+        public static partial void ManagedSessionChannelStateChangedHandlerThrewException(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 24, Level = LogLevel.Warning,
+            Message = "ManagedSession: proactive identity refresh failed; retrying.")]
+        public static partial void ManagedSessionProactiveIdentityRefreshFailedRetrying(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 25, Level = LogLevel.Debug,
+            Message = "ManagedSession: Dispose close failed.")]
+        public static partial void ManagedSessionDisposeCloseFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 26, Level = LogLevel.Error,
+            Message = "ManagedSession: Disposal after initial connection failure failed.")]
+        public static partial void ManagedSessionDisposalAfterConnectionFailureFailed(
+            this ILogger logger,
+            Exception? exception);
+    }
+
 }

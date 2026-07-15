@@ -283,7 +283,7 @@ namespace Opc.Ua.Gds.Server.Hosting
 
             foreach (string url in urls)
             {
-                m_logger.LogInformation("GDS server listening at {Endpoint}.", url);
+                m_logger.GdsServerListening(url);
             }
 
             try
@@ -339,14 +339,14 @@ namespace Opc.Ua.Gds.Server.Hosting
 
             if (m_application != null)
             {
-                m_logger.LogInformation("Stopping GDS server...");
+                m_logger.StoppingGdsServer();
                 try
                 {
                     await m_application.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Error while stopping GDS server.");
+                    m_logger.ErrorWhileStoppingGdsServer(ex);
                 }
                 finally
                 {
@@ -505,5 +505,20 @@ namespace Opc.Ua.Gds.Server.Hosting
 #pragma warning restore CA2000
             }
         }
+    }
+
+    internal static partial class GdsServerHostedServiceLog
+    {
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 0, Level = LogLevel.Information,
+            Message = "GDS server listening at {Endpoint}.")]
+        public static partial void GdsServerListening(this ILogger logger, string endpoint);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 1, Level = LogLevel.Information,
+            Message = "Stopping GDS server...")]
+        public static partial void StoppingGdsServer(this ILogger logger);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 2, Level = LogLevel.Warning,
+            Message = "Error while stopping GDS server.")]
+        public static partial void ErrorWhileStoppingGdsServer(this ILogger logger, Exception ex);
     }
 }

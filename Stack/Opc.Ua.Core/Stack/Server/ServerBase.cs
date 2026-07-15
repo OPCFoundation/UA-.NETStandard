@@ -145,10 +145,12 @@ namespace Opc.Ua
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogError(
-                                ex,
-                                "Unexpected error disposing transport listener {Name}.",
-                                TransportListeners[ii]?.GetType().FullName);
+                            if (m_logger.IsEnabled(LogLevel.Error))
+                            {
+                                m_logger.ServerBaseLogMessage0(
+                                    ex,
+                                    TransportListeners[ii]?.GetType().FullName);
+                            }
                         }
                     }
 
@@ -291,7 +293,7 @@ namespace Opc.Ua
         {
             ITransportListener? listener = null;
 
-            m_logger.LogInformation("Create Reverse Connection to Client at {Url}.", url);
+            m_logger.ServerBaseLogMessage1(url);
 
             if (TransportListeners != null)
             {
@@ -643,10 +645,10 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Unexpected error closing a listener {Name}.",
-                            listeners[ii].GetType().FullName);
+                        if (m_logger.IsEnabled(LogLevel.Error))
+                        {
+                            m_logger.ServerBaseLogMessage2(e, listeners[ii]?.GetType().FullName);
+                        }
                     }
 
                     if (listeners[ii] != null)
@@ -657,10 +659,10 @@ namespace Opc.Ua
                         }
                         catch (Exception e)
                         {
-                            m_logger.LogError(
-                                e,
-                                "Unexpected error disposing a listener {Name}.",
-                                listeners[ii].GetType().FullName);
+                            if (m_logger.IsEnabled(LogLevel.Error))
+                            {
+                                m_logger.ServerBaseLogMessage3(e, listeners[ii]?.GetType().FullName);
+                            }
                         }
                     }
                 }
@@ -898,7 +900,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to update Instance Certificates: {EventArgs}", e);
+                m_logger.ServerBaseLogMessage4(ex, e.SecurityConfiguration.ApplicationCertificates.Count);
             }
         }
 
@@ -956,10 +958,10 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogError(
-                    e,
-                    "Could not load {Scheme} Stack Listener.",
-                    endpointUri.Scheme);
+                if (m_logger.IsEnabled(LogLevel.Error))
+                {
+                    m_logger.ServerBaseLogMessage5(e, endpointUri.Scheme);
+                }
                 throw;
             }
         }
@@ -1084,7 +1086,7 @@ namespace Opc.Ua
                 }
                 catch (SocketException e)
                 {
-                    m_logger.LogWarning(e, "Unable to get host addresses for hostname {Name}.", hostname);
+                    m_logger.ServerBaseLogMessage6(e, hostname);
                 }
 
                 if (addresses.Length == 0)
@@ -1096,10 +1098,7 @@ namespace Opc.Ua
                     }
                     catch (SocketException e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "Unable to get host addresses for DNS hostname {Name}.",
-                            fullName);
+                        m_logger.ServerBaseLogMessage7(e, fullName);
                     }
                 }
 
@@ -1124,7 +1123,7 @@ namespace Opc.Ua
             }
             catch (SocketException e)
             {
-                m_logger.LogError(e, "Unable to check aliases for hostname {Name}.", computerName);
+                m_logger.ServerBaseLogMessage8(e, computerName);
             }
 
             if (entry != null)
@@ -1771,4 +1770,83 @@ namespace Opc.Ua
         private bool m_disposed;
         private bool m_ownsCertificateManager;
     }
+
+    /// <summary>
+    /// Source-generated log messages for ServerBase.
+    /// </summary>
+    internal static partial class ServerBaseLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 0, Level = LogLevel.Error,
+            Message = "Unexpected error disposing transport listener {Name}.")]
+        public static partial void ServerBaseLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? name);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 1, Level = LogLevel.Information,
+            Message = "Create Reverse Connection to Client at {Url}.")]
+        public static partial void ServerBaseLogMessage1(this ILogger logger, global::System.Uri url);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 2, Level = LogLevel.Error,
+            Message = "Unexpected error closing a listener {Name}.")]
+        public static partial void ServerBaseLogMessage2(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? name);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 3, Level = LogLevel.Error,
+            Message = "Unexpected error disposing a listener {Name}.")]
+        public static partial void ServerBaseLogMessage3(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? name);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 4, Level = LogLevel.Error,
+            Message = "Failed to update Instance Certificates: {ApplicationCertificateCount}")]
+        public static partial void ServerBaseLogMessage4(
+            this ILogger logger,
+            global::System.Exception? exception,
+            int applicationCertificateCount);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 5, Level = LogLevel.Error,
+            Message = "Could not load {Scheme} Stack Listener.")]
+        public static partial void ServerBaseLogMessage5(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? scheme);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 6, Level = LogLevel.Warning,
+            Message = "Unable to get host addresses for hostname {Name}.")]
+        public static partial void ServerBaseLogMessage6(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string name);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 7, Level = LogLevel.Error,
+            Message = "Unable to get host addresses for DNS hostname {Name}.")]
+        public static partial void ServerBaseLogMessage7(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string name);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 8, Level = LogLevel.Error,
+            Message = "Unable to check aliases for hostname {Name}.")]
+        public static partial void ServerBaseLogMessage8(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string name);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 9, Level = LogLevel.Debug,
+            Message = "Too many operations. Active threads: {Count}")]
+        public static partial void ServerBaseLogMessage9(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 10, Level = LogLevel.Error,
+            Message = "Unexpected error processing incoming request.")]
+        public static partial void ServerBaseLogMessage10(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 11, Level = LogLevel.Error,
+            Message = "Failed to fault an incoming request after an error.")]
+        public static partial void ServerBaseLogMessage11(this ILogger logger, global::System.Exception? exception);
+    }
+
 }

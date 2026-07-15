@@ -53,7 +53,11 @@ namespace Opc.Ua.Bindings
         public UaSCUaBinaryTransportChannel(
             IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry)
-            : this(transportFactory, telemetry, null)
+            : this(
+                transportFactory,
+                telemetry,
+                timeProvider: null,
+                DefaultBufferManagerFactory.Instance)
         {
         }
 
@@ -67,11 +71,33 @@ namespace Opc.Ua.Bindings
             IUaSCByteTransportFactory transportFactory,
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
+            : this(
+                transportFactory,
+                telemetry,
+                timeProvider,
+                DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a transport channel with explicit time and buffer-manager providers.
+        /// </summary>
+        /// <param name="transportFactory">The byte transport factory.</param>
+        /// <param name="telemetry">Telemetry context to use.</param>
+        /// <param name="timeProvider">Time provider to use for timers and durations.</param>
+        /// <param name="bufferManagerFactory">Factory used to create channel buffer managers.</param>
+        public UaSCUaBinaryTransportChannel(
+            IUaSCByteTransportFactory transportFactory,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider,
+            IBufferManagerFactory bufferManagerFactory)
         {
             m_transportFactory = transportFactory;
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryTransportChannel>();
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
 
         /// <summary>
@@ -187,9 +213,7 @@ namespace Opc.Ua.Bindings
             await m_connecting.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                m_logger.LogInformation(
-                    "TransportChannel RECONNECT: Reconnecting to {Url}.",
-                    m_url);
+                m_logger.UaSCTransportLog0(m_url);
 
                 // the new channel must be connected first because WinSock
                 // will reuse sockets and this can result in messages sent
@@ -208,9 +232,7 @@ namespace Opc.Ua.Bindings
                     ct).ConfigureAwait(false);
 
                 m_channel = newChannel;
-                m_logger.LogInformation(
-                    "TransportChannel RECONNECT: Reconnected to {Url}.",
-                    m_url);
+                m_logger.UaSCTransportLog1(m_url);
             }
             finally
             {
@@ -219,9 +241,7 @@ namespace Opc.Ua.Bindings
                 // close previous channel.
                 if (previousChannel != null)
                 {
-                    m_logger.LogDebug(
-                       "TransportChannel RECONNECT: Closing old channel to {Url}.",
-                       m_url);
+                    m_logger.UaSCTransportLog2(m_url);
                     try
                     {
                         await previousChannel.CloseAsync(
@@ -231,9 +251,7 @@ namespace Opc.Ua.Bindings
                     catch (Exception e)
                     {
                         // do nothing.
-                        m_logger.LogDebug(
-                            e,
-                            "Exception while closing old channel during Reconnect.");
+                        m_logger.UaSCTransportLog3(e);
                     }
                     previousChannel.Dispose();
                 }
@@ -264,7 +282,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(e, "Ignoring error during close of channel.");
+                        m_logger.UaSCTransportLog4(e);
                     }
                     finally
                     {
@@ -472,9 +490,10 @@ namespace Opc.Ua.Bindings
 
             // create the buffer manager.
             m_bufferManager = new BufferManager(
-                "Client",
-                configuration.MaxBufferSize,
-                m_telemetry);
+                m_bufferManagerFactory.Create(
+                    "Client",
+                    configuration.MaxBufferSize,
+                    m_telemetry));
 
             // notify derived classes - e.g. WSS - that settings have been
             // bound so they can push channel-level options (TLS cert validator,
@@ -617,9 +636,7 @@ namespace Opc.Ua.Bindings
             }
 
             Interlocked.Exchange(ref m_serverRetryAfterHintTicks, serverRetryAfter.Value.Ticks);
-            m_logger.LogInformation(
-                "TransportChannel: received UA-TCP server retry-after hint {Delay} ms.",
-                serverRetryAfter.Value.TotalMilliseconds);
+            m_logger.UaSCTransportLog5(serverRetryAfter.Value.TotalMilliseconds);
         }
 
         private ServiceResultException BadNotConnected()
@@ -640,8 +657,44 @@ namespace Opc.Ua.Bindings
         private bool m_disposed;
         private event ChannelTokenActivatedEventHandler? m_OnTokenActivated;
         private readonly IUaSCByteTransportFactory m_transportFactory;
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private long m_serverRetryAfterHintTicks;
     }
+
+    /// <summary>
+    /// Source-generated log messages for UaSCBinaryTransportChannel.
+    /// </summary>
+    internal static partial class UaSCBinaryTransportChannelLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 0, Level = LogLevel.Information,
+            Message = "TransportChannel RECONNECT: Reconnecting to {Url}.")]
+        public static partial void UaSCTransportLog0(this ILogger logger, global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 1, Level = LogLevel.Information,
+            Message = "TransportChannel RECONNECT: Reconnected to {Url}.")]
+        public static partial void UaSCTransportLog1(this ILogger logger, global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 2, Level = LogLevel.Debug,
+            Message = "TransportChannel RECONNECT: Closing old channel to {Url}.")]
+        public static partial void UaSCTransportLog2(this ILogger logger, global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 3, Level = LogLevel.Debug,
+            Message = "Exception while closing old channel during Reconnect.")]
+        public static partial void UaSCTransportLog3(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 4, Level = LogLevel.Error,
+            Message = "Ignoring error during close of channel.")]
+        public static partial void UaSCTransportLog4(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 5, Level = LogLevel.Information,
+            Message = "TransportChannel: received UA-TCP server retry-after hint {Delay} ms.")]
+        public static partial void UaSCTransportLog5(this ILogger logger, double delay);
+    }
+
 }

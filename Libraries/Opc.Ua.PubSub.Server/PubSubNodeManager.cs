@@ -217,8 +217,7 @@ namespace Opc.Ua.PubSub.Server
             IDiagnosticsNodeManager? diagnosticsNodeManager = Server.DiagnosticsNodeManager;
             if (diagnosticsNodeManager is null)
             {
-                m_logger.LogWarning(
-                    "DiagnosticsNodeManager is not available; PubSub methods will not be bound.");
+                m_logger.DiagnosticsNodeManagerNotAvailable();
                 return;
             }
 
@@ -247,8 +246,7 @@ namespace Opc.Ua.PubSub.Server
             }
             else if (m_options.DiagnosticsExposure != PubSubDiagnosticsExposure.None)
             {
-                m_logger.LogDebug(
-                    "IPubSubApplication implementation does not expose IPubSubDiagnostics; status binding skipped.");
+                m_logger.PubSubDiagnosticsNotExposed();
             }
 
             if (m_options.ExposeSecurityKeyService &&
@@ -795,11 +793,7 @@ namespace Opc.Ua.PubSub.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogWarning(
-                            ex,
-                            "PubSub instance Status.{Method} failed for {NodeId}.",
-                            browseName,
-                            componentId);
+                        m_logger.PubSubInstanceStatusMethodFailed(ex, browseName, componentId);
                         return new ServiceResult(StatusCodes.BadInvalidState, new LocalizedText(ex.Message));
                     }
                 }
@@ -1690,7 +1684,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "PubSubConfiguration CloseAndUpdate failed.");
+                m_logger.PubSubConfigurationCloseAndUpdateFailed(ex);
                 return new ServiceResult(StatusCodes.BadConfigurationError, new LocalizedText(ex.Message));
             }
         }
@@ -1847,7 +1841,7 @@ namespace Opc.Ua.PubSub.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Seeding default SecurityGroup {Id} failed.", id);
+                m_logger.SeedingDefaultSecurityGroupFailed(ex, id);
             }
         }
 
@@ -1939,4 +1933,38 @@ namespace Opc.Ua.PubSub.Server
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for PubSubNodeManager.
+    /// </summary>
+    internal static partial class PubSubNodeManagerLog
+    {
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubNodeManager + 0, Level = LogLevel.Warning,
+            Message = "DiagnosticsNodeManager is not available; PubSub methods will not be bound.")]
+        public static partial void DiagnosticsNodeManagerNotAvailable(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubNodeManager + 1, Level = LogLevel.Debug,
+            Message = "IPubSubApplication implementation does not expose IPubSubDiagnostics; status binding skipped.")]
+        public static partial void PubSubDiagnosticsNotExposed(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubNodeManager + 2, Level = LogLevel.Warning,
+            Message = "PubSub instance Status.{Method} failed for {NodeId}.")]
+        public static partial void PubSubInstanceStatusMethodFailed(
+            this ILogger logger,
+            Exception exception,
+            string method,
+            NodeId nodeId);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubNodeManager + 3, Level = LogLevel.Warning,
+            Message = "PubSubConfiguration CloseAndUpdate failed.")]
+        public static partial void PubSubConfigurationCloseAndUpdateFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubNodeManager + 4, Level = LogLevel.Warning,
+            Message = "Seeding default SecurityGroup {Id} failed.")]
+        public static partial void SeedingDefaultSecurityGroupFailed(
+            this ILogger logger,
+            Exception exception,
+            string id);
+    }
+
 }

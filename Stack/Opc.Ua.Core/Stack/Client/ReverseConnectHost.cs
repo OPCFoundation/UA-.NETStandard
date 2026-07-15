@@ -168,7 +168,7 @@ namespace Opc.Ua
                     MaxChannelCount = 0
                 };
 
-                m_logger.LogInformation("Open reverse connect listener for {Url}.", Url);
+                m_logger.ReverseConnectHostLogMessage0(Url);
 
                 await m_listener.OpenAsync(Url!, settings, null!, ct).ConfigureAwait(false);
 
@@ -177,7 +177,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Could not open listener for {Url}.", Url);
+                m_logger.ReverseConnectHostLogMessage1(e, Url);
                 throw;
             }
         }
@@ -206,4 +206,22 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for ReverseConnectHost.
+    /// </summary>
+    internal static partial class ReverseConnectHostLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ReverseConnectHost + 0, Level = LogLevel.Information,
+            Message = "Open reverse connect listener for {Url}.")]
+        public static partial void ReverseConnectHostLogMessage0(this ILogger logger, global::System.Uri? url);
+
+        [LoggerMessage(EventId = CoreEventIds.ReverseConnectHost + 1, Level = LogLevel.Error,
+            Message = "Could not open listener for {Url}.")]
+        public static partial void ReverseConnectHostLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            global::System.Uri? url);
+    }
+
 }

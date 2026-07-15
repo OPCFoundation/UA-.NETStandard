@@ -236,10 +236,7 @@ namespace Opc.Ua.PubSub.Application
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogWarning(ex,
-                                "Failed to publish initial metadata for writer {Writer} in group {Group}.",
-                                writer.Name,
-                                writerGroup.Name);
+                            m_logger.FailedToPublishInitialMetadata(ex, writer.Name, writerGroup.Name);
                         }
                     }
                 }
@@ -264,10 +261,7 @@ namespace Opc.Ua.PubSub.Application
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex,
-                        "Failed to publish metadata change for writer {Writer} in group {Group}.",
-                        e.Key.DataSetWriterId,
-                        e.Key.WriterGroupId);
+                    m_logger.FailedToPublishMetadataChange(ex, e.Key.DataSetWriterId, e.Key.WriterGroupId);
                 }
             });
         }
@@ -343,9 +337,7 @@ namespace Opc.Ua.PubSub.Application
                 if (!TryResolveEncoder(profile, family, out INetworkMessageEncoder? encoder) ||
                     encoder is null)
                 {
-                    m_logger.LogDebug(
-                        "No JSON encoder registered for {Profile}; metadata publish skipped.",
-                        profile);
+                    m_logger.NoJsonEncoderRegistered(profile);
                     return;
                 }
                 var message = new JsonMetaDataMessage
@@ -487,4 +479,31 @@ namespace Opc.Ua.PubSub.Application
             return unchecked((ushort)Interlocked.Increment(ref m_messageIdSeed));
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="MetaDataPublisher"/>.
+    /// </summary>
+    internal static partial class MetaDataPublisherLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.MetaDataPublisher + 0, Level = LogLevel.Warning,
+            Message = "Failed to publish initial metadata for writer {Writer} in group {Group}.")]
+        public static partial void FailedToPublishInitialMetadata(
+            this ILogger logger,
+            Exception exception,
+            string? writer,
+            string? group);
+
+        [LoggerMessage(EventId = PubSubEventIds.MetaDataPublisher + 1, Level = LogLevel.Warning,
+            Message = "Failed to publish metadata change for writer {Writer} in group {Group}.")]
+        public static partial void FailedToPublishMetadataChange(
+            this ILogger logger,
+            Exception exception,
+            ushort writer,
+            ushort group);
+
+        [LoggerMessage(EventId = PubSubEventIds.MetaDataPublisher + 2, Level = LogLevel.Debug,
+            Message = "No JSON encoder registered for {Profile}; metadata publish skipped.")]
+        public static partial void NoJsonEncoderRegistered(this ILogger logger, string? profile);
+    }
+
 }

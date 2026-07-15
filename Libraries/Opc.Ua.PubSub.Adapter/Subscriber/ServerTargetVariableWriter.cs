@@ -132,9 +132,7 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
                 if (results.IsNull || results.Count == 0)
                 {
                     m_metrics?.RecordWrite(false);
-                    m_logger.LogInformation(
-                        "Write of node {NodeId} returned no status; treating as Bad.",
-                        nodeId);
+                    m_logger.WriteReturnedNoStatus(nodeId);
                     return StatusCodes.BadCommunicationError;
                 }
                 m_metrics?.RecordWrite(StatusCode.IsGood(results[0]));
@@ -147,23 +145,40 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
             catch (ServiceResultException sre)
             {
                 m_metrics?.RecordWrite(false);
-                m_logger.LogInformation(
-                    sre,
-                    "Write of node {NodeId} failed with {StatusCode}; " +
-                    "returning Bad status for this field.",
-                    nodeId,
-                    sre.StatusCode);
+                m_logger.WriteFailedWithStatusCode(sre, nodeId, sre.StatusCode);
                 return sre.StatusCode;
             }
             catch (Exception ex)
             {
                 m_metrics?.RecordWrite(false);
-                m_logger.LogInformation(
-                    ex,
-                    "Write of node {NodeId} failed; returning Bad status for this field.",
-                    nodeId);
+                m_logger.WriteFailed(ex, nodeId);
                 return StatusCodes.BadCommunicationError;
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ServerTargetVariableWriter.
+    /// </summary>
+    internal static partial class ServerTargetVariableWriterLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerTargetVariableWriter + 0,
+            Level = LogLevel.Information, Message = "Write of node {NodeId} returned no status; treating as Bad.")]
+        public static partial void WriteReturnedNoStatus(this ILogger logger, NodeId nodeId);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerTargetVariableWriter + 1,
+            Level = LogLevel.Information,
+            Message = "Write of node {NodeId} failed with {StatusCode}; returning Bad status for this field.")]
+        public static partial void WriteFailedWithStatusCode(
+            this ILogger logger,
+            Exception exception,
+            NodeId nodeId,
+            StatusCode statusCode);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.ServerTargetVariableWriter + 2,
+            Level = LogLevel.Information,
+            Message = "Write of node {NodeId} failed; returning Bad status for this field.")]
+        public static partial void WriteFailed(this ILogger logger, Exception exception, NodeId nodeId);
+    }
+
 }

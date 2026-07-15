@@ -281,9 +281,7 @@ namespace Opc.Ua.Pcap.Audit
 
             if (TryReadLedgerLine(lastLine, out _, out _, out byte[] hmac, out string? error))
             {
-                logger?.LogDebug(
-                    "Continuing tamper-evident Pcap audit chain from existing ledger {FilePath}.",
-                    filePath);
+                logger?.ContinuingTamperEvidentPcapAuditChain(filePath);
                 return hmac;
             }
 
@@ -416,6 +414,7 @@ namespace Opc.Ua.Pcap.Audit
                 error = "Audit ledger line is not valid JSON: " + ex.Message;
                 return false;
             }
+
         }
 
         private static bool TryReadBase64Hmac(
@@ -459,4 +458,15 @@ namespace Opc.Ua.Pcap.Audit
             return true;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="HashChainedAuditFileSink"/>.
+    /// </summary>
+    internal static partial class HashChainedAuditFileSinkLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.HashChainedAuditFileSink + 0, Level = LogLevel.Debug,
+            Message = "Continuing tamper-evident Pcap audit chain from existing ledger {FilePath}.")]
+        public static partial void ContinuingTamperEvidentPcapAuditChain(this ILogger logger, string filePath);
+    }
+
 }

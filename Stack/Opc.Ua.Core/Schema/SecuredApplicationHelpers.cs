@@ -376,27 +376,21 @@ namespace Opc.Ua.Security
             switch (policyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                    logger.LogWarning(
-                        "Deprecated Security Policy Basic128Rsa15 requested - Not recommended.");
+                    logger.SecuredApplicationHelpersLogMessage0();
                     result = 2;
                     break;
                 case SecurityPolicies.Basic256:
-                    logger.LogWarning(
-                        "Deprecated Security Policy Basic256 requested - Not recommended.");
+                    logger.SecuredApplicationHelpersLogMessage1();
                     result = 4;
                     break;
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:
-                    logger.LogWarning(
-                        "Deprecated Security Policy {PolicyUri} requested - Use ECC_nistP[256/384]_AES.",
-                        policyUri);
+                    logger.SecuredApplicationHelpersLogMessage2(policyUri);
                     result = 4;
                     break;
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                    logger.LogWarning(
-                        "Deprecated Security Policy {PolicyUri} requested - Use ECC_brainpoolP[256/384]r1_AES.",
-                        policyUri);
+                    logger.SecuredApplicationHelpersLogMessage3(policyUri);
                     result = 4;
                     break;
                 case SecurityPolicies.Basic256Sha256:
@@ -425,9 +419,7 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.None:
                     return 0;
                 default:
-                    logger.LogWarning(
-                        "Security level requested for unknown Security Policy {Policy}. Returning security level 0",
-                        policyUri);
+                    logger.SecuredApplicationHelpersLogMessage4(policyUri);
                     return 0;
             }
 
@@ -552,4 +544,31 @@ namespace Opc.Ua.Security
             return output.OpenStore(telemetry);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for SecuredApplicationHelpers.
+    /// </summary>
+    internal static partial class SecuredApplicationHelpersLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.SecuredApplicationHelpers + 0, Level = LogLevel.Warning,
+            Message = "Deprecated Security Policy Basic128Rsa15 requested - Not recommended.")]
+        public static partial void SecuredApplicationHelpersLogMessage0(this ILogger logger);
+
+        [LoggerMessage(EventId = CoreEventIds.SecuredApplicationHelpers + 1, Level = LogLevel.Warning,
+            Message = "Deprecated Security Policy Basic256 requested - Not recommended.")]
+        public static partial void SecuredApplicationHelpersLogMessage1(this ILogger logger);
+
+        [LoggerMessage(EventId = CoreEventIds.SecuredApplicationHelpers + 2, Level = LogLevel.Warning,
+            Message = "Deprecated Security Policy {PolicyUri} requested - Use ECC_nistP[256/384]_AES.")]
+        public static partial void SecuredApplicationHelpersLogMessage2(this ILogger logger, string policyUri);
+
+        [LoggerMessage(EventId = CoreEventIds.SecuredApplicationHelpers + 3, Level = LogLevel.Warning,
+            Message = "Deprecated Security Policy {PolicyUri} requested - Use ECC_brainpoolP[256/384]r1_AES.")]
+        public static partial void SecuredApplicationHelpersLogMessage3(this ILogger logger, string policyUri);
+
+        [LoggerMessage(EventId = CoreEventIds.SecuredApplicationHelpers + 4, Level = LogLevel.Warning,
+            Message = "Security level requested for unknown Security Policy {Policy}. Returning security level 0")]
+        public static partial void SecuredApplicationHelpersLogMessage4(this ILogger logger, string policy);
+    }
+
 }

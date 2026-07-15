@@ -85,12 +85,14 @@ lifetime, certificate setup, and Ctrl+C / SIGTERM handling.
 
 ## Root: `services.AddOpcUa()`
 
-`services.AddOpcUa()` is the only entry point. It does two things:
+`services.AddOpcUa()` is the only entry point. It does three things:
 
 1. Registers `ITelemetryContext` as a `ServiceProviderTelemetryContext`
    singleton (via `TryAddSingleton`, so any prior user registration
    wins).
-2. Returns an `IOpcUaBuilder` whose `.Services` property exposes the
+2. Registers the default `IBufferManagerFactory` and
+   `BufferManagerFactoryOptions` singletons (also via `TryAddSingleton`).
+3. Returns an `IOpcUaBuilder` whose `.Services` property exposes the
    underlying `IServiceCollection` for advanced scenarios.
 
 ```csharp
@@ -113,6 +115,35 @@ services.AddOpcUa()
     .AddServer(o => /* … */)
     .AddNodeManager<MyNodeManagerFactory>();
 ```
+
+### Buffer managers
+
+Transport listeners and channels resolve `IBufferManagerFactory` from dependency injection. The default factory selects `FastBufferManager` in Release builds, `CookieBufferManager` in Debug builds, and `TracingBufferManager` when the stack is compiled with `TRACK_MEMORY`.
+
+Register options before `AddOpcUa()` to select an implementation explicitly or apply a process-wide outstanding-buffer budget:
+
+```csharp
+services.AddSingleton(new BufferManagerFactoryOptions
+{
+    ImplementationKind = BufferManagerImplementationKind.Fast,
+    MaxOutstandingBytesPerProcess = 256L * 1024 * 1024
+});
+
+services.AddOpcUa()
+    .AddOpcTcpTransport()
+    .AddHttpsTransport();
+```
+
+When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every manager it creates with `LimitingBufferManager` and shares one `BufferManagerMemoryLimiter` across them. A synchronous rent blocks without holding a manager lock until another buffer is returned. A single rent whose conservative expected size exceeds the budget fails immediately instead of waiting forever.
+
+Applications can replace the complete policy by registering an `IBufferManagerFactory` before `AddOpcUa()`:
+
+```csharp
+services.AddSingleton<IBufferManagerFactory, MyBufferManagerFactory>();
+services.AddOpcUa();
+```
+
+The existing `new BufferManager(name, maxBufferSize, telemetry)` path remains available for direct creation. `BufferManager` is a compatibility facade over `IBufferManager`; `FastBufferManager`, `CookieBufferManager`, `TracingBufferManager`, and `LimitingBufferManager` can also be created directly for advanced scenarios.
 
 Discovery servers expose the same transport and reverse-connect shortcuts as
 the regular server builder:

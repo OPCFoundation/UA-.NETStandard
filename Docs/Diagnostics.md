@@ -172,24 +172,17 @@ pattern end-to-end.
 
 ### High-speed logging and source generators
 
-The repository uses [`LoggerMessageAttribute`](https://learn.microsoft.com/dotnet/core/extensions/logger-message-generator)
-source-generated logging in hot paths. New logging additions in
-hot paths should follow the same pattern:
+The stack uses [`LoggerMessageAttribute`](https://learn.microsoft.com/dotnet/core/extensions/logger-message-generator)
+source-generated logging **everywhere**. It avoids boxing of value-type
+arguments, caches the message formatter, and emits an efficient
+`IsEnabled` check so a disabled log level costs nothing. All new logging
+must follow this pattern; direct `ILogger.LogInformation/LogError/...`
+calls are not allowed.
 
-```csharp
-internal static partial class Log
-{
-    [LoggerMessage(
-        EventId = 4201,
-        Level = LogLevel.Warning,
-        Message = "Token activation failed for channelId={ChannelId}.")]
-    public static partial void TokenActivationFailed(ILogger logger, uint channelId, Exception ex);
-}
-```
-
-Source-generated logging avoids boxing of value-type arguments and
-emits efficient `IsEnabled` checks. Where present, Roslyn analyzers
-will warn if new ad-hoc logging is added in instrumented areas.
+> **Authoring a log message** — the event-id conventions, log-class layout,
+> parameter rules, and the `IsEnabled` guard for expensive arguments
+> (`CA1873`, enabled solution-wide) live in the
+> [Developer Guide](DeveloperGuide.md#add-a-log-message-source-generated).
 
 ### Extensibility patterns
 

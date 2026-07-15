@@ -289,7 +289,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "WriterGroup {Group} publish failed.", Name);
+                m_logger.WriterGroupPublishFailed(ex, Name);
             }
         }
 
@@ -477,8 +477,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex,
-                    "Sampling failed for writer {Writer}.", writer.Name);
+                m_logger.SamplingFailed(ex, writer.Name);
                 return null;
             }
 
@@ -745,4 +744,19 @@ namespace Opc.Ua.PubSub.Groups
             public PublisherId PublisherId { get; set; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="WriterGroup"/>.
+    /// </summary>
+    internal static partial class WriterGroupLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.WriterGroup + 0, Level = LogLevel.Error,
+            Message = "WriterGroup {Group} publish failed.")]
+        public static partial void WriterGroupPublishFailed(this ILogger logger, Exception exception, string group);
+
+        [LoggerMessage(EventId = PubSubEventIds.WriterGroup + 1, Level = LogLevel.Error,
+            Message = "Sampling failed for writer {Writer}.")]
+        public static partial void SamplingFailed(this ILogger logger, Exception exception, string? writer);
+    }
+
 }

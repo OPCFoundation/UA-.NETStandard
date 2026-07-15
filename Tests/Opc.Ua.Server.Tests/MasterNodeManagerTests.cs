@@ -87,17 +87,20 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
+            loggerMock.Setup(x => x.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+#pragma warning disable CA1873 // Expression tree in Moq Verify is not an executed logging call
             loggerMock.Verify(
                 x => x.Log(
                     LogLevel.Debug,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Current user has no granted role.")),
+                    It.Is<EventId>(e => e.Name == "CurrentUserHasNoGrantedRole"),
+                    It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception>(),
                     (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
                 Times.Once);
+#pragma warning restore CA1873
         }
 
         [Test]
@@ -115,17 +118,20 @@ namespace Opc.Ua.Server.Tests
             };
 
             var loggerMock = new Mock<ILogger>();
+            loggerMock.Setup(x => x.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(context, nodeMetadata, PermissionType.Read, loggerMock.Object);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+#pragma warning disable CA1873 // Expression tree in Moq Verify is not an executed logging call
             loggerMock.Verify(
                 x => x.Log(
                     LogLevel.Debug,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Role permissions validation failed for node")),
+                    It.Is<EventId>(e => e.Name == "RolePermissionsValidationFailedForNodeNodeId"),
+                    It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception>(),
                     (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
                 Times.Once);
+#pragma warning restore CA1873
         }
 
         [Test]

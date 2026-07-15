@@ -246,10 +246,7 @@ namespace Opc.Ua
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
             {
-                logger.LogError(
-                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
-                    dataToEncrypt.Count,
-                    inputBlockSize);
+                logger.RsaUtilsLogMessage0(dataToEncrypt.Count, inputBlockSize);
             }
 
             byte[]? encryptedBuffer = outputBuffer.Array;
@@ -347,10 +344,7 @@ namespace Opc.Ua
             // verify the input data is the correct block size.
             if (dataToDecrypt.Count % inputBlockSize != 0)
             {
-                logger.LogError(
-                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
-                    dataToDecrypt.Count,
-                    inputBlockSize);
+                logger.RsaUtilsLogMessage1(dataToDecrypt.Count, inputBlockSize);
             }
 
             byte[]? decryptedBuffer = outputBuffer.Array;
@@ -422,4 +416,27 @@ namespace Opc.Ua
 #endif
         });
     }
+
+    /// <summary>
+    /// Source-generated log messages for RsaUtils.
+    /// </summary>
+    internal static partial class RsaUtilsLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.RsaUtils + 0, Level = LogLevel.Error,
+            Message = "Message is not an integral multiple of the block size. Length = {Length}, " +
+                "BlockSize = {BlockSize}.")]
+        public static partial void RsaUtilsLogMessage0(
+            this ILogger logger,
+            int length,
+            int blockSize);
+
+        [LoggerMessage(EventId = CoreEventIds.RsaUtils + 1, Level = LogLevel.Error,
+            Message = "Message is not an integral multiple of the block size. Length = {Length}, " +
+                "BlockSize = {BlockSize}.")]
+        public static partial void RsaUtilsLogMessage1(
+            this ILogger logger,
+            int length,
+            int blockSize);
+    }
+
 }

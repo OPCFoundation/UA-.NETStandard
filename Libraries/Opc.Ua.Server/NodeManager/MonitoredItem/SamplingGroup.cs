@@ -417,7 +417,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.LogTrace("Server: {Name} Thread Started.", Thread.CurrentThread.Name);
+                m_logger.ServerNameThreadStarted(Thread.CurrentThread.Name);
 
                 int sleepCycle = Convert.ToInt32(samplingInterval, CultureInfo.InvariantCulture);
                 int timeToWait = sleepCycle;
@@ -474,20 +474,17 @@ namespace Opc.Ua.Server
 
                         if (timeToWait < 0)
                         {
-                            m_logger.LogWarning(
-                                "WARNING: SamplingGroup cannot sample fast enough. TimeToSample={Delay}ms, SamplingInterval={SleepCycle}ms",
-                                delay,
-                                sleepCycle);
+                            m_logger.WARNINGSamplingGroupCannotSampleFastEnoughTimeToSample(delay, sleepCycle);
                             timeToWait = sleepCycle;
                         }
                     }
                 }
 
-                m_logger.LogTrace("Server: {Name} Thread Exited Normally.", Thread.CurrentThread.Name);
+                m_logger.ServerNameThreadExitedNormally(Thread.CurrentThread.Name);
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Server: SampleMonitoredItems Thread Exited Unexpectedly.");
+                m_logger.ServerSampleMonitoredItemsThreadExitedUnexpectedly(e);
             }
         }
 
@@ -549,7 +546,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Server: Unexpected error sampling values.");
+                m_logger.ServerUnexpectedErrorSamplingValues(e);
             }
         }
 
@@ -569,4 +566,37 @@ namespace Opc.Ua.Server
         private readonly List<SamplingRateGroup> m_samplingRates;
         private Task? m_samplingTask;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SamplingGroup.
+    /// </summary>
+    internal static partial class SamplingGroupLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 0, Level = LogLevel.Trace,
+            Message = "Server: {Name} Thread Started.")]
+        public static partial void ServerNameThreadStarted(this ILogger logger, string? name);
+
+        [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 1, Level = LogLevel.Warning,
+            Message = "SamplingGroup cannot sample fast enough. TimeToSample={Delay}ms, " +
+                "SamplingInterval={SleepCycle}ms")]
+        public static partial void WARNINGSamplingGroupCannotSampleFastEnoughTimeToSample(
+            this ILogger logger,
+            double delay,
+            double sleepCycle);
+
+        [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 2, Level = LogLevel.Trace,
+            Message = "Server: {Name} Thread Exited Normally.")]
+        public static partial void ServerNameThreadExitedNormally(this ILogger logger, string? name);
+
+        [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 3, Level = LogLevel.Error,
+            Message = "Server: SampleMonitoredItems Thread Exited Unexpectedly.")]
+        public static partial void ServerSampleMonitoredItemsThreadExitedUnexpectedly(
+            this ILogger logger,
+            Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 4, Level = LogLevel.Error,
+            Message = "Server: Unexpected error sampling values.")]
+        public static partial void ServerUnexpectedErrorSamplingValues(this ILogger logger, Exception ex);
+    }
+
 }

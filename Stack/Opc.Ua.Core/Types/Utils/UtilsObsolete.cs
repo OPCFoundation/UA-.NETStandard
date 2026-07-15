@@ -168,7 +168,8 @@ namespace Opc.Ua
             int traceMask,
             Func<TState, Exception?, string> formatter)
         {
-            LoggerProvider.Log(state, exception, traceMask, formatter);
+            LoggerProvider.
+                Log(state, exception, traceMask, formatter);
         }
 
         /// <summary>
@@ -715,7 +716,7 @@ namespace Opc.Ua
             catch (Exception e) when (!throwOnError)
             {
                 ILogger logger = AmbientMessageContext.Telemetry.CreateLogger("Utils");
-                logger.LogError(e, "Could not get absolute path for {FileName}", filePath);
+                logger.UtilsObsoleteLogMessage0(e, filePath);
                 return null;
             }
         }
@@ -767,7 +768,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     ILogger logger = AmbientMessageContext.Telemetry.CreateLogger("Utils");
-                    logger.LogDebug(e, "Could not find installed file: {FileName}", fileName);
+                    logger.UtilsObsoleteLogMessage1(e, fileName);
                 }
 
                 if (path != null)
@@ -909,4 +910,25 @@ namespace Opc.Ua
             LoggerProvider.TraceWriteLine(message.ToString());
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for UtilsObsolete.
+    /// </summary>
+    internal static partial class UtilsObsoleteLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.UtilsObsolete + 0, Level = LogLevel.Error,
+            Message = "Could not get absolute path for {FileName}")]
+        public static partial void UtilsObsoleteLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string fileName);
+
+        [LoggerMessage(EventId = CoreEventIds.UtilsObsolete + 1, Level = LogLevel.Debug,
+            Message = "Could not find installed file: {FileName}")]
+        public static partial void UtilsObsoleteLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string fileName);
+    }
+
 }

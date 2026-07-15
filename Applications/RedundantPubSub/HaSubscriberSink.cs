@@ -64,10 +64,11 @@ namespace RedundantPubSub
         public ValueTask WriteAsync(IReadOnlyList<DataSetField> fields, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            m_logger.LogInformation(
-                "DataSet with {FieldCount} field(s) received: {FieldNames}.",
-                fields.Count,
-                FormatFieldNames(fields));
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.DataSetReceived(fields.Count, FormatFieldNames(fields));
+            }
+
             return ValueTask.CompletedTask;
         }
 
@@ -90,5 +91,12 @@ namespace RedundantPubSub
         }
 
         private readonly ILogger<HaSubscriberSink> m_logger;
+    }
+
+    internal static partial class HaSubscriberSinkLog
+    {
+        [LoggerMessage(EventId = RedundantPubSubEventIds.HaSubscriberSink + 0, Level = LogLevel.Information,
+            Message = "DataSet with {FieldCount} field(s) received: {FieldNames}.")]
+        public static partial void DataSetReceived(this ILogger logger, int fieldCount, string fieldNames);
     }
 }

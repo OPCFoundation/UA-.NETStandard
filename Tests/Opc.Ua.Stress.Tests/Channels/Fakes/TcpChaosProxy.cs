@@ -271,7 +271,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "TCP chaos proxy connection {ConnectionId} closed.", connection.Id);
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.LogDebug(ex, "TCP chaos proxy connection {ConnectionId} closed.", connection.Id);
+                }
             }
             finally
             {

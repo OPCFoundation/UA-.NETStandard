@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.ModelChange
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "ModelChangeTracker pump failed");
+                m_logger.ModelChangeTrackerPumpFailed(ex);
             }
         }
 
@@ -233,7 +233,7 @@ namespace Opc.Ua.Client.ModelChange
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "ModelChangeTracker failed to invalidate cache");
+                m_logger.ModelChangeTrackerFailedInvalidateCache(ex);
             }
 
             try
@@ -243,7 +243,7 @@ namespace Opc.Ua.Client.ModelChange
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "ModelChangeTracker subscriber threw");
+                m_logger.ModelChangeTrackerSubscriberThrew(ex);
             }
         }
 
@@ -260,4 +260,23 @@ namespace Opc.Ua.Client.ModelChange
             m_nodeCache.InvalidateNode(change.AffectedNode);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ModelChangeTracker"/>.
+    /// </summary>
+    internal static partial class ModelChangeTrackerLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ModelChangeTracker + 0, Level = LogLevel.Error,
+            Message = "ModelChangeTracker pump failed")]
+        public static partial void ModelChangeTrackerPumpFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ModelChangeTracker + 1, Level = LogLevel.Warning,
+            Message = "ModelChangeTracker failed to invalidate cache")]
+        public static partial void ModelChangeTrackerFailedInvalidateCache(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ModelChangeTracker + 2, Level = LogLevel.Error,
+            Message = "ModelChangeTracker subscriber threw")]
+        public static partial void ModelChangeTrackerSubscriberThrew(this ILogger logger, Exception? exception);
+    }
+
 }

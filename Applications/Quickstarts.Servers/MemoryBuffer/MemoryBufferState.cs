@@ -33,6 +33,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Quickstarts.Servers;
 
 namespace MemoryBuffer
 {
@@ -549,7 +550,7 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                m_logger.LogWarning("{StateName} SAMPLING DELAY ({Delta}ms)", nameof(MemoryBufferState), delta1);
+                m_logger.SamplingDelay(nameof(MemoryBufferState), delta1);
             }
         }
 
@@ -662,10 +663,10 @@ namespace MemoryBuffer
 
             lock (m_dataLock)
             {
-                if (m_itemCount > 0 && m_updateCount < m_itemCount)
+                if (m_itemCount > 0 && m_updateCount < m_itemCount &&
+                    m_logger.IsEnabled(LogLevel.Information))
                 {
-                    m_logger.LogInformation(
-                        "{Now:HH:mm:ss.fff} MEMORYBUFFER Reported  {UpdateCount}/{ItemCount} items ***.",
+                    m_logger.MemoryBufferReported(
                         DateTimeUtc.Now.ToLocalTime(),
                         m_updateCount,
                         m_itemCount);
@@ -680,10 +681,7 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                m_logger.LogInformation(
-                    "{StateName} ****** PUBLISH DELAY ({Delta}ms) ******",
-                    nameof(MemoryBufferState),
-                    delta1);
+                m_logger.PublishDelay(nameof(MemoryBufferState), delta1);
             }
         }
 
@@ -698,4 +696,27 @@ namespace MemoryBuffer
         private int m_updateCount;
         private int m_itemCount;
     }
+
+    internal static partial class MemoryBufferStateLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.MemoryBufferState + 0, Level = LogLevel.Warning,
+            Message = "{StateName} SAMPLING DELAY ({Delta}ms)")]
+        public static partial void SamplingDelay(this ILogger logger, string stateName, double delta);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.MemoryBufferState + 1, Level = LogLevel.Information,
+            Message = "{Now:HH:mm:ss.fff} MEMORYBUFFER Reported  {UpdateCount}/{ItemCount} items ***.")]
+        public static partial void MemoryBufferReported(
+            this ILogger logger,
+            DateTime now,
+            int updateCount,
+            int itemCount);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.MemoryBufferState + 2, Level = LogLevel.Information,
+            Message = "{StateName} ****** PUBLISH DELAY ({Delta}ms) ******")]
+        public static partial void PublishDelay(this ILogger logger, string stateName, double delta);
+    }
+
 }

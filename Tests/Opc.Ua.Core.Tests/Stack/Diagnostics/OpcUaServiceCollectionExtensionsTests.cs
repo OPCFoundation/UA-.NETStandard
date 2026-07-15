@@ -35,6 +35,7 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Stack.Diagnostics
 {
@@ -79,6 +80,35 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
 
             Assert.That(afterFirst, Is.EqualTo(1));
             Assert.That(afterSecond, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddOpcUaIsIdempotentForBufferManagerFactory()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa();
+            int factoriesAfterFirst = CountDescriptorsFor<IBufferManagerFactory>(services);
+            int optionsAfterFirst = CountDescriptorsFor<BufferManagerFactoryOptions>(services);
+            services.AddOpcUa();
+
+            Assert.That(factoriesAfterFirst, Is.EqualTo(1));
+            Assert.That(optionsAfterFirst, Is.EqualTo(1));
+            Assert.That(CountDescriptorsFor<IBufferManagerFactory>(services), Is.EqualTo(1));
+            Assert.That(CountDescriptorsFor<BufferManagerFactoryOptions>(services), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddOpcUaDoesNotOverrideExistingBufferManagerFactory()
+        {
+            var services = new ServiceCollection();
+            var custom = new BufferManagerFactoryStub();
+            services.AddSingleton<IBufferManagerFactory>(custom);
+
+            services.AddOpcUa();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetRequiredService<IBufferManagerFactory>(), Is.SameAs(custom));
         }
 
         [Test]
@@ -228,6 +258,17 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
             public Meter CreateMeter()
             {
                 return new("Stub");
+            }
+        }
+
+        private sealed class BufferManagerFactoryStub : IBufferManagerFactory
+        {
+            public IBufferManager Create(
+                string name,
+                int maxBufferSize,
+                ITelemetryContext telemetry)
+            {
+                return new FastBufferManager(name, maxBufferSize, telemetry);
             }
         }
     }

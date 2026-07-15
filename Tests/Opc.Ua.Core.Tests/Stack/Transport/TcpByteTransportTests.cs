@@ -191,6 +191,30 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task UpdatedReceiveBufferSizeRejectsOversizeChunk()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                ((IUaSCByteTransportLimits)client).SetReceiveBufferSize(16);
+                byte[] header = new byte[8];
+                BitConverter.GetBytes(TcpMessageType.Hello).CopyTo(header, 0);
+                BitConverter.GetBytes(17).CopyTo(header, 4);
+                await serverSocket
+                    .SendAsync(new ArraySegment<byte>(header), SocketFlags.None)
+                    .ConfigureAwait(false);
+
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await client.ReceiveChunkAsync(CancellationToken.None)
+                        .ConfigureAwait(false))!;
+                Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
+            }
+        }
+
+        [Test]
         public async Task ReceiveChunkAsyncReportsRemoteCloseAsBadConnectionClosed()
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =

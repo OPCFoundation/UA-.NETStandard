@@ -174,12 +174,14 @@ namespace Opc.Ua.Bindings
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
-            m_logger.LogInformation(
-                "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
-                Id,
-                token.CreatedAt,
-                token.CreatedAtTimestamp,
-                token.Lifetime);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCChannelLog9(
+                    Id,
+                    token.CreatedAt,
+                    token.CreatedAtTimestamp,
+                    token.Lifetime);
+            }
 
             return token;
         }
@@ -199,13 +201,15 @@ namespace Opc.Ua.Bindings
 
             TokenActivatedCallback?.Invoke(token, PreviousToken);
 
-            m_logger.LogInformation(
-                "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
-                Id,
-                token.TokenId,
-                token.CreatedAt,
-                token.CreatedAtTimestamp,
-                token.Lifetime);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCChannelLog10(
+                    Id,
+                    token.TokenId,
+                    token.CreatedAt,
+                    token.CreatedAtTimestamp,
+                    token.Lifetime);
+            }
         }
 
         /// <summary>
@@ -215,13 +219,15 @@ namespace Opc.Ua.Bindings
         {
             RenewedToken?.Dispose();
             RenewedToken = token;
-            m_logger.LogInformation(
-                "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
-                Id,
-                token.TokenId,
-                token.CreatedAt,
-                token.CreatedAtTimestamp,
-                token.Lifetime);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.UaSCChannelLog11(
+                    Id,
+                    token.TokenId,
+                    token.CreatedAt,
+                    token.CreatedAtTimestamp,
+                    token.Lifetime);
+            }
         }
 
         /// <summary>
@@ -411,8 +417,11 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                // SendBufferSize is normalized when the channel is created or negotiated.
+                int sendBufferSize = SendBufferSize;
+
                 // calculate chunk sizes.
-                int maxCipherTextSize = SendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
+                int maxCipherTextSize = sendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
                 int maxCipherBlocks = maxCipherTextSize / EncryptionBlockSize;
                 int maxPlainTextSize = maxCipherBlocks * EncryptionBlockSize;
 
@@ -435,7 +444,7 @@ namespace Opc.Ua.Bindings
                 // write the body to stream.
                 using var ostrm = new ArraySegmentStream(
                     BufferManager,
-                    SendBufferSize,
+                    sendBufferSize,
                     headerSize,
                     maxPayloadSize);
 
@@ -470,7 +479,7 @@ namespace Opc.Ua.Bindings
                 if (chunksToProcess.Count == 0)
                 {
                     byte[] buffer = BufferManager.TakeBuffer(
-                        SendBufferSize,
+                        sendBufferSize,
                         "WriteSymmetricMessage");
 
                     chunksToProcess.Add(new ArraySegment<byte>(buffer, 0, 0));
@@ -494,7 +503,7 @@ namespace Opc.Ua.Bindings
                     }
 
 #pragma warning disable CA2000 // Stream is disposed by the BinaryEncoder (leaveOpen: false)
-                    var strm = new MemoryStream(chunkArray, 0, SendBufferSize);
+                    var strm = new MemoryStream(chunkArray, 0, sendBufferSize);
                     using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
 #pragma warning restore CA2000
 
@@ -673,10 +682,7 @@ namespace Opc.Ua.Bindings
                 CurrentToken.IsActivationRequired(TimeProvider))
             {
                 ActivateToken(RenewedToken);
-                m_logger.LogInformation(
-                    "ChannelId {Id}: Token #{TokenId} activated forced.",
-                    Id,
-                    CurrentToken.TokenId);
+                m_logger.UaSCChannelLog12(Id, CurrentToken.TokenId);
             }
 
             // check for valid token.

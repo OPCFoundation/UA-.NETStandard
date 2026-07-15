@@ -420,8 +420,7 @@ namespace Opc.Ua.PubSub.Connections
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex,
-                    "Failed to create transport for {Conn}.", Name);
+                m_logger.FailedToCreateTransport(ex, Name);
                 _ = State.TryFault(StatusCodes.BadResourceUnavailable);
                 throw;
             }
@@ -558,7 +557,7 @@ namespace Opc.Ua.PubSub.Connections
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex, "Transport close failed.");
+                    m_logger.TransportCloseFailed(ex);
                 }
                 await transport.DisposeAsync().ConfigureAwait(false);
             }
@@ -875,8 +874,7 @@ namespace Opc.Ua.PubSub.Connections
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(ex,
-                        "Received-message sink threw on connection '{Connection}'.", Name);
+                    m_logger.ReceivedMessageSinkThrew(ex, Name);
                 }
             }
         }
@@ -895,9 +893,7 @@ namespace Opc.Ua.PubSub.Connections
             INetworkMessageDecoder? decoder = ResolveDecoder();
             if (decoder is null)
             {
-                m_logger.LogWarning(
-                    "No decoder registered for {Profile}; receive disabled.",
-                    TransportProfileUri);
+                m_logger.NoDecoderRegistered(TransportProfileUri);
                 return;
             }
             var context = new PubSubNetworkMessageContext(
@@ -938,8 +934,7 @@ namespace Opc.Ua.PubSub.Connections
                                 // must not terminate the receive loop.
                                 m_diagnostics.Increment(
                                     PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.LogWarning(ex,
-                                    "Inbound UADP chunk reassembly threw; dropping frame.");
+                                m_logger.InboundUadpChunkReassemblyThrew(ex);
                                 continue;
                             }
                             if (reassembled is null)
@@ -973,9 +968,7 @@ namespace Opc.Ua.PubSub.Connections
                                 // without terminating the receive loop.
                                 m_diagnostics.Increment(
                                     PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.LogWarning(
-                                    "Reassembled UADP payload is not a valid " +
-                                    "non-chunk NetworkMessage; dropping frame.");
+                                m_logger.ReassembledUadpPayloadInvalid();
                                 continue;
                             }
                         }
@@ -993,11 +986,7 @@ namespace Opc.Ua.PubSub.Connections
                                     StatusCodes.BadSecurityModeRejected,
                                     "Inbound frame is not secured to the reader's " +
                                     "configured SecurityMode.");
-                                m_logger.LogWarning(
-                                    "Dropping unsecured inbound frame on connection " +
-                                    "'{Connection}' requiring {Mode}.",
-                                    Name,
-                                    m_requiredSecurityMode);
+                                m_logger.DroppingUnsecuredInboundFrame(Name, m_requiredSecurityMode);
                                 continue;
                             }
                             ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
@@ -1045,11 +1034,7 @@ namespace Opc.Ua.PubSub.Connections
                         // must not amplify into high-volume warning logs. The
                         // security-failure counter incremented above is the
                         // rate-safe operational signal.
-                        m_logger.LogDebug(
-                            "Dropping non-UADP inbound frame on connection " +
-                            "'{Connection}' requiring {Mode}.",
-                            Name,
-                            m_requiredSecurityMode);
+                        m_logger.DroppingNonUadpInboundFrame(Name, m_requiredSecurityMode);
                         continue;
                     }
 
@@ -1065,8 +1050,7 @@ namespace Opc.Ua.PubSub.Connections
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(ex,
-                            "Decoder threw on inbound frame.");
+                        m_logger.DecoderThrewOnInboundFrame(ex);
                         continue;
                     }
                     if (message is null)
@@ -1122,8 +1106,7 @@ namespace Opc.Ua.PubSub.Connections
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogError(ex,
-                                "Reader group {Group} dispatch threw.", rg.Name);
+                            m_logger.ReaderGroupDispatchThrew(ex, rg.Name);
                         }
                     }
                 }
@@ -1133,7 +1116,7 @@ namespace Opc.Ua.PubSub.Connections
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Receive loop terminated.");
+                m_logger.ReceiveLoopTerminated(ex);
             }
         }
 
@@ -1222,24 +1205,18 @@ namespace Opc.Ua.PubSub.Connections
                 current?.ConfigurationVersion is { } currentVersion &&
                 currentVersion.MajorVersion > key.MajorVersion)
             {
-                logger?.LogWarning(
-                    "Discarding stale inbound metadata for writer {WriterId}: incoming major {Incoming} < registered major {Existing}.",
-                    writerId, key.MajorVersion, currentVersion.MajorVersion);
+                logger?.DiscardingStaleInboundMetadata(writerId, key.MajorVersion, currentVersion.MajorVersion);
                 return true;
             }
 
             try
             {
                 registry.Register(in key, meta);
-                logger?.LogDebug(
-                    "Registered inbound metadata for writer {WriterId} (major {Major}).",
-                    writerId, key.MajorVersion);
+                logger?.RegisteredInboundMetadata(writerId, key.MajorVersion);
             }
             catch (Exception ex)
             {
-                logger?.LogError(ex,
-                    "Inbound metadata registration failed for writer {WriterId}.",
-                    writerId);
+                logger?.InboundMetadataRegistrationFailed(ex, writerId);
             }
             return true;
         }
@@ -1652,10 +1629,7 @@ namespace Opc.Ua.PubSub.Connections
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex,
-                    "Action handler for writer {WriterId}, target {TargetId} threw.",
-                    invocation.Target.DataSetWriterId,
-                    invocation.Target.ActionTargetId);
+                m_logger.ActionHandlerThrew(ex, invocation.Target.DataSetWriterId, invocation.Target.ActionTargetId);
                 return new PubSubActionHandlerResult
                 {
                     StatusCode = StatusCodes.BadUnexpectedError
@@ -2296,9 +2270,7 @@ namespace Opc.Ua.PubSub.Connections
             INetworkMessageEncoder? encoder = ResolveEncoder();
             if (encoder is null)
             {
-                m_logger.LogWarning(
-                    "No encoder registered for {Profile}; publish skipped.",
-                    TransportProfileUri);
+                m_logger.NoEncoderRegistered(TransportProfileUri);
                 return;
             }
             var context = new PubSubNetworkMessageContext(
@@ -2327,11 +2299,7 @@ namespace Opc.Ua.PubSub.Connections
                     StatusCodes.BadSecurityModeRejected,
                     "Refusing to publish an unsecured NetworkMessage on a connection " +
                     "configured for message security.");
-                m_logger.LogError(
-                    "Dropping outbound message on connection '{Connection}': " +
-                    "configured SecurityMode {Mode} cannot be applied to this message.",
-                    Name,
-                    m_requiredSecurityMode);
+                m_logger.DroppingOutboundMessage(Name, m_requiredSecurityMode);
                 return;
             }
             else
@@ -2424,9 +2392,7 @@ namespace Opc.Ua.PubSub.Connections
             }
             if (transport is null)
             {
-                m_logger.LogWarning(
-                    "No transport open on connection '{Connection}'; transcoded frame dropped.",
-                    Name);
+                m_logger.NoTransportOpen(Name);
                 return;
             }
             if (m_maxNetworkMessageSize > 0 &&
@@ -2478,7 +2444,7 @@ namespace Opc.Ua.PubSub.Connections
                 m_diagnostics.RecordError(
                     StatusCodes.BadSecurityChecksFailed,
                     $"UADP security wrap failed: {ex.Message}");
-                m_logger.LogError(ex, "UADP security wrap failed; dropping message.");
+                m_logger.UadpSecurityWrapFailed(ex);
                 throw;
             }
         }
@@ -2596,11 +2562,7 @@ namespace Opc.Ua.PubSub.Connections
                         StatusCodes.BadSecurityModeRejected,
                         "Inbound frame security level is lower than the reader's " +
                         "configured SecurityMode.");
-                    m_logger.LogWarning(
-                        "Dropping inbound frame on connection '{Connection}': " +
-                        "security level below required {Mode}.",
-                        Name,
-                        requiredMode);
+                    m_logger.DroppingInboundFrameSecurityBelowRequired(Name, requiredMode);
                     return null;
                 }
 
@@ -2618,7 +2580,7 @@ namespace Opc.Ua.PubSub.Connections
             catch (Exception ex)
             {
                 RecordSecurityFailure(StatusCodes.BadSecurityChecksFailed, ex.Message);
-                m_logger.LogError(ex, "UADP unwrap threw on inbound frame.");
+                m_logger.UadpUnwrapThrewOnInboundFrame(ex);
                 return null;
             }
         }
@@ -2990,4 +2952,126 @@ namespace Opc.Ua.PubSub.Connections
             m_reassembler.Dispose();
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PubSubConnection"/>.
+    /// </summary>
+    internal static partial class PubSubConnectionLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 0, Level = LogLevel.Error,
+            Message = "Failed to create transport for {Conn}.")]
+        public static partial void FailedToCreateTransport(this ILogger logger, Exception exception, string conn);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 1, Level = LogLevel.Error,
+            Message = "Transport close failed.")]
+        public static partial void TransportCloseFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 2, Level = LogLevel.Error,
+            Message = "Received-message sink threw on connection '{Connection}'.")]
+        public static partial void ReceivedMessageSinkThrew(
+            this ILogger logger,
+            Exception exception,
+            string connection);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 3, Level = LogLevel.Warning,
+            Message = "No decoder registered for {Profile}; receive disabled.")]
+        public static partial void NoDecoderRegistered(this ILogger logger, string profile);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 4, Level = LogLevel.Warning,
+            Message = "Inbound UADP chunk reassembly threw; dropping frame.")]
+        public static partial void InboundUadpChunkReassemblyThrew(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 5, Level = LogLevel.Warning,
+            Message = "Reassembled UADP payload is not a valid non-chunk NetworkMessage; dropping frame.")]
+        public static partial void ReassembledUadpPayloadInvalid(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 6, Level = LogLevel.Warning,
+            Message = "Dropping unsecured inbound frame on connection '{Connection}' requiring {Mode}.")]
+        public static partial void DroppingUnsecuredInboundFrame(
+            this ILogger logger,
+            string connection,
+            MessageSecurityMode mode);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 7, Level = LogLevel.Debug,
+            Message = "Dropping non-UADP inbound frame on connection '{Connection}' requiring {Mode}.")]
+        public static partial void DroppingNonUadpInboundFrame(
+            this ILogger logger,
+            string connection,
+            MessageSecurityMode mode);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 8, Level = LogLevel.Error,
+            Message = "Decoder threw on inbound frame.")]
+        public static partial void DecoderThrewOnInboundFrame(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 9, Level = LogLevel.Error,
+            Message = "Reader group {Group} dispatch threw.")]
+        public static partial void ReaderGroupDispatchThrew(
+            this ILogger logger,
+            Exception exception,
+            string group);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 10, Level = LogLevel.Error,
+            Message = "Receive loop terminated.")]
+        public static partial void ReceiveLoopTerminated(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 11, Level = LogLevel.Warning,
+            Message = "Discarding stale inbound metadata for writer {WriterId}: incoming major {Incoming} < " +
+                "registered major {Existing}.")]
+        public static partial void DiscardingStaleInboundMetadata(
+            this ILogger logger,
+            ushort writerId,
+            uint incoming,
+            uint existing);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 12, Level = LogLevel.Debug,
+            Message = "Registered inbound metadata for writer {WriterId} (major {Major}).")]
+        public static partial void RegisteredInboundMetadata(this ILogger logger, ushort writerId, uint major);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 13, Level = LogLevel.Error,
+            Message = "Inbound metadata registration failed for writer {WriterId}.")]
+        public static partial void InboundMetadataRegistrationFailed(
+            this ILogger logger,
+            Exception exception,
+            ushort writerId);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 14, Level = LogLevel.Error,
+            Message = "Action handler for writer {WriterId}, target {TargetId} threw.")]
+        public static partial void ActionHandlerThrew(
+            this ILogger logger,
+            Exception exception,
+            ushort writerId,
+            ushort targetId);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 15, Level = LogLevel.Warning,
+            Message = "No encoder registered for {Profile}; publish skipped.")]
+        public static partial void NoEncoderRegistered(this ILogger logger, string profile);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 16, Level = LogLevel.Error,
+            Message = "Dropping outbound message on connection '{Connection}': configured SecurityMode {Mode} " +
+                "cannot be applied to this message.")]
+        public static partial void DroppingOutboundMessage(
+            this ILogger logger,
+            string connection,
+            MessageSecurityMode mode);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 17, Level = LogLevel.Warning,
+            Message = "No transport open on connection '{Connection}'; transcoded frame dropped.")]
+        public static partial void NoTransportOpen(this ILogger logger, string connection);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 18, Level = LogLevel.Error,
+            Message = "UADP security wrap failed; dropping message.")]
+        public static partial void UadpSecurityWrapFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 19, Level = LogLevel.Warning,
+            Message = "Dropping inbound frame on connection '{Connection}': security level below required {Mode}.")]
+        public static partial void DroppingInboundFrameSecurityBelowRequired(
+            this ILogger logger,
+            string connection,
+            MessageSecurityMode mode);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 20, Level = LogLevel.Error,
+            Message = "UADP unwrap threw on inbound frame.")]
+        public static partial void UadpUnwrapThrewOnInboundFrame(this ILogger logger, Exception exception);
+    }
+
 }

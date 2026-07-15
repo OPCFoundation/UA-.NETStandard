@@ -31,6 +31,7 @@ using System;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Quickstarts.Servers;
 
 namespace Alarms
 {
@@ -61,7 +62,7 @@ namespace Alarms
                 maxShelveTime,
                 false)
         {
-            m_logger.LogTrace("{Name} Discrete Constructor Optional = {Optional}", name, optional);
+            m_logger.DiscreteConstructorOptional(name, optional);
             if (create)
             {
                 Initialize(ObjectTypes.DiscreteAlarmType, name, maxShelveTime);
@@ -98,4 +99,13 @@ namespace Alarms
             base.SetValue(message);
         }
     }
+
+    internal static partial class DiscreteHolderLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.DiscreteHolder + 0, Level = LogLevel.Trace,
+            Message = "{Name} Discrete Constructor Optional = {Optional}")]
+        public static partial void DiscreteConstructorOptional(this ILogger logger, string name, bool optional);
+    }
+
 }

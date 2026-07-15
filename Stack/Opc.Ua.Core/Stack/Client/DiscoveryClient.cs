@@ -767,9 +767,7 @@ namespace Opc.Ua
                     Uri? discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
                     if (discoveryEndPointUri == null)
                     {
-                        m_logger.LogWarning(
-                            "Discovery endpoint contains invalid Url: {EndpointUrl}",
-                            discoveryEndPoint.EndpointUrl);
+                        m_logger.DiscoveryClientLogMessage0(discoveryEndPoint.EndpointUrl);
                         continue;
                     }
 
@@ -801,4 +799,15 @@ namespace Opc.Ua
                 !string.Equals(discoveryUrls[0], endpointUrl, StringComparison.Ordinal);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for DiscoveryClient.
+    /// </summary>
+    internal static partial class DiscoveryClientLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.DiscoveryClient + 0, Level = LogLevel.Warning,
+            Message = "Discovery endpoint contains invalid Url: {EndpointUrl}")]
+        public static partial void DiscoveryClientLogMessage0(this ILogger logger, string? endpointUrl);
+    }
+
 }

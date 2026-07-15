@@ -74,15 +74,14 @@ namespace Opc.Ua.PubSub.Server
 
             if (action.ActionTargets.IsNull || action.ActionMethods.IsNull)
             {
-                logger.LogWarning("PublishedActionMethod binding skipped because targets or methods are null.");
+                logger.PublishedActionMethodBindingSkippedNullTargetsOrMethods();
                 return;
             }
 
             int count = Math.Min(action.ActionTargets.Count, action.ActionMethods.Count);
             if (action.ActionTargets.Count != action.ActionMethods.Count)
             {
-                logger.LogWarning(
-                    "PublishedActionMethod binding count mismatch: {TargetCount} targets, {MethodCount} methods.",
+                logger.PublishedActionMethodBindingCountMismatch(
                     action.ActionTargets.Count,
                     action.ActionMethods.Count);
             }
@@ -93,7 +92,7 @@ namespace Opc.Ua.PubSub.Server
                 ActionMethodDataType actionMethod = action.ActionMethods[i];
                 if (actionTarget is null || actionMethod is null)
                 {
-                    logger.LogWarning("PublishedActionMethod binding {Index} skipped because metadata is null.", i);
+                    logger.PublishedActionMethodBindingSkippedNullMetadata(i);
                     continue;
                 }
 
@@ -111,11 +110,7 @@ namespace Opc.Ua.PubSub.Server
                 // identity (Anonymous here) govern whether the call is allowed.
                 if (isAnonymous)
                 {
-                    logger.LogWarning(
-                        "PubSub Action target '{ActionName}' (writer {WriterId}, target {TargetId}) " +
-                        "binds server Method {MethodId} on object {ObjectId} and will be invoked as " +
-                        "Anonymous over PubSub. Configure a service identity if the Method requires " +
-                        "user authentication or role-restricted RolePermissions.",
+                    logger.PubSubActionTargetInvokedAsAnonymous(
                         target.ActionName,
                         registration.DataSetWriterId,
                         actionTarget.ActionTargetId,
@@ -129,4 +124,38 @@ namespace Opc.Ua.PubSub.Server
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for PubSubActionMethodRegistrar.
+    /// </summary>
+    internal static partial class PubSubActionMethodRegistrarLog
+    {
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubActionMethodRegistrar + 0, Level = LogLevel.Warning,
+            Message = "PublishedActionMethod binding skipped because targets or methods are null.")]
+        public static partial void PublishedActionMethodBindingSkippedNullTargetsOrMethods(this ILogger logger);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubActionMethodRegistrar + 1, Level = LogLevel.Warning,
+            Message = "PublishedActionMethod binding count mismatch: {TargetCount} targets, {MethodCount} methods.")]
+        public static partial void PublishedActionMethodBindingCountMismatch(
+            this ILogger logger,
+            int targetCount,
+            int methodCount);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubActionMethodRegistrar + 2, Level = LogLevel.Warning,
+            Message = "PublishedActionMethod binding {Index} skipped because metadata is null.")]
+        public static partial void PublishedActionMethodBindingSkippedNullMetadata(this ILogger logger, int index);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubActionMethodRegistrar + 3, Level = LogLevel.Warning,
+            Message = "PubSub Action target '{ActionName}' (writer {WriterId}, target {TargetId}) binds server " +
+                "Method {MethodId} on object {ObjectId} and will be invoked as Anonymous over PubSub. Configure a " +
+                "service identity if the Method requires user authentication or role-restricted RolePermissions.")]
+        public static partial void PubSubActionTargetInvokedAsAnonymous(
+            this ILogger logger,
+            string actionName,
+            ushort writerId,
+            ushort targetId,
+            NodeId? methodId,
+            NodeId? objectId);
+    }
+
 }

@@ -84,8 +84,7 @@ namespace Opc.Ua.Redundancy.Server
             m_logger = server.Telemetry.CreateLogger<PeerDirectionPublishStartupTask>();
             if (string.IsNullOrEmpty(localServerUri))
             {
-                m_logger.LogWarning(
-                    "Load direction disabled: the local ServerUri is unavailable, so peers cannot be directed to this Server.");
+                m_logger.LoadDirectionDisabledLocalServerUriUnavailableForPeerDirection();
                 return;
             }
 
@@ -154,7 +153,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger?.LogDebug(ex, "Failed to publish the health ServiceLevel direction signal.");
+                m_logger?.FailedToPublishHealthServiceLevelDirectionSignal(ex);
             }
         }
 
@@ -171,7 +170,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger?.LogDebug(ex, "Failed to publish the load-weight direction signal.");
+                m_logger?.FailedToPublishLoadWeightDirectionSignal(ex);
             }
         }
 
@@ -193,4 +192,31 @@ namespace Opc.Ua.Redundancy.Server
         private int m_latestLoad;
         private int m_lastPublishedLoad;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PeerDirectionPublishStartupTask"/>.
+    /// </summary>
+    internal static partial class PeerDirectionPublishStartupTaskLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.PeerDirectionPublishStartupTask + 0,
+            Level = LogLevel.Warning,
+            Message = "Load direction disabled: the local ServerUri is unavailable, so peers cannot be directed to " +
+                "this Server.")]
+        public static partial void LoadDirectionDisabledLocalServerUriUnavailableForPeerDirection(this ILogger logger);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.PeerDirectionPublishStartupTask + 1,
+            Level = LogLevel.Debug,
+            Message = "Failed to publish the health ServiceLevel direction signal.")]
+        public static partial void FailedToPublishHealthServiceLevelDirectionSignal(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.PeerDirectionPublishStartupTask + 2,
+            Level = LogLevel.Debug,
+            Message = "Failed to publish the load-weight direction signal.")]
+        public static partial void FailedToPublishLoadWeightDirectionSignal(
+            this ILogger logger,
+            Exception exception);
+    }
+
 }

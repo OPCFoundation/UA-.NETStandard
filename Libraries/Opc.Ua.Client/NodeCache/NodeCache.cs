@@ -525,8 +525,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(
-                    "Could not find node {NodeId}: {Error}",
+                m_logger.CouldNotFindNodeNodeIdError(
                     nodeId,
                     Redact.Create(e));
                 return null;
@@ -610,8 +609,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(
-                    "Could not fetch references for node {NodeId}: {Error}",
+                m_logger.CouldNotFetchReferencesNodeNodeId(
                     localId,
                     Redact.Create(e));
             }
@@ -639,8 +637,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                m_logger.LogError(
-                    "Could not fetch node {NodeId}: {Error}",
+                m_logger.CouldNotFetchNodeNodeIdError(
                     nodeId,
                     Redact.Create(e));
                 return null;
@@ -1206,4 +1203,32 @@ namespace Opc.Ua.Client
         private readonly Meter m_meter;
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="NodeCache"/>.
+    /// </summary>
+    internal static partial class NodeCacheLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.NodeCache + 0, Level = LogLevel.Error,
+            Message = "Could not find node {NodeId}: {Error}")]
+        public static partial void CouldNotFindNodeNodeIdError(
+            this ILogger logger,
+            ExpandedNodeId nodeId,
+            RedactionWrapper<Exception> error);
+
+        [LoggerMessage(EventId = ClientEventIds.NodeCache + 1, Level = LogLevel.Error,
+            Message = "Could not fetch references for node {NodeId}: {Error}")]
+        public static partial void CouldNotFetchReferencesNodeNodeId(
+            this ILogger logger,
+            NodeId nodeId,
+            RedactionWrapper<Exception> error);
+
+        [LoggerMessage(EventId = ClientEventIds.NodeCache + 2, Level = LogLevel.Error,
+            Message = "Could not fetch node {NodeId}: {Error}")]
+        public static partial void CouldNotFetchNodeNodeIdError(
+            this ILogger logger,
+            ExpandedNodeId nodeId,
+            RedactionWrapper<Exception> error);
+    }
+
 }

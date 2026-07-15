@@ -90,14 +90,34 @@ namespace Opc.Ua.Bindings
         /// Create a new WSS transport channel.
         /// </summary>
         public WssTransportChannel(ITelemetryContext telemetry)
-            : this(new WebSocketClientByteTransportFactory(telemetry), telemetry)
+            : this(telemetry, DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a WSS channel with the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use.</param>
+        /// <param name="bufferManagerFactory">Factory used to create channel buffer managers.</param>
+        public WssTransportChannel(
+            ITelemetryContext telemetry,
+            IBufferManagerFactory bufferManagerFactory)
+            : this(
+                new WebSocketClientByteTransportFactory(telemetry),
+                telemetry,
+                bufferManagerFactory)
         {
         }
 
         private WssTransportChannel(
             WebSocketClientByteTransportFactory factory,
-            ITelemetryContext telemetry)
-            : base(factory, telemetry)
+            ITelemetryContext telemetry,
+            IBufferManagerFactory bufferManagerFactory)
+            : base(
+                factory,
+                telemetry,
+                timeProvider: null,
+                bufferManagerFactory: bufferManagerFactory)
         {
             m_factory = factory;
         }
@@ -123,14 +143,34 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class WssTransportChannelFactory : ITransportChannelFactory
     {
+        /// <summary>
+        /// Creates a factory using the default buffer-manager factory.
+        /// </summary>
+        public WssTransportChannelFactory()
+            : this(DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory using the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="bufferManagerFactory">Factory used to create channel buffer managers.</param>
+        public WssTransportChannelFactory(IBufferManagerFactory bufferManagerFactory)
+        {
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new System.ArgumentNullException(nameof(bufferManagerFactory));
+        }
+
         /// <inheritdoc/>
         public string UriScheme => Utils.UriSchemeWss;
 
         /// <inheritdoc/>
         public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new WssTransportChannel(telemetry);
+            return new WssTransportChannel(telemetry, m_bufferManagerFactory);
         }
+
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
     }
 
     /// <summary>
@@ -139,13 +179,33 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class OpcWssTransportChannelFactory : ITransportChannelFactory
     {
+        /// <summary>
+        /// Creates a factory using the default buffer-manager factory.
+        /// </summary>
+        public OpcWssTransportChannelFactory()
+            : this(DefaultBufferManagerFactory.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory using the specified buffer-manager factory.
+        /// </summary>
+        /// <param name="bufferManagerFactory">Factory used to create channel buffer managers.</param>
+        public OpcWssTransportChannelFactory(IBufferManagerFactory bufferManagerFactory)
+        {
+            m_bufferManagerFactory = bufferManagerFactory ??
+                throw new System.ArgumentNullException(nameof(bufferManagerFactory));
+        }
+
         /// <inheritdoc/>
         public string UriScheme => Utils.UriSchemeOpcWss;
 
         /// <inheritdoc/>
         public ITransportChannel Create(ITelemetryContext telemetry)
         {
-            return new WssTransportChannel(telemetry);
+            return new WssTransportChannel(telemetry, m_bufferManagerFactory);
         }
+
+        private readonly IBufferManagerFactory m_bufferManagerFactory;
     }
 }

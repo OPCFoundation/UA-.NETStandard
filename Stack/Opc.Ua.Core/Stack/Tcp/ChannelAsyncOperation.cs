@@ -443,9 +443,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        m_logger.LogError(
-                            e,
-                            "ClientChannel: Unexpected error invoking AsyncCallback.");
+                        m_logger.ChannelAsyncOperationLogMessage0(e);
                     }
                 }
             }
@@ -467,4 +465,17 @@ namespace Opc.Ua.Bindings
         private ITimer? m_timer;
         private Dictionary<string, object>? m_properties;
     }
+
+    /// <summary>
+    /// Source-generated log messages for ChannelAsyncOperation.
+    /// </summary>
+    internal static partial class ChannelAsyncOperationLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ChannelAsyncOperation + 0, Level = LogLevel.Error,
+            Message = "ClientChannel: Unexpected error invoking AsyncCallback.")]
+        public static partial void ChannelAsyncOperationLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception);
+    }
+
 }

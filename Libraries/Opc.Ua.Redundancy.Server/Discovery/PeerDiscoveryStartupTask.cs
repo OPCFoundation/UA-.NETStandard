@@ -127,7 +127,7 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger?.LogWarning(ex, "Peer discovery refresh failed; retrying after the interval.");
+                    m_logger?.PeerDiscoveryRefreshFailed(ex);
                 }
 
                 try
@@ -149,4 +149,15 @@ namespace Opc.Ua.Redundancy.Server
         private ILogger? m_logger;
         private Task? m_loop;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PeerDiscoveryStartupTask"/>.
+    /// </summary>
+    internal static partial class PeerDiscoveryStartupTaskLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.PeerDiscoveryStartupTask + 0, Level = LogLevel.Warning,
+            Message = "Peer discovery refresh failed; retrying after the interval.")]
+        public static partial void PeerDiscoveryRefreshFailed(this ILogger logger, Exception exception);
+    }
+
 }

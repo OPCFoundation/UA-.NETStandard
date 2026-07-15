@@ -232,7 +232,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Subscription event handler raised an exception.");
+                    m_logger.SubscriptionEventHandlerRaisedAnException(e);
                 }
             }
         }
@@ -346,12 +346,12 @@ namespace Opc.Ua.Server
                     .StoreSubscriptionsAsync(subscriptionsToStore, cancellationToken)
                     .ConfigureAwait(false))
                 {
-                    m_logger.LogInformation("{Count} Subscriptions stored", subscriptionsToStore.Count);
+                    m_logger.CountSubscriptionsStored(subscriptionsToStore.Count);
                 }
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to store {Count} subscriptions", subscriptionsToStore.Count);
+                m_logger.FailedToStoreCountSubscriptions(ex, subscriptionsToStore.Count);
             }
         }
 
@@ -383,7 +383,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to restore subscriptions");
+                m_logger.FailedToRestoreSubscriptions(ex);
                 return;
             }
 
@@ -407,10 +407,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
-                        ex,
-                        "Failed to restore subscritption with id {SubscriptionId}",
-                        storedSubscription.Id);
+                    m_logger.FailedToRestoreSubscritptionWithIdSubscriptionId(ex, storedSubscription.Id);
                     continue;
                 }
 
@@ -559,9 +556,7 @@ namespace Opc.Ua.Server
                     // mark the subscriptions as abandoned.
                     else if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
                     {
-                        m_logger.LogWarning(
-                            "Subscription ABANDONED, Id={SubscriptionId}.",
-                            subscription.Id);
+                        m_logger.SubscriptionABANDONEDIdSubscriptionId(subscription.Id);
                     }
                 }
             }
@@ -652,16 +647,13 @@ namespace Opc.Ua.Server
         {
             try
             {
-                if (m_logger.IsEnabled(LogLevel.Trace))
-                {
-                    m_logger.LogTrace("Subscription ConditionRefresh started, Id={SubscriptionId}.", subscription.Id);
-                }
+                m_logger.SubscriptionConditionRefreshStartedIdSubscriptionId(subscription.Id);
                 await subscription.ConditionRefreshAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Subscription - DoConditionRefresh Exited Unexpectedly");
+                m_logger.SubscriptionDoConditionRefreshExitedUnexpectedly(e);
             }
         }
 
@@ -672,19 +664,13 @@ namespace Opc.Ua.Server
         {
             try
             {
-                if (m_logger.IsEnabled(LogLevel.Trace))
-                {
-                    m_logger.LogTrace(
-                        "Subscription ConditionRefresh2 started, Id={SubscriptionId}, MonitoredItemId={MonitoredItemId}.",
-                        subscription.Id,
-                        monitoredItemId);
-                }
+                m_logger.SubscriptionConditionRefresh2StartedIdSubscriptionId(subscription.Id, monitoredItemId);
                 await subscription.ConditionRefresh2Async(monitoredItemId, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Subscription - DoConditionRefresh2 Exited Unexpectedly");
+                m_logger.SubscriptionDoConditionRefresh2ExitedUnexpectedly(e);
             }
         }
 
@@ -723,9 +709,7 @@ namespace Opc.Ua.Server
                 // check for abandoned subscription.
                 if (m_abandonedSubscriptions.TryRemove(subscriptionId, out _))
                 {
-                    m_logger.LogWarning(
-                        "Subscription DELETED(ABANDONED), Id={SubscriptionId}.",
-                        subscriptionId);
+                    m_logger.SubscriptionDELETEDABANDONEDIdSubscriptionId(subscriptionId);
                 }
 
                 // remove subscription.
@@ -978,7 +962,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Error occurred in DeleteSubscriptions");
+                    m_logger.ErrorOccurredInDeleteSubscriptions(e);
 
                     var result = ServiceResult.Create(
                         e,
@@ -1077,10 +1061,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (m_logger.IsEnabled(LogLevel.Trace))
-                {
-                    m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
-                }
+                m_logger.PublishClientHandleReceivedFromClient(context.ClientHandle);
 
                 // check for any pending status messages that need to be sent.
                 if (ReturnPendingStatusMessage(context, out NotificationMessage statusMessage, out uint statusSubscriptionId))
@@ -1159,12 +1140,7 @@ namespace Opc.Ua.Server
                         }
 
                         requeue = true;
-                        if (m_logger.IsEnabled(LogLevel.Trace))
-                        {
-                            m_logger.LogTrace(
-                                "Publish False Alarm - Request #{ClientHandle} Requeued.",
-                                context.ClientHandle);
-                        }
+                        m_logger.PublishFalseAlarmRequestClientHandleRequeued(context.ClientHandle);
                     }
                     finally
                     {
@@ -1347,7 +1323,7 @@ namespace Opc.Ua.Server
                 {
                     if (e is not ServiceResultException)
                     {
-                        m_logger.LogError(e, "Error occurred in SetPublishingMode");
+                        m_logger.ErrorOccurredInSetPublishingMode(e);
                     }
 
                     var result = ServiceResult.Create(
@@ -1389,8 +1365,7 @@ namespace Opc.Ua.Server
             var results = new List<TransferResult>();
             var diagnosticInfos = new List<DiagnosticInfo>();
 
-            m_logger.LogInformation(
-                "TransferSubscriptions to SessionId={SessionId}, Count={Count}, sendInitialValues={SendInitialValues}",
+            m_logger.TransferSubscriptionsToSessionIdSessionIdCount(
                 context.Session.Id,
                 subscriptionIds.Count,
                 sendInitialValues);
@@ -1580,8 +1555,7 @@ namespace Opc.Ua.Server
                                         StatusCodes.GoodSubscriptionTransferred);
                                     if (!success)
                                     {
-                                        m_logger.LogWarning(
-                                            "Failed to queue Good_SubscriptionTransferred for SessionId {SessionId}, SubscriptionId {SubscriptionId} due to an empty request queue.",
+                                        m_logger.FailedToQueueGoodSubscriptionTransferredForSessionId(
                                             ownerSession.Id,
                                             subscription.Id);
                                     }
@@ -1614,10 +1588,7 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Add(null!);
                     }
 
-                    m_logger.LogInformation(
-                        "Transferred subscription Id {SubscriptionId} to SessionId {SessionId}",
-                        subscription.Id,
-                        context.Session!.Id);
+                    m_logger.TransferredSubscriptionIdSubscriptionIdToSessionId(subscription.Id, context.Session!.Id);
                 }
                 catch (Exception e)
                 {
@@ -2076,9 +2047,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.LogInformation(
-                    "Subscription - Publish Task {TaskId:X8} Started.",
-                    Task.CurrentId);
+                m_logger.SubscriptionPublishTaskTaskIdX8Started(Task.CurrentId);
 
                 int timeToWait = sleepCycle;
 
@@ -2125,9 +2094,7 @@ namespace Opc.Ua.Server
 
                             subscriptionsToDelete.Add(subscription);
                             SubscriptionExpired(subscription);
-                            m_logger.LogInformation(
-                                "Subscription - Abandoned Subscription Id={SubscriptionId} Delete Scheduled.",
-                                subscription.Id);
+                            m_logger.SubscriptionAbandonedSubscriptionIdSubscriptionId(subscription.Id);
                         }
 
                         // schedule cleanup on a background thread.
@@ -2144,9 +2111,7 @@ namespace Opc.Ua.Server
 
                     if (m_shutdownEvent.WaitOne(0))
                     {
-                        m_logger.LogInformation(
-                            "Subscription - Publish Task {TaskId:X8} Exited Normally.",
-                            Task.CurrentId);
+                        m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally(Task.CurrentId);
                         break;
                     }
 
@@ -2155,16 +2120,11 @@ namespace Opc.Ua.Server
             }
             catch (ObjectDisposedException)
             {
-                m_logger.LogInformation(
-                    "Subscription - Publish Task {TaskId:X8} Exited Normally (disposed during shutdown).",
-                    Task.CurrentId);
+                m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally2(Task.CurrentId);
             }
             catch (Exception e)
             {
-                m_logger.LogError(
-                    e,
-                    "Subscription - Publish Task {TaskId:X8} Exited Unexpectedly.",
-                    Task.CurrentId);
+                m_logger.SubscriptionPublishTaskTaskIdX8ExitedUnexpectedly(e, Task.CurrentId);
             }
         }
 
@@ -2175,9 +2135,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                m_logger.LogInformation(
-                    "Subscription - ConditionRefresh Task {TaskId:X8} Started.",
-                    Task.CurrentId);
+                m_logger.SubscriptionConditionRefreshTaskTaskIdX8Started(Task.CurrentId);
 
                 while (true)
                 {
@@ -2215,25 +2173,18 @@ namespace Opc.Ua.Server
                     // use shutdown event to end loop
                     if (m_shutdownEvent.WaitOne(0))
                     {
-                        m_logger.LogInformation(
-                            "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally.",
-                            Task.CurrentId);
+                        m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited(Task.CurrentId);
                         break;
                     }
                 }
             }
             catch (ObjectDisposedException)
             {
-                m_logger.LogInformation(
-                    "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally (disposed during shutdown).",
-                    Task.CurrentId);
+                m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited2(Task.CurrentId);
             }
             catch (Exception e)
             {
-                m_logger.LogError(
-                    e,
-                    "Subscription - ConditionRefresh Task {TaskId:X8} Exited Unexpectedly.",
-                    Task.CurrentId);
+                m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited3(e, Task.CurrentId);
             }
         }
 
@@ -2250,9 +2201,7 @@ namespace Opc.Ua.Server
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
-                logger.LogInformation(
-                    "Server - {Count} Subscriptions scheduled for delete.",
-                    subscriptionsToDelete.Count);
+                logger.ServerCountSubscriptionsScheduledForDelete(subscriptionsToDelete.Count);
 
                 _ = Task.Run(
                     () => CleanupSubscriptionsCoreAsync(server, subscriptionsToDelete, logger));
@@ -2270,18 +2219,18 @@ namespace Opc.Ua.Server
         {
             try
             {
-                logger.LogInformation("Server - CleanupSubscriptions Task Started");
+                logger.ServerCleanupSubscriptionsTaskStarted();
 
                 foreach (ISubscription subscription in subscriptionsToDelete)
                 {
                     await server.DeleteSubscriptionAsync(subscription.Id, cancellationToken).ConfigureAwait(false);
                 }
 
-                logger.LogInformation("Server - CleanupSubscriptions Task Completed");
+                logger.ServerCleanupSubscriptionsTaskCompleted();
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Server - CleanupSubscriptions Task Halted Unexpectedly");
+                logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
             }
         }
 
@@ -2359,4 +2308,166 @@ namespace Opc.Ua.Server
         private event SubscriptionEventHandler? m_SubscriptionCreated;
         private event SubscriptionEventHandler? m_SubscriptionDeleted;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SubscriptionManager.
+    /// </summary>
+    internal static partial class SubscriptionManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 0, Level = LogLevel.Error,
+            Message = "Subscription event handler raised an exception.")]
+        public static partial void SubscriptionEventHandlerRaisedAnException(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 1, Level = LogLevel.Information,
+            Message = "{Count} Subscriptions stored")]
+        public static partial void CountSubscriptionsStored(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 2, Level = LogLevel.Error,
+            Message = "Failed to store {Count} subscriptions")]
+        public static partial void FailedToStoreCountSubscriptions(this ILogger logger, Exception ex, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 3, Level = LogLevel.Error,
+            Message = "Failed to restore subscriptions")]
+        public static partial void FailedToRestoreSubscriptions(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 4, Level = LogLevel.Error,
+            Message = "Failed to restore subscritption with id {SubscriptionId}")]
+        public static partial void FailedToRestoreSubscritptionWithIdSubscriptionId(
+            this ILogger logger,
+            Exception ex,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 5, Level = LogLevel.Warning,
+            Message = "Subscription ABANDONED, Id={SubscriptionId}.")]
+        public static partial void SubscriptionABANDONEDIdSubscriptionId(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 6, Level = LogLevel.Trace,
+            Message = "Subscription ConditionRefresh started, Id={SubscriptionId}.")]
+        public static partial void SubscriptionConditionRefreshStartedIdSubscriptionId(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 7, Level = LogLevel.Error,
+            Message = "Subscription - DoConditionRefresh Exited Unexpectedly")]
+        public static partial void SubscriptionDoConditionRefreshExitedUnexpectedly(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 8, Level = LogLevel.Trace,
+            Message = "Subscription ConditionRefresh2 started, Id={SubscriptionId}, " +
+                "MonitoredItemId={MonitoredItemId}.")]
+        public static partial void SubscriptionConditionRefresh2StartedIdSubscriptionId(
+            this ILogger logger,
+            uint subscriptionId,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 9, Level = LogLevel.Error,
+            Message = "Subscription - DoConditionRefresh2 Exited Unexpectedly")]
+        public static partial void SubscriptionDoConditionRefresh2ExitedUnexpectedly(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 10, Level = LogLevel.Warning,
+            Message = "Subscription DELETED(ABANDONED), Id={SubscriptionId}.")]
+        public static partial void SubscriptionDELETEDABANDONEDIdSubscriptionId(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 11, Level = LogLevel.Error,
+            Message = "Error occurred in DeleteSubscriptions")]
+        public static partial void ErrorOccurredInDeleteSubscriptions(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 12, Level = LogLevel.Trace,
+            Message = "Publish #{ClientHandle} ReceivedFromClient")]
+        public static partial void PublishClientHandleReceivedFromClient(this ILogger logger, uint clientHandle);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 13, Level = LogLevel.Trace,
+            Message = "Publish False Alarm - Request #{ClientHandle} Requeued.")]
+        public static partial void PublishFalseAlarmRequestClientHandleRequeued(this ILogger logger, uint clientHandle);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 14, Level = LogLevel.Error,
+            Message = "Error occurred in SetPublishingMode")]
+        public static partial void ErrorOccurredInSetPublishingMode(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 15, Level = LogLevel.Information,
+            Message = "TransferSubscriptions to SessionId={SessionId}, Count={Count}, " +
+                "sendInitialValues={SendInitialValues}")]
+        public static partial void TransferSubscriptionsToSessionIdSessionIdCount(
+            this ILogger logger,
+            NodeId sessionId,
+            int count,
+            bool sendInitialValues);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 16, Level = LogLevel.Warning,
+            Message = "Failed to queue Good_SubscriptionTransferred for SessionId {SessionId}, SubscriptionId " +
+                "{SubscriptionId} due to an empty request queue.")]
+        public static partial void FailedToQueueGoodSubscriptionTransferredForSessionId(
+            this ILogger logger,
+            NodeId sessionId,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 17, Level = LogLevel.Information,
+            Message = "Transferred subscription Id {SubscriptionId} to SessionId {SessionId}")]
+        public static partial void TransferredSubscriptionIdSubscriptionIdToSessionId(
+            this ILogger logger,
+            uint subscriptionId,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 18, Level = LogLevel.Information,
+            Message = "Subscription - Publish Task {TaskId:X8} Started.")]
+        public static partial void SubscriptionPublishTaskTaskIdX8Started(this ILogger logger, int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 19, Level = LogLevel.Information,
+            Message = "Subscription - Abandoned Subscription Id={SubscriptionId} Delete Scheduled.")]
+        public static partial void SubscriptionAbandonedSubscriptionIdSubscriptionId(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 20, Level = LogLevel.Information,
+            Message = "Subscription - Publish Task {TaskId:X8} Exited Normally.")]
+        public static partial void SubscriptionPublishTaskTaskIdX8ExitedNormally(this ILogger logger, int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 21, Level = LogLevel.Information,
+            Message = "Subscription - Publish Task {TaskId:X8} Exited Normally (disposed during shutdown).")]
+        public static partial void SubscriptionPublishTaskTaskIdX8ExitedNormally2(this ILogger logger, int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 22, Level = LogLevel.Error,
+            Message = "Subscription - Publish Task {TaskId:X8} Exited Unexpectedly.")]
+        public static partial void SubscriptionPublishTaskTaskIdX8ExitedUnexpectedly(
+            this ILogger logger,
+            Exception ex,
+            int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 23, Level = LogLevel.Information,
+            Message = "Subscription - ConditionRefresh Task {TaskId:X8} Started.")]
+        public static partial void SubscriptionConditionRefreshTaskTaskIdX8Started(this ILogger logger, int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 24, Level = LogLevel.Information,
+            Message = "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally.")]
+        public static partial void SubscriptionConditionRefreshTaskTaskIdX8Exited(this ILogger logger, int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 25, Level = LogLevel.Information,
+            Message = "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally (disposed during shutdown).")]
+        public static partial void SubscriptionConditionRefreshTaskTaskIdX8Exited2(this ILogger logger, int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 26, Level = LogLevel.Error,
+            Message = "Subscription - ConditionRefresh Task {TaskId:X8} Exited Unexpectedly.")]
+        public static partial void SubscriptionConditionRefreshTaskTaskIdX8Exited3(
+            this ILogger logger,
+            Exception ex,
+            int? taskId);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 27, Level = LogLevel.Information,
+            Message = "Server - {Count} Subscriptions scheduled for delete.")]
+        public static partial void ServerCountSubscriptionsScheduledForDelete(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 28, Level = LogLevel.Information,
+            Message = "Server - CleanupSubscriptions Task Started")]
+        public static partial void ServerCleanupSubscriptionsTaskStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 29, Level = LogLevel.Information,
+            Message = "Server - CleanupSubscriptions Task Completed")]
+        public static partial void ServerCleanupSubscriptionsTaskCompleted(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 30, Level = LogLevel.Error,
+            Message = "Server - CleanupSubscriptions Task Halted Unexpectedly")]
+        public static partial void ServerCleanupSubscriptionsTaskHaltedUnexpectedly(this ILogger logger, Exception ex);
+    }
+
 }

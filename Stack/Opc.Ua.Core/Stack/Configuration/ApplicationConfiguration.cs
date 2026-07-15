@@ -589,7 +589,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Could not get file path from app config - returning: {SectionName}.Config.xml", sectionName);
+                logger.AppConfigLog0(e, sectionName);
                 return $"{sectionName}.Config.xml";
             }
         }
@@ -770,8 +770,12 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Could not get file path {FilePath}",
-                    ClientConfiguration.EndpointCacheFilePath);
+                if (m_logger.IsEnabled(LogLevel.Error))
+                {
+                    m_logger.AppConfigLog1(
+                        e,
+                        ClientConfiguration.EndpointCacheFilePath);
+                }
                 filePath = null;
             }
 
@@ -810,7 +814,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Could not load configuration from file: {FilePath}", filePath);
+                m_logger.AppConfigLog2(e, filePath);
             }
             finally
             {
@@ -828,8 +832,12 @@ namespace Opc.Ua
                 }
                 catch (Exception e2)
                 {
-                    m_logger.LogError(e2, "Could not save configuration to file: {FilePath}",
-                        ClientConfiguration.EndpointCacheFilePath);
+                    if (m_logger.IsEnabled(LogLevel.Error))
+                    {
+                        m_logger.AppConfigLog3(
+                            e2,
+                            ClientConfiguration.EndpointCacheFilePath);
+                    }
                 }
             }
             return endpoints;
@@ -936,4 +944,39 @@ namespace Opc.Ua
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for ApplicationConfiguration.
+    /// </summary>
+    internal static partial class ApplicationConfigurationLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 0, Level = LogLevel.Error,
+            Message = "Could not get file path from app config - returning: {SectionName}.Config.xml")]
+        public static partial void AppConfigLog0(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string sectionName);
+
+        [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 1, Level = LogLevel.Error,
+            Message = "Could not get file path {FilePath}")]
+        public static partial void AppConfigLog1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? filePath);
+
+        [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 2, Level = LogLevel.Error,
+            Message = "Could not load configuration from file: {FilePath}")]
+        public static partial void AppConfigLog2(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? filePath);
+
+        [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 3, Level = LogLevel.Error,
+            Message = "Could not save configuration to file: {FilePath}")]
+        public static partial void AppConfigLog3(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? filePath);
+    }
+
 }

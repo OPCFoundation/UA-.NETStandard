@@ -208,11 +208,7 @@ namespace Opc.Ua.Server
             int overflowCount = messages.Count - (int)MaxMessageCount;
             if (overflowCount > 0)
             {
-                m_logger.LogWarning(
-                    "WARNING: QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}",
-                    overflowCount,
-                    Id,
-                    MaxMessageCount);
+                m_logger.WARNINGQUEUEOVERFLOWDroppingCountMessagesIncrease(overflowCount, Id, MaxMessageCount);
                 for (int ii = 0; ii < overflowCount; ii++)
                 {
                     ReuseNotificationPayloads(messages[ii]);
@@ -434,4 +430,20 @@ namespace Opc.Ua.Server
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SentMessageQueue.
+    /// </summary>
+    internal static partial class SentMessageQueueLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.SentMessageQueue + 0, Level = LogLevel.Warning,
+            Message = "QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. " +
+                "SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}")]
+        public static partial void WARNINGQUEUEOVERFLOWDroppingCountMessagesIncrease(
+            this ILogger logger,
+            int count,
+            uint subscriptionId,
+            uint maxMessageCount);
+    }
+
 }

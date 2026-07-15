@@ -471,7 +471,7 @@ namespace Opc.Ua.Mcp
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.LogWarning(ex, "Stopping the PubSub runtime failed.");
+                m_logger.StoppingPubSubRuntimeFailed(ex);
             }
 
             await app.DisposeAsync().ConfigureAwait(false);
@@ -1235,5 +1235,12 @@ namespace Opc.Ua.Mcp
                 Details,
                 source);
         }
+    }
+
+    internal static partial class PubSubRuntimeManagerLog
+    {
+        [LoggerMessage(EventId = McpServerEventIds.PubSubRuntimeManager + 0, Level = LogLevel.Warning,
+            Message = "Stopping the PubSub runtime failed.")]
+        public static partial void StoppingPubSubRuntimeFailed(this ILogger logger, Exception exception);
     }
 }

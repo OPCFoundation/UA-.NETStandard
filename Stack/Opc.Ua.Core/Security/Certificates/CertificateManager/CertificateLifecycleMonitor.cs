@@ -91,10 +91,12 @@ namespace Opc.Ua
                     if (now.Add(m_expiryThreshold) >= entry.NotAfter &&
                         m_alreadyNotified.Add(entry.Certificate.Thumbprint))
                     {
-                        m_logger.LogWarning(
-                            "Certificate {Thumbprint} expires at {NotAfter}.",
-                            entry.Certificate.Thumbprint,
-                            entry.NotAfter);
+                        if (m_logger.IsEnabled(LogLevel.Warning))
+                        {
+                            m_logger.CertLifecycleLog0(
+                                entry.Certificate.Thumbprint,
+                                entry.NotAfter);
+                        }
 
                         m_subject.Notify(new CertificateChangeEvent(
                             CertificateChangeKind.CertificateExpiring,
@@ -108,7 +110,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Error checking certificate expiry.");
+                m_logger.CertLifecycleLog1(ex);
             }
         }
 
@@ -135,4 +137,24 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private readonly HashSet<string> m_alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Source-generated log messages for CertificateLifecycleMonitor.
+    /// </summary>
+    internal static partial class CertificateLifecycleMonitorLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.CertificateLifecycleMonitor + 0, Level = LogLevel.Warning,
+            Message = "Certificate {Thumbprint} expires at {NotAfter}.")]
+        public static partial void CertLifecycleLog0(
+            this ILogger logger,
+            string? thumbprint,
+            DateTime notAfter);
+
+        [LoggerMessage(EventId = CoreEventIds.CertificateLifecycleMonitor + 1, Level = LogLevel.Debug,
+            Message = "Error checking certificate expiry.")]
+        public static partial void CertLifecycleLog1(
+            this ILogger logger,
+            global::System.Exception? exception);
+    }
+
 }

@@ -165,9 +165,7 @@ namespace Opc.Ua.Di.Server.Locking
 
             if (outcome == LockStatus.Ok)
             {
-                m_logger?.LogDebug(
-                    "Lock acquired on {ElementId} by {SessionId} ({User}, context={Context}).",
-                    elementId, sessionId, user, clientContext);
+                m_logger?.LockAcquired(elementId, sessionId, user, clientContext);
             }
             return outcome;
         }
@@ -252,9 +250,7 @@ namespace Opc.Ua.Di.Server.Locking
             }
 
             m_records.TryRemove(elementId, out _);
-            m_logger?.LogInformation(
-                "Lock on {ElementId} forcibly broken; previous owner {SessionId}.",
-                elementId, existing.SessionId);
+            m_logger?.LockForciblyBroken(elementId, existing.SessionId);
             return LockStatus.Ok;
         }
 
@@ -285,9 +281,7 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 if (m_records.TryRemove(elementId, out Record? released))
                 {
-                    m_logger?.LogDebug(
-                        "Lock on {ElementId} released after session {SessionId} closed.",
-                        elementId, released.SessionId);
+                    m_logger?.LockReleasedAfterSessionClosed(elementId, released.SessionId);
                 }
             }
         }
@@ -330,5 +324,28 @@ namespace Opc.Ua.Di.Server.Locking
             public string User { get; }
             public DateTimeOffset ExpiresAt { get; set; }
         }
+    }
+
+    internal static partial class DefaultLockServiceLog
+    {
+        [LoggerMessage(EventId = DiServerEventIds.DefaultLockService + 0, Level = LogLevel.Debug,
+            Message = "Lock acquired on {ElementId} by {SessionId} ({User}, context={Context}).")]
+        public static partial void LockAcquired(
+            this ILogger logger,
+            NodeId elementId,
+            NodeId sessionId,
+            string? user,
+            string? context);
+
+        [LoggerMessage(EventId = DiServerEventIds.DefaultLockService + 1, Level = LogLevel.Information,
+            Message = "Lock on {ElementId} forcibly broken; previous owner {SessionId}.")]
+        public static partial void LockForciblyBroken(this ILogger logger, NodeId elementId, NodeId sessionId);
+
+        [LoggerMessage(EventId = DiServerEventIds.DefaultLockService + 2, Level = LogLevel.Debug,
+            Message = "Lock on {ElementId} released after session {SessionId} closed.")]
+        public static partial void LockReleasedAfterSessionClosed(
+            this ILogger logger,
+            NodeId elementId,
+            NodeId sessionId);
     }
 }

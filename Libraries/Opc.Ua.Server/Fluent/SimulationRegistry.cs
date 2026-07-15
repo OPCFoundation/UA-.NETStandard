@@ -155,8 +155,7 @@ namespace Opc.Ua.Server.Fluent
             }
             catch (Exception ex)
             {
-                m_logger?.LogWarning(ex,
-                    "Simulation drain failed; ignoring on disposal.");
+                m_logger?.SimulationDrainFailedIgnoringOnDisposal(ex);
             }
             finally
             {
@@ -293,8 +292,7 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception ex)
                 {
-                    logger?.LogError(ex,
-                        "Simulation tick handler threw; loop continues.");
+                    logger?.SimulationTickHandlerThrewLoopContinues(ex);
                 }
             }
         }
@@ -312,4 +310,19 @@ namespace Opc.Ua.Server.Fluent
         private readonly ILogger? m_logger;
         private readonly List<Func<ISystemContext, TimeSpan, CancellationToken, ValueTask>> m_handlers = [];
     }
+
+    /// <summary>
+    /// Source-generated log messages for SimulationRegistry.
+    /// </summary>
+    internal static partial class SimulationRegistryLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.SimulationRegistry + 0, Level = LogLevel.Warning,
+            Message = "Simulation drain failed; ignoring on disposal.")]
+        public static partial void SimulationDrainFailedIgnoringOnDisposal(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SimulationRegistry + 1, Level = LogLevel.Error,
+            Message = "Simulation tick handler threw; loop continues.")]
+        public static partial void SimulationTickHandlerThrewLoopContinues(this ILogger logger, Exception ex);
+    }
+
 }

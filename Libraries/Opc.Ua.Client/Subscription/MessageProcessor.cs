@@ -219,15 +219,15 @@ namespace Opc.Ua.Client.Subscriptions
         {
             if (stateMask.HasFlag(PublishState.Stopped))
             {
-                Logger.LogInformation("{Subscription} STOPPED!", this);
+                Logger.SubscriptionSTOPPED(Id);
             }
             if (stateMask.HasFlag(PublishState.Recovered))
             {
-                Logger.LogInformation("{Subscription} RECOVERED!", this);
+                Logger.SubscriptionRECOVERED(Id);
             }
             if (stateMask.HasFlag(PublishState.Completed))
             {
-                Logger.LogInformation("{Subscription} CLOSED!", this);
+                Logger.SubscriptionCLOSED(Id);
             }
         }
 
@@ -257,9 +257,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
-                Logger.LogCritical(ex,
-                    "{Subscription}: Error processing messages. Processor is exiting!!!",
-                    this);
+                Logger.SubscriptionErrorProcessingMessagesProcessorExiting(
+                    ex,
+                    Id);
 
                 // Do not call complete here as we do not want the subscription
                 // to be removed
@@ -330,25 +330,16 @@ namespace Opc.Ua.Client.Subscriptions
                 uint delta = unchecked(curSeqNum - prevDataSeq);
                 if (delta is 0 or >= kBackwardThreshold)
                 {
-                    if (!Logger.IsEnabled(LogLevel.Debug))
-                    {
-                        return;
-                    }
                     if (curSeqNum == prevDataSeq)
                     {
-                        Logger.LogDebug(
-                            "{Subscription}: Received duplicate message " +
-                            "with sequence number #{SeqNumber}.",
-                            this,
+                        Logger.SubscriptionReceivedDuplicateMessageSequenceNumber(
+                            Id,
                             curSeqNum);
                     }
                     else
                     {
-                        Logger.LogDebug(
-                            "{Subscription}: Received older message with " +
-                            "sequence number #{SeqNumber} but already processed message with " +
-                            "sequence number #{Old}.",
-                            this,
+                        Logger.SubscriptionReceivedOlderMessageSequenceNumber(
+                            Id,
                             curSeqNum,
                             prevDataSeq);
                     }
@@ -411,20 +402,15 @@ namespace Opc.Ua.Client.Subscriptions
             Interlocked.Increment(ref m_republishCount);
             if (!AvailableInRetransmissionQueue.Contains(missing))
             {
-                Logger.LogWarning(
-                    "{Subscription}: Message with sequence number " +
-                    "#{SeqNumber} is not in server retransmission queue and was dropped.",
-                    this,
+                Logger.SubscriptionMessageSequenceNumberSeqNumberNot(
+                    Id,
                     missing);
                 return;
             }
             try
             {
-                Logger.LogInformation(
-                    "{Subscription}: Republishing missing message " +
-                    "with sequence number #{Missing} to catch up to message " +
-                    "with sequence number #{SeqNumber}...",
-                    this,
+                Logger.SubscriptionRepublishingMissingMessageSequenceNumber(
+                    Id,
                     missing,
                     curSeqNum);
                 RepublishResponse republish = await m_services.RepublishAsync(
@@ -442,20 +428,16 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 else
                 {
-                    Logger.LogWarning(
-                        "{Subscription}: Republishing message with " +
-                        "sequence number #{SeqNumber} failed.",
-                        this,
+                    Logger.SubscriptionRepublishingMessageSequenceNumberSeqNumber(
+                        Id,
                         missing);
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogError(
+                Logger.SubscriptionErrorRepublishingMessageSequenceNumber(
                     ex,
-                    "{Subscription}: Error republishing message with " +
-                    "sequence number #{SeqNumber}.",
-                    this,
+                    Id,
                     missing);
             }
         }
@@ -500,9 +482,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex,
-                    "{Subscription}: Error dispatching notification data.",
-                    this);
+                Logger.SubscriptionErrorDispatchingNotificationData(
+                    ex,
+                    Id);
             }
         }
 
@@ -613,4 +595,85 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="MessageProcessor"/>.
+    /// </summary>
+    internal static partial class MessageProcessorLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 0, Level = LogLevel.Information,
+            Message = "{SubscriptionId} STOPPED!")]
+        public static partial void SubscriptionSTOPPED(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 1, Level = LogLevel.Information,
+            Message = "{SubscriptionId} RECOVERED!")]
+        public static partial void SubscriptionRECOVERED(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 2, Level = LogLevel.Information,
+            Message = "{SubscriptionId} CLOSED!")]
+        public static partial void SubscriptionCLOSED(this ILogger logger, uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 3, Level = LogLevel.Critical,
+            Message = "{SubscriptionId}: Error processing messages. Processor is exiting!!!")]
+        public static partial void SubscriptionErrorProcessingMessagesProcessorExiting(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 4, Level = LogLevel.Debug,
+            Message = "{SubscriptionId}: Received duplicate message with sequence number #{SeqNumber}.")]
+        public static partial void SubscriptionReceivedDuplicateMessageSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint seqNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 5, Level = LogLevel.Debug,
+            Message = "{SubscriptionId}: Received older message with sequence number #{SeqNumber} but already" +
+                " processed message with sequence number #{Old}.")]
+        public static partial void SubscriptionReceivedOlderMessageSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint seqNumber,
+            uint old);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 6, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: Message with sequence number #{SeqNumber} is not in server retransmission" +
+                " queue and was dropped.")]
+        public static partial void SubscriptionMessageSequenceNumberSeqNumberNot(
+            this ILogger logger,
+            uint subscriptionId,
+            uint seqNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 7, Level = LogLevel.Information,
+            Message = "{SubscriptionId}: Republishing missing message with sequence number #{Missing} " +
+                "to catch up to message with sequence number #{SeqNumber}...")]
+        public static partial void SubscriptionRepublishingMissingMessageSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint missing,
+            uint seqNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 8, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: Republishing message with sequence number #{SeqNumber} failed.")]
+        public static partial void SubscriptionRepublishingMessageSequenceNumberSeqNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint seqNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 9, Level = LogLevel.Error,
+            Message = "{SubscriptionId}: Error republishing message with sequence number #{SeqNumber}.")]
+        public static partial void SubscriptionErrorRepublishingMessageSequenceNumber(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId,
+            uint seqNumber);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 10, Level = LogLevel.Error,
+            Message = "{SubscriptionId}: Error dispatching notification data.")]
+        public static partial void SubscriptionErrorDispatchingNotificationData(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+    }
+
 }

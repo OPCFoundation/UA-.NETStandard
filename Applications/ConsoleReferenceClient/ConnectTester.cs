@@ -43,6 +43,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
+using Quickstarts.ConsoleReferenceClient;
 
 namespace Quickstarts
 {
@@ -87,7 +88,7 @@ namespace Quickstarts
                     true,
                     kReconnectPeriodExponentialBackoff);
 
-                m_logger.LogInformation("OPC UA Security Test Client");
+                m_logger.OpcUaSecurityTestClient();
 
                 // The application name and config file names
                 const string applicationName = "ConsoleReferenceClient";
@@ -123,7 +124,7 @@ namespace Quickstarts
                     }
                 }
 
-                m_logger.LogInformation("Connecting to... {ServerUrl}", kServerUrl);
+                m_logger.ConnectingTo(kServerUrl);
 
                 ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync(
                     m_configuration,
@@ -175,15 +176,19 @@ namespace Quickstarts
 
                         try
                         {
-                            m_logger.LogWarning("{Line}", new string('=', 80));
+                            if (m_logger.IsEnabled(LogLevel.Warning))
+                            {
+                                m_logger.SeparatorLine(new string('=', 80));
+                            }
 
-                            m_logger.LogWarning(
-                                "SECURITY-POLICY={SecurityPolicyUri} {SecurityMode}",
-                                SecurityPolicies.GetDisplayName(securityPolicyUri),
-                                ii.SecurityMode);
+                            if (m_logger.IsEnabled(LogLevel.Warning))
+                            {
+                                m_logger.SecurityPolicy(
+                                    SecurityPolicies.GetDisplayName(securityPolicyUri),
+                                    ii.SecurityMode);
+                            }
 
-                            m_logger.LogWarning(
-                                "IDENTITY={DisplayName} {TokenType}",
+                            m_logger.Identity(
                                 identity.DisplayName,
                                 identity.TokenType);
 
@@ -194,7 +199,7 @@ namespace Quickstarts
                                 identity,
                                 ct).ConfigureAwait(false);
 
-                            m_logger.LogWarning("Waiting for SecureChannel renew");
+                            m_logger.WaitingForSecureChannelRenew();
                             await wrapper.Session.UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
 
                             for (int count = 0; count < 1; count++)
@@ -212,9 +217,7 @@ namespace Quickstarts
                                     },
                                     ct).ConfigureAwait(false);
 
-                                m_logger.LogWarning(
-                                    "CurrentTime: {CurrentTime}",
-                                    result.Results[0].WrappedValue.GetDateTime());
+                                m_logger.CurrentTime(result.Results[0].WrappedValue.GetDateTime());
 
                                 await Task.Delay(5000, ct).ConfigureAwait(false);
                             }
@@ -228,25 +231,34 @@ namespace Quickstarts
                             Console.WriteLine("Exception: {0}", e.Message);
                             Console.WriteLine("StackTrace: {0}", e.StackTrace);
 
-                            m_logger.LogWarning(
-                                "SECURITY-POLICY={SecurityPolicyUri} {SecurityMode}",
-                                SecurityPolicies.GetDisplayName(securityPolicyUri),
-                                ii.SecurityMode);
+                            if (m_logger.IsEnabled(LogLevel.Warning))
+                            {
+                                m_logger.SecurityPolicy(
+                                    SecurityPolicies.GetDisplayName(securityPolicyUri),
+                                    ii.SecurityMode);
+                            }
 
-                            m_logger.LogWarning(
-                                "IDENTITY={DisplayName} {TokenType}",
+                            m_logger.Identity(
                                 identity.DisplayName,
                                 identity.TokenType);
 
-                            m_logger.LogWarning("{Line}", new string('=', 80));
+                            if (m_logger.IsEnabled(LogLevel.Warning))
+                            {
+                                m_logger.SeparatorLine(new string('=', 80));
+                            }
                         }
 
-                        m_logger.LogWarning(
-                            "TEST COMPLETE: {SecurityPolicyUri} {SecurityMode}",
-                            SecurityPolicies.GetDisplayName(securityPolicyUri),
-                            ii.SecurityMode);
+                        if (m_logger.IsEnabled(LogLevel.Warning))
+                        {
+                            m_logger.TestComplete(
+                                SecurityPolicies.GetDisplayName(securityPolicyUri),
+                                ii.SecurityMode);
+                        }
 
-                        m_logger.LogWarning("{Line}", new string('=', 80));
+                        if (m_logger.IsEnabled(LogLevel.Warning))
+                        {
+                            m_logger.SeparatorLine(new string('=', 80));
+                        }
                     }
                 }
 
@@ -255,8 +267,8 @@ namespace Quickstarts
             }
             catch (Exception e)
             {
-                m_logger.LogError("Exception: {Message}", e.Message);
-                m_logger.LogTrace("StackTrace: {StackTrace}", e.StackTrace);
+                m_logger.ExceptionMessage(e.Message);
+                m_logger.StackTrace(e.StackTrace);
             }
         }
 
@@ -405,20 +417,16 @@ namespace Quickstarts
             // Implement a custom logic to decide if the certificate should be
             // accepted. Return true to accept, false to reject.
             // ***
-            m_logger.LogInformation("{ServiceResult}", error);
+            m_logger.ServiceResult(error);
             bool certificateAccepted = error.StatusCode == StatusCodes.BadCertificateUntrusted;
 
             if (certificateAccepted)
             {
-                m_logger.LogInformation(
-                    "Untrusted Certificate accepted. Subject = {Subject}",
-                    certificate.Subject);
+                m_logger.UntrustedCertificateAccepted(certificate.Subject);
             }
             else
             {
-                m_logger.LogInformation(
-                    "Untrusted Certificate rejected. Subject = {Subject}",
-                    certificate.Subject);
+                m_logger.UntrustedCertificateRejected(certificate.Subject);
             }
 
             return certificateAccepted;
@@ -449,17 +457,14 @@ namespace Quickstarts
                             );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
-                        m_logger.LogInformation(
-                            "KeepAlive status {StatusCode}, reconnect status {State}, reconnect period {ReconnectPeriod}ms.",
+                        m_logger.KeepAliveReconnectStatusWithPeriod(
                             e.Status,
                             state,
-                            kReconnectPeriod
-                        );
+                            kReconnectPeriod);
                     }
                     else
                     {
-                        m_logger.LogInformation(
-                            "KeepAlive status {StatusCode}, reconnect status {State}.",
+                        m_logger.KeepAliveReconnectStatus(
                             e.Status,
                             state);
                     }
@@ -470,7 +475,7 @@ namespace Quickstarts
             }
             catch (Exception exception)
             {
-                m_logger.LogError(exception, "Error in OnKeepAlive.");
+                m_logger.ErrorInOnKeepAlive(exception);
             }
         }
 
@@ -491,24 +496,19 @@ namespace Quickstarts
                     // after reactivate, the same session instance may be returned
                     if (!ReferenceEquals(m_wrapper!.Session, m_reconnectHandler.Session))
                     {
-                        m_logger.LogInformation(
-                            "--- RECONNECTED TO NEW SESSION --- {SessionId}",
-                            m_reconnectHandler.Session.SessionId
-                        );
+                        m_logger.ReconnectedToNewSession(m_reconnectHandler.Session.SessionId);
                         ISession session = m_wrapper.Session;
                         m_wrapper = new SessionWrapper { Session = m_reconnectHandler.Session };
                         session?.Dispose();
                     }
                     else
                     {
-                        m_logger.LogInformation(
-                            "--- REACTIVATED SESSION --- {SessionId}",
-                            m_reconnectHandler.Session.SessionId);
+                        m_logger.ReactivatedSession(m_reconnectHandler.Session.SessionId);
                     }
                 }
                 else
                 {
-                    m_logger.LogInformation("--- RECONNECT KeepAlive recovered ---");
+                    m_logger.ReconnectKeepAliveRecovered();
                 }
             }
         }
@@ -554,4 +554,61 @@ namespace Quickstarts
         private const int kReconnectPeriod = 1000;
         private const int kReconnectPeriodExponentialBackoff = 15000;
     }
+
+    internal static partial class ConnectTesterLog
+    {
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 0, Level = LogLevel.Information,
+            Message = "OPC UA Security Test Client")]
+        public static partial void OpcUaSecurityTestClient(this ILogger logger);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 1, Level = LogLevel.Information,
+            Message = "Connecting to... {ServerUrl}")]
+        public static partial void ConnectingTo(this ILogger logger, string serverUrl);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 2, Level = LogLevel.Warning,
+            Message = "{Line}")]
+        public static partial void SeparatorLine(this ILogger logger, string line);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 3, Level = LogLevel.Warning,
+            Message = "SECURITY-POLICY={SecurityPolicyUri} {SecurityMode}")]
+        public static partial void SecurityPolicy(
+            this ILogger logger,
+            string? securityPolicyUri,
+            MessageSecurityMode securityMode);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 4, Level = LogLevel.Warning,
+            Message = "IDENTITY={DisplayName} {TokenType}")]
+        public static partial void Identity(
+            this ILogger logger,
+            string displayName,
+            UserTokenType tokenType);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 5, Level = LogLevel.Warning,
+            Message = "Waiting for SecureChannel renew")]
+        public static partial void WaitingForSecureChannelRenew(this ILogger logger);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 6, Level = LogLevel.Warning,
+            Message = "CurrentTime: {CurrentTime}")]
+        public static partial void CurrentTime(this ILogger logger, DateTimeUtc currentTime);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 7, Level = LogLevel.Warning,
+            Message = "TEST COMPLETE: {SecurityPolicyUri} {SecurityMode}")]
+        public static partial void TestComplete(
+            this ILogger logger,
+            string? securityPolicyUri,
+            MessageSecurityMode securityMode);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 8, Level = LogLevel.Error,
+            Message = "Exception: {Message}")]
+        public static partial void ExceptionMessage(this ILogger logger, string message);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 9, Level = LogLevel.Trace,
+            Message = "StackTrace: {StackTrace}")]
+        public static partial void StackTrace(this ILogger logger, string? stackTrace);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ConnectTester + 10, Level = LogLevel.Information,
+            Message = "{ServiceResult}")]
+        public static partial void ServiceResult(this ILogger logger, ServiceResult serviceResult);
+    }
+
 }

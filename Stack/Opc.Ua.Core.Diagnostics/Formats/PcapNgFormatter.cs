@@ -77,7 +77,7 @@ namespace Opc.Ua.Pcap.Formats
                     "Use json|csv|text|service-timeline.");
             }
 
-            m_logger.LogDebug("Formatting capture as pcapng.");
+            m_logger.FormattingCaptureAsPcapng();
             MemoryStream stream = new();
             PcapNgFileWriter writer = new(stream, PcapFileWriter.LinkTypeNull);
             long count = 0;
@@ -90,6 +90,7 @@ namespace Opc.Ua.Pcap.Formats
                     await writer.WriteAsync(frame.Timestamp, frame.Data, ct).ConfigureAwait(false);
                     count++;
                 }
+
             }
             finally
             {
@@ -105,4 +106,15 @@ namespace Opc.Ua.Pcap.Formats
             };
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PcapNgFormatter"/>.
+    /// </summary>
+    internal static partial class PcapNgFormatterLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapNgFormatter + 0, Level = LogLevel.Debug,
+            Message = "Formatting capture as pcapng.")]
+        public static partial void FormattingCaptureAsPcapng(this ILogger logger);
+    }
+
 }

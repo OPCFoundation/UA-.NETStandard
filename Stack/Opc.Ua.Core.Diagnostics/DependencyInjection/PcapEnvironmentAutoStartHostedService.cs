@@ -144,10 +144,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(
-                        ex,
-                        "Failed to stop env-var auto-started capture session '{SessionId}'.",
-                        capturedSessionId);
+                    m_logger.StopEnvVarAutoStartedCaptureSessionFailed(ex, capturedSessionId);
                 }
             }
 
@@ -174,11 +171,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         private async Task StartStandaloneKeyLogAsync(CancellationToken cancellationToken)
         {
             string keyLogPath = m_environment.KeyLogFilePath!;
-            m_logger.LogWarning(
-                "Stand-alone OPC UA key logging is ENABLED via {EnvVar}. " +
-                "Channel symmetric keys will be written to '{KeyLogFilePath}'. " +
-                "Treat this file as a secret; anyone with read access can " +
-                "decrypt recorded OPC UA traffic.",
+            m_logger.StandAloneOpcUaKeyLoggingEnabled(
                 PcapEnvironmentVariableNames.OpcuaKeyLogFile,
                 keyLogPath);
 
@@ -189,10 +182,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
             IFrameCaptureSink? previous = m_registry.SetObserver(observer);
             if (previous is not null)
             {
-                m_logger.LogWarning(
-                    "An IFrameCaptureSink observer was already installed in the " +
-                    "registry; it has been replaced by the env-var driven " +
-                    "stand-alone keylog observer.");
+                m_logger.ObserverAlreadyInstalled();
             }
             m_keyLogObserver = observer;
             cancellationToken.ThrowIfCancellationRequested();
@@ -207,20 +197,13 @@ namespace Opc.Ua.Pcap.DependencyInjection
 
             if (keyLogPath is null)
             {
-                m_logger.LogWarning(
-                    "OPC UA pcap auto-capture is ENABLED via {PcapEnvVar}. " +
-                    "Frames will be written to '{PcapFilePath}'. " +
-                    "Treat the resulting files as secrets; they include the " +
-                    "channel keys necessary to decrypt recorded traffic.",
+                m_logger.OpcUaPcapAutoCaptureEnabled(
                     PcapEnvironmentVariableNames.OpcuaPcapFile,
                     pcapPath);
             }
             else
             {
-                m_logger.LogWarning(
-                    "OPC UA pcap auto-capture is ENABLED via {PcapEnvVar} (frames at " +
-                    "'{PcapFilePath}') and {KeyLogEnvVar} (keys at '{KeyLogFilePath}'). " +
-                    "Treat both files as secrets.",
+                m_logger.OpcUaPcapAutoCaptureAndKeyLogEnabled(
                     PcapEnvironmentVariableNames.OpcuaPcapFile,
                     pcapPath,
                     PcapEnvironmentVariableNames.OpcuaKeyLogFile,
@@ -254,5 +237,58 @@ namespace Opc.Ua.Pcap.DependencyInjection
             }
             return directory;
         }
+
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PcapEnvironmentAutoStartHostedService"/>.
+    /// </summary>
+    internal static partial class PcapEnvironmentAutoStartHostedServiceLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapEnvironmentAutoStartHostedService + 0,
+            Level = LogLevel.Warning,
+            Message = "Failed to stop env-var auto-started capture session '{SessionId}'.")]
+        public static partial void StopEnvVarAutoStartedCaptureSessionFailed(
+            this ILogger logger,
+            Exception exception,
+            string sessionId);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapEnvironmentAutoStartHostedService + 1,
+            Level = LogLevel.Warning,
+            Message = "Stand-alone OPC UA key logging is ENABLED via {EnvVar}. Channel symmetric keys will be " +
+                "written to '{KeyLogFilePath}'. Treat this file as a secret; anyone with read access can decrypt " +
+                "recorded OPC UA traffic.")]
+        public static partial void StandAloneOpcUaKeyLoggingEnabled(
+            this ILogger logger,
+            string envVar,
+            string keyLogFilePath);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapEnvironmentAutoStartHostedService + 2,
+            Level = LogLevel.Warning,
+            Message = "An IFrameCaptureSink observer was already installed in the registry; it has been replaced " +
+                "by the env-var driven stand-alone keylog observer.")]
+        public static partial void ObserverAlreadyInstalled(this ILogger logger);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapEnvironmentAutoStartHostedService + 3,
+            Level = LogLevel.Warning,
+            Message = "OPC UA pcap auto-capture is ENABLED via {PcapEnvVar}. Frames will be written to " +
+                "'{PcapFilePath}'. Treat the resulting files as secrets; they include the channel keys necessary " +
+                "to decrypt recorded traffic.")]
+        public static partial void OpcUaPcapAutoCaptureEnabled(
+            this ILogger logger,
+            string pcapEnvVar,
+            string pcapFilePath);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.PcapEnvironmentAutoStartHostedService + 4,
+            Level = LogLevel.Warning,
+            Message = "OPC UA pcap auto-capture is ENABLED via {PcapEnvVar} (frames at '{PcapFilePath}') and " +
+                "{KeyLogEnvVar} (keys at '{KeyLogFilePath}'). Treat both files as secrets.")]
+        public static partial void OpcUaPcapAutoCaptureAndKeyLogEnabled(
+            this ILogger logger,
+            string pcapEnvVar,
+            string pcapFilePath,
+            string keyLogEnvVar,
+            string keyLogFilePath);
+    }
+
 }

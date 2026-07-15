@@ -235,9 +235,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(
-                        ex,
-                        "Error disposing SKS session.");
+                    m_logger.ErrorDisposingSksSession(ex);
                 }
             }
             m_sessionGate.Dispose();
@@ -269,9 +267,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogDebug(
-                            ex,
-                            "Error disposing stale SKS session.");
+                        m_logger.ErrorDisposingStaleSksSession(ex);
                     }
                     m_session = null;
                 }
@@ -481,4 +477,19 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="OpcUaSecurityKeyServiceClient"/>.
+    /// </summary>
+    internal static partial class OpcUaSecurityKeyServiceClientLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.OpcUaSecurityKeyServiceClient + 0, Level = LogLevel.Debug,
+            Message = "Error disposing SKS session.")]
+        public static partial void ErrorDisposingSksSession(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.OpcUaSecurityKeyServiceClient + 1, Level = LogLevel.Debug,
+            Message = "Error disposing stale SKS session.")]
+        public static partial void ErrorDisposingStaleSksSession(this ILogger logger, Exception exception);
+    }
+
 }

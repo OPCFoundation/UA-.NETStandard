@@ -147,6 +147,18 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// Updates mutable limits on a byte transport after channel negotiation.
+    /// </summary>
+    internal interface IUaSCByteTransportLimits
+    {
+        /// <summary>
+        /// Updates the maximum accepted UASC chunk size.
+        /// </summary>
+        /// <param name="receiveBufferSize">The negotiated receive-buffer size.</param>
+        void SetReceiveBufferSize(int receiveBufferSize);
+    }
+
+    /// <summary>
     /// Factory used by client-side transport channels to create an
     /// unconnected <see cref="IUaSCByteTransport"/> instance configured with
     /// the buffer pool and receive sizing required by the UASC channel.
