@@ -71,7 +71,7 @@ namespace MinimalClient
             Console.WriteLine($"Connecting to: {endpointUrl}");
             Console.WriteLine();
 
-            // Create application configuration (without telemetry - DI container manages it)
+            // Create application configuration
             ApplicationConfiguration config = new ApplicationConfiguration
             {
                 ApplicationName = "MinimalClient",
@@ -84,20 +84,6 @@ namespace MinimalClient
             };
 
             await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
-
-            // Setup dependency injection container
-            IServiceCollection services = new ServiceCollection();
-
-            services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
-
-            services
-                .AddOpcUa()
-                .AddClient(options =>
-                {
-                    options.Configuration = config;
-                });
-
-            IServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Create a simple endpoint configuration
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create();
@@ -116,6 +102,29 @@ namespace MinimalClient
             Console.WriteLine($"Security mode: {endpoint.SecurityMode}");
             Console.WriteLine($"Security policy: {endpoint.SecurityPolicyUri}");
             Console.WriteLine();
+
+            // Setup dependency injection container with configuration
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
+
+            // Register configuration in DI container
+            services.AddSingleton(config);
+
+            services
+                .AddOpcUa()
+                .AddClient(options =>
+                {
+                    options.Configuration = config;
+                    options.Session = new ManagedSessionOptions
+                    {
+                        Endpoint = configuredEndpoint,
+                        SessionName = "MinimalClient",
+                        SessionTimeout = TimeSpan.FromSeconds(60),
+                    };
+                });
+
+            IServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Resolve the managed session factory from DI
             IManagedSessionFactory sessionFactory = serviceProvider.GetRequiredService<IManagedSessionFactory>();
