@@ -92,21 +92,27 @@ namespace MinimalClient
             // Setup dependency injection container
             IServiceCollection services = new ServiceCollection();
 
+            // Create and validate application configuration
+            var configuration = new ApplicationConfiguration
+            {
+                ApplicationName = "MinimalClient",
+                ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
+                ApplicationType = ApplicationType.Client,
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    AutoAcceptUntrustedCertificates = true,
+                },
+            };
+
+            await configuration.ValidateAsync(ApplicationType.Client, cancellationToken)
+                .ConfigureAwait(false);
+
             services
                 .AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning))
                 .AddOpcUa()
                 .AddClient(options =>
                 {
-                    options.Configuration = new ApplicationConfiguration
-                    {
-                        ApplicationName = "MinimalClient",
-                        ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient",
-                        ApplicationType = ApplicationType.Client,
-                        SecurityConfiguration = new SecurityConfiguration
-                        {
-                            AutoAcceptUntrustedCertificates = true,
-                        },
-                    };
+                    options.Configuration = configuration;
                     options.Session = new ManagedSessionOptions
                     {
                         SessionName = "MinimalClient",
@@ -117,16 +123,18 @@ namespace MinimalClient
             IServiceProvider provider = services.BuildServiceProvider(
                 new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 
-            // Resolve the managed session factory from DI
-            IManagedSessionFactory sessionFactory = provider.GetRequiredService<IManagedSessionFactory>();
+            try
+            {
+                // Resolve the managed session factory from DI
+                IManagedSessionFactory sessionFactory = provider.GetRequiredService<IManagedSessionFactory>();
 
-            // Create and connect managed session
-            Console.WriteLine("Creating session...");
-            ManagedSession session = await sessionFactory
-                .ConnectAsync(configuredEndpoint, cancellationToken)
-                .ConfigureAwait(false);
+                // Create and connect managed session
+                Console.WriteLine("Creating session...");
+                ManagedSession session = await sessionFactory
+                    .ConnectAsync(configuredEndpoint, cancellationToken)
+                    .ConfigureAwait(false);
 
-            await using (session)
+                await using (session)
             {
                 Console.WriteLine("Connected!");
                 Console.WriteLine();
@@ -198,6 +206,14 @@ namespace MinimalClient
 
                 Console.WriteLine();
                 Console.WriteLine("Disconnecting...");
+            }
+            }
+            finally
+            {
+                if (provider is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
             }
 
             Console.WriteLine("Done");
