@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(changedAnnouncement!.SchemaId, Is.Not.EqualTo(firstAnnouncement!.SchemaId));
         }
 
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         /// <summary>
         /// Verifies Arrow announcements are emitted once for an unchanged schema and again for a change.
         /// </summary>
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             };
         }
 
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         private static ArrowNetworkMessage CreateArrowMessage(string schemaId, bool includeSecondField)
         {
             return new ArrowNetworkMessage
@@ -217,7 +217,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             return message;
         }
 
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         private static ArrowDataSetMessage CreateArrowDataSetMessage(bool includeSecondField)
         {
             DataSetField[] fields = includeSecondField

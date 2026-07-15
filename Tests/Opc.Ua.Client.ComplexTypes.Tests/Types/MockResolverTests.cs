@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(StandardEncodingTypes))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -339,7 +339,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockArrayTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(StandardEncodingTypes))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -580,7 +580,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public async Task CreateMockSingleTypeAsync(
             [ValueSource(
-                nameof(EncodingTypesJsonBinaryXmlAndJsonCompact))] EncodingTypeGroup encoderTypeGroup,
+                nameof(StandardEncodingTypes))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             TestType typeDescription,
             bool randomValues,
