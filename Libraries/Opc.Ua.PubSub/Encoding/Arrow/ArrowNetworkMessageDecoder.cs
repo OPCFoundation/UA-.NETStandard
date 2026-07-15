@@ -493,18 +493,26 @@ namespace Opc.Ua.PubSub.Encoding
 
         private static int SchemaMessageLength(ReadOnlySpan<byte> frame)
         {
-            // Arrow encapsulated IPC message: [0xFFFFFFFF continuation][int32 metadata size][metadata...].
-            // A Schema message carries no body buffers, so its total length is 8 + metadata size.
+            // Arrow encapsulated IPC message: [0xFFFFFFFF continuation][int32 metadata size][metadata + padding].
+            // Encapsulated messages are aligned to 8-byte boundaries. For spec-compliant
+            // streams the metadata size already includes that padding, but round the total
+            // up to the next 8-byte boundary defensively so a Schema message (which carries
+            // no body buffers) is never truncated when the metadata size is not aligned.
             if (frame.Length < 8 || BinaryPrimitives.ReadUInt32LittleEndian(frame) != 0xFFFFFFFFu)
             {
                 return 0;
             }
             int metadataSize = BinaryPrimitives.ReadInt32LittleEndian(frame.Slice(4));
-            if (metadataSize < 0 || 8L + metadataSize > frame.Length)
+            if (metadataSize < 0)
             {
                 return 0;
             }
-            return 8 + metadataSize;
+            long aligned = (8L + metadataSize + 7L) & ~7L;
+            if (aligned > frame.Length)
+            {
+                return 0;
+            }
+            return (int)aligned;
         }
     }
 }

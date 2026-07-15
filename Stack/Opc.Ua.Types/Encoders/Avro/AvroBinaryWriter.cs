@@ -159,7 +159,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes a length-delimited Protobuf byte sequence.
+        /// Writes a length-delimited Avro byte sequence.
         /// </summary>
         /// <param name = "value">The primitive or OPC UA value to process.</param>
         public void WriteBytes(ReadOnlySpan<byte> value)
@@ -169,7 +169,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes a UTF-8 Protobuf string as a length-delimited field value.
+        /// Writes a UTF-8 Avro string as a length-delimited field value.
         /// </summary>
         /// <param name = "value">The primitive or OPC UA value to process.</param>
         public void WriteString(string value)

@@ -63,6 +63,7 @@ namespace Opc.Ua
         private readonly Stream _stream;
         private readonly bool _ownsStream;
         private readonly Dictionary<string, Slot> _slots = new(StringComparer.Ordinal);
+        private readonly List<string> _fieldOrder = [];
         private bool _closed;
 
         /// <summary>
@@ -134,10 +135,14 @@ namespace Opc.Ua
             long start = _stream.CanSeek ? _stream.Position : 0;
             var schema = new Apache.Arrow.Schema.Builder().Metadata("opcua-arrow", "1");
             var arrays = new List<IArrowArray>();
-            foreach (var item in _slots)
+            // Emit columns in the deterministic order the fields were first written.
+            // Dictionary enumeration order is not contractual, which would make the
+            // emitted Arrow schema (and column indices) unstable for consumers.
+            foreach (string key in _fieldOrder)
             {
-                schema.Field(item.Value.Field(item.Key));
-                arrays.Add(item.Value.Array);
+                Slot slot = _slots[key];
+                schema.Field(slot.Field(key));
+                arrays.Add(slot.Array);
             }
 
             Apache.Arrow.Schema built = schema.Build();
@@ -173,7 +178,12 @@ namespace Opc.Ua
 
         private void Put(string? name, Slot slot)
         {
-            _slots[name ?? ValueName] = slot;
+            string key = name ?? ValueName;
+            if (!_slots.ContainsKey(key))
+            {
+                _fieldOrder.Add(key);
+            }
+            _slots[key] = slot;
         }
 
         private static NotSupportedException Unsupported(string member)

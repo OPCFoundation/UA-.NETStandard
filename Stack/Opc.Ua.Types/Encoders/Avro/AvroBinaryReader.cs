@@ -165,7 +165,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads one OPC UA byte string from an Arrow binary array.
+        /// Reads one OPC UA byte string from the Avro binary stream.
         /// </summary>
         /// <param name = "maxLength">The maximum permitted length, or 0 for unbounded.</param>
         /// <returns>The result produced by this codec helper.</returns>
