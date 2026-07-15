@@ -165,9 +165,18 @@ IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
    the `Machines` folder).
 2. Fails fast if a child with the same browse name already exists
    (`StatusCodes.BadBrowseNameDuplicated`).
-3. Sets BrowseName/SymbolicName/DisplayName, stamps the
-   `TypeDefinitionId`, and assigns the NodeId via the active
-   `Context.NodeIdFactory`.
+3. Materialises the instance through the source-generated
+   `CreateInstanceOf<Type>` factory (e.g. `CreateInstanceOfDeviceType`)
+   so the device carries the type's **mandatory** children — for
+   `DeviceType` the eight nameplate variables (`Manufacturer`, `Model`,
+   `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
+   `DeviceManual`, `SerialNumber`, `RevisionCounter`) with correct
+   DI-namespace BrowseNames — plus the type's `HasInterface`
+   references. It then sets BrowseName/SymbolicName/DisplayName, stamps
+   the `TypeDefinitionId`, assigns the NodeId via the active
+   `Context.NodeIdFactory`, and walks the whole subtree assigning
+   per-instance NodeIds so multiple instances of the same type never
+   collide on the TYPE NodeIds emitted by the generator.
 4. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
    subscription wiring, type-tree registration, and root-notifier
    propagation all happen exactly as for nodes loaded from a NodeSet2.
@@ -207,10 +216,30 @@ record holds:
 - `RevisionCounter` (`int?`)
 
 Properties that exist as typed children on the device are updated in
-place. Missing properties are created via
-`NodeState.AddProperty<T, VariantBuilder>` and registered with the
-manager — this lets the bare `new DeviceState(parent)` factory work
-without a generated companion type.
+place. The eight mandatory nameplate properties are always present
+(materialised by `CreateInstanceOfDeviceType`), so setting them takes
+the in-place path. Optional nameplate properties (`ManufacturerUri`,
+`ProductCode`, `ProductInstanceUri`, `DeviceClass`) are created on
+demand via `NodeState.AddProperty<T, VariantBuilder>`, re-qualified into
+the **DI namespace** (never namespace 0), and registered with the
+manager.
+
+#### DI companion-spec compliance
+
+Devices created through `CreateDeviceAsync` are modelled to the DI
+companion spec: mandatory `DeviceType` children are present with
+DI-namespace BrowseNames, the type's `HasInterface` references are
+carried, and the software-update state-machine method children point at
+their in-type `MethodDeclarationId`s. The model is intentionally **lean**
+— OPC UA does not require *optional* interface members
+(`IVendorNameplateType`/`ITagNameplateType`/`ISupportInfoType` members
+such as `AssetId`, `ProductCode`, `DeviceTypeImage`, `Documentation`,
+`ImageSet`, `ProtocolSupport`) to be instantiated, so they are omitted
+unless the application adds them. A strict external compliance checker
+may still flag those optional members or report placeholder warnings for
+application-added `HasComponent` children (e.g. a custom `Diagnostics`
+functional group or the `SoftwareUpdate` facet); these are permitted
+omissions/extensions rather than modelling errors.
 
 #### Functional groups
 

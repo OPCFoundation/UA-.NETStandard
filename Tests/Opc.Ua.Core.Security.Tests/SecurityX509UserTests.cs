@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -499,6 +500,90 @@ namespace Opc.Ua.Core.Security.Tests
                     sre.StatusCode == StatusCodes.BadUserAccessDenied,
                     Is.True,
                     $"Expected rejection for untrusted cert, got {sre.StatusCode}");
+            }
+        }
+
+        [Test]
+        public async Task RejectedX509UserCertIsPersistedToRejectedUserStoreAsync()
+        {
+            // The reference server writes a rejected X509 user certificate to a
+            // dedicated pki/rejectedUser review store (sibling of the configured
+            // TrustedUserCertificates store) so an operator can inspect it and, if
+            // legitimate, move it into the trusted-user store.
+            CertificateTrustList userCertStore = ServerFixture.Config?
+                .SecurityConfiguration?.TrustedUserCertificates;
+            if (userCertStore == null || string.IsNullOrEmpty(userCertStore.StorePath))
+            {
+                Assert.Ignore("Server has no TrustedUserCertificates store.");
+            }
+
+            string trustedUserPath = Utils.ReplaceSpecialFolderNames(userCertStore.StorePath);
+            string parent = Path.GetDirectoryName(
+                trustedUserPath.TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar));
+            if (string.IsNullOrEmpty(parent))
+            {
+                Assert.Ignore("Cannot derive the rejectedUser review store path.");
+            }
+            string rejectedUserPath = Path.Combine(parent, "rejectedUser");
+
+            ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
+            EndpointDescription ep = FindEndpoint(endpoints, MessageSecurityMode.SignAndEncrypt)
+                ?? FindEndpoint(endpoints, MessageSecurityMode.Sign);
+            if (ep == null || !EndpointsHaveCertificateToken(endpoints))
+            {
+                Assert.Ignore("No secure Certificate-token endpoint available.");
+            }
+
+            // Use a trusted-but-expired certificate: an expired certificate fails
+            // validation with a time-invalid error that the test fixture's
+            // auto-accept (which only bypasses BadCertificateUntrusted) does NOT
+            // suppress, so the rejection - and thus the review-store write - is
+            // deterministic.
+            using Certificate expiredCert = CreateSelfSignedUserCert(
+                notBefore: DateTimeOffset.UtcNow.AddYears(-2),
+                notAfter: DateTimeOffset.UtcNow.AddDays(-1));
+            await AddCertToServerTrustStoreAsync(expiredCert).ConfigureAwait(false);
+            try
+            {
+                try
+                {
+                    ISession session = await ConnectOnceAsync(
+                        ep.SecurityPolicyUri,
+                        await X509UserIdentityHelper.CreateAsync(expiredCert, Telemetry)
+                            .ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                    // The server accepted the expired cert; the reject path was
+                    // not exercised.
+                    await session.CloseAsync(5000, true).ConfigureAwait(false);
+                    session.Dispose();
+                    Assert.Ignore(
+                        "Server accepted the expired user cert; rejected-store path not exercised.");
+                }
+                catch (ServiceResultException)
+                {
+                    // Expected rejection - fall through to verify the review store.
+                }
+
+                var storeId = new CertificateStoreIdentifier(
+                    rejectedUserPath,
+                    CertificateStoreType.Directory,
+                    false);
+                using ICertificateStore store = storeId.OpenStore(Telemetry);
+                using CertificateCollection found = await store
+                    .FindByThumbprintAsync(expiredCert.Thumbprint)
+                    .ConfigureAwait(false);
+                Assert.That(
+                    found,
+                    Has.Count.GreaterThan(0),
+                    "The rejected X509 user certificate must be persisted to the "
+                        + "rejectedUser review store.");
+                await store.DeleteAsync(expiredCert.Thumbprint).ConfigureAwait(false);
+            }
+            finally
+            {
+                await RemoveCertFromServerTrustStoreAsync(expiredCert).ConfigureAwait(false);
             }
         }
 

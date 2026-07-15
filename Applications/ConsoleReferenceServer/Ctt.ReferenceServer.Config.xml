@@ -248,6 +248,18 @@
     <MaxDurableNotificationQueueSize>10000</MaxDurableNotificationQueueSize>
     <MaxDurableEventQueueSize>10000</MaxDurableEventQueueSize>
     <MaxDurableSubscriptionLifetimeInHours>10</MaxDurableSubscriptionLifetimeInHours>
+    <!-- The CTT deliberately sends a long run of invalid identity tokens in rapid
+         succession (e.g. the Security User X509 and User Name/Password negative
+         cases). Every rejected attempt - even one the CTT expects to fail - counts
+         toward the session manager's brute-force lockout, which is keyed on the
+         (shared) client application certificate thumbprint. With the default of 5
+         the lockout trips partway through the suite and every subsequent
+         ActivateSession returns BadUserAccessDenied, masking the real per-token
+         result (including the positive cases that expect Good). The lockout is a
+         vendor hardening feature, not an OPC UA conformance requirement, so it is
+         disabled here (0) for compliance testing. Production deployments keep the
+         default of 5. -->
+    <MaxFailedAuthenticationAttempts>0</MaxFailedAuthenticationAttempts>
   </ServerConfiguration>
   <Extensions>
     <ua:XmlElement>

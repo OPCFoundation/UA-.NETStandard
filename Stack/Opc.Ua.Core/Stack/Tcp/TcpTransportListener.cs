@@ -253,7 +253,11 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the transport for a UA TCP server.
     /// </summary>
-    public class TcpTransportListener : ITransportListener, ITcpChannelListener, ITransportListenerCertificateRotation
+    public class TcpTransportListener
+        : ITransportListener,
+            ITcpChannelListener,
+            ITransportListenerCertificateRotation,
+            ITransportListenerPeerCertificateRotation
     {
         /// <summary>
         /// The default pending-connection backlog for the listener socket when the
@@ -939,6 +943,114 @@ namespace Opc.Ua.Bindings
                 oldThumbprint);
 
             return new ValueTask<IReadOnlyList<string>>(closed);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The <c>opc.tcp</c> transport validates the client application
+        /// certificate presented during <c>OpenSecureChannel</c> against the
+        /// <see cref="TrustListIdentifier.Peers"/> store, so only a change to
+        /// that TrustList forces this listener's channels to renegotiate.
+        /// </remarks>
+        public TrustListIdentifier PeerCertificateTrustListScope => TrustListIdentifier.Peers;
+
+        /// <inheritdoc/>
+        public ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersAsync(
+            Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct = default)
+        {
+            if (isPeerTrustedAsync == null)
+            {
+                throw new ArgumentNullException(nameof(isPeerTrustedAsync));
+            }
+
+            // Snapshot the channel map so we can iterate without holding
+            // m_lock while re-validating peer certificates and invoking
+            // per-channel close paths (each channel acquires its own
+            // DataLock internally — avoid lock inversion).
+            TcpListenerChannel[] channels;
+            lock (m_lock)
+            {
+                channels = m_channels?.Values.ToArray() ?? [];
+            }
+
+            if (channels.Length == 0)
+            {
+                return new ValueTask<IReadOnlyList<string>>([]);
+            }
+
+            return CloseChannelsForUntrustedPeersCoreAsync(channels, isPeerTrustedAsync, ct);
+        }
+
+        private async ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersCoreAsync(
+            TcpListenerChannel[] channels,
+            Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct)
+        {
+            var closed = new List<string>(channels.Length);
+            foreach (TcpListenerChannel channel in channels)
+            {
+                Certificate? peerCertificate = null;
+                try
+                {
+                    peerCertificate = channel.SnapshotClientCertificateForRevalidation();
+                    if (peerCertificate == null)
+                    {
+                        // No client certificate (e.g. SecurityPolicy.None) —
+                        // the channel is unaffected by a peer-trust change.
+                        continue;
+                    }
+
+                    bool trusted;
+                    try
+                    {
+                        trusted = await isPeerTrustedAsync(peerCertificate, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Best-effort: if trust cannot be determined, leave
+                        // the channel open rather than cutting a possibly
+                        // still-trusted peer.
+                        m_logger.LogWarning(
+                            ex,
+                            "Failed to re-validate peer certificate for channel {ChannelId}; leaving it open.",
+                            channel.GlobalChannelId);
+                        continue;
+                    }
+
+                    if (trusted)
+                    {
+                        continue;
+                    }
+
+                    if (channel.CloseForUntrustedPeerCertificate(out string? globalChannelId) &&
+                        !string.IsNullOrEmpty(globalChannelId))
+                    {
+                        closed.Add(globalChannelId!);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort: log and continue closing remaining
+                    // channels. Failure to close one channel must not block
+                    // others from being renegotiated.
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to close channel {ChannelId} for peer-certificate trust change.",
+                        channel.GlobalChannelId);
+                }
+                finally
+                {
+                    peerCertificate?.Dispose();
+                }
+            }
+
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.",
+                closed.Count);
+
+            return closed;
         }
 
         /// <summary>
