@@ -2,6 +2,8 @@
 
 Here is a list of available documentation for different topics:
 
+> **New contributor?** Start with the **[Developer Guide](DeveloperGuide.md)** — prerequisites, building, testing, coding standards, and how-to recipes (including how to add logging).
+
 ## UA Core stack related
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
@@ -10,7 +12,7 @@ Here is a list of available documentation for different topics:
 * [What's New in 2.0](WhatsNewIn2.0.md) - Developer-facing tour of the 1.5.378 → 2.0 changes, grouped by theme and layer, with links to deeper feature docs.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
-* About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
+* About [.NET platform support, NuGet packages and versioning](DeveloperGuide.md#packages-platform-support-and-versioning).
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * [CertificateManager](CertificateManager.md) - Centralized certificate lifecycle management, server-side push certificate rotation, and the OPC UA Part 12 PushManagement transaction model (`ApplyChanges`/`CancelChanges`, staged TrustList/Certificate updates, `DeleteCertificate`, pending-key persistence).
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.

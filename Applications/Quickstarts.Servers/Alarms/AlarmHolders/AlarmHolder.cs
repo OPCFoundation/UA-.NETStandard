@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Quickstarts.Servers;
 
 namespace Alarms
 {
@@ -172,10 +173,7 @@ namespace Alarms
             // Delayed events are expected events to be logged to file.
             while (m_delayedMessages.Count > 0)
             {
-                m_logger.LogWarning(
-                    "Delayed:{Message} Event Time: {EventTime}",
-                    m_delayedMessages[0],
-                    m_alarm.Time!.Value);
+                m_logger.DelayedEvent(m_delayedMessages[0], m_alarm.Time!.Value);
                 m_delayedMessages.RemoveAt(0);
             }
         }
@@ -192,18 +190,21 @@ namespace Alarms
 
         protected void LogMessage(LogLevel logLevel, string caller, string message)
         {
-            m_logger.Log(
-                logLevel,
-                "{Caller}: {MapName} EventId {EventIdHex} {Message}",
-                caller,
-                m_mapName,
-                m_alarm.EventId!.Value.ToHexString(),
-                message);
+            if (m_logger.IsEnabled(logLevel))
+            {
+                m_logger.Log(
+                    logLevel,
+                    "{Caller}: {MapName} EventId {EventIdHex} {Message}",
+                    caller,
+                    m_mapName,
+                    m_alarm.EventId!.Value.ToHexString(),
+                    message);
+            }
         }
 
         public virtual void SetValue(string message = "")
         {
-            m_logger.LogError("AlarmHolder.SetValue() - Should not be called");
+            m_logger.SetValueShouldNotBeCalled();
         }
 
         public void Start(uint seconds)
@@ -220,13 +221,13 @@ namespace Alarms
 
         protected virtual bool UpdateShelving()
         {
-            m_logger.LogError("AlarmHolder.UpdateShelving() - Should not be called");
+            m_logger.UpdateShelvingShouldNotBeCalled();
             return false;
         }
 
         protected virtual bool UpdateSuppression()
         {
-            m_logger.LogError("AlarmHolder.UpdateSuppression() - Should not be called");
+            m_logger.UpdateSuppressionShouldNotBeCalled();
             return false;
         }
 
@@ -375,4 +376,28 @@ namespace Alarms
         protected SupportedAlarmConditionType m_alarmConditionType = null!;
         protected List<string> m_delayedMessages = [];
     }
+
+    internal static partial class AlarmHolderLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmHolder + 0, Level = LogLevel.Warning,
+            Message = "Delayed:{Message} Event Time: {EventTime}")]
+        public static partial void DelayedEvent(this ILogger logger, string message, DateTimeUtc eventTime);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmHolder + 1, Level = LogLevel.Error,
+            Message = "AlarmHolder.SetValue() - Should not be called")]
+        public static partial void SetValueShouldNotBeCalled(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmHolder + 2, Level = LogLevel.Error,
+            Message = "AlarmHolder.UpdateShelving() - Should not be called")]
+        public static partial void UpdateShelvingShouldNotBeCalled(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.AlarmHolder + 3, Level = LogLevel.Error,
+            Message = "AlarmHolder.UpdateSuppression() - Should not be called")]
+        public static partial void UpdateSuppressionShouldNotBeCalled(this ILogger logger);
+    }
+
 }

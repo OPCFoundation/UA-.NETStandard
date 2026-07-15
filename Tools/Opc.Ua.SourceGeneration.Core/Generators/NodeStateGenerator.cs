@@ -2501,7 +2501,8 @@ namespace Opc.Ua.SourceGeneration
                         InstanceOf: null,
                         IsUnderSingletonInstance: true);
                 }
-                if (!m_nodes.TryAdd(entry.Design.SymbolicId, entry))
+                if (!m_nodes.TryAdd(entry.Design.SymbolicId, entry) &&
+                    m_logger.IsEnabled(LogLevel.Debug))
                 {
                     m_logger.LogDebug(
                         "Removing duplicate entry for {Node}.",
@@ -2552,7 +2553,8 @@ namespace Opc.Ua.SourceGeneration
                     InstanceOf: entry, // Mark as instance of a type design
                     IsUnderSingletonInstance: false);
                 entry.Instance = instanceToGenerate;
-                if (!m_instances.TryAdd(instanceToGenerate.Design.SymbolicId, instanceToGenerate))
+                if (!m_instances.TryAdd(instanceToGenerate.Design.SymbolicId, instanceToGenerate) &&
+                    m_logger.IsEnabled(LogLevel.Debug))
                 {
                     m_logger.LogDebug(
                         "Removing duplicate entry for instance {Node}.",
@@ -2831,9 +2833,12 @@ namespace Opc.Ua.SourceGeneration
             // Filter unncessary nodes
             if (!IsInAddressSpace(node))
             {
-                m_logger.LogDebug(
-                    "Excluded node {Node} as it is marked NotInAddressSpace.",
-                    node.Design.SymbolicId.Name);
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.LogDebug(
+                        "Excluded node {Node} as it is marked NotInAddressSpace.",
+                        node.Design.SymbolicId.Name);
+                }
                 return true;
             }
 
@@ -2858,9 +2863,12 @@ namespace Opc.Ua.SourceGeneration
                     case "ModellingRuleType":
                         break;
                     default:
-                        m_logger.LogDebug(
-                            "Skipping built-in node state class generation for {Node}.",
-                            node.Design.SymbolicId.Name);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.LogDebug(
+                                "Skipping built-in node state class generation for {Node}.",
+                                node.Design.SymbolicId.Name);
+                        }
                         return true;
                 }
             }
@@ -3221,9 +3229,12 @@ namespace Opc.Ua.SourceGeneration
                     }
                     else if (effectiveRule is not ModellingRule.None)
                     {
-                        m_logger.LogDebug(
-                            "Excluding child node {Node} from generation.",
-                            current.Instance.SymbolicId.Name);
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.LogDebug(
+                                "Excluding child node {Node} from generation.",
+                                current.Instance.SymbolicId.Name);
+                        }
                     }
                 }
                 else if (effectiveRule == ModellingRule.Mandatory)
@@ -3234,7 +3245,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     add = true;
                 }
-                else
+                else if (m_logger.IsEnabled(LogLevel.Information))
                 {
                     m_logger.LogInformation(
                         "Excluding child node {Node} from generation.",
@@ -3255,7 +3266,8 @@ namespace Opc.Ua.SourceGeneration
                         TypeDefinitionModellingRule:
                             current.TypeDefinitionModellingRule,
                         IsUnderSingletonInstance: node.IsUnderSingletonInstance);
-                    if (!children.TryAdd(symbolicId, childNodeToGenerate))
+                    if (!children.TryAdd(symbolicId, childNodeToGenerate) &&
+                        m_logger.IsEnabled(LogLevel.Information))
                     {
                         m_logger.LogInformation(
                             "Removing duplicate entry for child {Node}.",

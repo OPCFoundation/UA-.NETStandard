@@ -389,8 +389,7 @@ namespace Opc.Ua
 
             if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
             {
-                m_logger.LogInformation("{Activity}#{Handle} started...", serviceName,
-                    request.RequestHeader.RequestHandle);
+                m_logger.ClientBaseLogMessage0(serviceName, request.RequestHeader.RequestHandle);
             }
             if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
             {
@@ -495,13 +494,15 @@ namespace Opc.Ua
             {
                 if (ServiceResult.IsGood(statusCode))
                 {
-                    m_logger.LogInformation("{Activity}#{Handle} success received after {Elapsed}.",
-                        serviceName, requestHandle, duration);
+                    m_logger.ClientBaseLogMessage1(serviceName, requestHandle, duration);
                 }
                 else
                 {
-                    m_logger.LogError("{Activity}#{Handle} failed with {StatusCode} in {Elapsed}.",
-                        serviceName, requestHandle, statusCode, duration);
+                    m_logger.ClientBaseLogMessage2(
+                        serviceName,
+                        requestHandle,
+                        statusCode,
+                        duration);
                 }
             }
             if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
@@ -881,4 +882,35 @@ namespace Opc.Ua
         /// </summary>
         EventLog = 0x10
     }
+
+    /// <summary>
+    /// Source-generated log messages for ClientBase.
+    /// </summary>
+    internal static partial class ClientBaseLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.ClientBase + 0, Level = LogLevel.Information,
+            Message = "{Activity}#{Handle} started...")]
+        public static partial void ClientBaseLogMessage0(
+            this ILogger logger,
+            string activity,
+            uint handle);
+
+        [LoggerMessage(EventId = CoreEventIds.ClientBase + 1, Level = LogLevel.Information,
+            Message = "{Activity}#{Handle} success received after {Elapsed}.")]
+        public static partial void ClientBaseLogMessage1(
+            this ILogger logger,
+            string activity,
+            uint handle,
+            global::System.TimeSpan? elapsed);
+
+        [LoggerMessage(EventId = CoreEventIds.ClientBase + 2, Level = LogLevel.Error,
+            Message = "{Activity}#{Handle} failed with {StatusCode} in {Elapsed}.")]
+        public static partial void ClientBaseLogMessage2(
+            this ILogger logger,
+            string activity,
+            uint handle,
+            global::Opc.Ua.StatusCode statusCode,
+            global::System.TimeSpan? elapsed);
+    }
+
 }

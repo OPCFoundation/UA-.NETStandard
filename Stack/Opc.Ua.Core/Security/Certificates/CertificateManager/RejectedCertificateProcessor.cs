@@ -180,9 +180,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogDebug(
-                        ex,
-                        "Could not write rejected certificate to store.");
+                    m_logger.RejectedCertificateProcessorLogMessage0(ex);
                 }
                 finally
                 {
@@ -231,4 +229,17 @@ namespace Opc.Ua
         private TaskCompletionSource<bool> m_drainTcs = CreateCompletedTcs();
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for RejectedCertificateProcessor.
+    /// </summary>
+    internal static partial class RejectedCertificateProcessorLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.RejectedCertificateProcessor + 0, Level = LogLevel.Debug,
+            Message = "Could not write rejected certificate to store.")]
+        public static partial void RejectedCertificateProcessorLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception);
+    }
+
 }

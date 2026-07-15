@@ -167,7 +167,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
             catch (Exception ex)
             {
-                m_logger?.LogError(ex, "Kubernetes readiness request failed.");
+                m_logger?.KubernetesReadinessRequestFailed(ex);
             }
             finally
             {
@@ -195,4 +195,15 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private bool m_started;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="KubernetesReadinessServer"/>.
+    /// </summary>
+    internal static partial class KubernetesReadinessServerLog
+    {
+        [LoggerMessage(EventId = RedundancyKubernetesEventIds.KubernetesReadinessServer + 0, Level = LogLevel.Error,
+            Message = "Kubernetes readiness request failed.")]
+        public static partial void KubernetesReadinessRequestFailed(this ILogger logger, Exception exception);
+    }
+
 }

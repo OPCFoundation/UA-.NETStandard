@@ -202,9 +202,7 @@ namespace Opc.Ua.Server
 
             if (!m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
             {
-                m_logger.LogError(
-                    "Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {Id} could not be created",
-                    id);
+                m_logger.DurableSubscriptionWasCreateButNoMonitoredItemQueueFactory(id);
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
 
@@ -416,7 +414,6 @@ namespace Opc.Ua.Server
                 if (!m_readyToPublish)
                 {
                     //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
-                    //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -424,7 +421,6 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
                     //ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
-                    //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] TRIGGERED", Id);
                     return true;
                 }
 
@@ -432,7 +428,6 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
                     //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
-                    //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -446,12 +441,10 @@ namespace Opc.Ua.Server
                         //ServerUtils.EventLog.MonitoredItemReady(
                         //    Id,
                         //    Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
-                        //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE {Delay}ms", Id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
                 //ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
-                //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] NORMAL", Id);
                 return true;
             }
         }
@@ -505,7 +498,7 @@ namespace Opc.Ua.Server
             {
                 if (m_readyToPublish)
                 {
-                    m_logger.LogTrace(Utils.TraceMasks.OperationDetail, "SetTriggered[{Id}]", Id);
+                    m_logger.SetTriggeredId(Id);
                     m_triggered = true;
                     return true;
                 }
@@ -900,11 +893,7 @@ namespace Opc.Ua.Server
                     return previousMode;
                 }
 
-                m_logger.LogTrace(
-                    "MONITORING MODE[{MonitoredItemId}] {Previous} -> {New}",
-                    Id,
-                    MonitoringMode,
-                    monitoringMode);
+                m_logger.MONITORINGMODEMonitoredItemIdPreviousNew(Id, MonitoringMode, monitoringMode);
 
                 if (previousMode == MonitoringMode.Disabled)
                 {
@@ -971,14 +960,7 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (!current.IsNull)
                 {
-                    if (m_logger.IsEnabled(LogLevel.Trace))
-                    {
-                        m_logger.LogTrace(
-                            Utils.TraceMasks.OperationDetail,
-                            "RECEIVED VALUE[{MonitoredItemId}] Value={Value}",
-                            Id,
-                            current.WrappedValue);
-                    }
+                    m_logger.RECEIVEDVALUEMonitoredItemIdValueValue(Id, current.WrappedValue);
 
                     current = current.Copy();
 
@@ -1008,11 +990,13 @@ namespace Opc.Ua.Server
                 // apply aggregate filter.
                 if (m_calculator != null)
                 {
-                    if (!m_calculator.QueueRawValue(current))
+                    if (!m_calculator.QueueRawValue(current) &&
+                        m_logger.IsEnabled(LogLevel.Trace))
                     {
-                        m_logger.LogTrace(
-                            "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}",
-                            current.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                        m_logger.ValueReceivedOutOfOrderSourceTimestampServerHandle(
+                            current.SourceTimestamp
+                                .ToLocalTime()
+                                .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
                             Id);
                     }
 
@@ -1059,17 +1043,11 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
 
-            if (m_logger.IsEnabled(LogLevel.Trace))
-            {
-                m_logger.LogTrace(
-                    Utils.TraceMasks.OperationDetail,
-                    "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                    Id,
-                    m_lastValue.WrappedValue,
-                    m_lastValue.StatusCode.Code,
-                    m_lastValue.StatusCode.Code,
-                    overflow);
-            }
+            m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
+                Id,
+                m_lastValue.WrappedValue,
+                m_lastValue.StatusCode.Code,
+                overflow);
         }
 
         /// <summary>
@@ -1346,10 +1324,7 @@ namespace Opc.Ua.Server
                 // publish events.
                 if (m_eventQueueHandler != null)
                 {
-                    m_logger.LogTrace(
-                        Utils.TraceMasks.OperationDetail,
-                        "MONITORED ITEM: Publish(QueueSize={QueueSize})",
-                        notifications.Count);
+                    m_logger.MONITOREDITEMPublishQueueSizeQueueSize(notifications.Count);
 
                     EventFieldList? overflowEvent = null;
 
@@ -1417,10 +1392,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    m_logger.LogTrace(
-                        Utils.TraceMasks.OperationDetail,
-                        "MONITORED ITEM: Publish(QueueSize={QueueSize})",
-                        notifications.Count);
+                    m_logger.MONITOREDITEMPublishQueueSizeQueueSize(notifications.Count);
                 }
 
                 // reset state variables.
@@ -1515,15 +1487,10 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing or no items are queued
                 else
                 {
-                    if (m_logger.IsEnabled(LogLevel.Trace))
-                    {
-                        m_logger.LogTrace(
-                            "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                            m_lastValue.WrappedValue,
-                            m_lastValue.StatusCode.Code,
-                            m_lastValue.StatusCode.Code,
-                            m_lastValue.StatusCode.Overflow);
-                    }
+                    m_logger.DequeueValue(
+                        m_lastValue.WrappedValue,
+                        m_lastValue.StatusCode.Code,
+                        m_lastValue.StatusCode.Overflow);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
                 }
 
@@ -1950,10 +1917,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
-                                m_logger.LogError(
-                                    ex,
-                                    "Failed to restore queue for monitored item with id {MonitoredItemId}",
-                                    Id);
+                                m_logger.FailedToRestoreQueueForMonitoredItem(ex, Id);
                             }
                         }
 
@@ -1995,10 +1959,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
-                                m_logger.LogError(
-                                    ex,
-                                    "Failed to restore queue for monitored item with id {Id}",
-                                    Id);
+                                m_logger.FailedToRestoreQueueForMonitoredItem2(ex, Id);
                             }
                         }
                         if (restoredQueue != null)
@@ -2089,4 +2050,69 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
     }
+
+    /// <summary>
+    /// Source-generated log messages for MonitoredItem.
+    /// </summary>
+    internal static partial class MonitoredItemLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 0, Level = LogLevel.Error,
+            Message = "Durable subscription was create but no MonitoredItemQueueFactory that supports durable " +
+                "queues was registered, monitored item with id {Id} could not be created")]
+        public static partial void DurableSubscriptionWasCreateButNoMonitoredItemQueueFactory(
+            this ILogger logger,
+            uint id);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 1, Level = LogLevel.Trace,
+            Message = "SetTriggered[{Id}]")]
+        public static partial void SetTriggeredId(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 2, Level = LogLevel.Trace,
+            Message = "MONITORING MODE[{MonitoredItemId}] {Previous} -> {New}")]
+        public static partial void MONITORINGMODEMonitoredItemIdPreviousNew(
+            this ILogger logger,
+            uint monitoredItemId,
+            MonitoringMode previous,
+            MonitoringMode @new);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 3, Level = LogLevel.Trace,
+            Message = "RECEIVED VALUE[{MonitoredItemId}] Value={Value}")]
+        public static partial void RECEIVEDVALUEMonitoredItemIdValueValue(
+            this ILogger logger,
+            uint monitoredItemId,
+            Variant value);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 4, Level = LogLevel.Trace,
+            Message = "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}")]
+        public static partial void ValueReceivedOutOfOrderSourceTimestampServerHandle(
+            this ILogger logger,
+            string? sourceTimestamp,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 5, Level = LogLevel.Trace,
+            Message = "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}")]
+        public static partial void QUEUEVALUEMonitoredItemIdValueValueCODECode(
+            this ILogger logger,
+            uint monitoredItemId,
+            Variant value,
+            uint code,
+            bool overflow);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 6, Level = LogLevel.Trace,
+            Message = "MONITORED ITEM: Publish(QueueSize={QueueSize})")]
+        public static partial void MONITOREDITEMPublishQueueSizeQueueSize(this ILogger logger, int queueSize);
+
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 7, Level = LogLevel.Error,
+            Message = "Failed to restore queue for monitored item with id {MonitoredItemId}")]
+        public static partial void FailedToRestoreQueueForMonitoredItem(
+            this ILogger logger,
+            Exception ex,
+            uint monitoredItemId);
+
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 8, Level = LogLevel.Error,
+            Message = "Failed to restore queue for monitored item with id {Id}")]
+        public static partial void FailedToRestoreQueueForMonitoredItem2(this ILogger logger, Exception ex, uint id);
+    }
+
 }

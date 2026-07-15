@@ -442,21 +442,30 @@ namespace Opc.Ua.Server.TestFramework
                     ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
-                        m_logger.LogInformation(
-                            "Server Started: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} ParentId: {ParentId,-32}",
-                            activity.OperationName,
-                            activity.TraceId,
-                            activity.SpanId,
-                            activity.ParentId
-                        ),
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Information))
+                        {
+                            m_logger.LogInformation(
+                                "Server Started: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} ParentId: {ParentId,-32}",
+                                activity.OperationName,
+                                activity.TraceId,
+                                activity.SpanId,
+                                activity.ParentId);
+                        }
+                    },
                     ActivityStopped = activity =>
-                        m_logger.LogInformation(
-                            "Server Stopped: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} ParentId: {ParentId,-32} Duration: {Duration}",
-                            activity.OperationName,
-                            activity.TraceId,
-                            activity.SpanId,
-                            activity.ParentId,
-                            activity.Duration)
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Information))
+                        {
+                            m_logger.LogInformation(
+                                "Server Stopped: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} ParentId: {ParentId,-32} Duration: {Duration}",
+                                activity.OperationName,
+                                activity.TraceId,
+                                activity.SpanId,
+                                activity.ParentId,
+                                activity.Duration);
+                        }
+                    }
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);

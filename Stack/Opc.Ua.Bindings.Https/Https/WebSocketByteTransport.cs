@@ -453,7 +453,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "WebSocket connect to {Url} failed.", wsUrl);
+                m_logger.WebSocketConnectFailed(ex, wsUrl);
                 throw;
             }
             finally
@@ -500,9 +500,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "WebSocketClientByteTransport: failed to validate server TLS certificate.");
+                m_logger.WebSocketClientFailedToValidateServerTlsCertificate(ex);
                 return false;
             }
         }
@@ -562,5 +560,21 @@ namespace Opc.Ua.Bindings
             throw new NotSupportedException(
                 "WebSocketServerByteTransport is constructed from an accepted WebSocket and cannot connect outbound.");
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="WebSocketByteTransportBase"/>.
+    /// </summary>
+    internal static partial class WebSocketByteTransportBaseLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WebSocketByteTransportBase + 0, Level = LogLevel.Debug,
+            Message = "WebSocket connect to {Url} failed.")]
+        public static partial void WebSocketConnectFailed(this ILogger logger, Exception exception, Uri url);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WebSocketByteTransportBase + 1, Level = LogLevel.Error,
+            Message = "WebSocketClientByteTransport: failed to validate server TLS certificate.")]
+        public static partial void WebSocketClientFailedToValidateServerTlsCertificate(
+            this ILogger logger,
+            Exception exception);
     }
 }

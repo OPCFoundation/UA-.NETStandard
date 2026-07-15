@@ -158,7 +158,7 @@ namespace Opc.Ua.Lds.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "RegisteredServerStore prune failed.");
+                    m_logger.RegisteredServerStorePruneFailed(ex);
                 }
             }, null, tick, tick);
         }
@@ -192,11 +192,7 @@ namespace Opc.Ua.Lds.Server
                 {
                     if (m_byUri.Remove(uri))
                     {
-                        m_logger.LogInformation(
-                            "LDS: removed registration for {Uri} (IsOnline={Online}, SemaphoreOk={Sem}).",
-                            uri,
-                            server.IsOnline,
-                            semaphoreValid);
+                        m_logger.LdsRemovedRegistration(uri, server.IsOnline, semaphoreValid);
                     }
                     RemoveNetworkRecordsForUriCore(uri);
                     return null;
@@ -562,5 +558,20 @@ namespace Opc.Ua.Lds.Server
                 ObservedViaMulticast = r.ObservedViaMulticast
             };
         }
+    }
+
+    internal static partial class RegisteredServerStoreLog
+    {
+        [LoggerMessage(EventId = LdsServerEventIds.RegisteredServerStore + 0, Level = LogLevel.Warning,
+            Message = "RegisteredServerStore prune failed.")]
+        public static partial void RegisteredServerStorePruneFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = LdsServerEventIds.RegisteredServerStore + 1, Level = LogLevel.Information,
+            Message = "LDS: removed registration for {Uri} (IsOnline={Online}, SemaphoreOk={Sem}).")]
+        public static partial void LdsRemovedRegistration(
+            this ILogger logger,
+            string uri,
+            bool online,
+            bool sem);
     }
 }

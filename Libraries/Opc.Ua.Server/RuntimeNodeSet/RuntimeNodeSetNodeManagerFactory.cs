@@ -236,8 +236,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 RuntimeNodeSetSource source = sources[i];
                 string sourceName = GetSourceName(source, i);
 
-                logger.LogInformation(
-                    "RuntimeNodeSet: parsing source '{Source}'.", sourceName);
+                logger.RuntimeNodeSetParsingSourceSource(sourceName);
 
                 Stream stream = await source.OpenReadAsync(cancellationToken)
                     .ConfigureAwait(false);
@@ -577,4 +576,15 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             public string SourceName { get; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for RuntimeNodeSetNodeManagerFactory.
+    /// </summary>
+    internal static partial class RuntimeNodeSetNodeManagerFactoryLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.RuntimeNodeSetNodeManagerFactory + 0, Level = LogLevel.Information,
+            Message = "RuntimeNodeSet: parsing source '{Source}'.")]
+        public static partial void RuntimeNodeSetParsingSourceSource(this ILogger logger, string? source);
+    }
+
 }

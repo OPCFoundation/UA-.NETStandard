@@ -144,6 +144,7 @@
     <File Path="Docs/ContainerReferenceServer.md" />
     <File Path="Docs/CoreNodeManagerVsCustomNodeManager2.md" />
     <File Path="Docs/DependencyInjection.md" />
+    <File Path="Docs/DeveloperGuide.md" />
     <File Path="Docs/DeviceIntegration.md" />
     <File Path="Docs/Diagnostics.md" />
     <File Path="Docs/DurableSubscription.md" />
@@ -160,7 +161,6 @@
     <File Path="Docs/NativeAoT.md" />
     <File Path="Docs/NodeManagement.md" />
     <File Path="Docs/NodeSetExport.md" />
-    <File Path="Docs/PlatformBuild.md" />
     <File Path="Docs/Profiles.md" />
     <File Path="Docs/ProvisioningMode.md" />
     <File Path="Docs/PubSub.md" />

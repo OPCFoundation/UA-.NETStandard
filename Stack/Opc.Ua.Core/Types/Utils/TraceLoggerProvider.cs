@@ -180,7 +180,8 @@ namespace Opc.Ua
                 Exception? exception,
                 Func<TState, Exception?, string> formatter)
             {
-                m_provider.Log(
+                m_provider.
+                    Log(
                     state,
                     exception,
                     GetTraceMask(eventId, logLevel),

@@ -185,8 +185,7 @@ namespace Opc.Ua.PubSub.MetaData
                 m_entries[identity] = new RegisteredEntry(key, metaData);
                 evt = new DataSetMetaDataChangedEventArgs(key, existing.MetaData, metaData);
             }
-            m_logger.LogDebug(
-                "DataSetMetaDataRegistry registered metadata for {Publisher}/{Group}/{Writer} v{Major}.{Minor}.",
+            m_logger.RegisteredMetadata(
                 key.PublisherId,
                 key.WriterGroupId,
                 key.DataSetWriterId,
@@ -213,9 +212,8 @@ namespace Opc.Ua.PubSub.MetaData
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
+                m_logger.MetaDataChangedHandlerThrew(
                     ex,
-                    "DataSetMetaDataRegistry MetaDataChanged handler threw for {Publisher}/{Group}/{Writer}.",
                     evt.Key.PublisherId,
                     evt.Key.WriterGroupId,
                     evt.Key.DataSetWriterId);
@@ -239,4 +237,31 @@ namespace Opc.Ua.PubSub.MetaData
             public DataSetMetaDataType MetaData { get; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DataSetMetaDataRegistry"/>.
+    /// </summary>
+    internal static partial class DataSetMetaDataRegistryLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.DataSetMetaDataRegistry + 0, Level = LogLevel.Debug,
+            Message = "DataSetMetaDataRegistry registered metadata for {Publisher}/{Group}/{Writer} " +
+                "v{Major}.{Minor}.")]
+        public static partial void RegisteredMetadata(
+            this ILogger logger,
+            PublisherId publisher,
+            ushort group,
+            ushort writer,
+            uint major,
+            uint minor);
+
+        [LoggerMessage(EventId = PubSubEventIds.DataSetMetaDataRegistry + 1, Level = LogLevel.Error,
+            Message = "DataSetMetaDataRegistry MetaDataChanged handler threw for {Publisher}/{Group}/{Writer}.")]
+        public static partial void MetaDataChangedHandlerThrew(
+            this ILogger logger,
+            Exception exception,
+            PublisherId publisher,
+            ushort group,
+            ushort writer);
+    }
+
 }

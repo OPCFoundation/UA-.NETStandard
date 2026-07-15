@@ -210,11 +210,10 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(
-                    ex,
-                    "Failed to connect socket to {IdnHost}:{Port}.",
-                    url.IdnHost,
-                    port);
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.TcpByteTransportLogMessage0(ex, url.IdnHost, port);
+                }
                 throw;
             }
             finally
@@ -475,7 +474,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogDebug(e, "Unexpected error closing socket.");
+                m_logger.TcpByteTransportLogMessage1(e);
             }
             finally
             {
@@ -491,4 +490,25 @@ namespace Opc.Ua.Bindings
         private Socket? m_socket;
         private bool m_closed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for TcpByteTransport.
+    /// </summary>
+    internal static partial class TcpByteTransportLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.TcpByteTransport + 0, Level = LogLevel.Debug,
+            Message = "Failed to connect socket to {IdnHost}:{Port}.")]
+        public static partial void TcpByteTransportLogMessage0(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string? idnHost,
+            int port);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpByteTransport + 1, Level = LogLevel.Debug,
+            Message = "Unexpected error closing socket.")]
+        public static partial void TcpByteTransportLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception);
+    }
+
 }

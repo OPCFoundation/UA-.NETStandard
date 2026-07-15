@@ -83,11 +83,7 @@ namespace Opc.Ua.Server.Historian
             if (Interlocked.CompareExchange(ref s_typeTreeWarningEmitted, 1, 0) == 0)
             {
                 ILogger? logger = context?.Telemetry?.CreateLogger(nameof(HistorianEventFilterTarget));
-                logger?.LogWarning(
-                    "Historian event WhereClause subtype query against {RequestedType} could not be resolved: " +
-                    "IFilterContext.TypeTree is null. Event-type subtype matching is degraded (exact match only) " +
-                    "for this and subsequent reads in the current process.",
-                    typeDefinitionId);
+                logger?.HistorianEventWhereClauseSubtypeQueryAgainstRequestedType(typeDefinitionId);
             }
             return false;
         }
@@ -138,4 +134,19 @@ namespace Opc.Ua.Server.Historian
         private readonly HistorianEventRecord m_record;
         private static int s_typeTreeWarningEmitted;
     }
+
+    /// <summary>
+    /// Source-generated log messages for HistorianEventFilterTarget.
+    /// </summary>
+    internal static partial class HistorianEventFilterTargetLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.HistorianEventFilterTarget + 0, Level = LogLevel.Warning,
+            Message = "Historian event WhereClause subtype query against {RequestedType} could not be " +
+                "resolved: IFilterContext.TypeTree is null. Event-type subtype matching is degraded " +
+                "(exact match only) for this and subsequent reads in the current process.")]
+        public static partial void HistorianEventWhereClauseSubtypeQueryAgainstRequestedType(
+            this ILogger logger,
+            NodeId requestedType);
+    }
+
 }

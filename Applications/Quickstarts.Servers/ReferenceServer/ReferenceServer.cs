@@ -40,6 +40,7 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
+using Quickstarts.Servers;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -146,18 +147,14 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation(
-                Utils.TraceMasks.StartStop,
-                "Creating the Reference Server Node Manager.");
+            m_logger.CreatingReferenceServerNodeManager();
 
             var nodeManagers = new List<INodeManager>();
             var asyncNodeManagers = new List<IAsyncNodeManager>();
 
             if (ProvisioningMode)
             {
-                m_logger.LogInformation(
-                    Utils.TraceMasks.StartStop,
-                    "Server is in provisioning mode - limited namespace enabled.");
+                m_logger.ProvisioningModeEnabled();
                 nodeManagers = [];
             }
             else
@@ -383,9 +380,9 @@ namespace Quickstarts.ReferenceServer
                 ManufacturerName = "OPC Foundation",
                 ProductName = "Quickstart Reference Server",
                 ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
-                SoftwareVersion = Utils.GetAssemblySoftwareVersion(),
-                BuildNumber = Utils.GetAssemblyBuildNumber(),
-                BuildDate = Utils.GetAssemblyTimestamp()
+                SoftwareVersion = Opc.Ua.Utils.GetAssemblySoftwareVersion(),
+                BuildNumber = Opc.Ua.Utils.GetAssemblyBuildNumber(),
+                BuildDate = Opc.Ua.Utils.GetAssemblyTimestamp()
             };
         }
 
@@ -420,7 +417,7 @@ namespace Quickstarts.ReferenceServer
         {
             base.OnServerStarting(configuration);
 
-            m_logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
+            m_logger.ServerStarting();
 
             // it is up to the application to decide how to validate user identity tokens.
             // this function creates validator for X509 identity tokens.
@@ -535,7 +532,7 @@ namespace Quickstarts.ReferenceServer
         {
             try
             {
-                string? trustedUserPath = Utils.ReplaceSpecialFolderNames(
+                string? trustedUserPath = Opc.Ua.Utils.ReplaceSpecialFolderNames(
                     security.TrustedUserCertificates?.StorePath);
                 if (string.IsNullOrEmpty(trustedUserPath))
                 {
@@ -553,9 +550,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                m_logger.LogWarning(
-                    e,
-                    "Failed to configure the rejected user certificate review store.");
+                m_logger.FailedToConfigureRejectedUserStore(e);
             }
         }
 
@@ -575,7 +570,7 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty username is not accepted.");
             }
 
-            if (Utils.Utf8IsNullOrEmpty(password))
+            if (Opc.Ua.Utils.Utf8IsNullOrEmpty(password))
             {
                 // an empty password is not accepted.
                 throw ServiceResultException.Create(
@@ -707,10 +702,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                m_logger.LogWarning(
-                    e,
-                    "Failed to persist rejected user certificate to the review store '{Path}'.",
-                    m_rejectedUserStorePath);
+                m_logger.FailedToPersistRejectedUserCertificate(e, m_rejectedUserStorePath);
             }
         }
 
@@ -718,14 +710,14 @@ namespace Quickstarts.ReferenceServer
         {
             if (TokenValidator == null)
             {
-                m_logger.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
+                m_logger.NoTokenValidatorSpecified();
                 return null;
             }
             try
             {
                 if (issuedTokenHandler.IssuedTokenType == IssuedTokenType.JWT)
                 {
-                    m_logger.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
+                    m_logger.VerifyIssuedTokenValidateToken();
                     return TokenValidator.ValidateToken(issuedTokenHandler);
                 }
 
@@ -753,9 +745,7 @@ namespace Quickstarts.ReferenceServer
                         "token is rejected.");
                 }
 
-                m_logger.LogWarning(
-                    Utils.TraceMasks.Security,
-                    "VerifyIssuedToken: Throw ServiceResultException 0x{Result:x}", result);
+                m_logger.VerifyIssuedTokenThrowServiceResultException(result);
 
                 throw new ServiceResultException(
                     new ServiceResult(
@@ -779,10 +769,7 @@ namespace Quickstarts.ReferenceServer
         {
             ct.ThrowIfCancellationRequested();
             RoleBasedIdentity identity = VerifyPassword(userNameToken);
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "Username Token Accepted: {Identity}",
-                identity.DisplayName);
+            m_logger.UsernameTokenAccepted(identity.DisplayName);
             return new ValueTask<IUserIdentity>(identity);
         }
 
@@ -796,10 +783,7 @@ namespace Quickstarts.ReferenceServer
                 new UserIdentity(x509Token),
                 [Role.AuthenticatedUser],
                 ServerInternal.MessageContext.NamespaceUris);
-            m_logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "X509 Token Accepted: {Identity}",
-                identity.DisplayName);
+            m_logger.X509TokenAccepted(identity.DisplayName);
             return identity;
         }
 
@@ -833,4 +817,63 @@ namespace Quickstarts.ReferenceServer
         private readonly LinqUserDatabase m_userDatabase;
         private readonly UserManagement m_userManagement;
     }
+
+    internal static partial class ReferenceServerLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 0, Level = LogLevel.Information,
+            Message = "Creating the Reference Server Node Manager.")]
+        public static partial void CreatingReferenceServerNodeManager(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 1, Level = LogLevel.Information,
+            Message = "Server is in provisioning mode - limited namespace enabled.")]
+        public static partial void ProvisioningModeEnabled(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 2, Level = LogLevel.Information,
+            Message = "The server is starting.")]
+        public static partial void ServerStarting(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 3, Level = LogLevel.Warning,
+            Message = "No TokenValidator is specified.")]
+        public static partial void NoTokenValidatorSpecified(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 4, Level = LogLevel.Debug,
+            Message = "VerifyIssuedToken: ValidateToken")]
+        public static partial void VerifyIssuedTokenValidateToken(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 5, Level = LogLevel.Warning,
+            Message = "VerifyIssuedToken: Throw ServiceResultException 0x{Result:x}")]
+        public static partial void VerifyIssuedTokenThrowServiceResultException(
+            this ILogger logger,
+            StatusCode result);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 6, Level = LogLevel.Information,
+            Message = "Username Token Accepted: {Identity}")]
+        public static partial void UsernameTokenAccepted(this ILogger logger, string identity);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 7, Level = LogLevel.Information,
+            Message = "X509 Token Accepted: {Identity}")]
+        public static partial void X509TokenAccepted(this ILogger logger, string identity);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 8, Level = LogLevel.Warning,
+            Message = "Failed to configure the rejected user certificate review store.")]
+        public static partial void FailedToConfigureRejectedUserStore(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceServer + 9, Level = LogLevel.Warning,
+            Message = "Failed to persist rejected user certificate to the review store '{Path}'.")]
+        public static partial void FailedToPersistRejectedUserCertificate(
+            this ILogger logger,
+            Exception exception,
+            string? path);
+    }
+
 }

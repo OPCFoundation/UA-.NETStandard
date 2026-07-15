@@ -181,7 +181,7 @@ namespace Opc.Ua.Lds.Server.Console
                 }
                 catch (Exception ex)
                 {
-                    logger?.LogError(ex, "Fatal error starting LDS.");
+                    logger?.FatalErrorStartingLds(ex);
                     System.Console.Error.WriteLine(ex);
                     return 2;
                 }
@@ -193,5 +193,13 @@ namespace Opc.Ua.Lds.Server.Console
 
             return rootCommand.Parse(args).InvokeAsync();
         }
+    }
+
+    internal static partial class ProgramLog
+    {
+        [LoggerMessage(EventId = ConsoleLdsServerEventIds.Program + 0, Level = LogLevel.Error,
+            Message = "Fatal error starting LDS.")]
+        public static partial void FatalErrorStartingLds(
+    this Microsoft.Extensions.Logging.ILogger logger, Exception exception);
     }
 }

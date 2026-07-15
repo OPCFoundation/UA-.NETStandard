@@ -501,14 +501,13 @@ namespace Opc.Ua.Server
                     // check secure channel.
                     if (!m_session.IsSecureChannelValid(request.SecureChannelId))
                     {
-                        m_logger.LogWarning("Publish abandoned because the secure channel changed.");
+                        m_logger.PublishAbandonedBecauseTheSecureChannelChanged();
                         request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
                         request.Dispose();
                         continue;
                     }
 
-                    m_logger.LogTrace(
-                        "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}).",
+                    m_logger.PUBLISHIdAssignedToSubscriptionSubscriptionId(
                         request.SecureChannelId,
                         subscription.Subscription.Id);
 
@@ -659,7 +658,7 @@ namespace Opc.Ua.Server
             int readyToPublishCount = 0;
             int expiredCount = 0;
 
-            object? sessionId;
+            NodeId? sessionId;
             lock (m_lock)
             {
                 sessionId = m_session?.Id;
@@ -683,8 +682,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            m_logger.LogTrace(
-                "PublishQueue {Context}, SessionId={SessionId}, SubscriptionCount={SubscriptionCount}, RequestCount={RequestCount}, ReadyToPublishCount={ReadyToPublishCount}, ExpiredCount={ExpiredCount}",
+            m_logger.PublishQueueContextSessionIdSessionIdSubscriptionCount(
                 Utils.Format(context, args),
                 sessionId,
                 subscriptionCount,
@@ -702,4 +700,35 @@ namespace Opc.Ua.Server
         private readonly int m_maxRequestCount;
         private readonly TimeProvider m_timeProvider;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SessionPublishQueue.
+    /// </summary>
+    internal static partial class SessionPublishQueueLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 0, Level = LogLevel.Warning,
+            Message = "Publish abandoned because the secure channel changed.")]
+        public static partial void PublishAbandonedBecauseTheSecureChannelChanged(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 1, Level = LogLevel.Trace,
+            Message = "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}).")]
+        public static partial void PUBLISHIdAssignedToSubscriptionSubscriptionId(
+            this ILogger logger,
+            string id,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 2, Level = LogLevel.Trace,
+            Message = "PublishQueue {Context}, SessionId={SessionId}, SubscriptionCount={SubscriptionCount}, " +
+                "RequestCount={RequestCount}, ReadyToPublishCount={ReadyToPublishCount}, " +
+                "ExpiredCount={ExpiredCount}")]
+        public static partial void PublishQueueContextSessionIdSessionIdSubscriptionCount(
+            this ILogger logger,
+            string? context,
+            NodeId? sessionId,
+            int subscriptionCount,
+            int requestCount,
+            int readyToPublishCount,
+            int expiredCount);
+    }
+
 }

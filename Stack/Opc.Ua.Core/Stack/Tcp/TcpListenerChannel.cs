@@ -262,8 +262,7 @@ namespace Opc.Ua.Bindings
 
                 Transport = transport;
 
-                m_logger.LogDebug(
-                    "{Channel} TRANSPORT ATTACHED: {RemoteEndpoint}, ChannelId={ChannelId}",
+                m_logger.TcpListenChannelLog0(
                     ChannelName,
                     Transport.RemoteEndpoint,
                     ChannelId);
@@ -392,12 +391,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 globalChannelId = GlobalChannelId;
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "{Channel} ChannelId={ChannelId}: closing for certificate rotation (thumbprint {Thumbprint}).",
-                    ChannelName,
-                    ChannelId,
-                    oldThumbprint);
+                m_logger.TcpListenChannelLog1(ChannelName, ChannelId, oldThumbprint);
 
                 var reason = ServiceResult.Create(
                     StatusCodes.BadCertificateInvalid,
@@ -481,11 +475,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 globalChannelId = GlobalChannelId;
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "{Channel} ChannelId={ChannelId}: closing because the peer certificate is no longer trusted.",
-                    ChannelName,
-                    ChannelId);
+                m_logger.TcpListenChannelLog9(ChannelName, ChannelId);
 
                 var reason = ServiceResult.Create(
                     StatusCodes.BadCertificateUntrusted,
@@ -536,10 +526,10 @@ namespace Opc.Ua.Bindings
         {
             ForceChannelFault(ServiceResult.Create(statusCode, format, args));
 
-            m_logger.LogError(
-                "ChannelId {Id}: ForceChannelFault due to {Message}.",
-                ChannelId,
-                Utils.Format(format, args));
+            if (m_logger.IsEnabled(LogLevel.Error))
+            {
+                m_logger.TcpListenChannelLog2(ChannelId, Utils.Format(format, args));
+            }
         }
 
         /// <summary>
@@ -553,11 +543,10 @@ namespace Opc.Ua.Bindings
         {
             ForceChannelFault(ServiceResult.Create(exception, defaultCode, format, args));
 
-            m_logger.LogError(
-                exception,
-                "ChannelId {Id}: ForceChannelFault due to {Message}.",
-                ChannelId,
-                Utils.Format(format, args));
+            if (m_logger.IsEnabled(LogLevel.Error))
+            {
+                m_logger.TcpListenChannelLog3(exception, ChannelId, Utils.Format(format, args));
+            }
         }
 
         /// <summary>
@@ -581,13 +570,13 @@ namespace Opc.Ua.Bindings
                     EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
                     if (remoteEndpoint != null)
                     {
-                        m_logger.LogError(
-                            "{Channel} ForceChannelFault Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
-                            ChannelName,
-                            remoteEndpoint,
-                            CurrentToken != null ? CurrentToken.ChannelId : 0,
-                            CurrentToken != null ? CurrentToken.TokenId : 0,
-                            reason);
+                        m_logger
+                            .TcpListenChannelLog4(
+                                ChannelName,
+                                remoteEndpoint,
+                                CurrentToken != null ? CurrentToken.ChannelId : 0,
+                                CurrentToken != null ? CurrentToken.TokenId : 0,
+                                reason);
                     }
                 }
                 else
@@ -648,13 +637,15 @@ namespace Opc.Ua.Bindings
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
 
-                m_logger.LogInformation(
-                    "{Channel} Cleanup Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
-                    ChannelName,
-                    Transport?.RemoteEndpoint,
-                    CurrentToken != null ? CurrentToken.ChannelId : 0,
-                    CurrentToken != null ? CurrentToken.TokenId : 0,
-                    reason.ToString());
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.TcpListenChannelLog5(
+                        ChannelName,
+                        Transport?.RemoteEndpoint,
+                        CurrentToken != null ? CurrentToken.ChannelId : 0,
+                        CurrentToken != null ? CurrentToken.TokenId : 0,
+                        reason.ToString());
+                }
 
                 // close channel.
                 ChannelClosed();
@@ -703,7 +694,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendErrorMessage(ServiceResult error)
         {
-            m_logger.LogDebug("ChannelId {ChannelId}: SendErrorMessage={Status}", ChannelId, error.StatusCode);
+            m_logger.TcpListenChannelLog6(ChannelId, error.StatusCode);
 
             byte[]? buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
 
@@ -739,11 +730,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            m_logger.LogDebug(
-                "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
-                ChannelId,
-                requestId,
-                fault.StatusCode);
+            m_logger.TcpListenChannelLog7(ChannelId, requestId, fault.StatusCode);
 
             BufferCollection? buffers = null;
 
@@ -784,12 +771,7 @@ namespace Opc.Ua.Bindings
             {
                 buffers?.Release(BufferManager, "SendServiceFault");
 
-                m_logger.LogError(
-                    e,
-                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
-                    ChannelId,
-                    requestId,
-                    fault.StatusCode);
+                m_logger.TcpListenChannelLog8(e, ChannelId, requestId, fault.StatusCode);
 
                 ForceChannelFault(
                     ServiceResult.Create(
@@ -917,4 +899,95 @@ namespace Opc.Ua.Bindings
     public delegate void ReportAuditCertificateEventHandler(
         Certificate clientCertificate,
         Exception exception);
+
+    /// <summary>
+    /// Source-generated log messages for TcpListenerChannel.
+    /// </summary>
+    internal static partial class TcpListenerChannelLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 0, Level = LogLevel.Debug,
+            Message = "{Channel} TRANSPORT ATTACHED: {RemoteEndpoint}, ChannelId={ChannelId}")]
+        public static partial void TcpListenChannelLog0(
+            this ILogger logger,
+            string channel,
+            global::System.Net.EndPoint? remoteEndpoint,
+            uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 1, Level = LogLevel.Information,
+            Message = "{Channel} ChannelId={ChannelId}: closing for certificate rotation (thumbprint {Thumbprint}).")]
+        public static partial void TcpListenChannelLog1(
+            this ILogger logger,
+            string channel,
+            uint channelId,
+            string thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 2, Level = LogLevel.Error,
+            Message = "ChannelId {Id}: ForceChannelFault due to {Message}.")]
+        public static partial void TcpListenChannelLog2(
+            this ILogger logger,
+            uint id,
+            string message);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 3, Level = LogLevel.Error,
+            Message = "ChannelId {Id}: ForceChannelFault due to {Message}.")]
+        public static partial void TcpListenChannelLog3(
+            this ILogger logger,
+            global::System.Exception? exception,
+            uint id,
+            string message);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 4, Level = LogLevel.Error,
+            Message = "{Channel} ForceChannelFault Transport={RemoteEndpoint}, ChannelId={ChannelId}, " +
+                "TokenId={TokenId}, Reason={Reason}")]
+        public static partial void TcpListenChannelLog4(
+            this ILogger logger,
+            string channel,
+            global::System.Net.EndPoint? remoteEndpoint,
+            uint channelId,
+            uint tokenId,
+            global::Opc.Ua.ServiceResult reason);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 5, Level = LogLevel.Information,
+            Message = "{Channel} Cleanup Transport={RemoteEndpoint}, ChannelId={ChannelId}, " +
+                "TokenId={TokenId}, Reason={Reason}")]
+        public static partial void TcpListenChannelLog5(
+            this ILogger logger,
+            string channel,
+            global::System.Net.EndPoint? remoteEndpoint,
+            uint channelId,
+            uint tokenId,
+            string reason);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 6, Level = LogLevel.Debug,
+            Message = "ChannelId {ChannelId}: SendErrorMessage={Status}")]
+        public static partial void TcpListenChannelLog6(
+            this ILogger logger,
+            uint channelId,
+            global::Opc.Ua.StatusCode status);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 7, Level = LogLevel.Debug,
+            Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}")]
+        public static partial void TcpListenChannelLog7(
+            this ILogger logger,
+            uint id,
+            uint requestId,
+            global::Opc.Ua.StatusCode serviceFault);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 8, Level = LogLevel.Error,
+            Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.")]
+        public static partial void TcpListenChannelLog8(
+            this ILogger logger,
+            global::System.Exception? exception,
+            uint id,
+            uint requestId,
+            global::Opc.Ua.StatusCode serviceFault);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 9, Level = LogLevel.Information,
+            Message = "{Channel} ChannelId={ChannelId}: closing because the peer certificate is no longer trusted.")]
+        public static partial void TcpListenChannelLog9(
+            this ILogger logger,
+            string channel,
+            uint channelId);
+    }
+
 }

@@ -310,7 +310,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    logger.LogError("Failed to create endpoint {Uri} because the transport profile is unsupported.", uri);
+                    logger.FailedToCreateEndpoint(uri);
                 }
             }
 
@@ -318,5 +318,15 @@ namespace Opc.Ua.Bindings
             hosts[hostName] = serverBase!.CreateServiceHost(serverBase!, [.. uris])!;
             return endpoints;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="HttpsServiceHost"/>.
+    /// </summary>
+    internal static partial class HttpsServiceHostLog
+    {
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsServiceHost + 0, Level = LogLevel.Error,
+            Message = "Failed to create endpoint {Uri} because the transport profile is unsupported.")]
+        public static partial void FailedToCreateEndpoint(this ILogger logger, UriBuilder uri);
     }
 }

@@ -356,8 +356,7 @@ namespace Opc.Ua.Redundancy.Server
 
             if (Interlocked.Exchange(ref m_overflowWarningWritten, 1) == 0)
             {
-                m_logger.LogWarning(
-                    "The monitored-item queue mirror channel is full; updates are coalesced until the drain catches up.");
+                m_logger.MonitoredItemQueueMirrorChannelFull();
             }
         }
 
@@ -381,7 +380,7 @@ namespace Opc.Ua.Redundancy.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogWarning(ex, "Failed to mirror monitored-item queue state.");
+                        m_logger.FailedToMirrorMonitoredItemQueueState(ex);
                         command.Completion?.SetException(ex);
                     }
                 }
@@ -647,4 +646,24 @@ namespace Opc.Ua.Redundancy.Server
             public TaskCompletionSource<bool>? Completion { get; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SharedKeyValueMonitoredItemQueueFactory"/>.
+    /// </summary>
+    internal static partial class SharedKeyValueMonitoredItemQueueFactoryLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueMonitoredItemQueueFactory + 0,
+            Level = LogLevel.Warning,
+            Message = "The monitored-item queue mirror channel is full; updates are coalesced until the drain " +
+                "catches up.")]
+        public static partial void MonitoredItemQueueMirrorChannelFull(this ILogger logger);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueMonitoredItemQueueFactory + 1,
+            Level = LogLevel.Warning,
+            Message = "Failed to mirror monitored-item queue state.")]
+        public static partial void FailedToMirrorMonitoredItemQueueState(
+            this ILogger logger,
+            Exception exception);
+    }
+
 }

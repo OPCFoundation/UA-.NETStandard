@@ -460,10 +460,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "Failed to reconcile the distributed PushManagement lease after ApplyChanges for {Replica}.",
-                    m_replicaId);
+                m_logger.FailedToReconcileLeaseAfterApplyChanges(ex, m_replicaId);
                 SignalReconcile();
             }
         }
@@ -484,10 +481,7 @@ namespace Opc.Ua.Redundancy.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogError(
-                            ex,
-                            "Distributed PushManagement lease reconcile failed for {Replica}.",
-                            m_replicaId);
+                        m_logger.DistributedLeaseReconcileFailed(ex, m_replicaId);
                     }
 
                     try
@@ -584,10 +578,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "Failed to release the distributed PushManagement lease for {Replica}.",
-                    m_replicaId);
+                m_logger.FailedToReleaseDistributedLease(ex, m_replicaId);
             }
             finally
             {
@@ -722,5 +713,35 @@ namespace Opc.Ua.Redundancy.Server
         private long m_reservationDeadlineTicks;
         private NodeId m_reservationOwner = NodeId.Null;
         private bool m_disposed;
+    }
+
+    internal static partial class DistributedPushConfigurationTransactionCoordinatorLog
+    {
+        [LoggerMessage(
+            EventId = RedundancyServerEventIds.DistributedPushConfigurationTransactionCoordinator + 0,
+            Level = LogLevel.Error,
+            Message = "Failed to reconcile the distributed PushManagement lease after ApplyChanges for {Replica}.")]
+        public static partial void FailedToReconcileLeaseAfterApplyChanges(
+            this ILogger logger,
+            Exception ex,
+            string replica);
+
+        [LoggerMessage(
+            EventId = RedundancyServerEventIds.DistributedPushConfigurationTransactionCoordinator + 1,
+            Level = LogLevel.Error,
+            Message = "Distributed PushManagement lease reconcile failed for {Replica}.")]
+        public static partial void DistributedLeaseReconcileFailed(
+            this ILogger logger,
+            Exception ex,
+            string replica);
+
+        [LoggerMessage(
+            EventId = RedundancyServerEventIds.DistributedPushConfigurationTransactionCoordinator + 2,
+            Level = LogLevel.Error,
+            Message = "Failed to release the distributed PushManagement lease for {Replica}.")]
+        public static partial void FailedToReleaseDistributedLease(
+            this ILogger logger,
+            Exception ex,
+            string replica);
     }
 }

@@ -323,10 +323,7 @@ namespace Opc.Ua.Di.Server.Builders
             }
             catch (Exception ex)
             {
-                logger?.LogWarning(
-                    ex,
-                    "Software-update state-change hook threw for phase {Phase}; swallowed.",
-                    change.Phase);
+                logger?.SoftwareUpdateStateChangeHookThrew(ex, change.Phase);
             }
         }
 
@@ -385,5 +382,15 @@ namespace Opc.Ua.Di.Server.Builders
             }
             return (id, 0, fallbackName);
         }
+    }
+
+    internal static partial class SoftwareUpdateStateMachineDispatcherLog
+    {
+        [LoggerMessage(EventId = DiServerEventIds.SoftwareUpdateStateMachineDispatcher + 0, Level = LogLevel.Warning,
+            Message = "Software-update state-change hook threw for phase {Phase}; swallowed.")]
+        public static partial void SoftwareUpdateStateChangeHookThrew(
+            this ILogger logger,
+            Exception ex,
+            SoftwareUpdatePhase phase);
     }
 }

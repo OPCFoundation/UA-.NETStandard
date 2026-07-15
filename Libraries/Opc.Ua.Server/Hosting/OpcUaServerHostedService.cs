@@ -306,16 +306,16 @@ namespace Opc.Ua.Server.Hosting
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogError(
-                        ex,
-                        "Server startup task {StartupTask} failed after server start.",
-                        startupTask.GetType().FullName);
+                    if (m_logger.IsEnabled(LogLevel.Error))
+                    {
+                        m_logger.ServerStartupTaskStartupTaskFailedAfterServer(ex, startupTask.GetType().FullName);
+                    }
                 }
             }
 
             foreach (string url in urls)
             {
-                m_logger.LogInformation("OPC UA server listening at {Endpoint}.", url);
+                m_logger.OPCUAServerListeningAtEndpoint(url);
             }
 
             try
@@ -453,9 +453,7 @@ namespace Opc.Ua.Server.Hosting
 
                 if (!HasMatchingAuthenticator(policy.TokenType, authenticators))
                 {
-                    m_logger.LogWarning(
-                        "User token policy {TokenType} is configured without a matching identity authenticator.",
-                        policy.TokenType);
+                    m_logger.UserTokenPolicyTokenTypeIsConfiguredWithout(policy.TokenType);
                 }
             }
         }
@@ -488,14 +486,14 @@ namespace Opc.Ua.Server.Hosting
 
             if (m_application != null)
             {
-                m_logger.LogInformation("Stopping OPC UA server...");
+                m_logger.StoppingOPCUAServer();
                 try
                 {
                     await m_application.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Error while stopping OPC UA server.");
+                    m_logger.ErrorWhileStoppingOPCUAServer(ex);
                 }
                 finally
                 {
@@ -535,4 +533,36 @@ namespace Opc.Ua.Server.Hosting
             };
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for OpcUaServerHostedService.
+    /// </summary>
+    internal static partial class OpcUaServerHostedServiceLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 0, Level = LogLevel.Error,
+            Message = "Server startup task {StartupTask} failed after server start.")]
+        public static partial void ServerStartupTaskStartupTaskFailedAfterServer(
+            this ILogger logger,
+            Exception ex,
+            string? startupTask);
+
+        [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 1, Level = LogLevel.Information,
+            Message = "OPC UA server listening at {Endpoint}.")]
+        public static partial void OPCUAServerListeningAtEndpoint(this ILogger logger, string endpoint);
+
+        [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 2, Level = LogLevel.Warning,
+            Message = "User token policy {TokenType} is configured without a matching identity authenticator.")]
+        public static partial void UserTokenPolicyTokenTypeIsConfiguredWithout(
+            this ILogger logger,
+            UserTokenType tokenType);
+
+        [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 3, Level = LogLevel.Information,
+            Message = "Stopping OPC UA server...")]
+        public static partial void StoppingOPCUAServer(this ILogger logger);
+
+        [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 4, Level = LogLevel.Warning,
+            Message = "Error while stopping OPC UA server.")]
+        public static partial void ErrorWhileStoppingOPCUAServer(this ILogger logger, Exception ex);
+    }
+
 }

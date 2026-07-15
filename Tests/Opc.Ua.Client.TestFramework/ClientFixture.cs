@@ -620,19 +620,28 @@ namespace Opc.Ua.Client.TestFramework
                     // Sample all data and recorded activities
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
-                        m_logger.LogInformation(
-                            "Client Started: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16}",
-                            activity.OperationName,
-                            activity.TraceId,
-                            activity.SpanId
-                        ),
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Information))
+                        {
+                            m_logger.LogInformation(
+                                "Client Started: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16}",
+                                activity.OperationName,
+                                activity.TraceId,
+                                activity.SpanId);
+                        }
+                    },
                     ActivityStopped = activity =>
-                        m_logger.LogInformation(
-                            "Client Stopped: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} Duration: {Duration}",
-                            activity.OperationName,
-                            activity.TraceId,
-                            activity.SpanId,
-                            activity.Duration)
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Information))
+                        {
+                            m_logger.LogInformation(
+                                "Client Stopped: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16} Duration: {Duration}",
+                                activity.OperationName,
+                                activity.TraceId,
+                                activity.SpanId,
+                                activity.Duration);
+                        }
+                    }
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);

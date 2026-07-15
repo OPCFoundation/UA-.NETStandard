@@ -318,8 +318,7 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    m_logger.LogInformation(
-                        "{Channel} TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}",
+                    m_logger.TcpServerLog0(
                         ChannelName,
                         transport.RemoteEndpoint,
                         ChannelId);
@@ -375,7 +374,7 @@ namespace Opc.Ua.Bindings
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
-                        // m_logger.LogTrace(
+                        // trace logger:
                         //     Utils.TraceMasks.ServiceDetail,
                         //     "ChannelId {Id}: ProcessRequestMessage",
                         //     ChannelId);
@@ -385,30 +384,21 @@ namespace Opc.Ua.Bindings
                     // check for hello.
                     if (messageType == TcpMessageType.Hello)
                     {
-                        m_logger.LogDebug(
-                            Utils.TraceMasks.ServiceDetail,
-                            "ChannelId {Id}: ProcessHelloMessage",
-                            ChannelId);
+                        m_logger.TcpServerLog1(ChannelId);
                         return ProcessHelloMessage(messageChunk);
                     }
 
                     // process open secure channel repsonse.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
-                        m_logger.LogDebug(
-                            Utils.TraceMasks.ServiceDetail,
-                            "ChannelId {Id}: ProcessOpenSecureChannelRequest",
-                            ChannelId);
+                        m_logger.TcpServerLog2(ChannelId);
                         return ProcessOpenSecureChannelRequest(messageType, messageChunk);
                     }
 
                     // process close secure channel response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                     {
-                        m_logger.LogDebug(
-                            Utils.TraceMasks.ServiceDetail,
-                            "ChannelId {Id}: ProcessCloseSecureChannelRequest",
-                            ChannelId);
+                        m_logger.TcpServerLog3(ChannelId);
                         return ProcessCloseSecureChannelRequest(messageType, messageChunk);
                     }
 
@@ -445,7 +435,10 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Unexpected error re-sending request (ID={Id}).", response.Key);
+                    if (m_logger.IsEnabled(LogLevel.Error))
+                    {
+                        m_logger.TcpServerLog4(e, response.Key);
+                    }
                 }
             }
         }
@@ -665,7 +658,7 @@ namespace Opc.Ua.Bindings
                 const string errorSecurityChecksFailed
                     = "Could not verify security on OpenSecureChannel request.";
 
-                m_logger.LogError(e, errorSecurityChecksFailed);
+                m_logger.TcpServerLog17(e);
 
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, null!, clientCertificate, e);
@@ -819,12 +812,12 @@ namespace Opc.Ua.Bindings
 
                         token = null;
 
-                        m_logger.LogInformation(
-                            "{Channel} ReconnectToExistingChannel Transport={RemoteEndpoint}, ChannelId={ChannelId}, TokenId={TokenId}",
-                            ChannelName,
-                            Transport?.RemoteEndpoint,
-                            CurrentToken != null ? CurrentToken.ChannelId : 0,
-                            CurrentToken != null ? CurrentToken.TokenId : 0);
+                        m_logger
+                            .TcpServerLog5(
+                                ChannelName,
+                                Transport?.RemoteEndpoint,
+                                CurrentToken != null ? CurrentToken.ChannelId : 0,
+                                CurrentToken != null ? CurrentToken.TokenId : 0);
 
                         // close the channel.
                         ChannelClosed();
@@ -937,7 +930,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Error raising StatusChanged event.");
+                m_logger.TcpServerLog6(e);
             }
         }
 
@@ -958,11 +951,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, bool renew, ServiceResult fault)
         {
-            m_logger.LogDebug(
-                "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
-                ChannelId,
-                requestId,
-                fault.StatusCode);
+            m_logger.TcpServerLog7(ChannelId, requestId, fault.StatusCode);
 
             BufferCollection? chunksToSend = null;
 
@@ -1006,12 +995,7 @@ namespace Opc.Ua.Bindings
             {
                 chunksToSend?.Release(BufferManager, "SendServiceFault");
 
-                m_logger.LogError(
-                    e,
-                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
-                    ChannelId,
-                    requestId,
-                    fault.StatusCode);
+                m_logger.TcpServerLog8(e, ChannelId, requestId, fault.StatusCode);
 
                 ForceChannelFault(
                     ServiceResult.Create(
@@ -1037,7 +1021,7 @@ namespace Opc.Ua.Bindings
             OpenSecureChannelRequest request,
             bool renew)
         {
-            m_logger.LogDebug("ChannelId {Id}: SendOpenSecureChannelResponse()", ChannelId);
+            m_logger.TcpServerLog9(ChannelId);
 
             var response = new OpenSecureChannelResponse();
 
@@ -1160,14 +1144,13 @@ namespace Opc.Ua.Bindings
                 // report the audit event for close secure channel
                 ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
 
-                m_logger.LogError(e, "Unexpected error processing CloseSecureChannel request.");
+                m_logger.TcpServerLog10(e);
             }
             finally
             {
                 chunksToProcess?.Release(BufferManager, "ProcessCloseSecureChannelRequest");
 
-                m_logger.LogInformation(
-                    "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, TokenId={TokenId}, Transport={RemoteEndpoint}",
+                m_logger.TcpServerLog11(
                     ChannelName,
                     CurrentToken?.ChannelId,
                     CurrentToken?.TokenId,
@@ -1222,8 +1205,7 @@ namespace Opc.Ua.Bindings
 
                 if (token == CurrentToken && PreviousToken != null && !PreviousToken.IsExpired(TimeProvider))
                 {
-                    m_logger.LogInformation(
-                        "ChannelId {Id}: Server Current Token #{CurrentToken}, Revoked Token #{PreviousToken}.",
+                    m_logger.TcpServerLog12(
                         PreviousToken.ChannelId,
                         CurrentToken.TokenId,
                         PreviousToken.TokenId);
@@ -1242,14 +1224,14 @@ namespace Opc.Ua.Bindings
             int countForDisconnect = 5;
             while (ChannelFull && countForDisconnect > 0)
             {
-                m_logger.LogInformation("Channel {Id}: full -- delay processing.", Id);
+                m_logger.TcpServerLog13(Id);
 
                 // delay reading from channel
                 Thread.Sleep(1000);
 
                 if (--countForDisconnect == 0 && ChannelFull)
                 {
-                    m_logger.LogWarning("Channel {Id}: break socket connection.", Id);
+                    m_logger.TcpServerLog14(Id);
                     ChannelClosed();
                     return false;
                 }
@@ -1262,11 +1244,7 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    m_logger.LogWarning(
-                        Utils.TraceMasks.ServiceDetail,
-                        "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId} was aborted.",
-                        ChannelId,
-                        requestId);
+                    m_logger.TcpServerLog15(ChannelId, requestId);
                     chunksToProcess = GetSavedChunks(requestId, messageBody, true);
                     return true;
                 }
@@ -1307,7 +1285,7 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                // m_logger.LogTrace(
+                // trace logger:
                 //      "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId}",
                 //      ChannelId,
                 //      requestId);
@@ -1362,7 +1340,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error processing request.");
+                m_logger.TcpServerLog16(e);
                 SendServiceFault(
                     token,
                     requestId,
@@ -1408,7 +1386,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
-                // m_logger.LogTrace(
+                // trace logger:
                 //     "ChannelId {ChannelId}: SendResponse {RequestId}",
                 //     ChannelId,
                 //     requestId);
@@ -1526,4 +1504,126 @@ namespace Opc.Ua.Bindings
         private static readonly string s_implementationString =
             ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
     }
+
+    /// <summary>
+    /// Source-generated log messages for TcpServerChannel.
+    /// </summary>
+    internal static partial class TcpServerChannelLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 0, Level = LogLevel.Information,
+            Message = "{Channel} TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}")]
+        public static partial void TcpServerLog0(
+            this ILogger logger,
+            string channel,
+            global::System.Net.EndPoint? remoteEndpoint,
+            uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 1, Level = LogLevel.Debug,
+            Message = "ChannelId {Id}: ProcessHelloMessage")]
+        public static partial void TcpServerLog1(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 2, Level = LogLevel.Debug,
+            Message = "ChannelId {Id}: ProcessOpenSecureChannelRequest")]
+        public static partial void TcpServerLog2(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 3, Level = LogLevel.Debug,
+            Message = "ChannelId {Id}: ProcessCloseSecureChannelRequest")]
+        public static partial void TcpServerLog3(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 4, Level = LogLevel.Error,
+            Message = "Unexpected error re-sending request (ID={Id}).")]
+        public static partial void TcpServerLog4(
+            this ILogger logger,
+            global::System.Exception? exception,
+            uint id);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 5, Level = LogLevel.Information,
+            Message = "{Channel} ReconnectToExistingChannel Transport={RemoteEndpoint}, " +
+                "ChannelId={ChannelId}, TokenId={TokenId}")]
+        public static partial void TcpServerLog5(
+            this ILogger logger,
+            string channel,
+            global::System.Net.EndPoint? remoteEndpoint,
+            uint channelId,
+            uint tokenId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 6, Level = LogLevel.Error,
+            Message = "Error raising StatusChanged event.")]
+        public static partial void TcpServerLog6(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 7, Level = LogLevel.Debug,
+            Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}")]
+        public static partial void TcpServerLog7(
+            this ILogger logger,
+            uint id,
+            uint requestId,
+            global::Opc.Ua.StatusCode serviceFault);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 8, Level = LogLevel.Error,
+            Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.")]
+        public static partial void TcpServerLog8(
+            this ILogger logger,
+            global::System.Exception? exception,
+            uint id,
+            uint requestId,
+            global::Opc.Ua.StatusCode serviceFault);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 9, Level = LogLevel.Debug,
+            Message = "ChannelId {Id}: SendOpenSecureChannelResponse()")]
+        public static partial void TcpServerLog9(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 10, Level = LogLevel.Error,
+            Message = "Unexpected error processing CloseSecureChannel request.")]
+        public static partial void TcpServerLog10(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 11, Level = LogLevel.Information,
+            Message = "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, " +
+                "TokenId={TokenId}, Transport={RemoteEndpoint}")]
+        public static partial void TcpServerLog11(
+            this ILogger logger,
+            string channel,
+            uint? channelId,
+            uint? tokenId,
+            global::System.Net.EndPoint? remoteEndpoint);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 12, Level = LogLevel.Information,
+            Message = "ChannelId {Id}: Server Current Token #{CurrentToken}, Revoked Token #{PreviousToken}.")]
+        public static partial void TcpServerLog12(
+            this ILogger logger,
+            uint id,
+            uint currentToken,
+            uint previousToken);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 13, Level = LogLevel.Information,
+            Message = "Channel {Id}: full -- delay processing.")]
+        public static partial void TcpServerLog13(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 14, Level = LogLevel.Warning,
+            Message = "Channel {Id}: break socket connection.")]
+        public static partial void TcpServerLog14(this ILogger logger, uint id);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 15, Level = LogLevel.Warning,
+            Message = "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId} was aborted.")]
+        public static partial void TcpServerLog15(
+            this ILogger logger,
+            uint id,
+            uint requestId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 16, Level = LogLevel.Error,
+            Message = "Unexpected error processing request.")]
+        public static partial void TcpServerLog16(
+            this ILogger logger,
+            global::System.Exception? exception);
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 17, Level = LogLevel.Error,
+            Message = "Could not verify security on OpenSecureChannel request.")]
+        public static partial void TcpServerLog17(
+            this ILogger logger,
+            global::System.Exception? exception);
+
+    }
+
 }
