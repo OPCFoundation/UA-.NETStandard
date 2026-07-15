@@ -114,7 +114,7 @@ namespace MinimalClient
                     };
                 });
 
-            await using IServiceProvider provider = services.BuildServiceProvider(
+            IServiceProvider provider = services.BuildServiceProvider(
                 new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 
             // Resolve the managed session factory from DI
@@ -122,80 +122,83 @@ namespace MinimalClient
 
             // Create and connect managed session
             Console.WriteLine("Creating session...");
-            await using ManagedSession session = await sessionFactory.ConnectAsync(
-                configuredEndpoint,
-                cancellationToken).ConfigureAwait(false);
+            ManagedSession session = await sessionFactory
+                .ConnectAsync(configuredEndpoint, cancellationToken)
+                .ConfigureAwait(false);
 
-            Console.WriteLine("Connected!");
-            Console.WriteLine();
-
-            // Browse the Objects folder using Browser helper
-            Console.WriteLine("Browsing Objects folder...");
-            var browser = new Browser(session)
+            await using (session)
             {
-                BrowseDirection = BrowseDirection.Forward,
-                NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
-                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-            };
+                Console.WriteLine("Connected!");
+                Console.WriteLine();
 
-            try
-            {
-                ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(
-                    ObjectIds.ObjectsFolder,
-                    cancellationToken).ConfigureAwait(false);
-
-                Console.WriteLine($"Found {references.Count} references");
-                foreach (ReferenceDescription reference in references)
+                // Browse the Objects folder using Browser helper
+                Console.WriteLine("Browsing Objects folder...");
+                var browser = new Browser(session)
                 {
-                    Console.WriteLine($"  - {reference.DisplayName} ({reference.NodeClass})");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Browse failed: {ex.Message}");
-            }
+                    BrowseDirection = BrowseDirection.Forward,
+                    NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
+                    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                    IncludeSubtypes = true,
+                };
 
-            Console.WriteLine();
+                try
+                {
+                    ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(
+                        ObjectIds.ObjectsFolder,
+                        cancellationToken).ConfigureAwait(false);
 
-            // Read the server time
-            Console.WriteLine("Reading ServerStatus.CurrentTime...");
-            try
-            {
-                ReadResponse readResponse = await session.ReadAsync(
-                    null,
-                    0,
-                    TimestampsToReturn.Both,
-                    new ReadValueId[]
+                    Console.WriteLine($"Found {references.Count} references");
+                    foreach (ReferenceDescription reference in references)
                     {
-                        new ReadValueId
+                        Console.WriteLine($"  - {reference.DisplayName} ({reference.NodeClass})");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Browse failed: {ex.Message}");
+                }
+
+                Console.WriteLine();
+
+                // Read the server time
+                Console.WriteLine("Reading ServerStatus.CurrentTime...");
+                try
+                {
+                    ReadResponse readResponse = await session.ReadAsync(
+                        null,
+                        0,
+                        TimestampsToReturn.Both,
+                        new ReadValueId[]
                         {
-                            NodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                            AttributeId = Attributes.Value,
+                            new ReadValueId
+                            {
+                                NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                                AttributeId = Attributes.Value,
+                            },
                         },
-                    },
-                    cancellationToken).ConfigureAwait(false);
+                        cancellationToken).ConfigureAwait(false);
 
-                if (readResponse.Results.Count > 0)
-                {
-                    DataValue dataValue = readResponse.Results[0];
-                    if (!StatusCode.IsBad(dataValue.StatusCode))
+                    if (readResponse.Results.Count > 0)
                     {
-                        Console.WriteLine($"Server time: {dataValue.WrappedValue}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Failed to read server time: {dataValue.StatusCode}");
+                        DataValue dataValue = readResponse.Results[0];
+                        if (!StatusCode.IsBad(dataValue.StatusCode))
+                        {
+                            Console.WriteLine($"Server time: {dataValue.WrappedValue}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to read server time: {dataValue.StatusCode}");
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Read failed: {ex.Message}");
-            }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Read failed: {ex.Message}");
+                }
 
-            Console.WriteLine();
-            Console.WriteLine("Disconnecting...");
+                Console.WriteLine();
+                Console.WriteLine("Disconnecting...");
+            }
 
             Console.WriteLine("Done");
         }
