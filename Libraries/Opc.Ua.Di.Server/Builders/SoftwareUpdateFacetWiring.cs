@@ -102,7 +102,13 @@ namespace Opc.Ua.Di.Server.Builders
             su.BrowseName = new QualifiedName(SoftwareUpdateBrowseName, diNs);
             su.DisplayName = new LocalizedText(SoftwareUpdateBrowseName);
             su.NodeId = context.NodeIdFactory.New(context, su);
-            su.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
+            // OPC 10000-100 models the SoftwareUpdate object as an AddIn on
+            // its host, referenced via HasAddIn (a subtype of HasComponent)
+            // rather than a plain HasComponent. Using HasAddIn keeps the
+            // facet spec-correct and lets companion-spec checkers treat it
+            // as an added-in component instead of validating it against the
+            // host type's OptionalPlaceholder children (GEN-07 noise).
+            su.ReferenceTypeId = Types.ReferenceTypeIds.HasAddIn;
             su.ModellingRuleId = NodeId.Null;
 
             // Loading subtype (the address-space slot is non-abstract;

@@ -94,6 +94,16 @@ builder.Services
         // the simulated supervision flags shared across both pumps).
         pump.Device.AddDeviceHealth(ctx.Manager.SystemContext);
         pump.WithDeviceHealth(DeviceHealthEnumeration.NORMAL);
+
+        // The DeviceHealth child was added to the in-memory DeviceState
+        // subtree after the device itself was registered, so it must be
+        // registered with the manager explicitly. Without this the node
+        // is browsable but its attributes never resolve, so the DI
+        // companion-spec checker cannot map it to the declared
+        await ctx.Manager
+            .AddPredefinedNodeAsync(pump.Device.DeviceHealth!, ctx.CancellationToken)
+            .ConfigureAwait(false);
+
         ((PumpNodeManager)ctx.Manager)
             .RegisterSupervisedDeviceHealth(pump.Device.DeviceHealth);
 
