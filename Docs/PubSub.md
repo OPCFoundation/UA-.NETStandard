@@ -825,6 +825,45 @@ Additional v1.05.06 flavours:
 - `SingleNetworkMessage` mode flips the JSON array wrapper off, so
   each MQTT publish maps 1:1 to a single `JsonNetworkMessage`.
 
+### Avro — `Opc.Ua.PubSub.Encoding` (experimental)
+
+> **Experimental.** The Avro encoding is annotated with
+> `[Experimental("UA_NETStandard_1")]`; you must acknowledge diagnostic
+> `UA_NETStandard_1` to consume it, and the wire format may change without a
+> major-version bump.
+
+An Avro PubSub network-message encoding (`AvroNetworkMessage`, transport profile
+`AvroNetworkMessage.PubSubMqttAvroTransport`) built on the experimental Part 6
+`AvroEncoder`/`AvroDecoder` in `Opc.Ua.Types`. The Part 6 codec implements the full
+built-in / `Variant` / `ExtensionObject` / `Enumeration` surface and is exercised by
+the same shared encoder round-trip matrix as Binary/JSON/XML. Avro is available on
+**every** target framework: the net5+ BCL fast paths (span-based `Encoding`,
+`Stream.ReadExactly`, `BitConverter` bit-casts) are provided by the polyfills under
+`Opc.Ua.Types/Polyfills` on `net472` / `net48` / `netstandard2.0` / `netstandard2.1`,
+so there is no `net8.0`+ performance regression.
+
+The Avro encoder generates the per-DataSet schema progressively and exchanges it out
+of band through the schema-exchange handshake (`SchemaCache`, schema announcements /
+requests); it is also available as a [transcoding](#transcoding) target with
+progressive schema generation and reset (`SchemaCache.Reset()`).
+
+### Arrow — `Opc.Ua.PubSub.Encoding.Arrow` (experimental)
+
+> **Experimental.** The Arrow encoding is annotated with
+> `[Experimental("UA_NETStandard_1")]`; you must acknowledge diagnostic
+> `UA_NETStandard_1` to consume it, and the wire format may change without a
+> major-version bump.
+
+A columnar [Apache Arrow](https://arrow.apache.org/) PubSub network-message encoding
+(`ArrowNetworkMessage`) built on the Part 6 `ArrowEncoder`/`ArrowDecoder`. Unlike
+Avro, Arrow requires the `Apache.Arrow` package and therefore targets **`net8.0`+
+only** — it is not compiled or testable on the legacy target frameworks. The Part 6
+codec runs the full shared round-trip matrix, including `IEncodeable` /
+`ExtensionObject` values (decoded back to the concrete `IEncodeable` through the
+message context's `EncodeableFactory`, falling back to the raw binary body when the
+type id is not registered) and `Enumeration` Variants (scalar / array / matrix,
+carried as `Int32` columns).
+
 ## Transcoding
 
 High-performance PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp`, `Json`, or the experimental `Avro`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.

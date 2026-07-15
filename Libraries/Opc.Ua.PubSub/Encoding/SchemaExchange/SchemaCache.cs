@@ -221,9 +221,20 @@ namespace Opc.Ua.PubSub.Encoding
         public static bool TryParseKey(string? text, out ByteString schemaId)
         {
             schemaId = default;
-            if (string.IsNullOrWhiteSpace(text) || text.Length != 16)
+            if (string.IsNullOrWhiteSpace(text) || text!.Length != 16)
             {
                 return false;
+            }
+
+            // Utils.FromHexString throws FormatException for invalid hex on .NET 6+
+            // (Convert.FromHexString) but silently stops parsing on the legacy targets,
+            // so validate the digits explicitly to behave identically on every TFM.
+            foreach (char c in text)
+            {
+                if (!Uri.IsHexDigit(c))
+                {
+                    return false;
+                }
             }
             try
             {

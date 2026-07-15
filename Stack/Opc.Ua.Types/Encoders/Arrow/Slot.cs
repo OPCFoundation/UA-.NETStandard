@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+#if NET8_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -57,3 +58,4 @@ namespace Opc.Ua
         }
     }
 }
+#endif

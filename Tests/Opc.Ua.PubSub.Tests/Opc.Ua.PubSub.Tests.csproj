@@ -32,13 +32,10 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
-  <!-- The Avro/Arrow PubSub adapters exist only on net8.0+ (see Opc.Ua.PubSub);
-       exclude their tests on the legacy target frameworks. -->
-  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
-    <Compile Remove="Encoding\Avro\**\*.cs" />
-    <Compile Remove="Encoding\Arrow\**\*.cs" />
-    <Compile Remove="SchemaExchange\**\*.cs" />
-  </ItemGroup>
+  <!-- The Avro PubSub adapter and the schema-exchange support build on every target
+       framework; the Arrow PubSub adapter requires Apache.Arrow (net8.0+), so its
+       tests self-exclude on the legacy frameworks via #if NET8_0_OR_GREATER guards
+       in the test sources. -->
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />

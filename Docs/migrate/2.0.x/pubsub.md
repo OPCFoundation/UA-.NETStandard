@@ -9,14 +9,6 @@ For the full Part 14 feature reference, including additive 2.0 capabilities,
 see [`PubSub.md`](../../PubSub.md). This sub-doc focuses on migration work
 required for existing consumers.
 
-> **New (experimental):** 2.0 adds an experimental **Avro** PubSub network-message
-> encoding (`Opc.Ua.PubSub.Encoding.AvroNetworkMessage`, transport profile
-> `AvroNetworkMessage.PubSubMqttAvroTransport`) and an **Avro transcoder** that
-> re-projects UADP/JSON network messages to Avro with progressive schema
-> generation/reset (`SchemaCache.Reset()`). Both are additive and gated behind the
-> `[Experimental("UA_NETStandard_1")]` attribute — no migration is required for
-> existing consumers. See [`PubSub.md`](../../PubSub.md) for usage.
-
 ## Contents
 
 1. [PubSub assemblies and NuGet packages renamed and split](#1-pubsub-assemblies-and-nuget-packages-renamed-and-split)

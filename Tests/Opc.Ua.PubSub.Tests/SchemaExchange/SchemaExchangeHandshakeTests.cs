@@ -68,6 +68,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(changedAnnouncement!.SchemaId, Is.Not.EqualTo(firstAnnouncement!.SchemaId));
         }
 
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Verifies Arrow announcements are emitted once for an unchanged schema and again for a change.
         /// </summary>
@@ -92,6 +93,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(changedAnnouncement, Is.Not.Null);
             Assert.That(changedAnnouncement!.SchemaId, Is.Not.EqualTo(firstAnnouncement!.SchemaId));
         }
+#endif
 
         /// <summary>
         /// Verifies decoder cache hits avoid the resolver and misses invoke it once.
@@ -163,6 +165,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             };
         }
 
+#if NET8_0_OR_GREATER
         private static ArrowNetworkMessage CreateArrowMessage(string schemaId, bool includeSecondField)
         {
             return new ArrowNetworkMessage
@@ -175,6 +178,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
                 DataSetMessages = [CreateArrowDataSetMessage(includeSecondField)]
             };
         }
+#endif
 
         private static AvroDataSetMessage CreateAvroDataSetMessage(bool includeSecondField)
         {
@@ -213,6 +217,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             return message;
         }
 
+#if NET8_0_OR_GREATER
         private static ArrowDataSetMessage CreateArrowDataSetMessage(bool includeSecondField)
         {
             DataSetField[] fields = includeSecondField
@@ -249,6 +254,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             };
             return message;
         }
+#endif
 
         private static DataSetMetaDataType CreateMetaData(bool includeSecondField)
         {

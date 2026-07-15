@@ -62,15 +62,6 @@ Custom encoder/decoder implementations must adjust to comply with the new interf
 - Change all `ReadEnumerated` calls to use the enumeration type as part of the generic expression. E.g. `ReadEnumerated("field", typeof(T))` to `ReadEnumerated<T>("field")`.
 - Change calls to `ReadArray`/`WriteArray` to use `ReadVariantValue` and `WriteVariantValue` and extract the value from the returned `Variant` based on the type you intended to read. A good example can be found in `BaseComplexType` `EncodeProperty` and `DecodeProperty`.
 
-## Experimental Encodings (Avro, Arrow)
-
-Two additional, **experimental** wire encodings ship in `Opc.Ua.Types` alongside Binary/JSON/XML and are surfaced through the same `IEncoder`/`IDecoder` abstractions and the `EncodingType` enum (`EncodingType.Avro`, `EncodingType.Arrow`). Both codec surfaces are annotated with `[Experimental("UA_NETStandard_1")]`: to use `AvroEncoder`/`AvroDecoder`, `ArrowEncoder`/`ArrowDecoder`, or the corresponding `EncodingType` members you must acknowledge diagnostic `UA_NETStandard_1` (suppress it or set it to a non-error severity), and the API and wire format may change without a major-version bump.
-
-- **Avro** (`AvroEncoder`/`AvroDecoder`) is available on every target framework. On the legacy targets (`net472`, `net48`, `netstandard2.0`, `netstandard2.1`) it uses the polyfilled span/stream/`Encoding` helpers in `Opc.Ua.Types/Polyfills`; on `net8.0`+ it uses the BCL fast paths, so there is no `net8.0`+ performance regression. It implements the full built-in / Variant / `ExtensionObject` / `Enumeration` surface and runs in the same shared Part 6 encoder round-trip test matrix as Binary/JSON/XML.
-- **Arrow** (`ArrowEncoder`/`ArrowDecoder`, a columnar Apache Arrow representation) targets `net8.0`+ only. It also runs the full shared round-trip matrix, including `IEncodeable`/`ExtensionObject` values (decoded back to the concrete `IEncodeable` through the message context's `EncodeableFactory`, falling back to the raw binary body when the type id is not registered) and `Enumeration` Variants (scalar/array/matrix, carried as `Int32` columns). Directly writing top-level struct arrays of `Variant`/`DataValue` remains limited to a single element, and full message-envelope decode (`ArrowDecoder.DecodeMessage<T>()`) is not implemented.
-
-> **Protobuf note:** An experimental Protobuf codec existed transiently on this branch and was removed before release. There is no `EncodingType.Protobuf` member and no public Protobuf encoder/decoder to migrate away from.
-
 ## Complex Types
 
 ### ComplexTypes moved to Opc.Ua.Core.Schema
