@@ -168,6 +168,27 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public void AddEndpointFactoryArgumentExceptionThrowsBadTcpEndpointUrlInvalid()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", telemetry))
+                .Throws(new ArgumentException("Invalid listener."));
+            using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = registry.Object
+            };
+            var uri = new Uri("opc.test://localhost:4840");
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.AddEndpoint(uri))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
+            Assert.That(exception.Message, Does.Contain(uri.ToString()));
+        }
+
+        [Test]
         public void AddEndpoint_AfterStartService_ThrowsBadInvalidState()
         {
             ITelemetryContext telemetry = CreateTelemetry();
@@ -422,6 +443,31 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public void StartServiceAppConfigInvalidEndpointThrowsBadTcpEndpointUrlInvalid()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            using var manager = new ReverseConnectManager(telemetry);
+            ApplicationConfiguration configuration = CreateAppConfig(telemetry);
+            configuration.ClientConfiguration!.ReverseConnect!.ClientEndpoints =
+                new ArrayOf<ReverseConnectClientEndpoint>(
+                new ReverseConnectClientEndpoint[]
+                {
+                    new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = "not a uri"
+                    }
+                });
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.StartService(configuration))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
+            Assert.That(
+                () => manager.StartService(new ReverseConnectClientConfiguration()),
+                Throws.Nothing);
+        }
+
+        [Test]
         public void StartServiceAppConfigFailureRollsBackOpenedListeners()
         {
             ITelemetryContext telemetry = CreateTelemetry();
@@ -473,6 +519,27 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(
                 () => retryManager.StartService(new ReverseConnectClientConfiguration()),
                 Throws.Nothing);
+        }
+
+        [Test]
+        public void DisposeAfterStartWithSourceFileDisposesWatcher()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            string sourceFilePath = Path.GetTempFileName();
+            try
+            {
+                using var manager = new ReverseConnectManager(telemetry);
+                ApplicationConfiguration configuration = CreateAppConfig(telemetry);
+                typeof(ApplicationConfiguration)
+                    .GetProperty(nameof(ApplicationConfiguration.SourceFilePath))!
+                    .SetValue(configuration, sourceFilePath);
+
+                Assert.That(() => manager.StartService(configuration), Throws.Nothing);
+            }
+            finally
+            {
+                File.Delete(sourceFilePath);
+            }
         }
 
         [Test]
