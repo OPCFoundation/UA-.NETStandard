@@ -52,7 +52,7 @@ namespace Opc.Ua.Redundancy.Server
         /// private keys without confidentiality or integrity protection.
         /// Production deployments backed by a network store MUST configure an
         /// <see cref="AesCbcHmacRecordProtector"/>; see
-        /// <c>Docs/HighAvailability.md</c>.
+        /// <c>docs/HighAvailability.md</c>.
         /// </remarks>
         public Func<IServiceProvider, IRecordProtector>? RecordProtectorFactory { get; set; }
 

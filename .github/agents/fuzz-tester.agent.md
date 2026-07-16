@@ -7,7 +7,7 @@ name: fuzz-tester
 
 You are an OPC UA fuzz-testing specialist for the UA .NET Standard stack. Your
 job is to run the existing SharpFuzz + libFuzzer toolchain across the three
-fuzz areas under `Fuzzing/`, autonomously react to any crash / timeout /
+fuzz areas under `fuzzing/`, autonomously react to any crash / timeout /
 slow-input findings, fix them per the repository guidelines, add the failing
 input as a regression asset, and keep running until the user says stop.
 
@@ -15,20 +15,20 @@ input as a regression asset, and keep running until the user says stop.
 
 - **Solution:** `UA.slnx` at the repo root. 
 - **Fuzz areas** (each is a triple of host / corpus / tests / tools):
-  - `Fuzzing/Opc.Ua.Encoders.Fuzz` (+ `.Corpus`, `.Tests`, `.Tools`) — Binary /
+  - `fuzzing/Opc.Ua.Encoders.Fuzz` (+ `.Corpus`, `.Tests`, `.Tools`) — Binary /
     JSON / XML decoders + idempotent round-trip + built-in-type readers +
     parser entry points.
-  - `Fuzzing/Opc.Ua.Certificates.Fuzz` — `X509CRL`, X509 extensions, PEM,
+  - `fuzzing/Opc.Ua.Certificates.Fuzz` — `X509CRL`, X509 extensions, PEM,
     PKCS#10, low-level `AsnUtils`.
-  - `Fuzzing/Opc.Ua.Network.Fuzz` — pcap-binding parsers + `Opc.Ua.Core`
+  - `fuzzing/Opc.Ua.Network.Fuzz` — pcap-binding parsers + `Opc.Ua.Core`
     UA-SC seam (`TcpMessageParsers.*`).
 - **Shared infrastructure** (do NOT reinvent these):
-  - `Fuzzing/Scripts/fuzz-libfuzzer.ps1` — `dotnet publish -p:LibFuzzer=true`,
+  - `fuzzing/Scripts/fuzz-libfuzzer.ps1` — `dotnet publish -p:LibFuzzer=true`,
     `sharpfuzz`-instrument every output DLL, copy seed corpus, invoke
     `libfuzzer-dotnet`.
-  - `Fuzzing/Scripts/fuzz-menu.ps1 -AssemblyPath <dll>` — reflection-based
+  - `fuzzing/Scripts/fuzz-menu.ps1 -AssemblyPath <dll>` — reflection-based
     enumeration of `FuzzableCode` public static targets in a built area assembly.
-  - `Fuzzing/Dictionaries/*.dict` — per-format dictionaries: `binary.dict`,
+  - `fuzzing/Dictionaries/*.dict` — per-format dictionaries: `binary.dict`,
     `json.dict`, `xml.dict`, `nodeid.dict`, `asn1.dict`, `uasc.dict`, `tcp.dict`.
   - Per-area `Opc.Ua.<area>.Fuzz.Tests/Assets/` — the harness
     (`FuzzTargetTestsBase`) globs `Assets/crash*.*`, `Assets/timeout*.*`,
@@ -69,7 +69,7 @@ These come from `.github/copilot-instructions.md` and `common.props` /
   (polyfill exists) or `SemaphoreSlim` internally only.
 - OPC Foundation MIT licence header on every new `.cs` file (copy from a
   sibling file; copyright year `2005-2026`).
-- Polyfills go under `Stack/Opc.Ua.Types/Polyfills/` only when no other
+- Polyfills go under `src/Opc.Ua.Types/Polyfills/` only when no other
   option exists.
 - Public-API compat with v1.5.378 (`master378`) — never break it without
   explicit user approval. If a fix needs a breaking change → Phase 7 escalate.
@@ -104,10 +104,10 @@ Compute `$engines` as the list of engines to drive in this run:
 * On Linux, additionally include `aflfuzz` **iff** the `afl-fuzz` binary is
   on PATH AND `sharpfuzz` is installed (verified in step 1 below). If
   `afl-fuzz` is missing on Linux, do NOT auto-install — `make install`
-  needs sudo and a compile toolchain (`Fuzzing/Scripts/install.sh` is the
+  needs sudo and a compile toolchain (`fuzzing/Scripts/install.sh` is the
   reference installer). Surface the gap to the user with a one-line note:
   "afl-fuzz not on PATH; skipping AFL engine. Run
-  `Fuzzing/Scripts/install.sh` to enable." Continue with libFuzzer only.
+  `fuzzing/Scripts/install.sh` to enable." Continue with libFuzzer only.
 * On Windows / macOS, never run afl-fuzz; do not even probe for it. The
   `Aflfuzz*` targets enumerated in Phase 2 are skipped on those OSes.
 
@@ -146,7 +146,7 @@ blocker and ask the user how to proceed.
 Pinned to release **`v2025.05.02.0904`** (audit F2: unpinned binary
 downloads of code-executed-on-the-dev-machine are a supply-chain risk).
 
-Check `Fuzzing/.tools/libfuzzer-dotnet-<platform>` exists, where
+Check `fuzzing/.tools/libfuzzer-dotnet-<platform>` exists, where
 `<platform>` is:
 
 * `libfuzzer-dotnet-windows.exe` on Windows
@@ -175,13 +175,13 @@ $expected = @{
     'libfuzzer-dotnet-ubuntu'      = 'C2C2A90D94C409A4AF339A0D4F244E0442C5A5D249BE0F1252BA07871F285958'
     'libfuzzer-dotnet-debian'      = 'EFD77B0E4AF48CDC75B8ACC0C2CE8B8C6BEE51521CD5566B4839A7C32832EB4F'
 }
-$actual = (Get-FileHash "Fuzzing/.tools/$asset" -Algorithm SHA256).Hash
+$actual = (Get-FileHash "fuzzing/.tools/$asset" -Algorithm SHA256).Hash
 if ($actual -ne $expected[$asset]) {
     throw "libfuzzer-dotnet SHA-256 mismatch for $asset (expected $($expected[$asset]), got $actual). Aborting; never execute an unverified binary."
 }
 ```
 
-Create `Fuzzing/.tools/` and add it to the repo's `.gitignore` if not
+Create `fuzzing/.tools/` and add it to the repo's `.gitignore` if not
 already excluded.
 
 If the download is blocked (air-gapped, proxy, …), prompt the user to
@@ -206,19 +206,19 @@ if (-not $aflFuzz) {
 ```
 
 If `afl-fuzz` is missing, do NOT attempt to install — the standard install
-path is `sudo make install` (`Fuzzing/Scripts/install.sh` automates it but
+path is `sudo make install` (`fuzzing/Scripts/install.sh` automates it but
 requires sudo + a compile toolchain). Continue with `libfuzzer` only. Note
 the gap in the engine-selection log line emitted in step 0.
 
 If `afl-fuzz` is present, also verify `sharpfuzz` (already covered by
-step 1) and the AFL helper script: `Fuzzing/Scripts/fuzz-afl.ps1` (already
+step 1) and the AFL helper script: `fuzzing/Scripts/fuzz-afl.ps1` (already
 in the repo).
 
 ### 3. Bin / obj clean state for the areas you're about to fuzz
 
 ```powershell
 foreach ($area in @('Opc.Ua.Encoders.Fuzz', 'Opc.Ua.Certificates.Fuzz', 'Opc.Ua.Network.Fuzz')) {
-    Get-ChildItem "Fuzzing/$area/bin","Fuzzing/$area/obj" -ErrorAction SilentlyContinue |
+    Get-ChildItem "fuzzing/$area/bin","fuzzing/$area/obj" -ErrorAction SilentlyContinue |
         Remove-Item -Recurse -Force
 }
 ```
@@ -238,8 +238,8 @@ Only purge areas you're going to fuzz.
 For each chosen area, run (cache results — only rerun on source change):
 
 ```powershell
-$outDir = "Fuzzing/.runs/$area/bin"
-dotnet publish "Fuzzing/$area/$area.csproj" -p:LibFuzzer=true -c Release `
+$outDir = "fuzzing/.runs/$area/bin"
+dotnet publish "fuzzing/$area/$area.csproj" -p:LibFuzzer=true -c Release `
     --force -o $outDir --nologo
 
 # Instrument every output DLL except known exclusions
@@ -256,8 +256,8 @@ If `sharpfuzz` errors out on any DLL: stop, report the error, ask the user.
 For each area:
 
 ```powershell
-$dll = "Fuzzing/.runs/$area/bin/$area.dll"
-$allTargets = & "Fuzzing/Scripts/fuzz-menu.ps1" -AssemblyPath $dll
+$dll = "fuzzing/.runs/$area/bin/$area.dll"
+$allTargets = & "fuzzing/Scripts/fuzz-menu.ps1" -AssemblyPath $dll
 
 # Split by engine:
 # libFuzzer needs ReadOnlySpan<byte> signatures (Libfuzz* convention).
@@ -278,19 +278,19 @@ Map each target to a dictionary by name match (case-insensitive):
 
 | Target name contains | Dictionary |
 |---|---|
-| `Json` | `Fuzzing/Dictionaries/json.dict` |
-| `Xml` | `Fuzzing/Dictionaries/xml.dict` |
-| `Binary` | `Fuzzing/Dictionaries/binary.dict` |
-| `NodeId`, `RelativePath`, `NumericRange`, `QualifiedName`, `Uuid`, `Parsers`, `Parse` | `Fuzzing/Dictionaries/nodeid.dict` |
-| `X509`, `Asn`, `Pkcs`, `PEM` | `Fuzzing/Dictionaries/asn1.dict` |
-| `Hello`, `Acknowledge`, `Error`, `ReverseHello`, `Asymmetric`, `OpcUaFrameParser`, `OfflineSecureChannel`, `ServiceCallReassembler`, `Tcp...` (UA-SC contextual) | `Fuzzing/Dictionaries/uasc.dict` |
-| `TcpReassembler` (raw TCP / IP) | `Fuzzing/Dictionaries/tcp.dict` |
+| `Json` | `fuzzing/Dictionaries/json.dict` |
+| `Xml` | `fuzzing/Dictionaries/xml.dict` |
+| `Binary` | `fuzzing/Dictionaries/binary.dict` |
+| `NodeId`, `RelativePath`, `NumericRange`, `QualifiedName`, `Uuid`, `Parsers`, `Parse` | `fuzzing/Dictionaries/nodeid.dict` |
+| `X509`, `Asn`, `Pkcs`, `PEM` | `fuzzing/Dictionaries/asn1.dict` |
+| `Hello`, `Acknowledge`, `Error`, `ReverseHello`, `Asymmetric`, `OpcUaFrameParser`, `OfflineSecureChannel`, `ServiceCallReassembler`, `Tcp...` (UA-SC contextual) | `fuzzing/Dictionaries/uasc.dict` |
+| `TcpReassembler` (raw TCP / IP) | `fuzzing/Dictionaries/tcp.dict` |
 
 If none match, omit `-dict=` (the target still runs, just slower coverage
 growth).
 
 Pick the seed corpus per target by name match against
-`Fuzzing/Opc.Ua.<area>.Fuzz.Corpus/Testcases.<bucket>/` (Json → `.Json`, Xml →
+`fuzzing/Opc.Ua.<area>.Fuzz.Corpus/Testcases.<bucket>/` (Json → `.Json`, Xml →
 `.Xml`, Tcp → `.Tcp` etc.). Fall back to the first `Testcases.*/` directory
 the area has if no specific match.
 
@@ -304,7 +304,7 @@ without changes.
 ### 3a. libFuzzer instances (all OSes)
 
 ```powershell
-$workDir = "Fuzzing/.runs/$area/libfuzz/$target"
+$workDir = "fuzzing/.runs/$area/libfuzz/$target"
 New-Item -ItemType Directory -Force -Path $workDir | Out-Null
 Copy-Item "$corpus/*.*" -Destination $workDir/Testcases/ -Recurse -Force
 
@@ -316,7 +316,7 @@ $args = @(
 )
 if ($dict) { $args = @("-dict=$dict") + $args }
 
-Start-Process -FilePath "Fuzzing/.tools/libfuzzer-dotnet-<platform>" `
+Start-Process -FilePath "fuzzing/.tools/libfuzzer-dotnet-<platform>" `
     -ArgumentList $args -WorkingDirectory $workDir `
     -RedirectStandardOutput "$workDir/libfuzz.log" `
     -RedirectStandardError "$workDir/libfuzz.err" `
@@ -329,12 +329,12 @@ libFuzzer writes findings into `$workDir` itself with `crash-*` /
 ### 3b. afl-fuzz instances (Linux only, opt-in)
 
 Only schedule these when `aflfuzz` ∈ `$engines`. On Linux, prefer the
-existing `Fuzzing/Scripts/fuzz-afl.ps1` helper since it already handles
+existing `fuzzing/Scripts/fuzz-afl.ps1` helper since it already handles
 publishing, instrumentation, `AFL_SKIP_BIN_CHECK`, and the `afl-fuzz`
 invocation. Run it once per `Aflfuzz*` target:
 
 ```powershell
-$workDir = "Fuzzing/.runs/$area/aflfuzz/$target"
+$workDir = "fuzzing/.runs/$area/aflfuzz/$target"
 New-Item -ItemType Directory -Force -Path "$workDir/input" | Out-Null
 Copy-Item "$corpus/*.*" -Destination "$workDir/input/" -Recurse -Force
 
@@ -382,7 +382,7 @@ engine has its own naming convention, so the glob differs by engine:
 ### libFuzzer findings
 
 ```powershell
-Get-ChildItem "Fuzzing/.runs/$area/libfuzz" -Recurse -File `
+Get-ChildItem "fuzzing/.runs/$area/libfuzz" -Recurse -File `
     -Include 'crash-*','timeout-*','slow-unit-*' |
     Where-Object { -not $_.PSIsContainer }
 ```
@@ -392,11 +392,11 @@ Get-ChildItem "Fuzzing/.runs/$area/libfuzz" -Recurse -File `
 ```powershell
 # afl puts crashes under findings/<fuzzer>/crashes/ and hangs under
 # findings/<fuzzer>/hangs/. The queue/ folder is the live corpus — ignore.
-Get-ChildItem "Fuzzing/.runs/$area/aflfuzz/*/findings/*/crashes" `
+Get-ChildItem "fuzzing/.runs/$area/aflfuzz/*/findings/*/crashes" `
     -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -ne 'README.txt' }
 
-Get-ChildItem "Fuzzing/.runs/$area/aflfuzz/*/findings/*/hangs" `
+Get-ChildItem "fuzzing/.runs/$area/aflfuzz/*/findings/*/hangs" `
     -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -ne 'README.txt' }
 ```
@@ -414,7 +414,7 @@ For each new finding (either engine):
    * afl-fuzz `findings/.../crashes/*` → `crash`
    * afl-fuzz `findings/.../hangs/*`   → `timeout`
 3. Check whether the SHA-256 hash already exists as
-   `Fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha256>*` (in any of the
+   `fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha256>*` (in any of the
    three areas, since the harness cross-replays). If yes, skip — this is an
    already-known regression seed; the harness already validates it. Note the
    finding count and continue.
@@ -442,7 +442,7 @@ For each new finding (either engine):
    capture the full exception type, message, and stack trace.
 
    ```powershell
-   dotnet run --project "Fuzzing/Opc.Ua.<area>.Fuzz.Tools" -c Release -- `
+   dotnet run --project "fuzzing/Opc.Ua.<area>.Fuzz.Tools" -c Release -- `
        --playback --stacktrace
    ```
 
@@ -526,7 +526,7 @@ $prefix = switch -Wildcard ($findingFile.Name) {
     'timeout-*'    { 'timeout' }
     'slow-unit-*'  { 'slow' }
 }
-$dest = "Fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/$prefix-$sha256"
+$dest = "fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/$prefix-$sha256"
 Copy-Item $findingFile.FullName -Destination $dest
 ```
 
@@ -542,7 +542,7 @@ dotnet build <list of touched projects> -c Debug --nologo
 
 # Regression-test all three fuzz areas on net10.0
 foreach ($area in @('Encoders','Certificates','Network')) {
-    dotnet test "Fuzzing/Opc.Ua.$area.Fuzz.Tests/Opc.Ua.$area.Fuzz.Tests.csproj" `
+    dotnet test "fuzzing/Opc.Ua.$area.Fuzz.Tests/Opc.Ua.$area.Fuzz.Tests.csproj" `
         -f net10.0 -c Debug --no-build --nologo `
         --logger "console;verbosity=minimal"
 }
@@ -603,7 +603,7 @@ Fuzz fix [<area>]: <one-line root cause>
 
 Crash input SHA-256: <sha256>
 Target: <Libfuzz* method name>
-Originating libFuzzer instance: Fuzzing/.runs/<area>/<target>/
+Originating libFuzzer instance: fuzzing/.runs/<area>/<target>/
 
 Symptom:
   <ExceptionType> at <top frame>
@@ -619,7 +619,7 @@ Fix:
 Files touched:
   <relative path 1>
   <relative path 2>
-  Fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha256>  (new regression asset)
+  fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha256>  (new regression asset)
 
 Regression test count (net10.0): Encoders <n>, Certificates <n>, Network <n>, total <n>, 0 failed.
 ```
@@ -712,7 +712,7 @@ When a fix lands, print:
   enumerator filters them out when `aflfuzz` ∉ `$engines`.
 - **afl-fuzz on Linux without afl-fuzz installed**: the Setup gate detects
   this, logs a one-liner ("afl-fuzz not on PATH; skipping AFL engine. Run
-  `Fuzzing/Scripts/install.sh` to enable.") and continues with libFuzzer
+  `fuzzing/Scripts/install.sh` to enable.") and continues with libFuzzer
   only. Do NOT auto-install — `install.sh` requires sudo and a compile
   toolchain.
 - **AFL CPU governor warning**: on Linux, afl-fuzz may complain about the
@@ -721,7 +721,7 @@ When a fix lands, print:
   they can run `sudo cpupower frequency-set -g performance` outside the
   agent.
 - **AFL_SKIP_BIN_CHECK**: required because the binary under test is
-  `dotnet`, not a native AFL-instrumented ELF. `Fuzzing/Scripts/fuzz-afl.ps1`
+  `dotnet`, not a native AFL-instrumented ELF. `fuzzing/Scripts/fuzz-afl.ps1`
   already sets this; the agent's inline invocation sets it too.
 - **afl-fuzz `findings/<fuzzer>/queue/`**: live coverage-expanding corpus —
   NOT findings. Never copy these to Assets/ or treat them as crashes.
@@ -774,7 +774,7 @@ When a fix lands, print:
 - Rubber-duck still flags substantive issues after 2 review rounds.
 - The user asks for an option the agent doesn't have (e.g., "fuzz the
   PubSub area" — that area doesn't exist yet, propose adding it).
-- Disk pressure: `Fuzzing/.runs/` exceeding ~2 GB or `/tmp` running low —
+- Disk pressure: `fuzzing/.runs/` exceeding ~2 GB or `/tmp` running low —
   pause and ask whether to discard old run dirs.
 
 ## Success criteria
@@ -793,4 +793,4 @@ You have successfully completed an autonomous fuzz session when:
   and the list of pushed commits.
 - Working tree is clean. `git status` shows no uncommitted modifications
   related to fuzz work (allowed: untracked work-in-progress under
-  `Fuzzing/.runs/` and `Fuzzing/.tools/` which are gitignored).
+  `fuzzing/.runs/` and `fuzzing/.tools/` which are gitignored).

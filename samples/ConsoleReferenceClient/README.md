@@ -37,7 +37,7 @@ dotnet ConsoleReferenceClient.dll opc.https://localhost:62543/Quickstarts/Refere
 
 The reference server (`ConsoleReferenceServer`) advertises the
 `opc.tcp://`, `opc.https://` and `opc.wss://` endpoints by default; see
-[`Docs/Transports.md`](../../Docs/Transports.md) for the full server
+[`docs/Transports.md`](../../docs/Transports.md) for the full server
 configuration story (TLS certificates, mutual TLS, JSON sub-protocol
 restrictions, etc.).
 

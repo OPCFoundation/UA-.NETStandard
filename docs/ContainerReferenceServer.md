@@ -16,29 +16,29 @@ In addition to the reference server (`refserver`), the `Docker Sample Images CI`
 
 | Image | Sample application |
 | --- | --- |
-| `refserver` | `Applications/ConsoleReferenceServer` |
-| `ldsserver` | `Applications/ConsoleLdsServer` |
-| `boilerserver` | `Applications/MinimalBoilerServer` |
-| `calcserver` | `Applications/MinimalCalcServer` |
-| `pumpserver` | `Applications/PumpDeviceIntegrationServer` |
-| `mcpserver` | `Applications/McpServer` |
-| `redundantserver` | `Applications/RedundantServer` |
-| `redundantclient` | `Applications/RedundantClient` |
-| `redundantpubsub` | `Applications/RedundantPubSub` |
-| `pubsubclient` | `Applications/ConsoleReferencePubSubClient` |
+| `refserver` | `samples/ConsoleReferenceServer` |
+| `ldsserver` | `samples/ConsoleLdsServer` |
+| `boilerserver` | `samples/MinimalBoilerServer` |
+| `calcserver` | `samples/MinimalCalcServer` |
+| `pumpserver` | `samples/PumpDeviceIntegrationServer` |
+| `mcpserver` | `tools/Opc.Ua.Mcp` |
+| `redundantserver` | `samples/RedundantServer` |
+| `redundantclient` | `samples/RedundantClient` |
+| `redundantpubsub` | `samples/RedundantPubSub` |
+| `pubsubclient` | `samples/ConsoleReferencePubSubClient` |
 
-For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest`. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f Applications/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).
+For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest`. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f samples/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).
 
 ## Building the local containers
 
 1. Open a command prompt which can execute docker commands.
-2. Navigate to the folder `Applications/ConsoleReferenceServer`.
+2. Navigate to the folder `samples/ConsoleReferenceServer`.
 3. Build the docker container by executing the command `dockerbuild.cmd`.
 
 On Linux,
 
 1. Open a shell which can execute docker commands.
-2. Navigate to the folder `Applications/ConsoleReferenceServer`.
+2. Navigate to the folder `samples/ConsoleReferenceServer`.
 3. Build the docker container by executing the command `./dockerbuild.sh`.
 
 ## Run the reference server container

@@ -88,7 +88,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             {
                 string candidate = Path.Combine(
                     path,
-                    "Stack", "Opc.Ua.Bindings.Https", "Https", "HttpsTransportListener.cs");
+                    "src", "Opc.Ua.Bindings.Https", "Https", "HttpsTransportListener.cs");
                 if (File.Exists(candidate))
                 {
                     return candidate;

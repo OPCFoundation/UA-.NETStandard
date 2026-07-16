@@ -62,7 +62,7 @@ Example guidance (mirrors BoilerNodeManager): the node passed to `AddBehaviorToP
     }
 ```
 
-See [NodeStates](../../../Stack/Opc.Ua.Types/State/readme.md) document for more information.
+See [NodeStates](../../../src/Opc.Ua.Types/State/readme.md) document for more information.
 
 ### NodeState Cloning and Lifecycle
 

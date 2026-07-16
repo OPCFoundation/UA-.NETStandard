@@ -50,8 +50,8 @@ ManagedSession session = await sessionFactory(ct);
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Sessions guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Sessions.md)
+and the [Sessions guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md)
 for the session / subscription / channel-manager design, the
-[Reverse Connect guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/ReverseConnect.md),
+[Reverse Connect guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ReverseConnect.md),
 and the
-[Transfer Subscription guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/TransferSubscription.md).
+[Transfer Subscription guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/TransferSubscription.md).

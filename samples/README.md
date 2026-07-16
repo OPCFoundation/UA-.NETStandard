@@ -23,7 +23,7 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 ## Start the server
 
 1. Open a command prompt.
-2. Navigate to the folder **Applications/ConsoleReferenceServer**.
+2. Navigate to the folder **samples/ConsoleReferenceServer**.
 3. To run the server sample type `dotnet run --project ConsoleReferenceServer.csproj`. The server is now running and waiting for the connection of the UACTT.
 
 ## UACTT test certificates
@@ -109,7 +109,7 @@ It is recommended to run the server as retail build with disabled logging, to av
 
 ### Running the CTT against a Docker container
 
-Please refer to the [Docker container of the Reference Server](Docs/DockerReferenceServer.md) documentation page. Once setup to map the certificate store and the configuration to a local folder, follow the instructions above to copy the certificates to the PKI and get started.
+Please refer to the [Docker container of the Reference Server](docs/DockerReferenceServer.md) documentation page. Once setup to map the certificate store and the configuration to a local folder, follow the instructions above to copy the certificates to the PKI and get started.
 
 #### Finding the Address Space Configuration Code
 

@@ -46,7 +46,7 @@ namespace Opc.Ua.Pcap.Bindings
     /// <c>CurrentObserver</c> from <c>null</c> to a live sink). Build a
     /// <c>DefaultCaptureSourceFactory</c> over the returned registry, hand it to
     /// a <c>CaptureSessionManager</c>, and call <c>StartAsync</c> to begin
-    /// recording. See <c>Docs/Diagnostics.md</c> for the full non-DI recipe.
+    /// recording. See <c>docs/Diagnostics.md</c> for the full non-DI recipe.
     /// </remarks>
     public static class PcapBindings
     {

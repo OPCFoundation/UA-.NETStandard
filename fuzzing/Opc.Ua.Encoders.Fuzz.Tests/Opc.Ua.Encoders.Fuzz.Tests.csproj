@@ -36,12 +36,12 @@
     <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
-    <ProjectReference Include="..\..\Tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+    <ProjectReference Include="..\..\tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\Tests\Common\Main.cs" />
+    <Compile Include="..\..\tests\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Binary\**\*.*">

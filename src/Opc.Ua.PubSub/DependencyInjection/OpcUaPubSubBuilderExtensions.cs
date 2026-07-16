@@ -60,7 +60,7 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </summary>
     /// <remarks>
     /// Mirrors the conventions documented in
-    /// <c>Docs/DependencyInjection.md</c>. The extensions register
+    /// <c>docs/DependencyInjection.md</c>. The extensions register
     /// every PubSub primitive (encoders, decoders, scheduler, metadata
     /// registry, diagnostics, security policies) as singletons and
     /// finally bind an <see cref="IPubSubApplication"/> built from the

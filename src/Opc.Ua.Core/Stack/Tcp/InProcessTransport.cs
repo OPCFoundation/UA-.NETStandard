@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
     /// The implementation uses only the public OPC UA byte-transport surface
     /// and therefore doubles as a contract validation for the
     /// <see cref="IUaSCByteTransport"/> extension point documented in
-    /// <c>Docs/Transports.md</c> § "Implementing a custom byte transport".
+    /// <c>docs/Transports.md</c> § "Implementing a custom byte transport".
     /// </remarks>
     public sealed class InProcessTransport : IUaSCByteTransport, IDisposable
     {

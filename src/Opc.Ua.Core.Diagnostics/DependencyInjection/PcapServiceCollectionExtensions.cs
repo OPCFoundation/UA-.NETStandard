@@ -483,7 +483,7 @@ namespace Opc.Ua.Pcap.DependencyInjection
         /// Setting this to <c>true</c> must be paired with at least one
         /// of the following controls applied at the MCP transport layer:
         /// authentication (Bearer token or mutual TLS) and audit logging.
-        /// See <c>Docs/Diagnostics.md</c> for the full security model.
+        /// See <c>docs/Diagnostics.md</c> for the full security model.
         /// </remarks>
         public bool EnableDiagnosticsTools { get; set; }
     }

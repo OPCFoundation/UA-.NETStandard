@@ -29,7 +29,7 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 
 ## Documentation
 
-See the [full documentation](../../Docs/McpServer.md) and [Nuget readme](McpServerREADME.md).
+See the [full documentation](../../docs/McpServer.md) and [NuGet readme](McpREADME.md).
 
 ### Claude Desktop Configuration
 
@@ -40,7 +40,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "opcua": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/Applications/McpServer/Opc.Ua.Mcp.csproj"]
+      "args": ["run", "--project", "/path/to/tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj"]
     }
   }
 }
@@ -55,7 +55,7 @@ Add to `.vscode/mcp.json`:
   "servers": {
     "opcua": {
       "command": "dotnet",
-      "args": ["run", "--project", "/path/to/Applications/McpServer/Opc.Ua.Mcp.csproj"]
+      "args": ["run", "--project", "/path/to/tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj"]
     }
   }
 }

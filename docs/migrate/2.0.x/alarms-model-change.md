@@ -26,7 +26,7 @@ the prior behavior, the spec-compliant behavior is what your
 operators expected anyway. To restore the old behavior, do not
 populate those optional state nodes (leave them `null`).
 
-The quickstart reference server (`Applications/Quickstarts.Servers/
+The quickstart reference server (`samples/Quickstarts.Servers/
 Alarms/AlarmHolders/AlarmConditionTypeHolder.cs`) now creates the
 `SilenceState`, `OutOfServiceState`, and `LatchedState` nodes by
 default — so the conformance tests exercise the new compliant

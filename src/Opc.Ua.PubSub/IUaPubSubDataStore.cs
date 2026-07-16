@@ -36,11 +36,11 @@ namespace Opc.Ua.PubSub
     /// </summary>
 #if NET5_0_OR_GREATER
     [Obsolete(
-        "Use IPublishedDataSetSource. See Docs/migrate/2.0.x/pubsub.md",
+        "Use IPublishedDataSetSource. See docs/migrate/2.0.x/pubsub.md",
         DiagnosticId = "UA0023",
-        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/pubsub.md#UA0023")]
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/pubsub.md#UA0023")]
 #else
-    [Obsolete("Use IPublishedDataSetSource. See Docs/migrate/2.0.x/pubsub.md (UA0023)")]
+    [Obsolete("Use IPublishedDataSetSource. See docs/migrate/2.0.x/pubsub.md (UA0023)")]
 #endif
     public interface IUaPubSubDataStore
     {

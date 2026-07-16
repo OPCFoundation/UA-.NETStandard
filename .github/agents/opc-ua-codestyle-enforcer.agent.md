@@ -17,7 +17,7 @@ You are a code-style enforcement specialist for the OPC UA .NET Standard reposit
   - `.editorconfig` — Roslyn style rules + Roslynator analyzers. Several CA/RCS rules are promoted to `severity = error` (CA1014, CA1305, CA1307, CA2007, CA2016, CA2213, CA2000, RCS1166, NUnit4002, NUnit2046).
   - `Directory.Build.props` → imports `common.props` + `targets.props` + `version.props`.
 - **Analyzers:** Roslynator.Analyzers, Roslynator.Formatting.Analyzers, NUnit.Analyzers, plus built-in .NET analyzers.
-- **Polyfills:** `Stack/Opc.Ua.Types/Polyfills/System.cs` provides `IndexOf(char, StringComparison)`, `Replace(string, string, StringComparison)`, `Contains(string, StringComparison)` for net48/netstandard2.0. Always check polyfill availability before using .NET 6+ APIs.
+- **Polyfills:** `src/Opc.Ua.Types/Polyfills/System.cs` provides `IndexOf(char, StringComparison)`, `Replace(string, string, StringComparison)`, `Contains(string, StringComparison)` for net48/netstandard2.0. Always check polyfill availability before using .NET 6+ APIs.
 
 ## Scoped runs — formatting changed files only
 
@@ -91,9 +91,9 @@ Then build the project(s) and dependent test project(s).
 
 | Pattern | What goes wrong | Revert / mitigation |
 |---|---|---|
-| `using Opc.Ua.Security.Certificates;` in a file that uses `Certificate` / `CertificateCollection` as plain identifiers (e.g. 1.5.378 reference fixtures under `Tools/Opc.Ua.MigrationAnalyzer.Core/**`) | `IDE0005` removes the import → `CS0246` on `Certificate` / `CertificateCollection`. | `git checkout HEAD -- <file>` after the sweep, add the file to a per-file IDE0005 suppression, or add `// dotnet format: keep` comment near the using if you want it preserved across runs. |
-| Files that disambiguate via `using OpcUa = Opc.Ua;` and then reference `OpcUa.ObjectTypeIds.X` (e.g. `Tests/Opc.Ua.Gds.Tests/PushTest.cs`) | `IDE0002` strips the `OpcUa.` qualifier → resolves to a conflicting `ObjectTypeIds` in scope → `CS0117`. | Revert the file; if you need the cleanup, do it per-symbol by hand. |
-| Multi-TFM files where one TFM's analysis disagrees with another (e.g. `Libraries/Opc.Ua.Server/Server/ServerInternalData.cs` between `net48` and `net10.0`) | The formatter injects literal `<<<<<<<` / `=======` / `>>>>>>>` markers into the file → `CS8300 Merge conflict marker encountered`. | Revert the file; the multi-TFM disagreement needs a manual fix. |
+| `using Opc.Ua.Security.Certificates;` in a file that uses `Certificate` / `CertificateCollection` as plain identifiers (e.g. 1.5.378 reference fixtures under `tools/Opc.Ua.MigrationAnalyzer.Core/**`) | `IDE0005` removes the import → `CS0246` on `Certificate` / `CertificateCollection`. | `git checkout HEAD -- <file>` after the sweep, add the file to a per-file IDE0005 suppression, or add `// dotnet format: keep` comment near the using if you want it preserved across runs. |
+| Files that disambiguate via `using OpcUa = Opc.Ua;` and then reference `OpcUa.ObjectTypeIds.X` (e.g. `tests/Opc.Ua.Gds.Tests/PushTest.cs`) | `IDE0002` strips the `OpcUa.` qualifier → resolves to a conflicting `ObjectTypeIds` in scope → `CS0117`. | Revert the file; if you need the cleanup, do it per-symbol by hand. |
+| Multi-TFM files where one TFM's analysis disagrees with another (e.g. `src/Opc.Ua.Server/Server/ServerInternalData.cs` between `net48` and `net10.0`) | The formatter injects literal `<<<<<<<` / `=======` / `>>>>>>>` markers into the file → `CS8300 Merge conflict marker encountered`. | Revert the file; the multi-TFM disagreement needs a manual fix. |
 
 ## Phase 1 — Discovery: Collect and categorize diagnostics
 
@@ -317,7 +317,7 @@ When master merges bring new projects, they often need:
 - `Properties/AssemblyInfo.cs` with `[assembly: CLSCompliant(false)]` (CA1014 is enforced at error).
 - NUnit constraint-model asserts instead of classic asserts (NUnit4002/NUnit2046 are errors).
 - `ConfigureAwait(false)` on all `await` expressions (CA2007 is an error).
-- No `new Random()` — use `UnsecureRandom` from `Stack/Opc.Ua.Types/Utils/UnsecureRandom.cs` (CA5394).
+- No `new Random()` — use `UnsecureRandom` from `src/Opc.Ua.Types/Utils/UnsecureRandom.cs` (CA5394).
 
 ## Rules intentionally left unfixed
 

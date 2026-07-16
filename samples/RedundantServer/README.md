@@ -7,7 +7,7 @@ The bundled configuration uses the default in-memory shared key/value store. Tha
 ## Run one instance
 
 ```powershell
-dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62543
+dotnet run --project samples\RedundantServer\RedundantServer.csproj -- --port 62543
 ```
 
 Connect an OPC UA client to `opc.tcp://localhost:62543/RedundantServer` and browse to `Objects/High Availability`. The `Counter` variable is writable and is also incremented once per second while this server is leader. `ActiveReplica` shows the local active writer label.
@@ -34,7 +34,7 @@ applicationUri|applicationName|discoveryUrl1+discoveryUrl2
 $env:HA_NODE_ID = "replica-a"
 $env:REDUNDANCY_MODE = "hot"
 $env:HA_REDUNDANT_PEERS = "urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://localhost:62544/RedundantServer"
-dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62543
+dotnet run --project samples\RedundantServer\RedundantServer.csproj -- --port 62543
 ```
 
 In a second terminal:
@@ -43,7 +43,7 @@ In a second terminal:
 $env:HA_NODE_ID = "replica-b"
 $env:REDUNDANCY_MODE = "hot"
 $env:HA_REDUNDANT_PEERS = "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://localhost:62543/RedundantServer"
-dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62544
+dotnet run --project samples\RedundantServer\RedundantServer.csproj -- --port 62544
 ```
 
 With the default in-memory store, each process elects against its own private store, so this two-terminal setup demonstrates endpoint, node id, service-level, and redundancy metadata configuration rather than cross-process state transfer. To turn it into a real HA pair, register a shared `ISharedKeyValueStore` that both processes can reach, as shown below.
@@ -121,7 +121,7 @@ The Redis placeholder above is one way to get a shared `ISharedKeyValueStore`. T
 | `HA_RAFT_BIND` | `tcp://0.0.0.0:6560` | Local Raft transport bind address. |
 | `HA_RAFT_PEERS` | `tcp://server-b:6560,tcp://server-c:6560` | The other members' Raft transport addresses. |
 
-See `docker-compose.yml` with the `active-passive.env` env file for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `Docs/Kubernetes.md`.
+See `docker-compose.yml` with the `active-passive.env` env file for a runnable 3-node Raft cluster (real cross-container active/passive HA). For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` derives the same wiring from the StatefulSet ordinal and headless-Service DNS, with a file WAL on a PersistentVolume; see `docs/Kubernetes.md`.
 
 ## Redundancy mode and discovery settings
 
@@ -155,7 +155,7 @@ Mode-specific nodes shown by the sample:
 
 ### GetEndpoints load direction
 
-Setting `HA_BALANCING_URL` registers `UseServerLoadDirection(...)`: every replica publishes its health `ServiceLevel`, a load weight, and its endpoints to the shared store, and a `GetEndpoints` request that arrives on the balancing URL is answered with the best replica's endpoints — the active writer in active/passive, or the least-loaded healthy replica in active/active. Plain discovery on a replica's own URL is unaffected, and this complements (never replaces) the standard client-driven `Server.ServiceLevel` / `RedundantServerArray` selection. In a real deployment a load balancer / Kubernetes `Service` fronts the replicas at the balancing URL; the sample sets `StrongEligibility` when `HA_CONSISTENCY=strong` so the eligibility keyspaces are linearizable. It requires a shared store across replicas (use `HA_CONSISTENCY=strong` / the Raft compose). See `Docs/HighAvailability.md` for the design, conformance, and security notes.
+Setting `HA_BALANCING_URL` registers `UseServerLoadDirection(...)`: every replica publishes its health `ServiceLevel`, a load weight, and its endpoints to the shared store, and a `GetEndpoints` request that arrives on the balancing URL is answered with the best replica's endpoints — the active writer in active/passive, or the least-loaded healthy replica in active/active. Plain discovery on a replica's own URL is unaffected, and this complements (never replaces) the standard client-driven `Server.ServiceLevel` / `RedundantServerArray` selection. In a real deployment a load balancer / Kubernetes `Service` fronts the replicas at the balancing URL; the sample sets `StrongEligibility` when `HA_CONSISTENCY=strong` so the eligibility keyspaces are linearizable. It requires a shared store across replicas (use `HA_CONSISTENCY=strong` / the Raft compose). See `docs/HighAvailability.md` for the design, conformance, and security notes.
 
 ## Transparent redundancy (single virtual endpoint)
 
@@ -169,7 +169,7 @@ To present one logical server, all replicas must share:
 
 Each replica advertises the *virtual* endpoint URL (`HA_HOST` = the load-balancer host). Because that host is a DNS name, the listener binds to all interfaces in the replica's own container while returning `opc.tcp://<lb>:62543/...` to clients, so discovery and `CreateSession` echo the single endpoint the client actually uses (`ServerBase.FilterByEndpointUrl` matches the client host to the advertised base address). A client therefore connects to one URL, and on a replica failure the load balancer routes the reconnect to the survivor, where the mirrored session resumes with a token-reuse reconnect (the full `ActivateSession` signature re-check still applies).
 
-`Transparent/docker-compose.yml` runs this end to end: two `REDUNDANCY_MODE=transparent` replicas sharing one `ApplicationUri` and one certificate (seeded into a shared PKI volume by the first replica, then reused by the second) behind an `nginx` TCP load balancer that publishes the single virtual endpoint `opc.tcp://localhost:62543/RedundantServer`, plus a client that connects only to that endpoint. In production the shared certificate is provisioned from a Kubernetes Secret / KMS to every replica rather than self-generated (see `Docs/Kubernetes.md`), which also removes the first-start certificate race.
+`Transparent/docker-compose.yml` runs this end to end: two `REDUNDANCY_MODE=transparent` replicas sharing one `ApplicationUri` and one certificate (seeded into a shared PKI volume by the first replica, then reused by the second) behind an `nginx` TCP load balancer that publishes the single virtual endpoint `opc.tcp://localhost:62543/RedundantServer`, plus a client that connects only to that endpoint. In production the shared certificate is provisioned from a Kubernetes Secret / KMS to every replica rather than self-generated (see `docs/Kubernetes.md`), which also removes the first-start certificate race.
 
 ## Active/passive vs active/active
 
@@ -178,7 +178,7 @@ The sample selects its redundancy topology with the `HA_MODE` environment variab
 - **Active/passive (`HA_MODE=ap`)** — `UseDistributedAddressSpace` + `UseDistributedSessions` with leader election. One replica is the active writer; standbys hydrate from the shared store and take over on failover. Redundancy is reported as `RedundancySupport.Hot`, and clients follow `Server.ServiceLevel` / `Server.ServerRedundancy` to find the active replica.
 - **Active/active (`HA_MODE=aa`)** — `UseActiveActiveRedundancy` (which wires `UseReplicatedAddressSpace` + `UseReplicatedSessions` from one set of gossip options; the individual methods remain for advanced setups). Every replica accepts writes and converges without a leader; redundancy is reported as `RedundancySupport.HotAndMirrored`. Replicas gossip over TCP: set `HA_GOSSIP_PORT` (default `4840`; session entries gossip on `port + 1`) and `HA_GOSSIP_PEERS` (a comma/semicolon list of `host:port` for the other replicas' address-space gossip). A session created on one replica can be resumed on another with `ManagedSessionBuilder.WithTokenReuseFailover()` on the client.
 
-Set `HA_PEER_DISCOVERY=dns` (with `HA_SERVICE_NAME`) to discover peers dynamically instead of a static `HA_GOSSIP_PEERS` list: the sample registers `UseDnsPeerDiscovery`, which keeps the client-facing `RedundantServerSet` (`FindServers`) and the active/active gossip fabric current as replicas scale up and down. Static configuration (`AddServerRedundancy` / `HA_REDUNDANT_PEERS`) is the fallback. `HA_PEER_DISCOVERY=lds` (`UseLdsPeerDiscovery`) and Kubernetes EndpointSlice discovery (`UseKubernetesPeerDiscovery`) are also available — see [Docs/HighAvailability.md → Dynamic peer discovery](../../Docs/HighAvailability.md#dynamic-peer-discovery-beyond-66-opt-in).
+Set `HA_PEER_DISCOVERY=dns` (with `HA_SERVICE_NAME`) to discover peers dynamically instead of a static `HA_GOSSIP_PEERS` list: the sample registers `UseDnsPeerDiscovery`, which keeps the client-facing `RedundantServerSet` (`FindServers`) and the active/active gossip fabric current as replicas scale up and down. Static configuration (`AddServerRedundancy` / `HA_REDUNDANT_PEERS`) is the fallback. `HA_PEER_DISCOVERY=lds` (`UseLdsPeerDiscovery`) and Kubernetes EndpointSlice discovery (`UseKubernetesPeerDiscovery`) are also available — see [docs/HighAvailability.md → Dynamic peer discovery](../../docs/HighAvailability.md#dynamic-peer-discovery-beyond-66-opt-in).
 
 ### Run two active/passive replicas
 
@@ -190,7 +190,7 @@ $env:HA_NODE_ID = "replica-a"
 $env:HA_MODE = "ap"
 $env:REDUNDANCY_MODE = "hot"
 $env:HA_REDUNDANT_PEERS = "urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://localhost:62544/RedundantServer"
-dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62543
+dotnet run --project samples\RedundantServer\RedundantServer.csproj -- --port 62543
 ```
 
 In a second terminal:
@@ -201,7 +201,7 @@ $env:HA_NODE_ID = "replica-b"
 $env:HA_MODE = "ap"
 $env:REDUNDANCY_MODE = "hot"
 $env:HA_REDUNDANT_PEERS = "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://localhost:62543/RedundantServer"
-dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62544
+dotnet run --project samples\RedundantServer\RedundantServer.csproj -- --port 62544
 ```
 
 The active replica writes `Counter`, the standby mirrors state through the shared store, and clients use `Server.ServiceLevel`, `Server.ServerRedundancy.RedundancySupport=Hot`, and `FindServers` peer discovery to select or fail over to the active endpoint.
@@ -214,7 +214,7 @@ $env:HA_NODE_ID = "replica-a"
 $env:HA_MODE = "aa"
 $env:HA_GOSSIP_PORT = "4840"
 $env:HA_GOSSIP_PEERS = "127.0.0.1:4842"
-dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62543
+dotnet run --project samples\RedundantServer\RedundantServer.csproj -- --port 62543
 ```
 
 In a second terminal:
@@ -225,7 +225,7 @@ $env:HA_NODE_ID = "replica-b"
 $env:HA_MODE = "aa"
 $env:HA_GOSSIP_PORT = "4842"
 $env:HA_GOSSIP_PEERS = "127.0.0.1:4840"
-dotnet run --project Applications\RedundantServer\RedundantServer.csproj -- --port 62544
+dotnet run --project samples\RedundantServer\RedundantServer.csproj -- --port 62544
 ```
 
 Both replicas now accept writes to `Counter` and converge: a write on either endpoint propagates to the other by gossip, and the per-second increment runs on every replica, with CRDT last-writer-wins resolving the concurrent updates. Unlike the active/passive store-backed setup, active/active needs no shared `ISharedKeyValueStore` between processes — the gossip transport carries the state.
@@ -236,23 +236,23 @@ One compose file — `docker-compose.yml` — runs the sample as a 3-replica set
 
 ```powershell
 # Active/active, eventual consistency (CRDT gossip, no shared store) — the default.
-docker compose --env-file Applications\RedundantServer\active-active-eventual.env `
-  -f Applications\RedundantServer\docker-compose.yml up --build
+docker compose --env-file samples\RedundantServer\active-active-eventual.env `
+  -f samples\RedundantServer\docker-compose.yml up --build
 
 # Active/active, strong consistency (3-node RaftCs, shared linearizable store).
-docker compose --env-file Applications\RedundantServer\active-active-strong.env `
-  -f Applications\RedundantServer\docker-compose.yml up --build
+docker compose --env-file samples\RedundantServer\active-active-strong.env `
+  -f samples\RedundantServer\docker-compose.yml up --build
 
 # Active/passive, strong consistency (3-node RaftCs; one active writer, two hot standbys).
-docker compose --env-file Applications\RedundantServer\active-passive.env `
-  -f Applications\RedundantServer\docker-compose.yml up --build
+docker compose --env-file samples\RedundantServer\active-passive.env `
+  -f samples\RedundantServer\docker-compose.yml up --build
 
 # GetEndpoints load direction over the Raft cluster (sets HA_BALANCING_URL on every replica).
-docker compose -f Applications\RedundantServer\LoadDirection\docker-compose.yml up --build
+docker compose -f samples\RedundantServer\LoadDirection\docker-compose.yml up --build
 
 # Transparent redundancy: replicas as ONE logical server behind an nginx load balancer
 # on a single virtual endpoint (opc.tcp://localhost:62543/RedundantServer).
-docker compose -f Applications\RedundantServer\Transparent\docker-compose.yml up --build
+docker compose -f samples\RedundantServer\Transparent\docker-compose.yml up --build
 ```
 
 Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543/RedundantServer`, `:62544`, `:62545`). Set `HA_HOST` to the reachable hostname (the compose file uses the container/service name) so peers and clients connect across the container network. Three replicas run in every topology (Raft needs a 3-node quorum; active/active eventual works with 2 or 3 — remove `server-c` for a 2-node run, so the replica count is configurable). The Raft topologies are real cross-container HA deployments whose RaftCs cluster is the shared, linearizable store; active/active eventual converges leaderlessly over CRDT gossip with no shared store.
@@ -262,7 +262,7 @@ Each replica exposes its OPC UA endpoint on the host (`opc.tcp://localhost:62543
 `Scale/docker-compose.yml` has a single `server` service for active/active eventual (CRDT gossip) runs. Docker Compose can scale it to any replica count because the sample discovers peers from the `server` DNS alias instead of a fixed `HA_GOSSIP_PEERS` list:
 
 ```powershell
-docker compose -f Applications\RedundantServer\Scale\docker-compose.yml up --build --scale server=5
+docker compose -f samples\RedundantServer\Scale\docker-compose.yml up --build --scale server=5
 ```
 
 The scale file sets `HA_PEER_DISCOVERY=dns` and `HA_SERVICE_NAME=server`; every replica resolves the service alias, removes its own container IP, and seeds gossip with the remaining task IPs on `HA_GOSSIP_PORT` (session gossip uses the next port). No host ports are published, so clients should run inside the same compose network or attach to it. This dynamic scaling path is gossip-only. Dynamic Raft scaling is intentionally unsupported because Raft needs stable replica identities and an odd quorum; use the Kubernetes StatefulSet deployment with `UseKubernetesRaftConsensus` for strong consistency.
@@ -270,12 +270,12 @@ The scale file sets `HA_PEER_DISCOVERY=dns` and `HA_SERVICE_NAME=server`; every 
 The same file has a `clients` profile that runs **independent managed clients** in their own containers — each opts into `WithServerRedundancy()` and fails over on its own, so it scales to any count alongside the servers (no shared client store needed):
 
 ```powershell
-docker compose -f Applications\RedundantServer\Scale\docker-compose.yml --profile clients up --build --scale server=3 --scale client=2
+docker compose -f samples\RedundantServer\Scale\docker-compose.yml --profile clients up --build --scale server=3 --scale client=2
 ```
 
-For a *coordinated* single-active client replica set (exactly one client active, the rest hot/warm/cold standbys), use `AddRedundantClientSession` + a CAS-capable `AddRaftClientSharedStore` (a fixed Raft quorum, like the server's active/passive) rather than independent clients — see [HighAvailability.md](../../Docs/HighAvailability.md). Each client replica is its own process; there is no in-process replica set.
+For a *coordinated* single-active client replica set (exactly one client active, the rest hot/warm/cold standbys), use `AddRedundantClientSession` + a CAS-capable `AddRaftClientSharedStore` (a fixed Raft quorum, like the server's active/passive) rather than independent clients — see [HighAvailability.md](../../docs/HighAvailability.md). Each client replica is its own process; there is no in-process replica set.
 
-For a **client-centric** compose that runs the full HA matrix (server consistency × client mode) from one env-driven file and logs failover / HA / **data loss** on both sides, use [`Applications/RedundantClient/docker-compose.yml`](../RedundantClient/docker-compose.yml): `COMPOSE_PROFILES` selects `server-eventual` (shows data loss) or `server-strong` (Raft, no data loss) crossed with `client-independent` or `client-coordinated`. See the [RedundantClient README](../RedundantClient/README.md#run-with-docker-compose-one-file-the-full-ha-matrix-env-driven).
+For a **client-centric** compose that runs the full HA matrix (server consistency × client mode) from one env-driven file and logs failover / HA / **data loss** on both sides, use [`samples/RedundantClient/docker-compose.yml`](../RedundantClient/docker-compose.yml): `COMPOSE_PROFILES` selects `server-eventual` (shows data loss) or `server-strong` (Raft, no data loss) crossed with `client-independent` or `client-coordinated`. See the [RedundantClient README](../RedundantClient/README.md#run-with-docker-compose-one-file-the-full-ha-matrix-env-driven).
 
 ### Watch replication and failover
 
@@ -283,16 +283,16 @@ The `clients` (and `demo`) profile adds one or more `RedundantClient` instances 
 
 ```powershell
 # 1. Start the server set (active/passive here) plus a client that prints the replicated Counter.
-docker compose --env-file Applications\RedundantServer\active-passive.env `
-  -f Applications\RedundantServer\docker-compose.yml --profile clients up --build
+docker compose --env-file samples\RedundantServer\active-passive.env `
+  -f samples\RedundantServer\docker-compose.yml --profile clients up --build
 
 # 2. In another shell, stop the active/leader replica and watch the client keep going:
-docker compose -f Applications\RedundantServer\docker-compose.yml stop server-a
+docker compose -f samples\RedundantServer\docker-compose.yml stop server-a
 ```
 
 The client logs its reconnect/redirect to a surviving replica across the failover. Bring the replica back with `docker compose ... start server-a`; the Raft cluster re-admits it. Set `CLIENT_REPLICAS=3` to run three independent client processes, each of which fails over on its own (for a coordinated single-active client set, use `AddRedundantClientSession` over a Raft client store as above). On the strong-consistency Raft topology the `HighAvailability.Counter` **continues** across the failover: the sample wires it through the distributed value cache (see [Sharing values across replicas](#sharing-values-across-replicas)), so the promoted replica resumes from the last value the former leader shared.
 
-For the broader design, see [HighAvailability.md](..\..\Docs\HighAvailability.md). For an environment-driven replica-set deployment, see [Kubernetes.md](..\..\Docs\Kubernetes.md).
+For the broader design, see [HighAvailability.md](..\..\docs\HighAvailability.md). For an environment-driven replica-set deployment, see [Kubernetes.md](..\..\docs\Kubernetes.md).
 
 ## Sharing values across replicas
 

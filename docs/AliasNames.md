@@ -349,10 +349,10 @@ while letting PubSub drive the rest.
 
 * OPC UA Part 17 specification:
   https://reference.opcfoundation.org/v105/Core/docs/Part17/
-* `Tools/Opc.Ua.SourceGeneration.Core/Design/StandardTypes.xml` —
+* `tools/Opc.Ua.SourceGeneration.Core/Design/StandardTypes.xml` —
   Part 17 type definitions consumed by the source generator.
-* `Tests/Opc.Ua.Server.Tests/AliasNames/` — server-side unit tests.
-* `Tests/Opc.Ua.Client.Tests/AliasNames/` — mocked-session and live
+* `tests/Opc.Ua.Server.Tests/AliasNames/` — server-side unit tests.
+* `tests/Opc.Ua.Client.Tests/AliasNames/` — mocked-session and live
   integration tests.
-* `Applications/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs`
+* `samples/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs`
   — `ConfigureAliasNameStore` shows how to seed and register a store.

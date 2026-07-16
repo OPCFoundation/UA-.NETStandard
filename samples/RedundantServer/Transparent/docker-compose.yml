@@ -14,7 +14,7 @@
 # transparently on the survivor (full ActivateSession re-check still applies).
 #
 # The build context is the repository root. Run from the repo root:
-#   docker compose -f Applications/RedundantServer/Transparent/docker-compose.yml up --build
+#   docker compose -f samples/RedundantServer/Transparent/docker-compose.yml up --build
 #
 # Single virtual OPC UA endpoint on the host: opc.tcp://localhost:62543/RedundantServer
 #
@@ -27,7 +27,7 @@ services:
   server-a:
     build:
       context: ../../..
-      dockerfile: Applications/RedundantServer/Dockerfile
+      dockerfile: samples/RedundantServer/Dockerfile
     image: opcua-redundant-server
     hostname: server-a
     environment:
@@ -60,7 +60,7 @@ services:
   server-b:
     build:
       context: ../../..
-      dockerfile: Applications/RedundantServer/Dockerfile
+      dockerfile: samples/RedundantServer/Dockerfile
     image: opcua-redundant-server
     hostname: server-b
     environment:
@@ -95,7 +95,7 @@ services:
   client:
     build:
       context: ../../..
-      dockerfile: Applications/RedundantClient/Dockerfile
+      dockerfile: samples/RedundantClient/Dockerfile
     image: opcua-redundant-client
     depends_on:
       - lb

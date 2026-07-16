@@ -47,14 +47,14 @@ namespace Opc.Ua.Server
     /// Experimental vendor authenticator that accepts a KeyCredential proof as an issued user token.
     /// </summary>
     /// <remarks>
-    /// EXPERIMENTAL — see Docs/KeyCredentialService.md. This authenticator handles the vendor profile URI
+    /// EXPERIMENTAL — see docs/KeyCredentialService.md. This authenticator handles the vendor profile URI
     /// <c>urn:opcfoundation:netstandard:profile:authentication:keycredential</c>. It is not an OPC UA
     /// Part 6 §6.5.3 conformance claim and should be enabled only in closed deployments.
     /// </remarks>
 #if NET8_0_OR_GREATER
     [Experimental(
         "OPCUA_EXPERIMENTAL_KC_BRIDGE",
-        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/KeyCredentialService.md")]
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/KeyCredentialService.md")]
 #endif
     public sealed class KeyCredentialBridgeAuthenticator : IUserTokenAuthenticator
     {

@@ -34,4 +34,4 @@ opcua-mcp --transport sse --port 5100
 
 ## Documentation
 
-See the [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/McpServer.md).
+See the [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md).

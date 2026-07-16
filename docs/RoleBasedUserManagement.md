@@ -23,7 +23,7 @@ The nine well-known roles are pre-registered at server start:
 
 Reserved roles cannot be modified or removed per Part 18 4.3 - any attempt to call `AddIdentity`, `AddApplication`, `AddEndpoint`, `RemoveIdentity`, `RemoveApplication`, `RemoveEndpoint`, or `RemoveRole` on them returns `Bad_RequestNotAllowed`.
 
-See `Libraries/Opc.Ua.Server/RoleBasedUserManagement/` for the source.
+See `src/Opc.Ua.Server/RoleBasedUserManagement/` for the source.
 
 ## Server side
 
@@ -222,7 +222,7 @@ The GDS adds the following roles in addition to the standard well-known set:
 - `RegistrationAuthorityAdmin`
 - `ApplicationSelfAdmin`
 
-See [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/Libraries/Opc.Ua.Gds.Server.Common/RoleBasedUserManagement/GdsRole.cs).
+See [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/src/Opc.Ua.Gds.Server.Common/RoleBasedUserManagement/GdsRole.cs).
 
 ## Known limitations
 
@@ -232,6 +232,6 @@ See [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/Libr
 
 - [OPC UA Part 18 v1.05.06 - Role-Based Security](https://reference.opcfoundation.org/Core/Part18/v105/docs/)
 - [OPC UA Part 3 4.9 - Well-Known Roles](https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9)
-- `Libraries/Opc.Ua.Server/RoleBasedUserManagement/`
-- `Libraries/Opc.Ua.Client/Roles/`
-- `Tests/Opc.Ua.Server.Tests/RoleManagerTests.cs`
+- `src/Opc.Ua.Server/RoleBasedUserManagement/`
+- `src/Opc.Ua.Client/Roles/`
+- `tests/Opc.Ua.Server.Tests/RoleManagerTests.cs`

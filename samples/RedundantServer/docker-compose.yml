@@ -4,19 +4,19 @@
 # inline or with --env-file. Three built-in topologies, each has a ready-made env file:
 #
 #   * active/active, eventual consistency (CRDT gossip)  — DEFAULT
-#       --env-file Applications/RedundantServer/active-active-eventual.env
+#       --env-file samples/RedundantServer/active-active-eventual.env
 #   * active/active, strong consistency (Raft)
-#       --env-file Applications/RedundantServer/active-active-strong.env
+#       --env-file samples/RedundantServer/active-active-strong.env
 #   * active/passive, strong consistency (Raft)
-#       --env-file Applications/RedundantServer/active-passive.env
+#       --env-file samples/RedundantServer/active-passive.env
 #
 # Three server replicas run in every topology (Raft needs 3 for a fault-tolerant quorum;
 # active/active eventual works with 2 or 3 — remove server-c for a 2-node run). The
 # replica count is therefore configurable by dropping/adding server-c.
 #
 # The build context is the repository root. Run from the repo root, e.g. active/passive:
-#   docker compose --env-file Applications/RedundantServer/active-passive.env \
-#     -f Applications/RedundantServer/docker-compose.yml up --build
+#   docker compose --env-file samples/RedundantServer/active-passive.env \
+#     -f samples/RedundantServer/docker-compose.yml up --build
 #
 # OPC UA endpoints on the host: replica-a opc.tcp://localhost:62543/RedundantServer,
 # replica-b :62544, replica-c :62545. The Raft transport (6560) and CRDT gossip (4840)
@@ -28,7 +28,7 @@
 x-server: &server
   build:
     context: ../..
-    dockerfile: Applications/RedundantServer/Dockerfile
+    dockerfile: samples/RedundantServer/Dockerfile
   image: opcua-redundant-server
   command: ["--port", "62543"]
 
@@ -98,7 +98,7 @@ services:
     profiles: ["clients", "demo"]
     build:
       context: ../..
-      dockerfile: Applications/RedundantClient/Dockerfile
+      dockerfile: samples/RedundantClient/Dockerfile
     image: opcua-redundant-client
     deploy:
       replicas: ${CLIENT_REPLICAS:-1}

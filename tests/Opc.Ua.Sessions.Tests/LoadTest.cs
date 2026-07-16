@@ -812,7 +812,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Load test the server with a selectable number of concurrent sessions,
         /// each holding a single slow-publishing subscription that monitors a value.
         /// This exercises the per-session and per-subscription scaling limits and is
-        /// the basis for the session-scalability notes in <c>Docs/Benchmarks.md</c>.
+        /// the basis for the session-scalability notes in <c>docs/Benchmarks.md</c>.
         /// 500 is the supported baseline; the higher cases (up to 10000) are stress
         /// cases that push steady-state publish delivery until it starts dropping
         /// sessions. Because the test is <c>[Explicit]</c>, the case to run is

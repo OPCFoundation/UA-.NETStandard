@@ -14,7 +14,7 @@ set filter=*
 
 cd %build_root%
 
-cd Tests\Opc.Ua.Security.Certificates.Tests\
+cd tests\Opc.Ua.Security.Certificates.Tests\
 dotnet run -v n --configuration Release  --framework %framework% -- --filter %filter% --runtimes %runtimes%
 cd ..\Opc.Ua.Core.Tests
 dotnet run -v n --configuration Release  --framework %framework% -- --filter %filter% --runtimes %runtimes%

@@ -810,7 +810,7 @@ namespace Opc.Ua.Client
         // ----------------------------------------------------------------
         // The following static factory helpers were originally declared as
         // `public partial class Session` members on the Session type in
-        // Libraries/Opc.Ua.Client. Cross-assembly partial classes are not
+        // src/Opc.Ua.Client. Cross-assembly partial classes are not
         // supported, so when migrated into this shim assembly they are
         // hosted as static methods on SessionObsolete. Callers that
         // previously invoked `Session.Create(...)` / `Session.Recreate(...)`

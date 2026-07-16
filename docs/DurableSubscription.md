@@ -15,7 +15,7 @@ If the connection to the client fails the server continues to sample values. On 
 
 Typically the following porting steps are necessary:
 
-- Provide an implementation of `IMonitoredItemQueueFactory` that sets `SupportsDurableQueues` to true. This factory returns your own implementation of `IMonitoredItemQueue` that persists values to storage and supports large queue sizes. As a reference see [DurableMonitoredItemQueueFactory](../../Applications/Quickstats.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
+- Provide an implementation of `IMonitoredItemQueueFactory` that sets `SupportsDurableQueues` to true. This factory returns your own implementation of `IMonitoredItemQueue` that persists values to storage and supports large queue sizes. As a reference see [DurableMonitoredItemQueueFactory](../../samples/Quickstats.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
 - Register the `IMonitoredItemQueueFactory` by overriding the StandardServer method `CreateMonitoredItemQueueFactory`.
 - Provide an implementation of `ISubscriptionStore` that persists and restores subscriptions to storage to continue them after a server restart. The subscription store shall also enshure persistent queues are provided to the monitored items after a restore.
 - - Register the `ISubscriptionStore` by overriding the StandardServer method `CreateSubscriptionStore`.

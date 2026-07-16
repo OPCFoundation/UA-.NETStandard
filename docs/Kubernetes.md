@@ -2,7 +2,7 @@
 
 This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
 
-See [HighAvailability.md](HighAvailability.md) for the OPC 10000-4 §6.6 redundancy model. The worked server sample is `Applications/RedundantServer`.
+See [HighAvailability.md](HighAvailability.md) for the OPC 10000-4 §6.6 redundancy model. The worked server sample is `samples/RedundantServer`.
 
 The API names distinguish standardized OPC UA model wiring from deployment extensions. `AddServerRedundancy(...)`, `AddServerServiceLevel(...)`, and `AddRequestServerStateChange(...)` publish or maintain OPC 10000-4 §6.6 nodes/methods; `UseDistributedAddressSpace(...)`, `UseDistributedSessions(...)`, `UseDistributedSubscriptionMirroring(...)`, `UseKubernetesLeaderElection(...)`, `UseKubernetesPeerDiscovery(...)`, and `UseKubernetesReadiness(...)` register beyond-spec extension services. `AddServerRedundancy(...)` does not drive `Server.ServiceLevel` by itself, so Kubernetes readiness must also register a ServiceLevel provider, commonly with `AddServerServiceLevel(...)` or the leader-aware provider used by the sample.
 

@@ -66,7 +66,7 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
                 "wrapper the consumer references. When the element type can't be " +
                 "uniquely resolved in the consumer compilation, the shim cannot be " +
                 "synthesized.",
-            helpLinkUri: "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#collection-type-migration",
+            helpLinkUri: "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#collection-type-migration",
             customTags: WellKnownDiagnosticTags.Telemetry);
     }
 }

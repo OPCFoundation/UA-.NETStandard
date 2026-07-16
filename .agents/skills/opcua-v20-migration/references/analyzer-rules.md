@@ -365,7 +365,7 @@ config.CertificateManager.Options.AcceptError = (cert, error) =>
 // or implement ICertificateValidatorEx.ValidateAsync for full control.
 ```
 
-See [`Docs/migrate/2.0.x/certificates.md`](../../../Docs/migrate/2.0.x/certificates.md)
+See [`docs/migrate/2.0.x/certificates.md`](../../../../docs/migrate/2.0.x/certificates.md)
 §"Certificate Manager and segregated interfaces" for the structural model in full.
 
 ---

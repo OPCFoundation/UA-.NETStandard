@@ -28,8 +28,8 @@ The design is intentionally **symmetric**:
 ```
 
 The model **does not replace** the existing
-[`IUserIdentity`](../Stack/Opc.Ua.Core/Stack/Client/IUserIdentity.cs) /
-[`IUserIdentityTokenHandler`](../Stack/Opc.Ua.Core/Stack/Types/IUserIdentityTokenHandler.cs)
+[`IUserIdentity`](../src/Opc.Ua.Core/Stack/Client/IUserIdentity.cs) /
+[`IUserIdentityTokenHandler`](../src/Opc.Ua.Core/Stack/Types/IUserIdentityTokenHandler.cs)
 contracts that ship on the wire — those are still the canonical
 on-the-wire types. The provider model layers on top of those types so
 legacy callbacks keep working during migration, while new code can

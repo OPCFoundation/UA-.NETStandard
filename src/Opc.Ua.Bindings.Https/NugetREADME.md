@@ -112,10 +112,10 @@ choice and REST is unavailable.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Transport Profiles guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Transports.md)
+and the [Transport Profiles guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Transports.md)
 for the full URI scheme matrix, the
-[REST binding guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/WebApi.md)
+[REST binding guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WebApi.md)
 for the full REST mapping table / authentication models / hosting
 modes, the
-[Reverse Connect guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/ReverseConnect.md),
-and the [Profiles overview](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Profiles.md).
+[Reverse Connect guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ReverseConnect.md),
+and the [Profiles overview](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Profiles.md).

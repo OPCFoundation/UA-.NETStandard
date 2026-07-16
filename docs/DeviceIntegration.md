@@ -33,7 +33,7 @@ plugs it together.
 | `Opc.Ua.Di.Server` | Server: `DiNodeManager`, fluent `IDeviceBuilder`, locking service, software-update package store, hosting integration. |
 | `Opc.Ua.Di.Client` | Client: `DiDeviceClient`, `DiDiscoveryClient`, `DiTopologyClient`, `DiLockClient`, `SoftwareUpdateClient`, hosting integration. |
 
-The running example is `Applications/PumpDeviceIntegrationServer`
+The running example is `samples/PumpDeviceIntegrationServer`
 (companion-spec server with full simulation **and** the Device
 Integration software-update facet attached to a second declarative
 device).
@@ -375,7 +375,7 @@ configure callback. The interface exposes
 properties; consumers populate them by attaching `FileState` or
 `BaseObjectState` children through the standard `NodeState` API.
 File-backed children commonly use `FileState` wired to an
-`IFileSystemProvider` from `Libraries/Opc.Ua.Server/FileSystem`.
+`IFileSystemProvider` from `src/Opc.Ua.Server/FileSystem`.
 
 ```csharp
 device.WithSupportInfo(info =>
@@ -742,7 +742,7 @@ builder.Services
     });
 ```
 
-The companion sample `Applications/PumpDeviceIntegrationServer`
+The companion sample `samples/PumpDeviceIntegrationServer`
 demonstrates the end-to-end pattern with `SoftwarePackageSeeder`.
 
 ### Client-side software update
@@ -949,7 +949,7 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 
 ### NAMUR alarms (§10.2)
 
-- `DeviceHealthDiagnosticAlarmType` (abstract) and the four concrete alarm types (`FailureAlarmType`, `CheckFunctionAlarmType`, `OffSpecAlarmType`, `MaintenanceRequiredAlarmType`) — generated proxies wired via the fluent `IAlarmBuilder<TState>` + `ActivatesAlarm` patterns from `Libraries/Opc.Ua.Server/Fluent`.
+- `DeviceHealthDiagnosticAlarmType` (abstract) and the four concrete alarm types (`FailureAlarmType`, `CheckFunctionAlarmType`, `OffSpecAlarmType`, `MaintenanceRequiredAlarmType`) — generated proxies wired via the fluent `IAlarmBuilder<TState>` + `ActivatesAlarm` patterns from `src/Opc.Ua.Server/Fluent`.
 
 ### DataTypes & VariableTypes
 

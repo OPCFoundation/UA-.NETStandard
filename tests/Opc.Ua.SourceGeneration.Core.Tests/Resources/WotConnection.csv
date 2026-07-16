@@ -170,5 +170,3 @@ WoTAssetConnectionManagementType_WoTAssetName_Placeholder_AssetEndpoint,169,Vari
 WoTAssetConnectionManagementType_CreateAssetForEndpoint_OutputArguments,170,Variable
 WoTAssetConnectionManagement_CreateAssetForEndpoint_OutputArguments,171,Variable
 CreateAssetForEndpointMethodType_OutputArguments,172,Variable
-
-# Repository move history marker: Tests/Opc.Ua.SourceGeneration.Core.Tests/Resources/WotConnection.csv

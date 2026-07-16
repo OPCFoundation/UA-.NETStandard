@@ -89,7 +89,7 @@ for the in-code form. Cites [Part 14 §6.2](https://reference.opcfoundation.org/
 
 The Newtonsoft-based encoder (`Opc.Ua.PubSub.Encoding.JsonNetworkMessage` v1) is
 replaced with a `System.Text.Json`-backed encoder under
-`Libraries/Opc.Ua.PubSub/Encoding/Json/`. Behaviour changes that may surface in
+`src/Opc.Ua.PubSub/Encoding/Json/`. Behaviour changes that may surface in
 callers:
 
 - The `Newtonsoft.Json` dependency is dropped from the PubSub layer (it remains

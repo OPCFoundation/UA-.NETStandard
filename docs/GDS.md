@@ -444,7 +444,7 @@ The server-side Part 12 features map to these Facets in the OPC UA profile regis
 
 The automated conformance checks that run in CI are the NUnit suites: the unit suites in `Opc.Ua.Server.Tests` (address-space exposure, transaction coordinator, TrustList staging, certificate alarms, optional surface) and the end-to-end GDS integration suites in `Opc.Ua.Gds.Tests` — notably `PushTest.cs`, which drives a live push server through the `ServerConfiguration` Methods, and `TrustListValidationTest.cs`. The applicable Facets / conformance units above were identified with the OPC UA profile-graph tooling against `profiles.opcfoundation.org`.
 
-There is no fully-automated CTT harness in this repository, and the formal **OPC UA Compliance Test Tool (UACTT / CTT)** — a licensed OPC Foundation corporate-member GUI application — was **not** run to produce this matrix; no CTT results are claimed here. Run it against the reference server (`Applications/ConsoleReferenceServer`; see [Applications/README.md](../Applications/README.md)) for formal certification. Known UACTT *script* defects encountered in prior manual runs are catalogued in [`plans/ctt-issues.md`](../plans/ctt-issues.md).
+There is no fully-automated CTT harness in this repository, and the formal **OPC UA Compliance Test Tool (UACTT / CTT)** — a licensed OPC Foundation corporate-member GUI application — was **not** run to produce this matrix; no CTT results are claimed here. Run it against the reference server (`samples/ConsoleReferenceServer`; see [samples/README.md](../samples/README.md)) for formal certification. Known UACTT *script* defects encountered in prior manual runs are catalogued in [`plans/ctt-issues.md`](../plans/ctt-issues.md).
 
 ## GDS Directory (§6.5)
 

@@ -555,7 +555,7 @@ namespace RedundantClient
             where TSession : ISession
         {
             // A compact browse / read / subscribe workload against the redundant session. It
-            // mirrors the Applications/ConsoleReferenceClient ClientSamples suite but is kept
+            // mirrors the samples/ConsoleReferenceClient ClientSamples suite but is kept
             // inline so this sample stays self-contained and NativeAOT-publishable.
             Console.WriteLine("Suite: browsing the Objects folder...");
             var browseDescription = new BrowseDescription

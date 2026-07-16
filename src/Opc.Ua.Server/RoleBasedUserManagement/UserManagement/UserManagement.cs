@@ -244,7 +244,7 @@ namespace Opc.Ua.Server.UserManagement
                     // reset (Part 18 §5.2.6 does not mandate role removal on
                     // password change).
                     //
-                    // KNOWN LIMITATION (see Docs/RoleBasedUserManagement.md):
+                    // KNOWN LIMITATION (see docs/RoleBasedUserManagement.md):
                     // this two-step is not atomic — if CreateUser fails after
                     // DeleteUser succeeds, the user account is lost. The
                     // built-in LinqUserDatabase / JsonUserDatabase delete and

@@ -31,4 +31,4 @@ if (provider.TryGetSchema(typeId, UaSchemaFormat.JsonCompact, UaSchemaScope.Type
 }
 ```
 
-See `Docs/SchemaGeneration.md` in the repository for details.
+See `docs/SchemaGeneration.md` in the repository for details.

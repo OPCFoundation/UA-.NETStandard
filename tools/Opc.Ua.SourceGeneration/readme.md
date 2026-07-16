@@ -62,7 +62,7 @@ Per-file behaviour is controlled with `AdditionalFiles` metadata:
 </ItemGroup>
 ```
 
-See [Source-Generated NodeManagers](../../Docs/SourceGeneratedNodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
+See [Source-Generated NodeManagers](../../docs/SourceGeneratedNodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
 for the end-to-end pattern.
 
 ## Using DataType Generators
@@ -141,7 +141,7 @@ so downstream models can simply derive from them.
 For an ergonomic, `System.IO`-style async client built on top of the
 generated `FileTypeClient` / `FileDirectoryTypeClient` /
 `TemporaryFileTransferTypeClient` proxies, see
-[`Docs/FileSystemClient.md`](../../Docs/FileSystemClient.md).
+[`docs/FileSystemClient.md`](../../docs/FileSystemClient.md).
 
 ### Output namespace
 

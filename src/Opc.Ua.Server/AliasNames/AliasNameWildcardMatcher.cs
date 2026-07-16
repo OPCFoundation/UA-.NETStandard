@@ -50,7 +50,7 @@ namespace Opc.Ua.Server.AliasNames
     /// </list>
     /// Algorithm ported from the original implementation in the Quickstart
     /// reference server (which itself ported the private <c>Match</c> from
-    /// <c>Stack/Opc.Ua.Core/Stack/Types/FilterEvaluator.cs</c>). Matching is
+    /// <c>src/Opc.Ua.Core/Stack/Types/FilterEvaluator.cs</c>). Matching is
     /// case-sensitive and anchored: the entire target must match the entire
     /// pattern.
     /// </remarks>

@@ -22,4 +22,4 @@ configuration servers.
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/WoTConnectivity.md).
+[WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).

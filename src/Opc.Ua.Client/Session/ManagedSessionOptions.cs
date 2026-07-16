@@ -60,7 +60,7 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete(
             "Use IdentityProvider for lazy/refresh-capable identities; the eager Identity setter " +
-            "cannot refresh on token expiry. See Docs/IdentityProviders.md.")]
+            "cannot refresh on token expiry. See docs/IdentityProviders.md.")]
         public IUserIdentity? Identity { get; init; }
 
         /// <summary>

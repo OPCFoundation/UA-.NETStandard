@@ -47,7 +47,7 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Security model (see <c>Docs/HighAvailability.md</c>): the
+    /// Security model (see <c>docs/HighAvailability.md</c>): the
     /// <c>AuthenticationToken</c> is only a lookup key. On restore the standard
     /// activation path still performs the full client-certificate signature
     /// check against the mirrored <c>serverNonce</c>, the nonce is consumed

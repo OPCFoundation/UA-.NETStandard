@@ -14,7 +14,7 @@ cd %build_root%
 
 rd /s /Q .\CodeCoverage
 rd /s /Q .\TestResults
-dotnet test "UA.slnx" -v n --configuration Release  --framework %framework% --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ./TestResults
+dotnet test "UA.slnx" -v n --configuration Release  --framework %framework% --collect:"XPlat Code Coverage" --settings ./tests/coverlet.runsettings.xml --results-directory ./TestResults
 
 REM ensure latest report tool is installed
 dotnet tool uninstall -g dotnet-reportgenerator-globaltool

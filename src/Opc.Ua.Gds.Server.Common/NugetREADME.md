@@ -24,4 +24,4 @@ back-end behind the same `IApplicationsDatabase` surface.
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[GDS guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/GDS.md).
+[GDS guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/GDS.md).

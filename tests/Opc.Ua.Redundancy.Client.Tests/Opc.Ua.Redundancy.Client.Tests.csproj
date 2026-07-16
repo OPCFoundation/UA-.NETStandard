@@ -26,9 +26,9 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.Client\Opc.Ua.Redundancy.Client.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Client\Opc.Ua.Redundancy.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>

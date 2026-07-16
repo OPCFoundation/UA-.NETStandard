@@ -66,7 +66,7 @@ builder.Services
 
 `AddOpcUa()` registers a `ServiceProviderTelemetryContext` that
 resolves the host's `ILoggerFactory` from DI on first use. See
-[`Docs/Diagnostics.md`](../../Diagnostics.md#wiring-into-microsoftextensionsdependencyinjection)
+[`docs/Diagnostics.md`](../../Diagnostics.md#wiring-into-microsoftextensionsdependencyinjection)
 for the full DI guidance.
 
 ### From static `Utils.Log*` methods
@@ -250,7 +250,7 @@ test time.
 **See also**
 
 - Related: [packages.md](packages.md), [configuration.md](configuration.md).
-- [`Docs/Diagnostics.md`](../../Diagnostics.md) &mdash; full
+- [`docs/Diagnostics.md`](../../Diagnostics.md) &mdash; full
   end-state usage and extensibility guidance for `ITelemetryContext`
   (custom contexts, OpenTelemetry wiring, metrics inventory).
 - [2.0 migration index](README.md) &mdash; analyzer quick-start + symptom → sub-doc table.

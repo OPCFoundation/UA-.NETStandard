@@ -30,5 +30,3 @@
 using System;
 
 [assembly: CLSCompliant(false)]
-
-// Repository move history marker: Fuzzing/Opc.Ua.Encoders.Fuzz.Tools/Properties/AssemblyInfo.cs

@@ -9,11 +9,11 @@ still slower, and why, plus planned future work), the **pooled encodeable**
 ## How to run
 
 The benchmarks are BenchmarkDotNet harnesses hosted inside the test projects (a
-`BenchmarkSwitcher` in `Tests/Common/Main.cs`). Run a single class from its test
+`BenchmarkSwitcher` in `tests/Common/Main.cs`). Run a single class from its test
 project directory:
 
 ```powershell
-cd Tests/Opc.Ua.Core.Encoders.Tests
+cd tests/Opc.Ua.Core.Encoders.Tests
 dotnet run -c Release -f net10.0 -- --filter "*BinaryEncoderBenchmarks*" --runtimes net10.0
 # add --job short for a faster (higher-variance) directional run
 ```
@@ -21,7 +21,7 @@ dotnet run -c Release -f net10.0 -- --filter "*BinaryEncoderBenchmarks*" --runti
 Encoder/decoder benchmark classes live in `Opc.Ua.Core.Encoders.Tests`
 (`BinaryEncoderBenchmarks`, `BinaryDecoderBenchmarks`, `JsonEncoderBenchmarks`,
 `JsonEncoderTests`). The end-to-end session benchmarks (`SecurityPolicyBenchmarks`)
-live in `Tests/Opc.Ua.Sessions.Tests` and spin up a real in-process client + server
+live in `tests/Opc.Ua.Sessions.Tests` and spin up a real in-process client + server
 across every security policy.
 
 > Tip: the combined `--filter *` build is flaky on this repo — run **per class**.
@@ -301,7 +301,7 @@ activator pooling feature added in support of `ManagedSessionBuilder.WithPoolNot
 
 ### Source
 
-`Tests/Opc.Ua.Client.Tests/Subscription/PooledNotificationBenchmarks.cs`
+`tests/Opc.Ua.Client.Tests/Subscription/PooledNotificationBenchmarks.cs`
 
 ### Methodology
 
@@ -370,15 +370,15 @@ For `EventFieldList`:
 
 ```pwsh
 # Build release
-dotnet build Tests/Opc.Ua.Client.Tests -c Release -f net10.0
+dotnet build tests/Opc.Ua.Client.Tests -c Release -f net10.0
 
 # Run BDN harness
-cd Tests/Opc.Ua.Client.Tests/bin/Release/net10.0
+cd tests/Opc.Ua.Client.Tests/bin/Release/net10.0
 dotnet Opc.Ua.Client.Tests.dll --filter "*PooledNotificationBenchmarks*"
 ```
 
 Artifacts (markdown, csv, html) are written to
-`Tests/Opc.Ua.Client.Tests/bin/Release/net10.0/BenchmarkDotNet.Artifacts/results/`.
+`tests/Opc.Ua.Client.Tests/bin/Release/net10.0/BenchmarkDotNet.Artifacts/results/`.
 
 ### Out of scope
 
@@ -396,7 +396,7 @@ activator pool system.
 
 ## Server session scalability
 
-The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`Tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized from a `500` baseline up to a `10000` stress case (500, 1000, 1500, 2000, 2500, 4000, 5000, 8000, 10000), selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
+The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized from a `500` baseline up to a `10000` stress case (500, 1000, 1500, 2000, 2500, 4000, 5000, 8000, 10000), selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
 
 > For a deep, code-referenced analysis of *why* a single node tops out here — the establishment vs steady-state boundaries and the built-in controls for degrading gracefully under load — see [Server Session Scalability](ServerScalability.md).
 
@@ -433,7 +433,7 @@ The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12
 
 Channels now normalize their advertised send and receive limits to the largest protocol-safe value that keeps the data plus cookie in the same `ArrayPool` bucket (while preserving the OPC UA 8,192-byte minimum), and both TCP transport creation paths receive that normalized limit. A configured value of either 65,535 or 65,536 consequently uses 65,536-byte arrays instead of 131,072-byte arrays.
 
-The explicit net10.0 harness `SubscriptionArrayPoolDiagnosticsLoadTests` (`Tests/Opc.Ua.Sessions.Tests/SubscriptionArrayPoolDiagnosticsLoadTests.cs`) measures real subscription traffic with 255 and 257 session Publish queues (immediately below and above the parallel Publish threshold) plus a slow-consumer case. Across both configured buffer sizes, all measured scenarios used only the 65,536-byte bucket, rents and returns balanced exactly after quiescence, outstanding buffers returned to zero, peak outstanding buffers stayed between 528 and 536, and the measurement windows triggered no Gen 2 collections. The 500-session regression baseline also completed for `opc.tcp`, `https`, and `opc.https`, with all 500 sessions receiving notifications.
+The explicit net10.0 harness `SubscriptionArrayPoolDiagnosticsLoadTests` (`tests/Opc.Ua.Sessions.Tests/SubscriptionArrayPoolDiagnosticsLoadTests.cs`) measures real subscription traffic with 255 and 257 session Publish queues (immediately below and above the parallel Publish threshold) plus a slow-consumer case. Across both configured buffer sizes, all measured scenarios used only the 65,536-byte bucket, rents and returns balanced exactly after quiescence, outstanding buffers returned to zero, peak outstanding buffers stayed between 528 and 536, and the measurement windows triggered no Gen 2 collections. The 500-session regression baseline also completed for `opc.tcp`, `https`, and `opc.https`, with all 500 sessions receiving notifications.
 
 The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `BufferManager.TakeBuffer`/`ReturnBuffer` pairs in 56.18 us versus 52.52 us for direct `ArrayPool<byte>.Shared` use, with no managed allocation reported for either pooled path. These short-run timings are directional; the subscription harness is the authoritative ownership and bucket-size check.
 

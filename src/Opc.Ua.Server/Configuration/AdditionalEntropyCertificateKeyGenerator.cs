@@ -61,7 +61,7 @@ namespace Opc.Ua.Server
     /// additional-entropy incorporation is unavailable, so an ECC
     /// regenerate-key request fails with <see cref="StatusCodes.BadNotSupported"/>
     /// rather than silently generating a key that ignores the caller nonce —
-    /// this limitation is documented in <c>Docs/CertificateManager.md</c>.
+    /// this limitation is documented in <c>docs/CertificateManager.md</c>.
     /// RSA regenerate-key requests remain nonce-derived on every framework.
     /// </para>
     /// </remarks>
@@ -225,7 +225,7 @@ namespace Opc.Ua.Server
             // platform-generated key that ignores the mandated Nonce, fail
             // explicitly with Bad_NotSupported. RSA keys remain fully nonce-
             // derived on every target framework. Documented in
-            // Docs/CertificateManager.md.
+            // docs/CertificateManager.md.
             _ = curve;
             _ = drbg;
             _ = cancellationToken;

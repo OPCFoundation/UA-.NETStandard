@@ -30,11 +30,11 @@ The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `Encodeab
 
 The shared `ComplexTypeSystem` orchestrator, the complex type interfaces and the default (non-reflection-emit) type builder moved to the `Opc.Ua.Core.Schema` assembly under the root `Opc.Ua` namespace (which consumers already import) so they can be used by both client and server and existing code keeps compiling without adding a new `using`. Remove the old `Opc.Ua.Client.ComplexTypes` import if it is now unused (the client-only `NodeCacheResolver` and the `ComplexTypeSystem.Create(session, ...)` helpers stay in `Opc.Ua.Client.ComplexTypes`).
 The `ComplexTypeSystem(ISession, ...)` constructors were removed; construct a session-bound instance with `ComplexTypeSystem.Create(session, telemetry)` (the default, NativeAOT friendly builder) or `ComplexTypeSystem.Create(session, new ComplexTypeBuilderFactory(), telemetry)` for the Reflection.Emit builder.
-Servers build the same stand-ins for runtime-loaded DataTypes **by default** (`StandardServer.LoadComplexTypes`; opt out by setting it to `false`); configure the pass with `AddComplexTypeSystem()` or invoke `IServerInternal.LoadComplexTypesAsync(...)` directly. See `Docs/ComplexTypes.md`.
+Servers build the same stand-ins for runtime-loaded DataTypes **by default** (`StandardServer.LoadComplexTypes`; opt out by setting it to `false`); configure the pass with `AddComplexTypeSystem()` or invoke `IServerInternal.LoadComplexTypesAsync(...)` directly. See `docs/ComplexTypes.md`.
 
 ### OptionSet DataType support
 
-Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`) are now automatically registered by the default `ComplexTypeSystem` builder with a new runtime class `Opc.Ua.Encoders.OptionSet` (in `Stack/Opc.Ua.Types`). Bit-field metadata is resolved from `DataTypeDefinition` (`EnumDefinition`) or, as a fallback, synthesized from the `OptionSetValues` property (`LocalizedText[]`).
+Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`) are now automatically registered by the default `ComplexTypeSystem` builder with a new runtime class `Opc.Ua.Encoders.OptionSet` (in `src/Opc.Ua.Types`). Bit-field metadata is resolved from `DataTypeDefinition` (`EnumDefinition`) or, as a fallback, synthesized from the `OptionSetValues` property (`LocalizedText[]`).
 
 Impact on existing code:
 
@@ -68,11 +68,11 @@ Custom encoder/decoder implementations must adjust to comply with the new interf
 
 The shared `ComplexTypeSystem` orchestrator, the complex type interfaces and the default (non-reflection-emit) type builder moved to the `Opc.Ua.Core.Schema` assembly under the root `Opc.Ua` namespace (which consumers already import) so they can be used by both client and server and existing code keeps compiling without adding a new `using`. Remove the old `Opc.Ua.Client.ComplexTypes` import if it is now unused (the client-only `NodeCacheResolver` and the `ComplexTypeSystem.Create(session, ...)` helpers stay in `Opc.Ua.Client.ComplexTypes`).
 The `ComplexTypeSystem(ISession, ...)` constructors were removed; construct a session-bound instance with `ComplexTypeSystem.Create(session, telemetry)` (the default, NativeAOT friendly builder) or `ComplexTypeSystem.Create(session, new ComplexTypeBuilderFactory(), telemetry)` for the Reflection.Emit builder.
-Servers build the same stand-ins for runtime-loaded DataTypes **by default** (`StandardServer.LoadComplexTypes`; opt out by setting it to `false`); configure the pass with `AddComplexTypeSystem()` or invoke `IServerInternal.LoadComplexTypesAsync(...)` directly. See `Docs/ComplexTypes.md`.
+Servers build the same stand-ins for runtime-loaded DataTypes **by default** (`StandardServer.LoadComplexTypes`; opt out by setting it to `false`); configure the pass with `AddComplexTypeSystem()` or invoke `IServerInternal.LoadComplexTypesAsync(...)` directly. See `docs/ComplexTypes.md`.
 
 ### OptionSet DataType support
 
-Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`) are now automatically registered by the default `ComplexTypeSystem` builder with a new runtime class `Opc.Ua.Encoders.OptionSet` (in `Stack/Opc.Ua.Types`). Bit-field metadata is resolved from `DataTypeDefinition` (`EnumDefinition`) or, as a fallback, synthesized from the `OptionSetValues` property (`LocalizedText[]`).
+Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`) are now automatically registered by the default `ComplexTypeSystem` builder with a new runtime class `Opc.Ua.Encoders.OptionSet` (in `src/Opc.Ua.Types`). Bit-field metadata is resolved from `DataTypeDefinition` (`EnumDefinition`) or, as a fallback, synthesized from the `OptionSetValues` property (`LocalizedText[]`).
 
 Impact on existing code:
 

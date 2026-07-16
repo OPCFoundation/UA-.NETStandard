@@ -499,7 +499,7 @@ the managed session ALSO automatically reacts:
      from forcing every session in the process to reconnect.
 
 The revalidation loop is implemented in
-`Libraries/Opc.Ua.Client/Session/ManagedSession.CertificateChanges.cs`.
+`src/Opc.Ua.Client/Session/ManagedSession.CertificateChanges.cs`.
 It uses a bounded `Channel<int>` of capacity 1 with
 `BoundedChannelFullMode.DropWrite` so the notifier thread never
 allocates a `Task` or `CancellationTokenSource` per event — duplicate

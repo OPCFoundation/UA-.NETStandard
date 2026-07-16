@@ -10,7 +10,7 @@ stack:
    notifications delivered through the per-item `Notification` event
    or the per-subscription `FastDataChangeCallback` / `FastEventCallback`.
 2. **V2 `ISubscriptionManager` / `ISubscription`** — the options-based
-   callback API in `Libraries/Opc.Ua.Client/Subscription/`. Items added
+   callback API in `src/Opc.Ua.Client/Subscription/`. Items added
    with `subscription.MonitoredItems.TryAdd(name, options, out _)`;
    notifications delivered through `ISubscriptionNotificationHandler`
    callbacks. The default engine on `ManagedSession`.
@@ -533,7 +533,7 @@ notifications through a `System.Threading.Channels.Channel<T>`.
 Disposing the enumerator removes the monitored item.
 
 This API sits on top of the V2 subscription engine
-(`Libraries/Opc.Ua.Client/Subscription`). It is **not** a replacement
+(`src/Opc.Ua.Client/Subscription`). It is **not** a replacement
 for either the classic or V2 callback-based API — it is a thin
 abstraction targeted at three concrete client scenarios:
 
@@ -870,10 +870,10 @@ matches the use case.
 
 ## Reference
 
-- Subscription source: `Libraries/Opc.Ua.Client/Subscription/`
-- Streaming source: `Libraries/Opc.Ua.Client/Subscription/Streaming/`
-- Helpers: `Libraries/Opc.Ua.Client/Subscription/Streaming/StreamingSubscriptionExtensions.cs`
-- Alarm streaming: `Libraries/Opc.Ua.Client/Alarms/AlarmStreamExtensions.cs`
+- Subscription source: `src/Opc.Ua.Client/Subscription/`
+- Streaming source: `src/Opc.Ua.Client/Subscription/Streaming/`
+- Helpers: `src/Opc.Ua.Client/Subscription/Streaming/StreamingSubscriptionExtensions.cs`
+- Alarm streaming: `src/Opc.Ua.Client/Alarms/AlarmStreamExtensions.cs`
 - Sessions architecture and engine choice: [Sessions.md](Sessions.md)
 - Reference client sample:
-  `Applications/ConsoleReferenceClient/AlarmClientSample.cs`
+  `samples/ConsoleReferenceClient/AlarmClientSample.cs`

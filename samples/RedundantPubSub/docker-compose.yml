@@ -6,7 +6,7 @@
 #   demo    single container running two in-process publishers + subscriber over loopback UDP by default
 #
 # Run from the repository ROOT:
-#   docker compose -f Applications/RedundantPubSub/docker-compose.yml up --build
+#   docker compose -f samples/RedundantPubSub/docker-compose.yml up --build
 #
 # Publisher HA — observe the subscriber logs. With HA_MODE=hot, killing the active publisher
 # (docker kill <publisher-a|b|c>) should produce on every subscriber:
@@ -23,7 +23,7 @@
 x-pubsub-image: &pubsub-image
   build:
     context: ../..
-    dockerfile: Applications/RedundantPubSub/Dockerfile
+    dockerfile: samples/RedundantPubSub/Dockerfile
   image: opcua-redundant-pubsub
 
 x-publisher-env: &publisher-env

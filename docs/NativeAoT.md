@@ -38,7 +38,7 @@ See the official Microsoft documentation for full details:
 ## Project Structure
 
 ```
-Tests/Opc.Ua.Aot.Tests/
+tests/Opc.Ua.Aot.Tests/
 ├── Opc.Ua.Aot.Tests.csproj   # Project file (PublishAot=true, net10.0)
 ├── AotServerFixture.cs        # Lightweight AOT-compatible server host
 ├── AotTestFixture.cs          # Shared fixture: starts server + client session
@@ -101,7 +101,7 @@ AOT-friendly.
 ### 1. Publish the Native AOT Binary
 
 ```bash
-dotnet publish Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj --configuration Release
+dotnet publish tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj --configuration Release
 ```
 
 The publish step compiles the entire application (tests, server, and all
@@ -113,13 +113,13 @@ several minutes depending on the machine.
 **Windows (x64):**
 
 ```powershell
-./Tests/Opc.Ua.Aot.Tests/bin/Release/net10.0/win-x64/publish/Opc.Ua.Aot.Tests.exe
+./tests/Opc.Ua.Aot.Tests/bin/Release/net10.0/win-x64/publish/Opc.Ua.Aot.Tests.exe
 ```
 
 **Linux (x64):**
 
 ```bash
-./Tests/Opc.Ua.Aot.Tests/bin/Release/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests
+./tests/Opc.Ua.Aot.Tests/bin/Release/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests
 ```
 
 The executable discovers and runs all tests, producing TUnit console output and
@@ -131,12 +131,12 @@ For iterative development you can combine both commands:
 
 ```bash
 # Windows
-dotnet publish Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && ^
-  Tests\Opc.Ua.Aot.Tests\bin\Release\net10.0\win-x64\publish\Opc.Ua.Aot.Tests.exe
+dotnet publish tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && ^
+  tests\Opc.Ua.Aot.Tests\bin\Release\net10.0\win-x64\publish\Opc.Ua.Aot.Tests.exe
 
 # Linux / macOS
-dotnet publish Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && \
-  ./Tests/Opc.Ua.Aot.Tests/bin/Release/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests
+dotnet publish tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && \
+  ./tests/Opc.Ua.Aot.Tests/bin/Release/net10.0/linux-x64/publish/Opc.Ua.Aot.Tests
 ```
 
 > **Note:** `dotnet test` and `dotnet run` do **not** perform AOT compilation.
@@ -162,7 +162,7 @@ failures are isolated and clearly visible.
 
 ### 1. Choose or Create a Test Class
 
-Place AOT tests in `Tests/Opc.Ua.Aot.Tests/`. Each file should focus on a
+Place AOT tests in `tests/Opc.Ua.Aot.Tests/`. Each file should focus on a
 single area (encoding, sessions, etc.). Apply the shared fixture:
 
 ```csharp

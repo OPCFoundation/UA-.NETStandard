@@ -21,19 +21,19 @@
 # Run from the repository ROOT (the build context is the repo root):
 #
 #   # DEFAULT: 3 eventual servers + 2 independent clients (failover + data loss demoable).
-#   docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+#   docker compose -f samples/RedundantClient/docker-compose.yml up --build
 #
 #   # Scale the eventual server and the independent clients independently:
-#   docker compose -f Applications/RedundantClient/docker-compose.yml up --build \
+#   docker compose -f samples/RedundantClient/docker-compose.yml up --build \
 #     --scale server=5 --scale client=3
 #
 #   # STRONG server (no data loss) x independent clients:
 #   COMPOSE_PROFILES=server-strong,client-independent \
-#     docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+#     docker compose -f samples/RedundantClient/docker-compose.yml up --build
 #
 #   # Any matrix cell, e.g. STRONG server x EVENTUAL coordinated client:
 #   COMPOSE_PROFILES=server-strong,client-coordinated CLIENT_CONSISTENCY=eventual \
-#     docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+#     docker compose -f samples/RedundantClient/docker-compose.yml up --build
 #
 # Only the eventual server (`server`) and the independent clients (`client`) are
 # --scale-able; the strong server and the coordinated client are fixed odd Raft quorums
@@ -45,13 +45,13 @@
 x-server-image: &server-image
   build:
     context: ../..
-    dockerfile: Applications/RedundantServer/Dockerfile
+    dockerfile: samples/RedundantServer/Dockerfile
   image: opcua-redundant-server
 
 x-client-image: &client-image
   build:
     context: ../..
-    dockerfile: Applications/RedundantClient/Dockerfile
+    dockerfile: samples/RedundantClient/Dockerfile
   image: opcua-redundant-client
   # Connect to the `server` name (the eventual service, or the strong server-a alias);
   # WithServerRedundancy() discovers the redundant set from the connected server and fails

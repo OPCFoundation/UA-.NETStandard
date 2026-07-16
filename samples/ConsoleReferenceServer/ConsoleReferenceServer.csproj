@@ -14,7 +14,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
   </ItemGroup>
   <!-- Server-side pcap capture (Opc.Ua.Core.Diagnostics). The diagnostics
        package resolves to net10.0 in every solution build configuration
@@ -22,12 +22,12 @@
        only), so gate the reference on net10.0 to keep the multi-TFM solution
        build consistent. -->
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Quickstarts.Servers\Quickstarts.Servers.csproj" />
   </ItemGroup>
   <ItemGroup>

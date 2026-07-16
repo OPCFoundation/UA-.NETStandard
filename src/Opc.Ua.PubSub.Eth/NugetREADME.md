@@ -37,4 +37,4 @@ services.AddOpcUaPubSub(pubsub => pubsub.AddEthTransport().WithPcap());
 Address connections with `opc.eth://<mac>[?vid=<0-4095>&pcp=<0-7>]`, for example
 `opc.eth://01-00-5E-00-00-01?vid=5&pcp=6`.
 
-See the project documentation (`Docs/PubSubEth.md`) for details.
+See the project documentation (`docs/PubSubEth.md`) for details.

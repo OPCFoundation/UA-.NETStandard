@@ -259,7 +259,7 @@ the raw-socket default.
 
 The OPC UA Secure Conversation (UASC) binary channel pipeline talks to
 the wire through a narrow byte-level abstraction —
-[`IUaSCByteTransport`](../Stack/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs).
+[`IUaSCByteTransport`](../src/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs).
 It is the public extension point for plugging in custom transports
 beyond the built-in TCP and WebSocket implementations.
 
@@ -328,7 +328,7 @@ wire.
       token while awaiting peer data — long-lived sessions rely on this
       to tear down cleanly.
 - [ ] Error mapping. Map transport-layer errors to
-      [`ServiceResultException`](../Stack/Opc.Ua.Core/Types/Result/ServiceResultException.cs)
+      [`ServiceResultException`](../src/Opc.Ua.Core/Types/Result/ServiceResultException.cs)
       with the matching `StatusCodes.BadXxx` (`BadConnectionClosed`,
       `BadTcpMessageTypeInvalid`, `BadTcpMessageTooLarge`, …) so the
       channel can route them through normal UA fault paths.
@@ -347,7 +347,7 @@ wire.
 
 #### Client side
 
-Implement [`IUaSCByteTransportFactory`](../Stack/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs)
+Implement [`IUaSCByteTransportFactory`](../src/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs)
 and hand the factory to a subclass of
 `UaSCUaBinaryTransportChannel`:
 
@@ -384,7 +384,7 @@ see `WssTransportChannel.OnSettingsSaved` for a reference.
 
 #### Server side
 
-Implement [`ITransportListener`](../Stack/Opc.Ua.Core/Stack/Transport/ITransportListener.cs)
+Implement [`ITransportListener`](../src/Opc.Ua.Core/Stack/Transport/ITransportListener.cs)
 plus an `ITransportListenerFactory`. For each accepted connection,
 construct your transport directly (not through the
 `IUaSCByteTransportFactory`, which is client-side only), then hand it to
@@ -413,7 +413,7 @@ the registry to `ServerBase` (via `TransportBindings`) or to
 
 ### Worked example
 
-[`InProcessTransport`](../Stack/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs)
+[`InProcessTransport`](../src/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs)
 is the public reference implementation that ships in `Opc.Ua.Core`. It
 uses only public API: two paired transports communicate over a pair of
 in-memory `System.Threading.Channels.Channel<byte[]>` (one per

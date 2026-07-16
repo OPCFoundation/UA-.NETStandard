@@ -1,6 +1,6 @@
 # Developer Guide
 
-This guide is the starting point for contributing to the OPC UA .NET Standard stack. It covers what to install, how to build and test, the coding standards ("dos and don'ts"), and task-oriented "how to" recipes (starting with how to add logging). It links out to the topic-specific documents in [Docs/README.md](README.md) rather than repeating them.
+This guide is the starting point for contributing to the OPC UA .NET Standard stack. It covers what to install, how to build and test, the coding standards ("dos and don'ts"), and task-oriented "how to" recipes (starting with how to add logging). It links out to the topic-specific documents in [docs/README.md](README.md) rather than repeating them.
 
 If you are new here, read the sections in order: [Prerequisites](#prerequisites) → [Repository layout](#repository-layout) → [Building](#building) → [Running tests](#running-tests) → [Coding standards](#coding-standards-dos-and-donts). The [How-to guides](#how-to-guides) and [Packages, platform support, and versioning](#packages-platform-support-and-versioning) sections are reference material you can jump to as needed.
 
@@ -17,13 +17,12 @@ The C# language version is pinned (`LangVersion` 14) and analyzer/style rules ar
 
 | Path | Contents |
 | --- | --- |
-| `Stack/` | The core stack: `Opc.Ua.Types`, `Opc.Ua.Core.Types`, `Opc.Ua.Core.Schema`, `Opc.Ua.Core`, `Opc.Ua.Core.Diagnostics`, `Opc.Ua.Security.Certificates`, and `Opc.Ua.Bindings.Https`. |
-| `Libraries/` | Higher-level libraries: `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT libraries, and the `Opc.Ua.Redundancy*` family. |
-| `Applications/` | Reference and sample apps: `ConsoleReferenceServer`, `ConsoleReferenceClient`, `Quickstarts.Servers`, the `Minimal*` / `PumpDeviceIntegrationServer` NativeAOT samples, `McpServer`, `Redundant*`, etc. |
-| `Tests/` | Unit and integration test projects, mirroring the library structure, plus shared test frameworks. |
-| `Tools/` | Build-time tooling, in particular the OPC UA source generators. |
-| `Docs/` | This documentation set (indexed by [Docs/README.md](README.md)). |
-| `Fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../Fuzzing/Fuzzing.md)). |
+| `src/` | The core stack and higher-level libraries: `Opc.Ua.Types`, `Opc.Ua.Core*`, `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT libraries, and the `Opc.Ua.Redundancy*` family. |
+| `samples/` | Reference and sample apps: `ConsoleReferenceServer`, `ConsoleReferenceClient`, `Quickstarts.Servers`, the `Minimal*` / `PumpDeviceIntegrationServer` NativeAOT samples, `Redundant*`, etc. |
+| `tests/` | Unit and integration test projects, mirroring the library structure, plus shared test frameworks. |
+| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. |
+| `docs/` | This documentation set (indexed by [docs/README.md](README.md)). |
+| `fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../fuzzing/Fuzzing.md)). |
 
 Central build configuration lives at the repository root and is imported by every project:
 
@@ -48,7 +47,7 @@ Notes:
 - **Building a single target framework.** By default the libraries multi-target the whole matrix (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)). To restrict a local build to one framework, pass `-p:CustomTargetFrameworks`, for example:
 
   ```bash
-  dotnet build Stack/Opc.Ua.Core/Opc.Ua.Core.csproj -f net10.0 -p:CustomTargetFrameworks=net10.0
+  dotnet build src/Opc.Ua.Core/Opc.Ua.Core.csproj -f net10.0 -p:CustomTargetFrameworks=net10.0
   ```
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
@@ -66,7 +65,7 @@ Conventions and requirements:
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**.
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
-- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`Tests/customtest.bat`](../Tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
+- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** To keep pull-request builds fast, only **net48** and **net8.0** are exercised in the qualifying CI build; the other frameworks run in scheduled/manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines.
 
 ## Coding standards (dos and don'ts)
@@ -180,8 +179,8 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 ### Other common tasks
 
-- **Add a new feature** — implement it in the right library, add unit and (for client/server/pubsub) integration tests, update or add a doc under `Docs/`, and keep backward compatibility (see [Coding standards](#coding-standards-dos-and-donts)).
-- **Add a document** — put it in `Docs/` and link it from [Docs/README.md](README.md).
+- **Add a new feature** — implement it in the right library, add unit and (for client/server/pubsub) integration tests, update or add a doc under `docs/`, and keep backward compatibility (see [Coding standards](#coding-standards-dos-and-donts)).
+- **Add a document** — put it in `docs/` and link it from [docs/README.md](README.md).
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [SourceGeneratedNodeManagers.md](SourceGeneratedNodeManagers.md) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
@@ -218,7 +217,7 @@ The class libraries currently target:
 6. .NET 9.0
 7. .NET 10.0
 
-To keep pull-request CI fast, only (4) and (6) are part of the qualifying build; the other platforms are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `Tests/customtest.bat`.
+To keep pull-request CI fast, only (4) and (6) are part of the qualifying build; the other platforms are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`.
 
 ### Versioning
 
@@ -238,4 +237,4 @@ From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](h
 - [Documentation index](README.md) — all topic guides.
 - [Diagnostics](Diagnostics.md) — telemetry context, logging runtime, metrics, audit events, server diagnostics nodes, and packet capture.
 - [Dependency Injection](DependencyInjection.md), [Certificates](Certificates.md) / [Certificate Manager](CertificateManager.md), [NativeAOT](NativeAoT.md), [Migration Guide](MigrationGuide.md), [What's New in 2.0](WhatsNewIn2.0.md).
-- [Fuzz testing](../Fuzzing/Fuzzing.md).
+- [Fuzz testing](../fuzzing/Fuzzing.md).

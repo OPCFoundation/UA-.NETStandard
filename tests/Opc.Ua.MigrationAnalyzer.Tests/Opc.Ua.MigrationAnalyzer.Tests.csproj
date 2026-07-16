@@ -31,8 +31,8 @@
     <PackageReference Include="System.Collections.Immutable" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Tools\Opc.Ua.MigrationAnalyzer\Opc.Ua.MigrationAnalyzer.csproj" />
-    <ProjectReference Include="..\..\Tools\Opc.Ua.MigrationAnalyzer.CodeFixer\Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
-    <ProjectReference Include="..\..\Tools\Opc.Ua.MigrationAnalyzer.Generator\Opc.Ua.MigrationAnalyzer.Generator.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.MigrationAnalyzer\Opc.Ua.MigrationAnalyzer.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.MigrationAnalyzer.CodeFixer\Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.MigrationAnalyzer.Generator\Opc.Ua.MigrationAnalyzer.Generator.csproj" />
   </ItemGroup>
 </Project>

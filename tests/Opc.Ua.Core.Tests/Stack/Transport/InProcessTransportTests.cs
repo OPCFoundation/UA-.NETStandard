@@ -42,7 +42,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     /// Contract / smoke tests for the public
     /// <see cref="InProcessTransport"/> reference implementation of
     /// <see cref="IUaSCByteTransport"/> shipped from
-    /// <c>Stack/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs</c>.
+    /// <c>src/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs</c>.
     /// </summary>
     [TestFixture]
     [Category("CustomByteTransport")]

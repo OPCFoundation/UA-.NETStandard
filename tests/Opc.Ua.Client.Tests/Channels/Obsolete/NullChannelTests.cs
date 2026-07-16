@@ -32,7 +32,7 @@
 // legacy synchronous ITransportChannel methods tested here have been
 // removed in the v1.6 API.  These tests are now covered by the
 // Opc.Ua.Core.Tests project which has access to the internal type.
-// See: Tests\Opc.Ua.Core.Tests for equivalent coverage.
+// See: tests\Opc.Ua.Core.Tests for equivalent coverage.
 
 using NUnit.Framework;
 

@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/Generators/">
-    <Project Path="../Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
-    <Project Path="../Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
+    <Project Path="../tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
+    <Project Path="../tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
     <Project Path="Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
     <Project Path="Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
   </Folder>
@@ -17,11 +17,11 @@
     <File Path="../version.props" />
   </Folder>
   <Folder Name="/Core/">
-    <Project Path="../Tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
+    <Project Path="../tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
     <Project Path="Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
     <Project Path="Opc.Ua.SourceGeneration.Tester/Opc.Ua.SourceGeneration.Tester.csproj" />
   </Folder>
-  <Folder Name="/Stack/">
-    <Project Path="../Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
+  <Folder Name="/src/">
+    <Project Path="../src/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
 </Solution>

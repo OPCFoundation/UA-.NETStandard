@@ -61,7 +61,7 @@ namespace Opc.Ua.Sessions.Tests
     /// <para>Total: 171 benchmarks (19 methods × 9 security policies - None is excluded)</para>
     /// <para>
     /// USAGE:
-    ///   cd Tests/Opc.Ua.Client.Tests
+    ///   cd tests/Opc.Ua.Client.Tests
     /// </para>
     /// <para>
     /// Run all 171 benchmarks (takes ~30+ minutes):

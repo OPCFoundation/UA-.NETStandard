@@ -2,7 +2,7 @@
 
 This project provides integration of [SharpFuzz](https://github.com/Metalnem/sharpfuzz) with the
 UA.NET Standard libraries, with support for both [afl-fuzz](https://lcamtuf.coredump.cx/afl/) and
-[libFuzzer](https://llvm.org/docs/LibFuzzer.html). Each fuzz area lives directly under `Fuzzing/`
+[libFuzzer](https://llvm.org/docs/LibFuzzer.html). Each fuzz area lives directly under `fuzzing/`
 as four sibling folders — host (`*.Fuzz`), corpus (`*.Fuzz.Corpus`), test fixture (`*.Fuzz.Tests`),
 and tools (`*.Fuzz.Tools`) — and shares a generic NUnit replay harness plus the SharpFuzz host
 under `Common/`.
@@ -22,7 +22,7 @@ under `Common/`.
 ## Directory layout
 
 ```
-Fuzzing/
+fuzzing/
   Fuzzing.md                                                # this file
 
   Common/                                                   # shared source (no csproj)
@@ -54,7 +54,7 @@ Fuzzing/
   Opc.Ua.Network.Fuzz.Tests/   Opc.Ua.Network.Fuzz.Tools/
 ```
 
-The flat layout matches the rest of the repository (`Tests/`, `Libraries/`, `Stack/` also list
+The flat layout matches the rest of the repository (`tests/`, `src/`, `src/` also list
 projects directly under the root with no domain grouping). Every csproj folder name equals the
 csproj filename (without the `.csproj` extension), and every assembly is prefixed with `Opc.Ua.`
 in line with the repo's `AssemblyPrefix` convention.
@@ -105,11 +105,11 @@ public class EncoderTests : FuzzTargetTestsBase
    `Opc.Ua.<NewArea>.Fuzz.Corpus/Testcases.<Bucket>/`. Each `Testcases.*/` subdirectory becomes
    a logical seed bucket and is auto-discovered by
    `TestAssetUtils.DiscoverTestcaseEncoderSuffixes`.
-6. **Add a dictionary.** Put `<NewArea>.dict` under `Fuzzing/Dictionaries/` with common
+6. **Add a dictionary.** Put `<NewArea>.dict` under `fuzzing/Dictionaries/` with common
    tokens / magic bytes / length sentinels — this dramatically improves libFuzzer coverage
    progression.
-7. **Wire into `UA.slnx`.** Add the three new projects to the `/Fuzzing/` folder, the
-   `*.dict` file under `/Fuzzing/Dictionaries/`, and the seed loose files you want visible in
+7. **Wire into `UA.slnx`.** Add the three new projects to the `/fuzzing/` folder, the
+   `*.dict` file under `/fuzzing/Dictionaries/`, and the seed loose files you want visible in
    the IDE.
 8. **Update this `Fuzzing.md`.** Add a row to the area table.
 
@@ -123,7 +123,7 @@ under the `[Category("Fuzzing")]` filter.
 The Network area is unusual because it's split across two complementary entry points:
 
 * **Phase 4a (no Core changes).** Fuzzes the public surfaces of
-  `Stack/Opc.Ua.Core.Diagnostics`: `OpcUaFrameParser.Process` (TCP → UA-SC chunk splitter),
+  `src/Opc.Ua.Core.Diagnostics`: `OpcUaFrameParser.Process` (TCP → UA-SC chunk splitter),
   `TcpStreamReassembler.Process` (raw TCP), `OfflineSecureChannel.ReadChunk` (UA-SC
   symmetric decrypt + verify using the stack's own `UaSCUaBinaryChannel.ReadSymmetricMessage`,
   so every security profile is covered for free), and `ServiceCallReassembler.Push` (chunk
@@ -133,7 +133,7 @@ The Network area is unusual because it's split across two complementary entry po
   dominate throughput.
 
 * **Phase 4b (internal Core seam).** Adds `internal static class TcpMessageParsers` in
-  `Stack/Opc.Ua.Core/Stack/Tcp/TcpMessageParsers.cs` covering the pre-crypto, pre-auth chunk
+  `src/Opc.Ua.Core/Stack/Tcp/TcpMessageParsers.cs` covering the pre-crypto, pre-auth chunk
   surface the pcap binding does not expose: `TryParseChunkHeader`, `ReadHelloMessage`,
   `ReadAcknowledgeMessage`, `ReadErrorMessage`, `ReadReverseHelloMessage`,
   `ReadAsymmetricMessageHeader`. Surfaced to the fuzz area via
@@ -170,7 +170,7 @@ libFuzzer prebuilt binaries are available for Debian / Ubuntu / Windows from the
 [libfuzzer-dotnet releases](https://github.com/Metalnem/libfuzzer-dotnet/releases).
 
 ```bash
-cd <repo>/Fuzzing
+cd <repo>/fuzzing
 sudo apt-get update
 sudo apt-get install -y build-essential cmake git dotnet-sdk-10.0
 # Powershell on Linux (required by the helper scripts):
@@ -202,8 +202,8 @@ The dynamic menu script lists every `FuzzableCode` static target in a built area
 without hardcoding target names:
 
 ```powershell
-powershell -File Fuzzing/Scripts/fuzz-menu.ps1 `
-    -AssemblyPath Fuzzing/Opc.Ua.Network.Fuzz/bin/Debug/net10.0/Opc.Ua.Network.Fuzz.dll
+powershell -File fuzzing/Scripts/fuzz-menu.ps1 `
+    -AssemblyPath fuzzing/Opc.Ua.Network.Fuzz/bin/Debug/net10.0/Opc.Ua.Network.Fuzz.dll
 # -Filter <regex> narrows the list; -Index <n> selects a target without prompting.
 ```
 
@@ -211,7 +211,7 @@ powershell -File Fuzzing/Scripts/fuzz-menu.ps1 `
 matching one of the listed names:
 
 ```powershell
-cd Fuzzing
+cd fuzzing
 powershell -File Scripts/fuzz-libfuzzer.ps1 `
     -libFuzzer ./libfuzzer-dotnet-windows.exe `
     -project ./Opc.Ua.Encoders.Fuzz/Opc.Ua.Encoders.Fuzz.csproj `
@@ -228,7 +228,7 @@ directory.
 Run the area's `*.Fuzz.Tools` project with `-p` / `-s` for playback with stack traces:
 
 ```bash
-dotnet run --project Fuzzing/Opc.Ua.Network.Fuzz.Tools -- --playback --stacktrace
+dotnet run --project fuzzing/Opc.Ua.Network.Fuzz.Tools -- --playback --stacktrace
 ```
 
 The playback tool finds all crashes / timeouts in the default folders and replays them
@@ -241,7 +241,7 @@ Run the area's `*.Fuzz.Tools` project with `-t` to (re)generate the area's `Test
 seed corpus:
 
 ```bash
-dotnet run --project Fuzzing/Opc.Ua.Network.Fuzz.Tools -- --testcases
+dotnet run --project fuzzing/Opc.Ua.Network.Fuzz.Tools -- --testcases
 ```
 
 This re-runs the deterministic seed-generation pipeline (handshake recorder for Network,
@@ -258,20 +258,20 @@ this entire toolchain autonomously. It detects the host OS, picks the available 
 (libFuzzer everywhere, afl-fuzz on Linux when installed), publishes + SharpFuzz-instruments
 each area's host project, enumerates `FuzzableCode` targets via
 `Scripts/fuzz-menu.ps1`, launches one detached fuzz process per (area × engine × target)
-tuple, and polls the per-instance work dirs under `Fuzzing/.runs/` for new findings.
+tuple, and polls the per-instance work dirs under `fuzzing/.runs/` for new findings.
 
 When the agent picks up a novel `crash-*` / `timeout-*` / `slow-unit-*` (or afl
 `crashes/` / `hangs/`) file it:
 
 1. SHA-1 dedups against every `Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha1>` already
    in the repo so it never re-investigates a known regression seed.
-2. Reproduces the crash locally via `dotnet run --project Fuzzing/Opc.Ua.<area>.Fuzz.Tools -- --playback --stacktrace`.
+2. Reproduces the crash locally via `dotnet run --project fuzzing/Opc.Ua.<area>.Fuzz.Tools -- --playback --stacktrace`.
 3. Designs a minimal fix following every repo guideline (no SYNC-over-ASYNC,
    `Span<byte>` / `ReadOnlySpan<byte>` / `ByteString` in public API, Allman + 4-space +
    CRLF + MIT header on new files, no `#region`, no `[Obsolete]` usage, NativeAOT-safe,
    `TreatWarningsAsErrors` clean, no exposed locks).
 4. Runs a rubber-duck agent review (max 2 rounds) on the proposed diff.
-5. Copies the failing input to `Fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha1>`
+5. Copies the failing input to `fuzzing/Opc.Ua.<area>.Fuzz.Tests/Assets/<prefix>-<sha1>`
    so the existing harness (`FuzzCrashAssets` / `FuzzTimeoutAssets` / `FuzzSlowAssets`)
    replays it through every target on every future `dotnet test` run.
 6. Rebuilds and runs the three `*.Fuzz.Tests` projects on `net10.0`; the run must end at
@@ -294,7 +294,6 @@ any time with *"stop"*, *"halt"*, *"stop fuzzing"*, *"that's enough"*.
 
 The agent's own toolchain setup mirrors the manual `Installation` section above:
 `SharpFuzz.CommandLine` global tool, the `libfuzzer-dotnet` driver under
-`Fuzzing/.tools/` (gitignored), and `afl-fuzz` on PATH for the AFL engine on Linux.
+`fuzzing/.tools/` (gitignored), and `afl-fuzz` on PATH for the AFL engine on Linux.
 If any are missing AND cannot be auto-installed (air-gapped box, `sudo` not available,
 …), the agent surfaces the gap and asks the user how to proceed.
-

@@ -53,7 +53,7 @@ await Task.WhenAll(asTask, otherTask);
 
 **Migration**:
 
-The `ServerCapability` identifiers are source-generated from `Tools/Opc.Ua.SourceGeneration.Core/Design/ServerCapabilities.csv`; each capability emits a `public const string` field. The instance type carrying `Id` / `Description` is `ServerCapabilityInfo`, and the registry exposing `IEnumerable<ServerCapabilityInfo>` plus `Find(string?) : ServerCapabilityInfo?` is the static `ServerCapabilities` class in `Opc.Ua.Gds.Client.Common`.
+The `ServerCapability` identifiers are source-generated from `tools/Opc.Ua.SourceGeneration.Core/Design/ServerCapabilities.csv`; each capability emits a `public const string` field. The instance type carrying `Id` / `Description` is `ServerCapabilityInfo`, and the registry exposing `IEnumerable<ServerCapabilityInfo>` plus `Find(string?) : ServerCapabilityInfo?` is the static `ServerCapabilities` class in `Opc.Ua.Gds.Client.Common`.
 
 ```csharp
 // Before
@@ -261,7 +261,7 @@ after the handler `await` completes and calls
 their static activator pools. The recorded benchmarks show ~315× fewer
 allocations per `MonitoredItemNotification` and a corresponding drop in
 gen-0 GC pressure
-(see [`Docs/Benchmarks.md` → *Pooled encodeable*](../../Benchmarks.md#pooled-encodeable)).
+(see [`docs/Benchmarks.md` → *Pooled encodeable*](../../Benchmarks.md#pooled-encodeable)).
 
 **Handler contract change (only when `WithPoolNotifications` is enabled):**
 Handlers must **not** retain references to notification objects past the
@@ -271,7 +271,7 @@ values must **copy** them out of the dispatched struct before returning.
 The `DataValueChange` / `EventNotification` projection structs are
 designed not to surface pooled instances directly — copy-by-value of the
 struct itself is safe and is the recommended pattern. See
-[`Docs/Sessions.md`](../../Sessions.md#v2-notification-pooling-opt-in) for full
+[`docs/Sessions.md`](../../Sessions.md#v2-notification-pooling-opt-in) for full
 detail and a code example.
 
 ```csharp
@@ -333,7 +333,7 @@ This iteration uses single-instance options (no named/keyed registrations); the 
 
 ### Durable subscriptions and reshaped Subscription tree
 
-**Source-breaking.** Durable subscription support reshapes the subscription tree on both the client and the server. On the client side, the new public surface in `Libraries/Opc.Ua.Client/Subscription/` includes `ISubscription`, `ISubscriptionManager`, `SubscriptionOptions`, and `MonitoredItemOptions` - these are the V2 options-based shapes; the classic `Opc.Ua.Client.Subscription` continues to ship alongside them. On the server side, the new public surface in `Libraries/Opc.Ua.Server/Subscription/...` includes `DataChangeMonitoredItemQueue`, `EventMonitoredItemQueue`, `IDataChangeMonitoredItemQueue`, `IMonitoredItemQueueFactory`, `ISubscriptionStore`, `IStoredSubscription`, `StoredSubscription`, and `StoredMonitoredItem`.
+**Source-breaking.** Durable subscription support reshapes the subscription tree on both the client and the server. On the client side, the new public surface in `src/Opc.Ua.Client/Subscription/` includes `ISubscription`, `ISubscriptionManager`, `SubscriptionOptions`, and `MonitoredItemOptions` - these are the V2 options-based shapes; the classic `Opc.Ua.Client.Subscription` continues to ship alongside them. On the server side, the new public surface in `src/Opc.Ua.Server/Subscription/...` includes `DataChangeMonitoredItemQueue`, `EventMonitoredItemQueue`, `IDataChangeMonitoredItemQueue`, `IMonitoredItemQueueFactory`, `ISubscriptionStore`, `IStoredSubscription`, `StoredSubscription`, and `StoredMonitoredItem`.
 
 Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscriptions;` import alongside the existing `using Opc.Ua.Client;`. Because the V2 records share their type names with the classic records, namespace aliases are required when both are visible in the same file - see [Fluent Builder, V2 Subscriptions, and Dependency Injection](#fluent-builder-v2-subscriptions-and-dependency-injection) for the canonical alias snippet.
 
@@ -343,7 +343,7 @@ The server-side `ISubscriptionStore` definition-persistence methods are asynchro
 
 ### PubSub
 
-**Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).
+**Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).
 
 ### Reverse connect
 
@@ -363,7 +363,7 @@ The runtime transport boundary moved from `IMessageSocket` to the new public `IU
 | `UaSCUaBinaryClientChannel(..., IMessageSocketFactory, ...)` ctor | `UaSCUaBinaryClientChannel(..., IUaSCByteTransportFactory, ...)` ctor |
 | `ITcpChannelListener.ReconnectToExistingChannel(IMessageSocket, ...)` | `ITcpChannelListener.ReconnectToExistingChannel(IUaSCByteTransport, ...)` |
 
-**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): the recommended migration path is to implement [`IUaSCByteTransport`](../../../Stack/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`Docs/Transports.md`](../../Transports.md) § "Implementing a custom byte transport" for the contract, an implementation checklist, and a worked example (the public [`InProcessTransport`](../../../Stack/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs) reference implementation that consumes only the public surface). The new abstraction is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes only `ValueTask`-based async; it is intentionally narrower than the old SAEA-based `IMessageSocket` and most legacy implementations collapse to ~150 lines.
+**If you previously implemented a custom `IMessageSocket`** (rare in practice — almost no consumer subclasses `TcpMessageSocket`): the recommended migration path is to implement [`IUaSCByteTransport`](../../../src/Opc.Ua.Core/Stack/Tcp/IUaSCByteTransport.cs) directly. See [`docs/Transports.md`](../../Transports.md) § "Implementing a custom byte transport" for the contract, an implementation checklist, and a worked example (the public [`InProcessTransport`](../../../src/Opc.Ua.Core/Stack/Tcp/InProcessTransport.cs) reference implementation that consumes only the public surface). The new abstraction is chunk-oriented (one Send / Receive per UASC `MessageChunk`) and exposes only `ValueTask`-based async; it is intentionally narrower than the old SAEA-based `IMessageSocket` and most legacy implementations collapse to ~150 lines.
 
 ### Transport binding registry — `TransportBindings` static API removed
 

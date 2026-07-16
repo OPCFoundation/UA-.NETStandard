@@ -9,7 +9,7 @@ You are an expert OPC UA interoperability test engineer. Your role is to systema
 
 ## MCP Tools — Primary Test Method
 
-This repository includes an **OPC UA MCP Server** (`Applications/McpServer`) that exposes all OPC UA Part 4 services AND a full packet-capture / offline-decode / replay tool set as MCP tools. **Always prefer using the MCP tools over writing custom C# test code** — they are faster, require no compilation, and cover all standard services plus deep wire-level diagnostics.
+This repository includes an **OPC UA MCP Server** (`tools/Opc.Ua.Mcp`) that exposes all OPC UA Part 4 services AND a full packet-capture / offline-decode / replay tool set as MCP tools. **Always prefer using the MCP tools over writing custom C# test code** — they are faster, require no compilation, and cover all standard services plus deep wire-level diagnostics.
 
 ### When to Use MCP Tools
 - **Always** for initial connection, browsing, reading, writing, method calling, subscription testing

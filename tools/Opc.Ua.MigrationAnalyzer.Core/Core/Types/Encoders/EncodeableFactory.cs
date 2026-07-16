@@ -46,7 +46,7 @@ namespace Opc.Ua
             /// </summary>
             [Obsolete("EncodeableFactory.GlobalFactory was removed in 1.6. " +
                 "Use ServiceMessageContext.GlobalContext.Factory instead. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0020")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0020")]
             [OpcUaShim("UA0020")]
             public static IEncodeableFactory GlobalFactory => ServiceMessageContext.GlobalContext.Factory;
         }

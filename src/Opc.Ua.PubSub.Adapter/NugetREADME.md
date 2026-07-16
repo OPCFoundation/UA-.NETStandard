@@ -30,4 +30,4 @@ services.AddOpcUa()
         }));
 ```
 
-See `Docs/PubSub.md` for the full guide.
+See `docs/PubSub.md` for the full guide.

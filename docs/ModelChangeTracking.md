@@ -470,12 +470,12 @@ entire manager out of auto-emit if you want full manual control.
 
 ## Reference
 
-- Server source: `Libraries/Opc.Ua.Server/NodeManager/ModelChangeAggregator.cs`
+- Server source: `src/Opc.Ua.Server/NodeManager/ModelChangeAggregator.cs`
 - Server events: `CustomNodeManager.RaiseGeneralModelChangeEvent`,
   `RaiseSemanticChangeEvent` (and the async equivalents in
   `AsyncCustomNodeManager`)
-- Client source: `Libraries/Opc.Ua.Client/ModelChange/`
-- Cache: `Libraries/Opc.Ua.Client/NodeCache/NodeCache.cs` —
+- Client source: `src/Opc.Ua.Client/ModelChange/`
+- Cache: `src/Opc.Ua.Client/NodeCache/NodeCache.cs` —
   `InvalidateNode`
 - Sessions architecture: [Sessions.md](Sessions.md)
 - Spec: [OPC UA Part 5 §6.4.32 — `BaseModelChangeEventType`](https://reference.opcfoundation.org/v105/Core/docs/Part5/6.4.32/)

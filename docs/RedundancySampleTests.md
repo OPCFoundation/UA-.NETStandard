@@ -1,8 +1,8 @@
 # Redundant Sample Integration Tests
 
 The `Opc.Ua.Redundancy.Samples.Tests` project contains process-level integration tests that launch the redundant sample applications
-&mdash; [`RedundantServer`](../Applications/RedundantServer), [`RedundantClient`](../Applications/RedundantClient) and
-[`RedundantPubSub`](../Applications/RedundantPubSub) &mdash; as real external processes and assert on the high-availability behavior they log
+&mdash; [`RedundantServer`](../samples/RedundantServer), [`RedundantClient`](../samples/RedundantClient) and
+[`RedundantPubSub`](../samples/RedundantPubSub) &mdash; as real external processes and assert on the high-availability behavior they log
 (`FAILOVER:`, `DATA LOSS:`, `HA OK:`, and reconnect events). They exercise the samples in their supported setups so that regressions in the
 end-to-end high-availability experience are caught automatically, and they demonstrate both successful failover *and* the visibility of data loss.
 
@@ -13,7 +13,7 @@ dedicated, manually triggered CI job (and on a weekly schedule) to validate high
 
 Short-haul tests are deterministic and complete in seconds. They are discovered and run automatically by the normal
 [Build and Test](../.github/workflows/buildandtest.yml) workflow (and the Azure DevOps test stages), because the project follows the
-`Tests/Opc.Ua.*.Tests` naming convention. They are tagged with the NUnit category `SampleHaShortHaul`:
+`tests/Opc.Ua.*.Tests` naming convention. They are tagged with the NUnit category `SampleHaShortHaul`:
 
 * **PubSub demo, hot mode** &mdash; runs `RedundantPubSub --role demo --ha-mode hot` and asserts the promoted publisher continues the SequenceNumber
   across failover with no reset (`SIMULATED: HA OK: sequence continued ...`).
@@ -25,7 +25,7 @@ Short-haul tests are deterministic and complete in seconds. They are discovered 
 Run them locally from the repository root:
 
 ```powershell
-dotnet test Tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj --filter "Category=SampleHaShortHaul"
+dotnet test tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj --filter "Category=SampleHaShortHaul"
 ```
 
 ## Long-haul tests (manual / scheduled soak)
@@ -42,7 +42,7 @@ The soak duration is controlled by the `SAMPLE_HA_DURATION_MINUTES` environment 
 
 ```powershell
 $env:SAMPLE_HA_DURATION_MINUTES = "5"
-dotnet test Tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj --filter "Category=SampleHaLongHaul"
+dotnet test tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj --filter "Category=SampleHaLongHaul"
 ```
 
 The long-haul tests run in CI through dedicated, manually triggerable jobs on both platforms:
@@ -56,7 +56,7 @@ The long-haul tests run in CI through dedicated, manually triggerable jobs on bo
 
 The full multi-replica leader-election topologies &mdash; strong (Raft) active/passive and eventual (CRDT gossip) active/active &mdash; rely on a
 stable virtual endpoint with DNS-based re-resolution to a surviving replica. These are demonstrated end-to-end by the docker-compose setups under
-[`Applications/RedundantServer`](../Applications/RedundantServer) and [`Applications/RedundantClient`](../Applications/RedundantClient), which run
+[`samples/RedundantServer`](../samples/RedundantServer) and [`samples/RedundantClient`](../samples/RedundantClient), which run
 several replicas on a container network and let you kill the active replica to observe cross-replica failover. The process-level long-haul soak
 above focuses on the failover-detection, reconnect, and data-loss-visibility behavior that runs deterministically inside a CI runner without
 container networking.

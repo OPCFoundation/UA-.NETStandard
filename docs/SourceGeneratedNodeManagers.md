@@ -5,7 +5,7 @@ ready-to-host `AsyncCustomNodeManager` for an information model design XML, and
 how to wire callbacks (read/write/method/lifecycle) using the fluent
 `INodeManagerBuilder` API. The combination is designed for **single-file,
 NativeAOT-friendly** servers — see
-`Applications/MinimalBoilerServer` for the canonical sample.
+`samples/MinimalBoilerServer` for the canonical sample.
 
 ## What the generator produces
 
@@ -352,9 +352,9 @@ public partial class CalcNodeManager
 ```
 
 The end-to-end sample lives in
-`Applications/MinimalCalcServer/` (model in `Model/Calc.xml`, wiring
+`samples/MinimalCalcServer/` (model in `Model/Calc.xml`, wiring
 in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
-in `Tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
+in `tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
 each shape over a real `Session.CallAsync(...)`.
 
 ## Event sources — typed `Publish<TEvent>` on notifier wrappers
@@ -478,10 +478,10 @@ callback. Once attached, all `Publish` extensions resolve against the
 manager's registry exactly as for generated managers.
 
 The end-to-end sample lives in
-`Applications/MinimalBoilerServer/BoilerNodeManager.Configure.cs`
+`samples/MinimalBoilerServer/BoilerNodeManager.Configure.cs`
 (wiring `GenerateDrumHeartbeatAsync` on the drum). The companion AOT
 round-trip test in
-`Tests/Opc.Ua.Aot.Tests/PublishedEventsAotTests.cs` subscribes a
+`tests/Opc.Ua.Aot.Tests/PublishedEventsAotTests.cs` subscribes a
 real client `MonitoredItem` with an `EventFilter` and asserts the
 heartbeats arrive end-to-end under NativeAOT constraints (no JIT, no
 reflection).
@@ -524,7 +524,7 @@ legacy `INodeManagerFactory`. For advanced configuration (custom security
 policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
 
 That's the whole server. The Boiler version is in
-`Applications/MinimalBoilerServer/Program.cs`.
+`samples/MinimalBoilerServer/Program.cs`.
 
 ## Multi-namespace and manager-swap subclassing
 
@@ -552,7 +552,7 @@ public sealed class MyExtendedFactory : MyModel.MyModelNodeManagerFactory
 }
 ```
 
-The `Tests/Opc.Ua.Server.Tests/Fluent/GeneratedManagerHybridTests.cs`
+The `tests/Opc.Ua.Server.Tests/Fluent/GeneratedManagerHybridTests.cs`
 suite verifies these subclassing scenarios.
 
 ## NativeAOT publishing
@@ -575,7 +575,7 @@ Use `Microsoft.Extensions.Logging.Console` for AOT-friendly logging
 dotnet publish -c Release -r win-x64
 ```
 
-`Applications/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
+`samples/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
 warnings** (~29 MB self-contained EXE).
 
 ## Runtime NodeSet alternative
@@ -867,7 +867,7 @@ infrastructure and therefore **requires** the manager to derive from
 
 The only supported mode for combining models is **source-generated
 library references**. Each companion spec is built once into its
-own model library (a `Libraries/Opc.Ua.{Spec}/` project that
+own model library (a `src/Opc.Ua.{Spec}/` project that
 consumes the ModelDesign XML and emits an `AddOpcUa{Spec}`
 extension method); the consumer adds project references and calls
 the generated extensions directly in dependency order:
@@ -973,15 +973,15 @@ input is supplied to the others as a resolution dependency (both
 
 ## Sample
 
-- `Applications/MinimalBoilerServer/` — a fully self-contained,
+- `samples/MinimalBoilerServer/` — a fully self-contained,
   NativeAOT single-file Boiler server. Read it top-to-bottom in
   &lt;200 lines.
-- `Applications/MinimalCalcServer/` — a calculator server that
+- `samples/MinimalCalcServer/` — a calculator server that
   exercises the typed
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
   end-to-end (sync `int+int → int`, async `double+double → double`,
   sync `string+string → string`).
-- `Applications/PumpDeviceIntegrationServer/` — the full OPC 40223
+- `samples/PumpDeviceIntegrationServer/` — the full OPC 40223
   Pumps companion server. Exercises every fluent extension above
   (engineering units, identification properties, FunctionalGroup
   wiring, instance creation, limit alarm with NAMUR-style boolean

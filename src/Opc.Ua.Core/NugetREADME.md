@@ -42,6 +42,6 @@ services.AddOpcUa();
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Docs folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Docs)
+and the [documentation folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs)
 for the full design guide, transport profiles, certificate management,
 and the migration guide from 1.5.378.

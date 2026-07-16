@@ -39,6 +39,6 @@ The other PubSub transports (UDP, Ethernet, MQTT) remain AOT-compatible on all f
 
 ## Additional documentation
 
-See the [Apache Kafka transport documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/PubSub.md#apache-kafka)
-in the [PubSub documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/PubSub.md)
+See the [Apache Kafka transport documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md#apache-kafka)
+in the [PubSub documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md)
 for transports, encodings, security, high availability, and the fluent / DI API.

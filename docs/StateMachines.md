@@ -532,16 +532,16 @@ with the spec; this is tracked but deliberately deferred.
 
 ## Tests
 
-* `Tests/Opc.Ua.Server.Tests/StateMachines/StateMachineBuilderTests.cs`
+* `tests/Opc.Ua.Server.Tests/StateMachines/StateMachineBuilderTests.cs`
   validates definition-mode chaining, validation, and freeze
   semantics.
-* `Tests/Opc.Ua.Server.Tests/StateMachines/StateMachineBuilderLifecycleTests.cs`
+* `tests/Opc.Ua.Server.Tests/StateMachines/StateMachineBuilderLifecycleTests.cs`
   exercises every lifecycle method, including timed transitions and
   the layering behavior on top of pre-existing delegates.
-* `Tests/Opc.Ua.Server.Tests/StateMachines/FluentFiniteStateMachineStateTests.cs`
+* `tests/Opc.Ua.Server.Tests/StateMachines/FluentFiniteStateMachineStateTests.cs`
   covers the table projections.
 * The Part 9 conformance tests in
-  `Tests/Opc.Ua.History.Tests/AlarmsAndConditions*.cs` exercise
+  `tests/Opc.Ua.History.Tests/AlarmsAndConditions*.cs` exercise
   `AlarmClient.GetShelvingStateAsync` and
   `ObserveShelvingTransitionsAsync` end-to-end against the
   reference server.

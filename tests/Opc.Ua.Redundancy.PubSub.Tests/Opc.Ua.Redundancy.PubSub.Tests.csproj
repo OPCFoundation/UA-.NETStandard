@@ -29,9 +29,9 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Redundancy.PubSub\Opc.Ua.Redundancy.PubSub.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.PubSub\Opc.Ua.Redundancy.PubSub.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

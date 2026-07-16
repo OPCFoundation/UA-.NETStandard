@@ -7,20 +7,20 @@ which every feature library hangs its own fluent `.AddXxx(...)` extension.
 
 The dependency injection surface is consistent across:
 
-- The OPC UA Core stack (`Stack/Opc.Ua.Core`)
-- Application configuration (`Libraries/Opc.Ua.Configuration`)
-- The client (`Libraries/Opc.Ua.Client`)
-- The complex types client (`Libraries/Opc.Ua.Client.ComplexTypes`)
-- Alarms and conditions client (`Libraries/Opc.Ua.Client.Alarms`)
-- The server (`Libraries/Opc.Ua.Server`)
-- The GDS client (`Libraries/Opc.Ua.Gds.Client.Common`)
-- The GDS server (`Libraries/Opc.Ua.Gds.Server.Common`)
-- The LDS server (`Libraries/Opc.Ua.Lds.Server`)
-- The WoT Connectivity server (`Libraries/Opc.Ua.WotCon.Server`)
-- The WoT Connectivity client (`Libraries/Opc.Ua.WotCon.Client`)
-- The PubSub stack (`Libraries/Opc.Ua.PubSub`,
-  `Libraries/Opc.Ua.PubSub.Udp`, `Libraries/Opc.Ua.PubSub.Mqtt`,
-  `Libraries/Opc.Ua.PubSub.Server`) — see [`PubSub.md`](PubSub.md)
+- The OPC UA Core stack (`src/Opc.Ua.Core`)
+- Application configuration (`src/Opc.Ua.Configuration`)
+- The client (`src/Opc.Ua.Client`)
+- The complex types client (`src/Opc.Ua.Client.ComplexTypes`)
+- Alarms and conditions client (`src/Opc.Ua.Client.Alarms`)
+- The server (`src/Opc.Ua.Server`)
+- The GDS client (`src/Opc.Ua.Gds.Client.Common`)
+- The GDS server (`src/Opc.Ua.Gds.Server.Common`)
+- The LDS server (`src/Opc.Ua.Lds.Server`)
+- The WoT Connectivity server (`src/Opc.Ua.WotCon.Server`)
+- The WoT Connectivity client (`src/Opc.Ua.WotCon.Client`)
+- The PubSub stack (`src/Opc.Ua.PubSub`,
+  `src/Opc.Ua.PubSub.Udp`, `src/Opc.Ua.PubSub.Mqtt`,
+  `src/Opc.Ua.PubSub.Server`) — see [`PubSub.md`](PubSub.md)
   for the full library reference.
 
 The non-dependency-injection public constructors and factories of every library
@@ -202,7 +202,7 @@ The `IConfiguration` / `IConfigurationSection` overloads are
 (`<EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>`),
 which replaces the reflection-based binder with statically-generated
 [C# 12 interceptors](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-12#interceptors).
-The `Tests/Opc.Ua.Aot.Tests` project verifies that `dotnet publish`
+The `tests/Opc.Ua.Aot.Tests` project verifies that `dotnet publish`
 under `PublishAot=true` produces zero `IL2026` / `IL3050` warnings
 from the dependency injection surface.
 
@@ -1061,7 +1061,7 @@ Notes:
   diagnostic. Those properties are runtime-only — set them in code,
   not in `appsettings.json`. The affected libraries suppress those
   diagnostics in their csproj.
-- The `Tests/Opc.Ua.Aot.Tests` project verifies the end-to-end AOT
+- The `tests/Opc.Ua.Aot.Tests` project verifies the end-to-end AOT
   path: build + AOT publish produce **zero** `IL2026` / `IL3050`
   warnings from any dependency injection extension.
 

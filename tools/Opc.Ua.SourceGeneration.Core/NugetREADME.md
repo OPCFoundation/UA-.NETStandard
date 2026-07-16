@@ -21,4 +21,4 @@ pipeline.
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/SourceGeneratedDataTypes.md).
+[Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md).

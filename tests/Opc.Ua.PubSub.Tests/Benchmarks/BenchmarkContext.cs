@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
 {
     /// <summary>
     /// Shared helpers used by the benchmark fixtures. Mirrors the
-    /// helpers in <c>Tests/Opc.Ua.PubSub.Tests/Encoding/*</c> but
+    /// helpers in <c>tests/Opc.Ua.PubSub.Tests/Encoding/*</c> but
     /// strips the test-framework dependencies so the benchmark host
     /// stays small.
     /// </summary>

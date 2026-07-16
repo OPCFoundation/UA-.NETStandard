@@ -30,5 +30,3 @@
 using System;
 
 [assembly: CLSCompliant(false)]
-
-// Repository move history marker: Libraries/Opc.Ua.Gds.Client.Common/Properties/AssemblyInfo.cs

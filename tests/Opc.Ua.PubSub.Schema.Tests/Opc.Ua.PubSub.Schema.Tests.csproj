@@ -31,8 +31,8 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Schema\Opc.Ua.PubSub.Schema.csproj" />
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Schema\Opc.Ua.PubSub.Schema.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
-</Project>
+</Project>

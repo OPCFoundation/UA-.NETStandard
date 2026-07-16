@@ -8,14 +8,14 @@ wired entirely through the fluent `INodeManagerBuilder` API and the
 DI hosting integration.
 
 The pump sample is the integration test for every fluent API extension
-shipped under `Libraries/Opc.Ua.Server/Fluent/`. Each extension is
+shipped under `src/Opc.Ua.Server/Fluent/`. Each extension is
 documented in
-[Source-generated NodeManagers — Building richer node managers](../../Docs/SourceGeneratedNodeManagers.md#building-richer-node-managers--the-fluent-extension-surface).
+[Source-generated NodeManagers — Building richer node managers](../../docs/SourceGeneratedNodeManagers.md#building-richer-node-managers--the-fluent-extension-surface).
 
 ## Running the sample
 
 ```pwsh
-cd Applications/PumpDeviceIntegrationServer
+cd samples/PumpDeviceIntegrationServer
 dotnet run -c Release
 ```
 
@@ -51,14 +51,14 @@ publish output on the .NET **AzureLinux 3** base images and runs it as a
 non-root user.
 
 > **Build from the repository root**, not from this folder. The image
-> needs the full source tree (`Stack/`, `Libraries/`, `Tools/`), so the
+> needs the full source tree (`src/`, `src/`, `tools/`), so the
 > Docker build context must be the repo root and the Dockerfile is
 > selected with `-f`. Running `docker build .` from inside this folder
 > fails fast with a message telling you the correct command.
 
 ```pwsh
 # from the repository root:
-docker build -f Applications/PumpDeviceIntegrationServer/Dockerfile `
+docker build -f samples/PumpDeviceIntegrationServer/Dockerfile `
              -t pumpdeviceintegrationserver:local .
 ```
 
@@ -103,7 +103,7 @@ workflow on every push to `master` and on manual dispatch.
 | 250 ms simulation tick via `Simulation(...).OnTick(...)` | `Configure` → `AdvanceSimulation` |
 | Limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...)` | `WithSupervision` |
 | Boolean supervision (TwoStateDiscreteState) → alarm activation via `.ActivatesAlarm(...)` | `WithSupervision` |
-| Cross-namespace path resolution (Pump #1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `Libraries/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
+| Cross-namespace path resolution (Pump #1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `src/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
 | Cross-pump device-health simulation via `RegisterSupervisedDeviceHealth` + `WithDeviceHealth` | `PumpNodeManager.cs` + `Program.cs` (`Pump #2`) |
 | DI declarative device + `WithIdentification` | `Program.cs` (`Pump #2`) |
 | Software-update facet (`ISoftwarePackageStore` + `WithSoftwareUpdate`) | `Program.cs` (`Pump #2`), `SoftwarePackageSeeder.cs` |
@@ -136,7 +136,7 @@ and Pumps to DI types resolve through the
 assembly — no DI NodeSet2 XML needed in this project. The unified
 attribute carries the compact type-table payload that the consumer's
 source generator imports at compile time; see
-[ModelDependencies.md](../../Docs/ModelDependencies.md) for the wire
+[ModelDependencies.md](../../docs/ModelDependencies.md) for the wire
 format and consumer-side flow.
 
 The Machinery and Pumps NodeSet2 XMLs are **source-generated locally
@@ -180,7 +180,7 @@ own assembly using the same `<AdditionalFiles>` pattern.
 ## NativeAOT publishing
 
 ```pwsh
-cd Applications/PumpDeviceIntegrationServer
+cd samples/PumpDeviceIntegrationServer
 dotnet publish -c Release -r win-x64
 ```
 
@@ -190,11 +190,11 @@ generated model factories are statically rooted.
 
 ## See also
 
-- [`Docs/DeviceIntegration.md`](../../Docs/DeviceIntegration.md) —
+- [`docs/DeviceIntegration.md`](../../docs/DeviceIntegration.md) —
   full developer guide for the DI library trio (device builder,
   hosting integration, lock service, software-update package store,
   client helpers).
-- [`Docs/SoftwareUpdate.md`](../../Docs/SoftwareUpdate.md) —
+- [`docs/SoftwareUpdate.md`](../../docs/SoftwareUpdate.md) —
   in-depth coverage of the software-update facet wiring, file-transfer
   pipeline, and client `UploadPackageAsync`.
 

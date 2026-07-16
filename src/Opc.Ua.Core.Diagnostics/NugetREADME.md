@@ -58,7 +58,7 @@ IChannelCaptureRegistry registry =
 // PcapBindings.InstallClient(ClientChannelManager.DefaultChannelBindings, registry);
 ```
 
-See the [Diagnostics guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Diagnostics.md#enabling-pcap-capture-without-dependency-injection)
+See the [Diagnostics guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md#enabling-pcap-capture-without-dependency-injection)
 for the full non-DI recipe (server, client, and both directions).
 
 ## Target frameworks
@@ -68,6 +68,6 @@ for the full non-DI recipe (server, client, and both directions).
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Diagnostics guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Diagnostics.md)
+and the [Diagnostics guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md)
 for the full design (capture-session lifecycle, key-escrow, audit
 chaining, replay security model).

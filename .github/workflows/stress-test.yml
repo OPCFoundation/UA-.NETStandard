@@ -31,7 +31,7 @@ jobs:
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
       CUSTOM_TEST_TARGET: 'net10.0'
-      STRESS_PROJECT: './Tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj'
+      STRESS_PROJECT: './tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj'
       TESTRESULTS: './TestResults/chaos-tcp'
 
     steps:
@@ -88,10 +88,10 @@ jobs:
           'PowerShell:',
           "  `$env:OPCUA_CHAOS_SEED = '$seed'",
           "  `$env:OPCUA_TEST_SEED = '$seed'",
-          '  dotnet test .\Tests\Opc.Ua.Stress.Tests\Opc.Ua.Stress.Tests.csproj --framework net10.0 --configuration Release --filter "Category=ChaosTCP"',
+          '  dotnet test .\tests\Opc.Ua.Stress.Tests\Opc.Ua.Stress.Tests.csproj --framework net10.0 --configuration Release --filter "Category=ChaosTCP"',
           '',
           'Bash:',
-          "  OPCUA_CHAOS_SEED=$seed OPCUA_TEST_SEED=$seed dotnet test ./Tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj --framework net10.0 --configuration Release --filter 'Category=ChaosTCP'")
+          "  OPCUA_CHAOS_SEED=$seed OPCUA_TEST_SEED=$seed dotnet test ./tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj --framework net10.0 --configuration Release --filter 'Category=ChaosTCP'")
         $repro | Set-Content -Path (Join-Path $env:TESTRESULTS 'chaos-seed.txt')
 
         Write-Host "ChaosTCP seed: $seed"

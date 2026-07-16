@@ -338,7 +338,7 @@ namespace Opc.Ua.Gds.Tests
 
             // Re-registering the same URI through UpdateApplication preserves the ApplicationId.
             // (Calling RegisterApplication again with the same URI yields BadEntryExists by design
-            // in LinqApplicationsDatabase; see Libraries/Opc.Ua.Gds.Server.Common/ApplicationsDatabase/
+            // in LinqApplicationsDatabase; see src/Opc.Ua.Gds.Server.Common/ApplicationsDatabase/
             // LinqApplicationsDatabase.cs:129. The OPC UA spec wording for idempotent re-add is
             // ambiguous; tests that expect "same URI returns same id" go through Update.)
             appRecord.ApplicationId = appId1;

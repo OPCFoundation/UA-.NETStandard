@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Application
     /// <remarks>
     /// Used exclusively by the <c>UaPubSubApplication</c>
     /// migration shim documented in
-    /// <c>Docs/migrate/2.0.x/pubsub.md</c>. Internal because callers
+    /// <c>docs/migrate/2.0.x/pubsub.md</c>. Internal because callers
     /// outside the shim should adopt
     /// <see cref="IPublishedDataSetSource"/> directly.
     /// </remarks>

@@ -7,7 +7,7 @@ analyzer + code-fixer + source-generator DLLs.
 
 ## Directory convention
 
-Source files mirror the project layout in `Stack/` and `Libraries/`,
+Source files mirror the project layout in `src/` and `src/`,
 flattened directly under the project root. For example:
 
 | Source project              | Shim path           |
@@ -21,7 +21,7 @@ flattened directly under the project root. For example:
 
 Within each top-level directory the file path mirrors the directory layout of
 the source project — e.g. the obsolete extension surface around
-`Stack/Opc.Ua.Core/Stack/Server/ServerBase.cs` lives at
+`src/Opc.Ua.Core/Stack/Server/ServerBase.cs` lives at
 `Core/Stack/Server/ServerBase.cs`.
 
 ## Conventions

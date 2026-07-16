@@ -50,7 +50,7 @@ services.AddOpcUa()
             .OnRead(ReadTemperature));
 ```
 
-The runtime loader supports grouped file and stream sources, orders included models by `RequiredModel`, and uses the server's default runtime complex-type support. See the [Runtime NodeSets guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/RuntimeNodeSets.md).
+The runtime loader supports grouped file and stream sources, orders included models by `RequiredModel`, and uses the server's default runtime complex-type support. See the [Runtime NodeSets guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/RuntimeNodeSets.md).
 
 ## Target frameworks
 
@@ -60,8 +60,8 @@ The runtime loader supports grouped file and stream sources, orders included mod
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Sessions guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/Sessions.md)
+and the [Sessions guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md)
 for the session / subscription model. Browse the
-[Docs folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Docs)
+[documentation folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs)
 for guides on certificate management, transports, identity providers,
 alarms & conditions, historical access, and more.

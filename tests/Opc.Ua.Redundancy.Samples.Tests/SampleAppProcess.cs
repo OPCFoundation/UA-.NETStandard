@@ -50,7 +50,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// starts the sample application.
         /// </summary>
         /// <param name="name">A short, human-readable name used to prefix captured output.</param>
-        /// <param name="applicationDirectory">The sample application directory name under <c>Applications/</c>.</param>
+        /// <param name="applicationDirectory">The sample application directory name under <c>samples/</c>.</param>
         /// <param name="assemblyName">The sample application assembly (dll) name without extension.</param>
         /// <param name="arguments">The command-line arguments passed to the sample application.</param>
         /// <param name="environment">Additional environment variables set for the process.</param>
@@ -325,7 +325,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             foreach (string config in new[] { configuration, "Release", "Debug" })
             {
                 probePaths.Add(Path.Combine(
-                    repoRoot, "Applications", applicationDirectory, "bin", config, "net10.0", assemblyName + ".dll"));
+                    repoRoot, "samples", applicationDirectory, "bin", config, "net10.0", assemblyName + ".dll"));
             }
 
             foreach (string path in probePaths)

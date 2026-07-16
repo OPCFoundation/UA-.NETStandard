@@ -23,7 +23,7 @@ Everything below explains how these pieces fit together.
 
 ## 1. `Session` — the OPC UA session primitive
 
-`Session` (`Libraries/Opc.Ua.Client/Session/Session.cs`) is the lowest-level
+`Session` (`src/Opc.Ua.Client/Session/Session.cs`) is the lowest-level
 client object that maps directly to a UA secure-channel + session pair on
 the server. It implements `ISession` and exposes the full surface of the
 OPC UA service set (Read, Write, Browse, Call, AddNodes, etc.) plus
@@ -95,7 +95,7 @@ reconnect / recreate cycles. See section 4 for the engine architecture.
 
 ### `DefaultSessionFactory`
 
-`DefaultSessionFactory` (`Libraries/Opc.Ua.Client/Session/DefaultSessionFactory.cs`)
+`DefaultSessionFactory` (`src/Opc.Ua.Client/Session/DefaultSessionFactory.cs`)
 is the drop-in `ISessionFactory` that builds raw `Session` instances. It
 exposes a single tunable knob beyond `ITelemetryContext`:
 
@@ -113,7 +113,7 @@ When `SubscriptionEngineFactory` is `null`, `Session` falls back to
 
 ## 2. `SessionReconnectHandler` — legacy reconnect driver
 
-`SessionReconnectHandler` (`Libraries/Opc.Ua.Client/Session/SessionReconnectHandler.cs`)
+`SessionReconnectHandler` (`src/Opc.Ua.Client/Session/SessionReconnectHandler.cs`)
 is the original reconnect helper that ships with `Session`. It implements
 the timer-driven retry loop, picks between
 `Session.ReconnectAsync` and `ISessionFactory.RecreateAsync`, handles
@@ -164,7 +164,7 @@ below) so that reconnect is handled transparently by the channel manager.
 
 ## 3. `ManagedSession` — the connection-state-machine facade
 
-`ManagedSession` (`Libraries/Opc.Ua.Client/Session/ManagedSession.cs`) is
+`ManagedSession` (`src/Opc.Ua.Client/Session/ManagedSession.cs`) is
 an `ISession` facade that wraps a raw `Session` and adds:
 
 - A **connection state machine** (`ConnectionStateMachine`) that owns
@@ -205,7 +205,7 @@ ManagedSession session = await ManagedSession.CreateAsync(
 
 ### `ManagedSessionFactory`
 
-`ManagedSessionFactory` (`Libraries/Opc.Ua.Client/Session/ManagedSessionFactory.cs`)
+`ManagedSessionFactory` (`src/Opc.Ua.Client/Session/ManagedSessionFactory.cs`)
 is the `ISessionFactory` that produces `ManagedSession` (cast as
 `ISession` to satisfy the interface). Internally it composes a
 `DefaultSessionFactory` to build the raw inner `Session`, then wraps it.
@@ -226,7 +226,7 @@ ISession session = await factory.CreateAsync(...); // actually a ManagedSession
 
 ### `ManagedSessionBuilder`
 
-`ManagedSessionBuilder` (`Libraries/Opc.Ua.Client/ClientBuilder/ManagedSessionBuilder.cs`)
+`ManagedSessionBuilder` (`src/Opc.Ua.Client/ClientBuilder/ManagedSessionBuilder.cs`)
 is the fluent / DI-friendly entry point. `Build()` returns an immutable
 `ManagedSessionOptions` snapshot; `ConnectAsync()` wraps `Build()` plus
 `ManagedSession.CreateAsync(...)`:
@@ -324,7 +324,7 @@ signals.
 ## 4. `IClientChannelManager` — centralised channel sharing and reconnect
 
 `IClientChannelManager`
-(`Stack/Opc.Ua.Core/Stack/Client/IClientChannelManager.cs`) is the new
+(`src/Opc.Ua.Core/Stack/Client/IClientChannelManager.cs`) is the new
 central registry of client-side transport channels introduced by issue
 [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288). It
 sits *below* `Session` / `ManagedSession` and is concerned with the
@@ -460,7 +460,7 @@ The policy is configurable on the `ClientChannelManager` constructor.
 On .NET 8 and later, HTTPS endpoints have two independent resilience layers:
 
 - **HTTP resilience pipeline** — the named `HttpClient` created through
-  [`IOpcUaHttpClientFactory`](../Stack/Opc.Ua.Core/Stack/Https/OpcUaHttpClientFactory.cs)
+  [`IOpcUaHttpClientFactory`](../src/Opc.Ua.Core/Stack/Https/OpcUaHttpClientFactory.cs)
   uses `AddStandardResilienceHandler` from the
   `Microsoft.Extensions.Http.Resilience` package. The standard handler
   applies request-level rate limiting, a total request timeout, retries,
@@ -518,7 +518,7 @@ services.AddHttpClient("Opc.Ua.Client")
 ```
 
 For direct builder usage on .NET 8 and later, call
-[`ManagedSessionBuilder.WithHttpsResilience(...)`](../Libraries/Opc.Ua.Client/Fluent/ManagedSessionBuilder.cs):
+[`ManagedSessionBuilder.WithHttpsResilience(...)`](../src/Opc.Ua.Client/Fluent/ManagedSessionBuilder.cs):
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(config, telemetry)
@@ -767,7 +767,7 @@ IManagedTransportChannel ch = await manager.GetAsync(participant, conn, ct);
 ### Testing the channel manager
 
 The channel manager is covered by a layered stress and chaos test suite in
-[`Tests/Opc.Ua.Stress.Tests/`](../Tests/Opc.Ua.Stress.Tests/):
+[`tests/Opc.Ua.Stress.Tests/`](../tests/Opc.Ua.Stress.Tests/):
 
 - **L1 Contract** — fast deterministic fake-based tests for coalescing, participant result aggregation, retry
   budgets, hung participants, recreate dispatch, lease lifecycle, gate + bypass, key equivalence, certificate
@@ -781,13 +781,13 @@ The channel manager is covered by a layered stress and chaos test suite in
 
 ```bash
 # Contract + Integration (default PR CI):
-dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Contract|Category=Integration"
+dotnet test tests/Opc.Ua.Stress.Tests --filter "Category=Contract|Category=Integration"
 
 # ChaosTCP (nightly):
-dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
+dotnet test tests/Opc.Ua.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
 
 # Soak (manual):
-dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Soak"
+dotnet test tests/Opc.Ua.Stress.Tests --filter "Category=Soak"
 ```
 
 Every chaos test prints its seed at the start of the run. Failed chaos runs can be reproduced by passing the same
@@ -796,7 +796,7 @@ seed back to the test host with `--TestRunParameters.Parameter(Seed=<n>)`.
 ## 5. Subscription engines
 
 The `ISubscriptionEngine` abstraction
-(`Libraries/Opc.Ua.Client/Session/ISubscriptionEngine.cs`) decouples the
+(`src/Opc.Ua.Client/Session/ISubscriptionEngine.cs`) decouples the
 publish pipeline from `Session`. Each `Session` owns exactly one engine
 chosen at construction; the engine manages the publish workers, ack
 queues, keep-alive timers, and dispatch to subscriptions.
@@ -806,7 +806,7 @@ queues, keep-alive timers, and dispatch to subscriptions.
 The historical engine. Owns:
 
 - The `Subscription` and `MonitoredItem` classes in
-  `Libraries/Opc.Ua.Client/Subscription/Classic`.
+  `src/Opc.Ua.Client/Subscription/Classic`.
 - A fire-and-forget publish loop driven from
   `Session.BeginPublish` / `OnPublishComplete`.
 - The `Subscriptions` collection on `ISession` and `ManagedSession`.
@@ -821,7 +821,7 @@ working.
 ### `DefaultSubscriptionEngine` (V2)
 
 The new engine wraps the options-based `SubscriptionManager`
-(`Libraries/Opc.Ua.Client/Subscription/SubscriptionManager.cs`) inside
+(`src/Opc.Ua.Client/Subscription/SubscriptionManager.cs`) inside
 the `ISubscriptionEngine` contract. It owns:
 
 - The `Subscriptions.Subscription` / `Subscriptions.MonitoredItems.MonitoredItem`

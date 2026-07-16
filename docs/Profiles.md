@@ -27,7 +27,7 @@ Foundation registry for the canonical URI form.
 
 ## Server Profiles
 
-The reference server (`Applications/ConsoleReferenceServer`) advertises the
+The reference server (`samples/ConsoleReferenceServer`) advertises the
 following profiles in its `ServerProfileArray`:
 
 ### Core Server Profiles
@@ -56,7 +56,7 @@ following profiles in its `ServerProfileArray`:
 The `Opc.Ua.Lds.Server` library plus the `ConsoleLdsServer` reference
 application implement the Local Discovery Server. The LDS application
 advertises the **[Local Discovery Server 2017 Facet](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017)**
-(see `Applications/ConsoleLdsServer/Lds.Server.Config.xml`).
+(see `samples/ConsoleLdsServer/Lds.Server.Config.xml`).
 
 ### Additional facets supported by the implementation (beyond the default advertised set)
 
@@ -74,11 +74,11 @@ canonical URI string before claiming a facet):
   [Alarms and Conditions](AlarmsAndConditions.md).
 - **State Machine** (Part 16) — `StateMachineBuilder` and the
   `FluentFiniteStateMachineState` extensibility in
-  `Libraries/Opc.Ua.Server/StateMachines/`. The reference server's
+  `src/Opc.Ua.Server/StateMachines/`. The reference server's
   `BoilerStateMachineState` is an end-to-end sample. See
   [State Machines](StateMachines.md).
 - **File Access** (Part 20) — Server-side `FileSystemNodeManager` +
-  `IFileSystemProvider` in `Libraries/Opc.Ua.Server/FileSystem/`. The
+  `IFileSystemProvider` in `src/Opc.Ua.Server/FileSystem/`. The
   reference server enables it via the `EnableFileSystemNodeManager`
   option. The matching System.IO-style client lives in
   [`FileSystemClient`](FileSystemClient.md).
@@ -230,14 +230,14 @@ The stack implements the following transport profiles:
   - Same on-wire `{TypeId, Body}` OPC UA JSON envelope as `opcua+uajson`, multiplexed over WebSocket text frames; distinguished by the negotiated sub-protocol and the advertised TransportProfileUri
   - Bearer-token variant negotiates the access token in the sub-protocol name (no `Authorization` header — required for browser fetch compatibility); the server extracts the token from the sub-protocol name and feeds it through the standard `ISessionlessIdentityProvider` pipeline
   - Server-side discovery emission: the WSS factories emit this sub-profile as a discovery-only twin alongside each `SecurityMode.None` WSS binary endpoint, mirroring the HTTPS OpenAPI emission.
-  - Client surface: `Libraries/Opc.Ua.Client/WebApi/WebApiWssTransportChannel.cs`; fluent shortcut `ManagedSessionBuilder.UseWssOpenApiEndpoint(url)`; DI registration via `services.AddWebApiTransportChannel()` (registers both HTTPS and WSS WebApi channel factories).
+  - Client surface: `src/Opc.Ua.Client/WebApi/WebApiWssTransportChannel.cs`; fluent shortcut `ManagedSessionBuilder.UseWssOpenApiEndpoint(url)`; DI registration via `services.AddWebApiTransportChannel()` (registers both HTTPS and WSS WebApi channel factories).
   - Surfaced via `Profiles.WssOpenApiTransport`
 
 ### PubSub transports
 
 The [PubSub library](PubSub.md) supports the following PubSub transport
 facets (URIs surfaced by `Profiles.PubSub*Transport` constants in
-`Stack/Opc.Ua.Core/Security/Constants/SecurityConstants.cs`). Facet
+`src/Opc.Ua.Core/Security/Constants/SecurityConstants.cs`). Facet
 machinery and conformance unit semantics are defined by
 [Part 7 §4.3](https://reference.opcfoundation.org/specs/OPC-10000-7/v1.05.06/4.3).
 
@@ -280,7 +280,7 @@ Table 81).
 
 The stack supports the following security profiles for secure
 communication. The canonical set is defined in
-`Stack/Opc.Ua.Core/Security/Constants/SecurityPolicies.cs`.
+`src/Opc.Ua.Core/Security/Constants/SecurityPolicies.cs`.
 
 ### RSA-based security policies
 
@@ -501,9 +501,9 @@ Security policies are configured in the `SecurityPolicies` section:
 </SecurityPolicies>
 ```
 
-See the [reference server configuration file](../Applications/ConsoleReferenceServer/Quickstarts.ReferenceServer.Config.xml)
+See the [reference server configuration file](../samples/ConsoleReferenceServer/Quickstarts.ReferenceServer.Config.xml)
 for a complete example, or the
-[CTT configuration file](../Applications/ConsoleReferenceServer/Ctt.ReferenceServer.Config.xml)
+[CTT configuration file](../samples/ConsoleReferenceServer/Ctt.ReferenceServer.Config.xml)
 for the variant selected by `--ctt`.
 
 ## Related Documentation

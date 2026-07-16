@@ -23,6 +23,6 @@ string jsonSchema = schema.ToSchemaString();
 
 ## Documentation
 
-See the [Schema generation guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/SchemaGeneration.md)
+See the [Schema generation guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SchemaGeneration.md)
 for concepts, registration, the schema object model and the PubSub message schemas, and the
-[PubSub guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/PubSub.md).
+[PubSub guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md).

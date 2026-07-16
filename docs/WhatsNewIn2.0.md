@@ -407,7 +407,7 @@ opt-in workflow.
 
 The build pipeline now runs on a managed DevOps pool with a per-TFM
 build/test matrix and parallelized client tests. `Nullable` is enabled
-across `Stack/`, the nine `Libraries/`, and the `Applications/` projects;
+across `src/`, the nine `src/`, and the `samples/` projects;
 dispose-analyzers (`CA2000`, `CA2213`) are on and clean. The repository
 follows a strict `dotnet format` baseline (whitespace, IDE, RCS) enforced
 by the `opc-ua-codestyle-enforcer` agent. Code analysis runs at "preview"

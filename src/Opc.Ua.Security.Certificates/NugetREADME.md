@@ -29,6 +29,6 @@ and client consumers get it for free.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Certificate Manager guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/CertificateManager.md)
+and the [Certificate Manager guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/CertificateManager.md)
 for the full provider model, certificate-store layout, and rotation
 flow.

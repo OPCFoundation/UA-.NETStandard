@@ -2,7 +2,7 @@
 #
 # The build context must be the repository ROOT so the project references resolve.
 # Build directly:
-#   docker build -f Applications/McpServer/Dockerfile -t opcua-mcp-server .
+#   docker build -f tools/Opc.Ua.Mcp/Dockerfile -t opcua-mcp-server .
 #
 # Defaults to the stdio MCP transport (run with `docker run -i ...`). For the
 # HTTP/SSE transport run with `--transport sse --port 5100`.
@@ -10,7 +10,7 @@ FROM mcr.microsoft.com/dotnet/sdk AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
-RUN dotnet publish "Applications/McpServer/Opc.Ua.Mcp.csproj" \
+RUN dotnet publish "tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" \
     -c Release -f net10.0 -p:PublishAot=false -p:CustomTestTarget=net10.0 \
     -o /app/publish
 

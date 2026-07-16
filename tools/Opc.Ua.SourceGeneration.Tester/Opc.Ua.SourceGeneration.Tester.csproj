@@ -12,19 +12,19 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\Tests\Opc.Ua.SourceGeneration.Core.Tests\Resources\*">
+    <EmbeddedResource Include="..\..\tests\Opc.Ua.SourceGeneration.Core.Tests\Resources\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\Applications\Quickstarts.Servers\Boiler\Generated\*">
+    <EmbeddedResource Include="..\..\samples\Quickstarts.Servers\Boiler\Generated\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\Applications\Quickstarts.Servers\MemoryBuffer\Generated\*">
+    <EmbeddedResource Include="..\..\samples\Quickstarts.Servers\MemoryBuffer\Generated\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\Libraries\Opc.Ua.Gds.Common\Design\*" Exclude="..\..\Libraries\Opc.Ua.Gds.Common\Design\OpcUaOnboardingModel.*">
+    <EmbeddedResource Include="..\..\src\Opc.Ua.Gds.Common\Design\*" Exclude="..\..\src\Opc.Ua.Gds.Common\Design\OpcUaOnboardingModel.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>

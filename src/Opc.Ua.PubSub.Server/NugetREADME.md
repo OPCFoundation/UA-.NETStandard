@@ -23,5 +23,5 @@ builder.Services.AddOpcUaServer()
 
 ## Additional documentation
 
-See the [PubSub documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/PubSub.md)
+See the [PubSub documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md)
 for the server-side address-space model and SKS hosting.

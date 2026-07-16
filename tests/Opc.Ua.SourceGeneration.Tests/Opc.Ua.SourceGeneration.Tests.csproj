@@ -30,8 +30,8 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj" />
-    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\Opc.Ua.SourceGeneration.Core.Tests\Resources\*">

@@ -33,5 +33,5 @@ model.
 
 ## Documentation
 
-See `Docs/PubSubDiagnostics.md` in the
+See `docs/PubSubDiagnostics.md` in the
 [UA-.NETStandard](https://github.com/OPCFoundation/UA-.NETStandard) repository.

@@ -17,7 +17,7 @@ The sample uses the existing PubSub fluent + DI host surface (`services.AddOpcUa
 From the repository root:
 
 ```powershell
-dotnet run --project Applications\RedundantPubSub\RedundantPubSub.csproj -- --role demo --ha-mode hot
+dotnet run --project samples\RedundantPubSub\RedundantPubSub.csproj -- --role demo --ha-mode hot
 ```
 
 The demo runs publisher-a, then prints `FAILOVER: stopping publisher-a; publisher-b is promoted.` and promotes publisher-b. In hot mode it also prints this simulated illustrative line:
@@ -29,7 +29,7 @@ SIMULATED: HA OK: sequence continued 3 -> 9 across failover (gap, no reset).
 Run the same demo with cold mode to make the reset visible:
 
 ```powershell
-dotnet run --project Applications\RedundantPubSub\RedundantPubSub.csproj -- --role demo --ha-mode cold
+dotnet run --project samples\RedundantPubSub\RedundantPubSub.csproj -- --role demo --ha-mode cold
 ```
 
 The demo prints this simulated illustrative reset line in cold mode:
@@ -41,7 +41,7 @@ SIMULATED: DATA LOSS: sequence reset 3 -> 1 (subscriber must reset de-duplicatio
 Run warm mode to exercise the standby activation path without hot checkpoints:
 
 ```powershell
-dotnet run --project Applications\RedundantPubSub\RedundantPubSub.csproj -- --role demo --ha-mode warm
+dotnet run --project samples\RedundantPubSub\RedundantPubSub.csproj -- --role demo --ha-mode warm
 ```
 The demo prints an explicit `WARM MODE:` note before failover, and its simulated SequenceNumber continuity currently matches the cold-mode reset behavior because warm checkpoints are not persisted in this sample yet.
 
@@ -50,13 +50,13 @@ The demo prints an explicit `WARM MODE:` note before failover, and its simulated
 From the repository root, the default `.env` selects the `strong` profile: three named publisher replicas with Raft leader election and a Raft-backed shared store, plus three subscriber replicas that form their own Raft-backed active/standby reader set.
 
 ```powershell
-docker compose -f Applications/RedundantPubSub/docker-compose.yml up --build
+docker compose -f samples/RedundantPubSub/docker-compose.yml up --build
 ```
 
 Trigger publisher failover by stopping the current active publisher container. The publisher logs include `Publisher <owner>: <component> -> Active` or `Standby`; stop the active one from another terminal:
 
 ```powershell
-docker compose -f Applications/RedundantPubSub/docker-compose.yml stop publisher-a
+docker compose -f samples/RedundantPubSub/docker-compose.yml stop publisher-a
 ```
 
 If another publisher was active, stop that publisher instead. The subscriber log demonstrates the behavior: `HA OK: sequence continued <n> -> <m> across failover (gap, no reset)` in hot mode, or `DATA LOSS: sequence reset <n> -> <k> (subscriber must reset de-duplication)` in cold mode.
@@ -64,7 +64,7 @@ If another publisher was active, stop that publisher instead. The subscriber log
 Trigger subscriber failover the same way. The subscriber logs include `Subscriber <owner>: <component> -> Active` or `Standby`, and only the active subscriber logs `DataSet with <n> field(s) received`. Stop the active subscriber:
 
 ```powershell
-docker compose -f Applications/RedundantPubSub/docker-compose.yml stop subscriber-a
+docker compose -f samples/RedundantPubSub/docker-compose.yml stop subscriber-a
 ```
 
 A standby subscriber is promoted to `Active` and resumes dispatching received data sets without losing the multicast stream it already receives.
@@ -73,7 +73,7 @@ To run the single-container in-process demo through compose:
 
 ```powershell
 $env:COMPOSE_PROFILES='demo'
-docker compose -f Applications/RedundantPubSub/docker-compose.yml up --build
+docker compose -f samples/RedundantPubSub/docker-compose.yml up --build
 ```
 
 ## Notes and simplifications

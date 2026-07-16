@@ -8,7 +8,7 @@ This console sample shows the recommended way to connect an OPC UA client: build
 ## Run
 
 ```powershell
-dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- `
+dotnet run --project samples\RedundantClient\RedundantClient.csproj -- `
   --server opc.tcp://localhost:62543/RedundantServer --autoaccept --nosecurity --duration 00:05:00
 ```
 
@@ -22,7 +22,7 @@ dotnet run --project Applications\RedundantClient\RedundantClient.csproj -- `
 
 The sample connects, logs the server's reported `RedundancySupport` (or notes that the server is not redundant), subscribes to `Server.ServerStatus.CurrentTime`, and logs the values together with any transparent connection-state changes (reconnect or failover). To observe failover, lower the active server's service level (for example with the `RedundantServer` sample's manual failover support) or stop the active server; the managed session reconnects to a healthy peer on its own.
 
-See [HighAvailability.md](../../Docs/HighAvailability.md) for the redundancy design and the [RedundantServer](../RedundantServer/README.md) sample for the server side.
+See [HighAvailability.md](../../docs/HighAvailability.md) for the redundancy design and the [RedundantServer](../RedundantServer/README.md) sample for the server side.
 
 ## Run with docker compose (one file, the full HA matrix, env-driven)
 
@@ -43,18 +43,18 @@ Run from the repository root:
 
 ```bash
 # DEFAULT: 3 eventual servers + 2 independent clients (failover + data loss demoable out of the box).
-docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+docker compose -f samples/RedundantClient/docker-compose.yml up --build
 
 # Scale the eventual server and the independent clients independently:
-docker compose -f Applications/RedundantClient/docker-compose.yml up --build --scale server=5 --scale client=3
+docker compose -f samples/RedundantClient/docker-compose.yml up --build --scale server=5 --scale client=3
 
 # STRONG server (no data loss) x independent clients:
 COMPOSE_PROFILES=server-strong,client-independent \
-  docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+  docker compose -f samples/RedundantClient/docker-compose.yml up --build
 
 # Any matrix cell, e.g. STRONG server x EVENTUAL coordinated client:
 COMPOSE_PROFILES=server-strong,client-coordinated CLIENT_CONSISTENCY=eventual \
-  docker compose -f Applications/RedundantClient/docker-compose.yml up --build
+  docker compose -f samples/RedundantClient/docker-compose.yml up --build
 ```
 
 To trigger a server failover, stop the replica a client is on — for example scale the eventual servers down (`… up -d --scale server=1`) or `docker kill` one server container (for `server-strong`, stop the Raft leader, e.g. `… stop server-a`). Then watch the **client** log, which turns the transparent failover and its data impact into explicit lines:
@@ -82,5 +82,5 @@ Whether the `Counter` shows data loss or continuity depends on the **server** pr
 Run the client image in multiple containers so each replica is its own process — a single-process demo cannot coordinate a real deployment. The client mode is chosen with `CLIENT_MODE` (which the compose sets per profile); two process-per-replica models are supported:
 
 - **Independent managed clients** (`CLIENT_MODE=independent`, the compose default, **2, scalable**): every container builds a `ManagedSession` with `WithServerRedundancy()` and reconnects to a healthy peer independently. Scale the client image with `--scale client=N`, or use the `clients` profile in [`RedundantServer/Scale/docker-compose.yml`](../RedundantServer/Scale/docker-compose.yml).
-- **Coordinated single-active replica set** (`CLIENT_MODE=eventual` \| `strong`, the `client-coordinated` profile, **fixed odd quorum, default 3**): each container builds a `RedundantClientSession` over a real Raft cluster among the client replicas (`RaftLeaderElection` + a `RaftSharedKeyValueStore`, or a `HybridSharedKeyValueStore` over CRDT gossip for eventual) — the same building blocks the server uses, mirrored on the client. The processes elect one leader that holds the session and share its protected session secrets, so a follower takes over on leader loss and resumes monitoring. Each replica exposes a transparent `RedundantClientSession` (`ISession`). Because the election is Raft-quorum-based in both eventual and strong, a coordinated set needs an **odd ≥ 3 quorum** (a 2-member set is degenerate); the compose ships a fixed 3-node `client-a/b/c` set. A coordinated set mirrors session secrets through a networked store, so it requires a record protector: set `CLIENT_RECORD_KEY` to a shared base64 32-byte key in production, or `CLIENT_INSECURE=true` for an isolated demo (a well-known, non-secret demo key). See [HighAvailability.md](../../Docs/HighAvailability.md).
+- **Coordinated single-active replica set** (`CLIENT_MODE=eventual` \| `strong`, the `client-coordinated` profile, **fixed odd quorum, default 3**): each container builds a `RedundantClientSession` over a real Raft cluster among the client replicas (`RaftLeaderElection` + a `RaftSharedKeyValueStore`, or a `HybridSharedKeyValueStore` over CRDT gossip for eventual) — the same building blocks the server uses, mirrored on the client. The processes elect one leader that holds the session and share its protected session secrets, so a follower takes over on leader loss and resumes monitoring. Each replica exposes a transparent `RedundantClientSession` (`ISession`). Because the election is Raft-quorum-based in both eventual and strong, a coordinated set needs an **odd ≥ 3 quorum** (a 2-member set is degenerate); the compose ships a fixed 3-node `client-a/b/c` set. A coordinated set mirrors session secrets through a networked store, so it requires a record protector: set `CLIENT_RECORD_KEY` to a shared base64 32-byte key in production, or `CLIENT_INSECURE=true` for an isolated demo (a well-known, non-secret demo key). See [HighAvailability.md](../../docs/HighAvailability.md).
 

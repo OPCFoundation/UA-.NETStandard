@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds.Client
             /// classic Begin/End APM pattern.
             /// </summary>
             [Obsolete("BeginFindServers/EndFindServers were removed in 1.6. Use FindServersAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0015")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0015")]
             [OpcUaShim("UA0015")]
             public IAsyncResult BeginFindServers(AsyncCallback? callback, object? state)
             {
@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Client
             /// Completes the asynchronous <c>FindServers</c> call.
             /// </summary>
             [Obsolete("BeginFindServers/EndFindServers were removed in 1.6. Use FindServersAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0015")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0015")]
             [OpcUaShim("UA0015")]
             public ArrayOf<ApplicationDescription> EndFindServers(IAsyncResult result)
             {

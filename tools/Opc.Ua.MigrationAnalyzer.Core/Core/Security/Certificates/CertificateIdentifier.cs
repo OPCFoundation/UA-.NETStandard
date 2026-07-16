@@ -52,7 +52,7 @@ namespace Opc.Ua
             [Obsolete("CertificateIdentifier.Certificate was removed in 1.6 because " +
                 "resolution requires a registry/telemetry context. " +
                 "Use CertificateIdentifierResolver.ResolveAsync(id, registry, needPrivateKey, applicationUri, telemetry, ct). " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0018")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0018")]
             [OpcUaShim("UA0018")]
             public X509Certificate2? Certificate
                 => throw new NotSupportedException(

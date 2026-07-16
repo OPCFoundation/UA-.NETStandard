@@ -1,6 +1,6 @@
 # FileSystemClient — a `System.IO`-style async client for OPC UA file systems
 
-`FileSystemClient` (in `Libraries/Opc.Ua.Client/FileSystem/`, namespace
+`FileSystemClient` (in `src/Opc.Ua.Client/FileSystem/`, namespace
 `Opc.Ua.Client.FileSystem`) is an ergonomic, async-only wrapper around the
 OPC UA file-system primitives defined in **Part 5 §C** and **Part 20 §4** —
 the `FileType`, `FileDirectoryType`, and `TemporaryFileTransferType`
@@ -254,7 +254,7 @@ is a no-op.
 ## What lives where
 
 ```
-Libraries/Opc.Ua.Client/FileSystem/
+src/Opc.Ua.Client/FileSystem/
 ├── FileSystemClient.cs                 # entry point
 ├── FileSystemClientOptions.cs          # tuning knobs
 ├── FileMetadata.cs                     # internal property snapshot
@@ -270,7 +270,7 @@ Libraries/Opc.Ua.Client/FileSystem/
 └── UaTemporaryWriteFile.cs             # commit/rollback wrapper
 ```
 
-Tests live under `Tests/Opc.Ua.Client.Tests/FileSystem/`.
+Tests live under `tests/Opc.Ua.Client.Tests/FileSystem/`.
 
 ## See also
 

@@ -74,7 +74,7 @@ canonical source of its type-table description.
 ## Payload wire format (`ModelDependencyV1`)
 
 Encoding lives in
-`Tools/Opc.Ua.SourceGeneration.Core/Dependency/ModelDependencyV1.cs`:
+`tools/Opc.Ua.SourceGeneration.Core/Dependency/ModelDependencyV1.cs`:
 
 - Magic header: `0xAA 0xC7`
 - Version byte: `0x01`
@@ -101,7 +101,7 @@ decoded.
 ## Implementation
 
 The Roslyn-side scan lives in
-`Tools/Opc.Ua.SourceGeneration/ReferencedModelDependencyScanner.cs` and uses
+`tools/Opc.Ua.SourceGeneration/ReferencedModelDependencyScanner.cs` and uses
 `IAssemblySymbol.GetAttributes()` so it works for both
 `PortableExecutableReference` and `CompilationReference`, hooks Roslyn's
 per-symbol incremental cache, avoids file IO, and is AOT-safe inside the
@@ -110,7 +110,7 @@ generator. Each attribute is read into a `ModelDependencyReference` whose
 `ConditionalWeakTable` keyed on the payload string.
 
 The emitter lives in
-`Tools/Opc.Ua.SourceGeneration.Core/Generators/ModelDependencyGenerator.cs`
+`tools/Opc.Ua.SourceGeneration.Core/Generators/ModelDependencyGenerator.cs`
 and produces one `{prefix}.ModelDependencies.g.cs` per generated model
 containing assembly-attribute lines for the model itself (with the
 `ModelDependencyV1` payload) and every model it consumes (with a `null`
@@ -118,13 +118,13 @@ payload). The template lives in `ModelDependencyTemplates.cs` and uses the
 shared `Token` infrastructure for replacement.
 
 The cross-namespace prefix override step lives in
-`Tools/Opc.Ua.SourceGeneration.Core/Generators.cs` as
+`tools/Opc.Ua.SourceGeneration.Core/Generators.cs` as
 `OverrideDependencyPrefixes`. It runs after `OpenModelDesign` and before
 generation so that all downstream emitters see the harmonised prefix/name
 values.
 
 The payload-import surface lives directly on
-`Tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesignValidator.cs` (the
+`tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesignValidator.cs` (the
 former `ModelDesignValidator.SnapshotImport.cs` partial was folded into the
 main file). The validator's `ImportDependency(dependency, prefix, name)` API
 queues a `ModelDependencyV1` for ingestion; `ApplyPendingDependencies()`

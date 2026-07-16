@@ -232,7 +232,7 @@ builder.Services
 ```
 
 `services.AddOpcUa()` registers
-[`ServiceProviderTelemetryContext`](../Stack/Opc.Ua.Core/Stack/Diagnostics/ServiceProviderTelemetryContext.cs)
+[`ServiceProviderTelemetryContext`](../src/Opc.Ua.Core/Stack/Diagnostics/ServiceProviderTelemetryContext.cs)
 as a singleton `ITelemetryContext` via `TryAddSingleton`. That
 adapter resolves the host's `ILoggerFactory` from DI on first use
 (falling back to `NullLoggerFactory` when none is registered) and
@@ -515,7 +515,7 @@ OPC UA Part 5 defines a family of `AuditXxxEventType` event types that
 servers raise for security-relevant operations (session lifecycle,
 secure-channel events, certificate validation, history modification,
 node management, role mapping, etc.). The stack provides ready-made
-helpers in `Libraries/Opc.Ua.Server/Diagnostics/AuditEvents.cs` for
+helpers in `src/Opc.Ua.Server/Diagnostics/AuditEvents.cs` for
 every event type the standard server raises.
 
 ### Enabling auditing
@@ -592,7 +592,7 @@ Audit events are additionally gated by the `ReceiveEvents` permission: the serve
 
 OPC UA Part 5 §6 defines a `Server` object with a rich `ServerStatus`
 and `ServerDiagnostics` sub-tree. The stack populates these nodes
-automatically through `Libraries/Opc.Ua.Server/Diagnostics/DiagnosticsNodeManager.cs`.
+automatically through `src/Opc.Ua.Server/Diagnostics/DiagnosticsNodeManager.cs`.
 
 ### Enabling diagnostics
 
@@ -1345,7 +1345,7 @@ the upstream advisory feeds and review at least monthly. HIGH or
 CRITICAL CVEs should be addressed within 30 days.
 
 Run `dotnet list package --vulnerable --include-transitive` against
-`Stack/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj` in
+`src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj` in
 your CI pipeline; the project does this as part of its release gate.
 
 ### Security considerations

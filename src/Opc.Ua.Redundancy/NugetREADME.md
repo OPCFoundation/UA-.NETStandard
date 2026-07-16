@@ -6,5 +6,5 @@ Shared replication building blocks for OPC UA redundancy, used by both `Opc.Ua.R
 - **Strongly-consistent (CP):** a Raft layer behind the `IRaftConsensus` seam — `RaftSharedKeyValueStore` (linearizable `CompareAndSwapAsync` + `WatchAsync`) and `RaftLeaderElection` (native single-leader election). The DI default is a single-node [`RaftCs`](https://github.com/marcschier/raft-cs) replica via `DefaultRaftConsensus`; `InProcessRaftConsensus` is a lighter deterministic in-process backend, and a multi-node `RaftNode` (NanoMsg transport + file WAL) plugs in for multi-pod clusters.
 - **Hybrid:** `HybridSharedKeyValueStore` serves bulk keys from the CRDT store and the strong keyspaces (single-use nonces, lease, election) from Raft, selected with `RedundancyConsistencyMode`.
 
-See `Docs/HighAvailability.md` (*Consistency modes*) for guidance.
+See `docs/HighAvailability.md` (*Consistency modes*) for guidance.
 

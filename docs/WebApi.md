@@ -15,7 +15,7 @@ mounted on the same Kestrel host as the binary and
   `[UnconditionalSuppressMessage]` attributes.
 - **Client side**: symmetric `IWebApiClient` in
   `OPCFoundation.NetStandard.Opc.Ua.Client` under
-  `Libraries/Opc.Ua.Client/WebApi/`.
+  `src/Opc.Ua.Client/WebApi/`.
 
 ## Quick start
 
@@ -76,7 +76,7 @@ document deliberately omits them.
 All routes are `POST` with a JSON body holding the matching
 `<Service>Request`; the response body is the matching
 `<Service>Response`. The route table is the source of truth — see
-`WebApiServiceRoutes` in `Stack/Opc.Ua.Core/Stack/WebApi/`.
+`WebApiServiceRoutes` in `src/Opc.Ua.Core/Stack/WebApi/`.
 
 ## Encoding negotiation
 
@@ -151,7 +151,7 @@ serialization uses the stack's existing `JsonEncoder` /
 `JsonDecoder` driven by `WebApiBodyCodec`. The encoder shape matches
 the spec's component schemas property-for-property; see
 `WebApiEncoderConformanceTests` in
-`Tests/Opc.Ua.Core.Tests/Stack/WebApi/`.
+`tests/Opc.Ua.Core.Tests/Stack/WebApi/`.
 
 ## Authentication
 

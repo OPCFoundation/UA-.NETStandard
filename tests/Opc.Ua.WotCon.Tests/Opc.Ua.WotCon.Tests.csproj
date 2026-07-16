@@ -29,12 +29,12 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.WotCon.Client\Opc.Ua.WotCon.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Client\Opc.Ua.WotCon.Client.csproj" />
   </ItemGroup>
 </Project>

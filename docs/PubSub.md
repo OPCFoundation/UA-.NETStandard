@@ -756,7 +756,7 @@ pubsub.AddPublisher()
     });
 ```
 
-Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the delivery guarantee. Writer and reader groups use the same fluent `PubSubConfigurationBuilder` shown under [Fluent builder walkthrough](#fluent-builder-walkthrough); the [reference sample](../Applications/ConsoleReferencePubSubClient/README.md) contains complete Kafka publisher and subscriber configurations.
+Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the delivery guarantee. Writer and reader groups use the same fluent `PubSubConfigurationBuilder` shown under [Fluent builder walkthrough](#fluent-builder-walkthrough); the [reference sample](../samples/ConsoleReferencePubSubClient/README.md) contains complete Kafka publisher and subscriber configurations.
 
 **Topic mapping.** Kafka topics come from the OPC UA broker transport settings: `BrokerDataSetWriterTransportDataType.QueueName` / `BrokerDataSetReaderTransportDataType.QueueName` select the per-writer/reader data topic, `BrokerWriterGroupTransportDataType.QueueName` is the writer-group fallback, and `MetaDataQueueName` selects the metadata topic. When `MetaDataQueueName` is unset the transport derives a deterministic fallback from `KafkaConnectionOptions.Topics.Prefix`, the encoding, message type, PublisherId, WriterGroupId, and DataSetWriterId (segments joined with `.`). Use Kafka-safe characters (letters, digits, `.`, `_`, `-`).
 
@@ -1144,7 +1144,7 @@ public enum UadpSecurityWrapOptions
 - `PubSubNonePolicy` — no signing, no encryption.
 - `PubSubAes128CtrPolicy` — AES-128-CTR encryption + HMAC-SHA-256 signing
   (NIST SP 800-38A F.5.1 KAT verified by
-  `Tests/Opc.Ua.PubSub.Tests/Security/Internal/AesCtrTransformTests`).
+  `tests/Opc.Ua.PubSub.Tests/Security/Internal/AesCtrTransformTests`).
 - `PubSubAes256CtrPolicy` — AES-256-CTR + HMAC-SHA-256.
 
 Lookup uses
@@ -1354,7 +1354,7 @@ register optional companion features
 Use `IOpcUaBuilder.AddPubSubServer(...)` when the hosted OPC UA server
 and PubSub runtime are registered together; it registers the runtime before
 the address-space node manager so startup is order-independent.
-See `Libraries/Opc.Ua.PubSub.Server/Hosting/IPubSubServerBuilder.cs`.
+See `src/Opc.Ua.PubSub.Server/Hosting/IPubSubServerBuilder.cs`.
 
 ## Binding PubSub to an external OPC UA server (client-session adapters)
 
@@ -1711,7 +1711,7 @@ For Actions, leave `ServerActionResponderOptions.AllowUnsecured` at its default 
 
 ### Sample
 
-See `Applications\ConsoleReferencePubSubClient` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
+See `samples\ConsoleReferencePubSubClient` (the `external` mode) for a complete host that wires PubSub configuration, transport registration, external session options, publisher/subscriber binding, and Action-to-Call mapping in one process.
 
 ### See also
 
@@ -1841,13 +1841,13 @@ uses `Confluent.Kafka` / native librdkafka and is not AOT-compatible (see
 - **No `Newtonsoft.Json`.** The PubSub JSON encoder lives entirely on
   `System.Text.Json` (which is AOT-friendly).
 - **Trimmer-clean.** `PubSubAotTests` in
-  [`Tests/Opc.Ua.Aot.Tests/PubSubAotTests.cs`](../Tests/Opc.Ua.Aot.Tests/PubSubAotTests.cs)
+  [`tests/Opc.Ua.Aot.Tests/PubSubAotTests.cs`](../tests/Opc.Ua.Aot.Tests/PubSubAotTests.cs)
   exercise UADP encode/decode, JSON encode/decode, key-ring rotation,
   scheduler tick dispatch, and metadata-registry lookup inside an
   AOT-published binary.
 - **Reference sample.** The combined reference application publishes AOT-clean
   with zero `IL2026` / `IL3050` warnings:
-  - [`Applications/ConsoleReferencePubSubClient`](../Applications/ConsoleReferencePubSubClient/README.md) (`publisher` / `subscriber` / `external` modes)
+  - [`samples/ConsoleReferencePubSubClient`](../samples/ConsoleReferencePubSubClient/README.md) (`publisher` / `subscriber` / `external` modes)
 
 ## Spec coverage
 
@@ -1897,4 +1897,4 @@ below maps Part 14 sections to the type / file that implements them.
 - [Profiles and Facets](Profiles.md#pubsub-transports)
 - [Certificate Manager](CertificateManager.md)
 - [Sessions](Sessions.md) — Part 4 service set used by the SKS client.
-- [Reference PubSub Client sample (`Applications/ConsoleReferencePubSubClient/README.md`)](../Applications/ConsoleReferencePubSubClient/README.md)
+- [Reference PubSub Client sample (`samples/ConsoleReferencePubSubClient/README.md`)](../samples/ConsoleReferencePubSubClient/README.md)

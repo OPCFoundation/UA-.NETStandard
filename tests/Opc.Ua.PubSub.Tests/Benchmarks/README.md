@@ -11,7 +11,7 @@ once, and emits a summary table that can be diffed for catastrophic
 regressions:
 
 ```pwsh
-dotnet run -c Release -p Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
+dotnet run -c Release -p tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
   -f net10.0 -- --job dry --filter '*' --inProcess
 ```
 
@@ -32,22 +32,22 @@ iteration). For real numbers use one of the longer jobs:
 
 ```pwsh
 # ~5 minutes total. Single launch, ~3 iterations per benchmark.
-dotnet run -c Release -p Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
+dotnet run -c Release -p tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
   -f net10.0 -- --job short --filter '*' --inProcess
 
 # ~30 minutes total. Multiple launches, ~15 iterations each.
-dotnet run -c Release -p Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
+dotnet run -c Release -p tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
   -f net10.0 -- --job medium --filter '*' --inProcess
 
 # ~3 hours total. The defaults — full statistical pipeline.
-dotnet run -c Release -p Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
+dotnet run -c Release -p tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
   -f net10.0 -- --filter '*' --inProcess
 ```
 
 Filter to one suite to iterate locally:
 
 ```pwsh
-dotnet run -c Release -p Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
+dotnet run -c Release -p tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
   -f net10.0 -- --filter '*UadpEncoding*' --inProcess
 ```
 
@@ -55,7 +55,7 @@ Output lands under `BenchmarkDotNet.Artifacts/results/` next to the
 project. To save outside the repo:
 
 ```pwsh
-dotnet run -c Release -p Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
+dotnet run -c Release -p tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj `
   -f net10.0 -- --filter '*' --inProcess `
   --artifacts $env:USERPROFILE\bench-results
 ```

@@ -12,4 +12,4 @@ instances run as an active/standby redundant set with automatic failover.
 Supported redundancy modes (Part 14 §9.1.6): `None`, `Cold`, `Warm`, and `Hot`
 (seamless takeover with sequence-number continuity per Part 14 §7.2.5.4.1).
 
-See `Docs/PubSubHighAvailability.md` for the design and usage.
+See `docs/PubSubHighAvailability.md` for the design and usage.

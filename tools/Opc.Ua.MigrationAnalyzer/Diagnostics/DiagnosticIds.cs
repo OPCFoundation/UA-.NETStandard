@@ -63,12 +63,12 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
 
         /// <summary>
         /// Base URL for per-rule help. Each rule appends its own ID.
-        /// Points at the 2.0 migration index (`Docs/migrate/2.0.x/README.md`)
+        /// Points at the 2.0 migration index (`docs/migrate/2.0.x/README.md`)
         /// which contains the symptom → sub-doc table that maps every UA00xx
         /// rule to the sub-doc that documents it in detail.
         /// </summary>
         public const string HelpLinkUriBase =
-            "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/README.md#";
+            "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/README.md#";
 
         /// <summary>Compose a per-rule help URL anchored at the rule ID.</summary>
         public static string HelpLinkFor(string id)

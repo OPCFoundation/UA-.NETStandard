@@ -26,6 +26,6 @@ by the OPC UA source generators (`Opc.Ua.SourceGeneration.Stack`).
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/SourceGeneratedDataTypes.md)
+and the [Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md)
 for the model-driven extension story (how to add companion specs and
 plug new generated NodeSets into the stack).

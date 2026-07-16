@@ -1134,11 +1134,11 @@ dotnet_analyzer.severity = none
 # disposable lifetimes in tests are managed by fixture setup/teardown. This
 # matches the <NoWarn>CA2007;CA2000</NoWarn> convention already used by
 # Opc.Ua.Di.Tests and Opc.Ua.MigrationAnalyzer.Tests.
-[Tests/**/*.cs]
+[tests/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.CA2000.severity = none
 
 # Fuzzing test projects (Opc.Ua.*.Fuzz.Tests) are test projects; same rationale.
-[Fuzzing/**/*.Fuzz.Tests/**/*.cs]
+[fuzzing/**/*.Fuzz.Tests/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.CA2000.severity = none

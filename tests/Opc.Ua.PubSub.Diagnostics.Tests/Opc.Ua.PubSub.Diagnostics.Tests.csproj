@@ -46,7 +46,7 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub.Diagnostics\Opc.Ua.PubSub.Diagnostics.csproj" />
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Diagnostics\Opc.Ua.PubSub.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 # Stress tests
 
-`Tests/Opc.Ua.Stress.Tests` contains subscription stress tests plus layered stress and chaos coverage for
+`tests/Opc.Ua.Stress.Tests` contains subscription stress tests plus layered stress and chaos coverage for
 `IClientChannelManager` and managed-channel reconnect behavior.
 
 ## Categories
@@ -16,13 +16,13 @@
 
 ```bash
 # Contract + Integration (default PR CI):
-dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Contract|Category=Integration"
+dotnet test tests/Opc.Ua.Stress.Tests --filter "Category=Contract|Category=Integration"
 
 # ChaosTCP (nightly):
-dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
+dotnet test tests/Opc.Ua.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
 
 # Soak (manual):
-dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Soak"
+dotnet test tests/Opc.Ua.Stress.Tests --filter "Category=Soak"
 ```
 
 Every chaos test prints its seed at start. Re-run a failed chaos case with the printed seed by passing

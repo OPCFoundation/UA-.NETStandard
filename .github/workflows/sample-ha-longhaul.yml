@@ -34,7 +34,7 @@ jobs:
       DOTNET_VERSION: '10.0.x'
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
-      TESTPROJECT: './Tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
+      TESTPROJECT: './tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
       SAMPLE_HA_DURATION_MINUTES: ${{ github.event.inputs.duration || '60' }}
 
     steps:

@@ -39,5 +39,5 @@ await application.StartAsync(new ReferenceServer(telemetry)).ConfigureAwait(fals
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[Applications folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Applications)
+[samples folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/samples)
 for the full quickstart sources.

@@ -51,7 +51,7 @@ namespace Opc.Ua.Sessions.Tests
     /// <para>
     /// The TLS-cert-thumbprint mismatch, ref-count, and path-routing
     /// behaviours are covered by the registry's unit tests in
-    /// <c>Tests/Opc.Ua.Core.Tests/Stack/Transport/SharedKestrelHostTests.cs</c>;
+    /// <c>tests/Opc.Ua.Core.Tests/Stack/Transport/SharedKestrelHostTests.cs</c>;
     /// this fixture exists to prove the wiring path between
     /// <see cref="HttpsTransportListener.Start"/> /
     /// <see cref="HttpsTransportListener.Dispose"/> and the registry is

@@ -18,7 +18,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Stack\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -29,4 +29,4 @@
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
-</Project>
+</Project>

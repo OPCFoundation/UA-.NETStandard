@@ -86,13 +86,13 @@ Edit and save either file while the bridge is running:
 > The samples connect to the external server unsecured (`SecurityMode.None`) for
 > zero-config interop. A production bridge must use `SignAndEncrypt` with a provisioned
 > application instance certificate. See
-> [Docs/PubSub.md external-server adapter section](../../Docs/PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters).
+> [docs/PubSub.md external-server adapter section](../../docs/PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters).
 
 ## Build / publish
 
 ```bash
-dotnet build Applications/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj
-dotnet publish Applications/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj -r win-x64
+dotnet build samples/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj
+dotnet publish samples/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj -r win-x64
 ```
 
-See [Docs/PubSub.md](../../Docs/PubSub.md) for the full PubSub guide.
+See [docs/PubSub.md](../../docs/PubSub.md) for the full PubSub guide.

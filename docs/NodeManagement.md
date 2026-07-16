@@ -182,7 +182,7 @@ public override async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddN
 
 ## See also
 
-- [Reference Server](../Applications/README.md) — opt-in example in
+- [Reference Server](../samples/README.md) — opt-in example in
   `ReferenceNodeManager`.
 - [Source generated NodeManagers](SourceGeneratedNodeManagers.md) —
   combine NodeManagement with generated models.

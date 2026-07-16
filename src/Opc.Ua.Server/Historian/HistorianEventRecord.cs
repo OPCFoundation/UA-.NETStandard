@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Historian
     /// that cannot may return every event in the requested time range
     /// and let the framework evaluate the filter post-fetch (currently
     /// the framework only honours <c>SelectClauses</c>; <c>WhereClause</c>
-    /// is documented as best-effort — see <c>Docs/HistoricalAccess.md</c>).
+    /// is documented as best-effort — see <c>docs/HistoricalAccess.md</c>).
     /// </para>
     /// </remarks>
     public sealed record HistorianEventReadRequest

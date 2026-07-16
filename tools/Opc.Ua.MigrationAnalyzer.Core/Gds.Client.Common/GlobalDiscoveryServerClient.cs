@@ -44,7 +44,7 @@ namespace Opc.Ua.Gds.Client
             /// Registers the application synchronously.
             /// </summary>
             [Obsolete("Synchronous RegisterApplication was removed in 1.6. Use RegisterApplicationAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0015")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0015")]
             [OpcUaShim("UA0015")]
             public NodeId RegisterApplication(ApplicationRecordDataType application)
             {
@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Client
             /// Unregisters the application synchronously.
             /// </summary>
             [Obsolete("Synchronous UnregisterApplication was removed in 1.6. Use UnregisterApplicationAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0015")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0015")]
             [OpcUaShim("UA0015")]
             public void UnregisterApplication(NodeId applicationId)
             {

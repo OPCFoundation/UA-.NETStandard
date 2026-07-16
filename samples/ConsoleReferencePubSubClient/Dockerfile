@@ -2,12 +2,12 @@
 #
 # The build context must be the repository ROOT so the project references resolve.
 # Build directly:
-#   docker build -f Applications/ConsoleReferencePubSubClient/Dockerfile -t opcua-pubsub-client .
+#   docker build -f samples/ConsoleReferencePubSubClient/Dockerfile -t opcua-pubsub-client .
 FROM mcr.microsoft.com/dotnet/sdk AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
-RUN dotnet publish "Applications/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" \
+RUN dotnet publish "samples/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" \
     -c Release -f net10.0 -p:PublishAot=false -p:CustomTestTarget=net10.0 \
     -o /app/publish
 

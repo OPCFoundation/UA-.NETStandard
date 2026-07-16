@@ -83,7 +83,7 @@ await new AlarmConditionTypeClient(session, conditionId, telemetry)
 `AlarmConditionState` is the central server-side state type for all
 Part 9 alarms. It is *source-generated* from the standard NodeSet and
 extended with hand-written behavior. The behavior partial file
-(`Stack/Opc.Ua.Core.Types/State/AlarmConditionState.Methods.cs`) wires
+(`src/Opc.Ua.Core.Types/State/AlarmConditionState.Methods.cs`) wires
 every Part 9 method handler during `OnAfterCreate`, so as soon as you
 populate the optional state nodes the corresponding methods are
 callable.
@@ -108,7 +108,7 @@ generated `AlarmConditionState`: assign to `alarm.SilenceState`,
 `alarm.OutOfServiceState`, `alarm.LatchedState`, etc. before calling
 `Create`. The quickstart reference server creates these via
 `AlarmConditionTypeHolder.Initialize` —
-`Applications/Quickstarts.Servers/Alarms/AlarmHolders/`.
+`samples/Quickstarts.Servers/Alarms/AlarmHolders/`.
 
 ### Driving state from your process
 
@@ -201,7 +201,7 @@ alarm.SetOutOfServiceState(context, false);   // SuppressedOrShelved = false
 
 ### Alarm groups and first-in-group
 
-`Libraries/Opc.Ua.Server/Alarms/AlarmGroup.cs` wraps a generated
+`src/Opc.Ua.Server/Alarms/AlarmGroup.cs` wraps a generated
 `AlarmGroupState` and provides typed add/remove/enumerate:
 
 ```csharp
@@ -245,7 +245,7 @@ The first `Evaluate` call always applies the current state, so
 clients see a coherent suppression state immediately after
 registration — there is no edge required.
 
-> **Live demo:** The `Applications/Quickstarts.Servers/Alarms/
+> **Live demo:** The `samples/Quickstarts.Servers/Alarms/
 > AlarmNodeManager.cs` reference implementation wires this up
 > end-to-end. It exposes a `/Alarms/AnalogGroup` (`AlarmGroupType`)
 > containing every analog-source alarm and a writable
@@ -592,7 +592,7 @@ session.
 - [State Machines](StateMachines.md) — generic Part 16 state-machine API used by
   `AlarmClient.GetShelvingStateAsync` / `ObserveShelvingTransitionsAsync`
 - [Model Change Tracking](ModelChangeTracking.md) — client cache invalidation on address-space changes
-- Source: `Libraries/Opc.Ua.Server/Alarms/`, `Libraries/Opc.Ua.Client/Alarms/`,
-  `Stack/Opc.Ua.Core.Types/State/AlarmConditionState.Methods.cs`
-- Reference client sample: `Applications/ConsoleReferenceClient/AlarmClientSample.cs`
-- Conformance tests: `Tests/Opc.Ua.History.Tests/AlarmsAndConditions*.cs`
+- Source: `src/Opc.Ua.Server/Alarms/`, `src/Opc.Ua.Client/Alarms/`,
+  `src/Opc.Ua.Core.Types/State/AlarmConditionState.Methods.cs`
+- Reference client sample: `samples/ConsoleReferenceClient/AlarmClientSample.cs`
+- Conformance tests: `tests/Opc.Ua.History.Tests/AlarmsAndConditions*.cs`

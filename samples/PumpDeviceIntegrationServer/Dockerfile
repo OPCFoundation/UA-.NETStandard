@@ -4,11 +4,11 @@
 # images.
 #
 # IMPORTANT: the build context MUST be the repository ROOT (not this
-# folder), because the project pulls in the whole source tree (Stack/,
-# Libraries/, Tools/). Build it like this:
+# folder), because the project pulls in the whole source tree (src/,
+# src/, tools/). Build it like this:
 #
 #   # from the repository root:
-#   docker build -f Applications/PumpDeviceIntegrationServer/Dockerfile \
+#   docker build -f samples/PumpDeviceIntegrationServer/Dockerfile \
 #                -t pumpdeviceintegrationserver:local .
 #
 # Running `docker build .` from inside this folder will fail fast with a
@@ -34,10 +34,10 @@ COPY . .
 RUN test -f UA.slnx || { \
         echo ''; \
         echo 'ERROR: build the repository ROOT as the Docker context, not this folder.'; \
-        echo '       The image needs the full source tree (Stack/, Libraries/, Tools/).'; \
+        echo '       The image needs the full source tree (src/, src/, tools/).'; \
         echo ''; \
         echo '  From the repository root run:'; \
-        echo '    docker build -f Applications/PumpDeviceIntegrationServer/Dockerfile -t pumpdeviceintegrationserver .'; \
+        echo '    docker build -f samples/PumpDeviceIntegrationServer/Dockerfile -t pumpdeviceintegrationserver .'; \
         echo ''; \
         exit 1; \
     }
@@ -46,10 +46,10 @@ ARG Version
 ARG SimpleVersion
 ARG InformationalVersion
 
-RUN dotnet restore "Applications/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
+RUN dotnet restore "samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
         --force -p:NoHttps=true
 
-RUN dotnet publish "Applications/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
+RUN dotnet publish "samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
         --no-restore \
         -c Release \
         -f net10.0 \

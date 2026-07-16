@@ -48,8 +48,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     /// <para>
     /// The multi-replica leader-election failover topologies (strong Raft and eventual
     /// active/active) that require DNS-based endpoint indirection are demonstrated by the
-    /// docker-compose setups under <c>Applications/RedundantServer</c> and
-    /// <c>Applications/RedundantClient</c>; these process-level soak tests focus on the
+    /// docker-compose setups under <c>samples/RedundantServer</c> and
+    /// <c>samples/RedundantClient</c>; these process-level soak tests focus on the
     /// failover and data-loss-visibility behavior that runs deterministically inside a CI
     /// runner without container networking.
     /// </para>

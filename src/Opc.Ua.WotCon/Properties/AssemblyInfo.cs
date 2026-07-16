@@ -30,5 +30,3 @@
 using System;
 
 [assembly: CLSCompliant(false)]
-
-// Repository move history marker: Libraries/Opc.Ua.WotCon/Properties/AssemblyInfo.cs

@@ -297,7 +297,7 @@ needs to redo browse-path resolution. See
 [`StateMachines.md`](StateMachines.md) for the generic state-machine
 API the typed wrappers build on.
 
-## Walkthrough — `Applications/PumpDeviceIntegrationServer`
+## Walkthrough — `samples/PumpDeviceIntegrationServer`
 
 The pump server doubles as the software-update walkthrough: a second
 declarative pump (`Pump #2`) created via `ConfigureDevicesFor` has the
@@ -346,27 +346,27 @@ device's `SoftwareVersion` reflects the new version.
 
 ## Implementation pointers
 
-- Fluent surface: `Libraries/Opc.Ua.Di.Server/Builders/ISoftwareUpdateBuilder.cs`
+- Fluent surface: `src/Opc.Ua.Di.Server/Builders/ISoftwareUpdateBuilder.cs`
   and `DeviceBuilderSoftwareUpdateExtensions.cs`.
 - Address-space wiring: `SoftwareUpdateFacetWiring.cs` (internal).
 - State-machine dispatcher: `SoftwareUpdateStateMachineDispatcher.cs`
   (internal — direct `CurrentState` / `LastTransition` writes until
   the model source generator emits Part 16 tables for `*StateMachineState`).
 - File-transfer pipeline:
-  `Libraries/Opc.Ua.Di.Server/Builders/SoftwareUpdateFileTransferManager.cs`
+  `src/Opc.Ua.Di.Server/Builders/SoftwareUpdateFileTransferManager.cs`
   (internal — `GenerateFileForWrite` / `CloseAndCommit` + per-handle
   transient `FileType` materialisation).
 - Storage abstractions:
-  `Libraries/Opc.Ua.Di.Server/SoftwareUpdate/ISoftwarePackageStore.cs` and
+  `src/Opc.Ua.Di.Server/SoftwareUpdate/ISoftwarePackageStore.cs` and
   `ISoftwareFolder.cs`.
-- Client helpers: `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.cs`
+- Client helpers: `src/Opc.Ua.Di.Client/SoftwareUpdateClient.cs`
   (read-only discovery),
-  `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.StateMachine.cs`
+  `src/Opc.Ua.Di.Client/SoftwareUpdateClient.StateMachine.cs`
   (typed Part 16 partial), and
-  `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.Upload.cs`
+  `src/Opc.Ua.Di.Client/SoftwareUpdateClient.Upload.cs`
   (`UploadPackageAsync` driving the FileTransfer pipeline).
 - Tests:
-  `Tests/Opc.Ua.Di.Tests/DeviceBuilderSoftwareUpdateTests.cs`,
+  `tests/Opc.Ua.Di.Tests/DeviceBuilderSoftwareUpdateTests.cs`,
   `DeviceBuilderSoftwareUpdateStateChangeTests.cs`,
   `SoftwareUpdateFileTransferTests.cs` (server side),
   `SoftwareUpdateClientStateMachineTests.cs`,
@@ -375,7 +375,7 @@ device's `SoftwareVersion` reflects the new version.
   end-to-end against `DiInProcessSessionBridge`),
   `MemorySoftwareFolderTests.cs`, `PackageStoreTests.cs`,
   `SoftwareUpdateClientTests.cs`.
-- Sample: `Applications/PumpDeviceIntegrationServer/Program.cs` (the
+- Sample: `samples/PumpDeviceIntegrationServer/Program.cs` (the
   `Pump #2` declarative-device block attaches the SU facet).
 
 ## Spec references

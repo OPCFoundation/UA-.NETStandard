@@ -52,6 +52,6 @@ emission depends on `System.Reflection.Emit`.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Complex Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/ComplexTypes.md)
+and the [Complex Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ComplexTypes.md)
 for the full design (legacy reflection-emit loader vs. the
 NativeAOT-friendly loader in `Opc.Ua.Client`).

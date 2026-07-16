@@ -51,7 +51,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     /// <c>CertificateValidationResult</c>, with per-error accept logic moving to
     /// <c>CertificateValidationOptions.AcceptError</c>). There is therefore no accompanying
     /// code-fix provider; consumers must perform the migration manually using
-    /// <c>Docs/migrate/2.0.x/certificates.md#certificatemanager-and-segregated-interfaces</c>.
+    /// <c>docs/migrate/2.0.x/certificates.md#certificatemanager-and-segregated-interfaces</c>.
     /// </para>
     /// <para>Detection strategy:</para>
     /// <list type="bullet">

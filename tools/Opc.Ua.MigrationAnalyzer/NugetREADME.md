@@ -8,7 +8,7 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
 
 - a Roslyn **analyzer + code-fixer** set (`UA0001`–`UA0022`) that flags every
   pattern covered by the
-  [2.0 migration guide](../../Docs/migrate/2.0.x/README.md)
+  [2.0 migration guide](../../docs/migrate/2.0.x/README.md)
   and, where safe, applies the fix automatically;
 - a Roslyn **source generator** (`Opc.Ua.MigrationAnalyzer.Generator.dll`) that
   emits per-consumer `internal sealed [Obsolete] class <Name>Collection : List<TElement>`

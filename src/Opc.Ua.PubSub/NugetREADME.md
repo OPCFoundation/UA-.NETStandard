@@ -35,7 +35,7 @@ builder.Services.AddOpcUa()
 ```
 
 The legacy 1.04 `UaPubSubApplication.Create(...)` API has been removed in 2.0.
-See [the PubSub migration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/migrate/2.0.x/pubsub.md)
+See [the PubSub migration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/pubsub.md)
 to move to the fluent builder / DI surface.
 
 ## Target frameworks
@@ -46,6 +46,6 @@ to move to the fluent builder / DI surface.
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the dedicated
-[Opc.Ua.PubSub README](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Libraries/Opc.Ua.PubSub/README.md)
+[Opc.Ua.PubSub README](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.PubSub/README.md)
 for the full design (encodings, transports, security-key-service,
 discovery).

@@ -44,7 +44,7 @@ namespace Opc.Ua.Gds.Client
             /// Applies the staged configuration changes synchronously.
             /// </summary>
             [Obsolete("Synchronous ApplyChanges was removed in 1.6. Use ApplyChangesAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0015")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0015")]
             [OpcUaShim("UA0015")]
             public void ApplyChanges()
             {

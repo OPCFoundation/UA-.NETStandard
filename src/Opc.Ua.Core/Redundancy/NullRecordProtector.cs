@@ -35,7 +35,7 @@ namespace Opc.Ua.Redundancy
     /// tests. Production deployments backed by a network store (e.g. Redis)
     /// must configure an authenticated-encryption protector
     /// (<see cref="AesCbcHmacRecordProtector"/>); see
-    /// <c>Docs/HighAvailability.md</c>.
+    /// <c>docs/HighAvailability.md</c>.
     /// </summary>
     public sealed class NullRecordProtector : IOwnedRecordProtector
     {

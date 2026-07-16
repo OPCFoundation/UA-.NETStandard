@@ -3,7 +3,7 @@
 > **Generated:** Captured by:
 >
 > ```pwsh
-> dotnet run -c Release -p Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj -f net10.0 \
+> dotnet run -c Release -p tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj -f net10.0 \
 >     -- --job dry --filter '*' --inProcess
 > ```
 >

@@ -51,7 +51,7 @@ namespace Opc.Ua
             /// <see cref="IUserIdentityTokenHandler.EncryptAsync"/>.
             /// </summary>
             [Obsolete("Synchronous Encrypt was removed in 1.6. Use EncryptAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0011")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0011")]
             [OpcUaShim("UA0011")]
             public void Encrypt(
                 Certificate receiverCertificate,
@@ -82,7 +82,7 @@ namespace Opc.Ua
             /// <see cref="IUserIdentityTokenHandler.DecryptAsync"/>.
             /// </summary>
             [Obsolete("Synchronous Decrypt was removed in 1.6. Use DecryptAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0011")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0011")]
             [OpcUaShim("UA0011")]
             public void Decrypt(
                 Certificate certificate,
@@ -113,7 +113,7 @@ namespace Opc.Ua
             /// <see cref="IUserIdentityTokenHandler.SignAsync"/>.
             /// </summary>
             [Obsolete("Synchronous Sign was removed in 1.6. Use SignAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0011")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0011")]
             [OpcUaShim("UA0011")]
             public SignatureData Sign(byte[] dataToSign, string securityPolicyUri)
             {
@@ -128,7 +128,7 @@ namespace Opc.Ua
             /// for <see cref="IUserIdentityTokenHandler.VerifyAsync"/>.
             /// </summary>
             [Obsolete("Synchronous Verify was removed in 1.6. Use VerifyAsync. " +
-                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md#ua0011")]
+                "See https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0011")]
             [OpcUaShim("UA0011")]
             public bool Verify(
                 byte[] dataToVerify,
