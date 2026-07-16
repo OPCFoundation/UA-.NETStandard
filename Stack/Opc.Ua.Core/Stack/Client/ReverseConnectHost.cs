@@ -194,7 +194,23 @@ namespace Opc.Ua
             }
             m_listener.ConnectionWaiting -= m_onConnectionWaiting;
             m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
-            await m_listener.CloseAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await m_listener.CloseAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception closeError)
+            {
+                try
+                {
+                    await m_listener.DisposeAsync().ConfigureAwait(false);
+                    m_listener = null;
+                }
+                catch (Exception disposeError)
+                {
+                    throw new AggregateException(closeError, disposeError);
+                }
+                throw;
+            }
         }
 
         private ITransportListener? m_listener;
