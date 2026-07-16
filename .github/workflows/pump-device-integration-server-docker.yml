@@ -4,10 +4,10 @@ on:
   push:
     branches: [ master ]
     paths:
-    - 'Applications/PumpDeviceIntegrationServer/**'
-    - 'Libraries/**'
-    - 'Stack/**'
-    - 'Tools/**'
+    - 'samples/PumpDeviceIntegrationServer/**'
+    - 'src/**'
+    - 'src/**'
+    - 'tools/**'
     - 'Directory.*.props'
     - 'Directory.Build.targets'
     - '*.props'
@@ -73,7 +73,7 @@ jobs:
       uses: docker/build-push-action@v7
       with:
         context: .
-        file: ./Applications/PumpDeviceIntegrationServer/Dockerfile
+        file: ./samples/PumpDeviceIntegrationServer/Dockerfile
         build-args: |
           Version=${{ env.NBGV_Version }}
           SimpleVersion=${{ env.NBGV_SimpleVersion }}
