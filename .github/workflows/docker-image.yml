@@ -4,13 +4,13 @@ on:
   push:
     branches: [ master, release/*, docker* ]
     paths-ignore:
-    - 'Docs/**'
-    - 'Tests/**'
+    - 'docs/**'
+    - 'tests/**'
   pull_request:
     branches: [ master ]
     paths-ignore:
-    - 'Docs/**'
-    - 'Tests/**'
+    - 'docs/**'
+    - 'tests/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -29,25 +29,25 @@ jobs:
         include:
           # Sample servers
           - image: refserver
-            dockerfile: ./Applications/ConsoleReferenceServer/Dockerfile
+            dockerfile: ./samples/ConsoleReferenceServer/Dockerfile
           - image: ldsserver
-            dockerfile: ./Applications/ConsoleLdsServer/Dockerfile
+            dockerfile: ./samples/ConsoleLdsServer/Dockerfile
           - image: boilerserver
-            dockerfile: ./Applications/MinimalBoilerServer/Dockerfile
+            dockerfile: ./samples/MinimalBoilerServer/Dockerfile
           - image: calcserver
-            dockerfile: ./Applications/MinimalCalcServer/Dockerfile
+            dockerfile: ./samples/MinimalCalcServer/Dockerfile
           - image: mcpserver
-            dockerfile: ./Applications/McpServer/Dockerfile
+            dockerfile: ./tools/Opc.Ua.Mcp/Dockerfile
           - image: redundantserver
-            dockerfile: ./Applications/RedundantServer/Dockerfile
+            dockerfile: ./samples/RedundantServer/Dockerfile
           # Redundant client
           - image: redundantclient
-            dockerfile: ./Applications/RedundantClient/Dockerfile
+            dockerfile: ./samples/RedundantClient/Dockerfile
           # PubSub samples
           - image: redundantpubsub
-            dockerfile: ./Applications/RedundantPubSub/Dockerfile
+            dockerfile: ./samples/RedundantPubSub/Dockerfile
           - image: pubsubclient
-            dockerfile: ./Applications/ConsoleReferencePubSubClient/Dockerfile
+            dockerfile: ./samples/ConsoleReferencePubSubClient/Dockerfile
     env:
       IMAGE_NAME: ${{ matrix.image }}
       IS_NOT_PR: ${{ !github.head_ref && true }}

@@ -44,7 +44,7 @@ so call sites bind:
 - Sync + APM wrappers for the `GlobalDiscoveryServerClient` /
   `LocalDiscoveryServerClient` / `ServerPushConfigurationClient` (UA0015)
 - `GlobalDiscoverySampleServer` 1.5.378-shape ctor (in-tree at
-  `Libraries/Opc.Ua.Gds.Server.Common/GlobalDiscoverySampleServer.cs`) — the 5-arg
+  `src/Opc.Ua.Gds.Server.Common/GlobalDiscoverySampleServer.cs`) — the 5-arg
   variant without `ITelemetryContext`
 
 ### Conversion helpers

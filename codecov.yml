@@ -32,8 +32,8 @@ coverage:
 
 # Exclude code that should not count against coverage targets.
 ignore:
-  - "Tests/**"
-  - "Applications/**"
+  - "tests/**"
+  - "samples/**"
   - "**/obj/**"
   - "**/bin/**"
   - "**/*.g.cs"
