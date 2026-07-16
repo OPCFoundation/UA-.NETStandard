@@ -42,6 +42,7 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 using Opc.Ua.Test;
+using Quickstarts.Servers;
 using Range = Opc.Ua.Range;
 
 namespace Quickstarts.ReferenceServer
@@ -3881,7 +3882,7 @@ namespace Quickstarts.ReferenceServer
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Error creating the ReferenceNodeManager address space.");
+                    m_logger.ErrorCreatingAddressSpace(e);
                 }
 
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
@@ -3930,7 +3931,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Error writing Interval variable.");
+                m_logger.ErrorWritingIntervalVariable(e);
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
             }
         }
@@ -3961,7 +3962,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Error writing Enabled variable.");
+                m_logger.ErrorWritingEnabledVariable(e);
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
             }
         }
@@ -5385,9 +5386,12 @@ namespace Quickstarts.ReferenceServer
                     LogLevel logLevel = running > 1 ?
                         running > 4 ? LogLevel.Warning : LogLevel.Information :
                         LogLevel.Debug;
-                    m_logger.Log(logLevel,
-                        "Simulation timer fired while {Count} simulations are already queued to run.",
-                        running);
+                    if (m_logger.IsEnabled(logLevel))
+                    {
+                        m_logger.Log(logLevel,
+                            "Simulation timer fired while {Count} simulations are already queued to run.",
+                            running);
+                    }
                 }
                 m_semaphore.Wait();
                 try
@@ -5416,7 +5420,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                m_logger.LogError(e, "Unexpected error doing simulation #{Count}.", running);
+                m_logger.UnexpectedErrorDoingSimulation(e, running);
             }
             finally
             {
@@ -6019,4 +6023,31 @@ namespace Quickstarts.ReferenceServer
             return variable;
         }
     }
+
+    internal static partial class ReferenceNodeManagerLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 0, Level = LogLevel.Error,
+            Message = "Error creating the ReferenceNodeManager address space.")]
+        public static partial void ErrorCreatingAddressSpace(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 1, Level = LogLevel.Error,
+            Message = "Error writing Interval variable.")]
+        public static partial void ErrorWritingIntervalVariable(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 2, Level = LogLevel.Error,
+            Message = "Error writing Enabled variable.")]
+        public static partial void ErrorWritingEnabledVariable(this ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.ReferenceNodeManager + 3, Level = LogLevel.Error,
+            Message = "Unexpected error doing simulation #{Count}.")]
+        public static partial void UnexpectedErrorDoingSimulation(
+            this ILogger logger,
+            Exception exception,
+            int count);
+    }
+
 }

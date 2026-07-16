@@ -159,9 +159,7 @@ namespace Opc.Ua.PubSub.Server.Internal
                 .FindPredefinedNode<BaseVariableState>(s_statusStateNodeId);
             if (stateVar is null)
             {
-                m_logger.LogWarning(
-                    "PublishSubscribe Status State Variable {NodeId} not found; cannot bind state.",
-                    s_statusStateNodeId);
+                m_logger.StatusStateVariableNotFound(s_statusStateNodeId);
             }
             else
             {
@@ -182,9 +180,7 @@ namespace Opc.Ua.PubSub.Server.Internal
                     .FindPredefinedNode<BaseVariableState>(kv.Value);
                 if (counter is null)
                 {
-                    m_logger.LogDebug(
-                        "PublishSubscribe diagnostics counter {NodeId} not found in address space.",
-                        kv.Value);
+                    m_logger.DiagnosticsCounterNotFound(kv.Value);
                     continue;
                 }
                 BindCounter(counter, kv.Key);
@@ -248,10 +244,7 @@ namespace Opc.Ua.PubSub.Server.Internal
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(
-                    ex,
-                    "Failed to propagate PubSub state change {New} to Status State Variable.",
-                    e.NewState);
+                m_logger.FailedToPropagatePubSubStateChange(ex, e.NewState);
             }
         }
 
@@ -268,4 +261,26 @@ namespace Opc.Ua.PubSub.Server.Internal
             public PubSubDiagnosticsCounterKind Kind { get; }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for PubSubStatusBinding.
+    /// </summary>
+    internal static partial class PubSubStatusBindingLog
+    {
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubStatusBinding + 0, Level = LogLevel.Warning,
+            Message = "PublishSubscribe Status State Variable {NodeId} not found; cannot bind state.")]
+        public static partial void StatusStateVariableNotFound(this ILogger logger, NodeId nodeId);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubStatusBinding + 1, Level = LogLevel.Debug,
+            Message = "PublishSubscribe diagnostics counter {NodeId} not found in address space.")]
+        public static partial void DiagnosticsCounterNotFound(this ILogger logger, NodeId nodeId);
+
+        [LoggerMessage(EventId = PubSubServerEventIds.PubSubStatusBinding + 2, Level = LogLevel.Debug,
+            Message = "Failed to propagate PubSub state change {New} to Status State Variable.")]
+        public static partial void FailedToPropagatePubSubStateChange(
+            this ILogger logger,
+            Exception exception,
+            PubSubState @new);
+    }
+
 }

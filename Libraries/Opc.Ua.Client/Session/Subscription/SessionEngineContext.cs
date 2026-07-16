@@ -195,10 +195,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        m_session.m_logger.LogError(
-                            e,
-                            "Session: Unexpected error invoking " +
-                            "PublishErrorCallback.");
+                        m_session.m_logger.SessionUnexpectedErrorInvokingPublishErrorCallback(e);
                     }
                 }
             }
@@ -283,11 +280,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        m_session.m_logger.LogError(
-                            e,
-                            "Session: Unexpected error invoking " +
-                            "PublishSequenceNumbersToAcknowledge" +
-                            "EventArgs.");
+                        m_session.m_logger.PublishSequenceNumbersToAcknowledgeHandlerError(e);
                     }
                 }
 
@@ -316,14 +309,36 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    m_session.m_logger.LogError(
-                        e,
-                        "Session: Unexpected error while " +
-                        "raising Notification event.");
+                    m_session.m_logger.SessionUnexpectedErrorWhileRaisingNotification(e);
                 }
             }
 
             private readonly Session m_session;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="Session"/>.
+    /// </summary>
+    internal static partial class SessionLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.Session + 69, Level = LogLevel.Error,
+            Message = "Session: Unexpected error invoking PublishErrorCallback.")]
+        public static partial void SessionUnexpectedErrorInvokingPublishErrorCallback(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 70, Level = LogLevel.Error,
+            Message = "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.")]
+        public static partial void PublishSequenceNumbersToAcknowledgeHandlerError(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 71, Level = LogLevel.Error,
+            Message = "Session: Unexpected error while raising Notification event.")]
+        public static partial void SessionUnexpectedErrorWhileRaisingNotification(
+            this ILogger logger,
+            Exception? exception);
+    }
+
 }

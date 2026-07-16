@@ -77,8 +77,9 @@ namespace Opc.Ua.Redundancy.Server
             string? localServerUri = serverUris.Length > 0 ? serverUris[0] : null;
             if (string.IsNullOrEmpty(localServerUri))
             {
-                server.Telemetry.CreateLogger<LoadDirectionStartupTask>().LogWarning(
-                    "Load direction disabled: the local ServerUri is unavailable.");
+                server.Telemetry
+                    .CreateLogger<LoadDirectionStartupTask>()
+                    .LoadDirectionDisabledLocalServerUriUnavailable();
                 return default;
             }
 
@@ -99,4 +100,15 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ServerLoadDirector m_director;
         private readonly TimeProvider m_timeProvider;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="LoadDirectionStartupTask"/>.
+    /// </summary>
+    internal static partial class LoadDirectionStartupTaskLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.LoadDirectionStartupTask + 0, Level = LogLevel.Warning,
+            Message = "Load direction disabled: the local ServerUri is unavailable.")]
+        public static partial void LoadDirectionDisabledLocalServerUriUnavailable(this ILogger logger);
+    }
+
 }

@@ -247,7 +247,7 @@ namespace Quickstarts.ReferenceServer
                         }
                         catch (UriFormatException ex)
                         {
-                            logger.LogError(ex, "Invalid reverse connect URL: {Url}", reverseConnectUrlString);
+                            logger.InvalidReverseConnectUrl(ex, reverseConnectUrlString);
                             throw new ErrorExitException(
                                 $"Invalid reverse connect URL: {reverseConnectUrlString}",
                                 ExitCode.ErrorInvalidCommandLine);
@@ -310,4 +310,12 @@ namespace Quickstarts.ReferenceServer
                 .InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
         }
     }
+
+    internal static partial class ProgramLog
+    {
+        [LoggerMessage(EventId = ConsoleReferenceServerEventIds.Program + 0, Level = LogLevel.Error,
+            Message = "Invalid reverse connect URL: {Url}")]
+        public static partial void InvalidReverseConnectUrl(this ILogger logger, UriFormatException ex, string url);
+    }
+
 }

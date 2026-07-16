@@ -281,9 +281,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex,
-                    "Failed to evaluate CertificateExpired alarm for group {Group}.",
-                    m_sourceName);
+                m_logger.FailedToEvaluateCertificateExpiredAlarmForGroup(ex, m_sourceName);
             }
         }
 
@@ -320,9 +318,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex,
-                    "Failed to evaluate TrustListOutOfDate alarm for group {Group}.",
-                    m_sourceName);
+                m_logger.FailedToEvaluateTrustListOutOfDateAlarmForGroup(ex, m_sourceName);
             }
         }
 
@@ -467,5 +463,22 @@ namespace Opc.Ua.Server
         private bool? m_trustListOutOfDateActive;
         private EventSeverity m_certificateExpiredSeverity = EventSeverity.Min;
         private EventSeverity m_trustListOutOfDateSeverity = EventSeverity.Min;
+    }
+
+    internal static partial class CertificateGroupAlarmMonitorLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.CertificateGroupAlarmMonitor + 0, Level = LogLevel.Warning,
+            Message = "Failed to evaluate CertificateExpired alarm for group {Group}.")]
+        public static partial void FailedToEvaluateCertificateExpiredAlarmForGroup(
+            this ILogger logger,
+            Exception ex,
+            string group);
+
+        [LoggerMessage(EventId = ServerEventIds.CertificateGroupAlarmMonitor + 1, Level = LogLevel.Warning,
+            Message = "Failed to evaluate TrustListOutOfDate alarm for group {Group}.")]
+        public static partial void FailedToEvaluateTrustListOutOfDateAlarmForGroup(
+            this ILogger logger,
+            Exception ex,
+            string group);
     }
 }

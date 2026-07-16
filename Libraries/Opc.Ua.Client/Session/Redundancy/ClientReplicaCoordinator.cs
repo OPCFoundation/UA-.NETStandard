@@ -134,7 +134,9 @@ namespace Opc.Ua.Client.Redundancy
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Client replica role change to leader={IsLeader} failed.", isLeader);
+                m_logger.ClientReplicaRoleChangeLeaderIsLeader(
+                    ex,
+                    isLeader);
             }
         }
 
@@ -159,9 +161,8 @@ namespace Opc.Ua.Client.Redundancy
                 {
                     attempt++;
                     TimeSpan delay = GetPromotionRetryDelay(attempt);
-                    m_logger.LogWarning(
+                    m_logger.ClientReplicaPromotionAttemptAttemptFailed(
                         ex,
-                        "Client replica promotion attempt {Attempt} failed; retrying in {Delay}.",
                         attempt,
                         delay);
                     await Task.Delay(delay, ct).ConfigureAwait(false);
@@ -201,7 +202,7 @@ namespace Opc.Ua.Client.Redundancy
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(ex, "Token-reuse fast-activate failed; using a fresh session.");
+                m_logger.TokenReuseFastActivateFailedUsing(ex);
                 if (mutatedForReuse)
                 {
                     // ApplySessionConfiguration already overwrote this session's identity with
@@ -226,7 +227,7 @@ namespace Opc.Ua.Client.Redundancy
             }
             catch (Exception ex)
             {
-                m_logger.LogInformation(ex, "Disposing a token-reuse session that failed to reactivate threw; ignoring.");
+                m_logger.DisposingTokenReuseSessionThatFailed(ex);
             }
         }
 
@@ -271,4 +272,34 @@ namespace Opc.Ua.Client.Redundancy
         private readonly CancellationTokenSource m_cts = new();
         private ManagedSession? m_session;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ClientReplicaCoordinator"/>.
+    /// </summary>
+    internal static partial class ClientReplicaCoordinatorLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 0, Level = LogLevel.Error,
+            Message = "Client replica role change to leader={IsLeader} failed.")]
+        public static partial void ClientReplicaRoleChangeLeaderIsLeader(
+            this ILogger logger,
+            Exception? exception,
+            bool isLeader);
+
+        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 1, Level = LogLevel.Warning,
+            Message = "Client replica promotion attempt {Attempt} failed; retrying in {Delay}.")]
+        public static partial void ClientReplicaPromotionAttemptAttemptFailed(
+            this ILogger logger,
+            Exception? exception,
+            int attempt,
+            TimeSpan delay);
+
+        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 2, Level = LogLevel.Information,
+            Message = "Token-reuse fast-activate failed; using a fresh session.")]
+        public static partial void TokenReuseFastActivateFailedUsing(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 3, Level = LogLevel.Information,
+            Message = "Disposing a token-reuse session that failed to reactivate threw; ignoring.")]
+        public static partial void DisposingTokenReuseSessionThatFailed(this ILogger logger, Exception? exception);
+    }
+
 }

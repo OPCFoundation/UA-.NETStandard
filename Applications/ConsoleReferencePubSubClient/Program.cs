@@ -422,11 +422,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             ILogger logger = host.Services
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("ConsoleReferencePubSubClient.Publisher");
-            logger.LogInformation(
-                "Publisher starting: profile={Profile} endpoint={Endpoint} " +
-                "interval={Interval}ms publisherId={PublisherId} writerGroup={WriterGroupId}",
-                profile, transportEndpoint, intervalMs, publisherId, writerGroupId);
-            logger.LogInformation("Publisher started. Press Ctrl-C to exit.");
+            logger.PublisherStarting(profile, transportEndpoint, intervalMs, publisherId, writerGroupId);
+            logger.PublisherStarted();
             await host.RunAsync(cancellationToken).ConfigureAwait(false);
             return 0;
         }
@@ -499,14 +496,8 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             ILogger logger = host.Services
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("ConsoleReferencePubSubClient.Subscriber");
-            logger.LogInformation(
-                "Subscriber starting: profile={Profile} endpoint={Endpoint} " +
-                "publisherFilter={PublisherFilter} writerGroupFilter={WriterGroupFilter}",
-                profile,
-                transportEndpoint,
-                publisherIdFilter,
-                writerGroupIdFilter);
-            logger.LogInformation("Subscriber started. Press Ctrl-C to exit.");
+            logger.SubscriberStarting(profile, transportEndpoint, publisherIdFilter, writerGroupIdFilter);
+            logger.SubscriberStarted();
             await host.RunAsync(cancellationToken).ConfigureAwait(false);
             return 0;
         }
@@ -547,22 +538,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             ILogger logger = host.Services
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("ConsoleReferencePubSubClient.External");
-            logger.LogInformation(
-                "External-server PubSub bridge starting: mode={Mode} readMode={ReadMode} " +
-                "affinity={Affinity} externalServer={ExternalEndpoint} pubSub={PubSubEndpoint}",
-                mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
+            logger.ExternalServerPubSubBridgeStarting(mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
             if (hotReload)
             {
-                logger.LogInformation(
-                    "Hot reload enabled. Edit {AppSettingsFile} (for example, change " +
-                    "{PublisherOptionsName}:ReadMode to Subscription) or {ConfigFile} " +
-                    "(for example, add or remove a DataSetWriter) and save to reconfigure " +
-                    "the running bridge.",
-                    appSettingsFile,
-                    ExternalPublisherOptionsName,
-                    configFile);
+                logger.HotReloadEnabled(appSettingsFile, ExternalPublisherOptionsName, configFile);
             }
-            logger.LogInformation("Bridge started. Press Ctrl-C to exit.");
+            logger.BridgeStarted();
             try
             {
                 await host.RunAsync(cancellationToken).ConfigureAwait(false);
@@ -956,5 +937,62 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         /// Map an inbound PubSub Action to an external server method call.
         /// </summary>
         Responder = 4
+    }
+
+    internal static partial class ProgramLog
+    {
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 0, Level = LogLevel.Information,
+            Message = "Publisher starting: profile={Profile} endpoint={Endpoint} interval={Interval}ms " +
+                "publisherId={PublisherId} writerGroup={WriterGroupId}")]
+        public static partial void PublisherStarting(
+            this ILogger logger,
+            PublisherProfile profile,
+            string endpoint,
+            int interval,
+            ushort publisherId,
+            ushort writerGroupId);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 1, Level = LogLevel.Information,
+            Message = "Publisher started. Press Ctrl-C to exit.")]
+        public static partial void PublisherStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 2, Level = LogLevel.Information,
+            Message = "Subscriber starting: profile={Profile} endpoint={Endpoint} " +
+                "publisherFilter={PublisherFilter} writerGroupFilter={WriterGroupFilter}")]
+        public static partial void SubscriberStarting(
+            this ILogger logger,
+            SubscriberProfile profile,
+            string endpoint,
+            ushort publisherFilter,
+            ushort writerGroupFilter);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 3, Level = LogLevel.Information,
+            Message = "Subscriber started. Press Ctrl-C to exit.")]
+        public static partial void SubscriberStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 4, Level = LogLevel.Information,
+            Message = "External-server PubSub bridge starting: mode={Mode} readMode={ReadMode} " +
+                "affinity={Affinity} externalServer={ExternalEndpoint} pubSub={PubSubEndpoint}")]
+        public static partial void ExternalServerPubSubBridgeStarting(
+            this ILogger logger,
+            BridgeMode mode,
+            ReadMode readMode,
+            SubscriptionAffinity affinity,
+            string externalEndpoint,
+            string pubSubEndpoint);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 5, Level = LogLevel.Information,
+            Message = "Hot reload enabled. Edit {AppSettingsFile} (for example, change " +
+                "{PublisherOptionsName}:ReadMode to Subscription) or {ConfigFile} (for example, add or remove " +
+                "a DataSetWriter) and save to reconfigure the running bridge.")]
+        public static partial void HotReloadEnabled(
+            this ILogger logger,
+            string appSettingsFile,
+            string publisherOptionsName,
+            string? configFile);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 6, Level = LogLevel.Information,
+            Message = "Bridge started. Press Ctrl-C to exit.")]
+        public static partial void BridgeStarted(this ILogger logger);
     }
 }

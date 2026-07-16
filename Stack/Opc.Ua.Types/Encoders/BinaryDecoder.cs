@@ -711,9 +711,7 @@ namespace Opc.Ua
 
             if (!typeId.IsNull && extension.TypeId.IsNull)
             {
-                Logger.LogWarning(
-                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
-                    typeId);
+                Logger.CannotDeserializeExtensionObject(typeId);
             }
 
             // read encoding.
@@ -740,7 +738,7 @@ namespace Opc.Ua
                 extension.TypeId,
                 out IEncodeableType? activator))
             {
-                Logger.LogDebug("Failed to retrieve activator for extension object.");
+                Logger.ActivatorNotFound();
                 // Continue without registered type by reading the binary blob for later.
             }
 
@@ -772,11 +770,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Logger.LogError(
-                            "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
-                            activator.XmlName,
-                            e.Message,
-                            element.OuterXml);
+                        Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message, element.OuterXml);
                     }
                 }
 
@@ -861,9 +855,8 @@ namespace Opc.Ua
                     else if (m_encodeablesRecovered == 0)
                     {
                         // log the error only once to avoid flooding the log.
-                        Logger.LogWarning(
+                        Logger.DecodeEncodeableRecovered(
                             exception,
-                            "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
                             errorMessage,
                             activator!.XmlName,
                             extension.TypeId);

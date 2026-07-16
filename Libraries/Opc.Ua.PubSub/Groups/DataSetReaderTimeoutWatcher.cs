@@ -160,10 +160,7 @@ namespace Opc.Ua.PubSub.Groups
                     PubSubStateTransitionReason.Fatal);
                 if (transitioned)
                 {
-                    m_logger.LogWarning(
-                        "DataSetReader {Reader} faulted on MessageReceiveTimeout (>{Timeout}).",
-                        reader.Name,
-                        reader.MessageReceiveTimeout);
+                    m_logger.DataSetReaderFaultedOnMessageReceiveTimeout(reader.Name, reader.MessageReceiveTimeout);
                 }
             }
             return default;
@@ -185,4 +182,18 @@ namespace Opc.Ua.PubSub.Groups
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DataSetReaderTimeoutWatcher"/>.
+    /// </summary>
+    internal static partial class DataSetReaderTimeoutWatcherLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.DataSetReaderTimeoutWatcher + 0, Level = LogLevel.Warning,
+            Message = "DataSetReader {Reader} faulted on MessageReceiveTimeout (>{Timeout}).")]
+        public static partial void DataSetReaderFaultedOnMessageReceiveTimeout(
+            this ILogger logger,
+            string reader,
+            TimeSpan timeout);
+    }
+
 }

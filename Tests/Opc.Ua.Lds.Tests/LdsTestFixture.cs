@@ -75,7 +75,10 @@ namespace Opc.Ua.Lds.Tests
         public async Task LdsOneTimeSetUpAsync()
         {
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-            m_logger.LogInformation("LDS PkiRoot: {PkiRoot}", m_pkiRoot);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("LDS PkiRoot: {PkiRoot}", m_pkiRoot);
+            }
 
             ServerFixture = new ServerFixture<LdsServer>(t =>
             {
@@ -104,7 +107,10 @@ namespace Opc.Ua.Lds.Tests
                 "://localhost:" +
                 ServerFixture.Port.ToString(CultureInfo.InvariantCulture));
 
-            m_logger.LogInformation("LDS started at {Url}", ServerUrl);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LogInformation("LDS started at {Url}", ServerUrl);
+            }
 
             ClientFixture = new ClientFixture(telemetry: Telemetry);
             await ClientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);

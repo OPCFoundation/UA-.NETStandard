@@ -172,9 +172,7 @@ namespace Opc.Ua.Pcap.KeyLog
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Failed to snapshot channel token material for stand-alone keylog.");
+                m_logger.SnapshotChannelTokenMaterialFailed(ex);
                 return;
             }
 
@@ -199,9 +197,7 @@ namespace Opc.Ua.Pcap.KeyLog
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(
-                    ex,
-                    "Stand-alone keylog observer worker terminated with an exception during dispose.");
+                m_logger.WorkerTerminatedDuringDispose(ex);
             }
 
             await m_writer.DisposeAsync().ConfigureAwait(false);
@@ -228,10 +224,7 @@ namespace Opc.Ua.Pcap.KeyLog
                         }
                         catch (Exception ex)
                         {
-                            m_logger.LogWarning(
-                                ex,
-                                "Failed to persist key material to stand-alone keylog at '{Path}'.",
-                                m_writer.FilePath);
+                            m_logger.PersistKeyMaterialFailed(ex, m_writer.FilePath);
                         }
                         finally
                         {
@@ -242,10 +235,35 @@ namespace Opc.Ua.Pcap.KeyLog
             }
             catch (Exception ex)
             {
-                m_logger.LogError(
-                    ex,
-                    "Stand-alone keylog observer worker terminated unexpectedly.");
+                m_logger.WorkerTerminatedUnexpectedly(ex);
             }
+
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="StandaloneKeyLogObserver"/>.
+    /// </summary>
+    internal static partial class StandaloneKeyLogObserverLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.StandaloneKeyLogObserver + 0, Level = LogLevel.Warning,
+            Message = "Failed to snapshot channel token material for stand-alone keylog.")]
+        public static partial void SnapshotChannelTokenMaterialFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.StandaloneKeyLogObserver + 1, Level = LogLevel.Warning,
+            Message = "Stand-alone keylog observer worker terminated with an exception during dispose.")]
+        public static partial void WorkerTerminatedDuringDispose(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.StandaloneKeyLogObserver + 2, Level = LogLevel.Warning,
+            Message = "Failed to persist key material to stand-alone keylog at '{Path}'.")]
+        public static partial void PersistKeyMaterialFailed(
+            this ILogger logger,
+            Exception exception,
+            string path);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.StandaloneKeyLogObserver + 3, Level = LogLevel.Error,
+            Message = "Stand-alone keylog observer worker terminated unexpectedly.")]
+        public static partial void WorkerTerminatedUnexpectedly(this ILogger logger, Exception exception);
+    }
+
 }

@@ -237,10 +237,16 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (s_autoAccept)
                 {
-                    m_logger.LogInformation("Accepted Certificate: {Subject}", certificate.Subject);
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.LogInformation("Accepted Certificate: {Subject}", certificate.Subject);
+                    }
                     return true;
                 }
-                m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
+                }
             }
             return false;
         }

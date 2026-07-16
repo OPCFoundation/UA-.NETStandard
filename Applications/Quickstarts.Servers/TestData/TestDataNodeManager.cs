@@ -31,9 +31,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Historian;
+using Quickstarts.Servers;
 
 namespace TestData
 {
@@ -172,7 +174,7 @@ namespace TestData
         /// <returns>The new NodeId.</returns>
         public override NodeId New(ISystemContext context, NodeState node)
         {
-            uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
+            uint id = Opc.Ua.Utils.IncrementIdentifier(ref m_lastUsedId);
             return new NodeId(id, m_namespaceIndex);
         }
 
@@ -686,7 +688,7 @@ namespace TestData
                 }
                 catch (Exception e)
                 {
-                    m_logger.LogError(e, "Unexpected error monitoring system status.");
+                    m_logger.UnexpectedErrorMonitoringSystemStatus(e);
                 }
             }
         }
@@ -726,4 +728,13 @@ namespace TestData
         private VectorVariableValue? m_dataStaticVectorScalarValue;
         private VectorVariableValue? m_dataDynamicVectorScalarValue;
     }
+
+    internal static partial class TestDataNodeManagerLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.TestDataNodeManager + 0, Level = LogLevel.Error,
+            Message = "Unexpected error monitoring system status.")]
+        public static partial void UnexpectedErrorMonitoringSystemStatus(this ILogger logger, Exception exception);
+    }
+
 }

@@ -30,6 +30,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Quickstarts.Servers;
 
 namespace Alarms
 {
@@ -76,9 +77,7 @@ namespace Alarms
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
-            m_logger.LogTrace(
-                "NonExclusiveLevelHolder alarm typedefinition {TypeDefinitionId}",
-                m_alarm.TypeDefinitionId);
+            m_logger.AlarmTypeDefinition(m_alarm.TypeDefinitionId);
         }
 
         public override void SetBranching(bool value)
@@ -86,4 +85,13 @@ namespace Alarms
             m_supportsBranching = value;
         }
     }
+
+    internal static partial class NonExclusiveLevelHolderLog
+    {
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.NonExclusiveLevelHolder + 0, Level = LogLevel.Trace,
+            Message = "NonExclusiveLevelHolder alarm typedefinition {TypeDefinitionId}")]
+        public static partial void AlarmTypeDefinition(this ILogger logger, NodeId typeDefinitionId);
+    }
+
 }

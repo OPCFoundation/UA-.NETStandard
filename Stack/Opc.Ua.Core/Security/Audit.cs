@@ -74,36 +74,26 @@ namespace Opc.Ua.Security
                     encoding = "BinaryOrXml";
                 }
 
-                logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected To: {EndpointUrl} [{SecurityMode}/{SecurityPolicyUri}/{Encoding}]",
-                    implementationInfo,
-                    secureChannelId,
-                    endpointUrl,
-                    endpoint.SecurityMode.ToString(),
-                    SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri ?? string.Empty),
-                    encoding);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.AuditLogMessage0(
+                        implementationInfo,
+                        secureChannelId,
+                        endpointUrl,
+                        endpoint.SecurityMode.ToString(),
+                        SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri ?? string.Empty),
+                        encoding);
+                }
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
-                    logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Client Certificate: {Certificate}",
-                        clientCertificate);
-                    logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Server Certificate: {Certificate}",
-                        serverCertificate);
+                    logger.AuditLogMessage1(clientCertificate);
+                    logger.AuditLogMessage2(serverCertificate);
                 }
             }
             else
             {
-                logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected To: {EndpointUrl}",
-                    implementationInfo,
-                    secureChannelId,
-                    endpointUrl);
+                logger.AuditLogMessage3(implementationInfo, secureChannelId, endpointUrl);
             }
         }
 
@@ -118,11 +108,54 @@ namespace Opc.Ua.Security
             string implementationInfo,
             string secureChannelId)
         {
-            logger.LogInformation(
-                Utils.TraceMasks.Security,
-                "SECURE CHANNEL RENEWED [{ImplementationInfo}] [ID={SecureChannelId}]",
-                implementationInfo,
-                secureChannelId);
+            logger.AuditLogMessage4(implementationInfo, secureChannelId);
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for Audit.
+    /// </summary>
+    internal static partial class AuditLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.Audit + 0, Level = LogLevel.Information,
+            Message = "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected " +
+                "To: {EndpointUrl} [{SecurityMode}/{SecurityPolicyUri}/{Encoding}]")]
+        public static partial void AuditLogMessage0(
+            this ILogger logger,
+            string implementationInfo,
+            string secureChannelId,
+            string endpointUrl,
+            string securityMode,
+            string? securityPolicyUri,
+            string encoding);
+
+        [LoggerMessage(EventId = CoreEventIds.Audit + 1, Level = LogLevel.Information,
+            Message = "Client Certificate: {Certificate}")]
+        public static partial void AuditLogMessage1(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.Audit + 2, Level = LogLevel.Information,
+            Message = "Server Certificate: {Certificate}")]
+        public static partial void AuditLogMessage2(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.Audit + 3, Level = LogLevel.Information,
+            Message = "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected " +
+                "To: {EndpointUrl}")]
+        public static partial void AuditLogMessage3(
+            this ILogger logger,
+            string implementationInfo,
+            string secureChannelId,
+            string endpointUrl);
+
+        [LoggerMessage(EventId = CoreEventIds.Audit + 4, Level = LogLevel.Information,
+            Message = "SECURE CHANNEL RENEWED [{ImplementationInfo}] [ID={SecureChannelId}]")]
+        public static partial void AuditLogMessage4(
+            this ILogger logger,
+            string implementationInfo,
+            string secureChannelId);
+    }
+
 }

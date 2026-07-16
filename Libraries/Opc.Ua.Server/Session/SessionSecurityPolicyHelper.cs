@@ -95,9 +95,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                logger.LogDebug(
-                    "Received request for new EphmeralKey using {SecurityPolicyUri}.",
-                    policyUri);
+                logger.ReceivedRequestForNewEphmeralKeyUsingSecurityPolicyUri(policyUri);
 
                 SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(policyUri);
 
@@ -114,9 +112,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                logger.LogWarning(
-                    "Rejecting request for new EphemeralKey using {SecurityPolicyUri}.",
-                    policyUri);
+                logger.RejectingRequestForNewEphemeralKeyUsingSecurityPolicyUri(policyUri);
 
                 responseParameters.Add(new KeyValuePair
                 {
@@ -154,4 +150,23 @@ namespace Opc.Ua.Server
             };
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for SessionSecurityPolicyHelper.
+    /// </summary>
+    internal static partial class SessionSecurityPolicyHelperLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.SessionSecurityPolicyHelper + 0, Level = LogLevel.Debug,
+            Message = "Received request for new EphmeralKey using {SecurityPolicyUri}.")]
+        public static partial void ReceivedRequestForNewEphmeralKeyUsingSecurityPolicyUri(
+            this ILogger logger,
+            string securityPolicyUri);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionSecurityPolicyHelper + 1, Level = LogLevel.Warning,
+            Message = "Rejecting request for new EphemeralKey using {SecurityPolicyUri}.")]
+        public static partial void RejectingRequestForNewEphemeralKeyUsingSecurityPolicyUri(
+            this ILogger logger,
+            string securityPolicyUri);
+    }
+
 }

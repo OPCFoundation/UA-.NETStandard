@@ -131,11 +131,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
             cancellationToken.ThrowIfCancellationRequested();
             ILogger logger = telemetry.CreateLogger<DefaultDtlsContextFactory>();
-            logger.LogInformation(
-                "Creating OPC UA PubSub DTLS context: connection='{Connection}' endpoint={Endpoint} profile={Profile}.",
-                connection.Name,
-                endpoint,
-                profile.Name);
+            logger.CreatingDtlsContext(connection.Name, endpoint, profile.Name);
             CertificateCollection resolvedLocalCertificates = await ResolveLocalCertificatesAsync(
                     telemetry,
                     logger,
@@ -223,25 +219,17 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                                 resolvedCertificates.Add(certificate);
                             }
 
-                            logger.LogInformation(
-                                "Resolved OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
-                                identifier);
+                            logger.ResolvedLocalCertificateIdentifier(identifier);
                         }
                         else
                         {
                             certificate?.Dispose();
-                            logger.LogWarning(
-                                "OPC UA PubSub DTLS local certificate identifier '{Identifier}' did not resolve to a " +
-                                "certificate with a private key.",
-                                identifier);
+                            logger.LocalCertificateIdentifierWithoutPrivateKey(identifier);
                         }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        logger.LogWarning(
-                            ex,
-                            "Failed to resolve OPC UA PubSub DTLS local certificate identifier '{Identifier}'.",
-                            identifier);
+                        logger.FailedToResolveLocalCertificateIdentifier(ex, identifier);
                     }
                 }
             }
@@ -349,4 +337,42 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         Client,
         Server
     }
+
+    /// <summary>
+    /// Source-generated log messages for DefaultDtlsContextFactory.
+    /// </summary>
+    internal static partial class DefaultDtlsContextFactoryLog
+    {
+        [LoggerMessage(EventId = PubSubUdpEventIds.DefaultDtlsContextFactory + 0,
+            Level = LogLevel.Information,
+            Message = "Creating OPC UA PubSub DTLS context: connection='{Connection}' endpoint={Endpoint} " +
+                "profile={Profile}.")]
+        public static partial void CreatingDtlsContext(
+            this ILogger logger,
+            string? connection,
+            UdpEndpoint endpoint,
+            string profile);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.DefaultDtlsContextFactory + 1,
+            Level = LogLevel.Information,
+            Message = "Resolved OPC UA PubSub DTLS local certificate identifier '{Identifier}'.")]
+        public static partial void ResolvedLocalCertificateIdentifier(
+            this ILogger logger,
+            CertificateIdentifier identifier);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.DefaultDtlsContextFactory + 2, Level = LogLevel.Warning,
+            Message = "OPC UA PubSub DTLS local certificate identifier '{Identifier}' did not resolve to a " +
+                "certificate with a private key.")]
+        public static partial void LocalCertificateIdentifierWithoutPrivateKey(
+            this ILogger logger,
+            CertificateIdentifier identifier);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.DefaultDtlsContextFactory + 3, Level = LogLevel.Warning,
+            Message = "Failed to resolve OPC UA PubSub DTLS local certificate identifier '{Identifier}'.")]
+        public static partial void FailedToResolveLocalCertificateIdentifier(
+            this ILogger logger,
+            Exception exception,
+            CertificateIdentifier identifier);
+    }
+
 }

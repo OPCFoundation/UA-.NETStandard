@@ -266,10 +266,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             }
             if (!m_dataSetsByName.ContainsKey(dataSetName!))
             {
-                m_logger.LogWarning(
-                    "DataSetWriter references unknown PublishedDataSet '{Pds}'; " +
-                    "it will produce no monitored items.",
-                    dataSetName);
+                m_logger.UnknownPublishedDataSet(dataSetName);
                 return;
             }
             if (!group.DataSetNames.Contains(dataSetName!))
@@ -312,12 +309,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        m_logger.LogWarning(
-                            ex,
-                            "Could not resolve published variable {NodeId} for {Group}; " +
-                            "it will not be monitored.",
-                            variable.PublishedVariable,
-                            group.Label);
+                        m_logger.CouldNotResolvePublishedVariable(ex, variable.PublishedVariable, group.Label);
                         continue;
                     }
                     if (nodeId.IsNull)
@@ -358,9 +350,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
             if (primeNodes.Count == 0)
             {
-                m_logger.LogDebug(
-                    "No monitored items created for {Group}; nothing to prime.",
-                    group.Label);
+                m_logger.NoMonitoredItemsCreated(group.Label);
                 return;
             }
 
@@ -372,11 +362,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 group.Strategy.Seed(primeKeys[i].NodeId, primeKeys[i].AttributeId, values[i]);
             }
 
-            m_logger.LogDebug(
-                "Built {Group}: {Count} monitored item(s) primed at {Interval} ms.",
-                group.Label,
-                primeNodes.Count,
-                group.PublishingIntervalMs);
+            m_logger.BuiltSubscriptionGroup(group.Label, primeNodes.Count, group.PublishingIntervalMs);
         }
 
         private static Dictionary<string, PublishedDataSetDataType> BuildDataSetMap(
@@ -490,4 +476,36 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         private bool m_started;
         private bool m_disposed;
     }
+
+    /// <summary>
+    /// Source-generated log messages for SubscriptionCoordinator.
+    /// </summary>
+    internal static partial class SubscriptionCoordinatorLog
+    {
+        [LoggerMessage(EventId = PubSubAdapterEventIds.SubscriptionCoordinator + 0, Level = LogLevel.Warning,
+            Message = "DataSetWriter references unknown PublishedDataSet '{Pds}'; " +
+                "it will produce no monitored items.")]
+        public static partial void UnknownPublishedDataSet(this ILogger logger, string pds);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.SubscriptionCoordinator + 1, Level = LogLevel.Warning,
+            Message = "Could not resolve published variable {NodeId} for {Group}; it will not be monitored.")]
+        public static partial void CouldNotResolvePublishedVariable(
+            this ILogger logger,
+            Exception exception,
+            NodeId nodeId,
+            string group);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.SubscriptionCoordinator + 2, Level = LogLevel.Debug,
+            Message = "No monitored items created for {Group}; nothing to prime.")]
+        public static partial void NoMonitoredItemsCreated(this ILogger logger, string group);
+
+        [LoggerMessage(EventId = PubSubAdapterEventIds.SubscriptionCoordinator + 3, Level = LogLevel.Debug,
+            Message = "Built {Group}: {Count} monitored item(s) primed at {Interval} ms.")]
+        public static partial void BuiltSubscriptionGroup(
+            this ILogger logger,
+            string group,
+            int count,
+            double interval);
+    }
+
 }

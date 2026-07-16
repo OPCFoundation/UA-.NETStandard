@@ -521,9 +521,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex,
-                        "AddRole({RoleName}) succeeded in the RoleManager but address-space materialization failed.",
-                        roleName);
+                    m_logger.AddRoleRoleNameSucceededInTheRoleManagerBut(ex, roleName);
                 }
             }
             result.ServiceResult = add;
@@ -559,9 +557,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex,
-                        "RemoveRole({RoleId}) succeeded in the RoleManager but address-space removal failed.",
-                        roleNodeId);
+                    m_logger.RemoveRoleRoleIdSucceededInTheRoleManagerBut(ex, roleNodeId);
                 }
             }
 
@@ -682,9 +678,7 @@ namespace Opc.Ua.Server
             // well-known role path.
             BindRoleState(roleState);
 
-            m_logger.LogDebug(
-                "Materialized dynamic role {RoleName} ({RoleId}) under RoleSet.",
-                roleName, roleNodeId);
+            m_logger.MaterializedDynamicRoleRoleNameRoleIdUnderRoleSet(roleName, roleNodeId);
         }
 
         private async ValueTask DematerializeDynamicRoleAsync(
@@ -956,4 +950,32 @@ namespace Opc.Ua.Server
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for RoleStateBinding.
+    /// </summary>
+    internal static partial class RoleStateBindingLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 0, Level = LogLevel.Warning,
+            Message = "AddRole({RoleName}) succeeded in the RoleManager but address-space materialization failed.")]
+        public static partial void AddRoleRoleNameSucceededInTheRoleManagerBut(
+            this ILogger logger,
+            Exception ex,
+            string roleName);
+
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 1, Level = LogLevel.Warning,
+            Message = "RemoveRole({RoleId}) succeeded in the RoleManager but address-space removal failed.")]
+        public static partial void RemoveRoleRoleIdSucceededInTheRoleManagerBut(
+            this ILogger logger,
+            Exception ex,
+            NodeId roleId);
+
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 2, Level = LogLevel.Debug,
+            Message = "Materialized dynamic role {RoleName} ({RoleId}) under RoleSet.")]
+        public static partial void MaterializedDynamicRoleRoleNameRoleIdUnderRoleSet(
+            this ILogger logger,
+            string roleName,
+            NodeId roleId);
+    }
+
 }

@@ -221,8 +221,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Sink threw applying dataset {WriterId}.",
-                    dataSetMessage.DataSetWriterId);
+                m_logger.SinkThrewApplyingDataset(ex, dataSetMessage.DataSetWriterId);
                 _ = State.TryFault(StatusCodes.BadInternalError);
             }
         }
@@ -242,4 +241,18 @@ namespace Opc.Ua.PubSub.Groups
             return elapsed > MessageReceiveTimeout;
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DataSetReader"/>.
+    /// </summary>
+    internal static partial class DataSetReaderLog
+    {
+        [LoggerMessage(EventId = PubSubEventIds.DataSetReader + 0, Level = LogLevel.Error,
+            Message = "Sink threw applying dataset {WriterId}.")]
+        public static partial void SinkThrewApplyingDataset(
+            this ILogger logger,
+            Exception exception,
+            ushort writerId);
+    }
+
 }

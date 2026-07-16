@@ -81,6 +81,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            services.TryAddSingleton<BufferManagerFactoryOptions>();
+            services.TryAddSingleton<IBufferManagerFactory, DefaultBufferManagerFactory>();
 
             return new OpcUaBuilder(services);
         }

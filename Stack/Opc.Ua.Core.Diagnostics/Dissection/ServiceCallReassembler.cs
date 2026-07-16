@@ -129,9 +129,7 @@ namespace Opc.Ua.Pcap.Dissection
 
                 if (frame.Direction == CaptureFrameDirection.Unknown)
                 {
-                    m_logger.LogWarning(
-                        "Skipping OPC UA chunk with unknown direction at {Timestamp}.",
-                        frame.Timestamp);
+                    m_logger.SkippingChunkWithUnknownDirection(frame.Timestamp);
                     return;
                 }
 
@@ -162,7 +160,7 @@ namespace Opc.Ua.Pcap.Dissection
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Skipping OPC UA chunk because service-call reassembly failed.");
+                m_logger.ServiceCallReassemblyFailed(ex);
             }
         }
 
@@ -263,9 +261,7 @@ namespace Opc.Ua.Pcap.Dissection
                 uint channelId = BinaryPrimitives.ReadUInt32LittleEndian(frame.Data.Span[8..]);
                 if (!m_channels.TryGetValue(channelId, out OfflineSecureChannel? channel))
                 {
-                    m_logger.LogWarning(
-                        "Skipping OPC UA chunk for channel 0x{ChannelId:X8}; no key material is loaded.",
-                        channelId);
+                    m_logger.KeyMaterialNotLoaded(channelId);
                     return;
                 }
 
@@ -306,11 +302,11 @@ namespace Opc.Ua.Pcap.Dissection
             }
             catch (PcapDiagnosticsException ex)
             {
-                m_logger.LogWarning(ex, "Skipping OPC UA secure-channel chunk because offline decoding failed.");
+                m_logger.OfflineDecodingFailed(ex);
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Skipping OPC UA secure-channel chunk because reassembly failed.");
+                m_logger.SecureChannelReassemblyFailed(ex);
             }
         }
 
@@ -381,9 +377,10 @@ namespace Opc.Ua.Pcap.Dissection
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Unable to decode OPC UA service message body.");
+                m_logger.DecodeServiceMessageBodyFailed(ex);
                 return DecodedMessage.Undecoded(undecodedName, body.Length);
             }
+
         }
 
         private DecodedMessage CreateDecodedMessage(IEncodeable message, int byteCount)
@@ -653,4 +650,35 @@ namespace Opc.Ua.Pcap.Dissection
         private readonly ILoggerFactory m_loggerFactory;
         private readonly ILogger m_logger;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ServiceCallReassembler"/>.
+    /// </summary>
+    internal static partial class ServiceCallReassemblerLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ServiceCallReassembler + 0, Level = LogLevel.Warning,
+            Message = "Skipping OPC UA chunk with unknown direction at {Timestamp}.")]
+        public static partial void SkippingChunkWithUnknownDirection(this ILogger logger, DateTimeOffset timestamp);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ServiceCallReassembler + 1, Level = LogLevel.Warning,
+            Message = "Skipping OPC UA chunk because service-call reassembly failed.")]
+        public static partial void ServiceCallReassemblyFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ServiceCallReassembler + 2, Level = LogLevel.Warning,
+            Message = "Skipping OPC UA chunk for channel 0x{ChannelId:X8}; no key material is loaded.")]
+        public static partial void KeyMaterialNotLoaded(this ILogger logger, uint channelId);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ServiceCallReassembler + 3, Level = LogLevel.Warning,
+            Message = "Skipping OPC UA secure-channel chunk because offline decoding failed.")]
+        public static partial void OfflineDecodingFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ServiceCallReassembler + 4, Level = LogLevel.Warning,
+            Message = "Skipping OPC UA secure-channel chunk because reassembly failed.")]
+        public static partial void SecureChannelReassemblyFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ServiceCallReassembler + 5, Level = LogLevel.Warning,
+            Message = "Unable to decode OPC UA service message body.")]
+        public static partial void DecodeServiceMessageBodyFailed(this ILogger logger, Exception exception);
+    }
+
 }

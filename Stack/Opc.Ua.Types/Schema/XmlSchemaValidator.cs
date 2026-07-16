@@ -150,8 +150,18 @@ namespace Opc.Ua.Schema.Xml
         /// <exception cref="InvalidOperationException"></exception>
         private static void OnValidate(ValidationEventArgs args, ILogger logger)
         {
-            logger.LogError("Error in XML schema validation: {Message}", args.Message);
+            logger.SchemaValidationError(args.Message);
             throw new InvalidOperationException(args.Message, args.Exception);
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="XmlSchemaValidator"/>.
+    /// </summary>
+    internal static partial class XmlSchemaValidatorLog
+    {
+        [LoggerMessage(EventId = TypesEventIds.XmlSchemaValidator + 0, Level = LogLevel.Error,
+            Message = "Error in XML schema validation: {Message}")]
+        public static partial void SchemaValidationError(this ILogger logger, string message);
     }
 }

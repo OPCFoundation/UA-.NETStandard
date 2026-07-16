@@ -274,15 +274,34 @@ namespace Opc.Ua.Pcap.Capture.Sources
                         materials.Add(material);
                     }
 
-                    m_logger.LogTrace("Read keylog {KeyLogFilePath} as JSON.", filePath);
+                    m_logger.ReadKeyLogAsJson(filePath);
                     return materials;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    m_logger.LogTrace(ex, "Unable to read keylog {KeyLogFilePath} as JSON; trying text.", filePath);
+                    m_logger.ReadKeyLogAsJsonFailed(ex, filePath);
                     return null;
                 }
+
             }
         }
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="ReplayCaptureSource"/>.
+    /// </summary>
+    internal static partial class ReplayCaptureSourceLog
+    {
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ReplayCaptureSource + 0, Level = LogLevel.Trace,
+            Message = "Read keylog {KeyLogFilePath} as JSON.")]
+        public static partial void ReadKeyLogAsJson(this ILogger logger, string keyLogFilePath);
+
+        [LoggerMessage(EventId = CoreDiagnosticsEventIds.ReplayCaptureSource + 1, Level = LogLevel.Trace,
+            Message = "Unable to read keylog {KeyLogFilePath} as JSON; trying text.")]
+        public static partial void ReadKeyLogAsJsonFailed(
+            this ILogger logger,
+            Exception exception,
+            string keyLogFilePath);
+    }
+
 }

@@ -35,6 +35,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
+using Quickstarts.ConsoleReferenceClient;
 
 namespace Quickstarts
 {
@@ -374,7 +375,7 @@ namespace Quickstarts
             catch (Exception ex)
             {
                 // Log Error
-                m_logger.LogError(ex, "Disconnect Error");
+                m_logger.DisconnectError(ex);
             }
         }
 
@@ -396,9 +397,7 @@ namespace Quickstarts
                 {
                     if (ReconnectPeriod <= 0)
                     {
-                        m_logger.LogWarning(
-                            "KeepAlive status {StatusCode}, but reconnect is disabled.",
-                            e.Status);
+                        m_logger.KeepAliveReconnectDisabled(e.Status);
                         return;
                     }
 
@@ -411,17 +410,14 @@ namespace Quickstarts
                             );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
-                        m_logger.LogInformation(
-                            "KeepAlive status {StatusCode}, reconnect status {State}, reconnect period {ReconnectPeriod}ms.",
+                        m_logger.KeepAliveReconnectStatusWithPeriod(
                             e.Status,
                             state,
-                            ReconnectPeriod
-                        );
+                            ReconnectPeriod);
                     }
                     else
                     {
-                        m_logger.LogInformation(
-                            "KeepAlive status {StatusCode}, reconnect status {State}.",
+                        m_logger.KeepAliveReconnectStatus(
                             e.Status,
                             state);
                     }
@@ -432,7 +428,7 @@ namespace Quickstarts
             }
             catch (Exception exception)
             {
-                m_logger.LogError(exception, "Error in OnKeepAlive.");
+                m_logger.ErrorInOnKeepAlive(exception);
             }
         }
 
@@ -456,24 +452,19 @@ namespace Quickstarts
                     // after reactivate, the same session instance may be returned
                     if (!ReferenceEquals(Session, m_reconnectHandler.Session))
                     {
-                        m_logger.LogInformation(
-                            "--- RECONNECTED TO NEW SESSION --- {SessionId}",
-                            m_reconnectHandler.Session.SessionId
-                        );
+                        m_logger.ReconnectedToNewSession(m_reconnectHandler.Session.SessionId);
                         ISession session = Session;
                         Session = m_reconnectHandler.Session;
                         session?.Dispose();
                     }
                     else
                     {
-                        m_logger.LogInformation(
-                            "--- REACTIVATED SESSION --- {SessionId}",
-                            m_reconnectHandler.Session.SessionId);
+                        m_logger.ReactivatedSession(m_reconnectHandler.Session.SessionId);
                     }
                 }
                 else
                 {
-                    m_logger.LogInformation("--- RECONNECT KeepAlive recovered ---");
+                    m_logger.ReconnectKeepAliveRecovered();
                 }
             }
         }
@@ -491,22 +482,18 @@ namespace Quickstarts
             // Implement a custom logic to decide if the certificate should be
             // accepted or not. Return true to accept, false to reject.
             // ***
-            m_logger.LogInformation("{Error}", error);
+            m_logger.CertificateError(error);
 
             bool certificateAccepted =
                 error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept;
 
             if (certificateAccepted)
             {
-                m_logger.LogInformation(
-                    "Untrusted Certificate accepted. Subject = {Subject}",
-                    certificate.Subject);
+                m_logger.UntrustedCertificateAccepted(certificate.Subject);
             }
             else
             {
-                m_logger.LogInformation(
-                    "Untrusted Certificate rejected. Subject = {Subject}",
-                    certificate.Subject);
+                m_logger.UntrustedCertificateRejected(certificate.Subject);
             }
 
             return certificateAccepted;
@@ -520,4 +507,65 @@ namespace Quickstarts
         private readonly ITelemetryContext m_telemetry;
         private bool m_disposed;
     }
+
+    internal static partial class ClientCertificateLog
+    {
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientCertificate + 0, Level = LogLevel.Information,
+            Message = "Untrusted Certificate accepted. Subject = {Subject}")]
+        public static partial void UntrustedCertificateAccepted(this ILogger logger, string subject);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientCertificate + 1, Level = LogLevel.Information,
+            Message = "Untrusted Certificate rejected. Subject = {Subject}")]
+        public static partial void UntrustedCertificateRejected(this ILogger logger, string subject);
+    }
+
+    internal static partial class ClientReconnectLog
+    {
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientReconnect + 0, Level = LogLevel.Information,
+            Message = "KeepAlive status {StatusCode}, reconnect status {State}, reconnect period {ReconnectPeriod}ms.")]
+        public static partial void KeepAliveReconnectStatusWithPeriod(
+            this ILogger logger,
+            ServiceResult? statusCode,
+            SessionReconnectHandler.ReconnectState state,
+            int reconnectPeriod);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientReconnect + 1, Level = LogLevel.Information,
+            Message = "KeepAlive status {StatusCode}, reconnect status {State}.")]
+        public static partial void KeepAliveReconnectStatus(
+            this ILogger logger,
+            ServiceResult? statusCode,
+            SessionReconnectHandler.ReconnectState state);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientReconnect + 2, Level = LogLevel.Error,
+            Message = "Error in OnKeepAlive.")]
+        public static partial void ErrorInOnKeepAlive(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientReconnect + 3, Level = LogLevel.Information,
+            Message = "--- RECONNECTED TO NEW SESSION --- {SessionId}")]
+        public static partial void ReconnectedToNewSession(this ILogger logger, NodeId sessionId);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientReconnect + 4, Level = LogLevel.Information,
+            Message = "--- REACTIVATED SESSION --- {SessionId}")]
+        public static partial void ReactivatedSession(this ILogger logger, NodeId sessionId);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.ClientReconnect + 5, Level = LogLevel.Information,
+            Message = "--- RECONNECT KeepAlive recovered ---")]
+        public static partial void ReconnectKeepAliveRecovered(this ILogger logger);
+    }
+
+    internal static partial class UAClientLog
+    {
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.UAClient + 0, Level = LogLevel.Error,
+            Message = "Disconnect Error")]
+        public static partial void DisconnectError(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.UAClient + 1, Level = LogLevel.Warning,
+            Message = "KeepAlive status {StatusCode}, but reconnect is disabled.")]
+        public static partial void KeepAliveReconnectDisabled(this ILogger logger, ServiceResult? statusCode);
+
+        [LoggerMessage(EventId = ConsoleReferenceClientEventIds.UAClient + 2, Level = LogLevel.Information,
+            Message = "{Error}")]
+        public static partial void CertificateError(this ILogger logger, ServiceResult error);
+    }
+
 }

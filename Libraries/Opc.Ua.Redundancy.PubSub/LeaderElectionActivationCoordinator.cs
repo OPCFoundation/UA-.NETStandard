@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub.Redundancy
             PubSubComponentRole role = isLeader
                 ? PubSubComponentRole.Active
                 : PubSubComponentRole.Standby;
-            m_logger.LogDebug("PubSub leader election leadership changed: {IsLeader}.", isLeader);
+            m_logger.PubSubLeaderElectionLeadershipChanged(isLeader);
 
             foreach (string componentId in componentIds)
             {
@@ -154,4 +154,16 @@ namespace Opc.Ua.PubSub.Redundancy
         private readonly HashSet<string> m_componentIds = new(StringComparer.Ordinal);
         private bool m_started;
     }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="LeaderElectionActivationCoordinator"/>.
+    /// </summary>
+    internal static partial class LeaderElectionActivationCoordinatorLog
+    {
+        [LoggerMessage(EventId = RedundancyPubSubEventIds.LeaderElectionActivationCoordinator + 0,
+            Level = LogLevel.Debug,
+            Message = "PubSub leader election leadership changed: {IsLeader}.")]
+        public static partial void PubSubLeaderElectionLeadershipChanged(this ILogger logger, bool isLeader);
+    }
+
 }

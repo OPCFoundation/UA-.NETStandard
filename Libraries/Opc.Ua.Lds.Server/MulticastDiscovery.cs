@@ -171,7 +171,7 @@ namespace Opc.Ua.Lds.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Multicast initial query failed.");
+                m_logger.MulticastInitialQueryFailed(ex);
             }
 
             return Task.CompletedTask;
@@ -198,7 +198,7 @@ namespace Opc.Ua.Lds.Server
                     }
                     catch (Exception ex)
                     {
-                        m_logger.LogDebug(ex, "Multicast unadvertise failed.");
+                        m_logger.MulticastUnadvertiseFailed(ex);
                     }
                 }
                 m_profiles.Clear();
@@ -231,7 +231,7 @@ namespace Opc.Ua.Lds.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Multicast dispose failed.");
+                m_logger.MulticastDisposeFailed(ex);
             }
         }
 
@@ -317,7 +317,7 @@ namespace Opc.Ua.Lds.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to process mDNS service instance.");
+                m_logger.FailedToProcessMdnsServiceInstance(ex);
             }
         }
 
@@ -370,7 +370,7 @@ namespace Opc.Ua.Lds.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogDebug(ex, "Failed to build mDNS profile for {Url}.", discoveryUrl);
+                m_logger.FailedToBuildMdnsProfile(ex, discoveryUrl);
                 return null;
             }
         }
@@ -419,5 +419,28 @@ namespace Opc.Ua.Lds.Server
                 .Replace('?', '-');
             return sanitized.Length > 63 ? sanitized[..63] : sanitized;
         }
+    }
+
+    internal static partial class MulticastDiscoveryLog
+    {
+        [LoggerMessage(EventId = LdsServerEventIds.MulticastDiscovery + 0, Level = LogLevel.Debug,
+            Message = "Multicast initial query failed.")]
+        public static partial void MulticastInitialQueryFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = LdsServerEventIds.MulticastDiscovery + 1, Level = LogLevel.Debug,
+            Message = "Multicast unadvertise failed.")]
+        public static partial void MulticastUnadvertiseFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = LdsServerEventIds.MulticastDiscovery + 2, Level = LogLevel.Debug,
+            Message = "Multicast dispose failed.")]
+        public static partial void MulticastDisposeFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = LdsServerEventIds.MulticastDiscovery + 3, Level = LogLevel.Debug,
+            Message = "Failed to process mDNS service instance.")]
+        public static partial void FailedToProcessMdnsServiceInstance(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = LdsServerEventIds.MulticastDiscovery + 4, Level = LogLevel.Debug,
+            Message = "Failed to build mDNS profile for {Url}.")]
+        public static partial void FailedToBuildMdnsProfile(this ILogger logger, Exception ex, string url);
     }
 }

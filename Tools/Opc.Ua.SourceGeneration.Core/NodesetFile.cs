@@ -219,7 +219,10 @@ namespace Opc.Ua.SourceGeneration
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogCritical(ex, "Could not parse NodeSet ({File}).", file);
+                    if (m_logger.IsEnabled(LogLevel.Critical))
+                    {
+                        m_logger.LogCritical(ex, "Could not parse NodeSet ({File}).", file);
+                    }
                 }
             }
         }
@@ -280,11 +283,14 @@ namespace Opc.Ua.SourceGeneration
                         // Dependency is supplied by a referenced assembly's
                         // generated code; not present in AdditionalFiles is
                         // expected. Skip without erroring.
-                        m_logger.LogInformation(
-                            "NodeSet ({ModelUri}) dependency ({Namespace}) " +
-                            "satisfied by referenced assembly.",
-                            target.Info.ModelUri,
-                            ns);
+                        if (m_logger.IsEnabled(LogLevel.Information))
+                        {
+                            m_logger.LogInformation(
+                                "NodeSet ({ModelUri}) dependency ({Namespace}) " +
+                                "satisfied by referenced assembly.",
+                                target.Info.ModelUri,
+                                ns);
+                        }
                         continue;
                     }
 

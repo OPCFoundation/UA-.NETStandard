@@ -604,8 +604,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    OwnerManager.Logger?.LogDebug(
-                        ex, "ClientChannelManager: underlying CloseAsync failed.");
+                    OwnerManager.Logger?.ChannelEntryLog0(ex);
                 }
                 try
                 {
@@ -613,8 +612,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    OwnerManager.Logger?.LogDebug(
-                        ex, "ClientChannelManager: CloseChannel failed.");
+                    OwnerManager.Logger?.ChannelEntryLog1(ex);
                 }
                 OwnerManager.OnEntryClosed(this, reason);
             }
@@ -757,10 +755,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         ServiceResult error = new(ex);
-                        OwnerManager.Logger?.LogWarning(
-                            ex,
-                            "ClientChannelManager: transport reconnect attempt {Attempt} failed.",
-                            attempt);
+                        OwnerManager.Logger?.ChannelEntryLog2(ex, attempt);
                         OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         attempt++;
                         continue;
@@ -784,10 +779,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         ServiceResult error = new(ex);
-                        OwnerManager.Logger?.LogWarning(
-                            ex,
-                            "ClientChannelManager: participant notification attempt {Attempt} failed.",
-                            attempt);
+                        OwnerManager.Logger?.ChannelEntryLog3(ex, attempt);
                         OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         attempt++;
                         continue;
@@ -895,9 +887,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    OwnerManager.Logger?.LogDebug(
-                        ex,
-                        "ClientChannelManager: channel.ReconnectAsync failed; recreating.");
+                    OwnerManager.Logger?.ChannelEntryLog4(ex);
                 }
             }
 
@@ -1043,20 +1033,19 @@ namespace Opc.Ua
                     }
                     catch (TimeoutException)
                     {
-                        OwnerManager.Logger?.LogWarning(
-                            "ClientChannelManager: participant {Participant} OnReconnect timed out after {Timeout}; " +
-                            "treating as TransientFailure.",
-                            lease.Participant.Id,
-                            participantTimeout);
+                        OwnerManager.Logger
+                            ?.ChannelEntryLog5(
+                                lease.Participant.Id,
+                                participantTimeout);
                         OwnerManager.RecordParticipantTimeout(this, lease.Participant.Id);
                         return ParticipantReconnectResult.TransientFailure;
                     }
                     catch (Exception ex)
                     {
-                        OwnerManager.Logger?.LogWarning(
-                            ex,
-                            "ClientChannelManager: participant {Participant} OnReconnect failed.",
-                            lease.Participant.Id);
+                        OwnerManager.Logger
+                            ?.ChannelEntryLog6(
+                                ex,
+                                lease.Participant.Id);
                         return ParticipantReconnectResult.TransientFailure;
                     }
                 }, ct))];
@@ -1124,10 +1113,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    OwnerManager.Logger?.LogWarning(
-                        ex,
-                        "ClientChannelManager: participant {Participant} RecreateAsync failed.",
-                        participant.Id);
+                    OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
                     OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
                 }
             });
@@ -1311,4 +1297,60 @@ namespace Opc.Ua
         private TaskCompletionSource<bool>? m_reconnectCoalescer;
         private IRetryBudget? m_effectiveBudget;
     }
+
+    /// <summary>
+    /// Source-generated log messages for ChannelEntry.
+    /// </summary>
+    internal static partial class ChannelEntryLog
+    {
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 0, Level = LogLevel.Debug,
+            Message = "ClientChannelManager: underlying CloseAsync failed.")]
+        public static partial void ChannelEntryLog0(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 1, Level = LogLevel.Debug,
+            Message = "ClientChannelManager: CloseChannel failed.")]
+        public static partial void ChannelEntryLog1(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 2, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: transport reconnect attempt {Attempt} failed.")]
+        public static partial void ChannelEntryLog2(
+            this ILogger logger,
+            global::System.Exception? exception,
+            int attempt);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 3, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: participant notification attempt {Attempt} failed.")]
+        public static partial void ChannelEntryLog3(
+            this ILogger logger,
+            global::System.Exception? exception,
+            int attempt);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 4, Level = LogLevel.Debug,
+            Message = "ClientChannelManager: channel.ReconnectAsync failed; recreating.")]
+        public static partial void ChannelEntryLog4(this ILogger logger, global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 5, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: participant {Participant} OnReconnect timed out after " +
+                "{Timeout}; treating as TransientFailure.")]
+        public static partial void ChannelEntryLog5(
+            this ILogger logger,
+            string participant,
+            global::System.TimeSpan timeout);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 6, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: participant {Participant} OnReconnect failed.")]
+        public static partial void ChannelEntryLog6(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string participant);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 7, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: participant {Participant} RecreateAsync failed.")]
+        public static partial void ChannelEntryLog7(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string participant);
+    }
+
 }

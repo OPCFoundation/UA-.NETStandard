@@ -262,6 +262,15 @@ namespace Opc.Ua.Bindings
                 SendBufferSize = TcpMessageLimits.MaxBufferSize;
             }
 
+            ReceiveBufferSize = Math.Max(
+                TcpMessageLimits.MinBufferSize,
+                bufferManager.GetSuggestedBufferSize(
+                    Math.Min(ReceiveBufferSize, bufferManager.MaxSuggestedBufferSize)));
+            SendBufferSize = Math.Max(
+                TcpMessageLimits.MinBufferSize,
+                bufferManager.GetSuggestedBufferSize(
+                    Math.Min(SendBufferSize, bufferManager.MaxSuggestedBufferSize)));
+
             MaxRequestMessageSize = quotas.MaxMessageSize;
             MaxResponseMessageSize = quotas.MaxMessageSize;
 
@@ -468,12 +477,14 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            m_logger.LogError(
-                "ChannelId {ChannelId}: {Context} - Duplicate sequence number: {SequenceNumber} <= {RemoteSequenceNumber}",
-                ChannelId,
-                context,
-                sequenceNumber,
-                m_remoteSequenceNumber);
+            if (m_logger.IsEnabled(LogLevel.Error))
+            {
+                m_logger.UaSCChannelLog3(
+                    ChannelId,
+                    context,
+                    sequenceNumber,
+                    m_remoteSequenceNumber);
+            }
             return false;
         }
 
@@ -501,9 +512,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_partialMessageChunks.Count > 0)
                 {
-                    m_logger.LogWarning(
-                        "WARNING - Discarding unprocessed message chunks for Request #{PartialRequestId}",
-                        m_partialRequestId);
+                    m_logger.UaSCChannelLog4(m_partialRequestId);
                 }
 
                 m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
@@ -551,9 +560,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void DoMessageLimitsExceeded()
         {
-            m_logger.LogError(
-                "ChannelId {ChannelId}: - Message limits exceeded while building up message. Channel will be closed.",
-                ChannelId);
+            m_logger.UaSCChannelLog5(ChannelId);
         }
 
         /// <inheritdoc/>
@@ -563,10 +570,23 @@ namespace Opc.Ua.Bindings
         /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
         /// transport's receive loop into the channel pipeline.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnChunkReceived(ArraySegment<byte> message)
         {
             try
             {
+                if (message.Count > ReceiveBufferSize)
+                {
+                    var result = ServiceResult.Create(
+                        StatusCodes.BadTcpMessageTooLarge,
+                        "Message size {0} bytes exceeds the negotiated receive buffer size of {1} bytes.",
+                        message.Count,
+                        ReceiveBufferSize);
+                    BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
+                    OnTransportError(result);
+                    return;
+                }
+
                 uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
 
                 if (!HandleIncomingMessage(messageType, message))
@@ -1091,7 +1111,7 @@ namespace Opc.Ua.Bindings
             {
                 if (Interlocked.Exchange(ref m_state, (int)value) != (int)value)
                 {
-                    m_logger.LogDebug("ChannelId {ChannelId}: in {State} state.", ChannelId, value);
+                    m_logger.UaSCChannelLog6(ChannelId, value);
                 }
             }
         }
@@ -1276,4 +1296,106 @@ namespace Opc.Ua.Bindings
         UaSCUaBinaryChannel channel,
         TcpChannelState state,
         ServiceResult error);
+
+    /// <summary>
+    /// Source-generated log messages for UaSCBinaryChannel.
+    /// </summary>
+    internal static partial class UaSCBinaryChannelLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 0, Level = LogLevel.Warning,
+            Message = "Could not verify signature on message.")]
+        public static partial void UaSCChannelLog0(this ILogger logger);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 1, Level = LogLevel.Information,
+            Message = "Security Policy: {SecurityPolicyUri}")]
+        public static partial void UaSCChannelLog1(this ILogger logger, string securityPolicyUri);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 2, Level = LogLevel.Information,
+            Message = "Sender Certificate {Certificate}")]
+        public static partial void UaSCChannelLog2(
+            this ILogger logger,
+            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 3, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: {Context} - Duplicate sequence number: {SequenceNumber} " +
+                "<= {RemoteSequenceNumber}")]
+        public static partial void UaSCChannelLog3(
+            this ILogger logger,
+            uint channelId,
+            string context,
+            uint sequenceNumber,
+            uint remoteSequenceNumber);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 4, Level = LogLevel.Warning,
+            Message = "WARNING - Discarding unprocessed message chunks for Request #{PartialRequestId}")]
+        public static partial void UaSCChannelLog4(this ILogger logger, uint partialRequestId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 5, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: - Message limits exceeded while building up message. " +
+                "Channel will be closed.")]
+        public static partial void UaSCChannelLog5(this ILogger logger, uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 6, Level = LogLevel.Debug,
+            Message = "ChannelId {ChannelId}: in {State} state.")]
+        public static partial void UaSCChannelLog6(
+            this ILogger logger,
+            uint channelId,
+            global::Opc.Ua.Bindings.TcpChannelState state);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 7, Level = LogLevel.Warning,
+            Message = "Message is not an integral multiple of the block size. Length = {Length}, " +
+                "BlockSize = {BlockSize}.")]
+        public static partial void UaSCChannelLog7(
+            this ILogger logger,
+            int length,
+            int blockSize);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 8, Level = LogLevel.Warning,
+            Message = "Message is not an integral multiple of the block size. Length = {Length}, " +
+                "BlockSize = {BlockSize}.")]
+        public static partial void UaSCChannelLog8(
+            this ILogger logger,
+            int length,
+            int blockSize);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 9, Level = LogLevel.Information,
+            Message = "ChannelId {ChannelId}: New Token created. " +
+                "CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.")]
+        public static partial void UaSCChannelLog9(
+            this ILogger logger,
+            uint channelId,
+            global::System.DateTime createdAt,
+            long createdAtTimestamp,
+            int lifetime);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 10, Level = LogLevel.Information,
+            Message = "ChannelId {Id}: Token #{TokenId} activated. " +
+                "CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.")]
+        public static partial void UaSCChannelLog10(
+            this ILogger logger,
+            uint id,
+            uint tokenId,
+            global::System.DateTime createdAt,
+            long createdAtTimestamp,
+            int lifetime);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 11, Level = LogLevel.Information,
+            Message = "ChannelId {Id}: Renewed Token #{TokenId} set. " +
+                "CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.")]
+        public static partial void UaSCChannelLog11(
+            this ILogger logger,
+            uint id,
+            uint tokenId,
+            global::System.DateTime createdAt,
+            long createdAtTimestamp,
+            int lifetime);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 12, Level = LogLevel.Information,
+            Message = "ChannelId {Id}: Token #{TokenId} activated forced.")]
+        public static partial void UaSCChannelLog12(
+            this ILogger logger,
+            uint id,
+            uint tokenId);
+    }
+
 }

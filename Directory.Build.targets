@@ -60,4 +60,21 @@
   <Target Name="_LogSkippedForLegacyTfm" BeforeTargets="Build" Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (.NET 8+ only)." />
   </Target>
+  <!--
+    On netstandard target frameworks two [LoggerMessage] source generators can be active at once:
+    the in-box generator shipped in Microsoft.Extensions.Logging(.Abstractions) and the R9
+    Microsoft.Gen.Logging generator that flows in transitively from R9 packages such as
+    Microsoft.Extensions.Http.Resilience / .Compliance / .Telemetry. Both emit an implementation
+    for every partial [LoggerMessage] method, producing CS0757 ("a partial method may not have
+    multiple implementing declarations"). On .NET Framework and net8.0+ only the R9 generator runs,
+    so removing the R9 analyzer on netstandard leaves exactly one generator on every TFM. The
+    Analyzer Remove is a no-op for projects that don't reference Microsoft.Gen.Logging.
+  -->
+  <Target Name="RemoveDuplicateLoggingGenerator" BeforeTargets="CoreCompile"
+          Condition="'$(TargetFrameworkIdentifier)' == '.NETStandard'">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)"
+                Condition="$([System.String]::Copy('%(Analyzer.Identity)').Contains('Microsoft.Gen.Logging'))" />
+    </ItemGroup>
+  </Target>
 </Project>

@@ -127,9 +127,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
-                        m_logger.LogError(
-                            "Certificate type {CertificateType} specified for Certificate Group is not supported on this platform",
-                            certificateType);
+                        m_logger.CertificateTypeNotSupported(certificateType);
                         continue;
                     }
 
@@ -150,7 +148,7 @@ namespace Opc.Ua.Gds.Server
 
         public virtual async Task InitAsync(CancellationToken ct = default)
         {
-            m_logger.LogInformation("InitializeCertificateGroup: {SubjectName}", SubjectName);
+            m_logger.InitializeCertificateGroup(SubjectName);
 
             ICertificateStore store = AuthoritiesStore.OpenStore(m_telemetry);
             try
@@ -201,9 +199,7 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificate == null)
                 {
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Create new CA Certificate: {SubjectName}, CertificateType {CertificateType}  KeySize: {KeySize}, HashSize: {HashSize}, LifeTime: {LifeTime} months",
+                    m_logger.CreateNewCaCertificate(
                         SubjectName,
                         certificateType,
                         Configuration.CACertificateKeySize,
@@ -212,10 +208,7 @@ namespace Opc.Ua.Gds.Server
                     using Certificate createdCertificate =
                         await CreateCACertificateAsync(SubjectName, certificateType, ct).ConfigureAwait(
                             false);
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Created CA certificate {Certificate}",
-                        Certificates[certificateType]);
+                    m_logger.CreatedCaCertificate(Certificates[certificateType]);
                 }
             }
         }
@@ -672,9 +665,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (certCACrl.Count > 1)
                     {
-                        telemetry?.CreateLogger<CertificateGroup>().LogWarning(
-                            "Multiple CRLs found for CA certificate {CertificateSubject}. The most recent one will be used.",
-                            caCertificate.Subject);
+                        telemetry?.CreateLogger<CertificateGroup>().MultipleCrlsFound(caCertificate.Subject);
                     }
                     result = certCACrl.OrderByDescending(crl => crl.ThisUpdate).FirstOrDefault();
                 }
@@ -930,5 +921,37 @@ namespace Opc.Ua.Gds.Server
 
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+    }
+
+    internal static partial class CertificateGroupLog
+    {
+        [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 0, Level = LogLevel.Error,
+            Message = "Certificate type {CertificateType} specified for Certificate Group is not supported " +
+                "on this platform")]
+        public static partial void CertificateTypeNotSupported(this ILogger logger, NodeId certificateType);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 1, Level = LogLevel.Information,
+            Message = "InitializeCertificateGroup: {SubjectName}")]
+        public static partial void InitializeCertificateGroup(this ILogger logger, string? subjectName);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 2, Level = LogLevel.Information,
+            Message = "Create new CA Certificate: {SubjectName}, CertificateType {CertificateType}  " +
+                "KeySize: {KeySize}, " +
+                "HashSize: {HashSize}, LifeTime: {LifeTime} months")]
+        public static partial void CreateNewCaCertificate(
+            this ILogger logger,
+            string? subjectName,
+            NodeId certificateType,
+            ushort keySize,
+            ushort hashSize,
+            ushort lifeTime);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 3, Level = LogLevel.Information,
+            Message = "Created CA certificate {Certificate}")]
+        public static partial void CreatedCaCertificate(this ILogger logger, Certificate? certificate);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 4, Level = LogLevel.Warning,
+            Message = "Multiple CRLs found for CA certificate {CertificateSubject}. The most recent one will be used.")]
+        public static partial void MultipleCrlsFound(this ILogger logger, string certificateSubject);
     }
 }

@@ -235,6 +235,66 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ConnectAsyncNormalizesAcknowledgeBufferSizesForReconnectAsync()
+        {
+            const int configuredBufferSize = 128 * 1024;
+            var timeProvider = new FakeTimeProvider();
+            var transport = new RecordingByteTransport();
+            var factory = new RecordingByteTransportFactory(transport);
+            var quotas = new ChannelQuotas(m_context)
+            {
+                MaxBufferSize = configuredBufferSize
+            };
+            var buffers = new BufferManager(
+                nameof(ConnectAsyncNormalizesAcknowledgeBufferSizesForReconnectAsync),
+                configuredBufferSize,
+                m_telemetry);
+            using var channel = new TestClientChannel(
+                buffers,
+                factory,
+                quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                timeProvider);
+            var url = new Uri("opc.tcp://localhost:4840");
+
+            Task connectTask = channel
+                .ConnectAsync(url, 60000, CancellationToken.None)
+                .AsTask();
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never sent the Hello message");
+            Assert.That(
+                factory.LastReceiveBufferSize,
+                Is.EqualTo(configuredBufferSize - kCookieLength));
+
+            channel.FeedIncomingMessage(
+                TcpMessageType.Acknowledge,
+                new ArraySegment<byte>(BuildAcknowledge(64 * 1024, 64 * 1024)));
+
+            Assert.That(
+                channel.TestSendBufferSize,
+                Is.EqualTo((64 * 1024) - kCookieLength));
+            Assert.That(
+                channel.TestReceiveBufferSize,
+                Is.EqualTo(64 * 1024));
+            Assert.That(
+                channel.TestTransportReceiveBufferSize,
+                Is.EqualTo((64 * 1024) - kCookieLength));
+
+            channel.FeedIncomingMessage(
+                TcpMessageType.Error,
+                new ArraySegment<byte>(BuildErrorChunk((uint)StatusCodes.BadServerHalted)));
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await connectTask.ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
+        }
+
+        [Test]
         public Task ConnectAsyncMapsCertificateUntrustedErrorAsync()
         {
             return AssertConnectErrorMapsAsync((uint)StatusCodes.BadCertificateUntrusted);
@@ -511,6 +571,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 set => State = value;
             }
 
+            public int TestReceiveBufferSize => ReceiveBufferSize;
+
+            public int TestSendBufferSize => SendBufferSize;
+
+            public int TestTransportReceiveBufferSize => TransportReceiveBufferSize;
+
             public void SetupReverseTransport(IUaSCByteTransport transport)
             {
                 ReverseSocket = true;
@@ -565,9 +631,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public string Implementation => "UA-FAKE";
 
+            public int LastReceiveBufferSize { get; private set; }
+
             public IUaSCByteTransport Create(
                 BufferManager bufferManager, int receiveBufferSize, ITelemetryContext telemetry)
             {
+                LastReceiveBufferSize = receiveBufferSize;
                 return m_transport;
             }
         }
@@ -665,5 +734,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 m_firstSend.TrySetResult(true);
             }
         }
+
+#if DEBUG
+        private const int kCookieLength = 1;
+#else
+        private const int kCookieLength = 0;
+#endif
     }
 }
