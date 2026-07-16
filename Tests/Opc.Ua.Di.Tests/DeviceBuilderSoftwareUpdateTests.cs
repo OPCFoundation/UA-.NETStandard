@@ -85,6 +85,13 @@ namespace Opc.Ua.Di.Tests
                 "SoftwareUpdate child must be attached to the device.");
             Assert.That(su, Is.TypeOf<SoftwareUpdateState>(),
                 "SoftwareUpdate child must be a SoftwareUpdateState instance.");
+
+            // OPC 10000-100 models the SoftwareUpdate object as an AddIn,
+            // so it must be referenced from its host via HasAddIn rather
+            // than a plain HasComponent.
+            Assert.That(((BaseInstanceState)su!).ReferenceTypeId,
+                Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.HasAddIn),
+                "SoftwareUpdate must be attached via the HasAddIn reference.");
         }
 
         [Test]
