@@ -40,14 +40,14 @@ int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
 
 builder.Services
     .AddOpcUa()
-    .AddServer(o =>
+    .ConfigureApplication(o =>
     {
         o.ApplicationName = "MinimalCalcServer";
         o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalCalcServer";
         o.ProductUri = "uri:opcfoundation.org:MinimalCalcServer";
         o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalCalcServer");
     })
+    .AddServer(o => o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalCalcServer"))
     .AddNodeManager<Calc.CalcNodeManagerFactory>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

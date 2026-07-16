@@ -65,10 +65,13 @@ The single-instance defaults stay in effect until you supply a shared backend. T
 ```csharp
 builder.Services
     .AddOpcUa()
+    .ConfigureApplication(options =>
+    {
+        options.ApplicationName = "RedundantServer";
+        options.ApplicationUri = applicationUri;   // unique per replica
+    })
     .AddServer(o =>
     {
-        o.ApplicationName = "RedundantServer";
-        o.ApplicationUri = applicationUri;   // unique per replica
         o.EndpointUrls.Add(endpointUrl);
     })
     .AddNodeManager<HaSampleNodeManagerFactory>()

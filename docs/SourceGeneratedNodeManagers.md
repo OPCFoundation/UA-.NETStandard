@@ -488,10 +488,10 @@ reflection).
 
 ## Single-file `Program.cs` — what it looks like
 
-The shipping `services.AddOpcUa().AddServer(...)` extension wires the
-server into the .NET Generic Host: configuration, certificate check,
-`ApplicationInstance` lifetime and Ctrl+C/SIGTERM handling are all owned
-by the host. User code stays at ~12 lines.
+The shipping `services.AddOpcUa().ConfigureApplication(...).AddServer(...)`
+extension wires the server into the .NET Generic Host: configuration,
+certificate check, `ApplicationInstance` lifetime and Ctrl+C/SIGTERM
+handling are all owned by the host. User code stays at ~12 lines.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -503,14 +503,14 @@ builder.Logging.AddConsole();
 
 builder.Services
     .AddOpcUa()
-    .AddServer(o =>
+    .ConfigureApplication(o =>
     {
         o.ApplicationName = "MyServer";
         o.ApplicationUri  = "urn:localhost:MyServer";
         o.ProductUri      = "uri:opcfoundation.org:MyServer";
         o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer");
     })
+    .AddServer(o => o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer"))
     .AddNodeManager<MyModel.MyModelNodeManagerFactory>();
 
 await builder.Build().RunAsync();
