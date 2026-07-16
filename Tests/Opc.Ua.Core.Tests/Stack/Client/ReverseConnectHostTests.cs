@@ -228,5 +228,33 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             listener.Verify(l => l.DisposeAsync(), Times.Once);
             Assert.That(async () => await host.CloseAsync().ConfigureAwait(false), Throws.Nothing);
         }
+
+        [Test]
+        public async Task CanceledCloseKeepsListenerRetryableAsync()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(cts.Token))
+                .Returns(new ValueTask(Task.FromCanceled(cts.Token)));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            Assert.That(
+                async () => await host.CloseAsync(cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            listener.Verify(l => l.DisposeAsync(), Times.Never);
+
+            listener
+                .Setup(l => l.CloseAsync(default))
+                .Returns(default(ValueTask));
+            await host.CloseAsync().ConfigureAwait(false);
+            listener.Verify(l => l.CloseAsync(default), Times.Once);
+        }
     }
 }

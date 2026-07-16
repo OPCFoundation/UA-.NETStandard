@@ -34,6 +34,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Server.TestFramework;
@@ -337,6 +338,50 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(exception.Message, Does.Contain(firstUrl.ToString()));
             Assert.That(exception.Message, Does.Contain(secondUrl.ToString()));
             Assert.That(exception.InnerException, Is.TypeOf<AggregateException>());
+        }
+
+        [Test]
+        public void StartServiceClientConfigCreationFailureClosesStagedListeners()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            var factory = new Mock<ITransportListenerFactory>();
+            factory.SetupGet(f => f.UriScheme).Returns("opc.first");
+            factory
+                .Setup(f => f.Create(telemetry))
+                .Returns(listener.Object);
+            var registry = new DefaultTransportBindingRegistry();
+            registry.RegisterListenerFactory(factory.Object);
+            using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = registry
+            };
+            var configuration = new ReverseConnectClientConfiguration
+            {
+                ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
+                new ReverseConnectClientEndpoint[]
+                {
+                    new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = "opc.first://localhost:4840"
+                    },
+                    new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = "opc.missing://localhost:4840"
+                    }
+                })
+            };
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.StartService(configuration))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadProtocolVersionUnsupported));
+            listener.Verify(
+                l => l.CloseAsync(It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Test]

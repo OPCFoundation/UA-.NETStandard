@@ -343,6 +343,8 @@ namespace Opc.Ua.Client
         protected virtual void OnUpdateConfiguration(
             ReverseConnectClientConfiguration configuration)
         {
+            var configuredEndpointUrls = new List<Uri>();
+            var uniqueEndpointUrls = new HashSet<Uri>();
             var configuredEndpoints = new Dictionary<Uri, ReverseConnectInfo>();
             ReverseConnectClientConfiguration nextConfiguration =
                 configuration ?? new ReverseConnectClientConfiguration();
@@ -359,8 +361,30 @@ namespace Opc.Ua.Client
                             "Invalid reverse connect listener endpoint URL: {0}.",
                             endpointUrl ?? "<null>");
                     }
-                    configuredEndpoints[uri] = CreateEndpointInfo(uri, true);
+                    ValidateEndpointUrl(uri);
+                    if (uniqueEndpointUrls.Add(uri))
+                    {
+                        configuredEndpointUrls.Add(uri);
+                    }
                 }
+            }
+
+            try
+            {
+                foreach (Uri endpointUrl in configuredEndpointUrls)
+                {
+                    configuredEndpoints[endpointUrl] = CreateEndpointInfo(endpointUrl, true);
+                }
+            }
+            catch
+            {
+                List<ReverseConnectInfo> snapshot = [.. configuredEndpoints.Values];
+                foreach (ReverseConnectInfo endpoint in snapshot)
+                {
+                    endpoint.State = ReverseConnectHostState.Errored;
+                }
+                CloseHostsAsync(snapshot, CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                throw;
             }
 
             bool restartService = false;
@@ -473,7 +497,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Close the provided host ports without acquiring the manager lock.
+        /// Close the provided reverse-connect hosts without acquiring the manager lock.
         /// </summary>
         private async ValueTask CloseHostsAsync(
             List<ReverseConnectInfo> snapshot,
@@ -914,13 +938,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private ReverseConnectInfo CreateEndpointInfo(Uri endpointUrl, bool configEntry)
         {
-            if (!endpointUrl.IsAbsoluteUri || string.IsNullOrWhiteSpace(endpointUrl.Host))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTcpEndpointUrlInvalid,
-                    "Invalid reverse connect listener endpoint URL: {0}.",
-                    endpointUrl);
-            }
+            ValidateEndpointUrl(endpointUrl);
 
             var reverseConnectHost = new ReverseConnectHost(m_telemetry, TransportBindings);
             var info = new ReverseConnectInfo(endpointUrl, reverseConnectHost, configEntry);
@@ -962,6 +980,20 @@ namespace Opc.Ua.Client
                     endpointUrl);
             }
             return info;
+        }
+
+        /// <summary>
+        /// Validate a reverse-connect listener endpoint URL.
+        /// </summary>
+        private static void ValidateEndpointUrl(Uri endpointUrl)
+        {
+            if (!endpointUrl.IsAbsoluteUri || string.IsNullOrWhiteSpace(endpointUrl.Host))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpEndpointUrlInvalid,
+                    "Invalid reverse connect listener endpoint URL: {0}.",
+                    endpointUrl);
+            }
         }
 
         /// <summary>
